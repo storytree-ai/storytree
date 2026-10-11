@@ -68,6 +68,7 @@ export const TOOLS = [
   "show_plan",
   "stale_claims",
   "stop_own_run",
+  "take_starter_pack",
   "wire_pipeline",
   "write_note",
 ];

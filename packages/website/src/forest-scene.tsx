@@ -17,7 +17,7 @@ import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
 import { globeOf, labelsAt, labelWords, lineStarts, placeTags, replayMoment, stepAt, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
 import { createCameraPlayer } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
-import { growthReading, savedReading } from "./tour-reading.js";
+import { growthReading, recordedView, savedReading } from "./tour-reading.js";
 
 const snapshot = saved as unknown as TourSnapshot;
 const places = new Map(snapshot.places.map(place => [place.id, place.place]));
@@ -190,6 +190,10 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [browserOpen, setBrowserOpen] = useState(false);
   const [width, setWidth] = useState(window.innerWidth);
   const [arrived, setArrived] = useState(false);
+  // No globe draws without WebGL, or once the drawing broke; then no camera puts a step's globe on show (2.16).
+  const [broken, setBroken] = useState(false);
+  const drawing = webgl && !broken;
+  const globeFailed = useCallback(() => { setBroken(true); failed(); }, [failed]);
   // Each growth's own knowledge core, its notes appearing as the time-lapse reaches their dates (knowledge core 1.9). A public
   // recording holds no transcript windows, so a session the core follows is drawn by its recorded reading path (ADR-0756).
   const growthCores = useMemo(() => Object.fromEntries((Object.keys(growths) as Grown[]).map(map => {
@@ -349,6 +353,12 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       shownOverview: overviews[shownMapNow.current], driftOrder: driftOrders[map], next: driftOrders[map].indexOf(ownerOf(target) ?? "") + 1,
       reduced: reduced(), place: stop => controls.stop({ ...stop, sideOffset }), show: () => setShownMap(map) });
   }, [controls, tour, sideOffset, openingActive, globe.map]);
+  // With no globe drawn, each step's panels read the step's own project directly, as the camera would have shown it (2.16).
+  useEffect(() => {
+    if (!tour || drawing || free || !step) return;
+    const map = everything ? "storytree" : globe.map;
+    if (shownMapNow.current !== map) setShownMap(map);
+  }, [tour, drawing, free, everything, globe.map]);
   // Once a swapped globe is drawn, the camera dives into it.
   useEffect(() => {
     if (!camera.diving) return;
@@ -373,7 +383,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const shownNotes = (grows(shownMap) ? [...knowledge(growths[shownMap].snapshot.changes ?? []).notes.values()] : notes).filter(item => String(item.fields.title ?? "").toLowerCase().includes(query.toLowerCase()));
   const selected = (story !== toldStory ? story : undefined) ?? (touring && !everything ? step?.select : undefined);
   const onStorytree = shownMap === "storytree";
-  // The knowledge chapter stays on the globe the map chapter leaves: the first round's four stories at its 03:08:57 survey.
+  // The knowledge chapter stays on the globe the map chapter leaves: the first round's four stories at its 03:08:57 survey, at
+  // their own plan's places; leaving them for the whole shop eases the four across to its places, once (3.4, forest 3.28).
   const inMapChapter = touring && !everything && (step?.explainer === "map" || step?.explainer === "knowledge") && shownMap === "shop";
   const grown = inMapChapter ? mapChapter : grows(shownMap) ? growths[shownMap] : undefined;
   // The tour's step says how far the growth has played (seconds at 1×), over the whole plan or one stage of it (2.16).
@@ -417,12 +428,12 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     return heard.reading.subscribe({ onNews: news => growthCores.shop.take(shop.changes ?? [], news.lines) });
   }, [onShop, shopView, shopAt, growthCores]);
   return <>
-    {webgl && tour && <GlobeBoundary failed={failed}>
+    {webgl && tour && <GlobeBoundary failed={globeFailed}>
       <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : shownMap === "own" ? "Storytree’s own globe, growing as its agents built it" : "An online shop’s globe, as its agents built it"}
         data-globe={shownMap} data-arrived={arrived} data-growth={grown ? moment === undefined ? "whole" : moment.toFixed(2) : undefined} data-focus={focus?.join(" ")}
         data-islands={drawn.islands.length} data-risen={growth ? [...growth.plan.islands.values()].filter(window => window.start <= growth.at).length : undefined} onPointerDown={explore} onWheel={explore}>
         <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={grown?.places ?? places}
-          frame={grown?.snapshot.scene} growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
+          frame={grown?.snapshot.scene} easeMoves growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
           wisps={(heldClaims ? wisps : mapFrame?.wisps) ?? (shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps)} selected={selected}
           highlighted={focus?.length === 0 ? ["planned-only"] : focus ?? highlight} onPick={pickStory} onNote={pickNote}
           onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={mode} />
@@ -482,19 +493,11 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   </>;
 }
 
-/** A replay gets a fresh app reading and core, so its prior traversal never leaks into its start. */
-function recordedView(replay = false) {
-  const recording = savedReading(snapshot, { replay });
-  const core = createKnowledgeCore(snapshot.project);
-  const stopHearing = recording.reading.subscribe({ onNews: news => core.take(snapshot.changes, news.lines) });
-  return { recording, core, stop() { stopHearing(); core.dispose(); recording.reading.stop(); } };
-}
-
 function RecordedForest(props: ForestHost) {
-  const [view, setView] = useState(() => recordedView());
+  const [view, setView] = useState(() => recordedView(snapshot));
   useEffect(() => () => view.stop(), [view]);
-  const replay = useCallback(() => setView(recordedView(true)), []);
-  const finishRecording = useCallback(() => setView(recordedView()), []);
+  const replay = useCallback(() => setView(recordedView(snapshot, { replay: true })), []);
+  const finishRecording = useCallback(() => setView(recordedView(snapshot)), []);
   return <Forest {...props} core={view.core} recording={view.recording} replay={replay} finishRecording={finishRecording} />;
 }
 

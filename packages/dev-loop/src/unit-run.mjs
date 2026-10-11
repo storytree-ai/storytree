@@ -13,7 +13,8 @@
 // Each unit's deadline is learned from this machine's history (unitLimit, ADR-0785):
 // twice its slowest recent pass, doubled after each kill since it last passed, or what an agent set
 // for it here with a reason. Until a unit has enough history its deadline is the run's default:
-// STORYTREE_UNIT_LIMIT_MS when given (CI gives one, as its runners never have history), else UNIT_LIMIT_MS.
+// STORYTREE_UNIT_LIMIT_MS when given (CI gives one, as its runners never have history), else UNIT_LIMIT_MS;
+// or twice its slowest recent pass at any concurrency, when that is longer (increment_3f535ac2dc4e).
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -225,17 +226,24 @@ export function defaultUnitLimit(env = process.env) {
  * twice its slowest recent pass once it has enough, else the run's default (defaultUnitLimit); then
  * doubled for each kill since it last passed (a killed run never enters the passes, so without this
  * it could never recover), never over UNIT_LIMIT_CEILING_MS. Only runs testing `jobs` units at once
- * count.
+ * count, but for one thing: a unit with too few of those is never given less than twice its slowest
+ * recent pass at any concurrency, since beside others it is no faster than alone, and a unit slower
+ * than the default would otherwise be killed again after every pass until it had enough.
  */
 export function unitLimit(unit, { home = defaultHome(), platform = process.platform, arch = process.arch, env = process.env, jobs = 1 } = {}) {
   // Learned only from runs testing as many units at once as this one: a unit sharing the machine
   // with others runs slower than alone (a row from before jobs were recorded ran alone).
-  const rows = readJsonLines(path.join(home, "test-timings.jsonl")).filter((row) => row.unit === unit && row.platform === platform && row.arch === arch && (row.jobs ?? 1) === jobs);
+  const here = readJsonLines(path.join(home, "test-timings.jsonl")).filter((row) => row.unit === unit && row.platform === platform && row.arch === arch);
+  const rows = here.filter((row) => (row.jobs ?? 1) === jobs);
   const set = readLimits(home)[unit];
-  const passes = rows.filter((row) => row.result === "pass").slice(-RECENT_PASSES);
+  const recent = (all) => all.filter((row) => row.result === "pass").slice(-RECENT_PASSES);
+  const twiceSlowest = (passes) => Math.ceil((2 * Math.max(...passes.map((row) => row.ms))) / 1000) * 1000;
+  const passes = recent(rows);
+  const anyPasses = recent(here);
   let { ms, source } = defaultUnitLimit(env);
   if (set) [ms, source] = [set.ms, `set: ${set.reason}`];
-  else if (passes.length >= LEARN_FROM_PASSES) [ms, source] = [Math.max(UNIT_LIMIT_FLOOR_MS, Math.ceil((2 * Math.max(...passes.map((row) => row.ms))) / 1000) * 1000), "learned"];
+  else if (passes.length >= LEARN_FROM_PASSES) [ms, source] = [Math.max(UNIT_LIMIT_FLOOR_MS, twiceSlowest(passes)), "learned"];
+  else if (anyPasses.length > 0 && twiceSlowest(anyPasses) > ms) [ms, source] = [Math.min(UNIT_LIMIT_CEILING_MS, twiceSlowest(anyPasses)), "twice its slowest pass, too few to learn from"];
   const lastPass = rows.findLastIndex((row) => row.result === "pass");
   const kills = rows.slice(lastPass + 1).filter((row) => row.timedOut).length;
   if (kills === 0) return { ms, source };

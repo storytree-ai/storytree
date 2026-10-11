@@ -1,12 +1,12 @@
 /** Capability 7 · Running sessions. The forest owns its sessions surface; the desktop only mounts it and carries public reads. */
-import React, { Fragment, useEffect, useState } from "react";
+import React, { useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import type { ContextReading, SessionWindow } from "@storytree/session-management";
 import { ON_MAIN_LABELS, type Line, type LogReading, type OnMain } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
 import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
-import { ALL_TIME, atWork, clickedSelection, dayRange, globeRoster, historyRows, historySelection, presetRange, sessionRows, windowFiles, withinRange,
+import { ALL_TIME, atWork, clickedSelection, dayRange, globeRoster, historyRows, historySelection, matchesSearch, presetRange, sessionRows, windowFiles, withinRange,
   type HistoryOutcome, type HistoryPreset, type HistoryRange, type HistoryRow, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 import { treeAfter } from "../render/forest-reading.js";
@@ -166,6 +166,8 @@ export function mountSessionsList(container: HTMLElement, options: {
   // Every session that has left the live list; History shows those active in the range chosen (7.21).
   let past: HistoryRow[] = [];
   let files: ReadonlyMap<string, SessionFiles> = new Map();
+  // Story titles by id, so History's search finds an idle row by the stories it claimed (7.28).
+  let titles: ReadonlyMap<string, string> = new Map();
   let stopped = false;
   const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
     refreshing={tree === undefined && rows.length > 0}
@@ -175,7 +177,7 @@ export function mountSessionsList(container: HTMLElement, options: {
     full={stripFull} onToggleFull={() => { stripFull = !stripFull; fullKept.write(stripFull); draw(); }}
     // Choosing a tab or a range redraws the strip and nothing else: the globe keeps the live rows (7.22).
     tab={tab} onTab={next => { tab = next; tabKept.write(tab); draw(); }} history={past} range={range} now={now()}
-    onRange={next => { range = next; draw(); }}
+    onRange={next => { range = next; draw(); }} storyTitles={titles}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
   const merged = (): ReadonlyMap<string, SessionDetails> => new Map([...new Set([...details.keys(), ...readings.keys()])]
@@ -240,6 +242,7 @@ export function mountSessionsList(container: HTMLElement, options: {
       const nextTree = await treeAfter(options.reads, options.project, news, tree);
       const nextArcs = await arcsAfter(options.reads, options.project, news, arcs);
       if (stopped) return;
+      if (nextTree !== tree) titles = new Map(nextTree.stories.map(story => [story.id, story.title]));
       tree = nextTree;
       arcs = nextArcs;
       // The page reading holds the log once for every surface, folded and thinned to what they read (ADR-0836 D4).
@@ -347,15 +350,8 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
 const ON_MAIN_WORDS: Readonly<Record<OnMain, string>> = { "outside-workspace": "on main", "first-commit-pending": "first commit" };
 const ON_MAIN_TONES: Readonly<Record<OnMain, "warning" | "neutral">> = { "outside-workspace": "warning", "first-commit-pending": "neutral" };
 
-/** The one row the quiet sessions fold into (ADR-0758 D5): "N idle", opening to list them. None when there are none. */
-function IdleFold({ count, open, onToggle }: { count: number; open: boolean; onToggle(): void }) {
-  if (count === 0) return null;
-  return <li><button type="button" className="session-idle-fold" aria-expanded={open}
-    aria-label={`${open ? "Hide" : "Show"} ${count} idle session${count === 1 ? "" : "s"}`} onClick={onToggle}>{count} idle</button></li>;
-}
-
 export function SessionsList({ rows, loading = false, refreshing = false, error, selected, onHighlight, onSelect, files,
-  history = [], range: chosen, onRange, now = new Date(), ...control }: {
+  history = [], range: chosen, onRange, now = new Date(), storyTitles, ...control }: {
   rows: readonly SessionRow[];
   loading?: boolean;
   /** The rows are the ones last kept, drawn before this start's first read lands. */
@@ -386,6 +382,11 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   onRange?(range: HistoryChoice): void;
   /** The time History's presets count days from. */
   now?: Date;
+  /** What History's search is, when the caller keeps it; otherwise the list keeps its own, starting empty and never saved (7.28). */
+  search?: string;
+  onSearch?(search: string): void;
+  /** Story titles by id, so the search finds an idle row by its stories; an id with none is searched as itself. */
+  storyTitles?: ReadonlyMap<string, string>;
 }) {
   const [own, setOwn] = useState<ReadonlySet<string>>(new Set());
   const [ownOpen, setOwnOpen] = useState(true);
@@ -399,26 +400,26 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
   const onToggle = control.onToggle ?? ((id: string) => setOwn(toggle(own, id)));
   const [hovered, setHovered] = useState<string>();
   const [focused, setFocused] = useState<string>();
-  const [idleOpen, setIdleOpen] = useState(false);
   const [ownTab, setOwnTab] = useState<SessionsTab>("live");
   const tab = control.tab ?? ownTab;
   const onTab = control.onTab ?? setOwnTab;
   const [ownRange, setOwnRange] = useState<HistoryChoice>({ preset: "today" });
   const range = chosen ?? ownRange;
-  const visible: { row: SessionRow; depth: number }[] = [];
-  const visit = (list: readonly SessionRow[], depth: number): void => {
+  const [ownSearch, setOwnSearch] = useState("");
+  const search = control.search ?? ownSearch;
+  const onSearch = control.onSearch ?? setOwnSearch;
+  const visit = (list: readonly SessionRow[], depth: number, into: { row: SessionRow; depth: number }[] = []): { row: SessionRow; depth: number }[] => {
     for (const row of list) {
-      visible.push({ row, depth });
-      if (isOpen(row.id)) visit(row.children, depth + 1);
+      into.push({ row, depth });
+      if (isOpen(row.id)) visit(row.children, depth + 1, into);
     }
+    return into;
   };
-  // Sessions at work first; the quiet ones fold into one "N idle" row, shown under it when opened (ADR-0758 D5).
+  // Live lists only the sessions at work; the idle ones are listed first under History, found by its search (ADR-1002 D4).
   const idle = rows.filter(row => row.idle);
-  visit(rows.filter(row => !row.idle), 0);
-  const atWorkCount = visible.length;
-  if (idleOpen) visit(idle, 0);
-  // Folded, or showing History, the strip draws no live rows, so none is hovered or drawn.
-  if (!stripOpen || tab === "history") visible.length = 0;
+  const idleShown = visit(idle.filter(row => matchesSearch([row.label, row.agent, "idle", ...row.stories.map(id => storyTitles?.get(id) ?? id)], search)), 0);
+  // Folded, or showing History, the strip draws no live rows, so none is hovered or drawn: History lights no islands (7.22).
+  const visible = !stripOpen || tab === "history" ? [] : visit(rows.filter(row => !row.idle), 0);
   const active = visible.find(({ row }) => row.id === (hovered ?? focused))?.row;
   const islands = active?.stories.join("\0");
   useEffect(() => {
@@ -429,6 +430,35 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     document.body.dataset.drew = JSON.stringify({ ...JSON.parse(document.body.dataset.drew ?? "{}"),
       sessions: visible.map(({ row }) => row.id) });
   });
+  /** A listed session's row and, opened, its detail and children (7.8); under History an idle one is led by its word (7.21). */
+  const sessionItem = ({ row, depth }: { row: SessionRow; depth: number }, lead?: ReactNode) => (
+    <li key={row.id} style={{ marginLeft: Math.min(depth, 5) * 14 }}>
+      <div className="session-row" data-session-id={row.id} data-state={row.state} data-idle={row.idle || undefined}
+        data-selected={row.id === selected || undefined} tabIndex={0}
+        onClick={() => onSelect?.(clickedSelection(rows, row.id, selected))}
+        onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault(); onSelect?.(clickedSelection(rows, row.id, selected)); } }}
+        aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}${row.onMain === undefined ? "" : ` · ${ON_MAIN_LABELS[row.onMain]}`}`}
+        onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
+        onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
+        {lead}
+        {/* One expander per row, at its start (7.8): its detail and its children (7.2), counted by the "+N" after its name. */}
+        <button type="button" className="session-children-toggle" aria-expanded={isOpen(row.id)}
+          aria-label={`${isOpen(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
+          onClick={event => { event.stopPropagation(); onToggle(row.id); }} />
+        {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
+        <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
+        {row.onMain !== undefined && <span className="session-on-main" data-tone={ON_MAIN_TONES[row.onMain]} title={ON_MAIN_LABELS[row.onMain]}>{ON_MAIN_WORDS[row.onMain]}</span>}
+        {row.machine !== undefined && <span className="session-machine" title={`Runs on ${row.machine}`}>{row.machine}</span>}
+        {row.children.length > 0 && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
+        {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.map(tree => tree.path).join("\n")}
+          aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}
+        <ContextBar row={row} />
+        <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>
+          {row.totalTokens === undefined ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(row.totalTokens)}</span>
+      </div>
+      {isOpen(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
+    </li>);
   return <aside className="sessions-list" data-fresh={refreshing ? "no" : undefined} data-open={stripOpen}
     data-size={stripOpen && stripFull ? "full" : undefined} aria-label="Running sessions">
     {/* The header toggles the whole list, like the arcs bar's (7.17): a click anywhere on it, the button for the keyboard. */}
@@ -452,41 +482,17 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
     </header>
     <div id="sessions-body" className="sessions-body" hidden={!stripOpen}>
     {tab === "history" ? <HistoryBody rows={history} range={range} onRange={onRange ?? setOwnRange} now={now} selected={selected}
-      onSelect={session => onSelect?.(historySelection(session, selected))} /> : <>
+      onSelect={session => onSelect?.(historySelection(session, selected))} search={search} onSearch={onSearch}
+      idle={idleShown.map(entry => sessionItem(entry, entry.depth === 0 ? IDLE_LEAD : undefined))} /> : <>
     {loading && !error && <p role="status">Reading sessions…</p>}
     {refreshing && !error && <p role="status">As last read. Refreshing…</p>}
     {error && <p role="status">{error}</p>}
     {!loading && rows.length === 0 && <p>No running sessions</p>}
+    {/* With only idle sessions the tab says where they are, as a fact (ADR-0824 D1). */}
+    {rows.length > 0 && idle.length === rows.length && <p className="sessions-idle-note">No sessions at work · <button type="button" className="sessions-idle-elsewhere"
+      onClick={() => onTab("history")}>{idle.length} idle in History</button></p>}
     <ul>
-      {visible.map(({ row, depth }, index) => <Fragment key={row.id}>
-      {index === atWorkCount && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}
-      <li style={{ marginLeft: Math.min(depth, 5) * 14 }}>
-        <div className="session-row" data-session-id={row.id} data-state={row.state} data-idle={row.idle || undefined}
-          data-selected={row.id === selected || undefined} tabIndex={0}
-          onClick={() => onSelect?.(clickedSelection(rows, row.id, selected))}
-          onKeyDown={event => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
-            event.preventDefault(); onSelect?.(clickedSelection(rows, row.id, selected)); } }}
-          aria-label={`${row.label} · ${row.agent}${row.machine === undefined ? "" : ` on ${row.machine}`}${row.onMain === undefined ? "" : ` · ${ON_MAIN_LABELS[row.onMain]}`}`}
-          onPointerEnter={() => setHovered(row.id)} onPointerLeave={() => setHovered(undefined)}
-          onFocus={() => setFocused(row.id)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(undefined); }}>
-          {/* One expander per row, at its start (7.8): its detail and its children (7.2), counted by the "+N" after its name. */}
-          <button type="button" className="session-children-toggle" aria-expanded={isOpen(row.id)}
-            aria-label={`${isOpen(row.id) ? "Hide" : "Show"} detail${row.children.length > 0 ? ` and ${row.children.length} children` : ""} of ${row.label}`}
-            onClick={event => { event.stopPropagation(); onToggle(row.id); }} />
-          {depth === 0 && <span className="session-colour" style={{ background: sessionColour(row.id) }} aria-hidden="true" />}
-          <span className="session-label" title={`${row.label}\n${row.agent} · ${row.id}${row.machine === undefined ? "" : ` · on ${row.machine}`}${row.state === "observed" ? "\nSubagent observed; current state unavailable" : ""}${row.worktrees.length > 0 ? `\n${row.worktrees.map(tree => tree.path).join("\n")}` : ""}`}>{row.label}</span>
-          {row.onMain !== undefined && <span className="session-on-main" data-tone={ON_MAIN_TONES[row.onMain]} title={ON_MAIN_LABELS[row.onMain]}>{ON_MAIN_WORDS[row.onMain]}</span>}
-          {row.machine !== undefined && <span className="session-machine" title={`Runs on ${row.machine}`}>{row.machine}</span>}
-          {row.children.length > 0 && <span className="session-children" aria-hidden="true">+{row.children.length}</span>}
-          {row.worktrees.length > 1 && <span className="session-worktrees" title={row.worktrees.map(tree => tree.path).join("\n")}
-            aria-label={`works in ${row.worktrees.length} worktrees`}>{row.worktrees.length} worktrees</span>}
-          <ContextBar row={row} />
-          <span className="session-total" title={row.totalTokens === undefined ? "Context total unavailable" : `${row.totalTokens.toLocaleString("en-US")} context tokens`}>
-            {row.totalTokens === undefined ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(row.totalTokens)}</span>
-        </div>
-        {isOpen(row.id) && <SessionDetail row={row} files={files?.get(row.id)} />}
-      </li></Fragment>)}
-      {stripOpen && atWorkCount === visible.length && <IdleFold count={idle.length} open={idleOpen} onToggle={() => setIdleOpen(!idleOpen)} />}
+      {visible.map(entry => sessionItem(entry))}
     </ul></>}
     </div>
   </aside>;
@@ -508,16 +514,23 @@ function dayOf(ms: number): string {
   return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
 }
 
+/** An idle session's lead under History, where an ended one's outcome stands (7.21). */
+const IDLE_LEAD = <span className="history-outcome" data-outcome="idle" title="Idle: listed, neither working nor waiting for you">idle</span>;
+
 const PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["week", "7 days"]] as const;
 
 /**
- * History (7.21): a range bar of presets and a custom from–to of days, then each past session active in the range,
- * led by how it ended. A row lights nothing on hover or focus (7.22); clicking one selects its session as a live row does (7.23).
+ * History (7.21): a range bar of presets and a custom from–to of days and a search box (7.28), then every idle session still
+ * listed, whatever the range, then each past session active in the range, led by how it ended. A row lights nothing on hover or
+ * focus (7.22); clicking one selects its session as a live row does (7.23).
  */
-function HistoryBody({ rows, range, onRange, now, selected, onSelect }: { rows: readonly HistoryRow[]; range: HistoryChoice; onRange(range: HistoryChoice): void;
-  now: Date; selected: string | undefined; onSelect(session: string): void }) {
+function HistoryBody({ rows, range, onRange, now, selected, onSelect, search, onSearch, idle }: { rows: readonly HistoryRow[]; range: HistoryChoice;
+  onRange(range: HistoryChoice): void; now: Date; selected: string | undefined; onSelect(session: string): void; search: string; onSearch(search: string): void;
+  idle: readonly ReactNode[] }) {
   const span = rangeOf(range, now);
-  const shown = span === undefined ? [] : withinRange(rows, span);
+  const shown = (span === undefined ? [] : withinRange(rows, span))
+    .filter(row => matchesSearch([row.label, row.agent, outcomeWords(row.outcome), ...row.stories.map(story => story.title)], search));
+  const searching = search.trim() !== "";
   const [from, to] = "preset" in range ? [dayOf(span!.from), dayOf(span!.to - 1)] : [range.from, range.to];
   return <>
     <div className="history-range" role="group" aria-label="Sessions active in">
@@ -526,7 +539,10 @@ function HistoryBody({ rows, range, onRange, now, selected, onSelect }: { rows: 
       <label>From <input type="date" value={from} max={to} onChange={event => onRange({ from: event.currentTarget.value, to })} /></label>
       <label>to <input type="date" value={to} min={from} onChange={event => onRange({ from, to: event.currentTarget.value })} /></label>
     </div>
-    {shown.length === 0 ? <p>No sessions ended in this range</p> : <ul>
+    <input type="search" className="history-search" value={search} placeholder="Search sessions" aria-label="Search sessions"
+      onChange={event => onSearch(event.currentTarget.value)} />
+    {searching && idle.length === 0 && shown.length === 0 ? <p>No sessions match the search</p> : <ul>
+      {idle}
       {shown.map(row => <li key={row.id}>
         <div className="history-row" data-session-id={row.id} data-selected={row.id === selected || undefined} tabIndex={0}
           aria-label={`${outcomeWords(row.outcome)} · ${row.label} · ${row.agent}`}
@@ -540,5 +556,6 @@ function HistoryBody({ rows, range, onRange, now, selected, onSelect }: { rows: 
         </div>
       </li>)}
     </ul>}
+    {!searching && shown.length === 0 && <p>No sessions ended in this range</p>}
   </>;
 }

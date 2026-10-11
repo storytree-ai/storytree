@@ -121,8 +121,8 @@ export async function handOver({ pr, increment, session, onBox, local, remote })
   const args = ["hand", String(pr), increment, "--session", session];
   if (onBox) { await local(args); return { code: 0, lines: [] }; }
   try {
-    const said = await remote(args);
-    return { code: 0, lines: [said.trim(), `Close out with: pnpm storytree session close-out --safe yes --why "PR #${pr} open and green, handed to the watcher"`].filter(Boolean) };
+    // The box's `hand` already says how to close out, so its words are relayed as they are.
+    return { code: 0, lines: [(await remote(args)).trim()].filter(Boolean) };
   } catch (error) {
     return { code: 1, lines: [`could not reach the Mint box's watcher: ${error.message.trim().split("\n").at(-1)}`, fallback] };
   }

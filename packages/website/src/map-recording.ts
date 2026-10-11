@@ -1,5 +1,7 @@
 /** Capability 2 · The forest on the site. The map chapter's window onto the shop's saved record. */
 import { growthPlan, type GrowthPlan, type GrowthOptions } from "@storytree/forest-world/planet";
+import { islandCoastReach } from "@storytree/forest-world/geometry";
+import { growPlanet, placeInRow } from "@storytree/forest";
 import type { GrowthSnapshot } from "./forest-data.js";
 
 type Stage = GrowthSnapshot["stages"][number];
@@ -16,7 +18,9 @@ export const beats = ["plans", "planned", "risen-browsing", "risen-round", "path
  * (`beats`), each the whole planned plan, so the camera can find every island before it rises; mapGrowthPlan grows them one by
  * one. From the first landing on, an island with no code yet carries an equal share for each planned capability, and a
  * capability claimed on an island with code but no territory of its own carries a share while it is held, so every claim is
- * a flag in a share (ADR-0968 D4). Its sessions' flags are the recorded claims, each a stage of its own.
+ * a flag in a share (ADR-0968 D4). Its sessions' flags are the recorded claims, each a stage of its own. The four sit at their
+ * own plan's places, as the app drew them then (question_9073ebdfd19e, option A); free play's shop keeps the finished places,
+ * and the globe eases the four across once when it goes there.
  */
 export function mapRecording(saved: GrowthSnapshot): GrowthSnapshot {
   const index = (id: string) => saved.stages.findIndex(stage => stage.id === id);
@@ -103,7 +107,20 @@ export function mapRecording(saved: GrowthSnapshot): GrowthSnapshot {
   // the chapter runs until and never reaches: its islands and sessions are not shown.
   stages.push({ ...end, id: "checked", scene: narrow(end.scene), wisps: [] }, { ...end, scene: narrow(end.scene), wisps: [] });
   stages.sort((a, b) => a.at.localeCompare(b.at));
-  return { ...saved, scene: saved.stages[index("pr9")]!.scene, stages };
+  const frame = narrow(end.scene), places = placesOf(narrow(planned.scene), saved.places);
+  const at = new Map(places.map(node => [node.id, node.place]));
+  const grown = growPlanet(frame.islands.map(island => ({ story: island.story, place: at.get(island.story)!, reach: islandCoastReach(island) })));
+  return { ...saved, scene: frame, places, spots: [...grown.spots], radius: grown.radius, stages };
+}
+
+/** Each island's place as `scene` draws it: a row for each depth from the front (z 0) back, a slot for each island west to east in it. */
+function placesOf(scene: Scene, finished: GrowthSnapshot["places"]): GrowthSnapshot["places"] {
+  const depths = [...new Set(scene.islands.map(island => island.z))].sort((a, b) => b - a);
+  return scene.islands.map(island => {
+    const row = depths.indexOf(island.z), members = scene.islands.filter(other => other.z === island.z).sort((a, b) => a.x - b.x);
+    const node = finished.find(node => node.id === island.story)!, slot = members.indexOf(island);
+    return { ...node, place: placeInRow(row, slot), at: { x: slot - (members.length - 1) / 2, y: -row } };
+  });
 }
 
 /** How long the replay holds each of the third step's beats, at its natural pace, so each island rises about as it is named. */

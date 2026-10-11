@@ -10,7 +10,8 @@
 // `<dir>/src/**/*.test.{ts,mjs}`; the package-boundary check
 // (packages/dev-loop/src/package-boundaries.test.mjs) and the code allocation guardrail
 // (packages/dev-loop/src/allocation.test.mjs, ADR-0838 D5) are units of every run. Several units
-// run at once against the one Postgres (unit-pool.mjs: --jobs=<n>, else STORYTREE_TEST_JOBS, else 2 with a core left free),
+// run at once against the one Postgres (unit-pool.mjs: --jobs=<n>, else STORYTREE_TEST_JOBS, else 2 with a core left free,
+// or 1 where the Postgres runs under emulation, which the run says),
 // slowest first; each unit's output is held and printed whole under its name when it ends, and
 // `--jobs=1` runs them one after another with their output live. A file named to run alone
 // (test-scope.mjs ALONE: forest's and the world's browser proofs) is a unit of its own, run once every other unit has
@@ -63,7 +64,7 @@
 // unit. Each unit's time is added to the machine's history (test-timings.jsonl in STORYTREE_HOME,
 // default ~/.storytree/0.3), with how many units the run tested at once, and its deadline is learned
 // from the runs that tested as many at once: twice its slowest recent pass, until it has five the run's default (STORYTREE_UNIT_LIMIT_MS when set, as CI sets it, else
-// 3 min), doubled after each kill since it last passed, at most 15 min. Each
+// 3 min) or twice its slowest recent pass at any concurrency when that is longer, doubled after each kill since it last passed, at most 15 min. Each
 // row gives the unit's time, its deadline and where the deadline came from. Any agent may set a
 // unit's deadline on this machine, and clear it again:
 //
@@ -184,6 +185,7 @@ async function main() {
     units = plan.units;
     jobs = Math.min(jobs, units.length);
     if (jobs > 1) console.log(`jobs: ${jobs} units at once (${jobsSource}), slowest first; each unit's output prints whole when it ends`);
+    else if (jobsSource.startsWith("default:")) console.log(`jobs: 1 unit at a time (${jobsSource}); --jobs=<n> tests more at once`);
   }
   phase = "waiting for the heavy-run lock";
   const release = await acquireHeavyLock({ root, what: "pnpm test", stopped: () => interrupted });

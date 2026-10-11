@@ -230,6 +230,18 @@ test("3.5 `list` shows only live records of the kind and filters by a field", as
   });
 });
 
+test("3.19 `list` refuses a flag it does not read, naming --where <field>=<value>, and lists nothing", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const decision = await library.recordDecision({ title: "Mailer", text: "Mailgun", status: "accepted" });
+    const ran = await world.run(["library", "list", "decision", "--status", "accepted"]);
+    assert.equal(ran.code, 2, ran.stderr);
+    assert.match(ran.stderr, /--status/);
+    assert.match(ran.stderr, /--where <field>=<value>/);
+    assert.ok(!ran.stdout.includes(decision.id), ran.stdout);
+  });
+});
+
 // ADR-0650: a terminal cannot create a harness memory in the library.
 test("3.6 saving a memory is refused with its reason and writes nothing", async () => {
   await inWorld(command, async (world) => {

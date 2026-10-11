@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import saved from "./forest-snapshot.json" with { type: "json" };
 import type { TourSnapshot } from "./forest-data.js";
-import { growthReading, savedReading } from "./tour-reading.js";
+import { growthReading, recordedView, savedReading } from "./tour-reading.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import type { Line } from "@storytree/session-management";
+import type { Line, SessionWindow } from "@storytree/session-management";
 import { steps } from "./tour-copy.js";
 
 const snapshot = saved as unknown as TourSnapshot;
@@ -86,4 +86,19 @@ test("2.16 · the map chapter's arcs and sessions read the shop's records at the
   ]);
   assert.equal(claims.live.length, 3, `three live sessions: ${claims.live}`);
   assert.ok(claims.live.includes("Part 2: product page, sorting, cart") && claims.live.includes("Part 4: Checkout"), `${claims.live}`);
+});
+
+test("2.13 · free play on storytree's own project reads a picked session's window from the recording, answered as absent from the public recording, the core's gate before it draws that session's reading path", async () => {
+  const view = recordedView(snapshot);
+  try {
+    const reader = (snapshot.recording.lines as readonly Line[]).find(line => line.kind === "note-read" && line.session)!.session!;
+    const windowOf = () => (view.core as unknown as { get(): { window?: SessionWindow } }).get().window;
+    view.core.select(reader);
+    await settle();
+    // The core draws a selected session's path only once its window is read (ADR-0756); the public recording has none to give.
+    const window = windowOf();
+    assert.equal(window?.session, reader);
+    assert.ok(window && "absent" in window, "the window is answered, as absent");
+    assert.match(String(window.absent), /not included in this public recording/);
+  } finally { view.core.select(undefined); view.stop(); }
 });

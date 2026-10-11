@@ -328,6 +328,20 @@ test("2.16 · the map grows its four islands as they are named, then its pathway
   assert.equal(original.scene.islands.length, 8, "free play and the other chapters keep the saved recording");
 });
 
+test("3.4 · the map chapter lays the shop's first four stories out by their own plan: signing in, browsing above it, the cart and checkout side by side above browsing", () => {
+  const original = shop as unknown as GrowthSnapshot;
+  const recording = mapRecording(original);
+  const signIn = "story_d263ef0f3f72", browsing = "story_0c07d0047754", cart = "story_2de9e8f4db21", checkout = "story_66f80ffaaa4d";
+  const place = new Map(recording.places.map(node => [node.id, node.place]));
+  assert.deepEqual([signIn, browsing, cart, checkout].map(story => place.get(story)), [1, 1001, 2001, 2002]);
+  assert.deepEqual(recording.scene.islands.map(island => island.story).sort(), [signIn, browsing, cart, checkout].sort(), "framed by the four, not the finished shop");
+  const spot = new Map(recording.spots);
+  const [s, b, c, k] = [spot.get(signIn)!, spot.get(browsing)!, spot.get(cart)!, spot.get(checkout)!];
+  assert.ok(Math.abs(c.y - k.y) < 1e-9 && c.x < k.x, "the cart and checkout side by side, the cart to the west");
+  assert.ok(c.y > b.y && b.y > s.y, "the cart and checkout above browsing, browsing above signing in");
+  assert.deepEqual(original.places.find(node => node.id === checkout)!.place, 3001, "free play keeps the finished shop's places");
+});
+
 test("2.21 · each map line labels the one thing it talks about, in words true to the shop's record as it is said, and the label goes when the line passes", () => {
   const original = shop as unknown as GrowthSnapshot;
   const recording = mapRecording(original);

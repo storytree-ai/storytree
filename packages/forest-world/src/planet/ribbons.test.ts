@@ -42,3 +42,16 @@ test('6.16 · A live road entering at the far end grows back by physical distanc
   assert.ok(Math.abs(front(geometry) - 4) < 1e-5, 'a changed entry direction restores the former front first');
   geometry.dispose();
 });
+
+test('6.8 · Lanes sharing a stretch of road lay one glow on it between them, however many ride it', () => {
+  const trunk = [0, 1, 2].map(x => new Vector3(x, 100, 0));
+  const lanes = [
+    { from: 'b1', to: 'a1', colour: '#6a5fee', points: [...trunk, new Vector3(3, 100, 0), new Vector3(4, 100, 0)] },
+    { from: 'b2', to: 'a1', colour: '#6a5fee', points: [...trunk, new Vector3(2, 100, 1), new Vector3(2, 100, 2)] },
+    { from: 'b3', to: 'a1', colour: '#6a5fee', points: [...trunk, new Vector3(2, 100, 1), new Vector3(2, 100, 2)] },
+  ];
+  const heads = laneHeads(lanes);
+  const stretches = lanes.map((lane, i) => laneRibbon({ points: lane.points, widths: lane.points.map(() => 1) }, 2.6, 0, heads[i]!).index!.count / 6);
+  // Two stretches of trunk, two on to b1 and two on to b2 and b3: six in all, each under one glow.
+  assert.deepEqual(stretches, [4, 2, 0]);
+});

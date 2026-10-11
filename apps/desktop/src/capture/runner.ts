@@ -6,7 +6,7 @@ import path from "node:path";
 import type { Browser, Page, ViewportSize } from "playwright-core";
 
 import type { StorytreeBridge } from "../bridge.js";
-import { fakeBridge, type FakeBridge } from "./fake-bridge.js";
+import { fakeBridge, type FakeBridge, type FakeBridgeOptions } from "./fake-bridge.js";
 import { launch } from "./launch.js";
 import { captureOutput } from "./output.js";
 
@@ -55,6 +55,8 @@ export interface SeededCaptureOptions extends CaptureOptions {
   seed: CaptureSeed;
   survey?: Awaited<ReturnType<StorytreeBridge["codeSurvey"]>>;
   answers?: Partial<StorytreeBridge>;
+  /** The first-run guide is already seen unless "unseen", for a capture of the guide itself. */
+  guide?: FakeBridgeOptions["guide"];
   viewport?: ViewportSize;
   prepare?: (context: CapturePage) => unknown | Promise<unknown>;
   views: CaptureView[];
@@ -124,7 +126,7 @@ export async function runCapture(options: SeededCaptureOptions): Promise<unknown
       frontCovers: async (_, id) => seed.covers[id] ?? [],
       ...(survey === undefined ? {} : { codeSurvey: async () => survey }),
       ...answers,
-    });
+    }, { guide: options.guide });
     const page = await context.browser.newPage({ viewport: options.viewport ?? { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: "dark" });
     const errors: string[] = [], warnings: string[] = [], failed: string[] = [];
     page.on("pageerror", error => errors.push(String(error)));

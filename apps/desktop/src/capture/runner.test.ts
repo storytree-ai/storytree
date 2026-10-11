@@ -6,7 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { chromium, type Browser, type Page } from "playwright-core";
 
-import { outputFolder, runCapture, settle } from "./index.js";
+import { fakeBridge, outputFolder, runCapture, settle } from "./index.js";
 
 test("2.9 · capture settling awaits each requested frame after invalidating the globe", async t => {
   // Chrome is installed on the three CI runner images; no browser download during tests.
@@ -35,6 +35,22 @@ test("2.9 · capture settling awaits each requested frame after invalidating the
   await settle(page, 2);
   assert.deepEqual(await page.evaluate("events"), ["frame", "frame"],
     "a page without a globe hook still awaits its frames");
+});
+
+test("2.11 · a capture's stand-in bridge opens the page with the first-run guide already seen, unless the capture pictures the guide", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const guideSeen = async (options?: { guide: "unseen" }) => {
+    const page = await browser.newPage();
+    await page.route("http://capture.test/**", route => route.fulfill({ contentType: "text/html", body: "<body>capture fixture</body>" }));
+    await fakeBridge({}, options).install(page);
+    await page.goto("http://capture.test/index.html");
+    const seen = await page.evaluate(() => localStorage.getItem("storytree:setup:guide-seen:v1"));
+    await page.close();
+    return seen;
+  };
+  assert.equal(await guideSeen(), "yes", "the renderer's guideOffered reads exactly 'yes' as seen, so the page opens on the globe");
+  assert.equal(await guideSeen({ guide: "unseen" }), null, "a capture of the guide itself opts back in to a first launch");
 });
 
 // Each probe owns its socket and finishes only after it closes. Global fetch leaves

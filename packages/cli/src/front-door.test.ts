@@ -1,11 +1,12 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5 and 1.15 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15 and 1.17 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
 import pg from "pg";
+import { openActivityLog } from "@storytree/session-management";
 
 import { BuiltCommand, bareNode, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
@@ -175,6 +176,36 @@ test("1.15 a command kept waiting on the library, here for another session's wri
       await unrelated.end();
       // Release the lock and reap the command even when observing its wait fails.
       await running;
+    }
+  });
+});
+
+test("1.17 every answer is recorded on the calling session as a door-answered line: the command, how it went, and the next steps offered as commands; an unknown word with the command its refusal named", async () => {
+  await inWorld(command, async (world) => {
+    await (await world.library()).defineTerm({ term: "Mailer", meaning: "Sends the sign-up email" });
+    const session = { CLAUDE_CODE_SESSION_ID: "door-1" };
+
+    const searched = await world.run(["library", "search", "Mailer"], session);
+    const guessed = await world.run(["arc", "increment", "show", "x"], session);
+    const misspelt = await world.run(["questoin", "list"], session);
+
+    assert.equal(searched.code, 0, searched.stderr);
+    assert.equal(guessed.code, 2, guessed.stderr);
+    assert.equal(misspelt.code, 2, misspelt.stderr);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const lines = await log.lines(world.project, { sessions: ["door-1"], kinds: ["door-answered"] });
+      const said = lines.map((line) => {
+        const { door, verb, outcome, word, named, next } = line as Extract<typeof line, { kind: "door-answered" }>;
+        return { door, verb, outcome, word, named, next };
+      });
+      assert.deepEqual(said, [
+        { door: "command", verb: "storytree library search", outcome: "answered", word: undefined, named: undefined, next: ["storytree library read"] },
+        { door: "command", verb: "storytree arc increment", outcome: "unknown", word: "show", named: "storytree library read", next: [] },
+        { door: "command", verb: "storytree", outcome: "unknown", word: "questoin", named: "storytree question", next: [] },
+      ]);
+    } finally {
+      await log.close();
     }
   });
 });

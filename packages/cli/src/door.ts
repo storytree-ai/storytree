@@ -24,7 +24,7 @@ import { openNamedProject, ProjectFolderError, requireApproval, route } from "@s
 import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 
-import { Refusal, render, type Answer } from "./answer.js";
+import { Refusal, render, UnknownCommand, type Answer, type Next } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
 import { changedByQuoting } from "./handed.js";
 import { FAMILIES, GUESSES } from "./families/index.js";
@@ -122,8 +122,11 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
   const opened = new Opened(io.cwd, io.terminal === true ? (what) => io.err(`storytree: ${what}\n`) : () => {});
   let writer: WriteOptions | undefined;
   let journey: Promise<JourneyRuntime> | undefined;
+  // The command as this door names it, as far as its words reached, and how it was answered (ADR-0983 D1).
+  const heard: Heard = { verb: "storytree" };
+  let outcome: DoorOutcome | undefined;
   try {
-    const answer = await dispatch(argv, {
+    const answer = await dispatch(argv, heard, {
       cwd: io.cwd,
       ...(io.script === undefined ? {} : { script: io.script }),
       out: (text) => io.out(render({ text })),
@@ -137,8 +140,10 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
         createJourneyRuntime({ appVersion: sourceVersion()?.version ?? "0.3.0" }))),
     });
     io.out(render(writer === undefined ? answer : { ...answer, text: `${answer.text}\nWriter: ${writer.actor}` }));
+    outcome = { outcome: "answered", next: stepVerbs(answer.next) };
     return 0;
   } catch (error) {
+    outcome = outcomeOf(error);
     if (error instanceof Refusal) {
       io.err(render({ text: error.message, next: error.next }));
       return error.code;
@@ -147,6 +152,8 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
     io.err(`${error instanceof Error ? error.message : String(error)}\n`);
     return 1;
   } finally {
+    // Recorded once the answer is out, and never in its way.
+    if (outcome !== undefined) await opened.answered({ verb: heard.verb, ...outcome }).catch(() => {});
     await opened.close();
     // Observation must finish before this short-lived process exits, without changing its answer.
     await journey?.then((runtime) => runtime.finish()).catch(() => {});
@@ -165,7 +172,63 @@ function changedWord(argv: readonly string[], handed: readonly string[]): number
   return at !== -1 || argv.length === handed.length ? at : handed.length;
 }
 
-async function dispatch(argv: readonly string[], context: Context): Promise<Answer> {
+/** The command as the door names it, `storytree arc increment close`, as far as the words reached a family or verb. */
+interface Heard {
+  verb: string;
+}
+
+/** How a command was answered, as its `door-answered` line records it. */
+interface DoorOutcome {
+  readonly outcome: "answered" | "unknown" | "refused" | "failed";
+  readonly word?: string;
+  readonly named?: string;
+  readonly class?: string;
+  readonly next: string[];
+}
+
+/**
+ * A refusal or failure as its line records it: an unknown word with the command named for it, the door's own
+ * "no" (a verb's included), or anything else the owning story threw, with its class, which tells a library refusal from a crash.
+ */
+function outcomeOf(error: unknown): DoorOutcome {
+  if (error instanceof UnknownCommand) {
+    const named = error.named === undefined ? undefined : verbOf(`storytree ${error.named}`) ?? error.named;
+    return { outcome: "unknown", word: error.word, ...(named === undefined ? {} : { named }), next: stepVerbs(error.next) };
+  }
+  if (error instanceof Refusal) return { outcome: "refused", next: stepVerbs(error.next) };
+  const name = error instanceof Error && error.name !== "" ? error.name : undefined;
+  return { outcome: "failed", ...(name === undefined ? {} : { class: name }), next: [] };
+}
+
+/** The offered steps that are storytree commands, each as the verb it runs. */
+function stepVerbs(next: readonly Next[] | undefined): string[] {
+  return (next ?? []).flatMap((step) => {
+    const verb = verbOf(step.command);
+    return verb === undefined ? [] : [verb];
+  });
+}
+
+/** The family or verb `command` runs, walked over the door's own table, or nothing when it names none. */
+function verbOf(command: string): string | undefined {
+  const [first, ...words] = command.trim().split(/\s+/);
+  if (first !== "storytree") return undefined;
+  let family = FAMILIES.find((candidate) => candidate.name === words[0] || candidate.aliases?.includes(words[0] ?? ""));
+  if (family === undefined) return undefined;
+  let path = `storytree ${family.name}`;
+  for (const word of words.slice(1)) {
+    const inner: Family | undefined = family.families?.find((candidate) => candidate.name === word);
+    if (inner !== undefined) {
+      family = inner;
+      path = `${path} ${inner.name}`;
+      continue;
+    }
+    if (family.verbs.some((verb) => verb.name === word)) return `${path} ${word}`;
+    break;
+  }
+  return path;
+}
+
+async function dispatch(argv: readonly string[], heard: Heard, context: Context): Promise<Answer> {
   const [first, ...rest] = argv;
   if (first === undefined || first === "--help" || first === "-h" || first === "help") return families();
   if (first === "--version") return version();
@@ -174,7 +237,7 @@ async function dispatch(argv: readonly string[], context: Context): Promise<Answ
     const named = FAMILIES.filter((candidate) => candidate.waitsOn === undefined).map((candidate) => ({ name: candidate.name, command: candidate.name }));
     throw unknown("storytree", first, (Object.hasOwn(GUESSES, first) ? GUESSES[first] : undefined) ?? nearest(first, named), "Its families", named);
   }
-  return dispatchIn(family, family.name, rest, context);
+  return dispatchIn(family, family.name, rest, heard, context);
 }
 
 /** `storytree --version`: the 0.3.<n> of the build this command comes from (ADR-0753 D2). */
@@ -185,12 +248,14 @@ function version(): Answer {
 }
 
 /** Run `words` in `family`, which `storytree <path>` names. */
-async function dispatchIn(family: Family, path: string, words: readonly string[], context: Context): Promise<Answer> {
+async function dispatchIn(family: Family, path: string, words: readonly string[], heard: Heard, context: Context): Promise<Answer> {
+  heard.verb = `storytree ${path}`;
   if (family.waitsOn !== undefined) throw new Refusal(`storytree ${path} is not built yet: ${family.waitsOn}`);
   const [second, ...rest] = words;
   const inner = family.families?.find((candidate) => candidate.name === second);
-  if (inner !== undefined) return dispatchIn(inner, `${path} ${inner.name}`, rest, context);
+  if (inner !== undefined) return dispatchIn(inner, `${path} ${inner.name}`, rest, heard, context);
   const verb = family.verbs.find((candidate) => candidate.name === second);
+  if (verb !== undefined) heard.verb = `storytree ${path} ${verb.name}`;
   if (verb !== undefined) return asksHelp(rest) ? helpOf(verb) : act(verb, parseArgs(rest, verb.switches ?? [], context.cwd), context);
   const help = second === undefined || second === "--help" || second === "-h";
   if (family.bare !== undefined && !(help && second !== undefined)) {
@@ -218,10 +283,10 @@ async function act(verb: Verb, args: Args, context: Context): Promise<Answer> {
  * The door's answer to a word it does not have: the real command for that job when agents are
  * known to guess the word, else the nearest real one by spelling, and what there is to choose from.
  */
-function unknown(where: string, word: string, instead: string | undefined, listed: string, named: readonly { name: string }[]): Refusal {
+function unknown(where: string, word: string, instead: string | undefined, listed: string, named: readonly { name: string }[]): UnknownCommand {
   const said = instead === undefined ? "" : `: run storytree ${instead}`;
   const choices = `${listed}: ${named.map((one) => one.name).join(", ")}.`;
-  return new Refusal(`${where} has no "${word}"${said}\n${choices}`, {
+  return new UnknownCommand(`${where} has no "${word}"${said}\n${choices}`, word, instead, {
     code: 2,
     next: instead === undefined ? [{ command: where, why: "each command, with its usage" }] : [],
   });
@@ -320,6 +385,28 @@ class Opened {
     const caller = commandSession();
     if (caller === undefined) throw new Refusal("Run workspace from the agent's shell: a claim belongs to the agent session that will work there.");
     return this.activityContext();
+  }
+
+  /**
+   * Record how the command was answered on its session, a person's own from their terminal (ADR-0983 D1):
+   * nothing in a folder that is no project, or where storytree is not running or this checkout is not approved.
+   */
+  async answered(answer: { verb: string } & DoorOutcome): Promise<void> {
+    const where = route(this.#cwd);
+    if (where.status !== "routed") return;
+    const { log, project, folder, session, harness } = await this.activityLog();
+    await log.append(project, { session, ...(harness === undefined ? {} : { harness }), source: "tool", folder, kind: "door-answered", door: "command", ...answer });
+  }
+
+  /** The project's activity log and the calling session, with no library opened. */
+  async activityLog(): Promise<{ log: ActivityLog; project: string; folder: string; session: string; harness?: string }> {
+    const caller = commandSession() ?? { session: `person:${person()}` };
+    const where = this.#routed();
+    const { currentBranch, openActivityLog, thisMachine } = await import("@storytree/session-management");
+    const machine = thisMachine();
+    // Lines written from a terminal name its machine and its folder's branch, as a hook's do (ADR-0754 D4).
+    const log = await (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree, { branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) })));
+    return { log, project: where.project, folder: this.#cwd, ...caller };
   }
 
   async activityContext(): Promise<ClaimContext & { readonly folder: string; readonly server: Storytree }> {

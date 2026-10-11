@@ -12,4 +12,5 @@ export { mountSessionsList, type SessionsReads } from "./sessions-list.js";
 
 export { PlanetView, type PlanetViewProps } from "./planet-view.js";
 export type { CameraStop, GlobeTarget, GlobeControls, ScreenPosition } from "./globe-guide.js";
+export type { GlobeLocator, PlacedIsland, PlacedNote } from "./globe-locator.js";
 export type { GlobeSurfaces } from "./globe-surfaces.js";

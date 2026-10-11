@@ -3,12 +3,13 @@ import { Vector3, type Camera, type Mesh, type Object3D } from "three";
 import { turnToIsland, type GlobeTurn } from "@storytree/forest";
 /** A pathway is a link's (`from->to`) own stretch of road, the one carrying fewest other links, at the share of the way `along`
  * it (its middle by default). */
-export type GlobeTarget = { kind: "story"; story: string } | { kind: "capability"; capability: string } | { kind: "file"; story: string; path: string } | { kind: "pathway"; link: string; along?: number } | { kind: "core" };
+export type GlobeTarget = { kind: "story"; story: string } | { kind: "capability"; capability: string } | { kind: "file"; story: string; path: string } | { kind: "pathway"; link: string; along?: number } | { kind: "note"; note: string } | { kind: "core" };
 export type GlobePose = { turn: GlobeTurn; framing: number; sideOffset: number };
 /** Framing is the short half-side in globe radii; offset is CSS pixels right; duration is milliseconds. */
 export type CameraStop = { target: GlobeTarget; framing?: number; sideOffset?: number; duration?: number };
 export type ScreenPosition = { x: number; y: number; visible: boolean };
-export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined; cancel(): void };
+/** `moving` says a stop's glide is still under way; `notes` lists the Library's notes drawn on the globe, by id. */
+export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined; cancel(): void; moving(): boolean; notes(): string[] };
 /** The short way round from `from` to face the way `to` does, as a yaw to ease toward. */
 const nearestYaw = (from: number, to: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
 export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean } {
@@ -67,6 +68,12 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
         visible: marked && isDrawn(found.object) && near && Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1 && Math.abs(projected.z) <= 1 };
     },
     cancel() { motion = undefined; },
+    moving: () => motion !== undefined,
+    notes() {
+      const notes: string[] = [];
+      host.world().traverse(object => { if (object.name.startsWith("knowledge-point:")) notes.push(object.name.slice("knowledge-point:".length)); });
+      return notes;
+    },
     frame,
   };
 }
@@ -76,6 +83,7 @@ function findTarget(world: Object3D, target: GlobeTarget): { object: Object3D; p
     : target.kind === "capability" ? world.getObjectByName(`territory:${target.capability}`)
     : target.kind === "file" ? world.getObjectByName(`planet:${target.story}`)?.getObjectByName(`file:${target.path}`)
     : target.kind === "pathway" ? ownStretch(world, target.link)
+    : target.kind === "note" ? world.getObjectByName(`knowledge-point:${target.note}`)
     : world.getObjectByName("globe-core");
   if (object === undefined) return undefined;
   const point = new Vector3();

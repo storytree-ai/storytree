@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { BoxGeometry, BufferGeometry, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, OrthographicCamera, Quaternion, Vector3 } from "three";
 import { createGlobeGuide, type GlobePose, type ScreenPosition } from "./globe-guide.js";
+import { globeLocator } from "./globe-locator.js";
 import { focusRotation, pickGlobe, pointedFile } from "./planet-navigation.js";
 
 function fixture() {
@@ -108,4 +109,34 @@ test("3.37 home eases the globe back to the turn and zoom it opened on, the shor
   const back = f.pose();
   assert.equal(back.framing, 1.18); assert.equal(back.sideOffset, 0); assert.equal(back.turn.pitch, 0);
   assert.ok(Math.abs(Math.sin(back.turn.yaw - 0.4)) < 1e-9 && Math.cos(back.turn.yaw - 0.4) > 0, "facing the way it opened");
+});
+
+test("3.40 the page's locator gives each drawn island's capability count and client point, each note's point, turns to face one at once, and says when the glide is over", () => {
+  const f = fixture();
+  const note = new Group(); note.name = "knowledge-point:note_1"; note.position.set(0, 5, 0); f.globe.add(note);
+  const island = (story: string, capabilities: (string | undefined)[]) => ({ story, title: story, x: 0, z: 0, key: story,
+    trees: capabilities.map(capability => ({ capability, form: "pale" as const, contracts: 0 })) });
+  const scene = { islands: [island("shop", ["checkout", "cart"]), island("gone", [undefined])] };
+  let controls: typeof f.guide | undefined;
+  const locator = globeLocator({ controls: () => controls, scene: () => scene, box: () => ({ left: 100, top: 50 }) });
+  assert.deepEqual(locator.islands(), [], "nothing is placed before the globe hands over its controls");
+  assert.equal(locator.still(), false);
+  assert.equal(locator.face({ kind: "story", story: "shop" }), false);
+  controls = f.guide;
+  const shop = f.guide.position({ kind: "story", story: "shop" })!;
+  // An island the world has not drawn is left out, and a story's one seedling is no capability.
+  assert.deepEqual(locator.islands(), [{ story: "shop", title: "shop", capabilities: 2, x: shop.x + 100, y: shop.y + 50, visible: shop.visible }]);
+  const dot = f.guide.position({ kind: "note", note: "note_1" })!;
+  assert.deepEqual(locator.notes(), [{ note: "note_1", x: dot.x + 100, y: dot.y + 50, visible: dot.visible }]);
+  assert.equal(locator.still(), true);
+  f.guide.stop({ target: { kind: "core" }, framing: 2, duration: 1000 });
+  assert.equal(locator.still(), false, "a glide is under way");
+  f.guide.frame(1000);
+  assert.equal(locator.still(), true);
+  f.globe.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+  assert.equal(locator.face({ kind: "story", story: "shop" }), true);
+  assert.equal(locator.still(), true, "facing turns at once, with no glide");
+  const faced = locator.islands()[0]!;
+  assert.ok(faced.visible && Math.abs(faced.x - 500) < 1e-6 && Math.abs(faced.y - 350) < 1e-6, "the island faces the viewer, mid-canvas");
+  assert.equal(locator.face({ kind: "story", story: "missing" }), false);
 });

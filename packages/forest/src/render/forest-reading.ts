@@ -27,6 +27,11 @@ export interface ForestReadingOptions {
   onError(error: unknown): void;
   /** Called once a minute with the time. */
   onClock?(now: number): void;
+  /**
+   * Called once, when the start is settled: the fresh tree drawn and the start's first survey drawn, equal to the one on show, or
+   * failed, or at once with the tree when the host cannot read the code.
+   */
+  onSettled?(): void;
   timers?: Timers;
   /** The page's one live reading, which the forest hears; without it the forest reads for itself. */
   reading?: PageReading;
@@ -44,7 +49,7 @@ type Survey = Readonly<Record<string, StorySurvey>>;
  * an ask in between runs once that time has passed, so the land converges on the checkout. A survey
  * that fails is asked again.
  */
-function surveyPacing(read: () => Promise<Survey>, landed: (survey: Survey) => void, timers: Timers): { want(): void; stop(): void } {
+function surveyPacing(read: () => Promise<Survey>, landed: (survey: Survey) => unknown, failed: () => void, timers: Timers): { want(): void; stop(): void } {
   let wanted = false;
   let running = false;
   let last = -Infinity;
@@ -53,7 +58,7 @@ function surveyPacing(read: () => Promise<Survey>, landed: (survey: Survey) => v
     wanted = false;
     running = true;
     last = timers.now();
-    read().then(landed, () => { wanted = true; }).finally(() => { running = false; });
+    read().then(landed, () => { wanted = true; failed(); }).finally(() => { running = false; });
   };
   const stop = timers.every(ASK_EVERY_MS, run);
   return { want() { wanted = true; run(); }, stop };
@@ -116,16 +121,30 @@ export async function treeAfter(reads: Pick<ForestReads, "projectTree">, project
  * once the library answers. The live reading takes one news at a time, in order, so a slow tree read
  * never draws over a newer one.
  */
-export function forestReading({ project, reads, onTree, onError, onClock = () => {}, timers = pageTimers, reading: page, survey: kept = {} }: ForestReadingOptions): LiveReading {
+export function forestReading({ project, reads, onTree, onError, onClock = () => {}, onSettled = () => {}, timers = pageTimers, reading: page, survey: kept = {} }: ForestReadingOptions): LiveReading {
   let tree: AnnotatedTree | undefined;
   let survey: Survey = kept;
   let stopped = false;
+  // The start settles once the fresh tree is drawn and the start's first survey is done with (3.49, 7.31).
+  const start = { drawn: false, surveyed: reads.codeSurvey === undefined, settled: false };
+  const settleStart = (): void => {
+    if (stopped || start.settled || !start.drawn || !start.surveyed) return;
+    start.settled = true;
+    onSettled();
+  };
+  const surveyed = (): void => {
+    start.surveyed = true;
+    settleStart();
+  };
   // A survey that lands draws the last tree again, unless it changes nothing on show (ADR-0836 D1).
-  const pacing = surveyPacing(() => reads.codeSurvey!(project), (next) => {
-    if (stopped || JSON.stringify(next) === JSON.stringify(survey)) return;
-    survey = next;
-    if (tree !== undefined) Promise.resolve(onTree(tree, { changes: [], lines: [] }, survey)).catch(onError);
-  }, timers);
+  const pacing = surveyPacing(() => reads.codeSurvey!(project), async (next) => {
+    if (stopped) return;
+    if (JSON.stringify(next) !== JSON.stringify(survey)) {
+      survey = next;
+      if (tree !== undefined) await Promise.resolve(onTree(tree, { changes: [], lines: [] }, survey)).catch(onError);
+    }
+    surveyed();
+  }, surveyed, timers);
   const own = page === undefined ? pageReading({ project, reads, timers }) : undefined;
   const stopHearing = (page ?? own!).subscribe({
     onNews: async (news) => {
@@ -137,6 +156,8 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
       if (stopped) return;
       if (reads.codeSurvey !== undefined && refreshSurvey) pacing.want();
       await onTree(tree, news, survey);
+      start.drawn = true;
+      settleStart();
     },
     onClock,
     onError,

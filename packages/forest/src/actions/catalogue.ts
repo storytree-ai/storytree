@@ -4,6 +4,7 @@
  * small readings of it, so the lab run (`pnpm lag:desktop`, which performs each with a real mouse) and the app's own recorder
  * read the same catalogue. Measuring a new action is adding an entry.
  */
+import { KEPT_DRAWING_KEY, KEPT_TREE_KEY } from "../render/kept-keys.js";
 
 /** ADR-1001 D2: an answer on screen within `responseMs`, no frame over `frameMs` until settled, and settled within `settledMs`
  * unless progress is on show within the response budget and stays until settled. Tuned here; an entry may carry its own. */
@@ -17,7 +18,8 @@ export type IslandChoice = "fewest" | "most" | { story: string };
  * One step of an action, performed through the page's real input:
  * `island`, turn the chosen island to face (unmeasured) and click its middle; `note`, click a Library note in view;
  * `click`, click an element's middle (`optional` skips it when the page has none); `key`, press a key; `hover-sweep`,
- * move the mouse across the globe; `idle`, touch nothing for `ms`; `wait`, until the page shows `until`.
+ * move the mouse across the globe; `idle`, touch nothing for `ms`; `wait`, until the page shows `until`; `start`, open the page
+ * again from the start, as opening the app does, having first forgotten the page's kept keys that begin with any of `forget`.
  */
 export type Step =
   | { kind: "island"; island: IslandChoice }
@@ -26,7 +28,8 @@ export type Step =
   | { kind: "key"; key: string }
   | { kind: "hover-sweep" }
   | { kind: "idle"; ms: number }
-  | { kind: "wait"; until: Settled };
+  | { kind: "wait"; until: Settled }
+  | { kind: "start"; forget: readonly string[] };
 
 /** What settled looks like; every field given must hold. `selected: "island"` is the island the action clicked. */
 export type Settled = {
@@ -37,6 +40,8 @@ export type Settled = {
   session?: "selected";
   /** No camera glide under way. */
   still?: true;
+  /** The start is settled: the fresh tree and the start's first code survey drawn (7.31). */
+  start?: "settled";
 };
 
 /** What the page shows, as the lag run reads it each frame. */
@@ -51,6 +56,8 @@ export type PageState = {
   still: boolean;
   /** A loading bar or circle is on show. */
   progress: boolean;
+  /** The page's start is settled (`document.body.dataset.start` is "settled"). */
+  startSettled: boolean;
 };
 
 export interface LagAction {
@@ -85,6 +92,8 @@ const STORY_NODE_RENDER: Owner = { capability: "capability_8ffc78a4bad2", contra
 const INSPECT_ARTIFACT: Owner = { capability: "capability_062b84e5c6b0", contract: "contract_7c6061e3f4cf" };
 /** 7 · Running sessions, 7.29: opening a session's row. */
 const RUNNING_SESSIONS: Owner = { capability: "capability_6133809a4139", contract: "contract_b36003348949" };
+/** 3 · Story node render, 3.49: opening the app, with a kept forest and without one. */
+const OPENING_THE_APP: Owner = { capability: "capability_8ffc78a4bad2", contract: "contract_67d023b8c77f" };
 /** The world's 5 · The canvas, 5.8: a globe left alone. */
 const THE_CANVAS: Owner = { capability: "capability_cd7ea3b6ca01", contract: "contract_c58268454e54" };
 
@@ -102,6 +111,11 @@ export const CATALOGUE: readonly LagAction[] = [
   openIsland("open-fewest-island", "fewest"),
   openIsland("open-most-island", "most"),
   openIsland("open-named-island", { story: NAMED_STORY }),
+  // Opening the app is a real start of the page: the kept forest the last start left, or none, until the globe is settled. A start
+  // has no input, so the field recorder cannot tell one from what the page shows, and files none.
+  { name: "open-app-kept", setup: [], perform: [{ kind: "start", forget: [] }], settled: { start: "settled" }, budget: DEFAULT_BUDGET, limitMs: 60_000, owner: OPENING_THE_APP },
+  { name: "open-app-fresh", setup: [], perform: [{ kind: "start", forget: [KEPT_TREE_KEY, KEPT_DRAWING_KEY] }], settled: { start: "settled" }, budget: DEFAULT_BUDGET,
+    limitMs: 60_000, owner: OPENING_THE_APP },
   { name: "close-panel", setup: [...RESET, { kind: "island", island: "most" }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }],
     perform: [{ kind: "click", selector: ".story-panel .panel-close" }], settled: { selected: "none", panel: "closed" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "close-panel", owner: DRILL_DOWN },
   { name: "library-and-back", setup: RESET,
@@ -131,5 +145,6 @@ export function isSettled(want: Settled, page: PageState, island?: string): bool
   if (want.note === "any" && page.note === undefined) return false;
   if (want.mode !== undefined && page.mode !== want.mode) return false;
   if (want.session === "selected" && !page.sessionSelected) return false;
+  if (want.start === "settled" && !page.startSettled) return false;
   return !want.still || page.still;
 }

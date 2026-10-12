@@ -385,3 +385,42 @@ test("7.30 a reading started with the survey kept from the last start draws the 
   assert.deepEqual(drawn, [survey]);
   reading.stop();
 });
+
+test("7.31 a start is settled once the fresh tree is drawn and the start's first survey is drawn, equal to the kept one, or failed; with no survey reader, once the tree is drawn", async () => {
+  const start = (codeSurvey: ForestReads["codeSurvey"], kept?: typeof survey) => {
+    const seen: string[] = [];
+    const reads: ForestReads = {
+      changesSince: async () => ({ changes: [], cursor: 0 }),
+      linesSince: async () => ({ lines: [], cursor: 0 }),
+      projectTree: async () => tree,
+      ...(codeSurvey === undefined ? {} : { codeSurvey }),
+    };
+    const reading = forestReading({ project: "shop", reads, timers: clockTimers(), ...(kept === undefined ? {} : { survey: kept }),
+      onTree: (_read, _news, read) => { seen.push(`drawn ${Object.keys(read).length}`); }, onError: () => {}, onSettled: () => seen.push("settled") });
+    return { seen, reading };
+  };
+
+  let land: (value: typeof survey) => void = () => {};
+  const surveyed = start(() => new Promise((resolve) => { land = resolve; }));
+  await settle();
+  assert.deepEqual(surveyed.seen, ["drawn 0"], "the fresh tree alone does not settle a start whose survey is still coming");
+  land(survey);
+  await settle();
+  assert.deepEqual(surveyed.seen, ["drawn 0", "drawn 1", "settled"]);
+  surveyed.reading.stop();
+
+  const unchanged = start(async () => JSON.parse(JSON.stringify(survey)) as typeof survey, survey);
+  await settle();
+  assert.deepEqual(unchanged.seen, ["drawn 1", "settled"], "a survey equal to the kept one changes nothing and settles the start");
+  unchanged.reading.stop();
+
+  const failing = start(async () => { throw new Error("no checkout"); });
+  await settle();
+  assert.deepEqual(failing.seen, ["drawn 0", "settled"], "a survey that fails settles the start with the tree on show");
+  failing.reading.stop();
+
+  const unsurveyed = start(undefined);
+  await settle();
+  assert.deepEqual(unsurveyed.seen, ["drawn 0", "settled"]);
+  unsurveyed.reading.stop();
+});

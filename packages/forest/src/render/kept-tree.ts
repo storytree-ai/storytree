@@ -10,6 +10,8 @@ import { pageKept, type Kept, type PageStorage, type PartState, type WorkStates 
 import type { AnnotatedTree, Change } from "@storytree/library";
 import type { StorySurvey } from "@storytree/map";
 
+import { KEPT_DRAWING_KEY, KEPT_TREE_KEY } from "./kept-keys.js";
+
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const hasNode = (value: unknown): value is Record<string, unknown> =>
   isObject(value) && typeof value.id === "string" && typeof value.title === "string" && isObject(value.health);
@@ -22,7 +24,7 @@ function isAnnotatedTree(value: unknown): value is AnnotatedTree {
 
 /** Project `project`'s kept tree; `storage` is the page's own unless handed one. */
 export function keptTree(project: string, storage?: PageStorage | null): Kept<AnnotatedTree> {
-  const key = `storytree.forest.tree.v1:${project}`;
+  const key = `${KEPT_TREE_KEY}${project}`;
   return storage === undefined ? pageKept(key, isAnnotatedTree) : pageKept(key, isAnnotatedTree, storage);
 }
 
@@ -67,7 +69,7 @@ export function drawingOf(tree: AnnotatedTree, history: readonly Pick<Change, "t
 
 /** What project `project`'s kept tree was drawn with, read back as the forest scene takes it; `storage` is the page's own unless handed one. */
 export function keptDrawing(project: string, storage?: PageStorage | null): { read(): KeptDrawing | undefined; write(drawing: Drawing): void } {
-  const key = `storytree.forest.drawing.v1:${project}`;
+  const key = `${KEPT_DRAWING_KEY}${project}`;
   const kept = storage === undefined ? pageKept(key, isDrawing) : pageKept(key, isDrawing, storage);
   return {
     read() {

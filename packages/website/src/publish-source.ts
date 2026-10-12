@@ -33,7 +33,7 @@ export function publicationSource(run: CheckedRun, pr?: MergedPullRequest): stri
 }
 
 /** Contract 4.4: the live site names the merge it was built from. */
-export const LIVE_VERSION = "https://crisp-globe-bf6v.here.now/version.txt";
+export const LIVE_VERSION = "https://storytree.dev/version.txt";
 
 /**
  * Where to look for website changes up to `sha`: from the commit the live site carries, so a website

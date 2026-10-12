@@ -1,6 +1,5 @@
 /** Capability 1 · Work states. Capability 1, contracts 1.4–1.6. The library decides whether waits/questions still hold;
  * Session management decides who holds work. This reading only gives those facts their display order. */
-import type { Claim } from "@storytree/session-management";
 import type { ArcState as Lifecycle, FieldsOf, Hold, NoteWait } from "@storytree/library";
 
 export type IncrementState = "landed" | "not-completed" | "waiting-on-you" | "queued" | "blocked" | "held" | "open";
@@ -17,6 +16,9 @@ export interface IncrementReading {
   /** The increment holding a capability its list names, when it reads blocked (ADR-0949 D3). */
   blockedBy?: string;
 }
+/** A claim on work, as Session management reads it from the log: the arc surface's own copy of what it reads (ADR-1017 D2). */
+type Claim = { readonly holder: "live" | "idle" };
+
 export interface IncrementFacts {
   /** The library's heldOnQuestion reading, not the stored heldOn links. */
   heldOn?: readonly string[];

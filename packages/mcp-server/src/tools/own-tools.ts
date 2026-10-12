@@ -4,9 +4,19 @@ import { listRuns, renderInventory } from '@storytree/processes/listing';
 import { clearOwned, readClosing, renderClosing } from '@storytree/processes/closing';
 import type { SharedWork } from '@storytree/processes/listing';
 import { stopOwned } from '@storytree/processes/stopping';
-import type { RunOwner } from '@storytree/processes';
 import { z } from 'zod';
 import { refusalOf, result, type Answer } from './answers.js';
+
+/**
+ * Who started a run, as these tools hand it to the process ledger: the server's own copy of the ledger's
+ * run owner (ADR-1017 D2), whole, since every field is passed on.
+ */
+type RunOwner = {
+  readonly session: string;
+  readonly harness?: string;
+  readonly agent?: 'orchestrator' | 'unknown' | { readonly subagent: string; readonly type?: string | undefined; readonly task?: string | undefined };
+  readonly parentSession?: string;
+};
 
 export const OWN_TOOLS = ['list_own_runs', 'list_all_runs', 'stop_own_run', 'clear_own_runs'];
 

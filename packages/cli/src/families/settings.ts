@@ -1,5 +1,4 @@
 /** Capability 1 · Front door. A thin front door onto Session management's per-user settings. */
-import type { LibraryReading, SettingReading } from "@storytree/session-management";
 import type { SurfaceReading } from "@storytree/app";
 
 import { Refusal } from "../answer.js";
@@ -42,6 +41,24 @@ export const settings: Family = {
     },
   }],
 };
+
+/** A setting as Session management reads it, other than where the library lives: this door's own copy of what it says (ADR-1017 D2). */
+type SettingReading = {
+  readonly name: string;
+  readonly type: string;
+  readonly unit: string;
+  readonly default: string | number;
+  readonly meaning: string;
+  readonly value: string | number;
+  readonly source: "default" | "set";
+};
+
+/** Where the library lives, as Session management reads it: this door's own copy of what it says (ADR-1017 D2). */
+type LibraryReading = (
+  | { readonly location: "local" }
+  | { readonly location: "cloudsql"; readonly instance: string; readonly user: string }
+  | { readonly location: "postgres"; readonly address: string }
+) & { readonly default: string; readonly meaning: string; readonly source: "default" | "set" };
 
 function settingSaid(reading: SettingReading): string {
   const unit = reading.unit === "" ? "" : ` ${reading.unit}`;

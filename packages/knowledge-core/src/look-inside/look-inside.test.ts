@@ -190,7 +190,7 @@ test("4.16 a selected session's window draws one step per move in reading order,
   const links = new Set(["old>linked", "deep>last"]);
   const joined = (a: string, b: string) => links.has(`${a}>${b}`) || links.has(`${b}>${a}`);
   const view = windowView({
-    session: "S", at: "-", compactions: 1, inView: [], glimpses: ["hit", "gone-from-the-library"],
+    glimpses: ["hit", "gone-from-the-library"],
     opens: [
       // Opened before the compaction: its read left the window.
       open("old", false),
@@ -217,7 +217,7 @@ test("4.16 a selected session's window draws one step per move in reading order,
   assert.deepEqual(view.files, ["src/claims/merges.ts"]);
   assert.equal(view.status, undefined);
 
-  const none = windowView({ session: "S", at: "-", absent: "no hook has named this session's transcript" }, new Set(), joined);
+  const none = windowView({ absent: "no hook has named this session's transcript" }, new Set(), joined);
   assert.deepEqual(none, { notes: new Set(), faded: new Set(), glimpsed: new Set(), files: [], steps: [], code: { files: new Map(), capabilities: new Map() }, status: "No window: no hook has named this session's transcript" });
 
   // Direction: a faint fill runs along each step from its earlier note to its later one, rests, then runs again.

@@ -7,12 +7,11 @@
  */
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-import type { SessionWindow } from "@storytree/session-management";
 import type { Change, Line } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
 import { HIDDEN_AT_START, drawnPoints, kindRows } from "../kinds/kinds.js";
-import { ORCHESTRATOR, dotSizes, lighting, noteCard, trails as readingPaths, traversalTrails, windowView, fileStop, type CodePlaces, type WindowState, type Point, type RosterEntry } from "../look-inside/look-inside.js";
+import { ORCHESTRATOR, dotSizes, lighting, noteCard, trails as readingPaths, traversalTrails, windowView, fileStop, type CodePlaces, type WindowState, type Point, type RosterEntry, type SessionWindow } from "../look-inside/look-inside.js";
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";

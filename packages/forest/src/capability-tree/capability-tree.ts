@@ -16,11 +16,17 @@
  * form; the form survives in the smoke check's report (`forestDrawn`), the island's landed count
  * (`islandProgress`) and the engine's parcel statuses, none of which draws a tree.
  */
-import type { PartState, WorkStates } from "@storytree/arc-surface";
-import type { TreeForm } from "@storytree/forest-world/scene";
 import type { AnnotatedCapability, AnnotatedStory, HealthState } from "@storytree/library";
 
-export type { TreeForm };
+/**
+ * Where a part stands, by the arc surface's work states, and those states as far as the forest reads them:
+ * the forest's own copy (ADR-1017 D2).
+ */
+export type PartState = "planned" | "in-progress" | "landed";
+export type PartStates = { part(id: string): PartState };
+
+/** A tree's form, as the world's scene takes it: the forest's own copy (ADR-1017 D2). */
+export type TreeForm = "seedling" | "pale" | "green" | "dead";
 
 /** One tree in a story node's grove. */
 export interface Tree {
@@ -39,7 +45,7 @@ export interface Tree {
 }
 
 /** The grove of `story`: one tree per capability, in build order (each after those it builds on in the story, else in creation order). */
-export function grove(story: AnnotatedStory, states: Pick<WorkStates, "part">): Tree[] {
+export function grove(story: AnnotatedStory, states: PartStates): Tree[] {
   if (story.capabilities.length === 0) {
     return [{ capability: undefined, title: story.title, buildsOn: [], state: "planned", reported: "not-checked", form: "seedling" }];
   }

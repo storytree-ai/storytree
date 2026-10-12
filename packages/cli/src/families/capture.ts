@@ -4,7 +4,7 @@
  * fields, resolves the current branch and passes the writer.
  */
 import { execFileSync } from "node:child_process";
-import type { Route } from "@storytree/librarian";
+import type { FieldsOf } from "@storytree/library";
 
 import type { Args } from "../args.js";
 import type { Family, Verb } from "../door.js";
@@ -84,7 +84,7 @@ const routeVerb: Verb = {
   summary: "record the librarian's route and reason, or stamp the remedy that landed",
   async act(args, context) {
     const id = args.word(0, "the friction's id", this.usage);
-    const to = args.need("to", this.usage) as Route;
+    const to = args.need("to", this.usage) as NonNullable<FieldsOf<"friction">["route"]>;
     const dischargedBy = args.text("discharged-by");
     const { route } = await import("@storytree/librarian");
     const note = await route(await context.library(), id, to, args.need("reason", this.usage), { ...context.writer(), ...(dischargedBy === undefined ? {} : { dischargedBy }) });

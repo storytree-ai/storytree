@@ -154,10 +154,10 @@ test("7.7 clicking a row selects its session, a child's row its parent, and clic
 
 test("7.8 a row's files are its window's opened files, each once in the order first opened, those no longer in the window marked; no reading says why", () => {
   const open = (id: string, resident: boolean, kind: "file" | "note" = "file") => ({ kind, id, call: id, tool: "Read", resident });
-  const files = windowFiles({ session: "parent", at: now.toISOString(), inView: [], glimpses: [], compactions: 1,
+  const files = windowFiles({
     opens: [open("a.ts", false), open("note_0123456789ab", true, "note"), open("b.ts", true), open("a.ts", true), open("c.ts", false)] });
   assert.deepEqual(files, { files: [{ path: "a.ts", resident: true }, { path: "b.ts", resident: true }, { path: "c.ts", resident: false }] });
-  assert.deepEqual(windowFiles({ session: "parent", at: now.toISOString(), absent: "no hook has named this session's transcript" }),
+  assert.deepEqual(windowFiles({ absent: "no hook has named this session's transcript" }),
     { absent: "no hook has named this session's transcript" });
 });
 

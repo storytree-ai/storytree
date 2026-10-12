@@ -8,10 +8,20 @@
  * `noticeboard log` shows the log's latest lines as Session management writes them out, each with the
  * line that caused it or "cause not recorded" (ADR-0746 D2).
  */
-import type { Claim } from "@storytree/session-management";
-
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
+
+/** A claim as Session management's board gives it: the noticeboard's own copy of the fields it shows (ADR-1017 D2). */
+type Claim = {
+  readonly session: string;
+  readonly label: string;
+  readonly reason: string;
+  readonly since: string;
+  readonly branch?: string;
+  readonly holder: "live" | "idle";
+  readonly increment?: string | undefined;
+  readonly capability?: string | undefined;
+};
 
 /** What a claim holds: "increment <id>" or "capability <id>". */
 function partOf(claim: Claim): string {

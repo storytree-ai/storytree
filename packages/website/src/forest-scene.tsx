@@ -2,7 +2,7 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { drillDown, type SessionWisp } from "@storytree/forest";
+import { drillDown } from "@storytree/forest";
 import { PlanetView, flipSwitch, globeLayers, mountSessionsList, renderStoryPanel, attachPanZoom, mountTreeSpace, type GlobeControls, type GlobeSurfaces, type GlobeSwitch, type GlobeTarget } from "@storytree/forest/view";
 import { workStates } from "@storytree/arc-surface";
 import { mountArcSurface } from "@storytree/arc-surface/view";
@@ -18,6 +18,9 @@ import { aim, globeOf, islandsKeptOff, labelsAt, labelWords, momentStarts, place
 import { createCameraPlayer, freePlayFraming, towardNarrow, viewFraming } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, recordedView, savedReading } from "./tour-reading.js";
+
+/** One session's wisp round one island, as the forest draws it: the site's own copy, whole, since it hands each one back (ADR-1017 D2). */
+type SessionWisp = { session: string; story: string; colour: string; faded: boolean; capabilities: string[] };
 
 const snapshot = saved as unknown as TourSnapshot;
 const places = new Map(snapshot.places.map(place => [place.id, place.place]));

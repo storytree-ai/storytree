@@ -10,7 +10,6 @@
  * `storytree health worklist` prints the oldest three capabilities on the library's health
  * worklist (ADR-0825 D4), for the librarian pass to route, and how many a test run in progress holds back.
  */
-import type { Claim } from "@storytree/session-management";
 import { heldBack, type NodeHealth } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
@@ -25,6 +24,9 @@ function healthOf(health: NodeHealth, unverified: boolean): string {
   const reported = `agent says ${words(health.reported.state)}`;
   return unverified ? reported : `${reported} · storytree verified ${words(health.verified.state)}`;
 }
+
+/** A claim as the tree marks it: its own copy of the fields it reads (ADR-1017 D2). */
+type Claim = { readonly label: string; readonly holder: "live" | "idle"; readonly reason: string; readonly increment?: string | undefined; readonly capability?: string | undefined };
 
 /** Who holds `id`, if anyone. */
 function claimOn(claims: readonly Claim[], id: string): string {

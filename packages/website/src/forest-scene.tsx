@@ -90,7 +90,21 @@ function Sessions({ project, recording, core, onWisps, onHighlight, onPick }: { 
       reading: recording.reading, now: recording.now, onWisps, onHighlight,
       onRoster: roster => core.showRoster(roster), onSelect: session => { onPick(); core.select(session); } });
     const stop = core.onSelect(session => list.select(session));
-    return () => { stop(); list.stop(); };
+    // The globe's drawing sits in the room the list leaves (freeplay.css), so the list's height is the stage's to read. The list
+    // renders after mounting, so it is watched for as it arrives.
+    const stage = document.getElementById("chapter2"), host = ref.current!;
+    let shown: Element | null = null;
+    const size = () => stage?.style.setProperty("--tour-sessions", `${Math.ceil(shown?.getBoundingClientRect().height ?? 0)}px`);
+    const sized = new ResizeObserver(size);
+    const arrive = new MutationObserver(() => {
+      const found = host.querySelector(".sessions-list");
+      if (found === shown) return;
+      if (shown) sized.unobserve(shown);
+      shown = found;
+      if (shown) sized.observe(shown); else size();
+    });
+    arrive.observe(host, { childList: true, subtree: true });
+    return () => { arrive.disconnect(); sized.disconnect(); stage?.style.removeProperty("--tour-sessions"); stop(); list.stop(); };
   }, [project, recording, core, onWisps, onHighlight, onPick]);
   return <div ref={ref} className="tour-sessions" />;
 }

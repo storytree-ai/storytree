@@ -10,9 +10,9 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { z } from "zod";
 
 import { habitsCard } from "../instructions/habits.js";
-import { hookFailures, type HookFailure } from "@storytree/session-management";
+import { hookFailures, MARKER_FILE, type HookFailure } from "@storytree/session-management";
 import { findProject, storytreeHome } from "@storytree/session-management";
-import { notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, takeStarterPack, type StarterPackStatus } from "@storytree/app-setup/project";
+import { makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, takeStarterPack, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -140,6 +140,8 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         if (join !== true) {
           try { journey?.projectCreated?.(); } catch { /* Observation cannot change a setup answer. */ }
         }
+        // Review, landing and verified health read a repository (6.70); a joined checkout is the user's own clone.
+        const repository = join === true ? undefined : makeRepository(folder);
         const { library, log } = await connections.reach(running.library, name, undefined, { folder, home: setup.storytreeHome ?? storytreeHome() });
         await log.append(name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "set_up_project" });
         // The setup finishes here, with no second check_setup in this session (8.22): that check could verify none
@@ -148,9 +150,10 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         const starterRoles = await starterRolesIn(library);
         const fixes: Fix[] = [caller.harness === "codex" && codexHooksState(setup) === "waiting" ? "codex-approval" : "new-session"];
         const said = [`This folder is now storytree project ${quoted(name)}, and its setup is finished: carry on with the user's request, with no second check_setup in this session.`];
+        if (repository !== undefined && repository.state !== "already") said.push(repositorySentence(repository));
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
         said.push(fixes[0] === "codex-approval" ? FIX_SENTENCES["codex-approval"] : SET_UP_THIS_SESSION);
-        return result({ text: withCard(said.join(" ")), data: { project: name, starterRoles, fixes } });
+        return result({ text: withCard(said.join(" ")), data: { project: name, starterRoles, fixes, ...(repository === undefined ? {} : { repository }) } });
       } catch (error) {
         if (isUnreachable(error)) {
           await connections.close();
@@ -205,6 +208,17 @@ function connectedSentence(caller: Caller): string {
     "Planning, claims, the library, questions and reviews all work through these tools and the storytree command; " +
     "storytree does not see this session's file edits or commands, cannot refuse an edit to a capability another session holds, has no context reading for it, and ships no transcript of it. " +
     `This session's id is ${caller.session}: run storytree commands in its shell with ${SESSION_ENV}=${caller.session} set, so they act as this session.`;
+}
+
+/**
+ * What set_up_project says of the repository it made, or could not make, in a folder in none (6.70): review and
+ * landing also need an origin remote, which publishes the user's code, so it is proposed, never made.
+ */
+function repositorySentence(made: Exclude<RepositoryMade, { state: "already" }>): string {
+  const remote = "Review and landing also need an origin remote: propose a GitHub repository to the user (gh repo create, then git push), and make one only if they say yes.";
+  return made.state === "made"
+    ? `The folder was in no git repository, so storytree made it a git repository, with a first commit holding ${MARKER_FILE}. ${remote}`
+    : `The folder is in no git repository, and storytree could not make one (${made.reason}), so its work cannot be reviewed or landed yet: tell the user, and once git can commit here, make it one (git init, then commit ${MARKER_FILE}). ${remote}`;
 }
 
 /** What a session that set its project up is told of its hooks, which only a session started in the project can show. */

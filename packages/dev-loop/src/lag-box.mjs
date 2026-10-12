@@ -53,6 +53,12 @@ function verdictOf(run, action) {
   return rows.some((row) => row.verdict === "slower") ? "slower" : "within";
 }
 
+/** Whether only the build compared against could not perform the action in a run: an action that merge added, its parent lacking it. */
+function newTo(run, action) {
+  const rows = (run.rows ?? []).filter((row) => row.name === action);
+  return rows.length > 0 && rows.every((row) => row.notRun?.startsWith("against: "));
+}
+
 const asks = (run, action) => run.actions === null || run.actions === undefined || run.actions.includes(action);
 
 /**
@@ -161,7 +167,8 @@ export const LAG_RUN = "lag run";
  * maps an action to its contract. Only a measuring run (measure or confirm) mints, and only for the contracts of the actions it asked:
  * failing for a slowdown that reproduced, which a run that did not happen leaves standing; NOT RUN for an action it asked and did not
  * measure; passing for an action within the margin of its baseline. A contract fails if any of its actions does; one with an action whose slower verdict waits for its second run, or
- * that was never measured, gets nothing, so its standing verdict holds; one with an action not run is not checked.
+ * that was never measured, or that only the build it was compared against could not perform before it had a baseline (an action the
+ * merge added), gets nothing, so its standing verdict holds; one with an action not run is not checked.
  * @returns {Map<string, { number: string, state: "passing" | "failing" | "not-checked", note?: string, reason?: string, skip?: "other" }>}
  */
 export function lagVerdicts({ history, actions, log: mainLog, owners, ran }) {
@@ -174,6 +181,7 @@ export function lagVerdicts({ history, actions, log: mainLog, owners, ran }) {
       return { state: "failing", why: `${action} slower since ${short(slowdown.at)} against its baseline ${short(slowdown.baseline)}${named}` };
     }
     const run = runs.filter((one) => asks(one, action)).at(-1);
+    if (baseline === undefined && run?.state === "done" && newTo(run, action)) return { state: "waiting" };
     if (run !== undefined && (run.state !== "done" || verdictOf(run, action) === undefined)) {
       return { state: "not-run", why: run.state === "done" ? `${action} could not be performed` : run.reason ?? "the run did not finish" };
     }

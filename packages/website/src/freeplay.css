@@ -31,6 +31,10 @@
 #chapter2 .arc-overlay .arc-handle { top:-48px; }
 /* While the tour talks, the sessions list sits to the right of the card, above the bar. */
 #chapter2[data-tour-mode="tour"] .sessions-list { left:calc(clamp(24px, 4vw, 64px) + min(400px, 36vw) + 16px); right:16px; bottom:calc(var(--bar-h) + 14px); max-height:42%; z-index:4; border:1px solid #3d4748; border-radius:12px; }
+/* While the sessions list shows, the globe's drawing sits in the room it leaves (--tour-sessions, the list's height, which
+   forest-scene.tsx measures), so no island the claims step names, and no island's name in free play, lies under it. */
+#chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden])) .forest-drawing { bottom:calc(var(--bar-h) + 22px + var(--tour-sessions, 0px)); }
+#chapter2[data-tour-mode="freeplay"]:has(.tour-session-surface:not([hidden])) .forest-drawing { bottom:calc(var(--bar-h) + var(--tour-sessions, 0px)); }
 #chapter2 .tour-recording-progress { position:absolute; z-index:6; top:52px; right:24px; margin:0; color:#f2967b; font:600 11px/1.5 system-ui, sans-serif; letter-spacing:.06em; text-transform:uppercase; font-variant-numeric:tabular-nums; }
 #chapter2[data-tour-mode="freeplay"] .tour-recording-progress { display:none; }
 #chapter2[data-tour-mode="tour"] .planet-mini-globe { top:76px; }
@@ -62,21 +66,23 @@
  #chapter2 .sessions-list .session-legend { display:none; }
  #chapter2 .sessions-list { max-height:24%; }
  #chapter2 .arc-panes { grid-template-columns:minmax(0,1fr); grid-template-rows:1fr 1fr; }
- #chapter2[data-tour-mode="tour"] .sessions-list { left:10px; right:10px; top:84px; bottom:auto; max-height:30%; }
+ #chapter2[data-tour-mode="tour"] .sessions-list { left:10px; right:10px; bottom:auto; max-height:30%; }
  #chapter2 .tour-recording-progress { top:auto; bottom:calc(var(--bar-h) + 8px); right:12px; }
  /* While the tour talks, a panel takes a band at the top (2.18): the sessions list scrolls past three, and the arcs drawer
-    shows its list of arcs alone, never running under the card. The globe keeps its size and moves down a little, so
-    the islands the step faces sit in the band between the panel and the card. */
+    shows its list of arcs alone, never running under the card. The globe moves down, so the islands the step faces sit in
+    the band between the panel and the card. */
  #chapter2[data-tour-mode="tour"] .sessions-list { max-height:140px; }
  #chapter2[data-tour-mode="tour"] .arc-overlay { top:48px; left:0; right:0; width:auto; max-height:136px; border:0; border-radius:0; }
  #chapter2[data-tour-mode="tour"] .arc-overlay .arc-handle { border:0; border-bottom:1px solid #485159; border-radius:0; }
  #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden]), .tour-arc-surface:not([hidden])) .forest-drawing { top:104px; bottom:max(calc(52% - 20px), calc(var(--tour-under) + 4px - 8px)); }
-}
-/* A short phone's long steps take room from the globe (2.19), so its globe's bottom follows the card up, and the band above
-   is won back: the sessions list rises over the heading, and the globe rises with the panel it sits under (2.18). */
-@media(max-width:600px) and (max-height:760px) {
+ /* The sessions list rises over the heading, and the globe sits in the room under it (--tour-sessions, its height), so the
+    islands the claims step names stand clear of it between the list and the card. */
  #chapter2[data-tour-mode="tour"] .sessions-list { top:8px; }
  #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden])) :is(.tour-heading, .tour-note) { visibility:hidden; }
- #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden])) .forest-drawing { top:28px; }
+ #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden])) .forest-drawing { top:calc(16px + var(--tour-sessions, 0px)); }
+}
+/* A short phone's long steps take room from the globe (2.19), so its globe's bottom follows the card up, and the band above
+   is won back: the globe rises with the panel it sits under (2.18). */
+@media(max-width:600px) and (max-height:760px) {
  #chapter2[data-tour-mode="tour"]:has(.tour-arc-surface:not([hidden])) .forest-drawing { top:64px; bottom:calc(max(calc(52% - 32px), calc(var(--tour-under) + 4px - 20px)) + 40px); }
 }

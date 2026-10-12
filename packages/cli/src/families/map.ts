@@ -20,7 +20,7 @@ export function mapOptions(args: Args): Omit<FocusOptions, "select"> {
 /** The patterns a line is drawn round, comma-separated. */
 function crossingPatterns(text: string): string[] {
   const patterns = text.split(",").map(value => value.trim()).filter(value => value !== "");
-  if (patterns.length === 0) throw new Refusal("Name the folders or file patterns: --crossing <pattern,...>.", { code: 2 });
+  if (patterns.length === 0) throw new Refusal("Name the folders, file patterns or explored capabilities: --crossing <pattern|cap:<id|number>,...>.", { code: 2 });
   return patterns;
 }
 
@@ -37,7 +37,7 @@ export const mapFamily: Family = {
   verbs: [],
   bare: {
     name: "map",
-    usage: "map --select file:<path>|cap:<id|number>|promise:<id|number>|story:<name>|diff:<range> [--up N] [--down N] [--kind story,capability,promise,file,test] [--dry-run|--show] [--json], or map --crossing <folder|pattern,...> [--select story:<mapped>] [--show] [--json]",
+    usage: "map --select file:<path>|cap:<id|number>|promise:<id|number>|story:<name>|diff:<range> [--up N] [--down N] [--kind story,capability,promise,file,test] [--dry-run|--show] [--json], or map --crossing <folder|pattern|cap:<id|number>,...> [--select story:<mapped>] [--show] [--json]",
     summary: "up follows dependencies; down follows dependents; --crossing counts the imports across a line in a mapped island; show refuses above 200 rows; JSON on every mode",
     switches: ["dry-run", "show", "json"],
     async act(args, context) {

@@ -5,7 +5,8 @@
  *
  * - A change is one increment's branch, named by the increment. Each review of it is one iteration: a brief
  *   issued, then the reviewer's return taken. A brief not yet taken is replaced by the next one issued.
- * - The brief holds the branch's diff against origin/main, its uncommitted work included (2.6), every contract of the capabilities the increment
+ * - The brief holds the branch's diff against origin/main, its uncommitted work included (2.6), or in a repository with no
+ *   origin/main against its local default branch, which the brief names (2.7), every contract of the capabilities the increment
  *   names, and every live check; never the increment's body or the implementer's reasoning (contract 2.1).
  *   Each contract is listed under its story and capability, and every capability named is listed even with no
  *   contracts, so two stories' contracts sharing a number both appear, each with its story (2.5).
@@ -41,6 +42,8 @@ export interface Brief {
   readonly iteration: number;
   /** The branch's diff against origin/main. */
   readonly diff: string;
+  /** The branch the diff was read against, when it was read from a worktree: `local` when the repository has no origin/main (contract 2.7). */
+  readonly base?: Base;
   /** The packages the diff touches (`root` for files outside any package). */
   readonly packages: readonly string[];
   /** Each capability the increment names, with its story, in story then capability order (contract 2.5). Absent from briefs issued before 2.5. */
@@ -58,6 +61,12 @@ export interface Brief {
   readonly earlier: readonly HitRow[];
   /** The earlier hits rejected for a reason no review has accepted yet: the return judges each. */
   readonly judge: readonly number[];
+}
+
+/** The branch a change's diff is read against; `local` when it is the repository's own default branch, for want of an origin/main. */
+export interface Base {
+  readonly ref: string;
+  readonly local?: true;
 }
 
 /** What the change-reviewer returns for one brief. */
@@ -79,8 +88,11 @@ export interface Taken {
 
 /** The review loop on one Postgres server, in the QA ledger's database. */
 export interface Reviews {
-  /** Issue the next brief for `change` (an increment of `library`'s project), its diff given; refused after the tenth with a finding standing. */
-  brief(library: Library, change: string, diff: string): Promise<Brief>;
+  /**
+   * Issue the next brief for `change` (an increment of `library`'s project), its diff given, with the branch it was read against
+   * when known; refused after the tenth with a finding standing.
+   */
+  brief(library: Library, change: string, diff: string, base?: Base): Promise<Brief>;
   /**
    * Take the reviewer's return on `change`'s brief awaiting one, or refuse it naming what it gets wrong, writing nothing.
    * What Guardrails' graduated checks found on the change, when given, is recorded with it as theirs (contract 5.3).
@@ -118,7 +130,7 @@ class PgReviews implements Reviews {
     this.#pool = pool;
   }
 
-  async brief(library: Library, change: string, diff: string): Promise<Brief> {
+  async brief(library: Library, change: string, diff: string, base?: Base): Promise<Brief> {
     const increment = await library.get(change);
     if (increment === null || increment.type !== "increment") throw new Error(`${change} is not an increment in project "${library.name}": a change is reviewed by its increment.`);
     const packages = diffPackages(diff);
@@ -164,7 +176,7 @@ class PgReviews implements Reviews {
       .flatMap(({ contract, change }) => (change !== undefined && "retire" in change ? [{ id: contract.id, title: contract.fields.title, reason: change.retire }] : []))
       .sort(byTitle);
     const brief: Brief = {
-      project, change, iteration: taken + 1, diff, packages, capabilities: listed, contracts, retired,
+      project, change, iteration: taken + 1, diff, ...(base === undefined ? {} : { base }), packages, capabilities: listed, contracts, retired,
       checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
       judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
@@ -261,14 +273,15 @@ function refusals(brief: Brief, review: ReviewReturn): string[] {
 
 /**
  * The diff of the branch checked out in `cwd` against `base` (from where they parted), as `git diff` gives it:
- * by default the branch origin names as its default (a user's project may call it master), else origin/main.
+ * by default the branch origin names as its default (a user's project may call it master), else origin/main,
+ * else, in a repository with no origin/main, its local default branch.
  */
-export function branchDiff(cwd: string, base = originDefault(cwd)): string {
+export function branchDiff(cwd: string, base = branchBase(cwd)?.ref): string {
   const git = (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
-  // A folder whose origin names no default branch, as an imported one may be, is read against its own commit.
+  // A folder with no default branch, as an imported one may be, is read against its own commit.
   let from = "HEAD";
   try {
-    from = git("merge-base", base, "HEAD").trim();
+    if (base !== undefined) from = git("merge-base", base, "HEAD").trim();
   } catch {
     // No default branch to compare to.
   }
@@ -288,13 +301,25 @@ function newFileDiff(cwd: string, file: string): string {
   }
 }
 
-/** The branch origin names as its default, as the checkout in `cwd` last heard; origin/main when it never said. */
-function originDefault(cwd: string): string {
-  try {
-    return execFileSync("git", ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() || "origin/main";
-  } catch {
-    return "origin/main";
-  }
+/**
+ * The branch the checkout in `cwd` is reviewed against: the one origin names as its default, as the checkout last heard,
+ * else origin/main; with neither, its local default branch: init.defaultBranch, else main, else master (contract 2.7).
+ * Undefined when it has none of these.
+ */
+export function branchBase(cwd: string): Base | undefined {
+  const git = (...args: string[]): string | undefined => {
+    try {
+      return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }).trim() || undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const exists = (ref: string) => git("rev-parse", "--verify", "--quiet", `${ref}^{commit}`) !== undefined;
+  const named = git("symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD");
+  if (named !== undefined && exists(named)) return { ref: named };
+  if (exists("refs/remotes/origin/main")) return { ref: "origin/main" };
+  const local = [git("config", "--get", "init.defaultBranch"), "main", "master"].find((branch) => branch !== undefined && exists(`refs/heads/${branch}`));
+  return local === undefined ? undefined : { ref: local, local: true };
 }
 
 /** One contract of the brief as a line, with its description beneath, at `indent`. */
@@ -334,7 +359,7 @@ export function briefText(brief: Brief): string {
       `Judge each of these rejections, accepting its reason or not: ${brief.judge.length === 0 ? "none" : brief.judge.map((id) => `hit ${id}`).join(", ")}.`,
     ]),
     "",
-    "The diff against origin/main:",
+    brief.base?.local ? `The diff against ${brief.base.ref}, this repository's own default branch: it has no origin/main.` : `The diff against ${brief.base?.ref ?? "origin/main"}:`,
     brief.diff,
   ].join("\n");
 }

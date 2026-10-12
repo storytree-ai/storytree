@@ -35,6 +35,8 @@ export function manifestFrom(text: string): { name: string; deps: string[]; expo
 type Entry = { name: string; directory: boolean; file: boolean };
 export interface SurveySource {
   readonly root: string;
+  /** The commit an immutable snapshot reads; none for a folder read from disk. */
+  readonly commit?: string;
   entries(directory: string): Promise<readonly Entry[]>;
   file(full: string): Promise<{ version: string; read(): Promise<string> } | undefined>;
 }
@@ -203,6 +205,7 @@ async function snapshot(common: string, root: string, commit: string, forget = f
   };
   return {
     root,
+    commit,
     async entries(directory) { return [...directories.get(directory)?.values() ?? []].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0); },
     async file(full) {
       const sha = files.get(full);

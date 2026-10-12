@@ -279,8 +279,9 @@ async function run(): Promise<void> {
       return tree;
     },
   });
-  // Surveys parse every changed file: on a worker thread, so the main process keeps answering meanwhile (map 8.16).
-  const surveys = offThreadSurveyReader(path.join(__dirname, "survey-worker.cjs"));
+  // Surveys parse every changed file: on a worker thread, so the main process keeps answering meanwhile (map 8.16),
+  // and kept between starts, so a start with main unmoved parses nothing (map 8.25).
+  const surveys = offThreadSurveyReader(path.join(__dirname, "survey-worker.cjs"), { keptIn: path.join(home.dir, "code-survey") });
   answerPage(ipcMain, FOREST_CHANNELS, {
     codeSurvey: async (name: unknown) => {
       const folder = await open().projectFolder(name);

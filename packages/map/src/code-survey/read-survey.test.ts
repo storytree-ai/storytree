@@ -4,7 +4,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -582,6 +582,65 @@ test("8.16 a survey read on a worker thread answers what one read in place does,
       `the asking thread's loop was busy ${(offThread.utilization * 100).toFixed(0)}% of an off-thread read, ${(inPlace.utilization * 100).toFixed(0)}% of one in place`);
   } finally {
     await reader.close();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("8.25 a start whose fetched main is the commit last surveyed, with the same plan, answers from the kept survey without reading a file", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-kept-"));
+  const checkout = path.join(folder, "checkout");
+  const kept = path.join(folder, "kept");
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: checkout, encoding: "utf8", stdio: "pipe", windowsHide: true }).trim();
+  const commit = () => {
+    git("add", ".");
+    // Quiet: a commit's summary would read the contents a test has removed.
+    git("-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "fixture");
+    git("push", "--quiet", "origin", "main");
+  };
+  // Each start is a fresh worker thread: nothing of an earlier start's reading is in memory.
+  const start = () => offThreadSurveyReader(new URL("./survey-worker.ts", import.meta.url), { execArgv: ["--import", "tsx"], keptIn: kept });
+  const surveyed = async (plan: AnnotatedTree) => {
+    const reader = start();
+    try {
+      return await reader.read(checkout, plan);
+    } finally {
+      await reader.close();
+    }
+  };
+  // Removes the package's file contents from the checkout's Git: a start that reads any file fails.
+  const forgetContents = async () => {
+    for (const line of git("ls-tree", "-r", "HEAD", "packages/shop").split("\n")) {
+      const sha = line.split(/\s+/)[2]!;
+      const object = path.join(checkout, ".git/objects", sha.slice(0, 2), sha.slice(2));
+      await chmod(object, 0o666);
+      await rm(object);
+    }
+  };
+  try {
+    const src = path.join(checkout, "packages/shop/src");
+    await mkdir(src, { recursive: true });
+    await writeFile(path.join(src, "claim.ts"), "export const claim = 1;\n");
+    await writeFile(path.join(src, "claim.test.ts"), 'import { claim } from "./claim.js";\ntest("3.1 a claim holds", () => claim);\n');
+    execFileSync("git", ["init", "-b", "main", checkout], { stdio: "pipe", windowsHide: true });
+    execFileSync("git", ["init", "--bare", path.join(folder, "origin.git")], { stdio: "pipe", windowsHide: true });
+    git("remote", "add", "origin", path.join(folder, "origin.git"));
+    commit();
+    const first = await surveyed(tree);
+    assert.deepEqual(first["story-shop"]?.files, [{ path: "src/claim.ts", lines: 1, capability: "cap-claims" }]);
+
+    await forgetContents();
+    assert.deepEqual(await surveyed(tree), first, "main unmoved and the same plan: no file is read");
+    const renamed = { arcs: [], stories: [{ ...tree.stories[0], capabilities: [{ id: "cap-claims", title: "3 · Claimed" }] }] } as unknown as AnnotatedTree;
+    await assert.rejects(surveyed(renamed), "another plan is surveyed afresh, reading the files");
+
+    await writeFile(path.join(src, "claim.ts"), "export const claim = 1;\nexport const twice = 2;\n");
+    await writeFile(path.join(src, "claim.test.ts"), 'import { claim } from "./claim.js";\ntest("3.1 a claim still holds", () => claim);\n');
+    commit();
+    const moved = await surveyed(tree);
+    assert.equal(moved["story-shop"]?.files[0]?.lines, 2, "a newer main is surveyed afresh");
+    await forgetContents();
+    assert.deepEqual(await surveyed(tree), moved, "and kept in its turn");
+  } finally {
     await rm(folder, { recursive: true, force: true });
   }
 });

@@ -16,14 +16,18 @@ export interface WatchedHarness {
   /** The environment variable naming the session in the shells it runs. */
   readonly shellSession: string;
   /** Which reader reads its transcript; none where its transcript carries no token usage, so it has no context reading. */
-  readonly transcript?: "claude-code" | "codex";
+  readonly transcript?: "claude-code" | "codex" | "pi";
+  /** False where its MCP client sends a tool call with no id of the call, so its hook's line is found by tool and time (6.66). */
+  readonly callIds?: false;
 }
 
 export const WATCHED_HARNESSES = [
   { id: "claude-code", label: "Claude Code", client: "claude-code", shellSession: "CLAUDE_CODE_SESSION_ID", transcript: "claude-code" },
   { id: "codex", label: "Codex", client: "codex-mcp-client", shellSession: "CODEX_THREAD_ID", transcript: "codex" },
   // From Cursor's installed code (command line 2026.07.09), not a live session; its transcripts (106 read, 2026-10-12) hold no usage.
-  { id: "cursor", label: "Cursor", client: "Cursor", shellSession: "CURSOR_CONVERSATION_ID" },
+  { id: "cursor", label: "Cursor", client: "Cursor", shellSession: "CURSOR_CONVERSATION_ID", callIds: false },
+  // Measured in Pi 1.1.0 (2026-10-12): its MCP client's clientInfo.name, and the variable its bash tool's shells get.
+  { id: "pi", label: "Pi", client: "pi", shellSession: "PI_SESSION_ID", transcript: "pi", callIds: false },
 ] as const satisfies readonly WatchedHarness[];
 
 /** A watched harness's id. */

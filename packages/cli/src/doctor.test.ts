@@ -80,6 +80,7 @@ function aUser(world: World): User {
   agentCli(bin, "codex", ["--version", "login status"]);
   // No Cursor here: without this, a machine's own cursor-agent is asked, and a ~/.cursor appeared in this home after it was (2026-10-12).
   agentCli(bin, "cursor-agent", []);
+  agentCli(bin, "pi", []);
   const env = {
     HOME: home,
     USERPROFILE: home,

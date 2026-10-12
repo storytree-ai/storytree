@@ -57,6 +57,21 @@ export function codexTokens(text: string): TokenCount {
 }
 
 /**
+ * A Pi session file's figure, as Pi counts its own context (`calculateContextTokens`, Pi 1.1.0): its last
+ * assistant message's `usage.totalTokens`, or its input, output, cache-read and cache-write summed, skipping
+ * a message that was aborted or errored and one whose usage is all zero. It matched Pi's own
+ * `getContextUsage().tokens` in a real Pi (2026-10-12).
+ */
+function piContextTokens(record: JsonRecord): number | undefined {
+  const message = record.message;
+  if (record.type !== "message" || !isRecord(message) || message.role !== "assistant" || !isRecord(message.usage)) return undefined;
+  if (message.stopReason === "aborted" || message.stopReason === "error") return undefined;
+  const { totalTokens, input, output, cacheRead, cacheWrite } = message.usage;
+  const tokens = isCount(totalTokens) && totalTokens > 0 ? totalTokens : [input, output, cacheRead, cacheWrite].reduce<number>((sum, part) => sum + (isCount(part) ? part : 0), 0);
+  return tokens > 0 ? tokens : undefined;
+}
+
+/**
  * A transcript's figure and composition, worked out a piece at a time: fed the transcript in pieces
  * that end on whole lines, it reads as the whole would, so a reader that asks again and again (the
  * app, every 10 seconds) parses only what the transcript gained since (9.14).
@@ -64,6 +79,7 @@ export function codexTokens(text: string): TokenCount {
 export class ContextFold {
   readonly harness: string | undefined;
   readonly #codex: boolean;
+  readonly #pi: boolean;
   /** A harness storytree has no reader for: its transcript is never read as another's (contract 9.15). */
   readonly #unread: boolean;
   readonly #composition: CompositionFold;
@@ -77,6 +93,7 @@ export class ContextFold {
     const reader = harness === undefined ? "claude-code" : watchedHarness(harness)?.transcript;
     this.#unread = reader === undefined;
     this.#codex = reader === "codex";
+    this.#pi = reader === "pi";
     this.#composition = this.#codex ? codexCompositionFold() : claudeCodeCompositionFold();
   }
 
@@ -112,15 +129,25 @@ export class ContextFold {
       return this.#latest === undefined ? { absent: "the rollout holds no token count" } : { tokens: this.#latest };
     }
     if (this.#lines === 0) return { absent: "the transcript is empty" };
+    if (this.#pi) return this.#latest === undefined ? { absent: "the session file holds no assistant message's usage" } : { tokens: this.#latest };
     if (this.#records === 0) return { absent: "the transcript holds no line storytree can read" };
     return this.#latest === undefined ? { absent: "the transcript holds only subagent or synthetic requests" } : { tokens: this.#latest };
   }
 
   composition(): Composition | undefined {
-    return this.#lines === 0 ? undefined : this.#composition.composition();
+    return this.#lines === 0 || this.#pi ? undefined : this.#composition.composition();
+  }
+
+  /** Why there is no composition, when composition() gives none. */
+  get compositionAbsent(): string {
+    return this.#pi ? "storytree does not yet sort what a Pi session's context is made of" : "the transcript holds no own request to sort";
   }
 
   #take(record: JsonRecord): void {
+    if (this.#pi) {
+      this.#latest = piContextTokens(record) ?? this.#latest;
+      return;
+    }
     if (this.#codex) {
       const payload = record.payload;
       if (record.type !== "event_msg" || !isRecord(payload) || payload.type !== "token_count" || !isRecord(payload.info)) return;
@@ -187,7 +214,7 @@ export async function contextReading(lines: readonly Line[], session: string,
   const count = folded.count();
   if ("absent" in count) return { ...who, ...count, at, source: transcript };
   const composition = folded.composition();
-  return { ...who, tokens: count.tokens, composition: composition ?? { absent: "the transcript holds no own request to sort" }, guidance: contextGuidance(count.tokens, home), at, source: transcript };
+  return { ...who, tokens: count.tokens, composition: composition ?? { absent: folded.compositionAbsent }, guidance: contextGuidance(count.tokens, home), at, source: transcript };
 }
 
 /** `session`'s reading in `project`, worked out now from what the hooks recorded. */

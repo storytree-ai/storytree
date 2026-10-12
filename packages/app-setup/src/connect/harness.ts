@@ -19,7 +19,7 @@ export function installedToolServerCommand(node: string, server: string): Instal
   return { command: node, args: [server] };
 }
 
-export type RunHarness = (executable: "claude" | "codex" | "cursor-agent", args: readonly string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => Promise<string>;
+export type RunHarness = (executable: "claude" | "codex" | "cursor-agent" | "pi", args: readonly string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => Promise<string>;
 export const runHarness: RunHarness = (executable, args, options) => new Promise((resolve, reject) => {
   // Every word is fixed by this module. On Windows the installed CLI may be an npm .cmd shim.
   // Installed paths never enter this shell: they are written as JSON/TOML data below.
@@ -68,8 +68,12 @@ export interface Settings {
   close(): void;
 }
 
-/** A JSON settings file holding its servers under `mcpServers`: Claude Code's ~/.claude.json, and Cursor's ~/.cursor/mcp.json, which takes the same entry. */
-export function claudeSettings(file: string): Settings {
+/**
+ * A JSON settings file holding its servers under `mcpServers`: Claude Code's ~/.claude.json, and Cursor's ~/.cursor/mcp.json
+ * and Pi's <agent folder>/mcp.json, which take the same entry. `own` is what one harness's entry adds: Pi's `exposure`
+ * and `description`, which the user may change afterwards without the entry ceasing to be storytree's.
+ */
+export function claudeSettings(file: string, own: Readonly<Record<string, unknown>> = {}): Settings {
   const before = read(file);
   const config: unknown = before === undefined ? {} : JSON.parse(before);
   if (!object(config) || (config.mcpServers !== undefined && !object(config.mcpServers))) throw new Error("Expected a JSON object with an mcpServers object.");
@@ -79,12 +83,12 @@ export function claudeSettings(file: string): Settings {
     current,
     compatible: (installed) => object(current) && (current.type === undefined || current.type === "stdio") &&
       current.command === installed.command && isDeepStrictEqual(current.args ?? [], installed.args) &&
-      Object.keys(current).every((key) => ["type", "command", "args", "env"].includes(key)) &&
+      Object.keys(current).every((key) => ["type", "command", "args", "env", ...Object.keys(own)].includes(key)) &&
       (current.env === undefined || isDeepStrictEqual(current.env, {})),
     outdated: () => false,
     async update() { throw new Error("Nothing to update"); },
     async add(installed) {
-      save(file, before, `${JSON.stringify({ ...config, mcpServers: { ...servers, storytree: { type: "stdio", command: installed.command, args: installed.args, env: {} } } }, null, 2)}\n`);
+      save(file, before, `${JSON.stringify({ ...config, mcpServers: { ...servers, storytree: { type: "stdio", command: installed.command, args: installed.args, env: {}, ...own } } }, null, 2)}\n`);
     },
     async remove() {
       const { storytree: _removed, ...rest } = servers;

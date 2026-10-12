@@ -32,7 +32,7 @@ import { Refusal, type Answer } from "../answer.js";
 import type { Family, Verb } from "../door.js";
 import { setupConnectionVerbs } from "./setup.js";
 
-const HARNESSES = { "claude-code": "Claude Code", codex: "Codex", cursor: "Cursor" } as const;
+const HARNESSES = { "claude-code": "Claude Code", codex: "Codex", cursor: "Cursor", pi: "Pi" } as const;
 
 /** storytree's hook script, when this command sits beside it as an installed storytree's does. */
 function hookBeside(script: string | undefined): string | undefined {

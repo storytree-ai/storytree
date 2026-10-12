@@ -299,7 +299,8 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
   const out: string[] = [];
   if (tree.stories.length === 0) out.push(`The plan of ${quoted(project)} is empty: plan a story with plan_story.`);
   for (const story of tree.stories) {
-    out.push(`Story ${quoted(story.title)} (${story.id}): ${healthOf(story.health)}`);
+    // A mapped story carries no health of its own (ADR-0993 D3): it says what it is instead.
+    out.push(`Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "mapped: here before storytree, and assumed to be working"}`);
     for (const capability of story.capabilities) {
       out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`);
       for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}`);

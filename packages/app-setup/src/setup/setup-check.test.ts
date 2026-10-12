@@ -362,6 +362,45 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
   });
 });
 
+test("8.31 in a project with no git repository, or a repository with no origin remote, the check says review, landing and verified health need one, and proposes a GitHub remote for the user to make, never making it; with origin there, it says nothing of it", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    const options = { ...ANSWERED, folder, homes: home.homes, storytreeHome: home.storytreeHome };
+    const storytree = await connect({ url: testServerUrl() });
+    const git = (...args: string[]) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: folder, encoding: "utf8" });
+    try {
+      assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "repository"), undefined, "a folder that is no project is asked nothing of its repository");
+      await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome });
+
+      const none = (await runSetupCheck(options)).lines.find((line) => line.check === "repository");
+      assert.equal(none?.state, "needs-attention");
+      assert.match(none?.message ?? "", /no git repository/);
+      assert.match(none?.message ?? "", /review.*land.*health/s);
+      assert.match(none?.fix ?? "", /git init/);
+      assert.match(none?.fix ?? "", /only if they say yes/);
+
+      git("init", "-q");
+      git("add", MARKER_FILE);
+      git("commit", "-q", "-m", "first");
+      const local = (await runSetupCheck(options)).lines.find((line) => line.check === "repository");
+      assert.equal(local?.state, "needs-attention");
+      assert.match(local?.message ?? "", /no origin remote/);
+      assert.match(local?.fix ?? "", /GitHub/);
+      assert.match(local?.fix ?? "", /only if they say yes/);
+      assert.equal(git("remote").stdout.trim(), "", "the check makes no remote");
+
+      git("remote", "add", "origin", "https://github.com/someone/somewhere.git");
+      assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "repository"), undefined);
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name]);
+    }
+  });
+});
+
 /** A port nothing on 127.0.0.1 listens on just now. */
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {

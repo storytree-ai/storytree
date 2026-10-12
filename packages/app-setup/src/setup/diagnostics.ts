@@ -2,11 +2,11 @@
 import { NODE_FLOOR, type AgentCliState, type MachineState, type ToolState } from "./machine.js";
 import { CODEX_TRUST_STEP } from "./verify.js";
 import type { ServerEntry, SetupReport } from "./setup.js";
-import { HARNESS_IDS, watchedHarness, type AppReading, type Harness } from "@storytree/session-management";
+import { HARNESS_IDS, MARKER_FILE, watchedHarness, type AppReading, type Harness } from "@storytree/session-management";
 import { compareVersions } from "./hooks-release.js";
 
 export interface SetupLine {
-  readonly check: "storytree" | "hooks" | "hooks-release" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project";
+  readonly check: "storytree" | "hooks" | "hooks-release" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project" | "repository";
   /** A `note` names an optional tool that is missing: never a fix, so no agent is asked to install it (question_bb3efa1e3191). */
   readonly state: "ok" | "fixed" | "needs-attention" | "skipped" | "note";
   readonly message: string;
@@ -123,7 +123,17 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
   lines.push(project.status === "set up"
     ? { check: "project", state: "ok", message: `This folder is storytree project ${JSON.stringify(project.name)}.` }
     : { check: "project", state: "needs-attention", message: "This folder isn't a storytree project yet.", fix: `Only after the user says yes, set up project ${JSON.stringify(project.suggestion)} or a name they choose (lower-case letters, digits and hyphens).` });
+  if (report.repository !== undefined) lines.push(repositoryLine(report.repository));
   return lines;
+}
+
+/** What a project lacking a repository or its origin remote is told (8.31): what cannot work without it, and the remote proposed, never made. */
+function repositoryLine(lack: "no repository" | "no origin"): SetupLine {
+  const why = "storytree cannot review this project's changes, land them or verify its health: those compare its work with its origin remote's default branch.";
+  const remote = "propose a GitHub repository as its origin remote to the user (gh repo create, then git push), and make one only if they say yes: it publishes their code.";
+  return lack === "no repository"
+    ? { check: "repository", state: "needs-attention", message: `This project's folder is in no git repository, so ${why}`, fix: `Make it one with a first commit (git init, then commit ${MARKER_FILE}); then ${remote}` }
+    : { check: "repository", state: "needs-attention", message: `This project's git repository has no origin remote, so ${why}`, fix: `Once its work is committed, ${remote}` };
 }
 
 /**

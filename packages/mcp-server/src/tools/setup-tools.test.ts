@@ -8,7 +8,7 @@
  * where storytree listens (a copy of the test Postgres's owner record) or how to open it.
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -202,6 +202,8 @@ test("6.64 check_setup from an MCP client storytree has no hooks for passes as c
     const folder = path.join(dir, "site");
     mkdirSync(folder);
     writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+    // A repository with its origin, so the check has nothing to say of it (8.31).
+    for (const args of [["init", "-q"], ["remote", "add", "origin", "https://github.com/someone/site.git"]]) execFileSync("git", args, { cwd: folder, stdio: "ignore" });
     await approveCheckout(folder, project, home.storytreeHome);
     // Neither watched harness is on this machine: the session is connected through another client.
     const missing = async () => ({ claude: "missing", codex: "missing", git: "present", node: { state: "ok", version: "v24.1.0" }, waitMs: 5_000 }) as const;
@@ -525,6 +527,59 @@ test("app-setup 8.24 the check tells a session the hook failures this machine tr
       });
     } finally {
       await dropTestProjects([project]);
+    }
+  });
+});
+
+test("6.70 set_up_project in a folder in no git repository makes one whose first commit holds the marker, and says so; a folder already in one is left as it is, and joining makes none", async () => {
+  const [fresh, inRepo] = [uniqueProjectName(), uniqueProjectName()];
+  // The identity a user's git would have; CI's runners have none of their own.
+  const identity = { GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
+  const before = Object.fromEntries(Object.keys(identity).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, identity);
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    try {
+      const empty = path.join(dir, fresh);
+      mkdirSync(empty);
+      await withAgent(empty, claudeCode(`claude-${fresh}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: fresh });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.match(setUp.text, /made it a git repository/);
+        assert.deepEqual(setUp.data.repository, { state: "made" });
+      });
+      assert.equal(git(empty, "rev-parse", "--show-toplevel"), empty);
+      assert.equal(git(empty, "show", "--name-only", "--format=", "HEAD"), MARKER_FILE);
+
+      const repo = path.join(dir, `${inRepo}-repo`);
+      const inside = path.join(repo, inRepo);
+      mkdirSync(inside, { recursive: true });
+      git(repo, "init", "-q");
+      await withAgent(inside, claudeCode(`claude-${inRepo}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: inRepo });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.deepEqual(setUp.data.repository, { state: "already", root: repo });
+        assert.doesNotMatch(setUp.text, /git repository/);
+      });
+      assert.equal(existsSync(path.join(inside, ".git")), false);
+      assert.equal(git(repo, "rev-list", "--all", "--count"), "0", "storytree commits nothing in the user's own repository");
+
+      // Joining from the folder its marker names, after the repository is gone: no repository is made for a join.
+      rmSync(path.join(empty, ".git"), { recursive: true, force: true });
+      await withAgent(empty, claudeCode(`claude-${fresh}-join`, setup), async (agent) => {
+        const joined = await agent.call("set_up_project", { name: fresh, join: true });
+        assert.equal(joined.isError, false, joined.text);
+        assert.equal(joined.data.repository, undefined);
+      });
+      assert.equal(existsSync(path.join(empty, ".git")), false, "joining makes no repository");
+    } finally {
+      for (const [key, value] of Object.entries(before)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+      await dropTestProjects([fresh, inRepo]);
     }
   });
 });

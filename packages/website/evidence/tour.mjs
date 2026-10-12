@@ -667,17 +667,21 @@ export async function verifyOwnGlobeFits(browser, url, output) {
     await page.goto(url);
     await page.waitForFunction(() => document.querySelector("#website-forest")?.dataset.forestState === "live", null, { timeout: 90_000 });
     const seen = new Set(), pictured = new Set(), samples = { grow: 0, value: 0, fixes: 0, everything: 0, freeplay: 0 };
+    // A sample counts only for the view the page shows as it is read: the tour can end between a loop's check and its sample,
+    // and free play's first frames still show the everything step's pose under free play's larger compass.
     const sample = async where => {
-      const { plates, compass } = await page.evaluate(() => {
+      const { view, plates, compass } = await page.evaluate(() => {
         const box = node => { const { x, y, width, height } = node.getBoundingClientRect(); return { x, y, width, height }; };
-        const mini = document.querySelector("#chapter2 .planet-mini-globe svg");
+        const mini = document.querySelector("#chapter2 .planet-mini-globe svg"), { tourMode, tourStep } = document.querySelector("#chapter2").dataset;
         return {
+          view: tourMode === "tour" ? tourStep : tourMode,
           compass: mini && getComputedStyle(mini).visibility === "visible" ? box(mini) : undefined,
           plates: [...document.querySelectorAll("#website-forest .planet-nameplate[data-story-id]:not(.crowded)")]
             .filter(node => getComputedStyle(node).visibility === "visible" && Number(getComputedStyle(node).opacity) > .1)
             .map(node => ({ text: node.textContent, ...box(node) })).filter(plate => plate.width),
         };
       });
+      if (view !== where) return;
       seen.add(where);
       for (const plate of plates) {
         const off = plate.x < -.5 || plate.x + plate.width > width + .5, under = compass !== undefined && overlap(plate, compass) > 0;

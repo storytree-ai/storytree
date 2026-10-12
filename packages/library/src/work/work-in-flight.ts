@@ -242,7 +242,8 @@ export class WorkInFlight {
    * the waits on it are cleared if it landed, and the waits on its arc if that now reads closed (11.8);
    * a failed or withdrawn close leaves its waits, holding for good, since the work did not arrive.
    * Its pending plan changes (ADR-0966) are applied first if it landed, as applyPending applies them,
-   * and dropped in the close itself otherwise, its history saying how many (D6).
+   * and dropped in the close itself otherwise, its history saying how many (D6). The friction it
+   * remedies then moves as the close says (ADR-1016 D2): resolved if it landed, back to the drain if not.
    */
   closeIncrement(id: string, close: CloseInput, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
@@ -261,6 +262,7 @@ export class WorkInFlight {
         if (close.disposition === "landed") await waits.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options);
         await this.#clearIfClosed(increment.fields.arc, options);
       });
+      await this.#clearAfter(() => this.#settleRemedies(increment, close, undefined, options));
       return closed;
     });
   }
@@ -270,7 +272,8 @@ export class WorkInFlight {
    * history (10.2). The closure date stays unless supplied; the other outcome fields are replaced.
    * Open work is refused (RangeError), and the usual outcome validation still applies (SchemaError).
    * Null, with nothing written, if `id` is not a live increment. Its lifecycle never changes. A
-   * correction to landed clears the waits on it (11.8).
+   * correction to landed clears the waits on it (11.8), and the friction it remedies follows the
+   * corrected outcome (ADR-1016 D2).
    */
   correctIncrementClosure(id: string, close: CloseInput, reason: string, options?: WriteOptions): Promise<SchemaRecord<"increment"> | null> {
     return this.#serially(async () => {
@@ -281,6 +284,7 @@ export class WorkInFlight {
       const outcome = outcomeOf({ ...close, date: close.date ?? increment.fields.outcome!.date });
       const corrected = (await this.#records.edit(id, { outcome }, { ...options, reason })) as SchemaRecord<"increment"> | null;
       if (close.disposition === "landed") await this.#clearAfter(() => waits.clearWaitsOn(this.#records, "increment", id, `its blocker ${id} landed, so the wait on it is cleared`, options));
+      await this.#clearAfter(() => this.#settleRemedies(increment, close, increment.fields.outcome, options));
       return corrected;
     });
   }
@@ -778,6 +782,42 @@ export class WorkInFlight {
   }
 
   /**
+   * Move the friction an increment remedies as its close says (ADR-1016 D2). Landed, each report
+   * not yet resolved is resolved, stamped with the pull request, or the increment when it has none.
+   * Failed or withdrawn, each still owed its remedy goes back to the drain, open with its route
+   * cleared, unless another open increment remedies it. A closure corrected from landed does that to
+   * the reports this increment's stamp resolved; corrected to landed, it resolves them as a landing does.
+   */
+  async #settleRemedies(increment: SchemaRecord<"increment">, close: CloseInput, previous: FieldsOf<"increment">["outcome"], options?: WriteOptions): Promise<void> {
+    const remedies = increment.fields.remedies ?? [];
+    if (remedies.length === 0) return;
+    const landedBefore = previous?.disposition === "landed";
+    if (close.disposition === "landed" && landedBefore) return;
+    const stamp = stampOf(increment.id, close.pr);
+    const elsewhere = close.disposition === "landed" ? new Set<string>() : new Set(
+      (await this.#records.select("increment", ["remedies"], { not: { status: "closed" } }))
+        .filter(({ id }) => id !== increment.id)
+        .flatMap(({ fields }) => fields.remedies ?? []),
+    );
+    const write = { ...options, reason: `increment ${increment.id} closed ${close.disposition} (ADR-1016 D2)` };
+    for (const id of remedies) {
+      const report = await liveRecord(this.#records, id, ["friction"]);
+      if (report === null) continue;
+      const { state, route, dischargedBy } = report.fields as FieldsOf<"friction">;
+      if (close.disposition === "landed") {
+        if (state !== "resolved") await this.#records.edit(id, { state: "resolved", dischargedBy: stamp }, write);
+        continue;
+      }
+      const owed = landedBefore ? state === "resolved" && dischargedBy === stampOf(increment.id, previous?.pr) : state === "routed";
+      if (!owed) continue;
+      const reopen = elsewhere.has(id) && route !== undefined
+        ? { state: "routed" as const, dischargedBy: undefined }
+        : { state: "open" as const, route: undefined, routeReason: undefined, dischargedBy: undefined };
+      await this.#records.edit(id, reopen, write);
+    }
+  }
+
+  /**
    * Run the clearing that follows a committed write, which stands whatever the clearing meets: a
    * record it cannot read (a newer sibling schema, 6.9) leaves the waits stored, and they hold no
    * longer anyway, since waitHolds reads each blocker.
@@ -985,6 +1025,12 @@ function residueBody(increment: string, mark: string, unapplied: readonly Unappl
 /** Where `status` sits in the lifecycle. */
 function rank(status: string): number {
   return (INCREMENT_STATUSES as readonly string[]).indexOf(status);
+}
+
+/** The delivery stamp a landing leaves on the friction it remedies: its pull request as `#n`, or the increment itself when it has none. */
+function stampOf(increment: string, pr: string | undefined): string {
+  if (pr === undefined) return increment;
+  return /^\d+$/.test(pr) ? `#${pr}` : pr;
 }
 
 /** The outcome a close stores: today unless a day is given, and only the parts given. */

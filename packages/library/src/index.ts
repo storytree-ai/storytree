@@ -14,9 +14,9 @@ export { LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
 export { CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, RetireRefusedError, WaitLoopError } from "./work/index.js";
-export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./schema/index.js";
+export { FRICTION_STATES, MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./schema/index.js";
 
-export type { FieldsOf, KnowledgeKind, RecordType, SchemaRecord, WriteOptions } from "./schema/index.js";
+export type { FieldsOf, FrictionState, KnowledgeKind, RecordType, SchemaRecord, WriteOptions } from "./schema/index.js";
 export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./transactions/index.js";
 export type {
   ArcEdit,

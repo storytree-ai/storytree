@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Knowledge and memory, grown by ADR-0640 and ADR-0956: contracts 6.6, 6.7 and 6.12
+ * Capability 6 · Knowledge and memory, grown by ADR-0640 and ADR-0956: contracts 6.6, 6.7, 6.12, 6.13 and 6.14
  * in the library story, each run on BOTH backends, as 6.1-6.5 are (knowledge-memory.test.ts):
  *
  * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;
@@ -110,9 +110,11 @@ for (const backend of [memory, postgres]) {
 
     for (const [kind, fields] of Object.entries(kinds)) {
       const saved = await knowledge.writeKnowledge(kind as KnowledgeKind, fields as never);
+      // A friction report is filed open (6.13): the one field the library adds.
+      const stored = kind === "friction" ? { ...fields, state: "open" } : fields;
       assert.equal(saved.type, kind);
-      assert.deepEqual(saved.fields, fields, `${kind} is stored as given`);
-      assert.deepEqual((await transactions.get(saved.id))?.fields, fields, `${kind} reads back`);
+      assert.deepEqual(saved.fields, stored, `${kind} is stored as given`);
+      assert.deepEqual((await transactions.get(saved.id))?.fields, stored, `${kind} reads back`);
 
       for (const field of REQUIRED[kind]!) {
         const { [field]: _left, ...without } = fields;
@@ -156,6 +158,76 @@ for (const backend of [memory, postgres]) {
     await knowledge.writeKnowledge("resteer", resteer as never);
     const defect = await knowledge.writeKnowledge("resteer", { ...resteer, disposition: "defect", mode: "tool-defect" } as never);
     assert.equal((defect.fields as Record<string, unknown>).mode, "tool-defect");
+  });
+
+  contract("6.13", "a friction report is filed open, refuses an edit naming its state, and routing moves it: nothing dismisses it, a route routes it, a delivery stamp resolves it", async ({ knowledge, transactions }) => {
+    const { friction } = fullKinds("unused");
+    const before = await transactions.history();
+    await assert.rejects(
+      knowledge.writeKnowledge("friction", { ...friction, state: "resolved" } as never),
+      (error: unknown) => error instanceof RangeError && /state/.test(error.message),
+      "filing names no state: the library writes it",
+    );
+    assert.deepEqual(await transactions.history(), before, "a filing naming its state writes nothing");
+
+    const filed = await knowledge.writeKnowledge("friction", friction as never);
+    assert.equal(filed.fields.state, "open", "filed open");
+    const unjudged = await transactions.history();
+    for (const state of ["resolved", "open"]) {
+      await assert.rejects(
+        knowledge.editNote(filed.id, { state } as never),
+        (error: unknown) => error instanceof RangeError && /state/.test(error.message),
+        `an edit naming state ${state} is refused`,
+      );
+    }
+    assert.deepEqual(await transactions.history(), unjudged, "an edit naming the state writes nothing");
+
+    const stateOf = async (id: string): Promise<unknown> => (await transactions.get(id))?.fields["state"];
+    const routed = await knowledge.writeKnowledge("friction", friction as never);
+    await knowledge.editNote(routed.id, { route: "tool", routeReason: "A verb is missing" });
+    assert.equal(await stateOf(routed.id), "routed", "a route with its remedy still owed reads routed");
+    await knowledge.editNote(routed.id, { routeReason: "A verb is still missing" });
+    assert.equal(await stateOf(routed.id), "routed", "an edit that is not a judgement leaves it");
+    await knowledge.editNote(routed.id, { dischargedBy: "#12" });
+    assert.equal(await stateOf(routed.id), "resolved", "a stamp added later resolves it");
+
+    const dismissed = await knowledge.writeKnowledge("friction", friction as never);
+    await knowledge.editNote(dismissed.id, { route: "nothing", routeReason: "A one-off" });
+    assert.equal(await stateOf(dismissed.id), "dismissed", "routed to nothing it is dismissed");
+
+    const delivered = await knowledge.writeKnowledge("friction", friction as never);
+    await knowledge.editNote(delivered.id, { route: "process", routeReason: "Already fixed", dischargedBy: "#9" });
+    assert.equal(await stateOf(delivered.id), "resolved", "a route carrying its stamp resolves it at once");
+  });
+
+  contract("6.14", "a recurrence on a resolved or dismissed friction report reopens it, clearing its judgement from its fields and keeping it in history; on an open or routed one it leaves the state", async ({ knowledge, transactions }) => {
+    const { friction } = fullKinds("unused");
+    const recurrence = (n: number) => Array.from({ length: n }, (_, i) => ({ branch: `b${i}`, date: "2026-10-12", evidence: `\`pnpm test\` failed again (${i})` }));
+    const fieldsOf = async (id: string): Promise<Record<string, unknown>> => (await transactions.get(id))?.fields ?? {};
+
+    for (const judgement of [
+      { route: "tool" as const, routeReason: "Built the verb", dischargedBy: "#7" },
+      { route: "nothing" as const, routeReason: "A one-off" },
+    ]) {
+      const report = await knowledge.writeKnowledge("friction", friction as never);
+      await knowledge.editNote(report.id, judgement);
+      await knowledge.editNote(report.id, { reinforcedBy: recurrence(1) });
+      const reopened = await fieldsOf(report.id);
+      assert.equal(reopened["state"], "open", `a recurrence after ${judgement.route} reopens it`);
+      for (const field of ["route", "routeReason", "dischargedBy"]) assert.equal(reopened[field], undefined, `${field} leaves its fields`);
+      assert.deepEqual(reopened["reinforcedBy"], recurrence(1), "the recurrence is kept");
+      const judged = (await transactions.history({ id: report.id })).map(({ record }) => record.fields).find((fields) => fields["route"] === judgement.route);
+      assert.equal(judged?.["routeReason"], judgement.routeReason, "the earlier judgement stays in its history");
+    }
+
+    const open = await knowledge.writeKnowledge("friction", friction as never);
+    await knowledge.editNote(open.id, { reinforcedBy: recurrence(1) });
+    assert.equal((await fieldsOf(open.id))["state"], "open");
+    const routed = await knowledge.writeKnowledge("friction", friction as never);
+    await knowledge.editNote(routed.id, { route: "adr", routeReason: "Needs a decision" });
+    await knowledge.editNote(routed.id, { reinforcedBy: recurrence(2) });
+    const still = await fieldsOf(routed.id);
+    assert.deepEqual([still["state"], still["route"]], ["routed", "adr"], "a recurrence on a routed report leaves its judgement standing");
   });
 
   contract("6.12", "a quality control check is saved with its question, the principles or guardrails it enforces and what graduated, and refused without its question or enforcing none or anything else", async ({ knowledge, transactions }) => {

@@ -3,6 +3,6 @@ export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } 
 export type { FieldProblem } from "./errors.js";
 export { SchemaRecords } from "./records.js";
 export type { CreateOptions, FieldEdit, SchemaRecord, WriteOptions } from "./records.js";
-export { RECORD_SCHEMAS, SCHEMA_VERSIONS } from "./types.js";
-export type { FieldsOf, KnowledgeKind, LibrarySchema, RecordType, UpgradeStep } from "./types.js";
+export { FRICTION_STATES, judgedState, RECORD_SCHEMAS, SCHEMA_VERSIONS } from "./types.js";
+export type { FieldsOf, FrictionState, KnowledgeKind, LibrarySchema, RecordType, UpgradeStep } from "./types.js";
 export { LIBRARY_SCHEMA, UPGRADES } from "./upgrades.js";

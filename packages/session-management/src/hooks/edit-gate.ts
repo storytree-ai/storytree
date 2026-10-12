@@ -11,7 +11,9 @@
  * write and edit name their file by `path` (pi.ts), and its extension hands Pi the `{block, reason}` refusal.
  *
  * Which capability a file declares is the map's rule, given by the hook command that runs this (the app
- * setup's, ADR-0969); a hook given none refuses nothing.
+ * setup's, ADR-0969); a hook given none refuses nothing. A file in a folder the project imports on this machine is
+ * placed by the gate itself (claims/edit-gate.ts); when its edit may go ahead only on the user's yes (ADR-1015), Claude
+ * Code is answered "ask", so the harness asks its user, and a harness with no such answer is refused.
  *
  * Like every hook it never breaks the agent: outside a storytree project, in a checkout whose trunk is
  * not approved, when storytree cannot be reached in time, or on any failure, it says nothing and the
@@ -101,8 +103,11 @@ function cursorEditIn(input: Record<string, unknown>): ReturnType<typeof editIn>
  * A refusal in the shape `harness` reads. Claude Code reads the pre-tool decision and Codex the block it reads
  * from a Stop hook; Cursor reads a denied permission, and blocks the tool on any answer it cannot parse.
  * Pi's extension returns the answer from its tool_call handler, and the model reads `reason` as the tool's result.
+ * With `ask`, Claude Code is told to ask its user, who alone may allow the edit; every other harness is refused.
  */
-export function refusalAnswer(harness: string, reason: string): string {
+export function refusalAnswer(harness: string, reason: string, ask = false): string {
+  if (ask && harness === "claude-code") return JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: reason } });
+  if (ask) reason = `${reason} This harness cannot ask the user at the edit, so it is refused: ask the user in the conversation, and if they say yes, they make the change themselves or run you in a harness that can ask them.`;
   if (harness === "pi") return JSON.stringify({ block: true, reason });
   if (harness === "antigravity") return JSON.stringify({ decision: "deny", reason });
   if (harness === "cursor") return JSON.stringify({ permission: "deny", user_message: reason, agent_message: reason });
@@ -116,9 +121,9 @@ export async function editGate(harness: string, input: unknown, declared: Declar
   let timer: NodeJS.Timeout | undefined;
   const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), GATE_MS)));
   try {
-    const reason = await Promise.race([refusalFor(harness, edit, declared, locate, home), late]);
-    if (reason === undefined) return undefined;
-    return refusalAnswer(harness, reason);
+    const refusal = await Promise.race([refusalFor(harness, edit, declared, locate, home), late]);
+    if (refusal === undefined) return undefined;
+    return refusalAnswer(harness, refusal.reason, refusal.ask);
   } catch (error) {
     failed("hook", error);
     return undefined;
@@ -127,8 +132,8 @@ export async function editGate(harness: string, input: unknown, declared: Declar
   }
 }
 
-async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string): Promise<string | undefined> {
-  const { route, requireApproval, openNamedProject, ProjectFolderError } = await import("../routing/index.js");
+async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string): Promise<{ reason: string; ask: boolean } | undefined> {
+  const { route, requireApproval, openNamedProject, ProjectFolderError, importsOf, machineOf } = await import("../routing/index.js");
   const where = route(edit.folder, locate);
   if (where.status !== "routed") return undefined;
   const [{ openActivityLog, thisMachine }, { worktreeRoot }, { connect }, { editRefusal, refusalMessage }] = await Promise.all([
@@ -147,8 +152,9 @@ async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof e
     const log = await openActivityLog(storytree, { connectTimeoutMs: GATE_MS, ...(machine === undefined ? {} : { machine }) });
     try {
       const library = await openNamedProject(storytree, where.project, where.identity);
-      const refusal = await editRefusal({ log, library, project: where.project, session: edit.session, harness, folder: checkout }, checkout, edit.files, declared);
-      return refusal === undefined ? undefined : refusalMessage(refusal);
+      const imports = await importsOf(storytree, where.project, machineOf(home).id);
+      const refusal = await editRefusal({ log, library, project: where.project, session: edit.session, harness, folder: checkout }, checkout, edit.files, declared, imports);
+      return refusal === undefined ? undefined : { reason: refusalMessage(refusal), ask: refusal.refused === "ask" };
     } finally {
       await log.close();
     }

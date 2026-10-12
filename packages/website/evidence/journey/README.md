@@ -41,5 +41,7 @@ and health colours draw (about 8 seconds on the Mint box); the capture waits for
 ## Checks
 
 The website's browser journeys, on this branch's build: `node packages/website/evidence/capture.mjs chapter2 --verify-tour`,
-`… --verify-camera`, `… immersive --verify-immersive` and the forest journey (`node packages/website/evidence/forest.mjs`:
-keyboard, phone widths, reduced motion and the no-WebGL still).
+`… --verify-camera`, `… immersive --verify-immersive` and the forest journey (`… --verify-forest`:
+keyboard, phone widths, reduced motion and the no-WebGL still). A `--verify-…` run is a check: it writes its pictures to
+a scratch folder under the machine's temporary folder (it prints which), so the committed evidence stays as it was; add
+`--retake` to write them into the named evidence folder instead.

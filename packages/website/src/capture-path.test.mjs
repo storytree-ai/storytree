@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
-import { capturePath } from "../evidence/capture-path.mjs";
+import { captureOutput, capturePath } from "../evidence/capture-path.mjs";
 
 const captures = ["terminal.mjs", "turn/capture.mjs", "journey/capture.mjs", "arrival/capture.mjs",
   "nameplates-phone/capture.mjs", "warm-globe/measure.mjs", "capture.mjs"];
@@ -80,3 +80,18 @@ for (const capture of captures) {
     });
   });
 }
+
+test("3.15 · A journey run as a check writes to a scratch folder; only --retake or a plain capture writes the evidence folder", () => {
+  const evidence = path.resolve("/checkout", "packages", "website", "evidence"), tmp = path.resolve("/scratch");
+  const run = (...args) => captureOutput(evidence, ["node", "capture.mjs", ...args], tmp);
+  for (const args of [["chapter2", "--verify-tour"], ["chapter2", "--verify-camera"], ["immersive", "--verify-immersive"], ["--verify-forest"]]) {
+    const out = run(...args);
+    assert.ok(out.startsWith(path.join(tmp, "")), `${args.join(" ")} writes ${out}`);
+    assert.ok(!out.startsWith(path.join(evidence, "")), `${args.join(" ")} writes ${out}`);
+  }
+  assert.notEqual(run("chapter2", "--verify-tour"), run("immersive", "--verify-immersive"), "two folders get two scratch folders");
+  assert.equal(run("chapter2", "--verify-tour", "--retake"), path.join(evidence, "chapter2"));
+  assert.equal(run("--verify-forest", "forest", "--retake"), path.join(evidence, "forest"), "the folder is the first word that is not a flag");
+  assert.equal(run("home"), path.join(evidence, "home"));
+  assert.equal(run(), path.join(evidence, "scaffold"));
+});

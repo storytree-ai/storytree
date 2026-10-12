@@ -111,7 +111,7 @@ test("a seed-and-views capture uses workspace Playwright and quiet bridge reads,
 });
 
 // PR #1279's macOS run: the browser disconnected, then browser.close() never returned and 3.35 hit its timeout.
-test("2.13 · a capture whose browser disconnects but whose close never returns still ends, its server closed", async t => {
+test("2.13 · a capture whose browser disconnects but whose close never returns still ends, its server closed", { timeout: 10_000 }, async t => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-hung-close-"));
   t.after(() => { rmSync(folder, { recursive: true, force: true }); rmSync(outputFolder(folder), { recursive: true, force: true }); });
   writeFileSync(path.join(folder, "index.html"), "<body>hung close</body>");
@@ -121,10 +121,8 @@ test("2.13 · a capture whose browser disconnects but whose close never returns 
   }) as unknown as Browser;
   t.mock.method(chromium, "launch", async () => browser);
   let origin = "";
-  const ended = withCapture({ folder, dist: folder, closeGraceMs: 50 }, async context => { origin = context.origin!; return "captured"; });
-  let timer: NodeJS.Timeout | undefined;
-  const late = new Promise(resolve => { timer = setTimeout(resolve, 10_000, "still waiting on close"); });
-  try { assert.equal(await Promise.race([ended, late]), "captured"); } finally { clearTimeout(timer); }
+  // Without the bound this await never settles, and the test's timeout fails it.
+  assert.equal(await withCapture({ folder, dist: folder, closeGraceMs: 0 }, async context => { origin = context.origin!; return "captured"; }), "captured");
   await assert.rejects(readPage(origin), "the capture's server is closed too");
 });
 
@@ -135,6 +133,6 @@ test("2.14 · a real capture browser whose close hangs after disconnect is kille
   const close = browser.close.bind(browser);
   // The real shutdown runs, but its promise is never seen to settle, as on the loaded macOS runner.
   browser.close = () => { void close().catch(() => {}); return new Promise<void>(() => {}); };
-  assert.equal(await closeBrowser(browser, { afterDisconnectMs: 50 }), "killed");
+  assert.equal(await closeBrowser(browser, { afterDisconnectMs: 0 }), "killed");
   assert.ok(child.stdio.every(stream => stream === null || stream.destroyed), "the browser's pipes are let go");
 });

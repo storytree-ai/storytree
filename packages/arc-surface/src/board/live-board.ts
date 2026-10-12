@@ -1,5 +1,6 @@
 /** Capability 3 · Arc surface. */
-import type { Line, LogReading } from "@storytree/session-management/readings";
+import type { LogReading } from "@storytree/session-management/readings";
+import type { Line } from "@storytree/library";
 import type { Kept } from "../live-reading/kept.js";
 import type { Timers } from "../live-reading/live-reading.js";
 import { pageReading, type PageReading } from "../live-reading/page-reading.js";

@@ -26,10 +26,10 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { connect } from "@storytree/library";
+import { connect, type Line, type NewLine } from "@storytree/library";
 import pg from "pg";
 
-import { openActivityLog, type Line, type NewLine } from "../activity/index.js";
+import { openActivityLog } from "../activity/index.js";
 import { buildHook } from "../testing/hook-bin.js";
 import { readContext } from "../context/index.js";
 import { MARKER_FILE } from "../routing/index.js";

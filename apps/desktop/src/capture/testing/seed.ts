@@ -3,7 +3,8 @@
  * activity log the arc surface and the forest read work states from, so every part reads planned;
  * this writes the lines that make each named part read as stated. A part named planned gets no line.
  */
-import type { ActivityLog, NewLine } from "@storytree/session-management";
+import type { ActivityLog } from "@storytree/session-management";
+import type { NewLine } from "@storytree/library";
 import type { PartState } from "@storytree/arc-surface";
 
 const SEEDER = { source: "tool", session: "capture-seed" } as const;

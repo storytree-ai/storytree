@@ -16,7 +16,7 @@
  */
 import path from "node:path";
 
-import type { NewLine } from "../activity/index.js";
+import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
 import { STORYTREE_TOOLS } from "./requests.js";
 

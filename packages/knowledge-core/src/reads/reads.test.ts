@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Agent, Line } from "@storytree/session-management";
+import type { Agent, Line } from "@storytree/library";
 
 import { NO_RECORDED_READS, ReadRecord } from "./reads.js";
 

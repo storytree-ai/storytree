@@ -8,9 +8,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Line, NewLine } from "@storytree/session-management";
+import type { AnnotatedCapability, AnnotatedStory, HealthState, Line, NewLine } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
-import type { AnnotatedCapability, AnnotatedStory, HealthState } from "@storytree/library";
 
 import { grove } from "./capability-tree.js";
 

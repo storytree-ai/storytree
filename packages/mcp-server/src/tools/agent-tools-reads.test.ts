@@ -20,11 +20,11 @@ import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { Client } from "@modelcontextprotocol/client";
-import { connect, type Library } from "@storytree/library";
+import { connect, type Library, type Line } from "@storytree/library";
 import { worklist } from "@storytree/librarian";
 import pg from "pg";
 
-import { openActivityLog, type Line } from "@storytree/session-management";
+import { openActivityLog } from "@storytree/session-management";
 import { readClaims } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/session-management";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";

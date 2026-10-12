@@ -17,7 +17,7 @@
  * - afterFileEdit names the file an edit tool wrote (`file_path`), whichever tool it was.
  * - subagentStart names the subagent (`subagent_id`), its type and its task.
  */
-import type { NewLine } from "../activity/index.js";
+import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
 
 /** The name storytree's tool server is registered under, as Cursor's hook before an MCP call gives it. */

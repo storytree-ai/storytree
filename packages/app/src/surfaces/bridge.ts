@@ -3,8 +3,8 @@
  * travel on: the Surfaces menu's (ADR-0750), and the reads every surface makes of the library and the agent activity log, which
  * the app answers (reads.ts). Data only: safe for the page and preload.
  */
-import type { ContextReading, LinesSince, SessionWindow } from "@storytree/session-management";
-import type { AnnotatedTree, ArcView, Changes, Holds, Note, SchemaRecord } from "@storytree/library";
+import type { ContextReading, SessionWindow } from "@storytree/session-management";
+import type { AnnotatedTree, ArcView, Changes, Holds, LinesSince, Note, SchemaRecord } from "@storytree/library";
 
 import type { SurfaceReading } from "./switches.js";
 

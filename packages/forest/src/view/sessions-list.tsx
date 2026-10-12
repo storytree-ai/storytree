@@ -2,9 +2,9 @@
 import React, { useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import type { ContextReading, SessionWindow } from "@storytree/session-management";
-import { ON_MAIN_LABELS, type Line, type LogReading, type OnMain } from "@storytree/session-management/readings";
+import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
+import { ON_MAIN_LABELS, type LogReading, type OnMain } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
-import type { AnnotatedTree, ArcView } from "@storytree/library";
 import type { RosterEntry } from "@storytree/knowledge-core";
 import { ALL_TIME, atWork, clickedSelection, dayRange, globeRoster, historyRows, historySelection, matchesSearch, presetRange, sessionRows, windowFiles, withinRange,
   type HistoryOutcome, type HistoryPreset, type HistoryRange, type HistoryRow, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";

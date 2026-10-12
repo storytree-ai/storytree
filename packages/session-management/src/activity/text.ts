@@ -5,7 +5,7 @@
  * says only that nothing recorded one.
  */
 import { labelOf } from "../sessions/index.js";
-import type { Line } from "./lines.js";
+import type { Line } from "@storytree/library";
 
 /** Why a holder no longer bound, as a person says it. */
 const BECAUSE = { idle: "idle", gone: "gone", restart: "machine restarted", "closed-out": "closed out" } as const;

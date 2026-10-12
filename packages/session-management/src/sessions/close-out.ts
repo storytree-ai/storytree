@@ -6,10 +6,10 @@
  * first asks whether the project's branches have merged, so a yes whose pull request merged is
  * borne out whether or not a hook has looked since.
  */
-import type { Library, WriteOptions } from "@storytree/library";
+import type { Library, Line, WriteOptions } from "@storytree/library";
 import { listRuns } from "@storytree/processes/listing";
 
-import type { ActivityLog, Line } from "../activity/index.js";
+import type { ActivityLog } from "../activity/index.js";
 import { endClaim } from "../claims/endings.js";
 import { rememberClosedOut } from "../hooks/close-out-reminder.js";
 import { partOf, standingFrom } from "../readings.js";

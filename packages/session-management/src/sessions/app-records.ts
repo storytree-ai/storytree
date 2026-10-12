@@ -24,7 +24,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import type { Line } from "../activity/index.js";
+import type { Line } from "@storytree/library";
 import { due, type MergeContext } from "../claims/merges.js";
 import type { SessionApp } from "../readings.js";
 import { scrub } from "../transcripts/scrub.js";

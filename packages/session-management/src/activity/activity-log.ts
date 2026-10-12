@@ -20,10 +20,9 @@ import { hostname } from "node:os";
 import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
 
-import { connect, type Storytree } from "@storytree/library";
+import { connect, NEW_LINE, type Line, type LineKind, type LinesSince, type NewLine, type Storytree } from "@storytree/library";
 
 import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, MAIN_WORK, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
-import { NEW_LINE, type Line, type LineKind, type LinesSince, type NewLine } from "./lines.js";
 import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, type TranscriptRecords } from "./transcript-records.js";
 
 /** The database the log lives in, on the same server as the projects' libraries. */

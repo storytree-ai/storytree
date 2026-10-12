@@ -11,8 +11,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import type { Line } from "@storytree/session-management";
-import type { AnnotatedTree, ArcView, Change, Holds } from "@storytree/library";
+import type { AnnotatedTree, ArcView, Change, Holds, Line } from "@storytree/library";
 import { refreshGrowthSnapshot } from "./saved-growth.js";
 import { ciHealth, codeAt, landings, shopStages } from "./shop-growth.js";
 

@@ -31,9 +31,9 @@
  */
 import { uptime } from "node:os";
 
-import type { Hold, Holds, IncrementStatus, Library, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { Hold, Holds, IncrementStatus, Library, Line, SchemaRecord, WriteOptions } from "@storytree/library";
 
-import { thisMachine, type ActivityLog, type Line } from "../activity/index.js";
+import { thisMachine, type ActivityLog } from "../activity/index.js";
 import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, LogFold, LONGEST_COMMAND_MS, partOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "../settings/settings.js";
 import { endClaim } from "./endings.js";

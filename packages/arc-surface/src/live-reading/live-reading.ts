@@ -14,8 +14,7 @@
  *
  * Its clock and timers are handed in (the page's own by default), so it is tested with a stand-in.
  */
-import type { Line, LinesSince } from "@storytree/session-management";
-import type { Change, Changes } from "@storytree/library";
+import type { Change, Changes, Line, LinesSince } from "@storytree/library";
 
 /** How often it asks what changed. */
 export const ASK_EVERY_MS = 2_000;

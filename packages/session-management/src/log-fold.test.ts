@@ -8,7 +8,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { claimsFrom, LogFold, sessionsFrom, type Line, type NewLine } from "./readings.js";
+import type { Line, NewLine } from "@storytree/library";
+import { claimsFrom, LogFold, sessionsFrom } from "./readings.js";
 
 /** A small seeded generator, so the log is the same on every run. */
 function random(seed: number): () => number {

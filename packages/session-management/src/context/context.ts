@@ -15,7 +15,8 @@
  */
 import { readFile } from "node:fs/promises";
 
-import type { ActivityLog, Line } from "../activity/index.js";
+import type { ActivityLog } from "../activity/index.js";
+import type { Line } from "@storytree/library";
 import { labelOf } from "../readings.js";
 import { watchedHarness } from "../harnesses.js";
 import { claudeCodeCompositionFold, codexCompositionFold, type Composition, type CompositionFold } from "./composition.js";

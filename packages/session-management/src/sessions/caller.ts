@@ -3,7 +3,8 @@
  * the hook run just before it left. The MCP server's wrapper calls these on every call (ADR-0969 D1);
  * they read only the activity log, and nothing of the server.
  */
-import type { ActivityLog, Agent, Line } from "../activity/index.js";
+import type { ActivityLog } from "../activity/index.js";
+import type { Agent, Line } from "@storytree/library";
 import { watchedHarness } from "../harnesses.js";
 
 /** The session calling, as the harness names it. */

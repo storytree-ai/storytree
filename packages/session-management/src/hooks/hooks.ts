@@ -46,9 +46,8 @@ import type { Harness } from "../harnesses.js";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import type { Storytree } from "@storytree/library";
+import type { NewLine, Storytree } from "@storytree/library";
 
-import type { NewLine } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 import { findProject, openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "../routing/index.js";

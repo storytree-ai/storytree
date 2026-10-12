@@ -10,9 +10,9 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
 
-import { connect, type Library } from "@storytree/library";
+import { connect, type Library, type NewLine } from "@storytree/library";
 
-import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog, type NewLine } from "../activity/index.js";
+import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog } from "../activity/index.js";
 import { lineText, readClaim, readClaims } from "../index.js";
 import { claimFrom, claimsFrom, LONGEST_COMMAND_MS } from "../readings.js";
 import { runHook } from "../hooks/index.js";

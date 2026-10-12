@@ -9,9 +9,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Line, NewLine } from "@storytree/session-management";
+import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree, Change, Line, NewLine } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
-import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree, Change } from "@storytree/library";
 
 import { changedIslands, forestDrawn, forestScene } from "./forest-scene.js";
 

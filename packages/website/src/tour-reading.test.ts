@@ -4,7 +4,8 @@ import saved from "./forest-snapshot.json" with { type: "json" };
 import type { TourSnapshot } from "./forest-data.js";
 import { growthReading, recordedView, savedReading } from "./tour-reading.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import type { Line, SessionWindow } from "@storytree/session-management";
+import type { SessionWindow } from "@storytree/session-management";
+import type { Line } from "@storytree/library";
 import { steps } from "./tour-copy.js";
 
 const snapshot = saved as unknown as TourSnapshot;

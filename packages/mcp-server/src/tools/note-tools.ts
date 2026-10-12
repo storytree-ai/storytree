@@ -19,10 +19,9 @@
  *   an empty shelf nothing is added, and the agent is told. A session holding no claim gets no
  *   default, and a place the agent names always wins.
  */
-import type { KnowledgeKind, Library, Note, NoteEdit, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { KnowledgeKind, Library, Line, NewLine, Note, NoteEdit, SchemaRecord, WriteOptions } from "@storytree/library";
 import { z } from "zod";
 
-import type { Line, NewLine } from "@storytree/session-management";
 import { presentersOf, readClaims } from "@storytree/session-management";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { firstLineOf, quoted, spineOf, wholeOf, type Findable } from "./text.js";

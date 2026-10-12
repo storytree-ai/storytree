@@ -25,7 +25,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { NewLine } from "../activity/index.js";
+import type { NewLine } from "@storytree/library";
 
 /** How long one observation's Git reads may take, together. */
 const OBSERVE_MS = 5_000;

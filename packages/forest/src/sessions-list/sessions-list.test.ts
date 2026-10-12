@@ -1,8 +1,8 @@
 /** Running sessions: the forest's session-to-island reading. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LogFold, type Line, type NewLine } from "@storytree/session-management/readings";
-import type { AnnotatedTree, ArcView } from "@storytree/library";
+import { LogFold } from "@storytree/session-management/readings";
+import type { AnnotatedTree, ArcView, Line, NewLine } from "@storytree/library";
 import { atWork, clickedSelection, dayRange, globeRoster, historyRows, historySelection, presetRange, sessionRoster, sessionRows, windowFiles } from "./sessions-list.js";
 import { sessionColour } from "../agent-claims/agent-claims.js";
 

@@ -7,9 +7,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Line, NewLine } from "@storytree/session-management/readings";
+import type { AnnotatedStory, AnnotatedTree, ArcView, Line, NewLine } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
-import type { AnnotatedStory, AnnotatedTree, ArcView } from "@storytree/library";
 
 import { grove } from "../capability-tree/capability-tree.js";
 import { sessionRows } from "../sessions-list/sessions-list.js";

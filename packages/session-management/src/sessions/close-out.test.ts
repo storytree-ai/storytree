@@ -14,7 +14,8 @@ import { launchOwned } from "@storytree/processes";
 import { stopOwned } from "@storytree/processes/stopping";
 import { testChildArgs } from "@storytree/processes/testing";
 
-import { openActivityLog, type ActivityLog, type Line } from "../activity/index.js";
+import { openActivityLog, type ActivityLog } from "../activity/index.js";
+import type { Line } from "@storytree/library";
 import { readClaims } from "../claims/index.js";
 import { removeTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";

@@ -15,7 +15,7 @@
  * It is a pure function of the agent activity log's lines, so the page can run it, and it is tested
  * without a database.
  */
-import type { Line } from "@storytree/session-management";
+import type { Line } from "@storytree/library";
 
 /** Where a part stands. */
 export type PartState = "planned" | "in-progress" | "landed";

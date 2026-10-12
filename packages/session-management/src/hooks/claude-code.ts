@@ -20,7 +20,7 @@
  * - Stop fires when the agent finishes its turn, and lists the `background_tasks` still running.
  * - SessionEnd carries `reason`.
  */
-import type { NewLine } from "../activity/index.js";
+import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
 import { toolRequestedLine } from "./requests.js";
 

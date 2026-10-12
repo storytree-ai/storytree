@@ -7,9 +7,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Line, NewLine } from "@storytree/session-management";
+import type { AnnotatedCapability, AnnotatedContract, AnnotatedStory, AnnotatedTree, Change, HealthColumn, HealthState, Line, NewLine } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
-import type { AnnotatedCapability, AnnotatedContract, AnnotatedStory, AnnotatedTree, Change, HealthColumn, HealthState } from "@storytree/library";
 
 import { drillDown, NO_DESCRIPTION, selectedCapability } from "./drill-down.js";
 

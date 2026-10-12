@@ -6,7 +6,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { openActivityLog, type ActivityLog, type Line, type NewLine } from "../activity/index.js";
+import { openActivityLog, type ActivityLog } from "../activity/index.js";
+import type { Line, NewLine } from "@storytree/library";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claimsFrom, readClaims } from "../claims/index.js";
 import { LEAVE_MS, LONGEST_COMMAND_MS, QUIET_MS, readSessions, readSessionStates, sessionsFrom } from "./index.js";

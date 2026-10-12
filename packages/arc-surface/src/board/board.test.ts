@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Line } from "@storytree/session-management";
-import type { ArcView, FieldsOf, NoteWait } from "@storytree/library";
+import type { ArcView, FieldsOf, Line, NoteWait } from "@storytree/library";
 import { record } from "../testing/records.js";
 import { boardView, type BoardSnapshot } from "./board.js";
 import { renderBoard } from "../view/render.js";

@@ -1,6 +1,6 @@
 /** Capability 2 · The forest on the site. */
 import { pageReading, type BoardReads, type Timers } from "@storytree/arc-surface";
-import type { Line } from "@storytree/session-management";
+import type { Line } from "@storytree/library";
 import { createKnowledgeCore, type CoreReads } from "@storytree/knowledge-core/view";
 import type { SessionsReads } from "@storytree/forest/view";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";

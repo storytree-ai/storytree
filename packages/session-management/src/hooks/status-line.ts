@@ -22,9 +22,8 @@
  */
 import path from "node:path";
 
-import type { ConnectOptions } from "@storytree/library";
+import type { ConnectOptions, Line } from "@storytree/library";
 
-import type { Line } from "../activity/index.js";
 import { openNamedProject, requireApproval, route } from "../routing/index.js";
 import { idleAfterMs } from "../settings/settings.js";
 import { withDeadline } from "./deadlines.js";

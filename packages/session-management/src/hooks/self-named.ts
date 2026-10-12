@@ -11,7 +11,7 @@
  * `mcp__storytree__<tool>`; any other tool is not recorded. No transcript is read in version 1, so a
  * self-named harness's session has no context reading.
  */
-import type { NewLine } from "../activity/index.js";
+import type { NewLine } from "@storytree/library";
 import { HARNESS_IDS } from "../harnesses.js";
 import type { HookLines } from "./hooks.js";
 import { toolRequestedLine } from "./requests.js";

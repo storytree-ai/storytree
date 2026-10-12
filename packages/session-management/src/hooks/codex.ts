@@ -20,7 +20,7 @@
  * - SessionEnd carries `reason`. Codex sends it only when a session shuts down, so a session whose
  *   end never comes goes idle instead (capability 4).
  */
-import type { NewLine } from "../activity/index.js";
+import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
 import { toolRequestedLine } from "./requests.js";
 

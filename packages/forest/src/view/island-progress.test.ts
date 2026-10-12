@@ -2,8 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { workStates } from "@storytree/arc-surface";
-import type { Line } from "@storytree/session-management";
-import type { AnnotatedTree, HealthState } from "@storytree/library";
+import type { AnnotatedTree, HealthState, Line } from "@storytree/library";
 import { forestScene } from "../render/forest-scene.js";
 import { islandProgress } from "./island-progress.js";
 

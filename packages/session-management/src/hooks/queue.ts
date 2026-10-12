@@ -14,7 +14,8 @@ import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync
 import { hostname } from "node:os";
 import path from "node:path";
 
-import type { ActivityLog, NewLine } from "../activity/index.js";
+import type { ActivityLog } from "../activity/index.js";
+import type { NewLine } from "@storytree/library";
 
 /** One waiting line: the project it is for, and when it was written. */
 interface Queued {

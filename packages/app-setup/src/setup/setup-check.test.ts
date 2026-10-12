@@ -16,9 +16,9 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { connect } from "@storytree/library";
+import { connect, type Line } from "@storytree/library";
 
-import { locateStorytree, MARKER_FILE, noteCodexHookRan, registeredHookScripts, type Line } from "@storytree/session-management";
+import { locateStorytree, MARKER_FILE, noteCodexHookRan, registeredHookScripts } from "@storytree/session-management";
 import { withTempDir } from "@storytree/session-management/testing/folders";
 import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 

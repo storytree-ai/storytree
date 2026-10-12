@@ -30,7 +30,7 @@ const DECISION_RIGHTS_LINES = [
 export const MAPPED_CODE_GUIDANCE = [
   "Build beside mapped code.",
   "- A mapped story is code that was here before storytree: assume it works, and change it only when the increment names it.",
-  "- Build new stories on top in their own packages, each depending on the mapped package by a link: to its folder under its own name. It declares no exports, so import its files by path; match its module type and path aliases, and link its single copy of its framework and type packages.",
+  "- Build new stories on top in their own packages, each depending on the mapped package by a link: to its folder under its own name (file: under npm, which has no link:). It declares no exports, so import its files by path; match its module type and path aliases, and link its single copy of its framework and type packages.",
   "- Old code never imports new code. To route something back, build an interface in storytree that the old code consumes.",
   "- Test the interface your package has with the old code. For a new feature inside the old app, bring in whatever serves its UI and import the rest.",
   "- Before changing a part in its middle, `focus` on what calls it and shape the work with the user; refuse when it is too large.",

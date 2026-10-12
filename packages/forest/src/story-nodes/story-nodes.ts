@@ -59,7 +59,7 @@ export interface StoryNode {
  * the history does not show being created comes after every story it does show. `survey` is the
  * project's code survey: the stories a story's derived edges reach rank it as well.
  */
-export function storyNodes(tree: AnnotatedTree, history: readonly Change[], survey: Readonly<Record<string, Pick<StorySurvey, "edges" | "dependsOn" | "mapped">>> = {}): StoryNode[] {
+export function storyNodes(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], survey: Readonly<Record<string, Pick<StorySurvey, "edges" | "dependsOn" | "mapped">>> = {}): StoryNode[] {
   const created = history.filter(({ type, action }) => type === "story" && action === "created").map(({ recordId }) => recordId);
   const order = [...new Set([...created, ...tree.stories.map(({ id }) => id)])].filter((id) => tree.stories.some((story) => story.id === id));
   const rows = storyRows(tree, order, survey);

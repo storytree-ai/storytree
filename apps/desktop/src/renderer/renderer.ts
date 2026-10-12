@@ -12,7 +12,7 @@ import { mountAppMenu, renderNoProjects } from "@storytree/app/view";
 import { mountAddProject, mountDeleteProject, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
 import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveReading, type PageReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
-import { drillDown, forestDrawn, forestReading, forestScene, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
+import { drawingOf, drillDown, forestDrawn, forestReading, forestScene, keptDrawing, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
 import { mountJourneyConsent, mountJourneySettings } from "@storytree/journey-events/view";
 import { mountLagRecorder } from "@storytree/lag-in-use/view";
 import type { AnnotatedTree } from "@storytree/library";
@@ -224,12 +224,17 @@ async function showForest(name: string): Promise<void> {
     onRoster: roster => core.showRoster(roster), onSelect: session => core.select(session) });
   core.onSelect(session => mine.sessions?.select(session));
 
-  // The tree this project last drew, at once and marked as not yet fresh, while the first read runs.
-  // The page stays "loading" until that read lands; a failure meanwhile keeps the kept forest on show.
+  // The tree this project last drew, at once and marked as not yet fresh, while the first read runs,
+  // drawn with the survey, story order and work states it was drawn with, so the fresh drawing of an
+  // unchanged project lays out nothing again. The page stays "loading" until that read lands; a
+  // failure meanwhile keeps the kept forest on show.
   const kept = keptTree(name);
+  const drawing = keptDrawing(name);
   const last = kept.read();
+  const drawnWith = last === undefined ? undefined : drawing.read();
   if (last !== undefined) {
-    view.show(forestScene(last, history(), states), new Map(storyNodes(last, history()).map(node => [node.id, node.place])));
+    const { created, states: was, survey } = drawnWith ?? { created: history(), states, survey: {} };
+    view.show(forestScene(last, created, was, survey), new Map(storyNodes(last, created, survey).map(node => [node.id, node.place])));
     showFreshness("Showing the forest as last read. Refreshing…");
   }
   // A read that fails before the first one lands keeps the reading going: the next ask tries again,
@@ -244,6 +249,7 @@ async function showForest(name: string): Promise<void> {
     project: name,
     reads,
     reading: page,
+    ...(drawnWith === undefined ? {} : { survey: drawnWith.survey }),
     onTree: (read, news, survey) => {
       if (showing !== mine) return;
       tree = read;
@@ -255,6 +261,7 @@ async function showForest(name: string): Promise<void> {
       sayWhatWasDrawn(forestDrawn(scene));
       if (!panel.hidden) showPanel();
       kept.write(tree);
+      drawing.write(drawingOf(tree, history(), states, survey));
       showFreshness(undefined);
       showReadError(undefined);
       setState("ready");

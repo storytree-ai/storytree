@@ -14,7 +14,7 @@ test("3.42 the lag catalogue names each action by what it opens, picks its islan
   assert.equal(chooseIsland({ story: "Nowhere" }, islands), undefined);
   assert.equal(chooseIsland("most", []), undefined);
 
-  const page: PageState = { selected: "story_c", note: undefined, panelOpen: true, mode: "forest", sessionSelected: false, still: true, progress: false };
+  const page: PageState = { selected: "story_c", note: undefined, panelOpen: true, mode: "forest", sessionSelected: false, still: true, progress: false, startSettled: true };
   assert.equal(isSettled({ selected: "island", panel: "open", still: true }, page, "story_c"), true);
   assert.equal(isSettled({ selected: "island", panel: "open" }, page, "story_a"), false, "another island is selected");
   assert.equal(isSettled({ selected: "island", panel: "open" }, { ...page, panelOpen: false }, "story_c"), false, "the panel is not yet on show");
@@ -25,10 +25,12 @@ test("3.42 the lag catalogue names each action by what it opens, picks its islan
   assert.equal(isSettled({ mode: "library" }, page), false);
   assert.equal(isSettled({ session: "selected" }, { ...page, sessionSelected: true }), true);
   assert.equal(isSettled({}, page), true, "an action with no settled condition is settled once performed");
+  assert.equal(isSettled({ start: "settled" }, page), true);
+  assert.equal(isSettled({ start: "settled" }, { ...page, startSettled: false }), false, "the start's survey is still to come");
 
   // The first entries, by name: an island is opened by its size or its story's name, never a point, and settles on that island's panel.
   const by = new Map(CATALOGUE.map(action => [action.name, action]));
-  assert.deepEqual([...by.keys()], ["open-fewest-island", "open-most-island", "open-named-island", "close-panel",
+  assert.deepEqual([...by.keys()], ["open-fewest-island", "open-most-island", "open-named-island", "open-app-kept", "open-app-fresh", "close-panel",
     "library-and-back", "open-library-note", "open-session-row", "hover-sweep", "idle"]);
   assert.deepEqual(["open-fewest-island", "open-most-island", "open-named-island"].map(name => by.get(name)!.perform),
     [[{ kind: "island", island: "fewest" }], [{ kind: "island", island: "most" }], [{ kind: "island", island: { story: "The library" } }]]);
@@ -36,4 +38,8 @@ test("3.42 the lag catalogue names each action by what it opens, picks its islan
   assert.deepEqual(by.get("close-panel")!.settled, { selected: "none", panel: "closed" });
   assert.deepEqual(by.get("library-and-back")!.settled, { mode: "forest", still: true });
   assert.deepEqual(by.get("open-library-note")!.perform, [{ kind: "note" }]);
+  // Opening the app starts the page again, keeping the forest the last start left or forgetting the keys the forest keeps it under.
+  assert.deepEqual(by.get("open-app-kept")!.perform, [{ kind: "start", forget: [] }]);
+  assert.deepEqual(by.get("open-app-fresh")!.perform, [{ kind: "start", forget: ["storytree.forest.tree.v1:", "storytree.forest.drawing.v1:"] }]);
+  assert.deepEqual(by.get("open-app-fresh")!.settled, { start: "settled" });
 });

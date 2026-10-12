@@ -30,6 +30,13 @@ Made with `node packages/website/evidence/arrival/capture.mjs --only knowledgeSt
 - The flags on step 3 are every claim standing at 03:06 on the four stories, in the holders' colours: the orders session's on
   checkout (three) and the cart (one), with the accounts session's two on signing in and the stock session's one on browsing,
   which the close view on checkout leaves out of frame. The map chapter's first-round flags are unchanged.
+- On a 320px phone step 1 comes a little closer than health's view (1.12 globe radii, not 1.3; 390px and laptops keep health's):
+  its three lines make the card taller, so the globe is drawn smaller than on health, and Cart's and Checkout's names would
+  overlap, so Checkout's faded (increment_a895a61e4f1e).
+- The capture holds the tour's clock still while it measures and pictures a moment (the tour ticks only while the page is shown,
+  so the capture makes the page read as hidden), and keeps a picture only when it is still of its step and line. Before, on a
+  loaded box at 1920 and 1440, the tour played on into the next step before the picture was taken, and the misses moved between
+  runs.
 
 **Seen, not fixed (for the owner's shaping).**
 - The reading path replays as one head walking the session's reads, looping; a still shows one segment of it. The clip shows it

@@ -298,7 +298,7 @@ async function chapterSteps({ chapter, folder, lines, frames, phoneFrames, known
     const measure = page => page.evaluate(names => {
       const box = node => { const r = node?.getBoundingClientRect(); return r && r.width ? { x: r.x, y: r.y, width: r.width, height: r.height } : undefined; };
       const plates = [...document.querySelectorAll(".planet-nameplate[data-story-id]")].map(node => ({ title: node.querySelector(".planet-nameplate-title")?.textContent, box: box(node), name: box(node.querySelector(".planet-nameplate-title")), shown: getComputedStyle(node).opacity !== "0" }));
-      return { step: document.querySelector("#chapter2").dataset.tourStep, progress: Number(document.querySelector('#tour-pips [aria-current="step"]')?.style.getPropertyValue("--fill")), arrived: document.querySelector(".forest-drawing")?.dataset.arrived,
+      return { step: document.querySelector("#chapter2").dataset.tourStep, moment: Number(document.querySelector("#chapter2").dataset.tourMoment), progress: Number(document.querySelector('#tour-pips [aria-current="step"]')?.style.getPropertyValue("--fill")), arrived: document.querySelector(".forest-drawing")?.dataset.arrived,
         room: { width: innerWidth, height: innerHeight }, drawing: box(document.querySelector(".forest-drawing")), card: box(document.querySelector("#tour-card")), bar: box(document.querySelector("#tour-bar")), panel: box(document.querySelector(".story-panel")),
         sessions: document.querySelector(".tour-session-surface")?.hidden === false ? box(document.querySelector(".tour-session-surface .sessions-list")) : undefined,
         // The header is the band across the top that holds the name and the note on the right.
@@ -315,18 +315,42 @@ async function chapterSteps({ chapter, folder, lines, frames, phoneFrames, known
         await go(page, ids[0]);
         await page.waitForFunction(chapter => !document.querySelector("#chapter2").dataset.tourStep.startsWith(`${chapter}-`), chapter, { timeout: 360_000 });
       } else {
+        // The tour's clock runs on the page's frames, each as long as it takes (up to a second): on a loaded machine at 1920 it
+        // could play past a line, or past the step, before its picture was taken. The tour ticks only while the page is shown,
+        // so the capture holds its clock still by making the page read as hidden, from inside the poll that sees the moment
+        // arrive; the camera, the drawing and the names carry on. A picture is kept only when what it measured, and what the
+        // page shows once it is taken, are still its step at its line; else the step is played again, at the tour's own 0.75×.
+        await page.evaluate(() => Object.defineProperty(document, "hidden", { configurable: true, get: () => window.tourHeld === true }));
+        const release = () => page.evaluate(() => { window.tourHeld = false; });
+        const holds = async (seen, id, line) => {
+          const now = await page.evaluate(() => ({ step: document.querySelector("#chapter2").dataset.tourStep, moment: Number(document.querySelector("#chapter2").dataset.tourMoment) }));
+          return [seen, now].every(read => read.step === id && (line === undefined || read.moment === line));
+        };
+        const slower = async () => { if (width > 600) await page.locator('#tour-bar [data-speed="0.75"]').click(); else while (await page.locator("#tour-speed-cycle").textContent() !== "0.75×") await page.locator("#tour-speed-cycle").click(); };
         for (const id of ids) {
-          if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
-          await go(page, id);
-          // A line's picture is taken while the step plays: a paused step shows all its lines.
-          for (const line of lines[id] ?? []) {
-            await page.waitForFunction(line => Number(document.querySelector("#chapter2").dataset.tourMoment) === line, line, { timeout: 60_000 });
-            await page.waitForTimeout(line === 1 ? 3500 : 1800);
-            settled.set(`${id}-line-${line}`, { picture: await page.screenshot(), seen: await measure(page) });
+          for (let attempt = 1; ; attempt++) {
+            if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
+            await go(page, id);
+            // A line's picture is taken while the step plays: a paused step shows all its lines.
+            const taken = [];
+            for (const line of lines[id] ?? []) {
+              await page.waitForFunction(line => Number(document.querySelector("#chapter2").dataset.tourMoment) === line && (window.tourHeld = true), line, { timeout: 60_000 });
+              await page.waitForTimeout(line === 1 ? 3500 : 1800);
+              const seen = await measure(page), picture = await page.screenshot();
+              taken.push([`${id}-line-${line}`, { picture, seen }, await holds(seen, id, line)]);
+              await release();
+            }
+            await page.waitForFunction(() => Number(document.querySelector('#tour-pips [aria-current="step"]').style.getPropertyValue("--fill")) >= .88 && (window.tourHeld = true), null, { timeout: 60_000 });
+            await pause(page); await release();
+            // A pause that lands after the step has ended goes back to it: a paused step is shown whole, as it settles.
+            if (await stepOf(page) !== id) { await go(page, id); await page.waitForTimeout(3000); await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.arrived === "true", null, { timeout: 60_000 }); }
+            await page.waitForTimeout(700);
+            const seen = await measure(page), picture = await page.screenshot();
+            taken.push([id, { picture, seen }, await holds(seen, id)]);
+            if (taken.every(([, , kept]) => kept)) { for (const [key, shot] of taken) settled.set(key, shot); break; }
+            if (attempt === 3) throw new Error(`${width} ${id}: the tour played past ${taken.filter(([, , kept]) => !kept).map(([key]) => key).join(", ")} before its picture, three times`);
+            if (attempt === 1) await slower();
           }
-          await page.waitForFunction(() => Number(document.querySelector('#tour-pips [aria-current="step"]').style.getPropertyValue("--fill")) >= .88, null, { timeout: 60_000 });
-          await pause(page); await page.waitForTimeout(700);
-          settled.set(id, { picture: await page.screenshot(), seen: await measure(page) });
         }
       }
       for (const [id, { picture, seen }] of settled) {

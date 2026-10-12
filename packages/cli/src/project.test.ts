@@ -115,3 +115,23 @@ test("map 3.8 storytree map answers for a mapped story from the folder this mach
     assert.match(mapped.stdout, /file\s+\S*shop\/src\/index\.ts\s+src\/index\.ts\s+\[mapped\]/);
   });
 });
+
+test("map 3.9 storytree map --crossing counts the imports across a line in a mapped island, and lists them with --show", async () => {
+  await inWorld(command, async ({ elsewhere, run }) => {
+    const shop = path.join(elsewhere, "shop");
+    mkdirSync(path.join(shop, "src", "ui"), { recursive: true });
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
+    writeFileSync(path.join(shop, "src", "ui", "menu.ts"), "export const menu = 1;\n");
+    writeFileSync(path.join(shop, "src", "index.ts"), "import { menu } from \"./ui/menu.js\";\nexport const shop = menu;\n");
+    assert.equal((await run(["import", shop])).code, 0);
+    const counted = await run(["map", "--crossing", "src/ui", "--json"]);
+    assert.equal(counted.code, 0, counted.stderr);
+    assert.deepEqual(JSON.parse(counted.stdout).in.island, { files: 1, imports: 1 });
+    const shown = await run(["map", "--crossing", "src/ui", "--select", "story:shop", "--show"]);
+    assert.equal(shown.code, 0, shown.stderr);
+    assert.match(shown.stdout, /in\s+island\s+src\/index\.ts -> src\/ui\/menu\.ts/);
+    const refused = await run(["map", "--crossing", "src/ui", "--select", "file:src/index.ts"]);
+    assert.notEqual(refused.code, 0);
+    assert.match(refused.stderr, /names a mapped story/);
+  });
+});

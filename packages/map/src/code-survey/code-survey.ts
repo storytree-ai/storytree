@@ -312,6 +312,11 @@ function requiresOf(file: SourceFile): readonly string[] {
   return specifiers;
 }
 
+/** Every specifier a file imports, re-exports or requires, read from syntax, so a comment or a string is none; unresolved. */
+export function specifiersOf(file: SourceFile): string[] {
+  return [...importsOf(file).map((match) => match[4] ?? match[5]!), ...requiresOf(file)];
+}
+
 function edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonly SurveyPackage[]): Edge[] {
   const imports = importsOf(file).flatMap((match): Edge[] => {
     const to = resolve(file.path, match[4] ?? match[5]!, paths, packages);

@@ -65,6 +65,7 @@ illustrations. Do not present the saved health as independently verified health.
 The still and loading behaviour (contracts 2.1 to 2.3: text and waitlist before the scene's
 code, the live scene replacing the still, a saved picture of each view's own project when
 WebGL is missing or the scene fails to load) is proven by the website's browser journey,
-`node packages/website/evidence/capture.mjs --verify-forest`. The 2026-10-02 harness that
+`node packages/website/evidence/capture.mjs --verify-forest`, which writes its pictures to a
+scratch folder (`forest --verify-forest --retake` writes them into the forest evidence). The 2026-10-02 harness that
 compared the website's drawing with the desktop's on the same saved scene is retired; its
 record and what replaced it are in [the forest evidence](evidence/forest/README.md).

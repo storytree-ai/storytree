@@ -17,3 +17,13 @@ export function capturePath(dist, url) {
   }
   return { file };
 }
+
+// Where capture.mjs writes: the evidence subfolder named by the first word that is not a flag ("scaffold" if none). A run
+// with a --verify-* journey is a check, so it writes to a scratch folder and leaves the committed evidence as it was;
+// --retake writes the journey's pictures into the evidence folder on purpose.
+export function captureOutput(evidence, argv, tmp) {
+  const args = argv.slice(2);
+  const folder = args.find(arg => !arg.startsWith("--")) ?? "scaffold";
+  const check = args.some(arg => arg.startsWith("--verify-")) && !args.includes("--retake");
+  return check ? path.join(tmp, "storytree-captures", "website", folder) : path.resolve(evidence, folder);
+}

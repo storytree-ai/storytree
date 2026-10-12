@@ -1,8 +1,10 @@
-// Build first, then: node packages/website/evidence/capture.mjs [evidence subfolder]
+// Build first, then: node packages/website/evidence/capture.mjs [evidence subfolder] [--verify-… journeys] [--retake]
+// A --verify-… run is a check and writes to a scratch folder (it says which); --retake writes into the evidence subfolder.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { capturePath } from "./capture-path.mjs";
+import { captureOutput, capturePath } from "./capture-path.mjs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -12,7 +14,7 @@ import { verifyForest } from "./forest.mjs";
 import { withBrowserCoverage } from "./browser-coverage.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const output = path.resolve(here, process.argv[2] ?? "scaffold");
+const output = captureOutput(here, process.argv, tmpdir());
 const dist = path.resolve(process.env.WEBSITE_DIST ?? path.resolve(here, "../dist"));
 const verifyOpeningRequested = process.argv.includes("--verify-opening");
 const verifyOpeningFramesRequested = process.argv.includes("--verify-opening-frames");
@@ -22,6 +24,7 @@ const verifyHome = process.argv.includes("--verify-home") || verifyControls;
 const allocation = process.argv.includes("--allocation");
 const journey = (proof, run, using = browser) => allocation ? withBrowserCoverage(using, { proof, dist, output }, run) : run(using);
 await mkdir(output, { recursive: true });
+console.error(`writing to ${output}`);
 let openingCommit;
 if (verifyOpeningRequested) {
   await rm(path.join(output, "opening-observations.json"), { force: true });

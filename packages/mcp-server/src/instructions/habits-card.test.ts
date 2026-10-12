@@ -93,15 +93,20 @@ test("7.9 the card handed at session start says how to build beside mapped code"
   const session = await sessionStart();
   try {
     const served = session.client.getInstructions() ?? "";
-    // One phrase for each thing ADR-0993 D4 and D8 to D11 has the agent do beside mapped code.
+    // One phrase for each thing ADR-0993 D4 and D8 to D11, as ADR-1015 narrows them, has the agent do beside mapped code.
     for (const said of [
-      "change it only when the increment names it",
+      "Before changing or deleting anything in the imported project, stop and ask the user",
+      "change it there, bring that part into this project, retire it, or leave it and build on top",
+      "Do what the user says",
+      "do not watch the old project for changes",
+      "call `import_project` again only when the user asks",
       "depending on the mapped package by a link:",
       "Old code never imports new code",
       "Test the interface your package has with the old code",
-      "bring in whatever serves its UI and import the rest",
       "give `focus` the part's folders as its crossing",
     ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
+    // ADR-1015: bringing in what serves the UI is one answer the user can give, not the agent's first move.
+    assert.ok(!served.includes("bring in whatever serves its UI"), "the card still sends the agent to bring in the UI first");
   } finally {
     await session.close();
   }

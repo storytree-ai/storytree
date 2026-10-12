@@ -24,16 +24,18 @@ const DECISION_RIGHTS_LINES = [
 ].join("\n");
 
 /**
- * How to build beside mapped code (contract 7.9, ADR-0993 D4, D8 to D11): the card carries it whole, so the
- * setup check can hand a project with imports the same words.
+ * How to build beside mapped code (contract 7.9, ADR-0993 D4, D8 to D11, as ADR-1015 narrows D4 and D10): the
+ * card carries it whole, so the setup check can hand a project with imports the same words.
  */
 export const MAPPED_CODE_GUIDANCE = [
   "Build beside mapped code.",
-  "- A mapped story is code that was here before storytree: assume it works, and change it only when the increment names it.",
+  "- A mapped story is code imported from a project that was here before storytree: assume it works.",
+  "- Before changing or deleting anything in the imported project, stop and ask the user, even when an increment names the change. Say what would change there and what it costs, and offer the ways on: change it there, bring that part into this project, retire it, or leave it and build on top. Do what the user says.",
+  "- The imported project and this one are separate after the import: do not watch the old project for changes, and call `import_project` again only when the user asks.",
   "- Build new stories on top in their own packages, each depending on the mapped package by a link: to its folder under its own name (file: under npm, which has no link:). It declares no exports, so import its files by path; match its module type and path aliases, and link its single copy of its framework and type packages.",
   "- Old code never imports new code. To route something back, build an interface in storytree that the old code consumes.",
-  "- Test the interface your package has with the old code. For a new feature inside the old app, bring in whatever serves its UI and import the rest.",
-  "- Before changing a part in its middle or adopting it, give `focus` the part's folders as its crossing: it counts the files that import it and the files it imports. Shape the work with the user from those numbers; refuse when it is too large.",
+  "- Test the interface your package has with the old code.",
+  "- Before asking about a part in its middle, give `focus` the part's folders as its crossing: it counts the files that import it and the files it imports. Bring those numbers to the user, and say so when the part is too large to move.",
 ].join("\n");
 
 /** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (6.57). */

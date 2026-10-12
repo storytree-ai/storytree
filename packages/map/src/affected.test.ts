@@ -128,6 +128,22 @@ test("4.1 diverged refs distinguish two-dot endpoints from merge-base and curren
   assert.ok(current.rows!.some(row => row.path === "dirty.md"));
 });
 
+test("4.4 with no range given in a repository with no origin/main, the branch is read against its local default branch", async t => {
+  const repo = await repository(t);
+  repo.git("update-ref", "-d", "refs/remotes/origin/main");
+  repo.git("branch", "-M", "trunk");
+  repo.git("config", "init.defaultBranch", "trunk");
+  repo.git("checkout", "-q", "-b", "feature");
+  await repo.write("packages/shop/src/core.ts", "export const core = 2;\n");
+  repo.git("add", ".");
+  repo.commit("change core");
+  const answer = await focusProject(repo.library, repo.folder, { select: "diff:", mode: "show" });
+  assert.equal(answer.diff?.range, "trunk");
+  assert.equal(answer.diff?.base, repo.base);
+  assert.equal(answer.diff?.changedPaths, 1, "the branch's commit is the change");
+  assert.ok(answer.rows!.some(row => row.id === "core-promise"));
+});
+
 test("4.2 each story whose package origin/main changed within the time asked has its newest such commit and when; the rest are absent, and with no origin/main there are none", async t => {
   const repo = await repository(t);
   const at = (when: Date, message: string) => execFileSync("git", ["-c", "user.name=Map test", "-c", "user.email=map@example.test", "-c", "commit.gpgsign=false", "commit", "-m", message], { cwd: repo.folder, env: { ...process.env, GIT_COMMITTER_DATE: when.toISOString(), GIT_AUTHOR_DATE: when.toISOString() }, stdio: "ignore" });

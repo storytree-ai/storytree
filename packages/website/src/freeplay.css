@@ -85,4 +85,8 @@
    is won back: the globe rises with the panel it sits under (2.18). */
 @media(max-width:600px) and (max-height:760px) {
  #chapter2[data-tour-mode="tour"]:has(.tour-arc-surface:not([hidden])) .forest-drawing { top:64px; bottom:calc(max(calc(52% - 32px), calc(var(--tour-under) + 4px - 20px)) + 40px); }
+ /* Under the sessions list, the globe's empty upper rim tucks under the list's lower edge (its compass staying below it), so
+    the islands the claims step names grow far enough apart for the cart's and checkout's names both to stand (forest 3.31). */
+ #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden])) .forest-drawing { top:calc(var(--tour-sessions, 0px) - 24px); }
+ #chapter2[data-tour-mode="tour"]:has(.tour-session-surface:not([hidden])) .planet-mini-globe { top:32px; }
 }

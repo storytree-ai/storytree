@@ -28,14 +28,20 @@
  * - Pi: no hook command at all, only extensions. Storytree's registration is one generated extension,
  *   `<PI_CODING_AGENT_DIR or ~/.pi/agent>/extensions/storytree.ts` (pi-extension.ts), written whole and
  *   deleted whole: a file of storytree's alone, so no other setting of Pi's is ever touched.
- * - In all four, the hook before each file-edit tool runs in the foreground, since its answer may refuse
+ * - Antigravity CLI: `~/.gemini/config/hooks.json`, whose top-level keys each name a hook (its own
+ *   documentation, shipped inside agy 1.3.3; not a live session, since agy runs no prompt without a sign-in).
+ *   Storytree's registration is the one named `storytree`, written whole and taken out whole, so every other
+ *   named hook is left as it was. Antigravity runs each command line through `sh -c` (cmd /c on Windows) and
+ *   waits for it; its input names no event, so each command names its own (`--event=`), and the hooks before
+ *   a command and at the end of a run pass `--background`.
+ * - In all five, the hook before each file-edit tool runs in the foreground, since its answer may refuse
  *   the edit (ADR-0949 D3).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, HARNESS_IDS, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
+import { ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, EVENT, HARNESS_IDS, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
 
 import { piExtension } from "./pi-extension.js";
 
@@ -68,6 +74,7 @@ export interface HooksReport {
   readonly codex: HookRegistration;
   readonly cursor: HookRegistration;
   readonly pi: HookRegistration;
+  readonly antigravity: HookRegistration;
   readonly statusLine: StatusLineInstall;
   /** The hook scripts of another build that registering replaced, by harness: present only when it replaced one. */
   readonly replaced?: { readonly [harness in Harness]?: readonly string[] };
@@ -78,6 +85,7 @@ export interface RemovalReport {
   readonly codex: "removed" | "none";
   readonly cursor: "removed" | "none";
   readonly pi: "removed" | "none";
+  readonly antigravity: "removed" | "none";
   /** Whether storytree's status line was taken out: a status line of the user's own is never touched. */
   readonly statusLine: "removed" | "none";
 }
@@ -105,12 +113,14 @@ export function registerHooks(homes: Homes, hook: HookCommand, disconnected: Rea
   // Cursor's hooks file must name its version: a new file gets 1, and one the user wrote keeps its own.
   const cursor = disconnected.has("cursor") ? { registration: "disconnected" as const, replaced: [] } : register(homes.cursor, "hooks.json", cursorEntries(hook), hook.script, { version: 1 });
   const pi = disconnected.has("pi") ? { registration: "disconnected" as const, replaced: [] } : registerPi(homes.pi, hook);
-  const replaced = { ...(claude.replaced.length > 0 ? { "claude-code": claude.replaced } : {}), ...(codex.replaced.length > 0 ? { codex: codex.replaced } : {}), ...(cursor.replaced.length > 0 ? { cursor: cursor.replaced } : {}), ...(pi.replaced.length > 0 ? { pi: pi.replaced } : {}) };
+  const antigravity = disconnected.has("antigravity") ? { registration: "disconnected" as const, replaced: [] } : registerAntigravity(homes.antigravity, hook);
+  const replaced = { ...(claude.replaced.length > 0 ? { "claude-code": claude.replaced } : {}), ...(codex.replaced.length > 0 ? { codex: codex.replaced } : {}), ...(cursor.replaced.length > 0 ? { cursor: cursor.replaced } : {}), ...(pi.replaced.length > 0 ? { pi: pi.replaced } : {}), ...(antigravity.replaced.length > 0 ? { antigravity: antigravity.replaced } : {}) };
   return {
     "claude-code": claude.registration,
     codex: codex.registration,
     cursor: cursor.registration,
     pi: pi.registration,
+    antigravity: antigravity.registration,
     statusLine: disconnected.has("claude-code") ? "not here" : installStatusLine(homes.claude, hook),
     ...(Object.keys(replaced).length > 0 ? { replaced } : {}),
   };
@@ -155,6 +165,7 @@ export function removeHooks(homes: Homes, scope?: { readonly harness: Harness; r
     codex: remove(homes.codex, "hooks.json"),
     cursor: remove(homes.cursor, "hooks.json", true),
     pi: removePi(homes.pi),
+    antigravity: removeAntigravity(homes.antigravity),
     statusLine,
   };
 }
@@ -288,6 +299,61 @@ function removePi(home: string | undefined, script?: string): "removed" | "none"
   return "removed";
 }
 
+/** The name storytree's hooks go under in Antigravity's hooks.json, whose top-level keys each name a hook. */
+const ANTIGRAVITY_NAME = "storytree";
+/** Antigravity's tools that write a file, by the names its binary (1.3.3) gives them; the matcher is a regular expression. */
+const ANTIGRAVITY_EDITS = "write_to_file|replace_file_content|multi_replace_file_content";
+
+/** Antigravity's named hook: one command line per event for the shell it runs it through, naming that event. */
+function antigravityEntries({ node, script }: HookCommand): Record<string, unknown> {
+  const quoted = process.platform === "win32" ? (text: string) => `"${text}"` : shQuoted;
+  const run = (event: string, flag?: string) => ({ type: "command", command: `${quoted(node)} ${quoted(script)} antigravity ${EVENT}${event}${flag === undefined ? "" : ` ${flag}`}`, timeout: 10 });
+  return {
+    PreToolUse: [
+      // Every tool server's calls: the hook script keeps only those to storytree's own.
+      { matcher: "mcp_.*", hooks: [run("PreToolUse")] },
+      { matcher: "run_command", hooks: [run("PreToolUse", BACKGROUND)] },
+      // Before each file edit, in the foreground: an edit to a capability the session may not write is refused (ADR-0949 D3).
+      { matcher: ANTIGRAVITY_EDITS, hooks: [run("PreToolUse", EDIT_GATE)] },
+    ],
+    PostToolUse: [{ matcher: `run_command|${ANTIGRAVITY_EDITS}`, hooks: [run("PostToolUse")] }],
+    // Its end-of-run hooks are a flat list of handlers.
+    Stop: [run("Stop", BACKGROUND)],
+  };
+}
+
+/** Write storytree's named hook into Antigravity's hooks.json in its home `home`, saying which other build's hook script the one there ran. */
+function registerAntigravity(home: string | undefined, hook: HookCommand): { registration: HookRegistration; replaced: string[] } {
+  if (home === undefined || !isFolder(home)) return { registration: "not here", replaced: [] };
+  const file = path.join(home, ANTIGRAVITY_HOOKS);
+  const named = readSettings(file);
+  const wanted = antigravityEntries(hook);
+  if (isDeepStrictEqual(named[ANTIGRAVITY_NAME], wanted)) return { registration: "already registered", replaced: [] };
+  const before = scriptsIn(stringsIn(named[ANTIGRAVITY_NAME])).filter((found) => found !== hook.script);
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeSettings(file, { ...named, [ANTIGRAVITY_NAME]: wanted });
+  return { registration: "registered", replaced: [...new Set(before)] };
+}
+
+/** Take storytree's named hook out of Antigravity's hooks.json; with `script`, only one that runs that hook script. A file left with no hook goes. */
+function removeAntigravity(home: string | undefined, script?: string): "removed" | "none" {
+  if (home === undefined) return "none";
+  const file = path.join(home, ANTIGRAVITY_HOOKS);
+  if (!existsSync(file)) return "none";
+  const { [ANTIGRAVITY_NAME]: ours, ...rest } = readSettings(file);
+  const runs = scriptsIn(stringsIn(ours));
+  if (runs.length === 0 || (script !== undefined && !runs.includes(script))) return "none";
+  if (Object.keys(rest).length === 0) rmSync(file);
+  else writeSettings(file, rest);
+  return "removed";
+}
+
+/** Every string in a JSON value. */
+function stringsIn(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  return value !== null && typeof value === "object" ? Object.values(value).flatMap(stringsIn) : [];
+}
+
 /** Register `entries` in `home`'s `file`, saying which other builds' hook scripts it replaced there; `born` is what a new file holds besides its hooks. */
 function register(home: string | undefined, file: string, entries: Record<string, HookEntry[]>, script: string, born: Settings = {}): { registration: HookRegistration; replaced: string[] } {
   if (home === undefined || !isFolder(home)) return { registration: "not here", replaced: [] };
@@ -369,8 +435,9 @@ function shQuoted(text: string): string {
 
 /** Remove one installation's hooks from one harness, preserving other commands in mixed groups. */
 function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): RemovalReport {
-  const report: RemovalReport = { "claude-code": "none", codex: "none", cursor: "none", pi: "none", statusLine: "none" };
+  const report: RemovalReport = { "claude-code": "none", codex: "none", cursor: "none", pi: "none", antigravity: "none", statusLine: "none" };
   if (harness === "pi") return { ...report, pi: removePi(homes.pi, hook.script) };
+  if (harness === "antigravity") return { ...report, antigravity: removeAntigravity(homes.antigravity, hook.script) };
   const home = harness === "claude-code" ? homes.claude : homes[harness];
   if (home === undefined) return report;
   const file = path.join(home, harness === "claude-code" ? "settings.json" : "hooks.json");

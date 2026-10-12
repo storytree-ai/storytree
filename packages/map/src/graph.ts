@@ -72,7 +72,9 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
     add({ id: story.id, kind: "story", title: story.title, story: story.id, health: story.mapped === undefined ? healthOf(story.health, healthSource) : "mapped", ...(loop === undefined ? {} : { loop }) });
     for (const cap of story.capabilities) {
       const number = /^\s*(\d+)\s*·/.exec(cap.title)?.[1];
-      add({ id: cap.id, kind: "capability", title: cap.title, story: story.id, health: healthOf(cap.health, healthSource), ...(number === undefined ? {} : { number }) });
+      // An explored capability of a mapped story has no health until it has a contract (ADR-0993 D3, D5).
+      const health = story.mapped !== undefined && cap.contracts.length === 0 ? "mapped" : healthOf(cap.health, healthSource);
+      add({ id: cap.id, kind: "capability", title: cap.title, story: story.id, health, ...(number === undefined ? {} : { number }) });
       edge(cap.id, story.id, "belongs-to", "declared");
       for (const dependency of cap.dependsOn) edge(cap.id, dependency, "depends-on", "declared");
       for (const contract of cap.contracts) {
@@ -86,11 +88,13 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
     const read = survey[story.id];
     if (!read) continue;
     if (read.mapped !== undefined) {
-      // A mapped island is a black box (ADR-0993 D5): its files, in no capability, and its roads; its files' ids are their full paths.
+      // A mapped island is a black box (ADR-0993 D5): its files, each in the capability an agent explored that covers it
+      // or in none, and its roads; its files' ids are their full paths.
       for (const file of read.files) {
         const id = `file:${`${read.mapped.folder.replaceAll("\\", "/").replace(/\/$/, "")}/${file.path}`}`;
         add({ id, kind: "file", title: file.path, path: file.path, story: story.id, health: "mapped" });
         edge(id, story.id, "belongs-to", "inferred");
+        if (file.capability !== undefined) edge(id, file.capability, "implements", "declared");
       }
       for (const dependency of read.dependsOn ?? []) edge(story.id, dependency, "depends-on", "inferred");
       continue;

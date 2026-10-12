@@ -124,7 +124,7 @@ test("10.8 a mapped story's line says it is mapped, here before storytree and as
   await inWorld(command, async (world) => {
     const library = await world.library();
     const { added: [shop] } = await library.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
-    const capability = await library.addCapability({ title: "Checkout", story: shop!.id });
+    const capability = await library.addCapability({ title: "Checkout", story: shop!.id, covers: ["checkout"] });
 
     const ran = await world.run(["tree"]);
 

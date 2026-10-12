@@ -61,10 +61,10 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
       ...(status === undefined ? {} : { status }),
       contracts: capability === undefined ? 0 : (contractsOf.get(capability) ?? 0),
     }));
-    const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id], packageOf(story.title), tree.unverified !== true) : mappedLand(survey[story.id]);
+    const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id], packageOf(story.title), tree.unverified !== true) : mappedLand(story.capabilities, survey[story.id]);
     // ADR-0993 D3: a mapped island's land follows its lines, capped; before its survey, it is the least an island has.
     // ADR-0804 D3, D7: a surveyed story's land follows its lines of code, grown where its files' circles need more room; unsurveyed, it follows its capabilities, a one-capability floor's worth of land each, so it grows in step with the surveyed ones.
-    const area = story.mapped !== undefined ? mappedArea(land!.territories[0]!.lines) : land === undefined || land.files.length === 0 ? unsurveyedArea(story.capabilities.length) : landForCircles(land.territories, land.files, islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0)));
+    const area = story.mapped !== undefined ? mappedArea(land!.territories.reduce((sum, { lines }) => sum + lines, 0)) : land === undefined || land.files.length === 0 ? unsurveyedArea(story.capabilities.length) : landForCircles(land.territories, land.files, islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0)));
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
     return { story: story.id, title: story.title, x, z, trees: placed, ...(land === undefined ? {} : { land }), area, key };
   });
@@ -114,12 +114,19 @@ export function forestDrawn(scene: ForestScene): ForestDrawn {
 }
 
 /**
- * A mapped story's land (ADR-0993 D3, D5): a black box, so one brown territory, the whole island, sized by its surveyed
- * lines (a weight of 1 before its survey), and no file circles, whether or not the project is verified.
+ * A mapped story's land (ADR-0993 D3, D5, D7): a black box but where an agent explored it, so one brown territory for
+ * each explored capability with surveyed code, in the story's order, then one for the unexplored rest, side by side and
+ * sized by their lines; the whole island is one brown territory before its survey (a weight of 1) or until explored.
+ * No file circles, whether or not the project is verified.
  */
-function mappedLand(survey: StorySurvey | undefined): NonNullable<Island["land"]> {
-  const lines = (survey?.files ?? []).reduce((sum, file) => sum + file.lines, 0);
-  return { territories: [{ mapped: true, lines: lines > 0 ? lines : 1 }], files: [] };
+function mappedLand(capabilities: readonly { id: string; title: string; description?: string }[], survey: StorySurvey | undefined): NonNullable<Island["land"]> {
+  const files = survey?.files ?? [];
+  const linesOf = (capability: string | undefined) => files.filter((file) => file.capability === capability).reduce((sum, file) => sum + file.lines, 0);
+  const territories = [
+    ...capabilities.map(({ id, title, description }) => ({ capability: id, title, ...(description === undefined ? {} : { description }), mapped: true as const, lines: linesOf(id) })),
+    { mapped: true as const, lines: linesOf(undefined) },
+  ].filter(({ lines }) => lines > 0);
+  return { territories: territories.length > 0 ? territories : [{ mapped: true, lines: 1 }], files: [] };
 }
 
 /**

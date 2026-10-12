@@ -297,7 +297,9 @@ export class HealthRecord {
           const health = rolledUp(contracts.map((contract) => contract.health));
           const status = capabilityStatus(capability.proposed, contracts.map((contract) => contract.health.verified.state));
           const reportOnly = unverified && !capability.proposed;
-          const why = reportOnly ? undefined : capabilityWhy(capability.proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified })));
+          // An explored capability of a mapped story, with nothing promised yet, has no health to want (ADR-0993 D3, D5).
+          const explored = story.mapped !== undefined && contracts.length === 0;
+          const why = reportOnly || explored ? undefined : capabilityWhy(capability.proposed, contracts.map((contract) => ({ id: contract.id, verified: contract.health.verified })));
           const parkedOn = status === "proposed" || status === "untested" ? parked.get(capability.id) : undefined;
           return { ...capability, dependsOn: [...capability.dependsOn], contracts, health, status, ...(why === undefined ? {} : { why }), ...(reportOnly ? { reportOnly } : {}), ...(parkedOn === undefined ? {} : { parkedOn: [...parkedOn] }) };
         });

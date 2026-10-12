@@ -210,3 +210,28 @@ test("8.23 a built story's package dependency on a mapped story's package is a r
     await rm(trunk, { recursive: true, force: true });
   }
 });
+
+test("8.26 a mapped story's file under the folders or files an explored capability covers carries that capability, work not yet committed included; the rest carry none, and a change of covers is read at the same commit", async () => {
+  const shop = await mkdtemp(path.join(tmpdir(), "mapped-explored-"));
+  const trunk = await mkdtemp(path.join(tmpdir(), "mapped-trunk-"));
+  try {
+    await write(shop, SHOP);
+    git(shop, "init", "-q", "-b", "main");
+    commit(shop);
+    await write(shop, { "packages/cart/src/lines/total.ts": "export const total = 1;\n" });
+    const explored = (covers: string[]) => ({ ...tree, stories: tree.stories.map((story) => story.id !== "story-cart" ? story
+      : { ...story, capabilities: [{ id: "cap-lines", title: "1 · Cart lines", dependsOn: [], proposed: true, contracts: [], covers }] }) } as AnnotatedTree);
+    const reader = codeSurveyReader({ checkout: "current" });
+    const owned = async (covers: string[]) => (await reader.read(trunk, explored(covers), [{ folder: shop, repository: REPOSITORY }]))["story-cart"]?.files;
+    assert.deepEqual(await owned(["packages/cart/src/lines", "packages/cart/src/util.js"]), [
+      { path: "packages/cart/src/index.test.ts", lines: 1 },
+      { path: "packages/cart/src/index.ts", lines: 3 },
+      { path: "packages/cart/src/lines/total.ts", lines: 1, capability: "cap-lines" },
+      { path: "packages/cart/src/util.js", lines: 1, capability: "cap-lines" },
+    ], "a covered folder's files, uncommitted work among them, and a covered file");
+    assert.deepEqual((await owned(["packages/cart/src/index.ts"]))?.filter((file) => file.capability !== undefined).map((file) => file.path), ["packages/cart/src/index.ts"], "covers changed, the commit not");
+  } finally {
+    await rm(shop, { recursive: true, force: true });
+    await rm(trunk, { recursive: true, force: true });
+  }
+});

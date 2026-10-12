@@ -57,6 +57,7 @@ import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
 import { cursorLines, cursorSession } from "./cursor.js";
 import { piLines, piSession } from "./pi.js";
+import { antigravityLines } from "./antigravity.js";
 import { EDIT_GATE, editGate } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
@@ -116,6 +117,8 @@ export function hookLines(harness: string, input: unknown): HookLines | undefine
       return cursorLines(input as Record<string, unknown>);
     case "pi":
       return piLines(input as Record<string, unknown>);
+    case "antigravity":
+      return antigravityLines(input as Record<string, unknown>);
     default:
       // Any other name is a harness naming itself, sending the input storytree publishes (ADR-1007 D4).
       return isSelfNamed(harness) ? selfNamedLines(harness, input as Record<string, unknown>) : undefined;
@@ -152,9 +155,21 @@ interface Prompted {
  * to; while storytree cannot be reached they wait on this machine for the next hook (queue.ts). Never throws. It prints nothing but what a prompt hook adds for the
  * agent (definitions and context advice), which it returns: the command prints it.
  */
-export async function runHook({ argv, input, handOff, merges, locate, declaredCapabilities }: HookInput): Promise<string | undefined> {
+export async function runHook(hook: HookInput): Promise<string | undefined> {
+  const said = await answerHook(hook);
+  // Antigravity reads every hook's answer as JSON: nothing to say is an empty object.
+  return said === undefined && hook.argv[0] === "antigravity" ? "{}" : said;
+}
+
+/** The flag naming the event in a hook command, for a harness whose input names none (Antigravity). */
+export const EVENT = "--event=";
+
+async function answerHook({ argv, input: given, handOff, merges, locate, declaredCapabilities }: HookInput): Promise<string | undefined> {
   const [harness = "", ...flags] = argv;
-  const parsed = parse(input);
+  const read = parse(given);
+  const parsed = withEvent(read, flags);
+  // A copy this hook hands its work to is started without the flag, so the event goes with the input.
+  const input = parsed === read ? given : JSON.stringify(parsed);
   const failed = (stage: HookFailure["stage"], error: unknown) => noteHookFailure(storytreeHome, hookIdentity(harness, parsed), stage, error);
   try {
     // Any Codex hook that runs proves the user trusted storytree's hooks there (3.18), in a project or not.
@@ -390,6 +405,12 @@ function withinTime<T>(work: Promise<T | undefined>): Promise<T | undefined> {
   let timer: NodeJS.Timeout | undefined;
   const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), CONNECT_TIMEOUT_MS)));
   return Promise.race([work.catch(() => undefined), late]).finally(() => clearTimeout(timer));
+}
+
+/** The input with the event its hook command names, where the harness's own input names none. */
+function withEvent(parsed: unknown, flags: readonly string[]): unknown {
+  const event = flags.find((flag) => flag.startsWith(EVENT))?.slice(EVENT.length);
+  return event === undefined || typeof parsed !== "object" || parsed === null || Array.isArray(parsed) ? parsed : { ...parsed, hook_event_name: event };
 }
 
 function parse(input: string): unknown {

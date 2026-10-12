@@ -1,7 +1,8 @@
 /**
  * Capability 3 · Story node render: an island's capability territories as drawn (ADR-0804 D2). Each
  * territory is one mesh named `territory:<capability>`, filled by its capability's word (ADR-0825 D3);
- * a mapped story's one territory is `territory:mapped`, the whole island in brown (ADR-0993 D3), no capability and no hatch;
+ * a mapped story's unexplored land is `territory:mapped`, in brown (ADR-0993 D3), no capability and no hatch, and each
+ * capability an agent explored there is `territory:<capability>` beside it, brown too, with no word (ADR-0993 D5, D7);
  * Unclaimed code's is `territory:unclaimed`, with no capability: uncharted land, a night-dark fill with a
  * thin diagonal hatch (`territory-hatch:unclaimed`), still picked by a click on its land. The borders between territories are one set of line segments,
  * stopping at the island's coast. A claim draws nothing here: its flag and lot are `claim-flag.ts`'s (ADR-0968).
@@ -65,10 +66,11 @@ export function territoryLand(land: DrawnLand, onSurface: (point: Point) => Vect
     const cells = land.cells.filter((cell) => cell.territory === at && cell.polygon.length >= 3).map((cell) => cell.polygon);
     const pieces = cells.flatMap((cell) => land3 === undefined ? [cell] : land3.map((triangle) => clipToConvex(triangle, cell)).filter((piece) => piece.length >= 3));
     const mesh = new Mesh(fan(pieces, onSurface), territoryFill(territory));
-    mesh.name = `territory:${territory.mapped === true ? "mapped" : territory.capability ?? "unclaimed"}`;
+    mesh.name = `territory:${territory.capability ?? (territory.mapped === true ? "mapped" : "unclaimed")}`;
     // A capability a running session claims keeps its fill and its borders; the flag says who holds it (ADR-0968 D1).
     const claimant = territory.capability === undefined ? undefined : claimed.get(territory.capability);
-    mesh.userData = territory.mapped === true ? { territory: true, mapped: true } : territory.capability === undefined ? { territory: true }
+    const named = territory.capability === undefined ? {} : { capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }) };
+    mesh.userData = territory.mapped === true ? { territory: true, mapped: true, ...named, ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) } : territory.capability === undefined ? { territory: true }
       : { territory: true, capability: territory.capability, title: territory.title ?? territory.capability, ...(territory.description === undefined ? {} : { description: territory.description }), word: territory.status ?? "untested", ...(territory.parked === true ? { parked: true } : {}), ...(claimant === undefined ? {} : { claimedBy: claimant.colour }) };
     mesh.renderOrder = 1;
     group.add(mesh);

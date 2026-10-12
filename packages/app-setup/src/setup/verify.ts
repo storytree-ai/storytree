@@ -2,11 +2,12 @@
  * Capability 8 · Setup check. Whether a session's hooks are proven to fire (ADR-0625 D9, ADR-0626 D5): the connection shows as
  * verified only once storytree has received all four from that session, a session start, a call to
  * a storytree tool (check_setup's own call fires it), a file edit and a command, each written by a
- * hook. Until then each missing one is named, with its fix.
+ * hook. Until then each missing one is named, with its fix. A harness whose hooks have no session-start
+ * event (Antigravity CLI) has its start proven by the first line any of its hooks wrote for the session (8.30).
  */
 import path from "node:path";
 
-import type { Line } from "@storytree/session-management";
+import { watchedHarness, type Line } from "@storytree/session-management";
 
 /** The four hooks a session's setup is verified by, in the order they fire. */
 export const HOOK_TESTS = ["session start", "storytree tool call", "file edit", "command"] as const;
@@ -39,6 +40,7 @@ export interface Verification {
  */
 export function verifyHooks(lines: readonly Line[], session: string, harness: string | undefined, machine: { readonly elevated?: boolean; readonly codexHooks?: "running" | "waiting" } = {}): Verification {
   const fired = new Set(lines.filter((line) => line.session === session && line.source === "hook").map((line) => line.kind));
+  if (fired.size > 0 && watchedHarness(harness)?.startEvent === false) fired.add("session-started");
   const missing = HOOK_TESTS.filter((test) => !fired.has(KIND_OF[test]));
   const fixes: Fix[] = [];
   // Codex runs none of storytree's hooks until the user trusts them once. Once one has run here, a start or a

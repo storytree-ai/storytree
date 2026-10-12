@@ -113,6 +113,44 @@ test("2.10 choosing Cursor registers the tool server in ~/.cursor/mcp.json and s
   assert.deepEqual(JSON.parse(readFileSync(hooksFile, "utf8")), hooks);
 });
 
+test("2.12 choosing Antigravity CLI registers the tool server in ~/.gemini/config/mcp_config.json and storytree's hooks as one named entry in its hooks.json, keeping every other server and named hook; repeating changes nothing, disconnecting removes exactly what it added, and a machine without agy gets a recovery action", async (t) => {
+  const f = fixture(t);
+  const config = path.join(f.home, ".gemini", "config");
+  mkdirSync(config, { recursive: true });
+  const mcpFile = path.join(config, "mcp_config.json");
+  const hooksFile = path.join(config, "hooks.json");
+  const servers = { mcpServers: { other: { command: "npx", args: ["other-server"], disabled: false } } };
+  const hooks = { "lint-checker": { PostToolUse: [{ matcher: "run_command", hooks: [{ type: "command", command: "./lint.sh" }] }] } };
+  writeFileSync(mcpFile, JSON.stringify(servers));
+  writeFileSync(hooksFile, JSON.stringify(hooks));
+
+  const absent: RunHarness = async (exe, args, opts) => { if (exe === "agy") throw Object.assign(new Error("not found"), { code: "ENOENT" }); return run(exe, args, opts); };
+  const [missing] = await connectAgents({ ...f.options, run: absent, harnesses: ["antigravity"] });
+  assert.equal(missing!.tools, "not connected");
+  assert.match(missing!.next, /agy --version/);
+  assert.equal(readFileSync(mcpFile, "utf8"), JSON.stringify(servers), "nothing is registered without agy");
+
+  const [first] = await connectAgents({ ...f.options, harnesses: ["antigravity"] });
+  assert.deepEqual([first!.tools, first!.hooks, first!.settingsFile], ["connected", "not verified", mcpFile]);
+  const connected = JSON.parse(readFileSync(mcpFile, "utf8"));
+  assert.deepEqual(connected.mcpServers.other, servers.mcpServers.other);
+  assert.deepEqual([connected.mcpServers.storytree.command, connected.mcpServers.storytree.args], [process.execPath, [f.script]]);
+  const registered = JSON.parse(readFileSync(hooksFile, "utf8"));
+  assert.deepEqual(registered["lint-checker"], hooks["lint-checker"], "the user's own named hook is kept");
+  const pre: { matcher: string; hooks: { command: string }[] }[] = registered.storytree.PreToolUse;
+  assert.ok(pre.some((group) => group.hooks.some((hook) => hook.command.includes(path.join(f.tools, "storytree-hook.mjs")) && hook.command.includes(" antigravity --event=PreToolUse --edit-gate"))), "the edit gate runs before a write, naming its event");
+  assert.ok(registered.storytree.Stop.some((hook: { command: string }) => hook.command.includes(" antigravity --event=Stop")), "the end of a run is a flat list of handlers");
+
+  const before = [readFileSync(mcpFile, "utf8"), readFileSync(hooksFile, "utf8")];
+  assert.equal((await connectAgents({ ...f.options, harnesses: ["antigravity"] }))[0]!.tools, "already connected");
+  assert.deepEqual([readFileSync(mcpFile, "utf8"), readFileSync(hooksFile, "utf8")], before);
+
+  const report = await disconnectAgents({ ...f.options, harnesses: ["antigravity"] });
+  assert.equal(report.harnesses[0]!.tools, "disconnected");
+  assert.deepEqual(JSON.parse(readFileSync(mcpFile, "utf8")), servers);
+  assert.deepEqual(JSON.parse(readFileSync(hooksFile, "utf8")), hooks);
+});
+
 test("2.11 choosing Pi registers the tool server, directly exposed, in its agent folder's mcp.json, installs storytree's Pi extension and its AGENTS.md section, keeping every other server, extension and instruction; repeating changes nothing, disconnecting removes exactly what it added, and a machine without Pi gets a recovery action", async (t) => {
   const f = fixture(t);
   // PI_CODING_AGENT_DIR moves Pi's agent folder, as CODEX_HOME moves Codex's.

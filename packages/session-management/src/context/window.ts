@@ -257,8 +257,10 @@ export async function sessionWindow(lines: readonly Line[], session: string,
   if (named === undefined) return { session, absent: "no hook has named this session's transcript", at };
   const { transcript, harness } = named;
   const who = harness === undefined ? { session } : { session, harness };
-  // A line naming no harness is from before hooks named it: Claude Code's. Any harness storytree has no reader for is never read as another's (as 9.15's fold).
-  const reader = harness === undefined ? "claude-code" : watchedHarness(harness)?.transcript;
+  // A line naming no harness is from before hooks named it: Claude Code's. A harness with no window reader here (Pi's
+  // transcript is read for its context only) is never read as another's (as 9.15's fold).
+  const known = harness === undefined ? "claude-code" : watchedHarness(harness)?.transcript;
+  const reader = known === "claude-code" || known === "codex" ? known : undefined;
   if (reader === undefined) return { ...who, absent: `storytree reads no transcript of ${labelOf(harness)}`, at, source: transcript };
   let text: string | undefined;
   try {

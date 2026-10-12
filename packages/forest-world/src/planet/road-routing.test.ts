@@ -137,8 +137,9 @@ test('6.21 while a moved layout\'s roads are routed, a live globe forgets no roa
   // A dependency is added and the globe is laid out again: its islands move, so nothing can be kept on show.
   const moved = drawnAtOnce(scene, layout(0.79), R, { spots: layout(0.77), radius: R, drawing: drawn });
   assert.equal(moved.drawing.plan.edges.length, 0);
+  assert.equal(nextLiveRoads(arrived, moved.drawing.plan, 0, true).size, 0, 'a road still drawing when its roads were taken away draws on afresh');
   const waiting = nextLiveRoads(arrived, moved.drawing.plan, 5, true);
-  assert.equal(waiting, arrived, 'the arrivals are kept while the roads are routed');
+  assert.equal(waiting, arrived, 'the roads drawn are kept while the new ones are routed');
   const routing = routedDrawing(scene, layout(0.79), R, moved.routing!, router, new AbortController().signal);
   asked[1]!.answer();
   const after = nextLiveRoads(waiting, (await routing)!.plan, 5);

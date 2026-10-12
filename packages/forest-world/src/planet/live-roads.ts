@@ -5,9 +5,13 @@ import type { PlanetPathways } from './pathways.js';
 
 /** Arrivals follow real links, so rerouting or a poll cannot restart an existing road.
  * Removing a link forgets its arrival; adding it again gives it a new one. While the plan's roads are still being
- * routed (world 6.21) it forgets nothing, so the roads it already drew are not drawn on again when they arrive. */
+ * routed (world 6.21) it keeps every road that finished drawing, so those are not drawn on again when they arrive;
+ * one still drawing when its roads were taken away draws on afresh. */
 export function nextLiveRoads(previous: ReadonlyMap<string, GrowthWindow>, plan: PlanetPathways, elapsed: number, routing = false): ReadonlyMap<string, GrowthWindow> {
-  if (routing) return previous;
+  if (routing) {
+    const drawn = [...previous].filter(([, road]) => elapsed >= road.start + road.seconds);
+    return drawn.length === previous.size ? previous : new Map(drawn);
+  }
   const keys = new Set(plan.edges.map(linkKey));
   if (keys.size === previous.size && [...keys].every(key => previous.has(key))) return previous;
   return new Map([...keys].map(key => [key, previous.get(key)

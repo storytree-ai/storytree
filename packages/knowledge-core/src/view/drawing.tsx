@@ -5,7 +5,19 @@
  */
 import React from "react";
 
+import type { KindRow } from "../kinds/kinds.js";
 import type { Card } from "../look-inside/look-inside.js";
+
+/** The kind list (capability 5): a press switches a kind's dots on or off. */
+export function KindList({ rows, onShow }: { rows: readonly KindRow[]; onShow: (kind: string, shown: boolean) => void }) {
+  return rows.length === 0 ? null : <div className="core-kinds" role="group" aria-label="Artifact kinds">
+    {rows.map(({ kind, label, colour, count, shown }) => <button key={kind} type="button" data-kind={kind} aria-pressed={shown} onClick={() => onShow(kind, !shown)}>
+      <span className="core-kind-swatch" style={{ background: colour }} />
+      <span className="core-kind-label">{label}</span>
+      <span className="core-kind-count">{count}</span>
+    </button>)}
+  </div>;
+}
 
 /** The pinned note's summary card. */
 export function NoteCard({ card, onClose }: { card: Card; onClose: () => void }) {

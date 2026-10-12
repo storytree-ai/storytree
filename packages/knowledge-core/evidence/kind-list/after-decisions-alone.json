@@ -1,0 +1,71 @@
+{
+  "dots": 194,
+  "colours": {
+    "#7fb2e5": 194
+  },
+  "rows": [
+    {
+      "kind": "decision",
+      "shown": true,
+      "label": "Decisions",
+      "count": 194,
+      "colour": "rgb(127, 178, 229)"
+    },
+    {
+      "kind": "definition",
+      "shown": false,
+      "label": "Definitions",
+      "count": 1,
+      "colour": "rgb(143, 211, 196)"
+    },
+    {
+      "kind": "principle",
+      "shown": false,
+      "label": "Principles",
+      "count": 63,
+      "colour": "rgb(227, 197, 111)"
+    },
+    {
+      "kind": "guardrail",
+      "shown": false,
+      "label": "Guardrails",
+      "count": 7,
+      "colour": "rgb(229, 143, 143)"
+    },
+    {
+      "kind": "pattern",
+      "shown": false,
+      "label": "Patterns",
+      "count": 10,
+      "colour": "rgb(183, 156, 224)"
+    },
+    {
+      "kind": "process",
+      "shown": false,
+      "label": "Processes",
+      "count": 11,
+      "colour": "rgb(147, 208, 143)"
+    },
+    {
+      "kind": "agent",
+      "shown": false,
+      "label": "Agent roles",
+      "count": 6,
+      "colour": "rgb(224, 163, 207)"
+    },
+    {
+      "kind": "resteer",
+      "shown": false,
+      "label": "Re-steers",
+      "count": 25,
+      "colour": "rgb(199, 169, 138)"
+    },
+    {
+      "kind": "friction",
+      "shown": false,
+      "label": "Friction",
+      "count": 114,
+      "colour": "rgb(154, 163, 173)"
+    }
+  ]
+}

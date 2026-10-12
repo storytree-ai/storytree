@@ -81,6 +81,75 @@
   color: #101418;
 }
 
+/* Knowledge core 5: the kind list under the switches; a kind switched off reads struck out, its swatch hollow. */
+.core-kinds {
+  position: absolute;
+  z-index: 50;
+  top: 3.6rem;
+  left: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px;
+  border: 1px solid #485159;
+  border-radius: 8px;
+  background: #101418cc;
+  font-size: 12px;
+}
+
+.core-kinds button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 5px;
+  padding: 0.22rem 0.55rem;
+  background: transparent;
+  color: #dde3e6;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.core-kinds button:hover {
+  background: #ffffff12;
+}
+
+.core-kinds button:focus-visible {
+  outline: 1px solid #d9dedb;
+}
+
+.core-kind-swatch {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.core-kind-label {
+  flex: 1;
+}
+
+.core-kind-count {
+  margin-left: 0.75rem;
+  color: #8f9aa0;
+  font-variant-numeric: tabular-nums;
+}
+
+.core-kinds button[aria-pressed="false"] {
+  color: #77828a;
+}
+
+.core-kinds button[aria-pressed="false"] .core-kind-label {
+  text-decoration: line-through;
+}
+
+.core-kinds button[aria-pressed="false"] .core-kind-swatch {
+  border: 1px solid #77828a;
+  background: transparent !important;
+}
+
 /* 3.36: the mini globe in the top right; a click takes the globe home (3.37). */
 .planet-mini-globe {
   position: absolute;

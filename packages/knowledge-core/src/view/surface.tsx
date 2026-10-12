@@ -11,12 +11,13 @@ import type { Line, SessionWindow } from "@storytree/session-management";
 import type { Change } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
+import { HIDDEN_AT_START, drawnPoints, kindRows } from "../kinds/kinds.js";
 import { ORCHESTRATOR, dotSizes, lighting, noteCard, trails as readingPaths, traversalTrails, windowView, fileStop, type CodePlaces, type WindowState, type Point, type RosterEntry } from "../look-inside/look-inside.js";
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints } from "../shelves/positions.js";
 import { GlobePoints, type CoreGrowth } from "./globe-points.js";
-import { NoteCard } from "./drawing.js";
+import { KindList, NoteCard } from "./drawing.js";
 
 /** How often the selected session's window is read again, as often as the sessions list's bars. */
 const WINDOW_EVERY_MS = 10_000;
@@ -34,6 +35,10 @@ interface State {
   session: string | undefined;
   roster: readonly RosterEntry[];
   pinned: string | undefined;
+  /** The pinned note whose kind was switched off since: its card closes (capability 5, D2). */
+  dismissed: string | undefined;
+  /** The kinds switched off: their dots are not drawn (capability 5, D2). */
+  hidden: ReadonlySet<string>;
   /** The selected session's window, once read. */
   window: SessionWindow | undefined;
 }
@@ -44,6 +49,8 @@ export interface KnowledgeCore {
   take(history: readonly Change[], lines: readonly Line[]): void;
   /** The note whose card is open, shared by the globe's dots and the card. */
   pin(note: string | undefined): void;
+  /** Draw a kind's dots, or stop drawing them (capability 5). */
+  showKind(kind: string, shown: boolean): void;
   /** The running sessions the host lists, for a selected session's colour (ADR-0738 D2, D5). */
   showRoster(roster: readonly RosterEntry[]): void;
   /** Show one session's traversal, or none with undefined (ADR-0738 D5, ADR-0921). */
@@ -67,7 +74,7 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   const listeners = new Set<() => void>();
   const selections = new Set<(session: string | undefined) => void>();
   let state: State = {
-    history: [], version: 0, session: undefined, roster: [], pinned: undefined, window: undefined,
+    history: [], version: 0, session: undefined, roster: [], pinned: undefined, dismissed: undefined, hidden: HIDDEN_AT_START, window: undefined,
   };
   let windowTimer: ReturnType<typeof setInterval> | undefined;
   /** The selected session whose window is being read, so a slow read is not asked again over itself. */
@@ -84,7 +91,15 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   };
   const store: Store = {
     reads,
-    pin: pinned => store.set({ pinned }),
+    pin: pinned => store.set({ pinned, dismissed: undefined }),
+    showKind(kind, shown) {
+      if (state.hidden.has(kind) !== shown) return;
+      const hidden = new Set(state.hidden);
+      if (shown) hidden.delete(kind);
+      else hidden.add(kind);
+      const pinned = state.pinned === undefined ? undefined : knowledge(state.history).notes.get(state.pinned);
+      store.set({ hidden, dismissed: !shown && pinned?.type === kind ? state.pinned : state.dismissed });
+    },
     showRoster: roster => store.set({ roster }),
     select(session) {
       if (session === state.session) return;
@@ -134,9 +149,9 @@ export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onCl
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
   const known = useMemo(() => knowledge(state.history), [state.history]);
-  const card = state.pinned === undefined ? undefined : noteCard(state.pinned, known);
+  const card = state.pinned === undefined || state.pinned === state.dismissed ? undefined : noteCard(state.pinned, known);
   useEffect(() => {
-    // A live retirement removes the card as well as its dot. Defer until React's commit ends.
+    // A live retirement, or its kind switched off, removes the card as well as its dot. Defer until React's commit ends.
     let mounted = true;
     if (state.pinned !== undefined && card === undefined) queueMicrotask(() => { if (mounted) onClose(); });
     return () => { mounted = false; };
@@ -155,20 +170,26 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth }: {
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
   const known = useMemo(() => knowledge(state.history), [state.history]);
-  const points = useMemo(() => globePoints(underShelves(state.history, known), spots, radius, known.notes), [state.history, known, spots, radius]);
+  const placed = useMemo(() => globePoints(underShelves(state.history, known), spots, radius, known.notes), [state.history, known, spots, radius]);
   // With none selected, no session's traversal shows (ADR-0921): nothing lights and no path draws.
   const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     // The record is kept in place, so its version stands in for its reads.
     [store.reads, state.version, state.roster, state.session, known]);
   const paths = useMemo(() => readingPaths(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     [store.reads, state.version, state.roster, state.session, known]);
-  // Sized by how widely each note was read in the last 90 days, whoever is selected (ADR-0926); no reads leave every dot at the floor.
-  const sizes = useMemo(() => dotSizes(store.reads.reach(Date.now()), points.map(({ id }) => id)), [store.reads, state.version, points]);
   const joined = useMemo(() => storedEdges(known), [known]);
   const colour = colourOf(state.roster, state.session) ?? ORCHESTRATOR;
   // Only a selected session's window is drawn, never every running session's at once (ADR-0746 D1).
   const window = useMemo(() => state.session === undefined || state.window === undefined ? undefined
     : { ...windowView(state.window, new Set(known.notes.keys()), joined, places), colour }, [state.session, state.window, known, joined, colour, places]);
+  // A switched-off kind's dots are not drawn, so they cannot be picked; what the selected session touched stays (capability 5, D2, D5).
+  const points = useMemo(() => {
+    const steps = window === undefined || window.status !== undefined ? paths : window.steps;
+    const kept = new Set([...lit.keys(), ...(window?.notes ?? []), ...(window?.faded ?? []), ...(window?.glimpsed ?? []), ...steps.flatMap(({ from, to }) => [from, to])]);
+    return drawnPoints(placed, known.notes, state.hidden, kept);
+  }, [placed, known, state.hidden, lit, paths, window]);
+  // Sized by how widely each note was read in the last 90 days, whoever is selected (ADR-0926); no reads leave every dot at the floor.
+  const sizes = useMemo(() => dotSizes(store.reads.reach(Date.now()), points.map(({ id }) => id)), [store.reads, state.version, points]);
   const stops = useMemo(() => places === undefined ? undefined : new Map([...places.files].map(([key, at]) => [fileStop(key), at] as const)), [places]);
   // A selected session is drawn as its window's traversal, one line per step (ADR-0756); its log's reading-path
   // curves and their glow draw only when it has no window to read, and nothing is drawn while the window is read.
@@ -176,6 +197,15 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth }: {
   const drawnPaths = window?.status !== undefined ? paths : traversal ?? [];
   // A new selection starts its own history, so lines already taken when it opens do not grow (ADR-0742 D4).
   return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} sizes={sizes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} stops={stops} growth={growth} />;
+}
+
+/** The kind list (capability 5, D1): each kind with a dot, its colour and its count, switched on or off by a press. */
+export function KnowledgeKinds({ core }: { core: KnowledgeCore }) {
+  const store = core as Store;
+  const state = useSyncExternalStore(store.subscribe, store.get);
+  const known = useMemo(() => knowledge(state.history), [state.history]);
+  const rows = useMemo(() => kindRows(known, state.hidden), [known, state.hidden]);
+  return <KindList rows={rows} onShow={core.showKind} />;
 }
 
 /** The land the selected session's window has opened (ADR-0804 D5), for the forest to light: the files and capabilities opened, and the colour they wear. */

@@ -9,6 +9,7 @@ import { AdditiveBlending, Color, type Group, type InterleavedBufferAttribute } 
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { dotColour } from "../kinds/kinds.js";
 import { DOT_FLOOR, IN_VIEW, fillAt, stepPoint, growthPlan, heldNotes, noteTitle, replayAt, type Lighting, type Point, type ReplayMoment, type Trail, type WindowView } from "../look-inside/look-inside.js";
 
 const noRaycast = () => {};
@@ -140,7 +141,8 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
       const state = hidden ? null : noteState(window, point.id);
       const lighting = hidden ? undefined : showing.get(point.id);
       // An open read wears its reader's colour, or the session's; a compacted one is lighter; a glimpse is the session's, faint (ADR-0756).
-      const colour = state === "faded" ? lighter(window!.colour) : lighting?.colour ?? (state === null ? "#a5c5d1" : window!.colour);
+      // A dot no session colours wears its kind's colour (capability 5, D3).
+      const colour = dotColour(notes.get(point.id)?.type, state === "faded" ? lighter(window!.colour) : lighting?.colour ?? (state === null ? undefined : window!.colour));
       const opacity = state === "glimpsed" && lighting === undefined ? 0.4 : state === "faded" ? 0.8 : lighting !== undefined || state === "in-window" ? 1 : lit.size > 0 ? 0.3 : 0.52;
       // A dot's size is its note's reach alone: a session's read shows in colour, brightness and rings, never in size (ADR-0926 D3).
       const size = sizes?.get(point.id) ?? DOT_FLOOR;

@@ -1,7 +1,7 @@
 /**
  * Capability 1 · Front door. `storytree quality …`: the quality assurance story's work (ADR-0956), its
  * checks and ledger readings the same as its tools on the MCP server give (that story's contracts 1.2 and 3.4),
- * and the change-reviewer's loop: the brief, the return taken, the implementer's answer and what still stands
+ * and the change-reviewer's loop: the brief (of the branch its increment was claimed on, that story's 2.8), the return taken, the implementer's answer and what still stands
  * (its capabilities 2 and 4), with what Guardrails' graduated checks find on the change taken beside the return, and
  * a check graduated to them (its capability 5).
  */
@@ -37,13 +37,15 @@ const briefUsage = "quality brief <increment> [--diff @file]";
 const briefVerb: Verb = {
   name: "brief",
   usage: briefUsage,
-  summary: "issue the next review's brief for an increment's change: its diff against origin/main (or the local default branch with none), its contracts and the checks",
+  summary: "issue the next review's brief for an increment's change: the diff of the branch it was claimed on against origin/main (or the local default branch with none), its contracts and the checks",
   async act(args, context) {
-    const { branchBase, branchDiff, briefText, openReviews } = await import("@storytree/quality-assurance");
+    const { branchBase, branchDiff, briefText, changeFolder, openReviews } = await import("@storytree/quality-assurance");
     const increment = args.word(0, "the increment whose change is reviewed", briefUsage);
     const library = await context.library();
     const given = args.text("diff");
-    const brief = await (await openReviews(await context.server())).brief(library, increment, given ?? branchDiff(context.cwd), given === undefined ? branchBase(context.cwd) : undefined);
+    // The change is the branch the increment was claimed on, wherever this runs (that story's contract 2.8).
+    const folder = given === undefined ? changeFolder(context.cwd, (await context.claims()).find((claim) => claim.increment === increment)?.branch) : context.cwd;
+    const brief = await (await openReviews(await context.server())).brief(library, increment, given ?? branchDiff(folder), given === undefined ? branchBase(folder) : undefined);
     return {
       text: briefText(brief),
       next: [{ command: `storytree quality take ${increment} --return @<file>`, why: "record the review's return, as JSON" }],

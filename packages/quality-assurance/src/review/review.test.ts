@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -15,7 +15,7 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { branchDiff, briefText, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, type ReviewReturn } from "../index.js";
+import { branchDiff, briefText, changeFolder, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, type ReviewReturn } from "../index.js";
 
 const DIFF = [
   "diff --git a/packages/forest-world/src/camera.test.ts b/packages/forest-world/src/camera.test.ts",
@@ -236,6 +236,30 @@ test("2.7 · in a repository with no origin/main the brief's diff is read agains
       }
     }
   });
+});
+
+test("2.8 · the change is read from the worktree on the increment's claimed branch wherever the brief runs, and a brief is refused naming the branch when no worktree is on it", () => {
+  const dir = branchCheckout();
+  const worktree = join(mkdtempSync(join(tmpdir(), "qa-claimed-")), "wt");
+  try {
+    const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd });
+    git(dir, "worktree", "add", "-q", "-b", "feature", worktree, "origin/main");
+    writeFileSync(join(worktree, "packages/library/src/a.ts"), "export const a = 1;\nexport const c = 3;\n");
+    git(worktree, "commit", "-qam", "the increment's change");
+    mkdirSync(join(dir, "tmp"));
+    writeFileSync(join(dir, "tmp/stray.txt"), "not the change\n");
+
+    const folder = changeFolder(dir, "feature");
+    assert.equal(realpathSync(folder), realpathSync(worktree));
+    const changed = branchDiff(folder).split("\n").filter((line) => /^[+-](?![+-])/.test(line));
+    assert.deepEqual(changed, ["+export const c = 3;"]);
+    assert.equal(realpathSync(changeFolder(worktree, "feature")), realpathSync(worktree));
+    assert.equal(changeFolder(dir, undefined), dir, "with no claimed branch the folder it runs in is read");
+    assert.throws(() => changeFolder(dir, "gone"), /branch gone/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(join(worktree, ".."), { recursive: true, force: true });
+  }
 });
 
 test("2.3 · the brief's tool issues the brief given the diff, or reads it from the worktree given, and refuses neither; the take tool takes the same return the loop takes", async () => {

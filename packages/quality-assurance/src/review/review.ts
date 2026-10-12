@@ -6,7 +6,8 @@
  * - A change is one increment's branch, named by the increment. Each review of it is one iteration: a brief
  *   issued, then the reviewer's return taken. A brief not yet taken is replaced by the next one issued.
  * - The brief holds the branch's diff against origin/main, its uncommitted work included (2.6), or in a repository with no
- *   origin/main against its local default branch, which the brief names (2.7), every contract of the capabilities the increment
+ *   origin/main against its local default branch, which the brief names (2.7), read from the worktree on the branch the increment
+ *   was claimed on wherever the brief runs, and refused when no worktree is on it (2.8), every contract of the capabilities the increment
  *   names, and every live check; never the increment's body or the implementer's reasoning (contract 2.1).
  *   Each contract is listed under its story and capability, and every capability named is listed even with no
  *   contracts, so two stories' contracts sharing a number both appear, each with its story (2.5).
@@ -287,6 +288,29 @@ export function branchDiff(cwd: string, base = branchBase(cwd)?.ref): string {
   }
   const untracked = git("ls-files", "--others", "--exclude-standard", "-z").split("\0").filter((file) => file !== "");
   return [git("diff", from), ...untracked.map((file) => newFileDiff(cwd, file))].join("");
+}
+
+/**
+ * The folder to read an increment's change from (contract 2.8): `cwd` when it is on `branch`, the branch the increment was claimed
+ * on, else the worktree of `cwd`'s repository checked out on that branch, so a brief run from another checkout never reviews that
+ * checkout's work instead. Refused, naming the branch, when no worktree is on it; with no branch known, `cwd`.
+ */
+export function changeFolder(cwd: string, branch: string | undefined): string {
+  if (branch === undefined) return cwd;
+  const git = (...args: string[]): string => {
+    try {
+      return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    } catch {
+      return "";
+    }
+  };
+  if (git("symbolic-ref", "--quiet", "--short", "HEAD").trim() === branch) return cwd;
+  for (const entry of git("worktree", "list", "--porcelain").split(/\n\n+/)) {
+    const lines = entry.split("\n");
+    const folder = lines.find((line) => line.startsWith("worktree "))?.slice("worktree ".length);
+    if (folder !== undefined && lines.includes(`branch refs/heads/${branch}`)) return folder;
+  }
+  throw new Error(`The increment's change is on branch ${branch}, and no worktree of ${cwd}'s repository is on it: run the brief from the increment's worktree, or give its diff.`);
 }
 
 /** A file Git does not track yet, as a diff that adds it. */

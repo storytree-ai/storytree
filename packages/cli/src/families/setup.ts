@@ -15,23 +15,23 @@ function installed(args: string[], context: Context) {
 
 export const setupConnectionVerbs: readonly Verb[] = [
   {
-    name: "connect", usage: "setup connect [--claude] [--codex] [--cursor] [--pi]", summary: "connect the installed tools to your chosen agents; hooks are checked in their next session",
-    switches: ["claude", "codex", "cursor", "pi"],
+    name: "connect", usage: "setup connect [--claude] [--codex] [--cursor] [--pi] [--antigravity]", summary: "connect the installed tools to your chosen agents; hooks are checked in their next session",
+    switches: ["claude", "codex", "cursor", "pi", "antigravity"],
     async act(args, context) {
-      if (args.words.length || !args.names.length || args.names.some((name) => !["claude", "codex", "cursor", "pi"].includes(name) || args.text(name) !== "true")) {
-        throw new Refusal("Choose --claude, --codex, --cursor, --pi or several. usage: storytree setup connect [--claude] [--codex] [--cursor] [--pi]", { code: 2 });
+      if (args.words.length || !args.names.length || args.names.some((name) => !["claude", "codex", "cursor", "pi", "antigravity"].includes(name) || args.text(name) !== "true")) {
+        throw new Refusal("Choose --claude, --codex, --cursor, --pi, --antigravity or several. usage: storytree setup connect [--claude] [--codex] [--cursor] [--pi] [--antigravity]", { code: 2 });
       }
-      const answer = installed(["connect", ...(args.has("claude") ? ["claude-code"] : []), ...(args.has("codex") ? ["codex"] : []), ...(args.has("cursor") ? ["cursor"] : []), ...(args.has("pi") ? ["pi"] : [])], context);
+      const answer = installed(["connect", ...(args.has("claude") ? ["claude-code"] : []), ...(args.has("codex") ? ["codex"] : []), ...(args.has("cursor") ? ["cursor"] : []), ...(args.has("pi") ? ["pi"] : []), ...(args.has("antigravity") ? ["antigravity"] : [])], context);
       await context.journey?.().then((journey) => journey.agentConnected()).catch(() => {});
       return answer;
     },
   },
   {
-    name: "disconnect", usage: "setup disconnect <claude-code|codex|cursor|pi>", summary: "disconnect one agent while keeping other connections and your projects",
+    name: "disconnect", usage: "setup disconnect <claude-code|codex|cursor|pi|antigravity>", summary: "disconnect one agent while keeping other connections and your projects",
     async act(args, context) {
       const harness = args.words[0];
-      if (args.names.length || args.words.length !== 1 || (harness !== "claude-code" && harness !== "codex" && harness !== "cursor" && harness !== "pi")) {
-        throw new Refusal("usage: storytree setup disconnect <claude-code|codex|cursor|pi>", { code: 2 });
+      if (args.names.length || args.words.length !== 1 || (harness !== "claude-code" && harness !== "codex" && harness !== "cursor" && harness !== "pi" && harness !== "antigravity")) {
+        throw new Refusal("usage: storytree setup disconnect <claude-code|codex|cursor|pi|antigravity>", { code: 2 });
       }
       return installed(["disconnect", harness], context);
     },

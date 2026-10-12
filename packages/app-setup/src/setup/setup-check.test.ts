@@ -136,7 +136,7 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
-    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", cursor: "not here", pi: "not here", statusLine: "installed" });
+    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "installed" });
 
     const claude = readJson(home.claudeSettings);
     assert.deepEqual({ ...claude, hooks: undefined, statusLine: undefined }, { ...CLAUDE_SETTINGS, hooks: undefined, statusLine: undefined }, "Claude Code's other settings are as they were");
@@ -190,14 +190,14 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     const first = { claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") };
 
     const again = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
-    assert.deepEqual(again.hooks, { "claude-code": "already registered", codex: "already registered", cursor: "not here", pi: "not here", statusLine: "already installed" });
+    assert.deepEqual(again.hooks, { "claude-code": "already registered", codex: "already registered", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "already installed" });
     assert.deepEqual({ claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") }, first, "not a byte changed");
 
-    assert.deepEqual(removeHooks(home.homes), { "claude-code": "removed", codex: "removed", cursor: "none", pi: "none", statusLine: "removed" });
+    assert.deepEqual(removeHooks(home.homes), { "claude-code": "removed", codex: "removed", cursor: "none", pi: "none", antigravity: "none", statusLine: "removed" });
     assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS, "Claude Code's settings are as they were before storytree");
     assert.equal(existsSync(home.codexHooks), false, "the hooks file storytree made is gone");
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
-    assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", cursor: "none", pi: "none", statusLine: "none" }, "and removing again finds nothing");
+    assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", cursor: "none", pi: "none", antigravity: "none", statusLine: "none" }, "and removing again finds nothing");
 
     // An install from before the PowerShell tool was matched gets the new matchers at its next setup check.
     registerHooks(home.homes, HOOK);
@@ -770,6 +770,44 @@ test("8.28 the setup check registers storytree's hooks for Cursor where Cursor's
     const without = await check();
     assert.equal(without.hooks?.cursor, "already registered", "its hooks stay where its home is");
     assert.match(without.lines.find((each) => each.check === "agent-cli")?.message ?? "", /Cursor is not installed/);
+  });
+});
+
+test("8.30 the setup check registers storytree's named hook in Antigravity CLI's hooks.json where its home is, keeping every other, says whether agy is installed but never that it is signed in, and verifies an Antigravity session's start by its first hook line, since Antigravity sends no start", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const gemini = path.join(dir, ".gemini");
+    const bin = path.join(dir, "bin");
+    for (const folder of [gemini, bin]) mkdirSync(folder);
+    // Antigravity CLI's command line, as measured on the Mint box (2026-10-12): it answers its version signed in or not.
+    fakeTool(bin, "agy", { "--version": { out: "1.3.3", code: 0 } });
+    const check = () => runSetupCheck({
+      folder: dir, hook: HOOK, homes: { ...home.homes, antigravity: gemini }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const,
+      machine: () => machineState({ path: bin, waitMs: 15_000, codexHome: home.homes.codex, localAppData: dir, applications: [] }),
+    });
+
+    const report = await check();
+    assert.equal(report.hooks?.antigravity, "registered", "its config folder is made where its home is");
+    const hooksFile = path.join(gemini, "config", "hooks.json");
+    const own = { reminder: { PreInvocation: [{ type: "command", command: "./remind.sh" }] } };
+    writeFileSync(hooksFile, JSON.stringify({ ...own, ...(readJson(hooksFile) as object) }));
+    assert.equal((await check()).hooks?.antigravity, "already registered");
+    const registered = readJson(hooksFile) as Record<string, Record<string, unknown[]>>;
+    assert.deepEqual(registered.reminder, own.reminder, "another named hook is kept");
+    assert.deepEqual(Object.keys(registered.storytree!).sort(), ["PostToolUse", "PreToolUse", "Stop"]);
+
+    const said = report.lines.find((each) => each.check === "agent-cli");
+    assert.equal(said?.state, "ok", "Antigravity CLI alone is a harness storytree watches");
+    assert.match(said?.message ?? "", /Antigravity CLI is installed/);
+    assert.doesNotMatch(said?.message ?? "", /Antigravity CLI is (installed and )?(not )?signed in/);
+
+    const line = (kind: Line["kind"]) => ({ kind, session: "c1", harness: "antigravity", source: "hook" }) as unknown as Line;
+    assert.deepEqual(verifyHooks([], "c1", "antigravity").missing, ["session start", "storytree tool call", "file edit", "command"], "nothing heard proves nothing");
+    assert.deepEqual(verifyHooks([line("tool-requested")], "c1", "antigravity").missing, ["file edit", "command"], "its first line opens the session");
+    assert.deepEqual(verifyHooks([line("tool-requested")], "c1", "claude-code").missing, ["session start", "file edit", "command"], "a harness with a start still needs it");
+
+    assert.equal(removeHooks({ antigravity: gemini }).antigravity, "removed");
+    assert.deepEqual(readJson(hooksFile), own, "removing storytree takes out its named hook alone");
   });
 });
 

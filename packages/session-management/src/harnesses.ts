@@ -13,12 +13,14 @@ export interface WatchedHarness {
   readonly label: string;
   /** The name its MCP client gives itself. */
   readonly client: string;
-  /** The environment variable naming the session in the shells it runs. */
-  readonly shellSession: string;
+  /** The environment variable naming the session in the shells it runs; none where its shells are given no session (Antigravity CLI). */
+  readonly shellSession?: string;
   /** Which reader reads its transcript; none where its transcript carries no token usage, so it has no context reading. */
   readonly transcript?: "claude-code" | "codex" | "pi";
   /** False where its MCP client sends a tool call with no id of the call, so its hook's line is found by tool and time (6.66). */
   readonly callIds?: false;
+  /** False where its hooks have no session-start event, so a session's row opens on its first line (8.30). */
+  readonly startEvent?: false;
 }
 
 export const WATCHED_HARNESSES = [
@@ -28,6 +30,9 @@ export const WATCHED_HARNESSES = [
   { id: "cursor", label: "Cursor", client: "Cursor", shellSession: "CURSOR_CONVERSATION_ID", callIds: false },
   // Measured in Pi 1.1.0 (2026-10-12): its MCP client's clientInfo.name, and the variable its bash tool's shells get.
   { id: "pi", label: "Pi", client: "pi", shellSession: "PI_SESSION_ID", transcript: "pi", callIds: false },
+  // Measured in Antigravity CLI 1.3.3 (2026-10-12, no sign-in): its MCP client's clientInfo.name, and no session variable
+  // in its tool server's environment; its shells' is not documented. Its transcript holds no token usage (documentation).
+  { id: "antigravity", label: "Antigravity CLI", client: "antigravity-client", callIds: false, startEvent: false },
 ] as const satisfies readonly WatchedHarness[];
 
 /** A watched harness's id. */

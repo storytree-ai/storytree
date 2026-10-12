@@ -164,7 +164,7 @@ function machineLines(machine: MachineState, entry: ServerEntry | undefined, con
   // Cursor and Pi are only ever there or not: Cursor's command line reports a lapsed sign-in as logged in (8.28),
   // and Pi signs in to each model provider on its own, with nothing to ask (8.29).
   const there = (name: string, state: ToolState | undefined): string => state === undefined ? "" : `; ${state === "present" ? `${name} is installed` : state === "missing" ? `${name} is not installed` : `${name} did not answer within ${seconds}`}`;
-  const clis = `${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}${there("Cursor", machine.cursor)}${there("Pi", machine.pi)}`;
+  const clis = `${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}${there("Cursor", machine.cursor)}${there("Pi", machine.pi)}${there("Antigravity CLI", machine.antigravity)}`;
   const agentReady = machine.claude === "signed in" || machine.codex === "signed in";
   const signIns = [machine.claude === "signed out" ? "run `claude auth login`" : undefined, machine.codex === "signed out" ? "run `codex login`" : undefined].filter((fix) => fix !== undefined);
   const lines: SetupLine[] = [agentReady
@@ -174,16 +174,18 @@ function machineLines(machine: MachineState, entry: ServerEntry | undefined, con
       ? { check: "agent-cli", state: "ok", message: `${clis}, and storytree cannot tell whether it is signed in: Cursor's command line says it is logged in when its sign-in has lapsed.` }
     : machine.pi === "present"
       ? { check: "agent-cli", state: "ok", message: `${clis}, and storytree cannot tell whether it can reach a model: Pi signs in to each model provider on its own.` }
+    : machine.antigravity === "present"
+      ? { check: "agent-cli", state: "ok", message: `${clis}, and storytree cannot tell whether it is signed in: agy has no command that says so, and asks for a Google sign-in at its first prompt.` }
     // A session already connected through another MCP client needs neither (6.64).
     : connected !== undefined
       ? { check: "agent-cli", state: "ok", message: `This session is connected through ${connected}, an MCP client storytree has no hooks for; ${clis}.` }
     : {
         check: "agent-cli",
         state: "needs-attention",
-        message: `storytree watches sessions in Claude Code, Codex, Cursor or Pi, and none is ready: ${clis}.`,
+        message: `storytree watches sessions in Claude Code, Codex, Cursor, Pi or Antigravity CLI, and none is ready: ${clis}.`,
         fix: `${signIns.length > 0
           ? `To sign in, ${signIns.join(", or ")}, then run the setup check again.`
-          : "Install Claude Code (https://claude.com/claude-code), Codex (https://developers.openai.com/codex) , Cursor (https://cursor.com) or Pi (https://github.com/earendil-works/pi), sign in, then run the setup check again."} ${connectedPath(entry)}`,
+          : "Install Claude Code (https://claude.com/claude-code), Codex (https://developers.openai.com/codex) , Cursor (https://cursor.com), Pi (https://github.com/earendil-works/pi) or Antigravity CLI (https://antigravity.google/cli), sign in, then run the setup check again."} ${connectedPath(entry)}`,
       }];
 
   // git and Node are optional for a user: a note, never a fix (owner, 2026-09-29, question_bb3efa1e3191).

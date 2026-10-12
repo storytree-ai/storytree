@@ -84,6 +84,15 @@ const runs = {
     await page.locator("#tour-skip").click();
     await page.waitForFunction(() => document.querySelector("#chapter2")?.dataset.tourMode === "freeplay");
     await page.waitForTimeout(2500); await shot(page, tag, "16-freeplay-shop");
+    // Free play opens with every shown island's name clear of the sessions tray: the globe sits in the room the tray leaves.
+    const under = await page.evaluate(() => {
+      const tray = document.querySelector(".tour-session-surface:not([hidden]) .sessions-list")?.getBoundingClientRect();
+      if (!tray?.height) return ["no sessions tray"];
+      return [...document.querySelectorAll(".planet-nameplate[data-story-id]")].filter(plate => Number(getComputedStyle(plate).opacity) > .5)
+        .filter(plate => { const box = plate.getBoundingClientRect(); return box.bottom > tray.top && box.top < tray.bottom && box.right > tray.left && box.left < tray.right; })
+        .map(plate => plate.querySelector(".planet-nameplate-title")?.textContent);
+    });
+    assert.deepEqual(under, [], `${tag}: free play on the shop opens with no island's name under the sessions tray`);
     // With software WebGL storytree's globe draws its names some seconds after the switch: wait for them.
     await page.locator('#tour-project [data-project="storytree"]').click();
     await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "storytree"

@@ -47,9 +47,10 @@ type Survey = Readonly<Record<string, StorySurvey>>;
 /**
  * The survey's pacing: `want` asks for a survey; one runs at a time, at most every SURVEY_EVERY_MS, and
  * an ask in between runs once that time has passed, so the land converges on the checkout. A survey
- * that fails is asked again.
+ * that fails is asked again. `again` asks for one more without waiting out that time: it runs as soon as the
+ * one running ends.
  */
-function surveyPacing(read: () => Promise<Survey>, landed: (survey: Survey) => unknown, failed: () => void, timers: Timers): { want(): void; stop(): void } {
+function surveyPacing(read: () => Promise<Survey>, landed: (survey: Survey) => unknown, failed: () => void, timers: Timers): { want(): void; again(): void; stop(): void } {
   let wanted = false;
   let running = false;
   let last = -Infinity;
@@ -58,10 +59,10 @@ function surveyPacing(read: () => Promise<Survey>, landed: (survey: Survey) => u
     wanted = false;
     running = true;
     last = timers.now();
-    read().then(landed, () => { wanted = true; failed(); }).finally(() => { running = false; });
+    read().then(landed, () => { wanted = true; failed(); }).finally(() => { running = false; run(); });
   };
   const stop = timers.every(ASK_EVERY_MS, run);
-  return { want() { wanted = true; run(); }, stop };
+  return { want() { wanted = true; run(); }, again() { wanted = true; last = -Infinity; run(); }, stop };
 }
 
 const pageTimers: Timers = {
@@ -136,7 +137,9 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
     start.surveyed = true;
     settleStart();
   };
-  // A survey that lands draws the last tree again, unless it changes nothing on show (ADR-0836 D1).
+  // A survey that lands draws the last tree again, unless it changes nothing on show (ADR-0836 D1). The start's first
+  // may answer from the main fetched before the start, so the page asks once more at once for what its fetch brought (7.32).
+  let askedAgain = false;
   const pacing = surveyPacing(() => reads.codeSurvey!(project), async (next) => {
     if (stopped) return;
     if (JSON.stringify(next) !== JSON.stringify(survey)) {
@@ -144,6 +147,10 @@ export function forestReading({ project, reads, onTree, onError, onClock = () =>
       if (tree !== undefined) await Promise.resolve(onTree(tree, { changes: [], lines: [] }, survey)).catch(onError);
     }
     surveyed();
+    if (!askedAgain) {
+      askedAgain = true;
+      pacing.again();
+    }
   }, surveyed, timers);
   const own = page === undefined ? pageReading({ project, reads, timers }) : undefined;
   const stopHearing = (page ?? own!).subscribe({

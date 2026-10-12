@@ -91,10 +91,14 @@ function disk(root: string, read: (file: string) => Promise<string>): SurveySour
 }
 
 /** All worktrees and readers share one fetch and one immutable directory reading per repository. */
-type Repository = { reading?: Promise<SurveySource | undefined>; commit?: string; source?: SurveySource };
+type Repository = {
+  reading?: Promise<SurveySource | undefined>; commit?: string; source?: SurveySource;
+  /** A start's fetch that its first answer did not wait on, and how it ended: the next ask waits on it instead of fetching again. */
+  fetching?: Promise<unknown>;
+};
 const repositories = new Map<string, Repository>();
 
-async function merged(common: string, root: string): Promise<SurveySource | undefined> {
+async function merged(common: string, root: string, startFromFetched: boolean): Promise<SurveySource | undefined> {
   let kept = repositories.get(common);
   if (kept === undefined) {
     kept = {};
@@ -103,25 +107,32 @@ async function merged(common: string, root: string): Promise<SurveySource | unde
   const repository = kept;
   // The forest paces requests. Share overlapping asks here, but never answer a later landing's
   // request from a cooldown cache: it might be the only ask that landing produces.
-  repository.reading ??= refresh(common, root, repository).finally(() => { delete repository.reading; });
+  repository.reading ??= refresh(common, root, repository, startFromFetched).finally(() => { delete repository.reading; });
   return repository.reading;
 }
 
-async function refresh(common: string, root: string, kept: Repository): Promise<SurveySource | undefined> {
+async function refresh(common: string, root: string, kept: Repository, startFromFetched: boolean): Promise<SurveySource | undefined> {
   const args = ["--git-dir", common];
   const origin = await gitText(common, [...args, "config", "--get", "remote.origin.url"]).catch((error: { code?: number }) => {
     if (error.code === 1) return "";
     throw error;
   });
   if (!origin) return undefined; // A local-only project keeps its primary-folder reading.
+  const fetchedMain = () => gitText(common, [...args, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}"]);
+  const fetch = () => git(common, [...args, "fetch", "--quiet", "--no-tags", "--no-auto-maintenance", "--no-recurse-submodules", "--no-write-fetch-head",
+    "origin", "+refs/heads/main:refs/remotes/origin/main"]).then(() => undefined, (error: unknown) => error ?? new Error("Git fetch failed."));
   let fetchError: unknown;
-  try {
-    await git(common, [...args, "fetch", "--quiet", "--no-tags", "--no-auto-maintenance", "--no-recurse-submodules", "--no-write-fetch-head",
-      "origin", "+refs/heads/main:refs/remotes/origin/main"]);
-  } catch (error) {
-    fetchError = error;
+  // A start answers its first ask from the main already fetched and fetches meanwhile (8.27).
+  const already = startFromFetched && kept.commit === undefined && kept.fetching === undefined ? await fetchedMain().catch(() => undefined) : undefined;
+  if (already !== undefined) {
+    kept.fetching = fetch();
+  } else if (kept.fetching !== undefined) {
+    fetchError = await kept.fetching;
+    delete kept.fetching;
+  } else {
+    fetchError = await fetch();
   }
-  const commit = await gitText(common, [...args, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}"]).catch(() => {
+  const commit = already ?? await fetchedMain().catch(() => {
     throw new Error("Cannot survey merged code: origin/main is unavailable and no fetched main is kept.", { cause: fetchError });
   });
   if (kept.commit === commit) return kept.source!;
@@ -297,7 +308,8 @@ function overlaid(base: SurveySource, local: ReadonlyMap<string, string | undefi
   };
 }
 
-export function surveySourceReader(scope: "main" | "current", readText: (file: string) => Promise<string>) {
+/** With `startFromFetched`, a repository's first ask is answered from the main already fetched while it fetches (8.27). */
+export function surveySourceReader(scope: "main" | "current", readText: (file: string) => Promise<string>, startFromFetched = false) {
   const folders = new Map<string, Promise<{ root: string; common?: string }>>();
   return async (folder: string): Promise<SurveySource> => {
     folder = path.resolve(folder);
@@ -312,6 +324,6 @@ export function surveySourceReader(scope: "main" | "current", readText: (file: s
       }
     })());
     const { root, common } = await folders.get(folder)!;
-    return (common === undefined ? undefined : await merged(common, root)) ?? disk(root, readText);
+    return (common === undefined ? undefined : await merged(common, root, startFromFetched)) ?? disk(root, readText);
   };
 }

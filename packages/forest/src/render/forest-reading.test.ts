@@ -111,7 +111,7 @@ test("7.25 landing news refreshes the survey from the existing tree, coalesces w
   }, onError: (error) => { throw error; } });
   t.after(() => reading.stop());
   await settle();
-  assert.deepEqual({ trees, surveys }, { trees: 1, surveys: 1 });
+  assert.deepEqual({ trees, surveys }, { trees: 1, surveys: 2 }, "the start's survey, and the one more it asks for at once (7.32)");
 
   // Each landing signal works alone, without a plan change or a restart.
   for (const landing of [{ changes: [], lines: [merged] }, { changes: [], lines: [closed] }, { changes: [increment], lines: [] }]) {
@@ -179,25 +179,33 @@ test("7.25 landing news during a survey converges one read at a time, retries fa
   t.after(() => reading.stop());
   await settle();
   assert.deepEqual(drawn, [{}], "the tree never waits for a survey");
-  for (const at of [12_000, 14_000]) {
-    lines = [{ ...merged, seq: at }];
-    timers.at = at;
-    await timers.tick();
-    assert.equal(surveys, 1, "a running survey is never overlapped");
-  }
+  // The start's survey and the one more it asks for at once (7.32).
   land(survey);
   await settle();
-  timers.at = 16_000;
+  land(survey);
+  await settle();
+  assert.equal(surveys, 2);
+  lines = [{ ...merged, seq: 12_000 }];
+  timers.at = 12_000;
   await timers.tick();
-  assert.equal(surveys, 2, "news during a survey is remembered");
+  assert.equal(surveys, 3);
+  lines = [{ ...merged, seq: 14_000 }];
+  timers.at = 14_000;
+  await timers.tick();
+  assert.equal(surveys, 3, "a running survey is never overlapped");
+  land(survey);
+  await settle();
+  timers.at = 22_000;
+  await timers.tick();
+  assert.equal(surveys, 4, "news during a survey is remembered");
   fail(new Error("temporarily offline"));
   await settle();
-  timers.at = 24_000;
+  timers.at = 30_000;
   await timers.tick();
-  assert.equal(surveys, 2, "a retry is paced too");
-  timers.at = 26_000;
+  assert.equal(surveys, 4, "a retry is paced too");
+  timers.at = 32_000;
   await timers.tick();
-  assert.equal(surveys, 3, "a failed survey retries without more news");
+  assert.equal(surveys, 5, "a failed survey retries without more news");
   const newer = { "story-shop": { files: [{ path: "src/new.ts", lines: 10 }], imports: [] } };
   land(newer);
   await settle();
@@ -205,20 +213,20 @@ test("7.25 landing news during a survey converges one read at a time, retries fa
   assert.equal(trees, 1);
 
   lines = [{ ...merged, seq: 30 }];
-  timers.at = 36_000;
+  timers.at = 42_000;
   await timers.tick();
-  assert.equal(surveys, 4);
+  assert.equal(surveys, 6);
   lines = [{ ...merged, seq: 31 }];
-  timers.at = 38_000;
+  timers.at = 44_000;
   await timers.tick();
   reading.stop();
   const draws = drawn.length;
   land(survey);
   await settle();
-  timers.at = 50_000;
+  timers.at = 56_000;
   await timers.tick();
   assert.equal(drawn.length, draws, "a stopped reading never draws the pending survey");
-  assert.equal(surveys, 4, "a stopped reading never services a queued refresh");
+  assert.equal(surveys, 6, "a stopped reading never services a queued refresh");
 });
 
 test("7.25 stopping during a tree read prevents a later survey and draw", async () => {
@@ -273,17 +281,17 @@ test("the code is surveyed again at most every 10 seconds however often the tree
   const drawn: unknown[] = [];
   const reading = forestReading({ project: "shop", reads, timers, onTree: (_read, _news, read) => drawn.push(read), onError: () => {} });
   await settle();
-  assert.equal(surveys, 1);
+  assert.equal(surveys, 2, "the start's survey, and the one more it asks for at once (7.32)");
 
   for (let second = 2; second < 10; second += 2) {
     timers.at = second * 1_000;
     await timers.tick();
   }
-  assert.equal(surveys, 1);
+  assert.equal(surveys, 2);
 
   timers.at = 10_000;
   await timers.tick();
-  assert.equal(surveys, 2);
+  assert.equal(surveys, 3);
   assert.deepEqual(drawn.at(-1), survey);
   reading.stop();
 });
@@ -423,4 +431,35 @@ test("7.31 a start is settled once the fresh tree is drawn and the start's first
   await settle();
   assert.deepEqual(unsurveyed.seen, ["drawn 0", "settled"]);
   unsurveyed.reading.stop();
+});
+
+test("7.32 once the start's first survey lands the page asks once more at once, settling on the first answer, so a newer main fetched meanwhile still arrives", async () => {
+  const answers: ((value: typeof survey) => void)[] = [];
+  const reads: ForestReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    projectTree: async () => tree,
+    codeSurvey: () => new Promise((resolve) => { answers.push(resolve); }),
+  };
+  const timers = clockTimers();
+  const seen: string[] = [];
+  const reading = forestReading({ project: "shop", reads, survey, timers,
+    onTree: (_read, _news, read) => { seen.push(`drawn ${read["story-shop"]?.files[0]?.lines}`); }, onError: () => {}, onSettled: () => seen.push("settled") });
+  await settle();
+  assert.equal(answers.length, 1);
+
+  answers[0]!(JSON.parse(JSON.stringify(survey)) as typeof survey);
+  await settle();
+  assert.equal(answers.length, 2, "the page asks again at once, without waiting out the pacing");
+  assert.deepEqual(seen, ["drawn 1", "settled"], "the start settles on the first answer, while the second is still open");
+
+  const newer = { "story-shop": { files: [{ path: "src/claim.ts", lines: 2 }], imports: [] } };
+  answers[1]!(newer);
+  await settle();
+  assert.deepEqual(seen, ["drawn 1", "settled", "drawn 2"], "the newer main the fetch brought is drawn");
+
+  timers.at += 12_000;
+  await timers.tick();
+  assert.equal(answers.length, 2, "only once: no news, no further ask");
+  reading.stop();
 });

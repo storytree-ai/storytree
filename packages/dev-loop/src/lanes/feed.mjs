@@ -39,7 +39,7 @@ const rank = (one) => one.priority ?? Infinity;
  * not closed, sits on an active arc, has no live claim on it or on a capability its list names (directly, or on the list of an
  * increment a live session holds), no capability its lane was refused while any live session holds it (whoever it passed to), no wait or held-on
  * question (only those say it needs the owner; its body's wording never does), its machine field, when set, names this
- * machine (`survey.here`), and its needs clause names no other machine (until every such increment carries the field); no fence or track is read. By arc priority, then oldest parked first, and within one priority
+ * machine (`survey.here`; its body's wording never names one); no fence or track is read. By arc priority, then oldest parked first, and within one priority
  * those on an arc no live session (nor a pick already made) is on before the rest (ADR-0963 D2). `running` names the increments this dispatcher is running, never started
  * twice; `attempts` maps each increment this dispatcher has started to when it started it: a live claim older than that start
  * (on it, on a listed capability or on one its lane was refused) refused it, and it is retried only once that claim clears (it records the refusal in `attempts`). Work whose session has
@@ -88,7 +88,6 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
       const questions = survey.holds.heldOn[one.id] ?? [];
       if (questions.length) return `held on ${questions.join(", ")}`;
       if (one.machine && one.machine !== survey.here) return `needs ${one.machine}`;
-      if (/\b(?:laptop|another machine)\b/i.test(needs(one.body))) return "needs another machine";
       return undefined;
     })();
     if (why) skipped.push({ id: one.id, why });

@@ -82,7 +82,7 @@ for (const capture of captures) {
 }
 
 test("3.15 · A journey run as a check writes to a scratch folder; only --retake or a plain capture writes the evidence folder", () => {
-  const evidence = path.join("/checkout", "packages", "website", "evidence"), tmp = path.join("/scratch");
+  const evidence = path.resolve("/checkout", "packages", "website", "evidence"), tmp = path.resolve("/scratch");
   const run = (...args) => captureOutput(evidence, ["node", "capture.mjs", ...args], tmp);
   for (const args of [["chapter2", "--verify-tour"], ["chapter2", "--verify-camera"], ["immersive", "--verify-immersive"], ["--verify-forest"]]) {
     const out = run(...args);

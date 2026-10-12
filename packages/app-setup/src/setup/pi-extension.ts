@@ -50,7 +50,7 @@ const NODE = ${JSON.stringify(node)};
 ${PI_EXTENSION_SCRIPT}${JSON.stringify(script)};
 const EVENTS = ${JSON.stringify(piEvents())};
 /** Fields of Pi's events the hook does not read, left out so a long run's messages are not copied to it. */
-const UNREAD = ["messages", "content", "systemPrompt", "systemPromptOptions", "details"];
+const UNREAD = ["messages", "content", "structuredContent", "systemPrompt", "systemPromptOptions", "details"];
 const WAIT_MS = 10_000;
 
 function forward(event, ctx, flags, waits) {

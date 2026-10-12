@@ -15,11 +15,13 @@ export function viewFraming(step: Pick<TourStep, "framing" | "laptop" | "phone">
 }
 
 /**
- * Free play's framing (2.22): storytree's own globe is framed smaller on a phone, whose screen is too narrow for the names round
- * its rim at the resting framing; the shop's few islands sit near its middle and keep it.
+ * Free play's framing (2.22, 2.23): storytree's own globe is framed smaller on a phone, whose screen is too narrow for the names
+ * round its rim at the resting framing, and a little smaller on a laptop, where at the resting framing its southern names fall
+ * below the sessions list into the bar; the shop's few islands sit near its middle and keep it.
  */
 export function freePlayFraming(map: string, width: number, resting: number): number {
-  return map === "storytree" && width <= 600 ? towardNarrow(1.5, 1.7, width) : resting;
+  if (map !== "storytree") return resting;
+  return width <= 600 ? towardNarrow(1.5, 1.7, width) : 1.25;
 }
 
 /** One pose the camera eases to over `duration` milliseconds. */

@@ -1,5 +1,5 @@
 /** Capability 3 · Story node render. */
-import { Vector3, type Camera, type Mesh, type Object3D } from "three";
+import { Box3, Vector3, type Camera, type Mesh, type Object3D } from "three";
 import { turnToIsland, type GlobeTurn } from "@storytree/forest";
 /** A pathway is a link's (`from->to`) own stretch of road, the one carrying fewest other links, at the share of the way `along`
  * it (its middle by default). */
@@ -8,8 +8,11 @@ export type GlobePose = { turn: GlobeTurn; framing: number; sideOffset: number }
 /** Framing is the short half-side in globe radii; offset is CSS pixels right; duration is milliseconds. */
 export type CameraStop = { target: GlobeTarget; framing?: number; sideOffset?: number; duration?: number };
 export type ScreenPosition = { x: number; y: number; visible: boolean };
-/** `moving` says a stop's glide is still under way; `notes` lists the Library's notes drawn on the globe, by id. */
-export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined; cancel(): void; moving(): boolean; notes(): string[] };
+/** An island's land as drawn, in CSS pixels on the canvas: the screen box round its ground. */
+export type IslandBox = { story: string; x: number; y: number; width: number; height: number };
+/** `moving` says a stop's glide is still under way; `notes` lists the Library's notes drawn on the globe, by id; `islands`
+ * gives each drawn island on the near side its screen box (3.51). */
+export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: GlobeTarget): ScreenPosition | undefined; cancel(): void; moving(): boolean; notes(): string[]; islands(): IslandBox[] };
 /** The controls a globe view hands over, with the panel width (CSS pixels) it last placed itself beside (3.40, 3.45). */
 export type PlacedGlobeControls = GlobeControls & { aside(): number };
 /** The short way round from `from` to face the way `to` does, as a yaw to ease toward. */
@@ -98,6 +101,28 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       const notes: string[] = [];
       host.world().traverse(object => { if (object.name.startsWith("knowledge-point:")) notes.push(object.name.slice("knowledge-point:".length)); });
       return notes;
+    },
+    // 3.51: the ground's own box, its eight corners projected, so a turned island is boxed as the camera sees it.
+    islands() {
+      const world = host.world(), camera = host.camera(), { width, height } = host.size();
+      world.updateMatrixWorld(true); camera.updateMatrixWorld(true);
+      const centre = world.getObjectByName("globe")?.getWorldPosition(new Vector3()) ?? new Vector3(), facing = camera.getWorldDirection(new Vector3());
+      const boxes: IslandBox[] = [];
+      world.traverse(object => {
+        if (!object.name.startsWith("planet:") || object.name === "planet:shell" || !isDrawn(object)) return;
+        const ground = object.getObjectByName("island-ground") as Mesh | undefined;
+        if (ground?.geometry === undefined || object.getWorldPosition(new Vector3()).sub(centre).dot(facing) > 0) return;
+        ground.geometry.computeBoundingBox();
+        const { min, max } = ground.geometry.boundingBox ?? new Box3();
+        const xs: number[] = [], ys: number[] = [];
+        for (const x of [min.x, max.x]) for (const y of [min.y, max.y]) for (const z of [min.z, max.z]) {
+          const at = ground.localToWorld(new Vector3(x, y, z)).project(camera);
+          xs.push((at.x + 1) * width / 2); ys.push((1 - at.y) * height / 2);
+        }
+        const left = Math.min(...xs), top = Math.min(...ys);
+        boxes.push({ story: object.name.slice("planet:".length), x: left, y: top, width: Math.max(...xs) - left, height: Math.max(...ys) - top });
+      });
+      return boxes;
     },
     frame,
   };

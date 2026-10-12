@@ -115,9 +115,10 @@ test("2.13 · a capture whose browser disconnects but whose close never returns 
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-hung-close-"));
   t.after(() => { rmSync(folder, { recursive: true, force: true }); rmSync(outputFolder(folder), { recursive: true, force: true }); });
   writeFileSync(path.join(folder, "index.html"), "<body>hung close</body>");
-  const browser = Object.assign(new EventEmitter(), {
+  const events = new EventEmitter();
+  const browser = Object.assign(events, {
     isConnected: () => true,
-    close() { setImmediate(() => browser.emit("disconnected")); return new Promise<void>(() => {}); },
+    close() { setImmediate(() => events.emit("disconnected")); return new Promise<void>(() => {}); },
   }) as unknown as Browser;
   t.mock.method(chromium, "launch", async () => browser);
   let origin = "";
@@ -134,5 +135,5 @@ test("2.14 · a real capture browser whose close hangs after disconnect is kille
   // The real shutdown runs, but its promise is never seen to settle, as on the loaded macOS runner.
   browser.close = () => { void close().catch(() => {}); return new Promise<void>(() => {}); };
   assert.equal(await closeBrowser(browser, { afterDisconnectMs: 0 }), "killed");
-  assert.ok(child.stdio.every(stream => stream === null || stream.destroyed), "the browser's pipes are let go");
+  assert.ok(child.stdio.every(stream => stream == null || stream.destroyed), "the browser's pipes are let go");
 });

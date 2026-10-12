@@ -181,6 +181,13 @@ test("8.16 after each measuring run the box mints each budget contract's verdict
   assert.deepEqual(states(notRun), { "contract-open": "failing", "contract-close": "not-checked" }, "a slowdown stands over a run that did not happen; a contract it did not measure is not re-run, never passed");
   assert.deepEqual({ skip: notRun.get("contract-close").skip, reason: notRun.get("contract-close").reason }, { skip: "other", reason: "NOT RUN: passed its limit of 30 min" });
 
+  const added = [...ACTIONS, "open-app"];
+  const firstRows = [...verdicts(), { name: "open-app", size: "standard", rounds: 0, notRun: "against: not measured" }];
+  const first = { seq: ++seq, purpose: "measure", head: "m8", against: "m7", actions: null, state: "done", rows: firstRows };
+  const withAdded = lagVerdicts({ history: [first], actions: added, log: LOG, owners: { ...OWNERS, "open-app": "contract-app" }, ran: [first.seq] });
+  assert.equal(withAdded.has("contract-app"), false, "an action main's parent could not perform, with no baseline yet, waits: its contract's standing verdict holds");
+  assert.equal(withAdded.get("contract-close").state, "passing", "the actions beside it are judged as usual");
+
   const bisect = tick(done("bisect", "m5", "m4", ["open-largest-island"], ["open-largest-island"]));
   assert.equal(bisect.size, 0, "halving names the pull request; it mints nothing");
   assert.deepEqual(states(tick(done("measure", "m9", "m4", [], ["open-smallest-island", "open-largest-island"]), done("measure", "m9", "m6", [], ["close-panel"]))), { "contract-open": "passing", "contract-close": "passing" }, "the fix: within the margin of the baseline again, it passes");

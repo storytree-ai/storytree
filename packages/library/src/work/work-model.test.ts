@@ -590,6 +590,45 @@ for (const backend of [memory, postgres]) {
     assert.equal((await work.addContract({ title: "3.5 · Trims spaces", capability: form.id })).fields.title, "3.5 · Trims spaces", "a numbered title is kept");
     assert.equal((await work.editContract(bare.id, { title: "3.4 Accepts a plus address, any case" }))?.fields.title, "3.4 · Accepts a plus address, any case", "a correction is written in the same form");
   });
+
+  contract("4.16", "a capability on a mapped story is planned with the folders and files of its import it covers, several roots allowed and written plainly; one with none, or a path outside its story's folders, is refused, as are covers on a built story", async ({ work, transactions }) => {
+    const own = await work.addStory({ title: "Visitor can sign up" });
+    const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
+    const { added: [cart] } = await work.mapStories("/code/shop", [{ package: "packages/cart", title: "@shop/cart", folders: ["packages/cart"] }]);
+    const stats = await work.addCapability({ title: "Stats page", story: app!.id, covers: ["./app/(app)/stats/", "components\\stats", "lib/stats.ts"] });
+    assert.deepEqual(stats.fields.covers, ["app/(app)/stats", "components/stats", "lib/stats.ts"], "each path from the imported folder, in one form");
+    const before = await transactions.history();
+    await assert.rejects(work.addCapability({ title: "Checkout", story: app!.id }), schemaError("capability", ["covers"]), "a mapped story's capability says what it covers");
+    await assert.rejects(work.addCapability({ title: "Checkout", story: cart!.id, covers: ["packages/pay"] }), schemaError("capability", ["covers"]), "outside its story's folders");
+    await assert.rejects(work.addCapability({ title: "Checkout", story: cart!.id, covers: ["../elsewhere"] }), schemaError("capability", ["covers"]), "outside its import");
+    await assert.rejects(work.addCapability({ title: "Email form", story: own.id, covers: ["src"] }), schemaError("capability", ["covers"]), "a built story's capabilities are found by their tests");
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+    assert.deepEqual((await work.addCapability({ title: "Cart lines", story: cart!.id, covers: ["packages/cart/src/lines"] })).fields.covers, ["packages/cart/src/lines"]);
+  });
+
+  contract("4.17", "no two capabilities of a mapped story cover one file: a path equal to, inside or around another's is refused, naming the capability that covers it, on planning and on correcting", async ({ work, records, transactions }) => {
+    const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
+    const { added: [other] } = await work.mapStories("/code/admin", [{ package: ".", title: "admin", folders: ["."] }]);
+    const stats = await work.addCapability({ title: "Stats page", story: app!.id, covers: ["app/stats", "lib/stats.ts"] });
+    const before = await transactions.history();
+    for (const covers of [["lib/stats.ts"], ["app/stats/chart"], ["app"], ["."]]) {
+      await assert.rejects(work.addCapability({ title: "Charts", story: app!.id, covers }), (error: unknown) => {
+        assert.ok(error instanceof SchemaError && error.fields.includes("covers"), String(error));
+        assert.match(error.message, new RegExp(stats.id), "the refusal names the capability to edit instead");
+        return true;
+      }, covers.join());
+    }
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+    assert.ok(await work.addCapability({ title: "Stats", story: other!.id, covers: ["app/stats"] }), "another story's capability may cover the same path");
+    const charts = await work.addCapability({ title: "Charts", story: app!.id, covers: ["app/charts"] });
+    await assert.rejects(work.editCapability(charts.id, { covers: ["app/charts", "app/stats/chart.ts"] }), schemaError("capability", ["covers"]));
+    await assert.rejects(work.editCapability(charts.id, { covers: undefined }), schemaError("capability", ["covers"]), "nor is a mapped story's capability left covering nothing");
+    assert.deepEqual((await work.editCapability(stats.id, { covers: ["app/stats"] }))?.fields.covers, ["app/stats"], "a capability's own paths never overlap itself");
+    assert.deepEqual((await work.editCapability(charts.id, { covers: ["app/charts", "lib/stats.ts"] }))?.fields.covers, ["app/charts", "lib/stats.ts"], "a path its owner let go is free");
+    assert.deepEqual(((await records.get(charts.id)) as SchemaRecord<"capability">).fields.covers, ["app/charts", "lib/stats.ts"]);
+    const { stories } = await work.projectTree();
+    assert.deepEqual(stories.find((story) => story.id === app!.id)?.capabilities.map((capability) => capability.covers), [["app/stats"], ["app/charts", "lib/stats.ts"]], "the plan's tree carries each one's covers");
+  });
 }
 
 /**

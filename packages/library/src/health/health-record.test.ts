@@ -707,6 +707,19 @@ for (const backend of [memory, postgres]) {
       { capability: page.id, reason: "failing", waits: undefined },
     ], "a run recorded them: offered by what it records, a named test no hold on another reason");
   });
+
+  contract("5.16", "an explored capability of a mapped story has no health until it has a contract: no reason, and off the worklist; given a contract, it is read as any capability", async ({ health, work }) => {
+    const { added: [app] } = await work.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
+    const stats = await work.addCapability({ title: "Stats page", story: app!.id, covers: ["app/stats"] });
+    const built = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: built.id });
+    const annotated = (await health.annotate()).stories.flatMap((story) => story.capabilities);
+    assert.equal(annotated.find(({ id }) => id === stats.id)!.why, undefined, "explored, with nothing promised");
+    assert.equal(annotated.find(({ id }) => id === form.id)!.why?.reason, "not built", "a built story's empty capability still has its reason");
+    assert.deepEqual((await health.worklist()).map(({ capability }) => capability), [form.id]);
+    await work.addContract({ title: "Shows the week's totals", capability: stats.id });
+    assert.equal((await health.worklist()).find(({ capability }) => capability === stats.id)?.why.reason, "not built", "a contract puts it on the ordinary ladder");
+  });
 }
 
 /** Past the current millisecond, so the next write's time sorts after the last one's. */

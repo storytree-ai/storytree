@@ -9,6 +9,8 @@
  * written. The record itself is then checked against its type inside the write, as capability 3
  * checks every write.
  */
+import path from "node:path";
+
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, couldBeId, DependencyLoopError, liveRecord } from "../references.js";
 import { SchemaError, type SchemaRecord, type SchemaRecords, type WriteOptions } from "../schema/index.js";
@@ -89,6 +91,8 @@ export interface CapabilityNode {
   dependsOn: string[];
   /** Whether it is still proposed: on until the agent says it is built (ADR-0744 D2). */
   proposed: boolean;
+  /** An explored capability of a mapped story: the folders and files of its import it covers (ADR-0993 D5). */
+  covers?: string[];
   /** The contracts pointing at this capability, in creation order. */
   contracts: ContractNode[];
 }
@@ -180,14 +184,16 @@ export class WorkModel {
    * records of those types (MissingReferenceError otherwise). A new capability cannot close a
    * dependency loop, since nothing can depend on it yet. It is born proposed unless told otherwise.
    * A title given without a number gets the story's next free one, after the highest its live
-   * capabilities carry, so the contracts planned on it are numbered from the start.
+   * capabilities carry, so the contracts planned on it are numbered from the start. A mapped story's
+   * capability is an explored one, and says what it covers, as #covered checks it.
    */
   addCapability(capability: NewCapability, options?: WriteOptions): Promise<SchemaRecord<"capability">> {
     return this.#serially(async () => {
       await checkReference(this.#records, "story", capability.story, "story");
       await checkReferences(this.#records, "dependsOn", capability.dependsOn, "capability");
+      const covers = await this.#covered(capability.story, capability.covers);
       const title = await this.#capabilityNumbered(capability.title, capability.story);
-      return this.#records.create("capability", { ...capability, title, proposed: capability.proposed ?? true }, options);
+      return this.#records.create("capability", { ...capability, title, proposed: capability.proposed ?? true, ...(covers === undefined ? {} : { covers }) }, options);
     });
   }
 
@@ -196,15 +202,22 @@ export class WorkModel {
    * dependencies are checked as addCapability checks them, and new dependencies are also checked
    * against the dependency graph as it would be after the edit: one that would make the capability
    * depend on itself, directly or through others, is refused with a DependencyLoopError naming the
-   * loop. Returns null, and writes nothing, if `id` is not a live capability.
+   * loop. A new story or new covers are checked, together, as addCapability checks them. Returns
+   * null, and writes nothing, if `id` is not a live capability.
    */
   editCapability(id: string, fields: CapabilityEdit, options?: WriteOptions): Promise<SchemaRecord<"capability"> | null> {
     return this.#serially(async () => {
-      if ((await liveRecord(this.#records, id, ["capability"])) === null) return null;
+      const stored = (await liveRecord(this.#records, id, ["capability"])) as SchemaRecord<"capability"> | null;
+      if (stored === null) return null;
       await checkReference(this.#records, "story", fields.story, "story");
       await checkReferences(this.#records, "dependsOn", fields.dependsOn, "capability");
       if (Array.isArray(fields.dependsOn)) await this.#refuseLoop(id, fields.dependsOn);
-      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"capability"> | null;
+      let edit = fields;
+      if ("story" in fields || "covers" in fields) {
+        const covers = await this.#covered(fields.story ?? stored.fields.story, "covers" in fields ? fields.covers : stored.fields.covers, id);
+        if ("covers" in fields) edit = { ...fields, covers };
+      }
+      return (await this.#records.edit(id, edit, options)) as SchemaRecord<"capability"> | null;
     });
   }
 
@@ -305,6 +318,7 @@ export class WorkModel {
           ...nodeOf(capability),
           dependsOn: [...(capability.fields.dependsOn ?? [])],
           proposed: capability.fields.proposed,
+          ...(capability.fields.covers === undefined ? {} : { covers: [...capability.fields.covers] }),
           contracts: (contractsOf.get(capability.id) ?? []).map(nodeOf),
         })),
       })),
@@ -344,6 +358,40 @@ export class WorkModel {
       return number === undefined ? [] : [number];
     });
     return `${Math.max(0, ...taken) + 1} · ${title}`;
+  }
+
+  /**
+   * `covers` as a capability of `story` (not `self`) carries it (ADR-0993 D5): none on a story storytree built, whose
+   * files its numbered tests find; on a mapped story at least one path, each written from the imported folder with
+   * forward slashes, inside one of the story's folders, and covering no file another of its capabilities covers, the
+   * refusal naming that one so the agent corrects it rather than adding another. Undefined when it covers nothing.
+   */
+  async #covered(story: string, covers: readonly unknown[] | undefined, self?: string): Promise<string[] | undefined> {
+    const record = await this.#records.get(story);
+    if (record?.type !== "story") return covers as string[] | undefined; // the reference check refuses it first
+    const mapped = (record as SchemaRecord<"story">).fields.mapped;
+    const refuse = (problem: string): never => { throw new SchemaError("capability", [{ field: "covers", problem }]); };
+    if (mapped === undefined) {
+      if (covers !== undefined) refuse("a capability of a story storytree built covers no folders: its numbered tests find its files");
+      return undefined;
+    }
+    if (covers !== undefined && !Array.isArray(covers)) return covers; // the schema refuses it in the write, naming the list
+    if (covers === undefined || covers.length === 0) refuse(`a capability of the mapped story ${story} names the folders and files of its import it covers`);
+    if (!covers!.every((cover) => typeof cover === "string" && cover !== "")) return covers as string[]; // the schema refuses it in the write
+    const paths = (covers as string[]).map((cover) => {
+      const plain = path.posix.normalize(cover.replaceAll("\\", "/")).replace(/\/+$/, "") || ".";
+      if (plain === ".." || plain.startsWith("../") || path.posix.isAbsolute(plain) || /^[A-Za-z]:/.test(plain)) refuse(`${cover} is outside the imported folder: give it from there`);
+      if (!mapped.folders.some((folder) => within(plain, path.posix.normalize(folder)))) refuse(`${cover} is outside the story's folders (${mapped.folders.join(", ")})`);
+      return plain;
+    });
+    for (const other of await this.#records.list("capability")) {
+      if (other.id === self || other.fields.story !== story) continue;
+      for (const theirs of other.fields.covers ?? []) {
+        const mine = paths.find((plain) => within(plain, theirs) || within(theirs, plain));
+        if (mine !== undefined) refuse(`${mine} overlaps ${theirs}, which ${other.id} (${other.fields.title}) covers: correct that capability instead, or cover a path it does not`);
+      }
+    }
+    return paths;
   }
 
   /** Refuse `title` under `capability` when another live contract there (not `self`) carries its number. */
@@ -392,6 +440,11 @@ export class WorkModel {
     this.#lastWrite = result.catch(() => undefined);
     return result;
   }
+}
+
+/** Whether `inner` is `outer` or lies under it (both plain paths from an imported folder, "." its top). */
+function within(inner: string, outer: string): boolean {
+  return outer === "." || inner === outer || inner.startsWith(`${outer}/`);
 }
 
 /** Refuse a `mapped` field: only mapStories makes a story mapped (ADR-0993 D2). */

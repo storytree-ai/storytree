@@ -644,7 +644,7 @@ test("6.67 show_plan says a mapped story is mapped, here before storytree and as
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { added: [shop] } = await library.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
-      const capability = idOf(await agent.call("plan_capability", { story: shop!.id, title: "Checkout", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story: shop!.id, title: "Checkout", covers: ["checkout"], ...FOUNDED }));
 
       const plan = await agent.call("show_plan");
       const lines = plan.text.split("\n");
@@ -652,6 +652,28 @@ test("6.67 show_plan says a mapped story is mapped, here before storytree and as
       assert.match(story, /: mapped: here before storytree, and assumed to be working$/, plan.text);
       assert.doesNotMatch(story, /reported|verified|checked|passing/);
       assert.match(lines.find((each) => each.includes(`(${capability})`)) ?? "", /reported not checked, verified not checked/, plan.text);
+    });
+  });
+});
+
+test("6.69 plan_capability on a mapped story records what the agent explored with the folders and files it covers, refusing none or an overlap by naming the capability to correct, which edit_plan corrects", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { added: [app] } = await library.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
+      const stats = idOf(await agent.call("plan_capability", { story: app!.id, title: "Stats page", covers: ["app/(app)/stats", "components/stats", "lib/stats.ts"], ...FOUNDED }));
+      assert.deepEqual((await library.get(stats))?.fields.covers, ["app/(app)/stats", "components/stats", "lib/stats.ts"]);
+
+      const none = await agent.call("plan_capability", { story: app!.id, title: "Charts", ...FOUNDED });
+      assert.equal(none.isError, true);
+      assert.match(none.text, /covers/);
+      const overlap = await agent.call("plan_capability", { story: app!.id, title: "Charts", covers: ["components/stats/chart.tsx"], ...FOUNDED });
+      assert.equal(overlap.isError, true);
+      assert.match(overlap.text, new RegExp(`${stats}.*edit|edit.*${stats}|correct that capability`), overlap.text);
+      assert.ok(overlap.text.includes(stats), overlap.text);
+
+      const corrected = await agent.call("edit_plan", { id: stats, covers: ["app/(app)/stats", "components/stats", "lib/stats.ts", "lib/stats-format.ts"] });
+      assert.notEqual(corrected.isError, true, corrected.text);
+      assert.deepEqual((await library.get(stats))?.fields.covers, ["app/(app)/stats", "components/stats", "lib/stats.ts", "lib/stats-format.ts"]);
     });
   });
 });

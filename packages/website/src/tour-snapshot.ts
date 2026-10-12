@@ -1,8 +1,7 @@
 // Capability 3 · Saved snapshot. Node-only refresh policy. Drawing and storage stay in the app's public exports.
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
-import type { Line } from "@storytree/session-management";
-import type { AnnotatedTree, ArcView, Change, Holds } from "@storytree/library";
+import type { AnnotatedTree, ArcView, Change, Holds, Line } from "@storytree/library";
 import { forestScene, growPlanet, storyNodes } from "@storytree/forest";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import { saveForestSnapshot } from "@storytree/forest/snapshot";

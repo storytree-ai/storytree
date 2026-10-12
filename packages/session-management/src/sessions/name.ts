@@ -3,7 +3,7 @@
  * its row by, written as a `session-named` line; it names itself again when its work shifts, and the
  * latest wins. Eventually consistent: until it names itself, the list names the row as before.
  */
-import type { Line } from "../activity/index.js";
+import type { Line } from "@storytree/library";
 import type { CloseOutContext } from "./close-out.js";
 
 /** The longest a session's name runs, as a claim reason is held (ADR-0737 D2): what the list's label column shows. */

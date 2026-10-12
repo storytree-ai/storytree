@@ -10,7 +10,8 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 
-import { openActivityLog, type Line } from "../activity/index.js";
+import { openActivityLog } from "../activity/index.js";
+import type { Line } from "@storytree/library";
 import { withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { readAppRecords, recordAppStates } from "./index.js";

@@ -5,8 +5,7 @@
  * and updates because the app keeps one data folder. Storage is optional: a denied, full, unreadable
  * or foreign value gives nothing and never stops a reading.
  */
-import type { Line } from "@storytree/session-management";
-import type { Change } from "@storytree/library";
+import type { Change, Line } from "@storytree/library";
 
 import type { LogFoldSnapshot } from "@storytree/session-management/readings";
 

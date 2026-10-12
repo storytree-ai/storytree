@@ -14,7 +14,7 @@
  *   followed anything (ADR-0740 D3), and nothing decides anything from it (D4).
  */
 
-import type { Line } from "../activity/index.js";
+import type { Line } from "@storytree/library";
 import { watchedHarness } from "../harnesses.js";
 import { labelOf } from "../readings.js";
 import { NOTHING_STORED, readTranscriptFile, transcriptOf, type TranscriptReader } from "./context.js";

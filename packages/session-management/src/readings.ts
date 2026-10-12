@@ -1,10 +1,9 @@
 // Capability 4 · Sessions. Browser-safe readings of activity lines. These functions never read settings or files.
 // Node callers supply the configured idle duration; a browser caller that omits quietMs keeps
 // the 30-minute default until its bridge supplies the setting.
-import type { Line } from "./activity/index.js";
+import type { Line } from "@storytree/library";
 import { ENDING_KINDS, ends } from "./claims/endings.js";
 import { tierOf, WATCHED_HARNESSES, type Tier } from "./harnesses.js";
-export type { Agent, Line, LineKind, LinesSince, NewLine } from "./activity/index.js";
 
 /**
  * The quiet time after which a session whose lines have stopped reads as waiting, when its hooks

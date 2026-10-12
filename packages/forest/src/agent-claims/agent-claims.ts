@@ -15,7 +15,8 @@
  * lanes claim only in their parent's colour, through its wisp (ADR-0736 D4).
  */
 import { sessionColour } from "@storytree/session-management/claim-mark";
-import { logReading, type Line, type LogReading } from "@storytree/session-management/readings";
+import { logReading, type LogReading } from "@storytree/session-management/readings";
+import type { Line } from "@storytree/library";
 import type { SessionRow } from "../sessions-list/sessions-list.js";
 
 /** A session's own colour, shared by its wisps, its row and its flags: Session management's, so every surface wears one. */

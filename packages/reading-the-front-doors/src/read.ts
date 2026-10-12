@@ -3,7 +3,8 @@
  * narrowed on the server by kind and time (Session management 2.7), with the prompts of the sessions
  * in it; each window is then counted from those lines.
  */
-import type { ActivityLog, Line } from "@storytree/session-management";
+import type { ActivityLog } from "@storytree/session-management";
+import type { Line } from "@storytree/library";
 
 import { countDoors, type Declared, type DoorLine, type Reading } from "./reading.js";
 

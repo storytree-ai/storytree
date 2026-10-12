@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Line, NewLine } from "@storytree/session-management";
+import type { Line, NewLine } from "@storytree/library";
 import { agentsOnBoard } from "./agents.js";
 
 const start = Date.parse("2026-09-27T00:00:00Z");

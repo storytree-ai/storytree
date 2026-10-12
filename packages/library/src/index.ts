@@ -1,7 +1,8 @@
 // Capability 7 · Library API. @storytree/library: the project library every later storytree story reads and writes, and the
 // only way to reach it (capability 7 · Library API, the library story). At run time this entry
-// exports connect(), the errors a caller may need to catch by class, and the name a seed's
-// connection carries while it writes (SEED_CONNECTION). Everything else it exports
+// exports connect(), the errors a caller may need to catch by class, the name a seed's
+// connection carries while it writes (SEED_CONNECTION), and the schema an activity log line is
+// checked against (NEW_LINE, ADR-1017 D3). Everything else it exports
 // is a type, and none of them reaches a connection pool, a store or a table, but for one: a
 // connection's own database beside the projects (contract 7.7). The package exports
 // nothing but this entry, so the internals behind it cannot be imported at all.
@@ -14,9 +15,9 @@ export { LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
 export { CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, RetireRefusedError, WaitLoopError } from "./work/index.js";
-export { MissingUpgradeError, NewerSchemaError, SchemaError, UnknownTypeError } from "./schema/index.js";
+export { MissingUpgradeError, NewerSchemaError, NEW_LINE, SchemaError, UnknownTypeError } from "./schema/index.js";
 
-export type { FieldsOf, KnowledgeKind, RecordType, SchemaRecord, WriteOptions } from "./schema/index.js";
+export type { Agent, FieldsOf, KnowledgeKind, Line, LineKind, LinesSince, NewLine, RecordType, SchemaRecord, WriteOptions } from "./schema/index.js";
 export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./transactions/index.js";
 export type {
   ArcEdit,

@@ -21,9 +21,9 @@ import { statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import type { Library } from "@storytree/library";
+import type { Library, Line } from "@storytree/library";
 
-import type { ActivityLog, Line } from "../activity/index.js";
+import type { ActivityLog } from "../activity/index.js";
 export { currentBranch } from "../activity/branch.js";
 import { ask } from "../sessions/ask.js";
 import { claimsFrom, partOf } from "../readings.js";

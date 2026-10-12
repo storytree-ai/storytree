@@ -28,7 +28,8 @@
  *   of the list reads only the sessions the list may show, and the claims standing, so what it takes
  *   from the store does not grow with the project's history.
  */
-import type { ActivityLog, Line } from "../activity/index.js";
+import type { ActivityLog } from "../activity/index.js";
+import type { Line } from "@storytree/library";
 import { holdersOf, LogFold, LONGEST_COMMAND_MS, sessionsFrom, type Session, type SessionOptions } from "../readings.js";
 import { idleAfterMs, leaveAfterMs } from "../settings/settings.js";
 

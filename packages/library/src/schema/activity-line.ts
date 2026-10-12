@@ -1,6 +1,8 @@
 /**
- * Capability 2 · Agent activity log. The lines of the agent activity log (capability 2): one for each thing that happens, each about
- * one agent session. A line is only ever added, never changed.
+ * Capability 3 · Data schema. The shape of a line of the agent activity log (Session management's capability 2): one for
+ * each thing that happens, each about one agent session. A line is only ever added, never changed. The lines are stored
+ * in the library's database, so their shape is defined here, the registry of shapes stories share (ADR-1017 D3):
+ * Session management, which writes the log, and every story that reads it take it from here.
  */
 import { z } from "zod";
 
@@ -23,7 +25,7 @@ const common = {
   machine: z.string().min(1).optional(),
   /**
    * The session's transcript file, as the harness named it to the hook (`transcript_path`): where
-   * its context reading is worked out from (capability 9, ADR-0725). Never found by folder.
+   * its context reading is worked out from (Session management's capability 9, ADR-0725). Never found by folder.
    */
   transcript: z.string().min(1).optional(),
   /**
@@ -67,7 +69,7 @@ const part = { capability: z.string().min(1).optional(), increment: z.string().m
 const onePart = (line: { capability?: string | undefined; increment?: string | undefined }) => (line.capability === undefined) !== (line.increment === undefined);
 const ONE_PART = { message: "a claim is on a capability or an increment, exactly one" };
 /** Why a taken-over holder no longer bound (ADR-0953 D2). */
-export const QUIET_BECAUSE = ["idle", "gone", "restart", "closed-out"] as const;
+const QUIET_BECAUSE = ["idle", "gone", "restart", "closed-out"] as const;
 
 /** A line as it is written: what happened, without the number and time the log gives it. */
 export const NEW_LINE = z.discriminatedUnion("kind", [
@@ -78,7 +80,7 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("file-edited"), files: z.array(z.string().min(1)).min(1) }).strict(),
   /**
    * A shell command about to run: the harness's id for the call, which its finish line carries too.
-   * Until that line, or the end of its turn, the command is running (capability 4), but never past
+   * Until that line, or the end of its turn, the command is running (Session management's capability 4), but never past
    * `limitMs`, the harness's own limit on a command, where the hook knew one other than its default.
    */
   z.object({ ...common, kind: z.literal("command-started"), command: z.string(), call: z.string().min(1), limitMs: z.number().int().positive().optional() }).strict(),
@@ -97,7 +99,7 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * never by the agent; absent when that reading was incomplete.
    */
   z.object({ ...common, kind: z.literal("closed-out"), safe: z.boolean(), why: z.string().min(1), running: z.number().int().nonnegative().optional() }).strict(),
-  /** The session named itself (contract 6.32): what the running-sessions list calls its row, until it names itself again. */
+  /** The session named itself (Session management's contract 6.32): what the running-sessions list calls its row, until it names itself again. */
   z.object({ ...common, kind: z.literal("session-named"), title: z.string().min(1) }).strict(),
   /** A hook saw an agent ask for one of storytree's tools, before the call reached the tool server: the call's id, as the harness names it, and the agent asking. */
   z.object({ ...common, kind: z.literal("tool-requested"), tool: z.string().min(1), call: z.string().min(1), agent: AGENT }).strict(),
@@ -147,7 +149,7 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * is added after. Written by whichever session saw it, never on the sessions that worked on it,
    * and the latest line for a branch is its state. A branch no line has resolved is open.
    * Resolved as merged, `pr` is the pull request that merged it. Open, `pr` is its open pull request
-   * (contract 4.24), with whether it is a draft, its checks, and whether it waits in the merge queue
+   * (Session management's contract 4.24), with whether it is a draft, its checks, and whether it waits in the merge queue
    * (`draft` and `queued` written only when true); a line written again when any of them changes.
    * Lines are read back unparsed, so a reader that predates these fields reads such a line as it did.
    */

@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Line, NewLine } from "@storytree/session-management";
+import type { Line, NewLine } from "@storytree/library";
 
 import { keptWorkStates, workStates } from "./work-states.js";
 

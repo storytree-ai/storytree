@@ -4,7 +4,7 @@
  * stored records. The whole log is tens of thousands of lines, seconds to fetch from a remote library.
  */
 import type { ActivityLog } from "./activity-log.js";
-import type { Line, LinesSince } from "./lines.js";
+import type { Line, LinesSince } from "@storytree/library";
 
 /** Each project's lines read so far and the cursor after them. Asks take turns, so two at once read each line once; a held promise never rejects. */
 export type LinesCache = Map<string, Promise<LinesSince>>;

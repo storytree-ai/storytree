@@ -6,6 +6,4 @@ export type { LinesCache } from "./lines-cache.js";
 export type { ActivityLog, AppendOptions, BranchFacts, LockedLog, OpenOptions } from "./activity-log.js";
 export type { LineFilter } from "./bounded.js";
 export type { StoredSession, TranscriptRecord, TranscriptRecords } from "./transcript-records.js";
-export { NEW_LINE } from "./lines.js";
 export { fullLineText, lineText } from "./text.js";
-export type { Agent, Line, LineKind, LinesSince, NewLine } from "./lines.js";

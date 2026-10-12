@@ -16,10 +16,9 @@
  *
  * Imports types alone, so the activity log's query can take its predicate without an import cycle.
  */
-import type { IncrementStatus, Library, WriteOptions } from "@storytree/library";
+import type { IncrementStatus, Library, Line, NewLine, WriteOptions } from "@storytree/library";
 
 import type { LockedLog } from "../activity/activity-log.js";
-import type { Line, NewLine } from "../activity/lines.js";
 
 /** The kinds of line that end a claim. */
 export const ENDING_KINDS = ["released", "landed", "merged", "closed", "session-ended"] as const;

@@ -5,7 +5,7 @@
  * `agent_type` name it, and the orchestrator's input names nobody. The call's `tool_use_id` is the
  * id the call then reaches the tool server with, which is how the tool server finds this line.
  */
-import type { Agent, NewLine } from "../activity/index.js";
+import type { Agent, NewLine } from "@storytree/library";
 
 /** How both harnesses name storytree's own tools: its tool server is registered under the name `storytree`. */
 export const STORYTREE_TOOLS = "mcp__storytree__";

@@ -7,7 +7,8 @@
  */
 import path from "node:path";
 
-import { watchedHarness, type Line } from "@storytree/session-management";
+import { watchedHarness } from "@storytree/session-management";
+import type { Line } from "@storytree/library";
 
 /** The four hooks a session's setup is verified by, in the order they fire. */
 export const HOOK_TESTS = ["session start", "storytree tool call", "file edit", "command"] as const;

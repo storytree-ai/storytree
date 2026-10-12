@@ -8,7 +8,7 @@
  * lines that decide them, never the history that does not.
  */
 import { ENDING_KINDS_SQL, ENDS_STANDING } from "../claims/endings.js";
-import type { LineKind } from "./lines.js";
+import type { LineKind } from "@storytree/library";
 
 /** What a bounded read asks for: each condition given narrows what the server sends. */
 export interface LineFilter {

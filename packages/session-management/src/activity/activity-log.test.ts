@@ -8,12 +8,12 @@ import { spawn } from "node:child_process";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { connect } from "@storytree/library";
+import { connect, type Line, type NewLine } from "@storytree/library";
 import pg from "pg";
 
 import { databasesOnTestServer, dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { selectLines } from "./bounded.js";
-import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type Line, type LinesCache, type NewLine } from "./index.js";
+import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type LinesCache } from "./index.js";
 
 const WRITER = fileURLToPath(new URL("../testing/activity-writer.ts", import.meta.url));
 

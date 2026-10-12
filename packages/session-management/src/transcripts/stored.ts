@@ -8,7 +8,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { ActivityLog, Line } from "../activity/index.js";
+import type { ActivityLog } from "../activity/index.js";
+import type { Line } from "@storytree/library";
 import { ContextFold, contextReading, transcriptLines, type ContextReading, type TranscriptReader } from "../context/context.js";
 import { sessionWindow, type SessionWindow } from "../context/window.js";
 

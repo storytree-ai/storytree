@@ -31,7 +31,8 @@
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { thisMachine, type ActivityLog, type BranchFacts, type Line, type NewLine } from "../activity/index.js";
+import { thisMachine, type ActivityLog, type BranchFacts } from "../activity/index.js";
+import type { Line, NewLine } from "@storytree/library";
 import { findProject } from "../routing/routing.js";
 import { ask, type Answer } from "./ask.js";
 import { due, ghAllMergedPulls, projectTempFile, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";

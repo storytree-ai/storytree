@@ -5,10 +5,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { Line } from "@storytree/session-management";
+import type { AnnotatedCapability, AnnotatedTree, Change, HealthState, Line } from "@storytree/library";
 import { codeSurveyReader, type ProjectSurvey } from "@storytree/forest/code-survey";
 import { commitOfLog, judgeRun, parseTestLog, proofsAt, VERIFIED_BY_PROJECT_CI } from "@storytree/ci-health";
-import type { AnnotatedCapability, AnnotatedTree, Change, HealthState } from "@storytree/library";
 
 const run = promisify(execFile);
 const time = (value: string) => Date.parse(value);

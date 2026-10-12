@@ -6,3 +6,5 @@ export type { CreateOptions, FieldEdit, SchemaRecord, WriteOptions } from "./rec
 export { FRICTION_STATES, judgedState, RECORD_SCHEMAS, SCHEMA_VERSIONS } from "./types.js";
 export type { FieldsOf, FrictionState, KnowledgeKind, LibrarySchema, RecordType, UpgradeStep } from "./types.js";
 export { LIBRARY_SCHEMA, UPGRADES } from "./upgrades.js";
+export { NEW_LINE } from "./activity-line.js";
+export type { Agent, Line, LineKind, LinesSince, NewLine } from "./activity-line.js";

@@ -8,7 +8,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { ActivityLog, Line } from "../activity/index.js";
+import type { ActivityLog } from "../activity/index.js";
+import type { Line } from "@storytree/library";
 import { thisRestart } from "../claims/claims.js";
 import type { Restart } from "../readings.js";
 

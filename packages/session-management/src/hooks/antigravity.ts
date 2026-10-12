@@ -21,7 +21,7 @@
  */
 import path from "node:path";
 
-import type { NewLine } from "../activity/index.js";
+import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
 
 /** The name storytree's tool server is registered under in Antigravity's mcp_config.json. */

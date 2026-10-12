@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Agent, Line } from "@storytree/session-management";
+import type { Agent, Line } from "@storytree/library";
 
 import { knowledge } from "../ghosts/ghosts.js";
 import { ReadRecord } from "../reads/reads.js";

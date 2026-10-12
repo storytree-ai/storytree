@@ -7,8 +7,8 @@
  */
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-import type { Line, SessionWindow } from "@storytree/session-management";
-import type { Change } from "@storytree/library";
+import type { SessionWindow } from "@storytree/session-management";
+import type { Change, Line } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
 import { HIDDEN_AT_START, drawnPoints, kindRows } from "../kinds/kinds.js";

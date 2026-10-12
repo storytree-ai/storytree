@@ -1,6 +1,6 @@
 /** Capability 7 · Running sessions. The forest's running sessions, read from Session management; no transcript or liveness reader here. */
-import { logReading, QUIET_MS, type Line, type LogReading, type OnMain, type PullState, type Session, type SessionState } from "@storytree/session-management/readings";
-import type { AnnotatedTree, ArcView } from "@storytree/library";
+import { logReading, QUIET_MS, type LogReading, type OnMain, type PullState, type Session, type SessionState } from "@storytree/session-management/readings";
+import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
 import type { SessionWindow } from "@storytree/session-management";
 import type { RosterEntry } from "@storytree/knowledge-core";
 import { sessionColour } from "../agent-claims/agent-claims.js";

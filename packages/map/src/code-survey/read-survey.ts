@@ -21,10 +21,16 @@
  * - A mapped story is read from the folder this machine imports it from, as mapped-survey.ts reads it
  *   (ADR-0993 D2), never from the checkout's packages. A story's package dependency on a mapped story's
  *   package is a road to it, as one on another story's package is (ADR-0993 D8).
+ * - A reader given a keep folder keeps each checkout's last survey of a fetched main there, by commit, plan and
+ *   survey code: a start that finds main unmoved and the plan the same answers from it, reading and parsing no
+ *   file (8.25). A commit is immutable, so a kept survey cannot be stale. A plan with mapped stories is not kept:
+ *   an imported folder can change without a commit.
  */
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Worker } from "node:worker_threads";
 import { manifestFrom, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
 import { mappedSurveyReader, type ImportedFolder } from "./mapped-survey.js";
@@ -125,10 +131,40 @@ function coverageFrom(text: string): CoverageMap {
   }
 }
 
-export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8"), checkout: checkoutScope = "main" }: {
+/** Where a reader keeps its surveys between starts, and what names the code that surveyed them: a survey kept by other code is not used. */
+export interface SurveyKeep {
+  readonly folder: string;
+  readonly code: string;
+}
+
+const hashOf = (text: string) => createHash("sha256").update(text).digest("hex");
+
+/** The kept survey of the checkout at `root` for `key`, if the keep holds one; a missing or unreadable keep holds none. */
+async function keptSurvey(file: string, key: string): Promise<ProjectSurvey | undefined> {
+  try {
+    const kept = JSON.parse(await readFile(file, "utf8")) as { key?: unknown; survey?: ProjectSurvey };
+    return kept.key === key ? kept.survey : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Keep `survey` for `key`, replacing the checkout's last; a keep that cannot be written leaves the survey answered all the same. */
+async function keepSurvey(file: string, key: string, survey: ProjectSurvey): Promise<void> {
+  try {
+    await mkdir(path.dirname(file), { recursive: true });
+    const writing = `${file}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(writing, JSON.stringify({ key, survey }));
+    await rename(writing, file);
+  } catch {}
+}
+
+export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8"), checkout: checkoutScope = "main", keep }: {
   readFile?(file: string): Promise<string>;
   /** Main reads fetched origin/main; current reads the caller's worktree. Without origin, main reads the primary folder. */
   checkout?: "main" | "current";
+  /** Where surveys of a fetched main are kept between starts (8.25); without it nothing is kept. */
+  keep?: SurveyKeep;
 } = {}): CodeSurveyReader {
   const sourceAt = surveySourceReader(checkoutScope, readText);
   const kept = new Map<string, Kept>();
@@ -175,9 +211,23 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     return found.flat();
   }
 
+  /** The checkout's last kept survey by its file, and the key it was kept for: written again only when that changes. */
+  const keptKeys = new Map<string, string>();
+
   async function survey(folder: string, tree: AnnotatedTree, imports: readonly ImportedFolder[]): Promise<ProjectSurvey> {
     const source = await sourceAt(folder);
     const checkout = source.root;
+    const keeping = keep === undefined || source.commit === undefined || tree.stories.some((story) => story.mapped !== undefined) ? undefined : {
+      file: path.join(keep.folder, `${hashOf(checkout).slice(0, 16)}.json`),
+      key: hashOf(JSON.stringify([keep.code, source.commit, tree.stories.map(({ id, title, capabilities }) => [id, title, capabilities.map((part) => [part.id, part.title])])])),
+    };
+    if (keeping !== undefined) {
+      const found = keptKeys.get(keeping.file) === keeping.key || !keptKeys.has(keeping.file) ? await keptSurvey(keeping.file, keeping.key) : undefined;
+      if (found !== undefined) {
+        keptKeys.set(keeping.file, keeping.key);
+        return found;
+      }
+    }
     const seen = new Map<string, Kept>();
     const mapped = mappedReader.read(tree.stories, imports);
     mapped.catch(() => {}); // Awaited below; a failure there is the survey's.
@@ -275,7 +325,12 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     });
     for (const full of kept.keys()) if (full.startsWith(checkout + path.sep) && !seen.has(full)) kept.delete(full);
     for (const [full, now] of seen) kept.set(full, now);
-    return { ...Object.fromEntries(withEdges), ...Object.fromEntries(mappedRead.surveys) };
+    const answer = { ...Object.fromEntries(withEdges), ...Object.fromEntries(mappedRead.surveys) };
+    if (keeping !== undefined && keptKeys.get(keeping.file) !== keeping.key) {
+      keptKeys.set(keeping.file, keeping.key);
+      await keepSurvey(keeping.file, keeping.key, answer);
+    }
+    return answer;
   }
 
   return {
@@ -298,9 +353,12 @@ export function readCodeSurvey(folder: string, tree: AnnotatedTree, imports?: re
 /**
  * A reader whose surveys run on a worker thread started from `workerFile` (this folder's survey-worker, or a
  * bundle of it), so parsing never holds the asking thread's event loop (8.16). The worker starts on the first ask,
- * keeps its reader between asks, and is started again after it dies; close ends it.
+ * keeps its reader between asks, and is started again after it dies; close ends it. Given `keptIn`, it keeps its
+ * surveys there between starts (8.25), named by the worker file's contents, so a survey kept by another build is not used.
  */
-export function offThreadSurveyReader(workerFile: string | URL, options: { execArgv?: string[] } = {}) {
+export function offThreadSurveyReader(workerFile: string | URL, options: { execArgv?: string[]; keptIn?: string } = {}) {
+  const keep: SurveyKeep | undefined = options.keptIn === undefined ? undefined
+    : { folder: options.keptIn, code: hashOf(readFileSync(typeof workerFile === "string" ? workerFile : fileURLToPath(workerFile), "utf8")) };
   let worker: Worker | undefined;
   let next = 0;
   const waiting = new Map<number, { resolve: (survey: ProjectSurvey) => void; reject: (error: Error) => void }>();
@@ -311,7 +369,7 @@ export function offThreadSurveyReader(workerFile: string | URL, options: { execA
   };
   const started = (): Worker => {
     if (worker !== undefined) return worker;
-    const made = new Worker(workerFile, { execArgv: options.execArgv });
+    const made = new Worker(workerFile, { execArgv: options.execArgv, workerData: { keep } });
     made.unref();
     made.on("message", ({ id, survey, error }: { id: number; survey?: ProjectSurvey; error?: string }) => {
       const asked = waiting.get(id);

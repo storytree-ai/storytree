@@ -54,8 +54,13 @@ function rimDistance(isl: TrailIsland, x: number, y: number): number {
       const a = ring[j]!;
       const b = ring[i]!;
       if ((b.y > y) !== (a.y > y) && x < ((a.x - b.x) * (y - b.y)) / (a.y - b.y) + b.x) inside = !inside;
-      const q = nearestOnSegment(a, b, x, y);
-      d = Math.min(d, Math.hypot(x - q.x, y - q.y));
+      // nearestOnSegment, inlined: this runs for every grid cell near a coast, and allocates nothing
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const l2 = dx * dx + dy * dy;
+      const u = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / l2));
+      const e = Math.hypot(x - (a.x + u * dx), y - (a.y + u * dy));
+      if (e < d) d = e;
     }
   }
   return inside ? -d : d;
@@ -403,53 +408,66 @@ const DIRS: readonly { dx: number; dy: number; len: number }[] = [
   { dx: -1, dy: -1, len: SQRT2 },
 ];
 
-interface HeapEntry {
-  f: number;
-  g: number;
-  i: number;
-}
+/** The open set: a binary heap over three parallel typed arrays, so a push allocates nothing. Its order is total
+ *  (f, then g, then cell index — the determinism anchor), so it pops in the same order however it is stored. */
+class OpenHeap {
+  f = new Float64Array(1024);
+  g = new Float64Array(1024);
+  i = new Int32Array(1024);
+  size = 0;
 
-/** Stable ordering: f, then g, then cell index — the determinism anchor. */
-function heapLess(a: HeapEntry, b: HeapEntry): boolean {
-  if (a.f !== b.f) return a.f < b.f;
-  if (a.g !== b.g) return a.g < b.g;
-  return a.i < b.i;
-}
-
-function heapPush(h: HeapEntry[], e: HeapEntry): void {
-  h.push(e);
-  let i = h.length - 1;
-  while (i > 0) {
-    const p = (i - 1) >> 1;
-    const hp = h[p]!;
-    if (!heapLess(e, hp)) break;
-    h[i] = hp;
-    h[p] = e;
-    i = p;
+  private less(a: number, b: number): boolean {
+    const { f, g, i } = this;
+    if (f[a] !== f[b]) return f[a]! < f[b]!;
+    if (g[a] !== g[b]) return g[a]! < g[b]!;
+    return i[a]! < i[b]!;
   }
-}
 
-function heapPop(h: HeapEntry[]): HeapEntry | undefined {
-  const top = h[0];
-  const last = h.pop();
-  if (top === undefined || last === undefined || h.length === 0) return top;
-  h[0] = last;
-  let i = 0;
-  for (;;) {
-    const l = 2 * i + 1;
-    const r = l + 1;
-    let m = i;
-    const hl = h[l];
-    if (l < h.length && hl !== undefined && heapLess(hl, h[m]!)) m = l;
-    const hr = h[r];
-    if (r < h.length && hr !== undefined && heapLess(hr, h[m]!)) m = r;
-    if (m === i) break;
-    const tmp = h[m]!;
-    h[m] = h[i]!;
-    h[i] = tmp;
-    i = m;
+  private swap(a: number, b: number): void {
+    const { f, g, i } = this;
+    const tf = f[a]!, tg = g[a]!, ti = i[a]!;
+    f[a] = f[b]!; g[a] = g[b]!; i[a] = i[b]!;
+    f[b] = tf; g[b] = tg; i[b] = ti;
   }
-  return top;
+
+  push(f: number, g: number, i: number): void {
+    if (this.size === this.f.length) {
+      const grow = <T extends Float64Array | Int32Array>(old: T, make: (n: number) => T): T => { const next = make(old.length * 2); next.set(old); return next; };
+      this.f = grow(this.f, n => new Float64Array(n));
+      this.g = grow(this.g, n => new Float64Array(n));
+      this.i = grow(this.i, n => new Int32Array(n));
+    }
+    let at = this.size++;
+    this.f[at] = f; this.g[at] = g; this.i[at] = i;
+    while (at > 0) {
+      const p = (at - 1) >> 1;
+      if (!this.less(at, p)) break;
+      this.swap(at, p);
+      at = p;
+    }
+  }
+
+  /** Removes the least entry, leaving it in `top`; false when empty. */
+  pop(top: { g: number; i: number }): boolean {
+    if (this.size === 0) return false;
+    top.g = this.g[0]!;
+    top.i = this.i[0]!;
+    const n = --this.size;
+    if (n === 0) return true;
+    this.f[0] = this.f[n]!; this.g[0] = this.g[n]!; this.i[0] = this.i[n]!;
+    let at = 0;
+    for (;;) {
+      const l = 2 * at + 1;
+      const r = l + 1;
+      let m = at;
+      if (l < n && this.less(l, m)) m = l;
+      if (r < n && this.less(r, m)) m = r;
+      if (m === at) break;
+      this.swap(m, at);
+      at = m;
+    }
+    return true;
+  }
 }
 
 interface AstarState {
@@ -491,17 +509,16 @@ function runAstar(
     const mn = Math.min(dx, dy);
     return (Math.max(dx, dy) + (SQRT2 - 1) * mn) * hScale;
   };
-  const open: HeapEntry[] = [];
+  const open = new OpenHeap();
+  const e = { g: 0, i: 0 };
   st.seen[start] = gen;
   st.closed[start] = 0;
   st.g[start] = 0;
   st.parent[start] = -1;
   st.dirAt[start] = -1;
-  heapPush(open, { f: hOf(start % cols, (start / cols) | 0), g: 0, i: start });
+  open.push(hOf(start % cols, (start / cols) | 0), 0, start);
   let found = false;
-  for (;;) {
-    const e = heapPop(open);
-    if (e === undefined) break;
+  while (open.pop(e)) {
     const cur = e.i;
     if (st.closed[cur] === gen) continue;
     if (e.g !== st.g[cur]) continue; // stale entry — a better g was pushed later
@@ -534,7 +551,7 @@ function runAstar(
       st.g[ni] = ng;
       st.parent[ni] = cur;
       st.dirAt[ni] = di;
-      heapPush(open, { f: ng + hOf(nx, ny), g: ng, i: ni });
+      open.push(ng + hOf(nx, ny), ng, ni);
     }
   }
   if (!found) return null;
@@ -915,6 +932,7 @@ export function routeTrails(
   }
 
   let grid = buildGrid(islands, seed, t);
+  const freshCost = grid.cost.slice(); // pass 2 starts from these costs: the grid itself does not change
   const nCells = grid.cols * grid.rows;
   const st: AstarState = {
     g: new Float64Array(nCells),
@@ -1206,7 +1224,7 @@ export function routeTrails(
       pushApproach(apprIncident, fi, re.key, pa.x - A.x, pa.y - A.y);
       pushApproach(apprIncident, ti, re.key, pb.x - B.x, pb.y - B.y);
     }
-    grid = buildGrid(islands, seed, t); // fresh grid — pass 1 mutated the reuse costs
+    grid = { ...grid, cost: freshCost }; // fresh costs — pass 1 mutated the reuse costs
     routed = routePass(clusterDocks(apprIncident));
   }
 

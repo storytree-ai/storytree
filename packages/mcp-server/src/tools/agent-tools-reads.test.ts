@@ -640,6 +640,22 @@ test("6.29 show_plan gives each capability's word, and for one not healthy its r
   });
 });
 
+test("6.67 show_plan says a mapped story is mapped, here before storytree and assumed to be working, and gives it no health reading; a capability planned on it keeps its own", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { added: [shop] } = await library.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
+      const capability = idOf(await agent.call("plan_capability", { story: shop!.id, title: "Checkout", ...FOUNDED }));
+
+      const plan = await agent.call("show_plan");
+      const lines = plan.text.split("\n");
+      const story = lines.find((each) => each.includes(`(${shop!.id})`)) ?? "";
+      assert.match(story, /: mapped: here before storytree, and assumed to be working$/, plan.text);
+      assert.doesNotMatch(story, /reported|verified|checked|passing/);
+      assert.match(lines.find((each) => each.includes(`(${capability})`)) ?? "", /reported not checked, verified not checked/, plan.text);
+    });
+  });
+});
+
 test("6.30 health_worklist gives the oldest three capabilities on the health worklist, each with its reason, who moves it, the contracts carrying it and since when, and how many more wait; a capability an open increment lists among its capabilities is not offered, and one a test run in progress will record is held back and counted", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

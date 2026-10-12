@@ -202,12 +202,14 @@ const runs = {
   async mapSteps() {
     const four = ["Signing in", "Browsing", "Cart", "Checkout"];
     const frames = { "map-empty": [], "map-arcs": [], "map-stories": four, "map-capabilities-line-2": ["Signing in"], "map-capabilities": ["Signing in"],
-      "map-claims-line-1": four, "map-claims-line-2": [], "map-claims": ["Browsing", "Cart", "Checkout"], "map-health": four };
+      "map-claims-line-1": four, "map-claims-line-2": [], "map-claims": four, "map-health": four };
     // A picture taken as line N of a step is said, named `<step>-line-<N>`; every step is also pictured as it settles.
-    // The arcs panel lies over the globe while its line is said, and names no island; the sessions list's line names none
-    // either, and on a laptop it may lie over signing in, which holds no flag. On a phone the list lies over the globe.
+    // The arcs panel lies over the globe while its line is said, and names no island. Once the sessions list is open the globe
+    // sits in the room the list leaves, so the claims step frames every island clear of it, on a phone too.
     await chapterSteps({ chapter: "map", folder: "map-six-steps", lines: { "map-capabilities": [2], "map-claims": [1, 2] }, frames,
-      phoneFrames: { ...frames, "map-claims": [] }, known: [], extra: { "map-capabilities": "1440-story-panel.png" } });
+      // A 320×700 phone's globe, in the room under the list, is too small for the cart's and checkout's names side by side, so
+      // checkout's steps aside for the cart's (increment_7841aef9f70f); both islands and their flags stand clear of the list.
+      phoneFrames: frames, known: ["320 map-claims Checkout: not drawn"], extra: { "map-capabilities": "1440-story-panel.png" } });
   },
   // Each map line's label (2.21), on every labelled line at 1440, 1280, 390 and 320, at the tour's own 0.75×: the picture as the
   // line is said, and where its label stands against the screen's edges, the card, the bar, the panels and the islands' names.

@@ -1,5 +1,5 @@
 /** Capability 11 · Workspace: a terminal front door onto Session management's claimed workspace, claim and release. */
-import type { ClaimAnswer, WorkspaceAnswer } from "@storytree/session-management";
+import type { Hold } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
 import type { Context, Family, Verb } from "../door.js";
@@ -107,7 +107,7 @@ const stale: Verb = {
   async act(_args, context) {
     const caller = await context.activityContext();
     const { staleClaims } = await import("@storytree/session-management");
-    const { claims, pullsUnread } = await staleClaims(caller, caller.quietMs === undefined ? {} : { quietMs: caller.quietMs });
+    const { claims, pullsUnread } = await staleClaims(caller);
     const unread = pullsUnread ? ["GitHub could not be asked which pull requests are open: check each branch before releasing."] : [];
     if (claims.length === 0) return { text: ["No claimed increment is stale.", ...unread].join("\n") };
     const rows = claims.map((claim) =>
@@ -135,8 +135,21 @@ function returnedSaid(answer: { returned?: true }): string {
   return answer.returned ? "; nobody holds it, so it is a proposal again." : ".";
 }
 
+/**
+ * A claim or workspace Session management refused, as this door words it: the door's own copy of the
+ * fields it reads of the refusal (ADR-1017 D2).
+ */
+type Refused = { readonly ok: false } & (
+  | { readonly refused: "held"; readonly holder: { readonly session: string; readonly label: string; readonly reason: string; readonly binds?: string }; readonly heldFor: readonly string[] }
+  | { readonly refused: "yours"; readonly claim: { readonly branch?: string } }
+  | { readonly refused: "waiting"; readonly waits: readonly Waiting[] }
+  | { readonly refused: "closed" }
+  | { readonly refused: "unknown-capability" }
+  | { readonly refused: "reason-too-long"; readonly limit: number; readonly length: number }
+  | { readonly refused: "no-workspace"; readonly why: string; readonly openPulls?: readonly unknown[] });
+
 /** Present the owning story's refusal without making another claiming rule here. */
-export function workspaceRefusalText(id: string, answer: Exclude<WorkspaceAnswer | ClaimAnswer, { ok: true }>): string {
+export function workspaceRefusalText(id: string, answer: Refused): string {
   switch (answer.refused) {
     case "held":
       return `${id} is held by ${answer.holder.label} session ${answer.holder.session}${answer.heldFor.length === 0 ? "" : ` for ${answer.heldFor.join(", ")}`}: ${answer.holder.reason}${answer.holder.binds === undefined ? "" : `; binds: ${answer.holder.binds}`}. Pick other work${answer.heldFor.length === 0 ? "" : `; this is free once ${answer.heldFor[0]} closes`}.`;
@@ -160,7 +173,7 @@ export function workspaceRefusalText(id: string, answer: Exclude<WorkspaceAnswer
 }
 
 /** One thing holding work a claim was refused on, as Session management gives it. */
-type Waiting = Extract<ClaimAnswer, { refused: "waiting" }>["waits"][number];
+type Waiting = Hold & { readonly increment: string; readonly onOwner?: true; readonly waitsFor?: "owner" | "event"; readonly checkBack?: string };
 
 /** One thing holding the work: other work, the owner's question, or the owner or an outside event it waits for with a note (ADR-0938 D1). */
 function waitSaid(wait: Waiting): string {

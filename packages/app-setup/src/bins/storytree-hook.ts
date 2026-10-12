@@ -10,10 +10,14 @@
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
-import { hookCommand, type DeclaredCapabilities } from "@storytree/session-management/hook-command";
+import type { AnnotatedTree } from "@storytree/library";
+import { hookCommand } from "@storytree/session-management/hook-command";
 
-/** The capability each file declares, by the map's rule, its survey's inference never read. */
-export const declaredCapabilities: DeclaredCapabilities = async (checkout, files, tree, readText) => {
+/**
+ * The capability each file declares, by the map's rule, its survey's inference never read. Typed here, not
+ * with Session management's name for the lookup, so this story imports no shape of it (ADR-1017 D2).
+ */
+export const declaredCapabilities = async (checkout: string, files: readonly string[], tree: AnnotatedTree, readText: (file: string) => string): Promise<ReadonlyMap<string, string>> => {
   const { capabilitiesOfFiles } = await import("@storytree/map/code-survey");
   const placed = await capabilitiesOfFiles(checkout, files, tree, { readText, survey: async () => ({}) });
   return new Map([...placed].flatMap(([file, { capability, inferred }]) => (inferred ? [] : [[file, capability] as const])));

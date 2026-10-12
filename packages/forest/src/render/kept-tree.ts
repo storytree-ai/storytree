@@ -6,10 +6,11 @@
  * capability stands, so the kept drawing is laid out as the fresh one will be and a start on an
  * unchanged project lays the globe out once.
  */
-import { pageKept, type Kept, type PageStorage, type PartState, type WorkStates } from "@storytree/arc-surface";
+import { pageKept, type Kept, type PageStorage } from "@storytree/arc-surface";
 import type { AnnotatedTree, Change } from "@storytree/library";
 import type { StorySurvey } from "@storytree/map";
 
+import type { PartState, PartStates } from "../capability-tree/capability-tree.js";
 import { KEPT_DRAWING_KEY, KEPT_TREE_KEY } from "./kept-keys.js";
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -41,7 +42,7 @@ interface Drawing {
 export interface KeptDrawing {
   survey: Readonly<Record<string, StorySurvey>>;
   created: readonly Pick<Change, "type" | "action" | "recordId">[];
-  states: Pick<WorkStates, "part">;
+  states: PartStates;
 }
 
 const PARTS: ReadonlySet<unknown> = new Set(["in-progress", "landed"]);
@@ -53,7 +54,7 @@ function isDrawing(value: unknown): value is Drawing {
 }
 
 /** What to keep of a drawing of `tree` with `history`, `states` and `survey`, as the forest scene was handed them. */
-export function drawingOf(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: Pick<WorkStates, "part">,
+export function drawingOf(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: PartStates,
   survey: Readonly<Record<string, StorySurvey>>): Drawing {
   const parts: Drawing["parts"] = {};
   for (const story of tree.stories) for (const { id } of story.capabilities) {

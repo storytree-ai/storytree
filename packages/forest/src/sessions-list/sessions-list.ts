@@ -1,9 +1,16 @@
 /** Capability 7 · Running sessions. The forest's running sessions, read from Session management; no transcript or liveness reader here. */
 import { logReading, QUIET_MS, type LogReading, type OnMain, type PullState, type Session, type SessionState } from "@storytree/session-management/readings";
 import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
-import type { SessionWindow } from "@storytree/session-management";
-import type { RosterEntry } from "@storytree/knowledge-core";
 import { sessionColour } from "../agent-claims/agent-claims.js";
+
+/**
+ * A session's window (Session management 9.10), as the list reads its files from it: the forest's own copy
+ * of what it reads (ADR-1017 D2).
+ */
+export type SessionWindow = { readonly absent: string } | { readonly opens: readonly { readonly kind: string; readonly id: string; readonly resident: boolean }[] };
+
+/** A session on the knowledge core's roster, as the forest hands it over: the forest's own copy (ADR-1017 D2). */
+export type RosterEntry = { session: string; label: string; colour: string; members: readonly string[] };
 
 /** Estimated tokens in each of a context's four groups (Session management 9.8): read as shares, not a second total. */
 export interface ContextGroups {

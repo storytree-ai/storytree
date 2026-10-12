@@ -13,12 +13,10 @@
  *
  * Everything here is a pure function of what the app hands the page, so it is tested without one.
  */
-import type { PartState, WorkStates } from "@storytree/arc-surface";
 import type { AnnotatedContract, AnnotatedTree, CapabilityStatus, CapabilityWhy, Change, EarlierVerdict, HealthColumn, HealthState } from "@storytree/library";
 
-import type { StorySurvey } from "@storytree/map";
 
-import { grove } from "../capability-tree/capability-tree.js";
+import { grove, type PartState, type PartStates } from "../capability-tree/capability-tree.js";
 
 /** One contract, as the panel lists it on request. */
 export interface ContractLine {
@@ -101,11 +99,14 @@ export const NO_DESCRIPTION = "no description yet";
 /** The words for each reported state in a trail. */
 const WORD: Readonly<Record<HealthState, string>> = { passing: "green", failing: "red", "not-checked": "not checked" };
 
+/** A story's code survey as the panel counts it: the forest's own copy of the map's surveyed files, their lines alone (ADR-1017 D2). */
+type SurveyedFiles = { readonly files: readonly { readonly lines: number }[] };
+
 /**
  * The panel for story `story` of `tree`, or undefined if the tree has no such story. `history` is the project's changes from the start,
  * and `survey` its code's survey by story, which counts a mapped story's files and lines.
  */
-export function drillDown(tree: AnnotatedTree, story: string, states: WorkStates, history: readonly Change[], survey: Readonly<Record<string, Pick<StorySurvey, "files">>> = {}): StoryPanel | undefined {
+export function drillDown(tree: AnnotatedTree, story: string, states: PartStates, history: readonly Change[], survey: Readonly<Record<string, SurveyedFiles>> = {}): StoryPanel | undefined {
   const found = tree.stories.find(({ id }) => id === story);
   if (found === undefined) return undefined;
   const everywhere = new Map(tree.stories.flatMap((owner) => owner.capabilities.map((capability) => [capability.id, { capability, owner }] as const)));

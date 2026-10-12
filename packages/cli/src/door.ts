@@ -19,7 +19,7 @@
  * - Exit codes: 0 answered; 1 refused (by the library, which is printed in its own words, or by
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
-import type { ActivityLog, Claim, ClaimContext } from "@storytree/session-management";
+import type { ActivityLog, Claim } from "@storytree/session-management";
 import { openNamedProject, ProjectFolderError, requireApproval, route } from "@storytree/session-management/routing";
 import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
@@ -29,6 +29,19 @@ import { parseArgs, type Args } from "./args.js";
 import { changedByQuoting } from "./handed.js";
 import { FAMILIES, GUESSES } from "./families/index.js";
 import { commandSession, commandWriter, person } from "./writer.js";
+
+/**
+ * Who is claiming, releasing or landing, and where, as the door fills it in for Session management's
+ * claim calls: the door's own copy of the fields it sets (ADR-1017 D2).
+ */
+export type ClaimContext = {
+  readonly log: ActivityLog;
+  readonly library: Library;
+  readonly project: string;
+  readonly session: string;
+  readonly harness?: string;
+  readonly folder: string;
+};
 
 type JourneyRuntime = ReturnType<typeof import("@storytree/journey-events/runtime").createJourneyRuntime>;
 
@@ -67,9 +80,9 @@ export interface Context {
   /** Who holds what in the project right now: Session management's reading of its activity log. */
   claims(): Promise<Claim[]>;
   /** The caller and activity log, including a person closing an increment from their terminal. */
-  activityContext(): Promise<ClaimContext & { readonly folder: string; readonly server?: Storytree }>;
+  activityContext(): Promise<ClaimContext & { readonly server?: Storytree }>;
   /** The calling agent and the resources its claims use; refuses a shell with no agent session. */
-  claimContext(): Promise<ClaimContext & { readonly folder: string }>;
+  claimContext(): Promise<ClaimContext>;
   /** The journey story's shared consent controls, opened only when a command acts. */
   journey(): Promise<JourneyRuntime>;
 }
@@ -381,7 +394,7 @@ class Opened {
     }
   }
 
-  async claimContext(): Promise<ClaimContext & { readonly folder: string }> {
+  async claimContext(): Promise<ClaimContext> {
     const caller = commandSession();
     if (caller === undefined) throw new Refusal("Run workspace from the agent's shell: a claim belongs to the agent session that will work there.");
     return this.activityContext();
@@ -398,7 +411,7 @@ class Opened {
     await (await this.#activityLog()).append(this.#routed().project, { ...caller, source: "tool", folder: this.#cwd, kind: "door-answered", door: "command", ...answer });
   }
 
-  async activityContext(): Promise<ClaimContext & { readonly folder: string; readonly server: Storytree }> {
+  async activityContext(): Promise<ClaimContext & { readonly server: Storytree }> {
     const caller = commandSession() ?? { session: `person:${person()}` };
     const where = this.#routed();
     const library = await this.library();

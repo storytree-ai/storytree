@@ -1,5 +1,4 @@
 /** Capability 4 · Look inside and inspect an artifact. Capability 4's founding book (E1, V1, S1): a pinned note's card, and how the running sessions' reads light and cross the globe. */
-import type { SessionWindow } from "@storytree/session-management";
 import type { RecordEnvelope } from "@storytree/library";
 
 import type { Knowledge } from "../ghosts/ghosts.js";
@@ -7,6 +6,15 @@ import type { AgentReplay, ReadRecord } from "../reads/reads.js";
 import { unit, length, type Point } from "../shelves/positions.js";
 
 export type { Point } from "../shelves/positions.js";
+
+/**
+ * A session's window (Session management 9.10), as the core draws it: what it opened, and the notes named
+ * in it but never opened; or why there is none. The core's own copy of what it reads (ADR-1017 D2).
+ */
+export type SessionWindow = { readonly absent: string } | {
+  readonly opens: readonly { readonly kind: "note" | "file"; readonly id: string; readonly resident: boolean }[];
+  readonly glimpses: readonly string[];
+};
 
 export interface RosterEntry {
   session: string;

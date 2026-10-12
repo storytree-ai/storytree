@@ -18,7 +18,6 @@
  * calling session, through Session management's presentQuestion, which refuses it while another live session
  * is (its 5.36), and `--done` clears the mark; `list` flags each question a live session is presenting.
  */
-import type { Presenter } from "@storytree/session-management";
 import type { SchemaRecord } from "@storytree/library";
 
 import { labelOf, Refusal } from "../answer.js";
@@ -188,6 +187,9 @@ const list: Verb = {
     return { text: [`${waiting.length} open ${where}:`, ...waiting.map(line), ...aside].join("\n") };
   },
 };
+
+/** The live session putting a question to the owner, as this listing names it: its own copy of what it reads (ADR-1017 D2). */
+type Presenter = { readonly session: string; readonly label: string };
 
 /** Of `open`, those a live session is putting to the owner, read through Session management. */
 async function presentersAmong(context: Context, open: readonly SchemaRecord<"question">[]): Promise<ReadonlyMap<string, Presenter>> {

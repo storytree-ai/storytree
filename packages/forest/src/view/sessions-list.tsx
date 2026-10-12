@@ -1,15 +1,20 @@
 /** Capability 7 · Running sessions. The forest owns its sessions surface; the desktop only mounts it and carries public reads. */
 import React, { useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import type { ContextReading, SessionWindow } from "@storytree/session-management";
 import type { AnnotatedTree, ArcView, Line } from "@storytree/library";
 import { ON_MAIN_LABELS, type LogReading, type OnMain } from "@storytree/session-management/readings";
 import { pageKept, pageReading, type LiveReads, type PageReading } from "@storytree/arc-surface";
-import type { RosterEntry } from "@storytree/knowledge-core";
 import { ALL_TIME, atWork, clickedSelection, dayRange, globeRoster, historyRows, historySelection, matchesSearch, presetRange, sessionRows, windowFiles, withinRange,
-  type HistoryOutcome, type HistoryPreset, type HistoryRange, type HistoryRow, type SessionDetails, type SessionFiles, type SessionRow } from "../sessions-list/sessions-list.js";
+  type HistoryOutcome, type HistoryPreset, type HistoryRange, type HistoryRow, type RosterEntry, type SessionDetails, type SessionFiles, type SessionRow, type SessionWindow } from "../sessions-list/sessions-list.js";
 import { sessionColour, sessionWisps, type SessionWisp } from "../agent-claims/agent-claims.js";
 import { treeAfter } from "../render/forest-reading.js";
+
+/** A session's context reading (Session management 9.5, 9.8), as a row shows it: the forest's own copy of what it reads (ADR-1017 D2). */
+type ContextReading = { readonly session: string } & ({ readonly absent: string } | {
+  readonly tokens: number;
+  readonly composition: { readonly absent: string } | { readonly injected: number; readonly grounding: number; readonly implementation: number; readonly other: number };
+  readonly guidance: { readonly absent: string } | { readonly value: number };
+});
 
 export interface SessionsReads extends LiveReads {
   projectTree(project: string): Promise<AnnotatedTree>;

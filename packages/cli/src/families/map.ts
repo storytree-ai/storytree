@@ -1,10 +1,20 @@
 /** Capability 1 · Front door. The map owns selection and answers; this front door only parses and prints. */
-import type { FocusOptions, NodeKind } from "@storytree/map";
 import type { Args } from "../args.js";
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";
 
-export function mapOptions(args: Args): Omit<FocusOptions, "select"> {
+/** A kind of node the map selects. */
+type NodeKind = "story" | "capability" | "promise" | "file" | "test";
+
+/** How far and how the map answers, as this door parses it: its own copy of the map's focus options (ADR-1017 D2). */
+type MapOptions = {
+  readonly up?: number;
+  readonly down?: number;
+  readonly kind?: readonly NodeKind[];
+  readonly mode: "counts" | "dry_run" | "show";
+};
+
+export function mapOptions(args: Args): MapOptions {
   if (args.has("show") && args.has("dry-run")) throw new Refusal("Use either --show or --dry-run.", { code: 2 });
   const up = args.text("up");
   const down = args.text("down");

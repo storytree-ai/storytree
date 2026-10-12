@@ -13,11 +13,10 @@
  * - An island's key changes only when something drawn on it changes, so a change redraws only the
  *   islands it touched, without a reload.
  */
-import type { WorkStates } from "@storytree/arc-surface";
 import { PLACE_WIDTH, type CapabilityWord, type ForestScene, type Island, type PlacedTree, type TreeForm } from "@storytree/forest-world/scene";
 import type { AnnotatedTree, Change } from "@storytree/library";
 
-import { grove } from "../capability-tree/capability-tree.js";
+import { grove, type PartStates } from "../capability-tree/capability-tree.js";
 import { packageOf, type StorySurvey } from "@storytree/map";
 import { islandArea, mappedArea, MIN_ISLAND_AREA, unsurveyedArea } from "../planet-places/island-growth.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
@@ -47,7 +46,7 @@ export interface ForestDrawn {
  * `states` the arc surface's work states over its agent activity log, and `survey` its code's survey by
  * story (capability 8): a surveyed story's island is cut into its capabilities' territories.
  */
-export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: Pick<WorkStates, "part">, survey: Readonly<Record<string, StorySurvey>> = {}): ForestScene {
+export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, "type" | "action" | "recordId">[], states: PartStates, survey: Readonly<Record<string, StorySurvey>> = {}): ForestScene {
   const nodes = new Map(storyNodes(tree, history, survey).map((node) => [node.id, node]));
   const islands = tree.stories.map((story): Island => {
     const node = nodes.get(story.id);

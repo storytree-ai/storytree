@@ -12,6 +12,8 @@
 //    ignores line endings; a tree just built has no drift.
 // 4. A file over its size budget is named with its size and its budget.
 // 5. A CLAUDE.md without the region's markers is refused, naming them.
+// 6. The check fails a branch only on its own drift; drift from another editor's unlanded library
+//    edit is named with that editor and fails nothing (4.5).
 //
 // The tests that read a library run against the Postgres `pnpm test` provides
 // (STORYTREE_TEST_PG_URL), in a project of their own that is dropped afterwards.
@@ -26,7 +28,7 @@ import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { syncGuidance } from "./build-guidance.mjs";
-import { BUDGETS, driftOf, expectedFiles, overBudget, readRoles, REGION_END, REGION_START } from "./guidance.mjs";
+import { BUDGETS, driftOf, expectedFiles, judgeDrift, overBudget, readRoles, REGION_END, REGION_START, sourcesOf } from "./guidance.mjs";
 
 const CLAUDE_MD = ["# storytree 0.3", "", "Written by hand.", "", `${REGION_START} -->`, "old", REGION_END, "", "After."].join("\n");
 
@@ -230,6 +232,50 @@ test("4.4 a skill whose description is over 1,024 characters is refused, since C
 test("4.2 a CLAUDE.md without the region's markers is refused, naming them", () => {
   const roles = { root: undefined, others: [], titles: new Map() };
   assert.throws(() => expectedFiles(roles, "# no region here\n"), (error) => error.message.includes(REGION_START) && error.message.includes(REGION_END));
+});
+
+test("4.5 the drift check fails a branch only on its own drift; another editor's unlanded edit is named with its editor and fails nothing", async (t) => {
+  await withRoles(async (roles) => {
+    const sources = sourcesOf(roles);
+    const role = roles.others[0];
+    assert.deepEqual(sources.get(".claude/agents/story-author.md"), [role.id, ...role.fields.context], "a role file stands on its role and the notes it links");
+    assert.deepEqual(sources.get("CLAUDE.md"), [roles.root.id, ...roles.root.fields.context, ...roles.root.fields.antiPatterns]);
+
+    const drift = [
+      { file: ".claude/agents/story-author.md", problem: "stale" },
+      { file: "AGENTS.md", problem: "stale" },
+      { file: ".codex/agents/gone.toml", problem: "orphan" },
+    ];
+    const sibling = { actor: "session:sibling", at: "2026-10-12T10:00:00.000Z" };
+    const mine = { actor: "session:me", at: "2026-10-12T09:00:00.000Z" };
+    const writes = new Map([[role.id, [sibling]], [roles.root.id, [sibling]]]);
+    const base = { sources, writes, me: "session:me", since: "2026-10-12T00:00:00.000Z", branchChanged: new Set(), onMain: new Set() };
+
+    const judged = judgeDrift(drift, base);
+    assert.deepEqual(judged.own.map(({ file }) => file), [".codex/agents/gone.toml"], "an orphan, whose role is gone, stays the branch's");
+    assert.deepEqual(judged.others.map(({ file, editor }) => [file, editor.actor, editor.id]), [
+      [".claude/agents/story-author.md", "session:sibling", role.id],
+      ["AGENTS.md", "session:sibling", roles.root.id],
+    ], "drift only a sibling's library edit explains is named with its editor");
+
+    const own = (overrides) => judgeDrift(drift.slice(0, 1), { ...base, ...overrides }).own.map(({ why }) => why);
+    assert.equal(own({ branchChanged: new Set([".claude/agents/story-author.md"]) }).length, 1, "a file the branch changes is its own");
+    assert.equal(own({ writes: new Map([[role.id, [mine, sibling]]]) }).length, 1, "a role this session edited is its own, whoever wrote last");
+    assert.equal(own({ writes: new Map([[role.id, [{ ...mine, at: "2026-10-11T00:00:00.000Z" }, sibling]]]) }).length, 0, "an edit of this session's before the branch forked is not");
+    assert.match(own({ onMain: new Set([".claude/agents/story-author.md"]) })[0], /origin\/main/, "an edit already on main is the branch's to merge");
+    assert.equal(own({ branchChanged: undefined }).length, 1, "when git cannot say what the branch changed, all drift is its own");
+
+    const root = mkdtempSync(path.join(tmpdir(), "guidance-judge-"));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    writeFileSync(path.join(root, "AGENTS.md"), "old\n");
+    const said = [];
+    const io = { log: (line) => said.push(line), error: (line) => said.push(line) };
+    const expected = new Map([["AGENTS.md", "new\n"]]);
+    const judge = (found) => judgeDrift(found, base);
+    assert.equal(syncGuidance(expected, { root, check: true, judge, ...io }), 0, "the check passes on a sibling's drift alone");
+    assert.match(said.join("\n"), /AGENTS\.md.*session:sibling/, "and names its editor");
+    assert.equal(syncGuidance(expected, { root, check: true, judge: (found) => judgeDrift(found, { ...base, writes: new Map([[roles.root.id, [mine]]]) }), ...io }), 1, "and fails on its own");
+  });
 });
 
 async function withLibrary(body) {

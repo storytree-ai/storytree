@@ -15,6 +15,12 @@
 //   the conversation with the owner, which a subagent role cannot be, since subagents cannot talk
 //   to him. Its description is what both harnesses match a request against, held to 1,024
 //   characters because Codex loads no skill with a longer one.
+// - The check judges a branch only on its own drift (4.5): the library is shared, so a role another
+//   lane edited there before its pull request lands drifts every branch's committed files. A drifted
+//   file fails the branch when the branch changes it, when the session running the check wrote one
+//   of the notes it is generated from since the branch forked, when that edit is already on
+//   origin/main (merge it), or when its notes cannot be named; otherwise it is printed with the
+//   note's last editor and fails nothing.
 // - Not ported, since they did not last in 0.2 (ADR-0639; counted 2026-09-27 over 2026-08-15 to
 //   2026-09-26): the .cursor, .gemini and .opencode role files. Cursor was retired as a harness
 //   (0.2's ADR-0198), Gemini never ran, OpenCode ran once (2026-08-07), and none of the three had a
@@ -138,6 +144,63 @@ export function driftOf(expected, disk) {
     }
   }
   return drift;
+}
+
+/**
+ * The notes each generated file is made from: its role or skill, then the notes it links, whose
+ * titles it prints. An orphan has none, since nothing generates it.
+ * @param {Roles} roles
+ * @returns {Map<string, string[]>}
+ */
+export function sourcesOf(roles) {
+  const linked = (role) => [role.id, ...["context", "rules", "antiPatterns"].flatMap((key) => role.fields[key] ?? [])];
+  const sources = new Map();
+  if (roles.root !== undefined) for (const file of ["CLAUDE.md", "AGENTS.md"]) sources.set(file, linked(roles.root));
+  for (const role of roles.others) {
+    const name = nameOf(role);
+    sources.set(`.claude/agents/${name}.md`, linked(role));
+    sources.set(`.codex/agents/${name}.toml`, linked(role));
+  }
+  for (const skill of roles.skills ?? []) {
+    const ids = [skill.id, ...(skill.fields.links ?? []), ...(skill.fields.branchEdges ?? []).map((edge) => edge.to)];
+    for (const dir of SKILL_DIRS) sources.set(`${dir}/${skill.fields.skill}/SKILL.md`, ids);
+  }
+  return sources;
+}
+
+/**
+ * Which drift is the branch's own, each with why, and which another editor's unlanded library edit
+ * explains, each with that editor: the latest write to the file's notes.
+ * @param {Drift[]} drift
+ * @param {{
+ *   sources: Map<string, string[]>,
+ *   writes: Map<string, { actor?: string, at: string }[]>,
+ *   me: string,
+ *   since?: string,
+ *   branchChanged: Set<string> | undefined,
+ *   onMain: Set<string>,
+ * }} context `writes` holds each source note's history; `me` is the actor the checking session
+ *   writes as; `since`, when the branch forked; `branchChanged`, the files the branch changes, or
+ *   undefined when git cannot say; `onMain`, the files origin/main already holds as expected.
+ * @returns {{ own: (Drift & { why: string })[], others: (Drift & { editor: { id: string, actor: string, at: string } })[] }}
+ */
+export function judgeDrift(drift, { sources, writes, me, since, branchChanged, onMain }) {
+  const own = [];
+  const others = [];
+  for (const item of drift) {
+    const ids = sources.get(item.file) ?? [];
+    const entries = ids.flatMap((id) => (writes.get(id) ?? []).map((entry) => ({ id, actor: entry.actor ?? "writer not recorded", at: entry.at })));
+    const editor = entries.sort((a, b) => b.at.localeCompare(a.at))[0];
+    let why;
+    if (branchChanged === undefined) why = "git could not say what this branch changes";
+    else if (branchChanged.has(item.file)) why = "this branch changes it";
+    else if (onMain.has(item.file)) why = "the library edit is already on origin/main: merge it";
+    else if (ids.length === 0 || editor === undefined) why = "no library note it is made from could be named";
+    else if (entries.some((entry) => entry.actor === me && (since === undefined || entry.at >= since))) why = `${me} edited a note it is made from`;
+    if (why === undefined) others.push({ ...item, editor });
+    else own.push({ ...item, why });
+  }
+  return { own, others };
 }
 
 /**

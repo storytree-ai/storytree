@@ -225,7 +225,7 @@ test("2.16 · the map chapter plays seven steps in the owner's order: the beginn
   // panel over it, read before the first claim (01:53:08), the arc pointed out as its one line is said.
   assert.deepEqual(panels(empty!), [undefined]);
   assert.deepEqual(panels(harness!), [undefined]);
-  assert.deepEqual(harness!.marks?.map(mark => [mark.name, mark.src]), [["Claude Code", "/harness/claude-code.png"], ["Codex", "/harness/codex.png"]]);
+  assert.deepEqual(harness!.marks?.map(mark => [mark.name, mark.src]), [["Claude Code", "/harness/claude-code.png"], ["Codex", "/harness/codex.png"], ["Pi", "/harness/pi.svg"]]);
   assert.match(harness!.marksNote ?? "", /MCP/, "under the marks, one line for every other harness that speaks MCP");
   assert.ok(chapter.every(item => item === harness || !item.marksNote), "the line is the harness step's alone");
   assert.deepEqual([(harness!.growth as { stage: string; until: string }).stage, (harness!.growth as { until: string }).until], ["plans", "plans"]);

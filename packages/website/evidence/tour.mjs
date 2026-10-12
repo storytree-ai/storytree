@@ -221,7 +221,7 @@ export async function verifyTour(browser, url, output) {
   await page.locator("#tour-depth").click();
   // 2.16: the harness step shows the harnesses storytree works with, each by its mark and name, with no panel open.
   await goToStep(page, "map-harness"); await page.clock.runFor(500);
-  assert.deepEqual(await page.locator("#tour-marks .tour-mark").evaluateAll(nodes => nodes.map(node => [node.textContent, node.querySelector("img")?.complete && node.querySelector("img").naturalWidth > 0])), [["Claude Code", true], ["Codex", true]], "each harness by its own mark and name");
+  assert.deepEqual(await page.locator("#tour-marks .tour-mark").evaluateAll(nodes => nodes.map(node => [node.textContent, node.querySelector("img")?.complete && node.querySelector("img").naturalWidth > 0])), [["Claude Code", true], ["Codex", true], ["Pi", true]], "each harness by its own mark and name");
   assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), true, "no panel opens on the harness step");
   assert.match(await page.locator("#tour-marks-note").evaluate(node => node.hidden ? "" : node.textContent), /MCP/, "one line under the marks for every other harness");
   // 2.16: the arcs step opens the shop's first arc over the bare globe, its four parts none held yet.

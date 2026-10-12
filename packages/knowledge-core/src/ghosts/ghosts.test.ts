@@ -115,6 +115,23 @@ test("2.5 a quality control check is read as a live note, linked and counted lik
   assert.equal(core.linksIn.get("base"), 1);
 });
 
+test("2.6 the Library leaves out friction reports whose state is resolved or dismissed; open and routed ones, and ones with no state stored, stay", () => {
+  const friction = (state?: string) => ({ title: "Seed refused", ...(state === undefined ? {} : { state }) });
+  const history = new History()
+    .create("open", "friction", friction("open"))
+    .create("routed", "friction", friction("routed"))
+    .create("resolved", "friction", friction("resolved"))
+    .create("dismissed", "friction", friction("dismissed"))
+    .create("unstated", "friction", friction())
+    .create("reopened", "friction", friction("dismissed"))
+    .update("reopened", { state: "open" })
+    .create("fixed", "friction", friction("routed"))
+    .update("fixed", { state: "resolved" });
+  const core = knowledge(history.changes);
+  assert.deepEqual([...core.notes.keys()].sort(), ["open", "reopened", "routed", "unstated"]);
+  assert.deepEqual([...core.active].sort(), ["open", "reopened", "routed", "unstated"]);
+});
+
 test("4.16 two notes are joined when either stores a reference to the other (links or supersedes); a shared neighbour joins nothing", () => {
   const core = knowledge(new History()
     .decision("a", { links: ["b"] })

@@ -4,6 +4,7 @@
  * they read only the activity log, and nothing of the server.
  */
 import type { ActivityLog, Agent, Line } from "../activity/index.js";
+import { watchedHarness } from "../harnesses.js";
 
 /** The session calling, as the harness names it. */
 export interface Caller {
@@ -45,7 +46,7 @@ export function agentOf(lines: readonly Line[], meta: CallMeta): Agent {
  */
 export async function callLines(log: ActivityLog, project: string, meta: CallMeta, called?: { readonly harness?: string | undefined; readonly tool: string }): Promise<Line[]> {
   const call = callOf(meta);
-  const requested = call === undefined ? await cursorRequest(log, project, called) : await log.lines(project, { kinds: ["tool-requested"], where: { call }, newest: 1, omit: ["transcript"] });
+  const requested = call === undefined ? await announcedRequest(log, project, called) : await log.lines(project, { kinds: ["tool-requested"], where: { call }, newest: 1, omit: ["transcript"] });
   const agent = requestOf(requested, meta)?.agent ?? threadAgent(meta);
   if (typeof agent !== "object") return requested;
   const started = await log.lines(project, { kinds: ["subagent-started"], where: { subagent: agent.subagent }, newest: 1, omit: ["transcript"] });
@@ -64,27 +65,29 @@ export function seenCaller(lines: readonly Line[], caller: Caller, meta: CallMet
 
 /**
  * The line the hook before a call left, found by the call's id: Claude Code's `_meta["claudecode/toolUseId"]`,
- * Codex's `_meta.callId`. A call with no id is Cursor's, whose line callLines found by its tool (cursorRequest).
+ * Codex's `_meta.callId`. A call with no id is from a harness that sends none (Cursor, Pi), whose line callLines
+ * found by its harness and tool (announcedRequest).
  */
 export function requestOf(lines: readonly Line[], meta: CallMeta): Extract<Line, { kind: "tool-requested" }> | undefined {
   const call = callOf(meta);
-  return lines.findLast((line): line is Extract<Line, { kind: "tool-requested" }> => line.kind === "tool-requested" && (call === undefined ? line.harness === "cursor" : line.call === call));
+  return lines.findLast((line): line is Extract<Line, { kind: "tool-requested" }> => line.kind === "tool-requested" && (call === undefined ? watchedHarness(line.harness)?.callIds === false : line.call === call));
 }
 
-/** How long before a call Cursor's hook may have announced it. */
+/** How long before a call a hook of a harness that sends no call id may have announced it. */
 const ANNOUNCED_WITHIN_MS = 30_000;
 
 /**
- * The line Cursor's hook left just before a call to `called.tool` (6.66). Cursor sends the tool server no
- * session and no call id (read from its installed code, 2026-10-12), so this one harness's line is found
- * by its tool and its time: the newest it announced for that tool in the last half minute. Two Cursor
- * sessions calling the same tool in the same moment may be taken for each other; every other harness is
- * joined by the call's id, never by time.
+ * The line the hook of a harness that sends the tool server no session and no call id left just before a
+ * call to `called.tool`: Cursor (read from its installed code, 2026-10-12, 6.66) and Pi (measured in Pi
+ * 1.1.0, 6.68). Its line is found by its harness, its tool and its time: the newest that harness announced
+ * for that tool in the last half minute. Two sessions of one such harness calling the same tool in the
+ * same moment may be taken for each other; every other harness is joined by the call's id, never by time.
  */
-async function cursorRequest(log: ActivityLog, project: string, called: { readonly harness?: string | undefined; readonly tool: string } | undefined): Promise<Line[]> {
-  if (called?.harness !== "cursor") return [];
+async function announcedRequest(log: ActivityLog, project: string, called: { readonly harness?: string | undefined; readonly tool: string } | undefined): Promise<Line[]> {
+  const harness = called?.harness;
+  if (harness === undefined || watchedHarness(harness)?.callIds !== false) return [];
   const since = new Date(Date.now() - ANNOUNCED_WITHIN_MS).toISOString();
-  return log.lines(project, { kinds: ["tool-requested"], where: { harness: "cursor", tool: called.tool }, since, newest: 1, omit: ["transcript"] });
+  return log.lines(project, { kinds: ["tool-requested"], where: { harness, tool: called!.tool }, since, newest: 1, omit: ["transcript"] });
 }
 
 /** The call's id, as the harness gave it. */

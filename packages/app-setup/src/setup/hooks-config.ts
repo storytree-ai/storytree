@@ -25,14 +25,19 @@
  *   from ~/.cursor (on Windows after PowerShell's `&`), so each path is absolute and quoted. Cursor waits
  *   for every hook, so the ones before each shell command and at the end of each turn pass `--background`.
  *   Anything a hook before a tool prints that is not JSON blocks the tool: the hook script prints JSON or nothing.
- * - In all three, the hook before each file-edit tool runs in the foreground, since its answer may refuse
+ * - Pi: no hook command at all, only extensions. Storytree's registration is one generated extension,
+ *   `<PI_CODING_AGENT_DIR or ~/.pi/agent>/extensions/storytree.ts` (pi-extension.ts), written whole and
+ *   deleted whole: a file of storytree's alone, so no other setting of Pi's is ever touched.
+ * - In all four, the hook before each file-edit tool runs in the foreground, since its answer may refuse
  *   the edit (ADR-0949 D3).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, HARNESS_IDS, registeredHookScripts, scriptsIn, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
+import { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, HARNESS_IDS, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
+
+import { piExtension } from "./pi-extension.js";
 
 export { defaultHomes, registeredHookScripts, type Homes };
 
@@ -62,6 +67,7 @@ export interface HooksReport {
   readonly "claude-code": HookRegistration;
   readonly codex: HookRegistration;
   readonly cursor: HookRegistration;
+  readonly pi: HookRegistration;
   readonly statusLine: StatusLineInstall;
   /** The hook scripts of another build that registering replaced, by harness: present only when it replaced one. */
   readonly replaced?: { readonly [harness in Harness]?: readonly string[] };
@@ -71,6 +77,7 @@ export interface RemovalReport {
   readonly "claude-code": "removed" | "none";
   readonly codex: "removed" | "none";
   readonly cursor: "removed" | "none";
+  readonly pi: "removed" | "none";
   /** Whether storytree's status line was taken out: a status line of the user's own is never touched. */
   readonly statusLine: "removed" | "none";
 }
@@ -97,11 +104,13 @@ export function registerHooks(homes: Homes, hook: HookCommand, disconnected: Rea
   const codex = disconnected.has("codex") ? { registration: "disconnected" as const, replaced: [] } : register(homes.codex, "hooks.json", codexEntries(hook), hook.script);
   // Cursor's hooks file must name its version: a new file gets 1, and one the user wrote keeps its own.
   const cursor = disconnected.has("cursor") ? { registration: "disconnected" as const, replaced: [] } : register(homes.cursor, "hooks.json", cursorEntries(hook), hook.script, { version: 1 });
-  const replaced = { ...(claude.replaced.length > 0 ? { "claude-code": claude.replaced } : {}), ...(codex.replaced.length > 0 ? { codex: codex.replaced } : {}), ...(cursor.replaced.length > 0 ? { cursor: cursor.replaced } : {}) };
+  const pi = disconnected.has("pi") ? { registration: "disconnected" as const, replaced: [] } : registerPi(homes.pi, hook);
+  const replaced = { ...(claude.replaced.length > 0 ? { "claude-code": claude.replaced } : {}), ...(codex.replaced.length > 0 ? { codex: codex.replaced } : {}), ...(cursor.replaced.length > 0 ? { cursor: cursor.replaced } : {}), ...(pi.replaced.length > 0 ? { pi: pi.replaced } : {}) };
   return {
     "claude-code": claude.registration,
     codex: codex.registration,
     cursor: cursor.registration,
+    pi: pi.registration,
     statusLine: disconnected.has("claude-code") ? "not here" : installStatusLine(homes.claude, hook),
     ...(Object.keys(replaced).length > 0 ? { replaced } : {}),
   };
@@ -145,6 +154,7 @@ export function removeHooks(homes: Homes, scope?: { readonly harness: Harness; r
     "claude-code": remove(homes.claude, "settings.json"),
     codex: remove(homes.codex, "hooks.json"),
     cursor: remove(homes.cursor, "hooks.json", true),
+    pi: removePi(homes.pi),
     statusLine,
   };
 }
@@ -254,6 +264,30 @@ function cursorEntries({ node, script }: HookCommand): Record<string, HookEntry[
   };
 }
 
+/** Write storytree's Pi extension in Pi's agent folder `home`, saying which other build's hook script the one there ran. */
+function registerPi(home: string | undefined, hook: HookCommand): { registration: HookRegistration; replaced: string[] } {
+  if (home === undefined || !isFolder(home)) return { registration: "not here", replaced: [] };
+  const file = path.join(home, PI_EXTENSION);
+  const current = existsSync(file) ? readFileSync(file, "utf8") : undefined;
+  const wanted = piExtension(hook);
+  if (current === wanted) return { registration: "already registered", replaced: [] };
+  const before = current === undefined ? undefined : piExtensionScript(current);
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, wanted);
+  return { registration: "registered", replaced: before === undefined || before === hook.script ? [] : [before] };
+}
+
+/** Delete storytree's Pi extension from `home`; with `script`, only one that runs that hook script. A file there that is not storytree's stays. */
+function removePi(home: string | undefined, script?: string): "removed" | "none" {
+  if (home === undefined) return "none";
+  const file = path.join(home, PI_EXTENSION);
+  if (!existsSync(file)) return "none";
+  const runs = piExtensionScript(readFileSync(file, "utf8"));
+  if (runs === undefined || (script !== undefined && runs !== script)) return "none";
+  rmSync(file);
+  return "removed";
+}
+
 /** Register `entries` in `home`'s `file`, saying which other builds' hook scripts it replaced there; `born` is what a new file holds besides its hooks. */
 function register(home: string | undefined, file: string, entries: Record<string, HookEntry[]>, script: string, born: Settings = {}): { registration: HookRegistration; replaced: string[] } {
   if (home === undefined || !isFolder(home)) return { registration: "not here", replaced: [] };
@@ -335,7 +369,8 @@ function shQuoted(text: string): string {
 
 /** Remove one installation's hooks from one harness, preserving other commands in mixed groups. */
 function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): RemovalReport {
-  const report: RemovalReport = { "claude-code": "none", codex: "none", cursor: "none", statusLine: "none" };
+  const report: RemovalReport = { "claude-code": "none", codex: "none", cursor: "none", pi: "none", statusLine: "none" };
+  if (harness === "pi") return { ...report, pi: removePi(homes.pi, hook.script) };
   const home = harness === "claude-code" ? homes.claude : homes[harness];
   if (home === undefined) return report;
   const file = path.join(home, harness === "claude-code" ? "settings.json" : "hooks.json");

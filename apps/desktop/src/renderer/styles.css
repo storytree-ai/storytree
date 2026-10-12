@@ -296,6 +296,52 @@ body[data-surface="forest"] main {
   position: relative;
 }
 
+/*
+ * The start's progress, from the window opening until the globe is settled: a thin bar sliding along the window's top. It moves by
+ * transform alone, so it keeps moving while the page's own work holds the main thread.
+ */
+#start-progress {
+  position: fixed;
+  z-index: 60;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#start-progress[hidden] {
+  display: none;
+}
+
+#start-progress::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, #c99a3c, transparent);
+  animation: start-progress 1.4s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes start-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(340%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #start-progress::before {
+    width: 100%;
+    animation: start-progress-pulse 1.4s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes start-progress-pulse {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
 /* The forest on show is the one kept from the last start, until this start's first read lands. */
 #freshness {
   position: absolute;

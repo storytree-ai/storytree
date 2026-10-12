@@ -113,6 +113,47 @@ test("2.10 choosing Cursor registers the tool server in ~/.cursor/mcp.json and s
   assert.deepEqual(JSON.parse(readFileSync(hooksFile, "utf8")), hooks);
 });
 
+test("2.11 choosing Pi registers the tool server, directly exposed, in its agent folder's mcp.json, installs storytree's Pi extension and its AGENTS.md section, keeping every other server, extension and instruction; repeating changes nothing, disconnecting removes exactly what it added, and a machine without Pi gets a recovery action", async (t) => {
+  const f = fixture(t);
+  // PI_CODING_AGENT_DIR moves Pi's agent folder, as CODEX_HOME moves Codex's.
+  const pi = path.join(f.home, "pi agent");
+  const env = { ...f.options.env, PI_CODING_AGENT_DIR: pi };
+  mkdirSync(path.join(pi, "extensions"), { recursive: true });
+  const mcpFile = path.join(pi, "mcp.json");
+  const servers = { mcpServers: { other: { command: "npx", args: ["other-server"] } } };
+  writeFileSync(mcpFile, JSON.stringify(servers));
+  writeFileSync(path.join(pi, "AGENTS.md"), "# Mine\nBe brief.\n");
+  const own = path.join(pi, "extensions", "mine.ts");
+  writeFileSync(own, "export default function () {}\n");
+  const extension = path.join(pi, "extensions", "storytree.ts");
+
+  const absent: RunHarness = async (exe, args, opts) => { if (exe === "pi") throw Object.assign(new Error("not found"), { code: "ENOENT" }); return run(exe, args, opts); };
+  const [missing] = await connectAgents({ ...f.options, env, run: absent, harnesses: ["pi"] });
+  assert.equal(missing!.tools, "not connected");
+  assert.match(missing!.next, /pi --version/);
+  assert.equal(existsSync(extension), false, "nothing is installed without Pi");
+
+  const [first] = await connectAgents({ ...f.options, env, harnesses: ["pi"] });
+  assert.deepEqual([first!.tools, first!.hooks, first!.settingsFile], ["connected", "not verified", mcpFile]);
+  const connected = JSON.parse(readFileSync(mcpFile, "utf8"));
+  assert.deepEqual(connected.mcpServers.other, servers.mcpServers.other);
+  assert.deepEqual([connected.mcpServers.storytree.command, connected.mcpServers.storytree.args, connected.mcpServers.storytree.exposure], [process.execPath, [f.script], "direct"], "Pi's default codemode would hide storytree's tools from the model");
+  assert.ok(readFileSync(extension, "utf8").includes(JSON.stringify(path.join(f.tools, "storytree-hook.mjs"))), "the extension runs the installation's hook script");
+  const instructions = readFileSync(path.join(pi, "AGENTS.md"), "utf8");
+  assert.ok(instructions.startsWith("# Mine\nBe brief.\n") && instructions.includes("check_setup"), "Pi shows no server instructions: its AGENTS.md sends the agent to check_setup");
+
+  const before = [readFileSync(mcpFile, "utf8"), readFileSync(extension, "utf8"), readFileSync(path.join(pi, "AGENTS.md"), "utf8")];
+  assert.equal((await connectAgents({ ...f.options, env, harnesses: ["pi"] }))[0]!.tools, "already connected");
+  assert.deepEqual([readFileSync(mcpFile, "utf8"), readFileSync(extension, "utf8"), readFileSync(path.join(pi, "AGENTS.md"), "utf8")], before);
+
+  const report = await disconnectAgents({ ...f.options, env, harnesses: ["pi"] });
+  assert.equal(report.harnesses[0]!.tools, "disconnected");
+  assert.deepEqual(JSON.parse(readFileSync(mcpFile, "utf8")), servers);
+  assert.equal(existsSync(extension), false);
+  assert.ok(existsSync(own), "the user's own extension is kept");
+  assert.equal(readFileSync(path.join(pi, "AGENTS.md"), "utf8"), "# Mine\nBe brief.\n");
+});
+
 test("2.2 connecting registers the chosen harness's hooks, so its first session's start hook already runs", async (t) => {
   const f = fixture(t);
   const hookScript = path.join(f.tools, "storytree-hook.mjs");

@@ -28,7 +28,7 @@ in the server entry, and runs with the same Node:
 
 - **Your harness's name** is how storytree names its sessions. Use letters, digits, `.`, `_` and `-`, starting
   with a letter or digit, up to 64 characters. Prefer the name your MCP client gives itself (`clientInfo.name`).
-  The built-in names `claude-code`, `codex` and `cursor` are taken, and so is `statusline`.
+  The built-in names `claude-code`, `codex`, `cursor` and `pi` are taken, and so is `statusline`.
 - **The input** is one JSON object on standard input. Close standard input when you have written it.
 - **The exit code** is always 0, whatever happens. The hook never breaks your agent. If storytree is not
   running, or the folder is not a storytree project, the hook writes nothing.

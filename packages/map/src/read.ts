@@ -5,6 +5,7 @@ import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library"
 import { codeSurveyReader, type ImportedFolder } from "./code-survey/read-survey.js";
 import { buildGraph, type ProjectGraph } from "./graph.js";
 import { focus, formatFocus, type FocusAnswer, type FocusOptions } from "./focus.js";
+import { crossingsOf, formatCrossing, type CrossingAnswer, type CrossingOptions } from "./code-survey/crossings.js";
 
 type PlanReader = Pick<Library, "projectTree">;
 
@@ -21,6 +22,13 @@ export function incrementOfBranch(branch: string | undefined): string | undefine
 function branchAt(folder: string): Promise<string | undefined> {
   return new Promise(resolve => {
     execFile("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: folder }, (error, stdout) => resolve(error ? undefined : stdout.trim()));
+  });
+}
+
+/** The top of the checkout `folder` is in, where built stories' packages are; `folder` itself when Git cannot say. */
+function topOf(folder: string): Promise<string> {
+  return new Promise(resolve => {
+    execFile("git", ["rev-parse", "--show-toplevel"], { cwd: folder }, (error, stdout) => resolve(error ? folder : stdout.trim()));
   });
 }
 
@@ -54,6 +62,21 @@ export async function mapCommand(library: PlanReader, folder: string, options: F
   return json ? JSON.stringify(answer) : formatFocus(answer);
 }
 
+/**
+ * What crosses a line drawn round files of a mapped island of the checkout at `folder` (ADR-0993 D6, D10): the
+ * island's files are read for their imports only when this is asked.
+ */
+export async function crossingProject(library: PlanReader, folder: string, options: CrossingOptions, imports: readonly ImportedFolder[] = []): Promise<CrossingAnswer> {
+  const tree = await branchPlan(library, folder);
+  const survey = await codeSurveyReader({ checkout: "current" }).read(folder, tree, imports);
+  return crossingsOf(tree, survey, await topOf(folder), options);
+}
+
+export async function crossingCommand(library: PlanReader, folder: string, options: CrossingOptions, json = false, imports: readonly ImportedFolder[] = []): Promise<string> {
+  const answer = await crossingProject(library, folder, options, imports);
+  return json ? JSON.stringify(answer) : formatCrossing(answer);
+}
+
 /** The affected front door and diff focus share one map implementation and renderer. */
 export async function affectedCommand(library: PlanReader, folder: string, options: AffectedOptions, json = false): Promise<string> {
   const answer = await affectedProject(onBranch(library, folder), folder, options);
@@ -61,7 +84,8 @@ export async function affectedCommand(library: PlanReader, folder: string, optio
 }
 
 export { changedOnMain };
-export type { ImportedFolder };
+export { formatCrossing };
+export type { CrossingAnswer, CrossingOptions, ImportedFolder };
 
 /** How far back main's commits are read for the health worklist: longer than any merge's own-health run takes, so the library's bound decides. */
 const MAIN_READ_BACK = 24 * 60 * 60 * 1000;

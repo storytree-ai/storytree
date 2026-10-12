@@ -4,7 +4,9 @@
  * arc surface's live reading (@storytree/arc-surface). `data-state` on the body says where it got to
  * (loading, ready, empty, missing, error), and `data-drew` what the forest drew, both of which the
  * smoke check reads. `data-fresh="no"` marks a forest drawn from the tree kept at the last start,
- * shown while the state is still loading. `data-selected` names the story node a click selected.
+ * shown while the state is still loading. `data-selected` names the story node a click selected. `data-start` says whether the
+ * forest on show is still settling (the fresh tree or the start's first code survey still to come), while a bar is on show, or
+ * settled (7.31), which the lag run reads.
  */
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { surfaceOn, surfaceSetting } from "@storytree/app/surfaces";
@@ -84,6 +86,7 @@ async function show({ current: name, projects }: ProjectSelection): Promise<void
   if (name === undefined) {
     current = undefined;
     stopShowing();
+    showProgress(false);
     delete document.body.dataset.project;
     delete document.body.dataset.drew;
     delete document.body.dataset.selected;
@@ -110,6 +113,7 @@ async function show({ current: name, projects }: ProjectSelection): Promise<void
  * and only the story nodes that changed are redrawn, without a reload.
  */
 async function showForest(name: string): Promise<void> {
+  showProgress(true);
   const holder = document.createElement("div");
   holder.className = "forest";
   const panel = document.createElement("aside");
@@ -267,6 +271,7 @@ async function showForest(name: string): Promise<void> {
       setState("ready");
     },
     onError: failed,
+    onSettled: () => { if (showing === mine) showProgress(false); },
   });
 }
 
@@ -292,6 +297,13 @@ function stopShowing(): void {
   showReadError(undefined);
   delete document.body.dataset.surface;
   delete document.body.dataset.note;
+}
+
+/** Show the start's bar (index.html's, on show from the window opening) while the forest settles, or take it away when settled. */
+function showProgress(on: boolean): void {
+  const bar = document.getElementById("start-progress");
+  if (bar !== null) bar.hidden = !on;
+  document.body.dataset.start = on ? "settling" : "settled";
 }
 
 /** Mark the forest on show as the one last read, with why (`data-fresh="no"`), or clear the mark. */
@@ -355,6 +367,7 @@ function showMessage(state: string, heading: string, text: string): void {
   body.textContent = text;
   box.append(title, body);
   content.replaceChildren(box);
+  showProgress(false);
   setState(state);
 }
 

@@ -15,23 +15,23 @@ function installed(args: string[], context: Context) {
 
 export const setupConnectionVerbs: readonly Verb[] = [
   {
-    name: "connect", usage: "setup connect [--claude] [--codex] [--cursor]", summary: "connect the installed tools to your chosen agents; hooks are checked in their next session",
-    switches: ["claude", "codex", "cursor"],
+    name: "connect", usage: "setup connect [--claude] [--codex] [--cursor] [--pi]", summary: "connect the installed tools to your chosen agents; hooks are checked in their next session",
+    switches: ["claude", "codex", "cursor", "pi"],
     async act(args, context) {
-      if (args.words.length || !args.names.length || args.names.some((name) => !["claude", "codex", "cursor"].includes(name) || args.text(name) !== "true")) {
-        throw new Refusal("Choose --claude, --codex, --cursor or several. usage: storytree setup connect [--claude] [--codex] [--cursor]", { code: 2 });
+      if (args.words.length || !args.names.length || args.names.some((name) => !["claude", "codex", "cursor", "pi"].includes(name) || args.text(name) !== "true")) {
+        throw new Refusal("Choose --claude, --codex, --cursor, --pi or several. usage: storytree setup connect [--claude] [--codex] [--cursor] [--pi]", { code: 2 });
       }
-      const answer = installed(["connect", ...(args.has("claude") ? ["claude-code"] : []), ...(args.has("codex") ? ["codex"] : []), ...(args.has("cursor") ? ["cursor"] : [])], context);
+      const answer = installed(["connect", ...(args.has("claude") ? ["claude-code"] : []), ...(args.has("codex") ? ["codex"] : []), ...(args.has("cursor") ? ["cursor"] : []), ...(args.has("pi") ? ["pi"] : [])], context);
       await context.journey?.().then((journey) => journey.agentConnected()).catch(() => {});
       return answer;
     },
   },
   {
-    name: "disconnect", usage: "setup disconnect <claude-code|codex|cursor>", summary: "disconnect one agent while keeping other connections and your projects",
+    name: "disconnect", usage: "setup disconnect <claude-code|codex|cursor|pi>", summary: "disconnect one agent while keeping other connections and your projects",
     async act(args, context) {
       const harness = args.words[0];
-      if (args.names.length || args.words.length !== 1 || (harness !== "claude-code" && harness !== "codex" && harness !== "cursor")) {
-        throw new Refusal("usage: storytree setup disconnect <claude-code|codex|cursor>", { code: 2 });
+      if (args.names.length || args.words.length !== 1 || (harness !== "claude-code" && harness !== "codex" && harness !== "cursor" && harness !== "pi")) {
+        throw new Refusal("usage: storytree setup disconnect <claude-code|codex|cursor|pi>", { code: 2 });
       }
       return installed(["disconnect", harness], context);
     },

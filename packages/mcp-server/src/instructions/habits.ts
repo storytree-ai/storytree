@@ -33,7 +33,7 @@ export const MAPPED_CODE_GUIDANCE = [
   "- Build new stories on top in their own packages, each depending on the mapped package by a link: to its folder under its own name (file: under npm, which has no link:). It declares no exports, so import its files by path; match its module type and path aliases, and link its single copy of its framework and type packages.",
   "- Old code never imports new code. To route something back, build an interface in storytree that the old code consumes.",
   "- Test the interface your package has with the old code. For a new feature inside the old app, bring in whatever serves its UI and import the rest.",
-  "- Before changing a part in its middle, `focus` on what calls it and shape the work with the user; refuse when it is too large.",
+  "- Before changing a part in its middle or adopting it, give `focus` the part's folders as its crossing: it counts the files that import it and the files it imports. Shape the work with the user from those numbers; refuse when it is too large.",
 ].join("\n");
 
 /** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (6.57). */

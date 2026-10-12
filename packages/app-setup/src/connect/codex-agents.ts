@@ -5,7 +5,9 @@
  * session, whether or not the user has trusted storytree's hooks yet. So connecting Codex writes one
  * short storytree section there, between markers, that sends the agent to check_setup before its
  * first change in a storytree project and keeps it silent everywhere else (ADR-0752 D3). Only that
- * section is ever written or taken out: the rest of the file is the user's.
+ * section is ever written or taken out: the rest of the file is the user's. Pi shows the agent no server
+ * instructions either, and reads the AGENTS.md in its agent folder in every folder (2.11), so connecting Pi
+ * writes the same section there.
  */
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";

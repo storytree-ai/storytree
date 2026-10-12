@@ -1,5 +1,5 @@
 /** Capability 8 · Setup check. The setup check's lines and fixes, shared by the terminal and the agent's check_setup tool. */
-import { NODE_FLOOR, type AgentCliState, type MachineState } from "./machine.js";
+import { NODE_FLOOR, type AgentCliState, type MachineState, type ToolState } from "./machine.js";
 import { CODEX_TRUST_STEP } from "./verify.js";
 import type { ServerEntry, SetupReport } from "./setup.js";
 import { HARNESS_IDS, watchedHarness, type AppReading, type Harness } from "@storytree/session-management";
@@ -34,7 +34,7 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
       ? `storytree's hooks were registered for ${names(registered)}${replaced.length > 0 ? `, replacing another build's hooks, which ran ${replaced.join(" and ")}` : ""}.`
       : present.length > 0
         ? `storytree's hooks are registered for ${names(present)}; receiving them is verified inside a session.`
-        : "No harness here has storytree's hooks: none of Claude Code, Codex and Cursor is on this machine and connected." });
+        : `No harness here has storytree's hooks: none of ${names(HARNESS_IDS)} is on this machine and connected.` });
     if (present.length > 0) {
       // Said plainly, so neither the user nor an agent's own reviewer takes this check for what sends the transcript.
       lines.push({ check: "transcripts", state: "ok", message: "This check sends nothing of the session. storytree's hooks send each session's transcript into the library's shared log as the session works, so every machine's app can read it" +
@@ -161,26 +161,29 @@ function machineLines(machine: MachineState, entry: ServerEntry | undefined, con
       : state === "signed out" ? `${name} is installed and not signed in`
         : state === "missing" ? `${name} is not installed`
           : `${name} did not answer within ${seconds}`;
-  // Cursor is only ever there or not: its command line reports a lapsed sign-in as logged in (8.28).
-  const cursor = machine.cursor === undefined ? "" : `; ${machine.cursor === "present" ? "Cursor is installed" : machine.cursor === "missing" ? "Cursor is not installed" : `Cursor did not answer within ${seconds}`}`;
-  const clis = `${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}${cursor}`;
+  // Cursor and Pi are only ever there or not: Cursor's command line reports a lapsed sign-in as logged in (8.28),
+  // and Pi signs in to each model provider on its own, with nothing to ask (8.29).
+  const there = (name: string, state: ToolState | undefined): string => state === undefined ? "" : `; ${state === "present" ? `${name} is installed` : state === "missing" ? `${name} is not installed` : `${name} did not answer within ${seconds}`}`;
+  const clis = `${cli("Claude Code", machine.claude)}; ${cli("Codex", machine.codex)}${there("Cursor", machine.cursor)}${there("Pi", machine.pi)}`;
   const agentReady = machine.claude === "signed in" || machine.codex === "signed in";
   const signIns = [machine.claude === "signed out" ? "run `claude auth login`" : undefined, machine.codex === "signed out" ? "run `codex login`" : undefined].filter((fix) => fix !== undefined);
   const lines: SetupLine[] = [agentReady
     ? { check: "agent-cli", state: "ok", message: `${clis}.` }
-    // Cursor alone is a harness storytree watches: there, though no answer of it says it is signed in.
+    // Cursor or Pi alone is a harness storytree watches: there, though no answer of it says it is signed in.
     : machine.cursor === "present"
       ? { check: "agent-cli", state: "ok", message: `${clis}, and storytree cannot tell whether it is signed in: Cursor's command line says it is logged in when its sign-in has lapsed.` }
+    : machine.pi === "present"
+      ? { check: "agent-cli", state: "ok", message: `${clis}, and storytree cannot tell whether it can reach a model: Pi signs in to each model provider on its own.` }
     // A session already connected through another MCP client needs neither (6.64).
     : connected !== undefined
       ? { check: "agent-cli", state: "ok", message: `This session is connected through ${connected}, an MCP client storytree has no hooks for; ${clis}.` }
     : {
         check: "agent-cli",
         state: "needs-attention",
-        message: `storytree watches sessions in Claude Code, Codex or Cursor, and none is ready: ${clis}.`,
+        message: `storytree watches sessions in Claude Code, Codex, Cursor or Pi, and none is ready: ${clis}.`,
         fix: `${signIns.length > 0
           ? `To sign in, ${signIns.join(", or ")}, then run the setup check again.`
-          : "Install Claude Code (https://claude.com/claude-code), Codex (https://developers.openai.com/codex) or Cursor (https://cursor.com), sign in, then run the setup check again."} ${connectedPath(entry)}`,
+          : "Install Claude Code (https://claude.com/claude-code), Codex (https://developers.openai.com/codex) , Cursor (https://cursor.com) or Pi (https://github.com/earendil-works/pi), sign in, then run the setup check again."} ${connectedPath(entry)}`,
       }];
 
   // git and Node are optional for a user: a note, never a fix (owner, 2026-09-29, question_bb3efa1e3191).

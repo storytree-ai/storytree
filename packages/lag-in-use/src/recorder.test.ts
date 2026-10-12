@@ -5,7 +5,7 @@ import { CATALOGUE, type PageState } from "@storytree/forest/actions";
 import type { LagReading } from "./bridge.js";
 import { createRecorder } from "./recorder.js";
 
-const closed: PageState = { selected: undefined, note: undefined, panelOpen: false, mode: "forest", sessionSelected: false, still: true, progress: false };
+const closed: PageState = { selected: undefined, note: undefined, panelOpen: false, mode: "forest", sessionSelected: false, still: true, progress: false, startSettled: true };
 const open = (story: string, extra: Partial<PageState> = {}): PageState => ({ ...closed, selected: story, panelOpen: true, ...extra });
 
 /** A recorder whose batches land in `sent`; an island's size is its capability count from `sizes`. */

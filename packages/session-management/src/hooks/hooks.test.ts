@@ -923,6 +923,18 @@ test("4.22 a hook run from a subfolder of a worktree records the worktree's root
   });
 });
 
+test("4.33 a hook run from a subfolder of a project with no git repository records the folder holding the project's marker, so the sessions list shows the project once (regression, 2026-10-11: each subfolder listed as its own folder)", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = await projectFolder(dir, project);
+    const home = storytreeHome(dir, true);
+    const inPackage = path.join(folder, "packages", "x");
+    mkdirSync(inPackage, { recursive: true });
+    await runHook("claude-code", recorded("claude-code", "post-tool-use-bash", inPackage), home);
+    assert.deepEqual((await linesOf(project)).filter((line) => line.kind !== "branch-state").map((line) => [line.kind, line.folder]), [["command-run", folder]]);
+  });
+});
+
 test("3.19 a Claude Code session's end is recorded though Claude Code stops its end hook after 1.5 s and the store takes longer than that to answer: the hook, run as setup registers it, hands its line to one that outlives it", async () => {
   const project = uniqueProjectName();
   const owner = JSON.parse(readFileSync(`${testServerDataDir()}.owner.json`, "utf8")) as { port: number };

@@ -367,18 +367,19 @@ export class WorkModel {
    * refusal naming that one so the agent corrects it rather than adding another. Undefined when it covers nothing.
    */
   async #covered(story: string, covers: readonly unknown[] | undefined, self?: string): Promise<string[] | undefined> {
-    const record = await this.#records.get(story);
-    if (record?.type !== "story") return covers as string[] | undefined; // the reference check refuses it first
+    const given = covers as string[] | undefined; // what is not a list of text the schema refuses in the write
+    const record = couldBeId(story) ? await this.#records.get(story) : null;
+    if (record?.type !== "story") return given; // the reference check refuses it first
     const mapped = (record as SchemaRecord<"story">).fields.mapped;
     const refuse = (problem: string): never => { throw new SchemaError("capability", [{ field: "covers", problem }]); };
     if (mapped === undefined) {
       if (covers !== undefined) refuse("a capability of a story storytree built covers no folders: its numbered tests find its files");
       return undefined;
     }
-    if (covers !== undefined && !Array.isArray(covers)) return covers; // the schema refuses it in the write, naming the list
+    if (covers !== undefined && !Array.isArray(covers)) return given; // the schema refuses it in the write, naming the list
     if (covers === undefined || covers.length === 0) refuse(`a capability of the mapped story ${story} names the folders and files of its import it covers`);
-    if (!covers!.every((cover) => typeof cover === "string" && cover !== "")) return covers as string[]; // the schema refuses it in the write
-    const paths = (covers as string[]).map((cover) => {
+    if (!covers!.every((cover) => typeof cover === "string" && cover !== "")) return given;
+    const paths = given!.map((cover) => {
       const plain = path.posix.normalize(cover.replaceAll("\\", "/")).replace(/\/+$/, "") || ".";
       if (plain === ".." || plain.startsWith("../") || path.posix.isAbsolute(plain) || /^[A-Za-z]:/.test(plain)) refuse(`${cover} is outside the imported folder: give it from there`);
       if (!mapped.folders.some((folder) => within(plain, path.posix.normalize(folder)))) refuse(`${cover} is outside the story's folders (${mapped.folders.join(", ")})`);

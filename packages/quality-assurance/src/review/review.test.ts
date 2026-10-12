@@ -250,10 +250,10 @@ test("2.8 · the change is read from the worktree on the increment's claimed bra
     writeFileSync(join(dir, "tmp/stray.txt"), "not the change\n");
 
     const folder = changeFolder(dir, "feature");
-    assert.equal(realpathSync(folder), realpathSync(worktree));
+    assert.equal(realpathSync.native(folder), realpathSync.native(worktree));
     const changed = branchDiff(folder).split("\n").filter((line) => /^[+-](?![+-])/.test(line));
     assert.deepEqual(changed, ["+export const c = 3;"]);
-    assert.equal(realpathSync(changeFolder(worktree, "feature")), realpathSync(worktree));
+    assert.equal(realpathSync.native(changeFolder(worktree, "feature")), realpathSync.native(worktree));
     assert.equal(changeFolder(dir, undefined), dir, "with no claimed branch the folder it runs in is read");
     assert.throws(() => changeFolder(dir, "gone"), /branch gone/);
   } finally {

@@ -204,9 +204,16 @@ test("6.2 cancelling a running capture stops its child tree before releasing the
     setInterval(() => {}, 1000);
   `);
   const running = runHeavyCommand(process.execPath, ["capture.mjs"], { root: dir, signal: controller.signal });
+  // Wait for the pid itself, not the file: on Windows it can exist still empty, and an empty read is
+  // pid 0, which Windows's kill takes as this process, so the cleanup ended the whole file with
+  // exit 1 and no failing subtest (friction_53d67cee0914, friction_74e841c2d74d).
+  const pidIn = (file) => {
+    const pid = Number(readFileSync(path.join(dir, file), "utf8"));
+    return Number.isInteger(pid) && pid > 0 ? pid : undefined;
+  };
   for (const file of ["capture.pid", "browser.pid"]) {
-    await until(() => existsSync(path.join(dir, file)));
-    pids.push(Number(readFileSync(path.join(dir, file), "utf8")));
+    await until(() => existsSync(path.join(dir, file)) && pidIn(file) !== undefined);
+    pids.push(pidIn(file));
   }
   controller.abort();
   assert.equal(await running, 130);

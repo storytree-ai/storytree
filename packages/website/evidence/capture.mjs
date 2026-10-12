@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { verifyOpening, verifyOpeningFrames } from "./opening.mjs";
-import { verifyTour, verifyTourCamera, verifyImmersive, verifyRecordingFreeplay, reviewChapters, reviewFallbacks } from "./tour.mjs";
+import { verifyTour, verifyTourCamera, verifyImmersive, verifyRecordingFreeplay, verifyOwnGlobeFits, reviewChapters, reviewFallbacks } from "./tour.mjs";
 import { verifyForest } from "./forest.mjs";
 import { withBrowserCoverage } from "./browser-coverage.mjs";
 
@@ -68,6 +68,22 @@ try {
   else if (process.argv.includes("--review-chapters")) await reviewChapters(browser, url, output);
   else if (process.argv.includes("--review-fallbacks")) await reviewFallbacks(browser, url, output);
   else if (process.argv.includes("--verify-recording")) await verifyRecordingFreeplay(browser, url, output);
+  else if (process.argv.includes("--verify-own-globe")) {
+    // 2.22 is checked only in the browser: its verdict is written down for pnpm record:acceptance. Storytree's names draw only
+    // with the live globe: software WebGL, as the journey's pictures use.
+    const check = { contract: "2.22", name: "On 390 and 320 phones storytree's globe keeps every island name inside the screen and clear of the compass in the arrival, the everything step and free play", observed: "not-observed" };
+    const drawing = await chromium.launch({ headless: true, args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"] });
+    try { await verifyOwnGlobeFits(drawing, url, output); check.observed = "pass"; }
+    catch (error) { if (error.message?.includes("website 2.22")) { check.observed = "fail"; check.detail = error.message; } throw error; }
+    finally {
+      await drawing.close();
+      await writeFile(path.join(output, "own-globe-observations.json"), JSON.stringify({
+        story: "The website", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
+        evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
+        note: "Locally built website served from packages/website/dist, SwiftShader", checks: [check],
+      }, null, 2) + "\n");
+    }
+  }
   else if (process.argv.includes("--verify-immersive")) {
     // 2.19 is checked only in the browser: its verdict is written down for pnpm record:acceptance. A journey that stops
     // before 2.19's own checks finish has not observed it.

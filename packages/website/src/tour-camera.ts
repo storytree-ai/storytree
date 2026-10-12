@@ -1,6 +1,26 @@
 /** Capability 2 · The forest on the site. The tour's camera: where it flies as the tour moves, in what order and when. */
 import type { GlobeTarget } from "@storytree/forest/view";
-import { aim, flight, type CameraView, type TourDetail } from "./tour.js";
+import { aim, flight, type CameraView, type TourDetail, type TourStep } from "./tour.js";
+
+/** A phone's value between its 390px one and its 320px one (`narrow`), moving between the two from 390px down. */
+export function towardNarrow(wide: number, narrow: number, width: number): number {
+  return wide + (narrow - wide) * Math.min(1, Math.max(0, (390 - width) / 70));
+}
+
+/** The framing a step's view asks for at `width`: a laptop's own view above 600px, a phone's at or below, narrowing toward 320px. */
+export function viewFraming(step: Pick<TourStep, "framing" | "laptop" | "phone">, width: number, resting: number): number {
+  if (width > 600) return (step.laptop ?? step).framing ?? resting;
+  const { phone } = step;
+  return phone === undefined ? step.framing ?? resting : towardNarrow(phone.framing, phone.narrowFraming ?? phone.framing, width);
+}
+
+/**
+ * Free play's framing (2.22): storytree's own globe is framed smaller on a phone, whose screen is too narrow for the names round
+ * its rim at the resting framing; the shop's few islands sit near its middle and keep it.
+ */
+export function freePlayFraming(map: string, width: number, resting: number): number {
+  return map === "storytree" && width <= 600 ? towardNarrow(1.5, 1.7, width) : resting;
+}
 
 /** One pose the camera eases to over `duration` milliseconds. */
 export type Stop = { target: GlobeTarget; framing: number; duration: number };

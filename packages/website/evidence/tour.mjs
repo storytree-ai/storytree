@@ -656,3 +656,63 @@ export async function reviewFallbacks(browser, url, output) {
   }
   await writeFile(path.join(output, 'fallback-review.json'), JSON.stringify(observations, null, 2) + '\n');
 }
+
+// 2.22 on a phone: storytree's own globe, as the arrival grows it, as the everything step shows it and in free play on it,
+// keeps every island name it shows inside the screen and clear of the compass, sampled as the globe grows and drifts.
+export async function verifyOwnGlobeFits(browser, url, output) {
+  const failures = new Map();
+  for (const width of [390, 320]) {
+    const page = await browser.newPage({ viewport: { width, height: 844 }, deviceScaleFactor: 1 });
+    await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
+    await page.goto(url);
+    await page.waitForFunction(() => document.querySelector("#website-forest")?.dataset.forestState === "live", null, { timeout: 90_000 });
+    const seen = new Set(), pictured = new Set(), samples = { grow: 0, value: 0, fixes: 0, everything: 0, freeplay: 0 };
+    const sample = async where => {
+      const { plates, compass } = await page.evaluate(() => {
+        const box = node => { const { x, y, width, height } = node.getBoundingClientRect(); return { x, y, width, height }; };
+        const mini = document.querySelector("#chapter2 .planet-mini-globe svg");
+        return {
+          compass: mini && getComputedStyle(mini).visibility === "visible" ? box(mini) : undefined,
+          plates: [...document.querySelectorAll("#website-forest .planet-nameplate[data-story-id]:not(.crowded)")]
+            .filter(node => getComputedStyle(node).visibility === "visible" && Number(getComputedStyle(node).opacity) > .1)
+            .map(node => ({ text: node.textContent, ...box(node) })).filter(plate => plate.width),
+        };
+      });
+      seen.add(where);
+      for (const plate of plates) {
+        const off = plate.x < -.5 || plate.x + plate.width > width + .5, under = compass !== undefined && overlap(plate, compass) > 0;
+        if (!off && !under) continue;
+        const key = `${width}px ${where}: ${plate.text} ${off ? "runs past the screen's edge" : "sits under the compass"}`;
+        if (!failures.has(key)) failures.set(key, JSON.stringify({ plate, compass }));
+        if (!pictured.has(where)) { pictured.add(where); await page.screenshot({ path: path.join(output, `own-globe-failed-${where}-${width}.png`) }); }
+      }
+      // Each view's picture, as it last stood when sampled.
+      if (++samples[where] % 4 === 1) await page.screenshot({ path: path.join(output, `own-globe-${where}-${width}.png`) });
+    };
+    // The arrival, played through at 1.5× from the growth to the three fixes.
+    await goToStep(page, "grow");
+    for (let tap = 0; tap < 2; tap++) await page.locator("#tour-speed-cycle").click();
+    if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
+    for (let step = await stepOf(page); ["grow", "value", "fixes"].includes(step); step = await stepOf(page)) { await sample(step); await page.waitForTimeout(250); }
+    // The everything step, as it drifts.
+    await goToStep(page, "everything");
+    if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
+    const touring = async () => await stepOf(page) === "everything" && await page.locator("#chapter2").getAttribute("data-tour-mode") === "tour";
+    for (let tick = 0; tick < 24 && await touring(); tick++) { await sample("everything"); await page.waitForTimeout(250); }
+    // Free play on storytree's own project, once its names are drawn.
+    // The last step offers no skip: its end, or a tap on Skip before then, opens free play.
+    if (await page.locator("#tour-skip").isVisible()) await page.locator("#tour-skip").click();
+    await page.waitForFunction(() => document.querySelector("#chapter2")?.dataset.tourMode === "freeplay", null, { timeout: 30_000 });
+    await page.locator('#tour-project [data-project="storytree"]').click();
+    await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "storytree"
+      && [...document.querySelectorAll(".planet-nameplate")].filter(plate => Number(getComputedStyle(plate).opacity) > .5).length >= 5, null, { timeout: 90_000 });
+    // Then until the camera's ease into free play's framing is over: with software WebGL its frames come slowly, so it takes seconds.
+    const where = () => page.locator("#website-forest .planet-nameplate[data-story-id]").evaluateAll(plates => plates.map(plate => { const { x, y } = plate.getBoundingClientRect(); return `${Math.round(x)},${Math.round(y)}`; }).join(" "));
+    for (let last = "", now = await where(), tick = 0; now !== last && tick < 40; tick++) { await page.waitForTimeout(750); last = now; now = await where(); }
+    for (let tick = 0; tick < 8; tick++) { await sample("freeplay"); await page.waitForTimeout(250); }
+    assert.deepEqual([...seen], ["grow", "value", "fixes", "everything", "freeplay"], `storytree's globe was sampled at every view at ${width}px`);
+    await page.close();
+  }
+  assert.deepEqual([...failures].map(([key, at]) => `${key} ${at}`), [], "website 2.22: storytree's globe keeps its names on the screen and clear of the compass");
+  console.log("PASS contract 2.22: on 390 and 320 phones storytree's globe keeps every name inside the screen and clear of the compass");
+}

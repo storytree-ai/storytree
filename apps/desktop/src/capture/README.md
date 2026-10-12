@@ -67,6 +67,11 @@ page or settle automatically during a timed measurement. Omit `dist` for
 can prevent those previews from taking screenshots. Forest captures use software
 GL by default. Electron captures use `loadPlaywright` for their existing CDP flow.
 
+Close a browser with `closeBrowser(browser)`, not `browser.close()`: once the
+browser has disconnected, a close that has not returned within five seconds is
+abandoned and the browser's process killed, so a slow shutdown on a loaded runner
+cannot hold the run open. `withCapture` closes its own browser this way.
+
 Outputs go through `captureOutput`: scratch by default, the evidence folder only
 with `--retake`. `CAPTURE_PLAYWRIGHT` and `CAPTURE_CHROMIUM` override the workspace
 module and installed browser; older `PLANET_*` and `STORYTREE_PLAYWRIGHT` names are

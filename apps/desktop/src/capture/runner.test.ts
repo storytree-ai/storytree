@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { get } from "node:http";
 import { tmpdir } from "node:os";
@@ -6,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { chromium, type Browser, type Page } from "playwright-core";
 
-import { fakeBridge, outputFolder, runCapture, settle } from "./index.js";
+import { browserProcess, closeBrowser, fakeBridge, outputFolder, runCapture, settle, withCapture } from "./index.js";
 
 test("2.9 · capture settling awaits each requested frame after invalidating the globe", async t => {
   // Chrome is installed on the three CI runner images; no browser download during tests.
@@ -89,7 +90,7 @@ test("a seed-and-views capture uses workspace Playwright and quiet bridge reads,
     async evaluate() {},
     async close() {},
   } as unknown as Page;
-  const browser = { async newPage() { return page; }, async close() { closed++; } } as unknown as Browser;
+  const browser = Object.assign(new EventEmitter(), { isConnected: () => true, async newPage() { return page; }, async close() { closed++; } }) as unknown as Browser;
   // This is the workspace package. A runner importing a machine-specific copy would miss this mock.
   const launch = t.mock.method(chromium, "launch", async () => browser);
   const seed = { projects: ["sample"], tree: { stories: [], arcs: [] }, changes: { changes: [], cursor: 0 }, lines: { lines: [], cursor: 0 }, covers: {} };
@@ -107,4 +108,32 @@ test("a seed-and-views capture uses workspace Playwright and quiet bridge reads,
   }] }), /view failed/);
   assert.equal(closed, 2, "a failed view also closes the browser");
   await assert.rejects(readPage(origin), "a failed view also closes the server");
+});
+
+// PR #1279's macOS run: the browser disconnected, then browser.close() never returned and 3.35 hit its timeout.
+test("2.13 · a capture whose browser disconnects but whose close never returns still ends, its server closed", { timeout: 10_000 }, async t => {
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-capture-hung-close-"));
+  t.after(() => { rmSync(folder, { recursive: true, force: true }); rmSync(outputFolder(folder), { recursive: true, force: true }); });
+  writeFileSync(path.join(folder, "index.html"), "<body>hung close</body>");
+  const events = new EventEmitter();
+  const browser = Object.assign(events, {
+    isConnected: () => true,
+    close() { setImmediate(() => events.emit("disconnected")); return new Promise<void>(() => {}); },
+  }) as unknown as Browser;
+  t.mock.method(chromium, "launch", async () => browser);
+  let origin = "";
+  // Without the bound this await never settles, and the test's timeout fails it.
+  assert.equal(await withCapture({ folder, dist: folder, closeGraceMs: 0 }, async context => { origin = context.origin!; return "captured"; }), "captured");
+  await assert.rejects(readPage(origin), "the capture's server is closed too");
+});
+
+test("2.14 · a real capture browser whose close hangs after disconnect is killed, so its pipes no longer hold the run open", async () => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const child = browserProcess(browser);
+  assert.ok(child?.pid, "the kit finds the process Playwright launched");
+  const close = browser.close.bind(browser);
+  // The real shutdown runs, but its promise is never seen to settle, as on the loaded macOS runner.
+  browser.close = () => { void close().catch(() => {}); return new Promise<void>(() => {}); };
+  assert.equal(await closeBrowser(browser, { afterDisconnectMs: 0 }), "killed");
+  assert.ok(child.stdio.every(stream => stream == null || stream.destroyed), "the browser's pipes are let go");
 });

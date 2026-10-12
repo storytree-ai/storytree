@@ -6,7 +6,7 @@
  */
 export { fakeBridge } from "./fake-bridge.js";
 export type { FakeBridge, FakeBridgeOptions } from "./fake-bridge.js";
-export { launch, launchPlan, loadPlaywright } from "./launch.js";
+export { browserProcess, closeBrowser, launch, launchPlan, loadPlaywright } from "./launch.js";
 export type { LaunchPlan, Machine } from "./launch.js";
 export { captureOutput, outputFolder } from "./output.js";
 export type { CaptureRun } from "./output.js";

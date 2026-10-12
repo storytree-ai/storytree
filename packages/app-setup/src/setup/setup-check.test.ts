@@ -362,6 +362,45 @@ test("8.10 a terminal runs the shared setup check with diagnostic lines and fixe
   });
 });
 
+test("8.31 in a project with no git repository, or a repository with no origin remote, the check says review, landing and verified health need one, and proposes a GitHub remote for the user to make, never making it; with origin there, it says nothing of it", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    const options = { ...ANSWERED, folder, homes: home.homes, storytreeHome: home.storytreeHome };
+    const storytree = await connect({ url: testServerUrl() });
+    const git = (...args: string[]) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: folder, encoding: "utf8" });
+    try {
+      assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "repository"), undefined, "a folder that is no project is asked nothing of its repository");
+      await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome });
+
+      const none = (await runSetupCheck(options)).lines.find((line) => line.check === "repository");
+      assert.equal(none?.state, "needs-attention");
+      assert.match(none?.message ?? "", /no git repository/);
+      assert.match(none?.message ?? "", /review.*land.*health/s);
+      assert.match(none?.fix ?? "", /git init/);
+      assert.match(none?.fix ?? "", /only if they say yes/);
+
+      git("init", "-q");
+      git("add", MARKER_FILE);
+      git("commit", "-q", "-m", "first");
+      const local = (await runSetupCheck(options)).lines.find((line) => line.check === "repository");
+      assert.equal(local?.state, "needs-attention");
+      assert.match(local?.message ?? "", /no origin remote/);
+      assert.match(local?.fix ?? "", /GitHub/);
+      assert.match(local?.fix ?? "", /only if they say yes/);
+      assert.equal(git("remote").stdout.trim(), "", "the check makes no remote");
+
+      git("remote", "add", "origin", "https://github.com/someone/somewhere.git");
+      assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "repository"), undefined);
+    } finally {
+      await storytree.close();
+      await dropTestProjects([name]);
+    }
+  });
+});
+
 /** A port nothing on 127.0.0.1 listens on just now. */
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -811,7 +850,7 @@ test("8.30 the setup check registers storytree's named hook in Antigravity CLI's
   });
 });
 
-test("8.29 the setup check installs storytree's Pi extension where Pi's agent folder is and says whether Pi is installed; the extension, loaded as Pi loads it, forwards Pi's events to the hook script and hands Pi back its refusal; removing storytree deletes it", async () => {
+test("8.29 the setup check installs storytree's Pi extension where Pi's agent folder is and says whether Pi is installed; the extension, loaded as Pi loads it, forwards Pi's events to the hook script and hands Pi back its refusal and its close-out request; removing storytree deletes it", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const pi = path.join(dir, ".pi", "agent");
@@ -821,7 +860,7 @@ test("8.29 the setup check installs storytree's Pi extension where Pi's agent fo
     writeFileSync(path.join(pi, "mcp.json"), servers);
     mkdirSync(path.join(pi, "extensions"));
     writeFileSync(path.join(pi, "extensions", "mine.ts"), "export default function () {}\n");
-    // A hook script standing in for storytree's: it notes each run, and refuses every edit it is asked about.
+    // A hook script standing in for storytree's: it notes each run, refuses every edit it is asked about, and asks every settling run to close out.
     const heard = path.join(dir, "heard.jsonl");
     const script = path.join(dir, "tools", "storytree-hook.mjs");
     mkdirSync(path.dirname(script));
@@ -829,6 +868,7 @@ test("8.29 the setup check installs storytree's Pi extension where Pi's agent fo
 const input = JSON.parse(readFileSync(0, "utf8"));
 appendFileSync(${JSON.stringify(heard)}, JSON.stringify({ args: process.argv.slice(2), input }) + "\\n");
 if (process.argv.includes("--edit-gate")) process.stdout.write(JSON.stringify({ block: true, reason: "held by another session" }));
+if (process.argv.includes("--close-out-reminder")) process.stdout.write(JSON.stringify({ entries: [{ type: "custom_message", customType: "storytree-close-out", content: "close out", display: true }], continue: true }));
 `);
     const hook = { node: process.execPath, script };
     fakeTool(bin, "pi", { "--version": { out: "1.1.0", code: 0 } });
@@ -865,6 +905,10 @@ if (process.argv.includes("--edit-gate")) process.stdout.write(JSON.stringify({ 
     assert.deepEqual(await fire({ type: "tool_call", toolName: "read", toolCallId: "call_r", input: { path: "a.ts" } }), [], "a tool storytree does not hear runs no hook");
     assert.deepEqual(await fire({ type: "before_agent_start", prompt: "hi", systemPrompt: "Pi's whole system prompt", systemPromptOptions: { tools: [] } }), [], "a prompt with nothing to add answers nothing");
     assert.deepEqual(heardLines()[1], { args: ["pi"], input: { type: "before_agent_start", prompt: "hi", hook_event_name: "before_agent_start", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") } }, "the prompt is heard without the system prompt the hook does not read");
+    const others = { type: "custom_message", customType: "another-extension", content: "kept", display: false };
+    const asked = { type: "custom_message", customType: "storytree-close-out", content: "close out", display: true };
+    assert.deepEqual(await fire({ type: "agent_before_settle", outcome: "completed", entries: [others], continue: false, context: { messages: ["the whole run"] } }), [{ entries: [others, asked], continue: true }], "a settling run is asked to close out, its entries added to the ones it came with");
+    assert.deepEqual(heardLines()[2], { args: ["pi", "--close-out-reminder"], input: { type: "agent_before_settle", outcome: "completed", continue: false, hook_event_name: "agent_before_settle", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") } }, "heard without the run's context and entries");
 
     assert.equal(removeHooks({ ...home.homes, pi }).pi, "removed");
     assert.equal(existsSync(extension), false);

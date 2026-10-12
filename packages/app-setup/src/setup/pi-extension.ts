@@ -5,14 +5,15 @@
  * Node and hook script it runs, and a table of which of Pi's events it forwards, with which flags, and
  * whether Pi waits for the answer. It holds no storytree logic: it forwards each event, with the session's
  * id, folder and transcript, to `storytree-hook pi` (hooks/pi.ts in Session management reads it) and hands
- * Pi back what the hook prints, so the edit gate's `{block, reason}` refuses an edit. Pi blocks a tool whose
+ * Pi back what the hook prints, so the edit gate's `{block, reason}` refuses an edit and the close-out reminder's
+ * `{entries, continue}` asks a settling run to close out. Pi blocks a tool whose
  * handler throws, so every handler catches everything and answers nothing.
  *
  * Built against Pi 1.1.0 (`@earendil-works/pi-coding-agent`), measured on the Mint box on 2026-10-12. When a
  * later Pi no longer loads it, Pi reports the extension's load error at startup and the session runs unwatched:
  * the setup check, run in that session, then says no storytree hook was received from it.
  */
-import { EDIT_GATE, PI_EXTENSION_SCRIPT, STORYTREE_TOOLS } from "@storytree/session-management";
+import { CLOSE_OUT_REMINDER, EDIT_GATE, PI_EXTENSION_SCRIPT, STORYTREE_TOOLS } from "@storytree/session-management";
 
 import type { HookCommand } from "./hooks-config.js";
 
@@ -36,6 +37,8 @@ export function piEvents(): readonly (readonly [event: string, tools: string | n
     ["tool_call", "^(write|edit)$", [EDIT_GATE], true],
     ["tool_result", "^(bash|write|edit)$", [], false],
     ["agent_end", null, [], false],
+    // As a run settles, waited for: a session whose branch has merged is asked once to close out (ADR-0758 D4).
+    ["agent_before_settle", null, [CLOSE_OUT_REMINDER], true],
     ["session_shutdown", null, [], false],
   ];
 }
@@ -50,7 +53,7 @@ const NODE = ${JSON.stringify(node)};
 ${PI_EXTENSION_SCRIPT}${JSON.stringify(script)};
 const EVENTS = ${JSON.stringify(piEvents())};
 /** Fields of Pi's events the hook does not read, left out so a long run's messages are not copied to it. */
-const UNREAD = ["messages", "content", "structuredContent", "systemPrompt", "systemPromptOptions", "details"];
+const UNREAD = ["messages", "content", "structuredContent", "systemPrompt", "systemPromptOptions", "details", "context", "entries"];
 const WAIT_MS = 10_000;
 
 function forward(event, ctx, flags, waits) {
@@ -78,7 +81,10 @@ export default function storytree(pi) {
     pi.on(name, async (event, ctx) => {
       try {
         if (only !== undefined && !only.test(String(event.toolName))) return undefined;
-        return await forward(event, ctx, flags, waits);
+        const answer = await forward(event, ctx, flags, waits);
+        // Pi replaces a settling run's entries with the answer's, so the ones it came with are kept ahead of the hook's.
+        if (Array.isArray(event.entries) && Array.isArray(answer?.entries)) return { ...answer, entries: [...event.entries, ...answer.entries] };
+        return answer;
       } catch {
         return undefined;
       }

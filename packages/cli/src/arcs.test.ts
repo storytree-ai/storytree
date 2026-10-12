@@ -606,6 +606,32 @@ test("4.16 `arc increment edit --capabilities` refuses a capability already on t
   });
 });
 
+test("4.24 `arc increment edit --capabilities` lets the session holding a capability's claim list it, though a lane that backed off from that claim left it on its own claimed increment's list", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const arc = await anArc(world);
+    const story = await library.addStory({ title: "Website" });
+    const site = await library.addCapability({ story: story.id, title: "Pages" });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const lane = { log, library, project: world.project, session: "lane", harness: "codex" } as const;
+      const caller = { log, library, project: world.project, session: "caller", harness: "claude-code" } as const;
+      const mine = await library.addIncrement({ arc, title: "Short phone claims step", objective: "Fit it", body: "…" });
+      assert.equal((await claim(caller, mine.id, "fitting the claims step")).ok, true);
+      assert.equal((await claim(caller, site.id, "editing the pages")).ok, true);
+      const theirs = await library.addIncrement({ arc, title: "Checkout copy", objective: "Reword it", body: "…", capabilities: [site.id] } as never);
+      assert.equal((await claim(lane, theirs.id, "rewording checkout")).ok, true);
+      assert.equal((await claim(lane, site.id, "rewording checkout")).ok, false, "the lane backs off, its list left as it was");
+
+      const edited = await world.run(["arc", "increment", "edit", mine.id, "--capabilities", site.id], { CLAUDE_CODE_SESSION_ID: "caller" });
+      assert.equal(edited.code, 0, edited.stderr);
+      assert.deepEqual(((await library.get(mine.id))?.fields as { capabilities?: string[] }).capabilities, [site.id]);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 test("4.6 closing an increment ends its claim for any holder and outcome; a refused close leaves it held", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

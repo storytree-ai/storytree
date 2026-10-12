@@ -10,6 +10,7 @@
  * is a worktree of, or holds another project's trunk, and a name some project already has unless this
  * machine's checkout is joining it on purpose.
  */
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -97,6 +98,44 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
     throw error;
   }
   return { project, marker };
+}
+
+/** What making a project's folder a git repository came to (6.10). */
+export type RepositoryMade = { readonly state: "made" } | { readonly state: "already"; readonly root: string } | { readonly state: "could not"; readonly reason: string };
+
+/**
+ * Make `folder`, a project's folder, a git repository when it is in none (6.10, increment_c270de438175): review,
+ * landing and verified health all read one. The first commit holds the project's marker alone, under the user's own
+ * git identity, never a guessed one. A folder already in a repository is left as it is. Never throws: with no git,
+ * or no identity, nothing is made (a half-made repository is taken away again) and the reason is said.
+ */
+export function makeRepository(folder: string, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): RepositoryMade {
+  const run = (...args: string[]) => execFileSync("git", args, { cwd: folder, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
+  try {
+    return { state: "already", root: canonical(run("rev-parse", "--show-toplevel")) };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { state: "could not", reason: "git is not installed" };
+  }
+  try {
+    run("init", "-q");
+  } catch (error) {
+    return { state: "could not", reason: `git init failed: ${gitError(error)}` };
+  }
+  try {
+    run("add", "--", MARKER_FILE);
+    run("-c", "user.useConfigOnly=true", "commit", "-q", "-m", "Set up storytree project", "--", MARKER_FILE);
+    return { state: "made" };
+  } catch (error) {
+    rmSync(path.join(folder, ".git"), { recursive: true, force: true });
+    const said = gitError(error);
+    return { state: "could not", reason: /user\.(name|email)|identity|author/i.test(said) ? `git has no identity to commit with (user.name and user.email): ${said}` : `git could not commit: ${said}` };
+  }
+}
+
+/** What git said when it failed, on one line. */
+function gitError(error: unknown): string {
+  const stderr = (error as { stderr?: string | Buffer }).stderr?.toString().trim();
+  return (stderr || (error as Error).message).split(/\r?\n/).filter(Boolean).slice(0, 3).join(" ");
 }
 
 /**

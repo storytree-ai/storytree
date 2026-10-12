@@ -364,14 +364,18 @@ const incrementEdit: Verb = {
 /**
  * Refuses `capabilities` as `target`'s list when one is on the list of an increment another live
  * session holds: two sessions never plan changes to the same capability (ADR-0949 D2), as edit_plan refuses.
+ * An entry whose capability another session's live claim holds is left behind by a lane that backed
+ * off from it (ADR-0944 D3), and refuses nothing.
  */
 async function refuseShared(target: string, capabilities: readonly string[], context: Context): Promise<void> {
   const caller = commandSession()?.session;
-  const others = (await context.claims()).filter((claim) => claim.session !== caller && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);
+  const claims = await context.claims();
+  const others = claims.filter((claim) => claim.session !== caller && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);
   const library = await context.library();
   for (const claim of others) {
     const listed = ((await library.get(claim.increment!))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
-    const capability = capabilities.find((id) => listed.includes(id));
+    const heldElsewhere = (id: string) => claims.some((one) => one.capability === id && one.holder === "live" && one.session !== claim.session);
+    const capability = capabilities.find((id) => listed.includes(id) && !heldElsewhere(id));
     if (capability !== undefined)
       throw new Refusal(`${capability} is already on the capabilities list of ${claim.increment}, which ${claim.label} session ${claim.session} holds (${claim.reason}): two sessions never plan changes to the same capability (ADR-0949 D2). Leave it off this list, or take other work.`);
   }

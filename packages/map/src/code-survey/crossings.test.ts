@@ -117,3 +117,28 @@ test("3.9 a line is refused when its patterns match nothing or span two imports;
     await done();
   }
 });
+
+test("3.10 an explored capability named cap:<id|number> in place of folders draws the line round the files it covers, among its story's files; a capability covering nothing is refused", async () => {
+  const capabilities: Record<string, unknown[]> = {
+    "story-cart": [{ id: "cap-ui", title: "1 · Cart ui", covers: ["packages/cart/src/ui/menu.ts", "packages/cart/src/ui/sidebar.tsx"], contracts: [] }],
+    "story-pay": [{ id: "cap-plain", title: "2 · Planned before covers", contracts: [] }],
+  };
+  const explored = { arcs: [], stories: tree.stories.map((story) => ({ ...story, capabilities: capabilities[story.id] ?? [] })) } as unknown as AnnotatedTree;
+  const { shop, trunk, done } = await fixture();
+  try {
+    const survey = await codeSurveyReader({ checkout: "current" }).read(trunk, explored, [{ folder: shop, repository: SHOP_REPOSITORY }]);
+    const byFolder = await crossingsOf(explored, survey, trunk, { patterns: ["packages/cart/src/ui"] });
+    for (const named of ["cap:cap-ui", "cap:1"]) {
+      const byCapability = await crossingsOf(explored, survey, trunk, { patterns: [named] });
+      assert.equal(byCapability.inside, 2, `${named} takes the two files it covers`);
+      assert.deepEqual(byCapability.stories, ["@shop/cart"]);
+      assert.deepEqual({ in: byCapability.in, out: byCapability.out }, { in: byFolder.in, out: byFolder.out }, "the same line as its folder");
+    }
+    await assert.rejects(crossingsOf(explored, survey, trunk, { patterns: ["cap:cap-plain"] }), /covers no files/);
+    await assert.rejects(crossingsOf(explored, survey, trunk, { patterns: ["cap:nothing"] }), /not a capability/);
+    const mixed = await crossingsOf(explored, survey, trunk, { patterns: ["cap:cap-ui", "packages/cart/src/lib"] });
+    assert.equal(mixed.inside, 3, "a capability and a folder draw one line");
+  } finally {
+    await done();
+  }
+});

@@ -202,6 +202,42 @@ test("2.6 · the diff read from a worktree holds its uncommitted work too, edits
   }
 });
 
+/** A checkout with no origin at all whose branch `feature` adds one line on top of its local default branch `trunk`, made by `git init`. */
+function localCheckout(trunk: string, configured: boolean): string {
+  const dir = mkdtempSync(join(tmpdir(), "qa-local-"));
+  const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: dir });
+  git("init", "-q", "-b", trunk);
+  if (configured) git("config", "init.defaultBranch", trunk);
+  mkdirSync(join(dir, "packages/library/src"), { recursive: true });
+  writeFileSync(join(dir, "packages/library/src/a.ts"), "export const a = 1;\n");
+  git("add", ".");
+  git("commit", "-qm", "base");
+  git("checkout", "-qb", "feature");
+  writeFileSync(join(dir, "packages/library/src/a.ts"), "export const a = 1;\nexport const b = 2;\n");
+  git("commit", "-qam", "change");
+  return dir;
+}
+
+test("2.7 · in a repository with no origin/main the brief's diff is read against the local default branch (init.defaultBranch, else main, else master), and the brief says so", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment } = await plan(library);
+    const tools = registeredTools();
+    const call = { library, storytree, project: library.name };
+    for (const [trunk, configured] of [["trunk", true], ["master", false]] as const) {
+      const dir = localCheckout(trunk, configured);
+      try {
+        const changed = branchDiff(dir).split("\n").filter((line) => /^[+-](?![+-])/.test(line));
+        assert.deepEqual(changed, ["+export const b = 2;"], `the branch's commit is in the diff against ${trunk}`);
+        const read = await tools.quality_brief!({ increment, worktree: dir }, call);
+        assert.deepEqual((read.data!.brief as { base?: unknown }).base, { ref: trunk, local: true });
+        assert.match(read.text, new RegExp(`^The diff against ${trunk}, this repository's own default branch: it has no origin/main\\.$`, "m"));
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  });
+});
+
 test("2.3 · the brief's tool issues the brief given the diff, or reads it from the worktree given, and refuses neither; the take tool takes the same return the loop takes", async () => {
   await withLibrary(async (library, storytree) => {
     const { increment, contracts, checks } = await plan(library);

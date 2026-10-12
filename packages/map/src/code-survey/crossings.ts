@@ -4,6 +4,8 @@
  * - The line is a set of patterns relative to the import's folder (a folder takes everything under it, `*` stays
  *   within a segment, `**` crosses segments), or full paths. The island is the import the matched files belong to;
  *   patterns matching nothing, or files of two imports, are refused. A mapped story named keeps them to its files.
+ * - `cap:<id|number>` in place of a pattern names an explored capability: the line takes the folders and files it
+ *   covers (ADR-0993 D5), among its story's files only. One that covers nothing, or a number two stories share, is refused.
  * - In: the files outside the line that import files inside it, the island's apart from built stories'. Out: the
  *   files inside that import files outside. Each is a count of files and of imports first; show lists each import,
  *   or refuses above the ceiling with the counts.
@@ -21,7 +23,7 @@ import { packageOf, specifiersOf, type StorySurvey } from "./code-survey.js";
 import { manifestFrom } from "./survey-source.js";
 
 export type CrossingOptions = {
-  /** Folders or file patterns relative to the import's folder, or full paths. */
+  /** Folders or file patterns relative to the import's folder, full paths, or `cap:<id|number>` for an explored capability. */
   readonly patterns: readonly string[];
   /** A mapped story's id or title: the line is drawn among its files only. */
   readonly story?: string;
@@ -146,11 +148,27 @@ export async function crossingsOf(
   }
   if (options.patterns.length === 0) throw new Error("Name the folders or file patterns the line is drawn round.");
 
+  // An explored capability stands for the paths it covers, within its own story.
+  const named = options.patterns.filter((pattern) => pattern.startsWith("cap:"));
+  const covering = new Map<string, readonly string[]>();
+  for (const pattern of named) {
+    const wanted = pattern.slice(4);
+    const found = candidates.flatMap((story) => story.capabilities
+      .filter((capability) => capability.id === wanted || /^\s*(\d+)\s*·/.exec(capability.title)?.[1] === wanted)
+      .map((capability) => ({ story, capability })));
+    if (found.length === 0) throw new Error(`${pattern} is not a capability of a mapped story this machine imports.`);
+    if (found.length > 1) throw new Error(`Ambiguous ${pattern}; use an id: ${found.map(({ story, capability }) => `${capability.id} (${story.title})`).join(", ")}`);
+    const { story, capability } = found[0]!;
+    if (capability.covers === undefined) throw new Error(`${pattern} (${capability.title}) covers no files: it is not an explored capability. Give its folders.`);
+    covering.set(story.id, [...covering.get(story.id) ?? [], ...capability.covers]);
+  }
+
   // The files the line takes, by full path, with the import each belongs to.
   const inside = new Map<string, { readonly folder: string; readonly story: string }>();
   for (const story of candidates) {
     const folder = posix(survey[story.id]!.mapped!.folder);
-    const relative = options.patterns.flatMap((pattern) => {
+    const given = [...options.patterns.filter((pattern) => !pattern.startsWith("cap:")), ...covering.get(story.id) ?? []];
+    const relative = given.flatMap((pattern) => {
       if (!path.isAbsolute(pattern)) return [pattern];
       const full = posix(pattern);
       return full === folder ? ["."] : full.startsWith(`${folder}/`) ? [full.slice(folder.length + 1)] : [];

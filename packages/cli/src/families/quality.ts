@@ -37,12 +37,13 @@ const briefUsage = "quality brief <increment> [--diff @file]";
 const briefVerb: Verb = {
   name: "brief",
   usage: briefUsage,
-  summary: "issue the next review's brief for an increment's change: its diff against origin/main, its contracts and the checks",
+  summary: "issue the next review's brief for an increment's change: its diff against origin/main (or the local default branch with none), its contracts and the checks",
   async act(args, context) {
-    const { branchDiff, briefText, openReviews } = await import("@storytree/quality-assurance");
+    const { branchBase, branchDiff, briefText, openReviews } = await import("@storytree/quality-assurance");
     const increment = args.word(0, "the increment whose change is reviewed", briefUsage);
     const library = await context.library();
-    const brief = await (await openReviews(await context.server())).brief(library, increment, args.text("diff") ?? branchDiff(context.cwd));
+    const given = args.text("diff");
+    const brief = await (await openReviews(await context.server())).brief(library, increment, given ?? branchDiff(context.cwd), given === undefined ? branchBase(context.cwd) : undefined);
     return {
       text: briefText(brief),
       next: [{ command: `storytree quality take ${increment} --return @<file>`, why: "record the review's return, as JSON" }],

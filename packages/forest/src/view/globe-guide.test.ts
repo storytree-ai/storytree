@@ -191,3 +191,22 @@ test("3.44 a pose written but not yet drawn still counts: the guide reads moving
   assert.equal(drawn.sideOffset, -200, "the stop keeps the slide's end, not the stale drawn offset");
   assert.equal(guide.moving(), false);
 });
+
+test("3.51 each drawn island's screen box follows actual transforms and zoom; islands on the far side or hidden are left out", () => {
+  const f = fixture();
+  const ground = new Mesh(new BoxGeometry(4, 2, .2), new MeshBasicMaterial()); ground.name = "island-ground"; f.story.add(ground);
+  const shell = new Group(); shell.name = "planet:shell"; f.globe.add(shell);
+  const near = (actual: readonly { story: string; x: number; y: number; width: number; height: number }[], x: number, y: number, width: number, height: number) => {
+    assert.equal(actual.length, 1); assert.equal(actual[0]!.story, "shop");
+    for (const [got, want] of [[actual[0]!.x, x], [actual[0]!.y, y], [actual[0]!.width, width], [actual[0]!.height, height]]) assert.ok(Math.abs(got! - want!) < 1e-6, `${got} is ${want}`);
+  };
+  near(f.guide.islands(), 480, 290, 40, 20);
+  f.camera.zoom = 20; f.camera.updateProjectionMatrix();
+  near(f.guide.islands(), 560, 280, 80, 40);
+  f.story.position.set(0, 0, 10);
+  near(f.guide.islands(), 360, 280, 80, 40);
+  f.globe.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI);
+  assert.deepEqual(f.guide.islands(), [], "far side");
+  f.globe.quaternion.copy(new Quaternion()); f.story.visible = false;
+  assert.deepEqual(f.guide.islands(), [], "hidden");
+});

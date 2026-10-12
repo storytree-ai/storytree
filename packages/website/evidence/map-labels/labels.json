@@ -1,6 +1,6 @@
 [
   {
-    "name": "1440-map-stories-line-1",
+    "name": "1920-map-stories-line-2",
     "expected": "a story",
     "labels": [
       "a story"
@@ -9,10 +9,80 @@
     "crowds": []
   },
   {
-    "name": "1440-map-stories-line-2",
-    "expected": "the cart needs signing in",
+    "name": "1920-map-stories-line-5",
+    "expected": "a pathway: the cart needs signing in",
     "labels": [
-      "the cart needs signing in"
+      "a pathway: the cart needs signing in"
+    ],
+    "pointed": false,
+    "crowds": []
+  },
+  {
+    "name": "1920-map-capabilities-line-1",
+    "expected": "a capability",
+    "labels": [
+      "a capability"
+    ],
+    "pointed": false,
+    "crowds": []
+  },
+  {
+    "name": "1920-map-capabilities-line-2",
+    "expected": "each dot is a file: server.js · 110 lines",
+    "labels": [
+      "each dot is a file: server.js · 110 lines"
+    ],
+    "pointed": false,
+    "crowds": []
+  },
+  {
+    "name": "1920-map-claims-line-1",
+    "expected": "Part 2: product page, sorting, cart",
+    "labels": [
+      "Part 2: product page, sorting, cart"
+    ],
+    "pointed": false,
+    "crowds": []
+  },
+  {
+    "name": "1920-map-claims-line-3",
+    "expected": null,
+    "labels": [],
+    "pointed": true,
+    "crowds": []
+  },
+  {
+    "name": "1920-map-health-line-2",
+    "expected": "not proved yet",
+    "labels": [
+      "not proved yet"
+    ],
+    "pointed": false,
+    "crowds": []
+  },
+  {
+    "name": "1920-map-health-line-2-green",
+    "expected": "tests passed",
+    "labels": [
+      "tests passed"
+    ],
+    "pointed": false,
+    "crowds": []
+  },
+  {
+    "name": "1440-map-stories-line-2",
+    "expected": "a story",
+    "labels": [
+      "a story"
+    ],
+    "pointed": false,
+    "crowds": []
+  },
+  {
+    "name": "1440-map-stories-line-5",
+    "expected": "a pathway: the cart needs signing in",
+    "labels": [
+      "a pathway: the cart needs signing in"
     ],
     "pointed": false,
     "crowds": []
@@ -28,9 +98,9 @@
   },
   {
     "name": "1440-map-capabilities-line-2",
-    "expected": "server.js · 110 lines",
+    "expected": "each dot is a file: server.js · 110 lines",
     "labels": [
-      "server.js · 110 lines"
+      "each dot is a file: server.js · 110 lines"
     ],
     "pointed": false,
     "crowds": []
@@ -70,7 +140,7 @@
     "crowds": []
   },
   {
-    "name": "1280-map-stories-line-1",
+    "name": "1280-map-stories-line-2",
     "expected": "a story",
     "labels": [
       "a story"
@@ -79,10 +149,10 @@
     "crowds": []
   },
   {
-    "name": "1280-map-stories-line-2",
-    "expected": "the cart needs signing in",
+    "name": "1280-map-stories-line-5",
+    "expected": "a pathway: the cart needs signing in",
     "labels": [
-      "the cart needs signing in"
+      "a pathway: the cart needs signing in"
     ],
     "pointed": false,
     "crowds": []
@@ -98,9 +168,9 @@
   },
   {
     "name": "1280-map-capabilities-line-2",
-    "expected": "server.js · 110 lines",
+    "expected": "each dot is a file: server.js · 110 lines",
     "labels": [
-      "server.js · 110 lines"
+      "each dot is a file: server.js · 110 lines"
     ],
     "pointed": false,
     "crowds": []
@@ -140,17 +210,17 @@
     "crowds": []
   },
   {
-    "name": "390-map-stories-line-1",
+    "name": "390-map-stories-line-2",
     "expected": null,
     "labels": [],
     "pointed": false,
     "crowds": []
   },
   {
-    "name": "390-map-stories-line-2",
-    "expected": "the cart needs signing in",
+    "name": "390-map-stories-line-5",
+    "expected": "a pathway: the cart needs signing in",
     "labels": [
-      "the cart needs signing in"
+      "a pathway: the cart needs signing in"
     ],
     "pointed": false,
     "crowds": []
@@ -164,9 +234,9 @@
   },
   {
     "name": "390-map-capabilities-line-2",
-    "expected": "server.js · 110 lines",
+    "expected": "each dot is a file: server.js · 110 lines",
     "labels": [
-      "server.js · 110 lines"
+      "each dot is a file: server.js · 110 lines"
     ],
     "pointed": false,
     "crowds": []
@@ -204,14 +274,14 @@
     "crowds": []
   },
   {
-    "name": "320-map-stories-line-1",
+    "name": "320-map-stories-line-2",
     "expected": null,
     "labels": [],
     "pointed": false,
     "crowds": []
   },
   {
-    "name": "320-map-stories-line-2",
+    "name": "320-map-stories-line-5",
     "expected": null,
     "labels": [],
     "pointed": false,

@@ -11,6 +11,7 @@
  * The tool server runs this at its start, and again whenever the agent calls check_setup; the
  * agent's part (firing each hook to verify it) goes through check_setup's answer.
  */
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -94,6 +95,11 @@ export interface SetupReport {
   readonly serverEntry: ServerEntry | undefined;
   /** The harness of the session asking, when it is a connected one: an MCP client storytree has no hooks for (6.64). */
   readonly connected?: string;
+  /**
+   * What a project's folder lacks that review, landing and verified health read (8.31): a git repository, or its
+   * origin remote. Undefined outside a project, where git cannot be asked, or when nothing is missing.
+   */
+  readonly repository?: "no repository" | "no origin";
 }
 
 /** A stdio server entry: the command and arguments an MCP client starts storytree's tool server with. */
@@ -126,10 +132,30 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   ]);
   // The tool server is built beside the hook script, as the `storytree` command is.
   const serverEntry = options.hook === undefined ? undefined : { command: options.hook.node, args: [path.join(path.dirname(options.hook.script), "storytree-mcp.mjs")] };
-  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released, serverEntry, ...(options.connected === undefined ? {} : { connected: options.connected }) };
+  const repository = found.project === undefined ? undefined : repositoryLack(found.folder);
+  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released, serverEntry, ...(options.connected === undefined ? {} : { connected: options.connected }), ...(repository === undefined ? {} : { repository }) };
   return { ...report, lines: setupLines(report) };
 }
 
+
+/**
+ * What `folder`, a project's, lacks that review, landing and verified health read (8.31): quality_brief diffs against
+ * origin's default branch, and land and the health record read fetched origin/main. Undefined when git cannot be asked.
+ */
+function repositoryLack(folder: string): SetupReport["repository"] {
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+  try {
+    git("rev-parse", "--show-toplevel");
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT" ? undefined : "no repository";
+  }
+  try {
+    git("remote", "get-url", "origin");
+    return undefined;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT" ? undefined : "no origin";
+  }
+}
 
 /**
  * Whether a Codex hook has run since storytree's were registered, the only sign the user trusted them (3.18):

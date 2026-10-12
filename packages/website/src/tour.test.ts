@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { aim, createTour, flight, globeOf, groups, labelsAt, labelWords, lineStarts, momentStarts, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
+import { aim, createTour, flight, globeOf, groups, islandsKeptOff, labelsAt, labelWords, lineStarts, momentStarts, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
 
@@ -501,4 +501,30 @@ test("2.20 · the knowledge chapter plays three steps on the globe the map chapt
   assert.deepEqual(reads.compare?.sources.map(source => source?.name), ["Cursor docs", "Graphiti docs", undefined], "the memory comparison is in the reads step's depth");
   // The count the first step's depth gives is the decisions written by the survey the chapter holds at.
   assert.match(fill(inside.how!, growthCounts(recording, recording)), /had written 47 decisions/);
+});
+
+test("2.24 · a label's words stand clear of every drawn island but the one it points into", () => {
+  // The stories step at 1440: the pathway's ring on the cart island's coast, checkout's name to its right, the cart above it.
+  const room = { width: 1440, height: 900 }, canvas = { x: 0, y: 40 };
+  const islands = [{ story: "cart", x: 760, y: 120, width: 200, height: 120 }, { story: "checkout", x: 980, y: 200, width: 220, height: 140 }];
+  const ring = { x: 875, y: 277 }, tag = { ...ring, width: 260, height: 25 };
+  const name = { x: 900, y: 262, width: 120, height: 24, soft: true };
+  const kept = islandsKeptOff(islands, { kind: "pathway", link: "cart->signing-in" }, ring, canvas);
+  assert.deepEqual(kept, [{ x: 760, y: 160, width: 200, height: 120 }, { x: 980, y: 240, width: 220, height: 140 }], "a pathway keeps off every island, on the stage");
+  const [at] = placeTags([tag], room, { keepOut: [...kept, name], sides: ["right", "left", "below", "above"], share: true });
+  const box = { x: tag.x + at!.x, y: tag.y + at!.y, width: tag.width, height: tag.height };
+  const meets = (a: typeof box, b: typeof box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  for (const island of kept) assert.ok(!meets(box, island), `clear of ${JSON.stringify(island)}: ${JSON.stringify(box)}`);
+  assert.ok(!meets(box, name), "and of checkout's name");
+  // A story's or a file's label points into its own island, and a capability's into the island under its ring: that one is not kept off.
+  assert.deepEqual(islandsKeptOff(islands, { kind: "story", story: "cart" }, ring, canvas).length, 1);
+  assert.deepEqual(islandsKeptOff(islands, { kind: "file", story: "checkout", path: "a.ts" }, ring, canvas), [kept[0]]);
+  assert.deepEqual(islandsKeptOff(islands, { kind: "capability", capability: "pay" }, { x: 1000, y: 300 }, canvas), [kept[0]]);
+  // A 390 phone: the islands come close above the ring and their names below it, so the words step further out above.
+  const phone = { width: 390, height: 844 }, small = { x: 167, y: 158, width: 245, height: 25 };
+  const shore = islandsKeptOff([{ story: "cart", x: 145, y: 130, width: 45, height: 45 }, { story: "checkout", x: 195, y: 128, width: 45, height: 40 }], { kind: "pathway", link: "cart->signing-in" }, small, { x: 0, y: 0 });
+  const names = [{ x: 148, y: 162, width: 34, height: 30, soft: true }, { x: 195, y: 162, width: 65, height: 32, soft: true }];
+  const [up] = placeTags([small], phone, { keepOut: [...shore, ...names], sides: ["right", "left", "below", "above"] });
+  const words = { x: small.x + up!.x, y: small.y + up!.y, width: small.width, height: small.height };
+  for (const other of [...shore, ...names]) assert.ok(!meets(words, other), `clear of ${JSON.stringify(other)}: ${JSON.stringify(words)}`);
 });

@@ -280,12 +280,16 @@ async function heldOnIncrement({ library, log, project, quietMs, caller, writer 
 /**
  * Why `capabilities` may not be `target`'s list: one of them is on the list of an increment another
  * live session holds, since two sessions never plan changes to the same capability (ADR-0949 D2).
+ * An entry whose capability another session's live claim holds is left behind by a lane that backed
+ * off from it (ADR-0944 D3), and refuses nothing.
  */
 async function sharedCapability(target: string, capabilities: readonly string[], { library, log, project, quietMs, caller }: Call): Promise<string | undefined> {
-  const others = (await readClaims(log, project, { quietMs })).filter((claim) => claim.session !== caller.session && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);
+  const claims = await readClaims(log, project, { quietMs });
+  const others = claims.filter((claim) => claim.session !== caller.session && claim.holder === "live" && claim.increment !== undefined && claim.increment !== target);
   for (const claim of others) {
     const listed = ((await library.get(claim.increment!))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
-    const capability = capabilities.find((id) => listed.includes(id));
+    const heldElsewhere = (id: string) => claims.some((one) => one.capability === id && one.holder === "live" && one.session !== claim.session);
+    const capability = capabilities.find((id) => listed.includes(id) && !heldElsewhere(id));
     if (capability !== undefined)
       return `${capability} is already on the capabilities list of ${claim.increment}, which ${claim.label} session ${claim.session} holds (${claim.reason}): two sessions never plan changes to the same capability (ADR-0949 D2). Leave it off this list, or take other work.`;
   }

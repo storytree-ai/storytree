@@ -127,10 +127,17 @@ test("2.22 · on a phone storytree's own globe is framed smaller, more so at 320
   const own = steps.filter(step => step.map === "own" || step.id === "everything");
   assert.deepEqual(own.map(step => step.id), ["pain", "grow", "value", "fixes", "everything"]);
   for (const step of own) {
-    const laptop = viewFraming(step, 1440, 1.1), wide = viewFraming(step, 390, 1.1), narrow = viewFraming(step, 320, 1.1);
-    assert.ok(wide > laptop && narrow > wide, `${step.id}: ${laptop} on a laptop, ${wide} at 390px, ${narrow} at 320px`);
+    const wide = viewFraming(step, 390, 1.1), narrow = viewFraming(step, 320, 1.1);
+    assert.ok(wide > 1.1 && narrow > wide, `${step.id}: ${wide} at 390px, ${narrow} at 320px`);
   }
   assert.ok(freePlayFraming("storytree", 390, 1.1) > 1.1 && freePlayFraming("storytree", 320, 1.1) > freePlayFraming("storytree", 390, 1.1));
-  assert.equal(freePlayFraming("storytree", 1440, 1.1), 1.1);
   assert.equal(freePlayFraming("shop", 320, 1.1), 1.1);
+});
+
+test("2.23 · on a laptop storytree's own globe is framed smaller than the resting framing in the arrival, the everything step and free play; the shop's is not", () => {
+  for (const step of steps.filter(step => step.map === "own" || step.id === "everything")) {
+    for (const width of [1440, 1280]) assert.ok(viewFraming(step, width, 1.1) > 1.1, `${step.id} at ${width}px: ${viewFraming(step, width, 1.1)}`);
+  }
+  assert.ok(freePlayFraming("storytree", 1440, 1.1) > 1.1);
+  assert.equal(freePlayFraming("shop", 1440, 1.1), 1.1);
 });

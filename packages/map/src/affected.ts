@@ -123,9 +123,21 @@ function union(base: ProjectGraph, target: ProjectGraph): ProjectGraph {
   return { nodes: [...nodes.values()], edges: [...edges.values()], healthSource: target.healthSource };
 }
 
+/**
+ * The range read when none is given: origin/main, or in a repository with no origin/main its local default branch,
+ * init.defaultBranch, else main, else master (4.4); origin/main when it has none of these, which then names what is missing.
+ */
+async function defaultRange(root: string): Promise<string> {
+  const exists = (ref: string) => gitText(root, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]).then(() => true, () => false);
+  if (await exists("refs/remotes/origin/main")) return "origin/main";
+  const configured = await gitText(root, ["config", "--get", "init.defaultBranch"]).catch(() => "");
+  for (const branch of [configured, "main", "master"]) if (branch !== "" && await exists(`refs/heads/${branch}`)) return branch;
+  return "origin/main";
+}
+
 export async function affectedProject(library: Pick<Library, "projectTree">, folder: string, options: AffectedOptions): Promise<FocusAnswer> {
-  const range = options.range || "origin/main";
   const root = await gitText(folder, ["rev-parse", "--show-toplevel"]);
+  const range = options.range || await defaultRange(root);
   const compared = await comparison(root, range);
   const changed = await changesAt(root, compared);
   const tree = await library.projectTree();

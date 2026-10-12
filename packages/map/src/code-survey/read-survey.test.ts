@@ -554,6 +554,64 @@ test("8.11 an unreachable origin with no fetched main fails instead of presentin
   }
 });
 
+test("8.27 a start's reader answers its first ask from the main already fetched while it fetches, and its next ask waits on that fetch and surveys what it brought", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-start-"));
+  const checkout = path.join(folder, "checkout");
+  const other = path.join(folder, "other");
+  const origin = path.join(folder, "origin.git");
+  const sockets = new Set<import("node:net").Socket>();
+  let connections = 0;
+  const server = createServer(socket => {
+    connections++;
+    sockets.add(socket);
+    socket.on("error", () => {});
+    socket.on("close", () => sockets.delete(socket));
+  });
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe", windowsHide: true }).trim();
+  const commit = (cwd: string) => {
+    git(cwd, "add", ".");
+    git(cwd, "-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "fixture");
+  };
+  const claimLines = async (reading: Promise<Record<string, StorySurvey>>) => (await reading)["story-shop"]?.files[0]?.lines;
+  try {
+    await mkdir(path.join(checkout, "packages/shop/src"), { recursive: true });
+    await writeFile(path.join(checkout, "packages/shop/src/claim.ts"), "export const claim = 1;\n");
+    git(folder, "init", "--bare", "-b", "main", origin);
+    git(checkout, "init", "-b", "main");
+    git(checkout, "remote", "add", "origin", origin);
+    commit(checkout);
+    git(checkout, "push", "--quiet", "origin", "main");
+    // Main moves on the origin after this checkout last fetched it.
+    git(folder, "clone", "--quiet", origin, other);
+    await writeFile(path.join(other, "packages/shop/src/claim.ts"), "export const claim = 1;\nexport const landed = 2;\n");
+    commit(other);
+    git(other, "push", "--quiet", "origin", "main");
+
+    const start = codeSurveyReader({ startFromFetched: true });
+    assert.equal(await claimLines(start.read(checkout, tree)), 1, "the first ask answers from the main already fetched");
+    assert.equal(await claimLines(start.read(checkout, tree)), 2, "the next ask surveys the newer main that fetch brought");
+
+    // A stalling origin: the first answer lands while the start's fetch is still open, and the next ask waits on it.
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address() as import("node:net").AddressInfo;
+    git(other, "worktree", "add", "--quiet", "--detach", path.join(folder, "stalled"), "HEAD");
+    const stalled = path.join(folder, "stalled");
+    git(stalled, "update-ref", "refs/remotes/origin/main", "HEAD");
+    git(stalled, "remote", "set-url", "origin", `git://127.0.0.1:${address.port}/stall.git`);
+    const restarted = codeSurveyReader({ startFromFetched: true });
+    assert.equal(await claimLines(restarted.read(stalled, tree)), 2);
+    assert.equal(connections, 1, "the start's fetch was asked for");
+    assert.equal(sockets.size, 1, "and is still open when the first answer lands");
+    assert.equal(await claimLines(restarted.read(stalled, tree)), 2, "a fetch that fails leaves the next ask on the main already fetched");
+    assert.equal(connections, 1, "the next ask waits on the start's fetch rather than starting another");
+    assert.deepEqual(processesNaming(path.basename(folder)), [], "no git process the reading started outlives it");
+  } finally {
+    for (const socket of sockets) socket.destroy();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 test("8.16 a survey read on a worker thread answers what one read in place does, and the asking thread's event loop stays free", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-worker-"));
   const reader = offThreadSurveyReader(new URL("./survey-worker.ts", import.meta.url), { execArgv: ["--import", "tsx"] });

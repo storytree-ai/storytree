@@ -159,14 +159,19 @@ async function keepSurvey(file: string, key: string, survey: ProjectSurvey): Pro
   } catch {}
 }
 
-export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8"), checkout: checkoutScope = "main", keep }: {
+export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8"), checkout: checkoutScope = "main", keep, startFromFetched = false }: {
   readFile?(file: string): Promise<string>;
   /** Main reads fetched origin/main; current reads the caller's worktree. Without origin, main reads the primary folder. */
   checkout?: "main" | "current";
   /** Where surveys of a fetched main are kept between starts (8.25); without it nothing is kept. */
   keep?: SurveyKeep;
+  /**
+   * A start's reader (8.27): its first ask of a repository is answered from the main already fetched, when there is one, while
+   * it fetches; its next ask waits on that fetch and surveys what it brought. Without it, every ask waits on its own fetch.
+   */
+  startFromFetched?: boolean;
 } = {}): CodeSurveyReader {
-  const sourceAt = surveySourceReader(checkoutScope, readText);
+  const sourceAt = surveySourceReader(checkoutScope, readText, startFromFetched);
   const kept = new Map<string, Kept>();
   const positioned = new WeakMap<SourceFile, SourceFile>();
   const surveyed = new Map<string, { readonly files: readonly SourceFile[]; readonly capabilities: string; readonly packages: string; readonly survey: StorySurvey }>();
@@ -355,8 +360,9 @@ export function readCodeSurvey(folder: string, tree: AnnotatedTree, imports?: re
  * bundle of it), so parsing never holds the asking thread's event loop (8.16). The worker starts on the first ask,
  * keeps its reader between asks, and is started again after it dies; close ends it. Given `keptIn`, it keeps its
  * surveys there between starts (8.25), named by the worker file's contents, so a survey kept by another build is not used.
+ * Given `startFromFetched`, its reader answers a start's first ask from the main already fetched (8.27).
  */
-export function offThreadSurveyReader(workerFile: string | URL, options: { execArgv?: string[]; keptIn?: string } = {}) {
+export function offThreadSurveyReader(workerFile: string | URL, options: { execArgv?: string[]; keptIn?: string; startFromFetched?: boolean } = {}) {
   const keep: SurveyKeep | undefined = options.keptIn === undefined ? undefined
     : { folder: options.keptIn, code: hashOf(readFileSync(typeof workerFile === "string" ? workerFile : fileURLToPath(workerFile), "utf8")) };
   let worker: Worker | undefined;
@@ -369,7 +375,7 @@ export function offThreadSurveyReader(workerFile: string | URL, options: { execA
   };
   const started = (): Worker => {
     if (worker !== undefined) return worker;
-    const made = new Worker(workerFile, { execArgv: options.execArgv, workerData: { keep } });
+    const made = new Worker(workerFile, { execArgv: options.execArgv, workerData: { keep, startFromFetched: options.startFromFetched === true } });
     made.unref();
     made.on("message", ({ id, survey, error }: { id: number; survey?: ProjectSurvey; error?: string }) => {
       const asked = waiting.get(id);

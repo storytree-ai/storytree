@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 // The release workflow's completeness check, kept with the packaging it describes (apps/desktop's
@@ -59,4 +61,13 @@ test("4.6 publishing merges the Mac app's entry into the release's delivery mani
   // A rerun merges again to the same manifest.
   assert.deepEqual(mergeDelivery({ ...windows, macos: { arm64 } }, { version: "0.3.700", macos: { arm64 } }), { ...windows, macos: { arm64 } });
   assert.throws(() => mergeDelivery(windows, { version: "0.3.699", macos: { arm64 } }), /0\.3\.699/);
+});
+
+test("4.6 the release workflow's script loads under plain Node, so a source it imports cannot fail only after the merge", () => {
+  // release.yml runs `node apps/desktop/release.mjs` with no loader: Node's type stripping does not map
+  // a .ts file's './x.js' specifier to './x.ts'. Given no step, it loads everything, then refuses.
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  const run = spawnSync(process.execPath, [fileURLToPath(new URL("../release.mjs", import.meta.url))], { encoding: "utf8", env });
+  assert.match(run.stderr, /Use source, draft, upload or publish/);
 });

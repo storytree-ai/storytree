@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.6 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.8 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -117,6 +117,23 @@ test("10.6 in a project whose health nothing verifies, each part gives the agent
     assert.match(line("Email form"), /agent says passing; storytree does not check this project's tests yet$/);
     assert.match(line("Rejects an email"), /agent says passing$/);
     assert.doesNotMatch(ran.stdout, /untested|no test names it|to move|verified/);
+  });
+});
+
+test("10.8 a mapped story's line says it is mapped, here before storytree and assumed to be working, with no health of its own; a capability planned on it keeps its own", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const { added: [shop] } = await library.mapStories("/code/shop", [{ package: ".", title: "shop", folders: ["."] }]);
+    const capability = await library.addCapability({ title: "Checkout", story: shop!.id });
+
+    const ran = await world.run(["tree"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    const lines = ran.stdout.split(/\r?\n/);
+    const line = (id: string): string => lines.find((each) => each.includes(`[${id}]`)) ?? "";
+    assert.match(line(shop!.id), /\]  mapped: here before storytree, and assumed to be working$/, ran.stdout);
+    assert.doesNotMatch(line(shop!.id), /agent says|verified/);
+    assert.match(line(capability.id), /agent says not checked/, ran.stdout);
   });
 });
 

@@ -49,7 +49,8 @@ const tree: Verb = {
     const lines: string[] = [];
     const unverified = plan.unverified === true;
     for (const story of stories) {
-      lines.push(`${story.title}  [${story.id}]  ${healthOf(story.health, unverified)}`);
+      // A mapped story carries no health of its own (ADR-0993 D3): it says what it is instead.
+      lines.push(`${story.title}  [${story.id}]  ${story.mapped === undefined ? healthOf(story.health, unverified) : "mapped: here before storytree, and assumed to be working"}`);
       story.capabilities.forEach((capability) => {
         lines.push(`  ${capability.title}  [${capability.id}]  ${healthOf(capability.health, unverified)}; ${capability.reportOnly ? NOT_VERIFIED : wordAndWhy(capability)}${claimOn(claims, capability.id)}`);
         for (const contract of capability.contracts) {

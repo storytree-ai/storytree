@@ -366,3 +366,22 @@ test("7.24 the sessions list and the forest re-read the plan only when their new
   assert.deepEqual({ reads, drawn }, { reads: 2, drawn: 3 }, "a health change reads the tree again");
   reading.stop();
 });
+
+test("7.30 a reading started with the survey kept from the last start draws the tree with it at once, and a fresh survey equal to it draws nothing again", async () => {
+  let land: (value: typeof survey) => void = () => {};
+  const reads: ForestReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    projectTree: async () => tree,
+    codeSurvey: () => new Promise((resolve) => { land = resolve; }),
+  };
+  const drawn: unknown[] = [];
+  const reading = forestReading({ project: "shop", reads, survey, timers: clockTimers(), onTree: (_read, _news, read) => drawn.push(read), onError: () => {} });
+  await settle();
+  assert.deepEqual(drawn, [survey]);
+
+  land(JSON.parse(JSON.stringify(survey)) as typeof survey);
+  await settle();
+  assert.deepEqual(drawn, [survey]);
+  reading.stop();
+});

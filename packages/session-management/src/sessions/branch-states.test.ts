@@ -4,7 +4,7 @@
  * to the real activity log on the Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { mock, test } from "node:test";
 
@@ -12,7 +12,7 @@ import { openActivityLog, type Line } from "../activity/index.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { gitRunner, type GitRunner } from "./branch-states.js";
-import { lookAsApp, resolveBranches, sessionsFrom } from "./index.js";
+import { lookAsApp, projectFolder, resolveBranches, sessionsFrom } from "./index.js";
 
 test("4.10 each branch a session worked on is marked resolved once its pull request merged (any machine), or, on the machine it was worked on, once it has nothing ahead of main or is deleted; one still ahead stays open, and one that gains work after it resolved is open again; a state is written only when it changes", async () => {
   const log = await openActivityLog(testServerUrl());
@@ -229,6 +229,28 @@ test("4.21 the app looks for itself: a branch a session on this machine worked o
       assert.deepEqual(written.map((line) => [line.kind, line.session]), [["branch-state", "app:here"]]);
       const sessions = sessionsFrom((await log.since(project, 0)).lines);
       assert.deepEqual(sessions.map((session) => [session.session, session.openWork]), [["lane", []]]);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.33 a project with no git repository whose sessions last worked in a subfolder is answered by its marker's folder, so the survey reads the whole project; a subfolder whose nearest marker names another project is answered as recorded (regression: the live import run's road drawn minutes late, 2026-10-12)", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (site) => {
+      writeFileSync(path.join(site, ".storytree.json"), JSON.stringify({ project }));
+      const sub = path.join(site, "packages", "report");
+      mkdirSync(sub, { recursive: true });
+      await log.append(project, { session: "agent", harness: "claude-code", source: "hook", machine: "here", folder: sub, kind: "command-run", command: "npm test" });
+      assert.equal(await projectFolder(log, project, "here"), site);
+
+      const other = path.join(site, "vendor");
+      mkdirSync(other);
+      writeFileSync(path.join(other, ".storytree.json"), JSON.stringify({ project: `${project}-other` }));
+      await log.append(project, { session: "agent", harness: "claude-code", source: "hook", machine: "here", folder: other, kind: "command-run", command: "npm test" });
+      assert.equal(await projectFolder(log, project, "here"), other);
     });
   } finally {
     await log.close();

@@ -39,7 +39,7 @@ export interface Tree {
 }
 
 /** The grove of `story`: one tree per capability, in build order (each after those it builds on in the story, else in creation order). */
-export function grove(story: AnnotatedStory, states: WorkStates): Tree[] {
+export function grove(story: AnnotatedStory, states: Pick<WorkStates, "part">): Tree[] {
   if (story.capabilities.length === 0) {
     return [{ capability: undefined, title: story.title, buildsOn: [], state: "planned", reported: "not-checked", form: "seedling" }];
   }

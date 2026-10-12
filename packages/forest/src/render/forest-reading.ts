@@ -30,6 +30,8 @@ export interface ForestReadingOptions {
   timers?: Timers;
   /** The page's one live reading, which the forest hears; without it the forest reads for itself. */
   reading?: PageReading;
+  /** The survey kept from the last start: the tree is drawn with it until a fresh one lands, and one equal to it draws nothing again. */
+  survey?: Readonly<Record<string, StorySurvey>>;
 }
 
 /** How often, at most, the code is surveyed again: the land may lag the checkout by this much (ADR-0836 D2). */
@@ -114,9 +116,9 @@ export async function treeAfter(reads: Pick<ForestReads, "projectTree">, project
  * once the library answers. The live reading takes one news at a time, in order, so a slow tree read
  * never draws over a newer one.
  */
-export function forestReading({ project, reads, onTree, onError, onClock = () => {}, timers = pageTimers, reading: page }: ForestReadingOptions): LiveReading {
+export function forestReading({ project, reads, onTree, onError, onClock = () => {}, timers = pageTimers, reading: page, survey: kept = {} }: ForestReadingOptions): LiveReading {
   let tree: AnnotatedTree | undefined;
-  let survey: Survey = {};
+  let survey: Survey = kept;
   let stopped = false;
   // A survey that lands draws the last tree again, unless it changes nothing on show (ADR-0836 D1).
   const pacing = surveyPacing(() => reads.codeSurvey!(project), (next) => {

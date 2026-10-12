@@ -187,7 +187,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
     const branch = currentBranch(made.folder);
     if (branch !== undefined) made = { ...made, lines: made.lines.map((line) => (line.branch === undefined ? { ...line, branch } : line)) };
     // A command run in a subfolder is recorded at its worktree's root, so a session lists each worktree once (4.22),
-    // or, with no git repository, at the folder holding the project's marker (4.34).
+    // or, with no git repository, at the folder holding the project's marker (4.33).
     const root = worktreeRoot(made.folder);
     const marker = root === undefined ? findProject(made.folder) : undefined;
     const recordAt = root ?? (marker?.project === undefined ? undefined : marker.folder);

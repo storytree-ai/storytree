@@ -923,7 +923,7 @@ test("4.22 a hook run from a subfolder of a worktree records the worktree's root
   });
 });
 
-test("4.34 a hook run from a subfolder of a project with no git repository records the folder holding the project's marker, so the sessions list shows the project once (regression, 2026-10-11: each subfolder listed as its own folder)", async () => {
+test("4.33 a hook run from a subfolder of a project with no git repository records the folder holding the project's marker, so the sessions list shows the project once (regression, 2026-10-11: each subfolder listed as its own folder)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const folder = await projectFolder(dir, project);

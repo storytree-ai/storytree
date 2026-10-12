@@ -236,7 +236,7 @@ test("8.10 pnpm lag:desktop queues the whole run behind the machine's heavy-run 
   }
 });
 
-test("8.11 pnpm lag:desktop opens the app as a real start of the page, the kept forest forgotten first when the action says so, timed from the start's navigation with progress watched from its first frame", async () => {
+test("8.17 pnpm lag:desktop performs a start action as a real start of the page, the kept keys it names forgotten first, timed from the start's navigation with its first progress watched from its first frame", async () => {
   const fresh = CATALOGUE.find((action) => action.name === "open-app-fresh");
   const did = [];
   // The page's clock restarts with the start: the old document read 5000 ms; the new one's first frame showed the bar at 40 ms.

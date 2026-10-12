@@ -126,7 +126,7 @@ type ShownLabel = { key: string; target: GlobeTarget; text: string };
 const fade = 300;
 /**
  * The current line's label on the thing it talks about (2.21), placed on the drawing every frame once the camera has arrived:
- * a ring on a story, capability, file or pathway with its words beside it, clear of the islands it does not point into, their names, the card, the globe's note and the panels. A label that leaves fades out as its line passes.
+ * a ring on a story, capability, file or pathway with its words beside it, clear of the islands it does not point into, their names, the card, the globe's note, the mini globe and the panels. A label that leaves fades out as its line passes.
  */
 function Labels({ labels, controls, arrived }: { labels: readonly ShownLabel[]; controls: GlobeControls | undefined; arrived: boolean }) {
   const host = document.getElementById("tour-tags");
@@ -144,7 +144,7 @@ function Labels({ labels, controls, arrived }: { labels: readonly ShownLabel[]; 
     const place = () => {
       const canvas = document.querySelector("#website-forest canvas")?.getBoundingClientRect(), stage = host.getBoundingClientRect();
       const phone = stage.width <= 600;
-      const keepOut = [...document.querySelectorAll("#chapter2 :is(.tour-card, .tour-note, .sessions-list, .arc-overlay, .arc-handle, .story-panel), #website-forest .planet-nameplate:not(.crowded)")]
+      const keepOut = [...document.querySelectorAll("#chapter2 :is(.tour-card, .tour-note, .sessions-list, .arc-overlay, .arc-handle, .story-panel), #website-forest :is(.planet-nameplate:not(.crowded), .planet-mini-globe)")]
         .filter(node => getComputedStyle(node).visibility === "visible").map(node => ({ box: node.getBoundingClientRect(), soft: node.classList.contains("planet-nameplate") }))
         .filter(({ box }) => box.width && box.height)
         .map(({ box, soft }) => ({ x: box.left - stage.left, y: box.top - stage.top, width: box.width, height: box.height, soft }));

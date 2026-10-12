@@ -1,4 +1,4 @@
-# Where the starter pack's roles and notes came from (pack version 3)
+# Where the starter pack's roles and notes came from (pack version 4)
 
 Evidence for increment_d90f79ab4d9e, on the arc "A new project's library starts with the full system"
 (ADR-0996). Read on 2026-10-11 from storytree's own library: its eight agent roles and the 65 notes (47 principles, 5 guardrails, 9 patterns, 4 processes)
@@ -14,6 +14,7 @@ classified the way the 2026-09-27 fan-out classified 0.2's for 0.3 (ADR-0652):
 - **FOLD**: the user pack already holds a note that says it (pack v1 and v2's principles); the
   role links that one instead of seeding a near-copy (the pack's own "Edit before adding").
 - **DROP**: speaks only of storytree's own development, with the reason.
+- **NEW**: written for a user's project, with no counterpart in storytree's own library.
 
 The pack's text is in `starter-notes.ts` (notes) and `starter-roles.ts` (roles); `starter-pack.ts`
 seeds them. Role titles stay as the pack named them since v1 (`orchestrator`, `librarian`), so the
@@ -91,6 +92,7 @@ FB frontend-builder, BR blind-reviewer, CI corpus-investigator; c = required rea
 | The owner owns the outer loop (guardrail) | FB a, SO a | ADAPT | Retitled "The user owns the outer loop"; `storytree question …` becomes raise_question / settle_question. |
 | Escalate up when blocked or out of scope (guardrail) | FB, EX, SA, CI, LC a | BRING | |
 | The library is the edit surface (guardrail) | SO a, LC a | ADAPT | `pnpm build:guidance`, `check:guidance` and generated files dropped (a user's project has none). |
+| Ask the user before changing the imported code (guardrail) | SO a | NEW | Pack v4, from ADR-1015 (increment_8c73fecde8f8): storytree's own project imports nothing, so it has no such note. The habits card says the same; this note is what a search of the user's library for "changing the imported code" finds. |
 | An agent never self-attests (guardrail) | FB, SO, SA, BR a | ADAPT | "0.3 has no signed-verdict spine" and ADR-0794 dropped. |
 | Parallel build-lane fan-out (pattern) | SO c | ADAPT | 0.2's measurements, the EnterWorktree harness trap and the Mint box dropped; make_workspace names the claimed workspace. |
 | Proof-walkthrough first (pattern) | SA r | BRING | |
@@ -105,7 +107,7 @@ FB frontend-builder, BR blind-reviewer, CI corpus-investigator; c = required rea
 | Library edit ceremony (process) | SO c | ADAPT | `build:guidance`, the command line's `@file` and shell-quoting rules (the habits card names only the tools a user's agent has) and friction ids dropped. |
 | Friction adjudication (process) | LC c | ADAPT | `storytree arc increment new --remedies` becomes park_increment and add_remedies. |
 
-The pack seeds 45 principles, 6 guardrails, 8 patterns and 4 processes: the pack's own four
+The pack seeds 45 principles, 7 guardrails, 8 patterns and 4 processes: the pack's own four
 principles and its module-mock guardrail (v1 and v2), and every note above that is not folded or
 dropped. Not here: projects already set up (increment_aa6273267336), role files in a user's agent
 folders (arc_4e3323a6b963).

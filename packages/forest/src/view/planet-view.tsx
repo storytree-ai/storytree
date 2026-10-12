@@ -332,6 +332,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     cancel: () => guide.current!.cancel(),
     moving: () => guide.current!.moving(),
     notes: () => guide.current!.notes(),
+    islands: () => guide.current!.islands(),
     aside: () => placedAside.current,
   };
   // The turn the globe opened on, kept as home even when a guide took the first turn (3.37).

@@ -211,7 +211,7 @@ const runs = {
       // checkout's steps aside for the cart's (increment_7841aef9f70f); both islands and their flags stand clear of the list.
       phoneFrames: frames, known: ["320 map-claims Checkout: not drawn"], extra: { "map-capabilities": "1440-story-panel.png" } });
   },
-  // Each map line's label (2.21), on every labelled line at 1440, 1280, 390 and 320, at the tour's own 0.75×: the picture as the
+  // Each map line's label (2.21), on every labelled line at 1920, 1440, 1280, 390 and 320, at the tour's own 0.75×: the picture as the
   // line is said, and where its label stands against the screen's edges, the card, the bar, the panels and the islands' names.
   // --before pictures the same moments with the labels hidden, for the before-and-after. They go to map-labels.
   async mapLabels() {
@@ -226,7 +226,7 @@ const runs = {
       ["map-claims", 1, 6, "Part 2: product page, sorting, cart", 601], ["map-claims", 3, 1.2, undefined, 0],
       ["map-health", 2, 3, "not proved yet", 0], ["map-health", 2, 0, "tests passed", 0, "held"]];
     const report = [];
-    for (const [width, height] of [[1440, 900], [1280, 800], [390, 844], [320, 700]]) {
+    for (const [width, height] of [[1920, 1080], [1440, 900], [1280, 800], [390, 844], [320, 700]]) {
       const page = await open({ width, height });
       if (before) await page.addStyleTag({ content: "#tour-tags { display:none !important; } .tour-session-surface[data-pointed] .sessions-list { animation:none !important; outline:none !important; }" });
       for (const [id, line, into, words, narrowest, held] of moments) {

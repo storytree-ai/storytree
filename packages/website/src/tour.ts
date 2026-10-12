@@ -1,5 +1,5 @@
 /** Capability 2 · The forest on the site. */
-import type { GlobeSurfaces, GlobeSwitches, GlobeTarget } from "@storytree/forest/view";
+import type { GlobeSurfaces, GlobeSwitches, GlobeTarget, IslandBox } from "@storytree/forest/view";
 
 /** "map" is Act 2's first chapter, taught on the shop (ADR-0891); "knowledge" follows it, on the same globe. */
 export type Explainer = "map" | "knowledge";
@@ -306,6 +306,18 @@ export type TagSide = "right" | "left" | "below" | "above";
 const ring = 17, gap = 24, margin = 8;
 const meet = (a: Box, b: Box) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
 /**
+ * The drawn islands a label's words keep off, as hard boxes on the stage (2.24): `islands` are on the canvas, which sits at
+ * `canvas` on the stage, and `at` is the label's ring on the stage. Every island is kept off but the one the label points
+ * into: a story's or a file's by its story, a capability's as the island under its ring. A pathway, a note or the core points
+ * into none, so a pathway's words leave the island its road runs from.
+ */
+export function islandsKeptOff(islands: readonly IslandBox[], target: GlobeTarget, at: { x: number; y: number }, canvas: { x: number; y: number }): Box[] {
+  return islands.map(({ story, x, y, width, height }) => ({ story, x: x + canvas.x, y: y + canvas.y, width, height }))
+    .filter(island => target.kind === "story" || target.kind === "file" ? island.story !== target.story
+      : target.kind !== "capability" || !(at.x >= island.x && at.x <= island.x + island.width && at.y >= island.y && at.y <= island.y + island.height))
+    .map(({ story: _, ...box }) => box);
+}
+/**
  * Where each tag's name sits, as its box's top-left from its ring's middle: `tags` are the rings' middles with their names'
  * sizes. A name takes the first of `sides` (its `previous` side first, so it does not flit) where it stays inside the room,
  * clear of the names already placed, the other rings and `keepOut`; where none is clear, the side that covers least, a
@@ -314,7 +326,7 @@ const meet = (a: Box, b: Box) => Math.max(0, Math.min(a.x + a.width, b.x + b.wid
  * the room's edge, up to four names share the room instead: every choice of sides, a name above or below also flush with
  * its ring's left or right edge, is weighed and the one that covers least wins, the hard boxes first. A phone keeps the
  * first-come placement it was given, a name beside its ring also trying a little higher or lower once the four sides are
- * not clear (2.18; per line since 2.21).
+ * not clear (2.18; per line since 2.21). Last, on both, a name above or below steps further out from its ring (2.24).
  */
 export function placeTags(tags: readonly Box[], room: { width: number; height: number }, { keepOut = [], sides = ["right", "left"], previous = [], share = false }: { keepOut?: readonly (Box & { soft?: boolean })[]; sides?: readonly TagSide[]; previous?: readonly (TagSide | undefined)[]; share?: boolean } = {}): { side: TagSide; x: number; y: number }[] {
   const rings = tags.map(tag => ({ x: tag.x - ring, y: tag.y - ring, width: ring * 2, height: ring * 2 }));
@@ -331,12 +343,15 @@ export function placeTags(tags: readonly Box[], room: { width: number; height: n
     const flush = !share ? [] : order.filter(side => side === "below" || side === "above").flatMap(side => [ring - tag.width, -ring].map(x => ({ side, x, y: offsets[side].y })));
     // On a phone, a name beside its ring may also slide up or down by up to half the ring, to clear an island's name.
     const slid = share ? [] : order.filter(side => side === "right" || side === "left").flatMap(side => [-ring / 4, ring / 4, -ring / 2, ring / 2].map(y => ({ side, x: offsets[side].x, y: offsets[side].y + y })));
+    // Above or below its ring, a name may also step further out, by half a ring or a whole one, past islands and their names
+    // crowding the ring (2.24).
+    const further = order.filter(side => side === "below" || side === "above").flatMap(side => [ring / 2, ring].map(step => ({ side, x: offsets[side].x, y: offsets[side].y + (side === "below" ? step : -step) })));
     // A taller progress label can close the vertical gap. Move beside its edge, still within the screen, before covering it.
     const beside = share ? [] : order.filter(side => side === "right" || side === "left").flatMap(side => keepOut.map(other => ({ side,
       x: side === "right" ? Math.min(room.width - margin - tag.width - tag.x, Math.max(gap, other.x + other.width + margin - tag.x))
         : Math.max(margin - tag.x, Math.min(-gap - tag.width, other.x - margin - tag.width - tag.x)), y: offsets[side].y })))
       .filter(option => option.side === "right" ? option.x >= gap : option.x <= -gap - tag.width);
-    return [...order.map(side => ({ side, ...offsets[side] })), ...flush, ...slid, ...beside].map(({ side, ...at }) => {
+    return [...order.map(side => ({ side, ...offsets[side] })), ...flush, ...slid, ...beside, ...further].map(({ side, ...at }) => {
       const box = { x: tag.x + at.x, y: tag.y + at.y, width: tag.width, height: tag.height };
       const inside = tag.width * tag.height - meet(box, { x: margin, y: margin, width: room.width - margin * 2, height: room.height - margin * 2 });
       const outside = share ? Math.max(0, inside) : inside;

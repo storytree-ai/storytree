@@ -1001,6 +1001,31 @@ test("6.48 edit_plan refuses an increment's capabilities list a capability alrea
   });
 });
 
+test("6.71 edit_plan lets the session holding a capability's claim list it, though a lane that backed off from that claim left it on its own claimed increment's list", async () => {
+  await withProject(async ({ folder, library }) => {
+    let arc = "";
+    let capability = "";
+    let mine = "";
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      ({ arc, capability } = await planned(agent));
+      mine = idOf(await agent.call("park_increment", { arc, title: "Short phone claims step", objective: "Fit it", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment: mine, reason: "fitting the claims step" })).isError, false);
+      assert.equal((await agent.call("claim", { capability, reason: "editing the pages" })).isError, false);
+    });
+    await withAgent(folder, codex("codex-1"), async (agent) => {
+      const theirs = idOf(await agent.call("park_increment", { arc, title: "Checkout copy", objective: "Reword it", body: "Red then green" }));
+      assert.equal((await agent.call("claim", { increment: theirs, reason: "rewording checkout" })).isError, false);
+      assert.equal((await agent.call("edit_plan", { id: theirs, capabilities: [capability] })).isError, false);
+      assert.equal((await agent.call("claim", { capability, reason: "rewording checkout" })).isError, true, "the lane backs off, its list left as it was");
+    });
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const listed = await agent.call("edit_plan", { id: mine, capabilities: [capability] });
+      assert.equal(listed.isError, false, listed.text);
+      assert.deepEqual(((await library.get(mine))?.fields as { capabilities?: string[] }).capabilities, [capability]);
+    });
+  });
+});
+
 test("6.39 a tool call's reads do not grow with the log's length: the same calls (show the plan, claim, read the context, release) take about as much from the store in a project whose log holds weeks of history as in one whose log holds an hour's", { timeout: 120_000 }, async (t) => {
   const taken: number[] = [];
   let history = 0;

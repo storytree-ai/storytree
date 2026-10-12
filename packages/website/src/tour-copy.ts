@@ -69,6 +69,9 @@ const near = { target: signingIn, framing: .8, phone: { target: signingIn, frami
 const kept = { map: "shop" as const, growth: { seconds: 1, stage: "pr7-building", until: "pr7-building" }, sessionsAt: "2026-10-05T03:06:00.000Z" };
 const checkout = story("story_66f80ffaaa4d");
 const closeOnCheckout = { target: checkout, framing: .8, phone: { target: checkout, framing: 1.05, side: 0 } };
+// The knowledge chapter's first view: health's, closer toward 320px, where its three lines leave the globe too small for Cart's
+// and Checkout's names side by side.
+const shopHeld = { ...shop, phone: { ...shop.phone, narrowFraming: 1.12 } };
 // Checkout's "Finish becomes a form post" (02:55), and the session building orders that read it (03:04).
 const finishDecision = "decision_0822dda10ab2", ordersSession = "726ad13e-f730-45fb-9682-893eef2a5696";
 const lit = (surfaces: Partial<GlobeSurfaces>): Partial<GlobeSurfaces> => ({ ...surfaces, sessionTints: true });
@@ -222,7 +225,7 @@ export const steps: TourStep[] = [
     "Storytree keeps each decision inside the globe, beneath the part of the map it's about.",
   ], how: "By the time the first round was green, the shop's agents had written {shopDecisions} decisions, most of them while planning, before any code. Each is a note in storytree's library, a knowledge graph: a note links to the notes it stands on, and the graph refuses loops, so every chain of reasons reads to its end. Principles, which steer judgement, are notes too. A note about no one part gathers at the core.",
   why: "Every new agent session starts on its first day. Keeping the decisions with the work means the next session doesn't relearn them, and you don't explain them again.",
-  decisions: [], surfaces: lit({ ...health, roads: true }), lineSurfaces: { 3: inside }, ...shop },
+  decisions: [], surfaces: lit({ ...health, roads: true }), lineSurfaces: { 3: inside }, ...shopHeld },
   { id: "knowledge-shelf", explainer: "knowledge", ...kept, title: "Every story keeps a shelf.", lines: [
     // DRAFT.
     "Each story and capability keeps a shelf: the decisions that shaped it.",

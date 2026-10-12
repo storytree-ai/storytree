@@ -50,7 +50,7 @@ import type { Storytree } from "@storytree/library";
 import type { NewLine } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
-import { openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "../routing/index.js";
+import { findProject, openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "../routing/index.js";
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
@@ -186,9 +186,12 @@ async function writeLines(harness: string, input: string, flags: readonly string
     const { currentBranch, worktreeRoot } = await import("../activity/branch.js");
     const branch = currentBranch(made.folder);
     if (branch !== undefined) made = { ...made, lines: made.lines.map((line) => (line.branch === undefined ? { ...line, branch } : line)) };
-    // A command run in a subfolder is recorded at its worktree's root, so a session lists each worktree once (4.22).
+    // A command run in a subfolder is recorded at its worktree's root, so a session lists each worktree once (4.22),
+    // or, with no git repository, at the folder holding the project's marker (4.34).
     const root = worktreeRoot(made.folder);
-    if (root !== undefined && root !== path.resolve(made.folder)) made = { ...made, lines: made.lines.map((line) => (line.folder === made.folder ? { ...line, folder: root } : line)) };
+    const marker = root === undefined ? findProject(made.folder) : undefined;
+    const recordAt = root ?? (marker?.project === undefined ? undefined : marker.folder);
+    if (recordAt !== undefined && recordAt !== path.resolve(made.folder)) made = { ...made, lines: made.lines.map((line) => (line.folder === made.folder ? { ...line, folder: recordAt } : line)) };
     // Storytree cannot be reached: the lines wait on this machine for the next hook that reaches it.
     const home = storytreeHome();
     // Observe before queueing or reaching the store: shell writes remain edits while offline, and

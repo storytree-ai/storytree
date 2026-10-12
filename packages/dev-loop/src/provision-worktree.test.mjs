@@ -80,6 +80,62 @@ test("2.1 as a session-start hook it exits 0 and says nothing on a healthy workt
   assert.equal(run.stdout, "");
 });
 
+/**
+ * An Electron package in root's virtual store, as Electron 44 is installed: no binary until its
+ * install.js runs. This install.js counts its runs, and writes what Electron's own does (dist/ and
+ * path.txt) unless told to fail.
+ */
+function electronPackage(root, { fails = false } = {}) {
+  const dir = path.join(root, "node_modules", ".pnpm", "electron@44.4.5", "node_modules", "electron");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: "electron", version: "44.4.5" }));
+  writeFileSync(
+    path.join(dir, "install.js"),
+    `const fs = require("node:fs"), path = require("node:path");
+fs.appendFileSync(path.join(__dirname, "runs"), "x");
+${fails ? 'console.error("download failed"); process.exit(1);' : ""}
+fs.mkdirSync(path.join(__dirname, "dist"), { recursive: true });
+fs.writeFileSync(path.join(__dirname, "dist", "electron"), "");
+fs.writeFileSync(path.join(__dirname, "path.txt"), "electron");
+`,
+  );
+  return dir;
+}
+
+const runsOf = (dir) => {
+  try {
+    return readFileSync(path.join(dir, "runs"), "utf8").length;
+  } catch {
+    return 0;
+  }
+};
+
+test("2.5 an installed worktree whose Electron has no binary gets it from Electron's installer, once", (t) => {
+  const root = worktree(t, "current");
+  const electron = electronPackage(root);
+  let installs = 0;
+  const result = provision({ root, install: () => (installs++, { ok: true }) });
+  assert.equal(result.ok, true);
+  assert.equal(installs, 0, "the worktree is current: no pnpm install");
+  assert.equal(runsOf(electron), 1, "Electron's install.js ran");
+  assert.equal(readFileSync(path.join(electron, "path.txt"), "utf8"), "electron");
+  assert.equal(hookOutput(result, root), "", "a fetched binary is silent");
+
+  provision({ root });
+  assert.equal(runsOf(electron), 1, "a binary already there is left alone");
+});
+
+test("2.5 a failed Electron fetch is named in the log but never fails the session", (t) => {
+  const root = worktree(t, "current");
+  const electron = electronPackage(root, { fails: true });
+  const lines = [];
+  const result = provision({ root, log: (line) => lines.push(line) });
+  assert.equal(runsOf(electron), 1);
+  assert.equal(result.ok, true);
+  assert.equal(hookOutput(result, root), "");
+  assert.ok(lines.some((line) => line.includes(electron) && /electron/i.test(line)), lines.join("\n"));
+});
+
 /** A fake `pnpm install` that leaves root as a completed install with every workspace link made. */
 function linkingInstall(calls) {
   return (root) => {

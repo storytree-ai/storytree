@@ -149,7 +149,9 @@ const ROAD_COLOUR = '#c7bba1';
 const ignoreRay = () => {};
 
 /** The roads between islands: a recorded growth (7.4), or the live host's real arrivals (6.16). */
-export function Pathways({ plan, reveal, live = false, visible = true }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined; live?: boolean; visible?: boolean }) {
+export function Pathways({ plan, reveal, live = false, visible = true, routing = false }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined; live?: boolean; visible?: boolean;
+  /** The plan's roads are still being routed (world 6.21): the live arrivals are kept for them. */
+  routing?: boolean }) {
   // Showing a surface is independent of the host's arrival clock (6.17). Mounting an already
   // visible globe keeps its usual view; only a hidden-to-visible transition starts this reveal.
   const showing = useRef({ visible, elapsed: undefined as number | undefined, started: false, reduced: reducedMotion() });
@@ -160,7 +162,7 @@ export function Pathways({ plan, reveal, live = false, visible = true }: { plan:
   const liveClock = useRef({ elapsed: 0, started: false, reduced: reducedMotion(), roads: new Map<string, GrowthWindow>() as ReadonlyMap<string, GrowthWindow> });
   const state = liveClock.current;
   if (live) {
-    const next = nextLiveRoads(state.roads, plan, state.elapsed);
+    const next = nextLiveRoads(state.roads, plan, state.elapsed, routing);
     if (next !== state.roads) {
       // A new arrival gets an undrawn first frame even after a long idle interval.
       if ([...next.keys()].some(key => !state.roads.has(key))) state.started = false;

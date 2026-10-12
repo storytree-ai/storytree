@@ -11,7 +11,8 @@
  * What the tests check is read back through the library and the activity log themselves.
  */
 import assert from "node:assert/strict";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
@@ -585,6 +586,84 @@ test("session-management 11.5 when GitHub refuses protection on the repository's
       assert.match(wired.text, /GitHub Pro|public/);
       assert.deepEqual(wired.data.protection, { approved: false, available: false });
       assert.deepEqual(readFileSync(calls, "utf8").trim().split("\n"), ["api repos/someone/shop/branches/main/protection"], "it only read the setting");
+    });
+  });
+});
+
+/** The commands of the workflow's test job, in the order it runs them. */
+function testJobRuns(workflow: string): string[] {
+  const job = workflow.slice(workflow.indexOf("\n  test:"), workflow.indexOf("\n  storytree-check:"));
+  return [...job.matchAll(/^ {6}- run: (".*")$/gm)].map((match) => JSON.parse(match[1]!) as string);
+}
+
+test("session-management 11.6 in a project that imports a folder recorded by repository and commit, wire_pipeline's pipeline fetches it at that commit beside the checkout, where the folder sits, and installs its own dependencies, before the project's install and tests; it moves only when the folder is imported again", async () => {
+  await withProject(async ({ folder }) => {
+    git(folder, "init", "-q");
+    git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
+    const around = path.dirname(folder);
+    const origin = path.join(around, "viewer-origin.git");
+    git(around, "init", "-q", "--bare", origin);
+    const viewer = path.join(around, "viewer");
+    mkdirSync(viewer);
+    git(viewer, "init", "-q");
+    writeFileSync(path.join(viewer, "package.json"), JSON.stringify({ name: "viewer", version: "1.0.0" }));
+    writeFileSync(path.join(viewer, "package-lock.json"), JSON.stringify({ name: "viewer", lockfileVersion: 3, packages: {} }));
+    git(viewer, "add", ".");
+    git(viewer, "commit", "-q", "-m", "first");
+    git(viewer, "remote", "add", "origin", origin);
+    git(viewer, "push", "-q", "origin", "HEAD:refs/heads/main");
+    const first = git(viewer, "rev-parse", "HEAD").trim();
+
+    await withAgent(folder, claudeCode("claude-1", { protection: async () => "allowed" }), async (agent) => {
+      assert.equal((await agent.call("import_project", { folder: "../viewer" })).isError, false);
+      const wired = await agent.call("wire_pipeline", { install: "npm ci", test: "npm test" });
+      assert.equal(wired.isError, false, wired.text);
+      const runs = testJobRuns(readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8"));
+      const install = runs.indexOf("npm ci");
+      assert.ok(install > 0, runs.join("\n"));
+      const fetches = runs.slice(0, install);
+      assert.ok(fetches.some((command) => command.includes(first)), fetches.join("\n"));
+      assert.ok(fetches.some((command) => /^npm ci\b.*"\.\.\/viewer"/.test(command)), `the viewer's own dependencies are installed by its lockfile: ${fetches.join("\n")}`);
+      assert.match(wired.text, new RegExp(first.slice(0, 7)));
+
+      // CI's checkout, with nothing beside it: the fetch commands put the viewer where its folder sits, at the commit.
+      const ci = path.join(around, "ci");
+      mkdirSync(path.join(ci, "work"), { recursive: true });
+      for (const command of fetches.filter((line) => line.startsWith("git "))) execSync(command, { cwd: path.join(ci, "work"), stdio: "pipe" });
+      assert.equal(git(path.join(ci, "viewer"), "rev-parse", "HEAD").trim(), first);
+      assert.ok(existsSync(path.join(ci, "viewer", "package.json")));
+
+      // A new commit in the viewer moves nothing until the folder is imported again and the pipeline wired again.
+      writeFileSync(path.join(viewer, "index.js"), "export const viewer = 2;\n");
+      git(viewer, "add", ".");
+      git(viewer, "commit", "-q", "-m", "second");
+      git(viewer, "push", "-q", "origin", "HEAD:refs/heads/main");
+      const second = git(viewer, "rev-parse", "HEAD").trim();
+      await agent.call("wire_pipeline", { install: "npm ci", test: "npm test" });
+      assert.ok(readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8").includes(first), "still the recorded commit");
+      assert.equal((await agent.call("import_project", { folder: "../viewer" })).isError, false);
+      await agent.call("wire_pipeline", { install: "npm ci", test: "npm test" });
+      const moved = readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8");
+      assert.ok(moved.includes(second) && !moved.includes(first), moved);
+    });
+  });
+});
+
+test("session-management 11.7 an import recorded with no repository is named by wire_pipeline as one CI cannot fetch, with what the user can do, and nothing is fetched for it", async () => {
+  await withProject(async ({ folder }) => {
+    git(folder, "init", "-q");
+    git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
+    const viewer = path.join(path.dirname(folder), "viewer");
+    mkdirSync(viewer);
+    writeFileSync(path.join(viewer, "package.json"), JSON.stringify({ name: "viewer" }));
+    await withAgent(folder, claudeCode("claude-1", { protection: async () => "allowed" }), async (agent) => {
+      assert.equal((await agent.call("import_project", { folder: "../viewer" })).isError, false);
+      const wired = await agent.call("wire_pipeline", { test: "npm test" });
+      assert.equal(wired.isError, false, wired.text);
+      assert.match(wired.text, /CI cannot fetch/);
+      assert.ok(wired.text.includes(realpathSync.native(viewer)), wired.text);
+      assert.match(wired.text, /import it again/);
+      assert.deepEqual(testJobRuns(readFileSync(path.join(folder, ".github/workflows/storytree.yml"), "utf8")), ["npm test"]);
     });
   });
 });

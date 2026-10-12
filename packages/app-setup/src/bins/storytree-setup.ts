@@ -1,8 +1,8 @@
 /**
- * Capability 8 · Setup check. `storytree-setup install | remove`: register storytree's hooks for Claude Code, Codex, Cursor and Pi now,
+ * Capability 8 · Setup check. `storytree-setup install | remove`: register storytree's hooks for Claude Code, Codex, Cursor, Pi and Antigravity CLI now,
  * outside any session, or take out exactly what storytree added (capability 8 · Setup check,
  * the app setup story). The hook registered is the `storytree-hook.mjs` built beside this script.
- * Claude Code's settings are CLAUDE_CONFIG_DIR's or ~/.claude's, Codex's CODEX_HOME's or ~/.codex's, Cursor's ~/.cursor's, Pi's PI_CODING_AGENT_DIR or ~/.pi/agent.
+ * Claude Code's settings are CLAUDE_CONFIG_DIR's or ~/.claude's, Codex's CODEX_HOME's or ~/.codex's, Cursor's ~/.cursor's, Pi's PI_CODING_AGENT_DIR or ~/.pi/agent, Antigravity CLI's ~/.gemini/config.
  */
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -23,6 +23,7 @@ function main(): void {
     console.log(`Codex: ${removed.codex === "removed" ? "storytree's hooks removed" : "no storytree hooks"}`);
     console.log(`Cursor: ${removed.cursor === "removed" ? "storytree's hooks removed" : "no storytree hooks"}`);
     console.log(`Pi: ${removed.pi === "removed" ? "storytree's extension removed" : "no storytree extension"}`);
+    console.log(`Antigravity CLI: ${removed.antigravity === "removed" ? "storytree's hooks removed" : "no storytree hooks"}`);
     console.log(`Status line: ${removed.statusLine === "removed" ? "storytree's removed" : "not storytree's, left as it is"}`);
     console.log(`storytree command: ${removeCommand(onPath) === "removed" ? "taken off the path" : "none of storytree's on the path"}`);
   } else if (command === "install") {
@@ -36,6 +37,7 @@ function main(): void {
     console.log(`Codex: ${report.codex}${report.codex === "registered" ? " (run `codex` in a terminal once and trust storytree's hooks when it asks)" : ""}`);
     console.log(`Cursor: ${report.cursor}`);
     console.log(`Pi: ${report.pi}`);
+    console.log(`Antigravity CLI: ${report.antigravity}`);
     console.log(`Claude Code status line: ${report.statusLine}`);
     console.log(`storytree command: ${putCommandOnPath(onPath, process.execPath, path.join(path.dirname(script), "storytree.mjs"))}`);
   } else {

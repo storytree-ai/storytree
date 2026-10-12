@@ -773,6 +773,44 @@ test("8.28 the setup check registers storytree's hooks for Cursor where Cursor's
   });
 });
 
+test("8.30 the setup check registers storytree's named hook in Antigravity CLI's hooks.json where its home is, keeping every other, says whether agy is installed but never that it is signed in, and verifies an Antigravity session's start by its first hook line, since Antigravity sends no start", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const gemini = path.join(dir, ".gemini");
+    const bin = path.join(dir, "bin");
+    for (const folder of [gemini, bin]) mkdirSync(folder);
+    // Antigravity CLI's command line, as measured on the Mint box (2026-10-12): it answers its version signed in or not.
+    fakeTool(bin, "agy", { "--version": { out: "1.3.3", code: 0 } });
+    const check = () => runSetupCheck({
+      folder: dir, hook: HOOK, homes: { ...home.homes, antigravity: gemini }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const,
+      machine: () => machineState({ path: bin, waitMs: 15_000, codexHome: home.homes.codex, localAppData: dir, applications: [] }),
+    });
+
+    const report = await check();
+    assert.equal(report.hooks?.antigravity, "registered", "its config folder is made where its home is");
+    const hooksFile = path.join(gemini, "config", "hooks.json");
+    const own = { reminder: { PreInvocation: [{ type: "command", command: "./remind.sh" }] } };
+    writeFileSync(hooksFile, JSON.stringify({ ...own, ...(readJson(hooksFile) as object) }));
+    assert.equal((await check()).hooks?.antigravity, "already registered");
+    const registered = readJson(hooksFile) as Record<string, Record<string, unknown[]>>;
+    assert.deepEqual(registered.reminder, own.reminder, "another named hook is kept");
+    assert.deepEqual(Object.keys(registered.storytree!).sort(), ["PostToolUse", "PreToolUse", "Stop"]);
+
+    const said = report.lines.find((each) => each.check === "agent-cli");
+    assert.equal(said?.state, "ok", "Antigravity CLI alone is a harness storytree watches");
+    assert.match(said?.message ?? "", /Antigravity CLI is installed/);
+    assert.doesNotMatch(said?.message ?? "", /Antigravity CLI is (installed and )?(not )?signed in/);
+
+    const line = (kind: Line["kind"]) => ({ kind, session: "c1", harness: "antigravity", source: "hook" }) as unknown as Line;
+    assert.deepEqual(verifyHooks([], "c1", "antigravity").missing, ["session start", "storytree tool call", "file edit", "command"], "nothing heard proves nothing");
+    assert.deepEqual(verifyHooks([line("tool-requested")], "c1", "antigravity").missing, ["file edit", "command"], "its first line opens the session");
+    assert.deepEqual(verifyHooks([line("tool-requested")], "c1", "claude-code").missing, ["session start", "file edit", "command"], "a harness with a start still needs it");
+
+    assert.equal(removeHooks({ antigravity: gemini }).antigravity, "removed");
+    assert.deepEqual(readJson(hooksFile), own, "removing storytree takes out its named hook alone");
+  });
+});
+
 test("8.29 the setup check installs storytree's Pi extension where Pi's agent folder is and says whether Pi is installed; the extension, loaded as Pi loads it, forwards Pi's events to the hook script and hands Pi back its refusal; removing storytree deletes it", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

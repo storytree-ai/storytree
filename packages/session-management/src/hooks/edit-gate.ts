@@ -24,6 +24,7 @@ import type { LocateOptions } from "../routing/index.js";
 import { patchEdits } from "./codex.js";
 import { cursorSession } from "./cursor.js";
 import { piEdit, piSession } from "./pi.js";
+import { antigravityEdit, antigravitySession } from "./antigravity.js";
 import { withDeadline } from "./deadlines.js";
 import { isSelfNamed, selfNamedEdit } from "./self-named.js";
 import type { HookFailure } from "./failures.js";
@@ -39,6 +40,7 @@ export function editIn(harness: string, input: unknown): { session: string; fold
   if (typeof input !== "object" || input === null) return undefined;
   if (harness === "cursor") return cursorEditIn(input as Record<string, unknown>);
   if (harness === "pi") return piEditIn(input as Record<string, unknown>);
+  if (harness === "antigravity") return antigravityEditIn(input as Record<string, unknown>);
   if (isSelfNamed(harness)) return selfNamedEditIn(input as Record<string, unknown>);
   if (typeof (input as Record<string, unknown>).cursor_version === "string") return undefined;
   const { hook_event_name: event, session_id: session, cwd: folder, tool_name: tool, tool_input: toolInput } = input as Record<string, unknown>;
@@ -69,6 +71,13 @@ function piEditIn(input: Record<string, unknown>): ReturnType<typeof editIn> {
   return input.hook_event_name !== "tool_call" || about === undefined || file === undefined ? undefined : { ...about, files: [file] };
 }
 
+/** The file edit an Antigravity pre-tool input is about to make. */
+function antigravityEditIn(input: Record<string, unknown>): ReturnType<typeof editIn> {
+  const about = antigravitySession(input);
+  const file = about === undefined ? undefined : antigravityEdit(input, about.folder);
+  return input.hook_event_name !== "PreToolUse" || about === undefined || file === undefined ? undefined : { ...about, files: [file] };
+}
+
 /** Cursor's tools that write one named file. */
 const CURSOR_EDITS = new Set(["Write", "StrReplace", "Delete", "MultiEdit", "Edit"]);
 
@@ -95,6 +104,7 @@ function cursorEditIn(input: Record<string, unknown>): ReturnType<typeof editIn>
  */
 export function refusalAnswer(harness: string, reason: string): string {
   if (harness === "pi") return JSON.stringify({ block: true, reason });
+  if (harness === "antigravity") return JSON.stringify({ decision: "deny", reason });
   if (harness === "cursor") return JSON.stringify({ permission: "deny", user_message: reason, agent_message: reason });
   return JSON.stringify({ decision: "block", reason, hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
 }

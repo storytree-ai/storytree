@@ -2,7 +2,7 @@
 import { mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { codexHookTrust, HARNESS_IDS, PI_EXTENSION, watchedHarness } from "@storytree/session-management";
+import { ANTIGRAVITY_HOOKS, codexHookTrust, HARNESS_IDS, PI_EXTENSION, watchedHarness } from "@storytree/session-management";
 
 import { CODEX_TRUST_STEP, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeHooks, removeLauncher, runsElevated } from "../setup/index.js";
 import { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
@@ -53,22 +53,25 @@ function locations(options: ConnectionOptions) {
   const cursor = path.join(home, ".cursor");
   // Pi's agent folder: PI_CODING_AGENT_DIR, else ~/.pi/agent (measured, Pi 1.1.0).
   const pi = env.PI_CODING_AGENT_DIR || path.join(home, ".pi", "agent");
-  return { home, env, claude, codex, cursor, pi, storytree, files: {
+  // Antigravity CLI's home is ~/.gemini; its tool servers are in config/mcp_config.json (measured, agy 1.3.3).
+  const antigravity = path.join(home, ".gemini");
+  return { home, env, claude, codex, cursor, pi, antigravity, storytree, files: {
     "claude-code": env.CLAUDE_CONFIG_DIR ? path.join(claude, ".claude.json") : path.join(home, ".claude.json"),
     codex: path.join(codex, "config.toml"),
     cursor: path.join(cursor, "mcp.json"),
     pi: path.join(pi, "mcp.json"),
+    antigravity: path.join(antigravity, "config", "mcp_config.json"),
   } };
 }
 /** The hook the installation carries: its bundled Node and the hook script beside its tool server. */
 const hookCommand = (installed: InstalledToolServerCommand) => ({ node: installed.command, script: path.join(path.dirname(installed.args[0]), "storytree-hook.mjs") });
-const executable = (harness: Harness) => harness === "claude-code" ? "claude" : harness === "codex" ? "codex" : harness === "pi" ? "pi" : "cursor-agent";
+const executable = (harness: Harness) => harness === "claude-code" ? "claude" : harness === "codex" ? "codex" : harness === "pi" ? "pi" : harness === "antigravity" ? "agy" : "cursor-agent";
 const label = (harness: Harness) => watchedHarness(harness)?.label ?? harness;
-/** The file a harness keeps its hooks in: Claude Code's settings.json, Codex's and Cursor's hooks.json, and storytree's Pi extension. */
-const hooksFileOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "claude-code" ? path.join(where.claude, "settings.json") : harness === "pi" ? path.join(where.pi, PI_EXTENSION) : path.join(where[harness], "hooks.json");
-/** The folder a harness keeps its hooks file in: its home, and for Pi its agent folder, which holds the extensions folder. */
-const harnessHomeOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "pi" ? where.pi : path.dirname(hooksFileOf(where, harness));
-const homesOf = (where: ReturnType<typeof locations>) => ({ claude: where.claude, codex: where.codex, cursor: where.cursor, pi: where.pi });
+/** The file a harness keeps its hooks in: Claude Code's settings.json, Codex's, Cursor's and Antigravity's hooks.json, and storytree's Pi extension. */
+const hooksFileOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "claude-code" ? path.join(where.claude, "settings.json") : harness === "pi" ? path.join(where.pi, PI_EXTENSION) : harness === "antigravity" ? path.join(where.antigravity, ANTIGRAVITY_HOOKS) : path.join(where[harness], "hooks.json");
+/** The folder a harness keeps its hooks file in: its home, for Pi its agent folder, which holds the extensions folder, and for Antigravity ~/.gemini, which holds its config folder. */
+const harnessHomeOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "pi" ? where.pi : harness === "antigravity" ? where.antigravity : path.dirname(hooksFileOf(where, harness));
+const homesOf = (where: ReturnType<typeof locations>) => ({ claude: where.claude, codex: where.codex, cursor: where.cursor, pi: where.pi, antigravity: where.antigravity });
 /** Pi's default exposure, codemode, declares no tool to the model: storytree's are declared directly (measured, Pi 1.1.0). */
 const PI_ENTRY = { exposure: "direct", description: "storytree: the project's plan, claims, library and questions" };
 async function openSettings(harness: Harness, options: ConnectionOptions): Promise<Settings> {
@@ -143,6 +146,8 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       else if (trust === "waiting") result(tools, `Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. ${CODEX_TRUST_STEP}`, "waiting for you to trust them in Codex");
       // Cursor's hooks are known from its documentation and code, not from a session: nothing here says they run.
       else if (harness === "cursor") result(tools, "Tools connected in user settings; hooks not verified. Start a new Cursor agent session in the folder of your project and call check_setup.");
+      // Antigravity's hooks are known from the documentation it ships, not from a session (agy runs no prompt unsigned).
+      else if (harness === "antigravity") result(tools, "Tools connected in user settings and storytree's hooks added to Antigravity's hooks.json; hooks not verified. Start a new agy session in the folder of your project and call check_setup.");
       else if (harness === "pi") result(tools, "Tools connected in user settings and storytree's Pi extension installed; hooks not verified. Start a new Pi session in the folder of your project and call check_setup.");
       else result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.");
     } catch {
@@ -232,7 +237,7 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
     } catch {
       const next = harness === "claude-code"
         ? `remove the storytree entry under mcpServers in ${where.files[harness]}, and storytree's hooks and status line in ${path.join(where.claude, "settings.json")}.`
-        : harness === "cursor" || harness === "pi"
+        : harness === "cursor" || harness === "pi" || harness === "antigravity"
           ? `remove the storytree entry under mcpServers in ${where.files[harness]}, and storytree's hooks in ${hooksFileOf(where, harness)}.`
           : `run codex mcp remove storytree, or delete the [mcp_servers.storytree] table in ${where.files[harness]}; storytree's hooks are in ${path.join(where.codex, "hooks.json")}.`;
       results.push({ harness, tools: "kept", next: `storytree could not remove its connection; ${next}` });

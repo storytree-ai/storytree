@@ -1,7 +1,7 @@
 /** Capability 2 · The shell's harness session, or the person at the computer (ADR-0645 A1/W1). */
 import { userInfo } from "node:os";
 import type { WriteOptions } from "@storytree/library";
-import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/session-management/readings";
+import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "@storytree/session-management/readings";
 
 export function person(): string {
   try {
@@ -16,8 +16,9 @@ export function person(): string {
  * session's, whose check_setup gives the id (contract 2.7). Its harness is unknown to the shell.
  */
 export function commandSession(): { session: string; harness?: string } | undefined {
-  for (const harness of WATCHED_HARNESSES) {
-    const session = process.env[harness.shellSession]?.trim();
+  for (const harness of WATCHED_HARNESSES as readonly WatchedHarness[]) {
+    // Antigravity CLI names its session in no shell: its commands are the person's, or STORYTREE_SESSION_ID's.
+    const session = harness.shellSession === undefined ? undefined : process.env[harness.shellSession]?.trim();
     if (session) return { session, harness: harness.id };
   }
   const named = process.env[SESSION_ENV]?.trim();

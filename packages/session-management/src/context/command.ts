@@ -8,7 +8,7 @@
 import path from "node:path";
 
 import { ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "../routing/index.js";
-import { SESSION_ENV, WATCHED_HARNESSES } from "../harnesses.js";
+import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "../harnesses.js";
 import { readContext, type ContextReading } from "./context.js";
 import { guidanceSentence } from "./guidance.js";
 
@@ -29,7 +29,7 @@ export interface ContextCommandAnswer {
 }
 
 /** Where a shell names its session: each watched harness's own variable, then storytree's for any other (contract 9.15). */
-const SESSION_VARIABLES = [...WATCHED_HARNESSES.map((harness) => harness.shellSession), SESSION_ENV];
+const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness: WatchedHarness) => harness.shellSession ?? []), SESSION_ENV];
 
 function shellSession(env: ContextCommandOptions["env"]): string | undefined {
   return SESSION_VARIABLES.map((name) => env[name]?.trim()).find((value) => value !== undefined && value !== "");

@@ -14,7 +14,7 @@ export function deliveredCommand(home = storytreeHome(), helperDir = path.dirnam
     const node = path.join(helperDir, process.platform === "win32" ? "node.exe" : "node");
     const mcp = path.join(helperDir, "storytree-mcp.mjs");
     if ([node, mcp].every((tool) => existsSync(tool))) return installedToolServerCommand(node, mcp);
-    throw new Error(`No delivery record at ${file} and no installed tools beside this command in ${helperDir}. Re-run the storytree installer to the end: its finish step opens the app, puts the storytree command on PATH and records the tool paths. Then retry storytree setup connect --claude, --codex, --cursor or --pi.`);
+    throw new Error(`No delivery record at ${file} and no installed tools beside this command in ${helperDir}. Re-run the storytree installer to the end: its finish step opens the app, puts the storytree command on PATH and records the tool paths. Then retry storytree setup connect --claude, --codex, --cursor, --pi or --antigravity.`);
   }
   try {
     const record = JSON.parse(readFileSync(file, "utf8"));
@@ -22,7 +22,7 @@ export function deliveredCommand(home = storytreeHome(), helperDir = path.dirnam
       typeof record.tools?.node !== "string" || typeof record.tools?.mcp !== "string") throw new Error("Invalid delivery record");
     return installedToolServerCommand(record.tools.node, record.tools.mcp);
   } catch {
-    throw new Error(`Cannot read usable installed tool paths from ${file}. Re-run the storytree installer, then retry storytree setup connect --claude, --codex, --cursor or --pi.`);
+    throw new Error(`Cannot read usable installed tool paths from ${file}. Re-run the storytree installer, then retry storytree setup connect --claude, --codex, --cursor, --pi or --antigravity.`);
   }
 }
 
@@ -31,9 +31,9 @@ const label = (harness: Harness) => watchedHarness(harness)?.label ?? harness;
 /** Output and exit status describe each agent independently; registration never attests hooks. */
 export async function runInstalledConnection(action: "connect" | "disconnect", chosen: readonly string[]): Promise<string> {
   if (chosen.length === 0 || chosen.some((name) => !(HARNESS_IDS as readonly string[]).includes(name))) {
-    throw new Error("Choose claude-code, codex, cursor, pi or several for connect; choose one for disconnect.");
+    throw new Error("Choose claude-code, codex, cursor, pi, antigravity or several for connect; choose one for disconnect.");
   }
-  if (action === "disconnect" && chosen.length !== 1) throw new Error("Disconnect one agent at a time: claude-code, codex, cursor or pi.");
+  if (action === "disconnect" && chosen.length !== 1) throw new Error("Disconnect one agent at a time: claude-code, codex, cursor, pi or antigravity.");
   const options = { harnesses: chosen as Harness[], installed: deliveredCommand() };
   if (action === "connect") {
     const results = await connectAgents(options);

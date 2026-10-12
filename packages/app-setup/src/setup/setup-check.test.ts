@@ -811,7 +811,7 @@ test("8.30 the setup check registers storytree's named hook in Antigravity CLI's
   });
 });
 
-test("8.29 the setup check installs storytree's Pi extension where Pi's agent folder is and says whether Pi is installed; the extension, loaded as Pi loads it, forwards Pi's events to the hook script and hands Pi back its refusal; removing storytree deletes it", async () => {
+test("8.29 the setup check installs storytree's Pi extension where Pi's agent folder is and says whether Pi is installed; the extension, loaded as Pi loads it, forwards Pi's events to the hook script and hands Pi back its refusal and its close-out request; removing storytree deletes it", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const pi = path.join(dir, ".pi", "agent");
@@ -821,7 +821,7 @@ test("8.29 the setup check installs storytree's Pi extension where Pi's agent fo
     writeFileSync(path.join(pi, "mcp.json"), servers);
     mkdirSync(path.join(pi, "extensions"));
     writeFileSync(path.join(pi, "extensions", "mine.ts"), "export default function () {}\n");
-    // A hook script standing in for storytree's: it notes each run, and refuses every edit it is asked about.
+    // A hook script standing in for storytree's: it notes each run, refuses every edit it is asked about, and asks every settling run to close out.
     const heard = path.join(dir, "heard.jsonl");
     const script = path.join(dir, "tools", "storytree-hook.mjs");
     mkdirSync(path.dirname(script));
@@ -829,6 +829,7 @@ test("8.29 the setup check installs storytree's Pi extension where Pi's agent fo
 const input = JSON.parse(readFileSync(0, "utf8"));
 appendFileSync(${JSON.stringify(heard)}, JSON.stringify({ args: process.argv.slice(2), input }) + "\\n");
 if (process.argv.includes("--edit-gate")) process.stdout.write(JSON.stringify({ block: true, reason: "held by another session" }));
+if (process.argv.includes("--close-out-reminder")) process.stdout.write(JSON.stringify({ entries: [{ type: "custom_message", customType: "storytree-close-out", content: "close out", display: true }], continue: true }));
 `);
     const hook = { node: process.execPath, script };
     fakeTool(bin, "pi", { "--version": { out: "1.1.0", code: 0 } });
@@ -865,6 +866,10 @@ if (process.argv.includes("--edit-gate")) process.stdout.write(JSON.stringify({ 
     assert.deepEqual(await fire({ type: "tool_call", toolName: "read", toolCallId: "call_r", input: { path: "a.ts" } }), [], "a tool storytree does not hear runs no hook");
     assert.deepEqual(await fire({ type: "before_agent_start", prompt: "hi", systemPrompt: "Pi's whole system prompt", systemPromptOptions: { tools: [] } }), [], "a prompt with nothing to add answers nothing");
     assert.deepEqual(heardLines()[1], { args: ["pi"], input: { type: "before_agent_start", prompt: "hi", hook_event_name: "before_agent_start", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") } }, "the prompt is heard without the system prompt the hook does not read");
+    const others = { type: "custom_message", customType: "another-extension", content: "kept", display: false };
+    const asked = { type: "custom_message", customType: "storytree-close-out", content: "close out", display: true };
+    assert.deepEqual(await fire({ type: "agent_before_settle", outcome: "completed", entries: [others], continue: false, context: { messages: ["the whole run"] } }), [{ entries: [others, asked], continue: true }], "a settling run is asked to close out, its entries added to the ones it came with");
+    assert.deepEqual(heardLines()[2], { args: ["pi", "--close-out-reminder"], input: { type: "agent_before_settle", outcome: "completed", continue: false, hook_event_name: "agent_before_settle", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") } }, "heard without the run's context and entries");
 
     assert.equal(removeHooks({ ...home.homes, pi }).pi, "removed");
     assert.equal(existsSync(extension), false);

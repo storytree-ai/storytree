@@ -1,7 +1,7 @@
 /**
- * Capability 3 · Hooks, contract 3.17 (ADR-0758 D4): when a Claude Code or Codex turn ends in a storytree
- * project on a branch whose work has reached main, and the session has not closed out, the Stop
- * hook asks it to, once. Real git in a throwaway repository with an origin beside it; the close-out
+ * Capability 3 · Hooks, contract 3.17 (ADR-0758 D4): when a Claude Code or Codex turn, or a Pi run, ends in
+ * a storytree project on a branch whose work has reached main, and the session has not closed out, the
+ * Stop hook (Pi's agent_before_settle) asks it to, once. Real git in a throwaway repository with an origin beside it; the close-out
  * is written to the real log on the Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -16,7 +16,7 @@ import { git, withTempDir } from "../testing/folders.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { CLOSE_OUT_REMINDER, runHook } from "./index.js";
 
-test("3.17 a turn that ends with its branch merged and no close-out is asked, once, to close out; a fresh branch with no commits of its own (made by checkout or as a workspace), a branch still ahead, main, a stop the reminder caused, or a session that closed out is not", async () => {
+test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-out is asked, once, to close out; a fresh branch with no commits of its own (made by checkout or as a workspace), a branch still ahead, main, a stop the reminder caused, or a session that closed out is not", async () => {
   await withTempDir(async (dir) => {
     const origin = path.join(dir, "origin.git");
     const site = path.join(dir, "site");
@@ -51,6 +51,19 @@ test("3.17 a turn that ends with its branch merged and no close-out is asked, on
     assert.equal(await stop(asked), undefined, "asked once per session");
     const codex = JSON.parse((await stop(randomUUID(), {}, "codex")) ?? "{}") as { decision?: string };
     assert.equal(codex.decision, "block", "a Codex session is asked the same way");
+    // Pi's run settling, as its extension forwards agent_before_settle: asked by an entry in the model's context and one continuation.
+    const settle = (session: string, extra: Record<string, unknown> = {}) =>
+      runHook({ argv: ["pi", CLOSE_OUT_REMINDER], input: JSON.stringify({ type: "agent_before_settle", hook_event_name: "agent_before_settle", session_id: session, cwd: site, outcome: "completed", continue: false, ...extra }) });
+    const piSession = randomUUID();
+    assert.equal(await settle(piSession, { outcome: "aborted" }), undefined, "a run the user stopped is not asked");
+    assert.equal(await settle(piSession, { continue: true }), undefined, "a run something else continues settles again later");
+    const pi = JSON.parse((await settle(piSession)) ?? "{}") as { continue?: boolean; entries?: { type?: string; customType?: string; content?: string; display?: boolean }[] };
+    assert.equal(pi.continue, true);
+    assert.equal(pi.entries?.length, 1);
+    assert.equal(pi.entries?.[0]?.type, "custom_message");
+    assert.equal(pi.entries?.[0]?.display, true);
+    assert.match(pi.entries?.[0]?.content ?? "", /storytree session close-out --safe yes\|no --why/);
+    assert.equal(await settle(piSession), undefined, "a Pi session is asked once too");
     assert.equal(await stop(again, { stop_hook_active: true }), undefined, "never again for the turn the reminder itself caused");
 
     const log = await openActivityLog(testServerUrl());

@@ -23,6 +23,11 @@ const description = z.string().min(1).optional().describe("A sentence or two on 
 const intent = z.string().min(1).describe("What the arc exists to deliver, in a sentence");
 const endState = z.string().min(1).describe("What closed looks like: the condition under which it is delivered");
 const id = (what: string) => z.string().min(1).describe(`The id of the ${what}, as the plan shows it`);
+const covers = z
+  .array(z.string().min(1))
+  .min(1)
+  .optional()
+  .describe("On a mapped story only, and required there: the folders and files of its imported project this capability covers, each from the imported folder (a folder covers everything under it); none may overlap another capability's of the story");
 
 const founding = z
   .object({
@@ -64,16 +69,17 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_capability",
-    "Plan a capability: one part that makes a story work, with its founding decision: what it is for, and the one choice that shapes it. Leave its number off the title: it is given the story's next free one. Claim it before you build it.",
+    "Plan a capability: one part that makes a story work, with its founding decision: what it is for, and the one choice that shapes it. Leave its number off the title: it is given the story's next free one. Claim it before you build it. On a mapped story it is a capability you explored there, drawn as its own territory: give the folders and files it covers. Where it starts and ends is your call; one overlapping another of the story's is refused, naming that one, so correct it with edit_plan rather than adding another.",
     z.object({
       story: id("story it belongs to"),
       title,
       description,
       depends_on: z.array(z.string().min(1)).optional().describe("The ids of capabilities it needs first"),
+      covers,
       founding,
     }),
-    async ({ story, title: name, description: about, depends_on: dependsOn, founding: decision }, { library, writer }) => {
-      const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn }) }, writer);
+    async ({ story, title: name, description: about, depends_on: dependsOn, covers: paths, founding: decision }, { library, writer }) => {
+      const capability = await library.addCapability({ title: name, story, ...optional({ description: about, dependsOn, covers: paths }) }, writer);
       const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: capability.id }, writer);
       return {
         text: `Planned capability ${quoted(name)} (${capability.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its contracts, then claim it before you build it.`,
@@ -107,6 +113,7 @@ export function registerPlanTools(define: Define): void {
       story: z.string().min(1).optional().describe("A capability's story, to move it"),
       capability: z.string().min(1).optional().describe("A contract's capability, to move it"),
       depends_on: z.array(z.string().min(1)).optional().describe("A capability's dependencies, replacing them"),
+      covers: covers.describe("A mapped story's capability's folders and files, replacing them"),
       stories: z.array(z.string().min(1)).optional().describe("An arc's stories, replacing them"),
       intent: intent.optional(),
       end_state: endState.optional(),
@@ -212,7 +219,7 @@ interface Changes {
 /** The fields each kind of plan record can have corrected, as the tool names them. */
 const EDITABLE = {
   story: ["title", "description"],
-  capability: ["title", "description", "story", "depends_on"],
+  capability: ["title", "description", "story", "depends_on", "covers"],
   contract: ["title", "description", "capability"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
   increment: ["title", "capabilities", "links", "machine"],

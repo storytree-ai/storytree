@@ -502,6 +502,34 @@ test("3.39 a mapped story is one brown island, whole: no territories, file circl
   assert.ok(Math.abs(brown.h - parked.h) > 0.3 && brown.s - parked.s > 0.1, "warm and plainly apart from parked's cool slate grey");
 });
 
+test("3.50 a mapped island draws each explored capability as a brown territory of its own, side by side with one for the unexplored rest, none over another; each is picked by its capability", () => {
+  const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
+  const explored = (id: string, title: string, covers: string[]) => ({ id, title, description: `${title}, explored`, dependsOn: [], proposed: true, status: "proposed" as const, contracts: [], health, covers });
+  const tree: AnnotatedTree = { arcs: [], stories: [{ id: "app", title: "app", health, mapped: { from: "/code/app", package: ".", folders: ["."] },
+    capabilities: [explored("stats", "1 · Stats page", ["app/stats", "lib/stats.ts"]), explored("empty", "2 · Not found yet", ["app/gone"])] }] };
+  const files = [{ path: "app/stats/page.tsx", lines: 300, capability: "stats" }, { path: "lib/stats.ts", lines: 100, capability: "stats" }, { path: "app/home.tsx", lines: 1_600 }];
+  const island = forestScene(tree, [], workStates([]), { app: { files, imports: [], mapped: { folder: "/code/app" } } }).islands[0]!;
+  assert.deepEqual(island.land, { territories: [
+    { capability: "stats", title: "1 · Stats page", description: "1 · Stats page, explored", mapped: true, lines: 400 },
+    { mapped: true, lines: 1_600 },
+  ], files: [] }, "a territory per explored capability with code, then the unexplored rest, all mapped, and no file circles");
+  assert.equal(island.area, 3_000, "the island's land still follows all its lines");
+  const whole = forestScene({ ...tree, stories: [{ ...tree.stories[0]!, capabilities: [] }] }, [], workStates([]), { app: { files: files.map(({ path, lines }) => ({ path, lines })), imports: [], mapped: { folder: "/code/app" } } }).islands[0]!;
+  assert.notEqual(whole.key, island.key, "exploring redraws the island");
+
+  const map = territories(island.land!.territories, 20);
+  const drawn = territoryLand(map, (p) => new Vector3(p.x, 0, p.z));
+  const stats = drawn.getObjectByName("territory:stats") as Mesh;
+  const rest = drawn.getObjectByName("territory:mapped") as Mesh;
+  assert.deepEqual(stats.userData, { territory: true, mapped: true, capability: "stats", title: "1 · Stats page", description: "1 · Stats page, explored" }, "picked by its capability, with no word: it carries no health");
+  assert.ok((stats.material as MeshBasicMaterial).color.equals((rest.material as MeshBasicMaterial).color), "brown, as the rest of the island");
+  const cellsOf = (at: number) => map.cells.filter(({ territory }) => territory === at).length;
+  assert.ok(cellsOf(0) > 0 && cellsOf(1) > 0, "each has its own land");
+  assert.ok(map.cells.every(({ territory }) => territory === 0 || territory === 1), "and every cell is one territory's: none drawn over another");
+  assert.ok(map.borders.length > 0, "a border runs between them");
+  assert.equal(drawn.getObjectByName("territory-hatch:unclaimed"), undefined, "never hatched");
+});
+
 /**
  * Three draws a see-through, double-sided material in two passes, back faces then front, re-versioning it
  * before each (WebGLRenderer's renderObject), so every frame re-derives its shader program twice (ADR-0836 D1).

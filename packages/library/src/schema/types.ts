@@ -186,6 +186,12 @@ export const RECORD_SCHEMAS = {
       description: z.string().optional(),
       dependsOn: ids.optional(),
       proposed: z.boolean(),
+      /**
+       * An explored capability of a mapped story (ADR-0993 D5): the folders and files of its import it covers, each
+       * relative to the imported folder, a folder covering everything under it; the work model checks the rest.
+       * Optional, so no version bump.
+       */
+      covers: z.array(nonEmpty).min(1).optional(),
     })
     .strict(),
   contract: z

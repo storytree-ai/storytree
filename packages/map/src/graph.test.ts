@@ -144,3 +144,20 @@ test("3.7 a mapped story, and a file of its imported folder by either path, answ
   assert.doesNotMatch(formatFocus(shown), /health|healthy|failing|untested|verified/i);
   assert.equal(focus(built, { select: "file:/code/shop/packages/cart/src/index.ts", up: 0, mode: "show" }).rows?.[0]?.id, file, "its full path selects it too");
 });
+
+test("1.3 a mapped file an explored capability covers implements it, and the map answers for either; the capability reads mapped until it has a contract", () => {
+  const explored = { id: "stats", title: "1 · Stats page", proposed: true, status: "proposed", health: { ...health, verified: { state: "not-checked" } }, dependsOn: [], contracts: [], covers: ["app/stats"] };
+  const plan = { arcs: [], stories: [{ id: "app", title: "app", health, capabilities: [explored], mapped: { from: "/code/app", package: ".", folders: ["."] } }] } as unknown as AnnotatedTree;
+  const survey = { app: { files: [{ path: "app/stats/page.tsx", lines: 40, capability: "stats" }, { path: "app/home.tsx", lines: 9 }], imports: [], tests: [], mapped: { folder: "/code/app" } } };
+  const built = buildGraph(plan, survey);
+  const page = "file:/code/app/app/stats/page.tsx";
+  assert.deepEqual(built.edges.filter(edge => edge.kind === "implements").map(edge => [edge.from, edge.to]), [[page, "stats"]], "only the covered file implements it");
+  assert.equal(built.nodes.find(node => node.id === "stats")?.health, "mapped");
+  assert.equal(built.nodes.find(node => node.id === page)?.health, "mapped", "its file stays mapped");
+  assert.deepEqual(focus(built, { select: "cap:stats", down: 1, mode: "show" }).rows?.map(row => row.id).sort(), [page, "stats"].sort(), "the capability answers with its files");
+  assert.ok(focus(built, { select: "file:app/stats/page.tsx", up: 1, mode: "show" }).rows?.some(row => row.id === "stats"), "and its file with its capability");
+
+  const promised = { ...explored, contracts: [{ id: "totals", title: "1.1 · Shows the week's totals", health: { ...health, verified: { state: "failing" } } }] };
+  const later = buildGraph({ ...plan, stories: [{ ...plan.stories[0]!, capabilities: [promised] }] } as unknown as AnnotatedTree, survey);
+  assert.equal(later.nodes.find(node => node.id === "stats")?.health, "untested", "given a contract, it is read as any capability");
+});

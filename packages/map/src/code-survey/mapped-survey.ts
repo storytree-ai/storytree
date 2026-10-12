@@ -4,8 +4,9 @@
  *
  * - A mapped story's files are the JavaScript and TypeScript files Git tracks at its imported checkout's commit
  *   (a folder that is no checkout: every such file in it) under the story's folders, leaving out the skip list's
- *   folders and a folder another package of the same import maps. Each carries its non-blank lines and no
- *   capability: nothing parses them, and a black box has no imports to follow until someone explores it.
+ *   folders and a folder another package of the same import maps. Each carries its non-blank lines, and the
+ *   capability an agent explored that covers it, by a folder above it or by its own path (ADR-0993 D5); the rest
+ *   carry none. Nothing parses them, and a black box has no imports to follow until someone explores it.
  * - A mapped story's package dependency, through any field of its package.json, on another mapped story's
  *   package is a road between them. A loop among them is reported on each story round it, and refuses nothing.
  *   Its dependency on a built story's package is never a road: old code never imports new code (ADR-0993 D9).
@@ -121,8 +122,14 @@ export function mappedSurveyReader(readText: (file: string) => Promise<string>) 
       return other === undefined || other === id ? [] : [other];
     }))]] as const));
     const surveys = new Map<string, StorySurvey>();
-    for (const [id, { folder, walk: { files } }] of found) {
+    for (const [id, { story, folder, walk }] of found) {
       const loop = loopThrough(id, dependsOn);
+      // Applied past the walk's keep, so a change of covers is read while the checkout stays at its commit.
+      const covering = story.capabilities.flatMap(({ id: capability, covers }) => (covers ?? []).map((cover) => ({ capability, cover })));
+      const files = covering.length === 0 ? walk.files : walk.files.map((file) => {
+        const owner = covering.find(({ cover }) => cover === "." || file.path === cover || file.path.startsWith(`${cover}/`));
+        return owner === undefined ? file : { ...file, capability: owner.capability };
+      });
       const survey: StorySurvey = { files, imports: [], tests: [], dependsOn: dependsOn.get(id)!, mapped: { folder, ...(loop === undefined ? {} : { loop }) } };
       const before = last.get(id);
       const kept = before !== undefined && JSON.stringify(before) === JSON.stringify(survey) ? before : survey;

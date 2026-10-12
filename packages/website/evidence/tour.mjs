@@ -669,12 +669,15 @@ export async function verifyOwnGlobeFits(browser, url, output, sizes = [[390, 84
     await page.goto(url);
     await page.waitForFunction(() => document.querySelector("#website-forest")?.dataset.forestState === "live", null, { timeout: 90_000 });
     const seen = new Set(), pictured = new Set(), samples = { grow: 0, value: 0, fixes: 0, everything: 0, freeplay: 0 };
+    // A sample counts only for the view the page shows as it is read: the tour can end between a loop's check and its sample,
+    // and free play's first frames still show the everything step's pose under free play's larger compass.
     const sample = async where => {
-      const { plates, compass, bar } = await page.evaluate(() => {
+      const { view, plates, compass, bar } = await page.evaluate(() => {
         const box = node => { const { x, y, width, height } = node.getBoundingClientRect(); return { x, y, width, height }; };
-        const mini = document.querySelector("#chapter2 .planet-mini-globe svg");
+        const mini = document.querySelector("#chapter2 .planet-mini-globe svg"), { tourMode, tourStep } = document.querySelector("#chapter2").dataset;
         const top = Math.min(...["#tour-bar", "#tour-hatch"].map(id => document.querySelector(id)).filter(node => node?.checkVisibility()).map(node => node.getBoundingClientRect().top));
         return {
+          view: tourMode === "tour" ? tourStep : tourMode,
           compass: mini && getComputedStyle(mini).visibility === "visible" ? box(mini) : undefined,
           // The band across the screen's foot from the bar's top: free play's bar is see-through, but its line and button sit there.
           bar: Number.isFinite(top) ? { x: 0, y: top, width: innerWidth, height: innerHeight - top } : undefined,
@@ -683,6 +686,7 @@ export async function verifyOwnGlobeFits(browser, url, output, sizes = [[390, 84
             .map(node => ({ text: node.textContent, ...box(node) })).filter(plate => plate.width),
         };
       });
+      if (view !== where) return;
       seen.add(where);
       for (const plate of plates) {
         const off = plate.x < -.5 || plate.x + plate.width > width + .5, under = compass !== undefined && overlap(plate, compass) > 0;

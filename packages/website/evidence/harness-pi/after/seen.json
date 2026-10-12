@@ -1,0 +1,95 @@
+{
+  "errors": [],
+  "seen": [
+    {
+      "name": "1440-map-harness",
+      "card": {
+        "x": 58,
+        "y": 546,
+        "width": 400,
+        "height": 278
+      },
+      "row": {
+        "x": 58,
+        "y": 641,
+        "width": 400,
+        "height": 102
+      },
+      "marks": [
+        {
+          "name": "Claude Code",
+          "x": 58,
+          "y": 641,
+          "width": 161,
+          "height": 44
+        },
+        {
+          "name": "Codex",
+          "x": 248,
+          "y": 641,
+          "width": 108,
+          "height": 44
+        },
+        {
+          "name": "Pi",
+          "x": 58,
+          "y": 699,
+          "width": 72,
+          "height": 44
+        }
+      ],
+      "note": "Any other agent that speaks MCP can use the plan too.",
+      "noteBox": {
+        "x": 58,
+        "y": 753,
+        "width": 400,
+        "height": 21
+      }
+    },
+    {
+      "name": "390-map-harness",
+      "card": {
+        "x": 10,
+        "y": 409,
+        "width": 370,
+        "height": 289
+      },
+      "row": {
+        "x": 16,
+        "y": 496,
+        "width": 358,
+        "height": 36
+      },
+      "marks": [
+        {
+          "name": "Claude Code",
+          "x": 16,
+          "y": 496,
+          "width": 139,
+          "height": 36
+        },
+        {
+          "name": "Codex",
+          "x": 185,
+          "y": 496,
+          "width": 92,
+          "height": 36
+        },
+        {
+          "name": "Pi",
+          "x": 306,
+          "y": 496,
+          "width": 60,
+          "height": 36
+        }
+      ],
+      "note": "Any other agent that speaks MCP can use the plan too.",
+      "noteBox": {
+        "x": 16,
+        "y": 542,
+        "width": 358,
+        "height": 39
+      }
+    }
+  ]
+}

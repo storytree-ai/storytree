@@ -78,9 +78,11 @@ const graphiti = { name: "Graphiti docs", url: "https://help.getzep.com/graphiti
 const cursorAgents = { name: "Cursor docs", url: "https://cursor.com/docs/agent/agents-window" };
 const langsmith = { name: "LangSmith docs", url: "https://docs.langchain.com/langsmith/studio" };
 const linear = { name: "Linear docs", url: "https://linear.app/docs/initiatives" };
-// The harnesses storytree's first-run probe looks for (each its company's own published mark, evidence/map-harness/README.md).
+// The harnesses storytree watches and its setup check verifies (each its maker's own published mark: evidence/map-harness/ and
+// evidence/harness-pi/ READMEs).
 // Another harness is one more entry here, once storytree watches it; one that only speaks MCP gets the line beneath (ADR-1007 D5).
-const harnesses: Mark[] = [{ name: "Claude Code", src: "/harness/claude-code.png" }, { name: "Codex", src: "/harness/codex.png" }];
+const harnesses: Mark[] = [{ name: "Claude Code", src: "/harness/claude-code.png" }, { name: "Codex", src: "/harness/codex.png" },
+  { name: "Pi", src: "/harness/pi.svg" }];
 
 /**
  * The tour, one thought per line (ADR-0879 D4). Each explainer opens on the owner's own line (ADR-0857 D3);

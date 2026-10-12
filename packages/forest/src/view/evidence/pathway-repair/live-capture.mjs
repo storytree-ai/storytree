@@ -5,7 +5,7 @@ import os from 'node:os';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { closeBrowser as closeCaptureBrowser, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const smoke = process.argv.includes('--smoke');
@@ -44,8 +44,9 @@ await withCapture({ folder, dist }, async ({ browser, origin, out, settle }) => 
   browser.on('disconnected', () => phase('browser disconnected'));
   const closeBrowser = async () => {
     phase(`close browser (${browser.contexts().length} contexts remain)`);
-    await browser.close();
-    phase('browser close returned; finish capture server cleanup');
+    const outcome = await closeCaptureBrowser(browser);
+    phase(outcome === 'closed' ? 'browser close returned; finish capture server cleanup'
+      : 'browser close did not return after disconnect; killed its process; finish capture server cleanup');
   };
   const all = { label, browser: await browser.version(), dist, restoredLink, expected, runs: [] };
   for (const reduced of [false, true]) {

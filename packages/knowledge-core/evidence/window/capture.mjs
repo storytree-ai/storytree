@@ -9,7 +9,7 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, captureOutput, captureSeed, fakeBridge, launch, seedFile } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { buildCapture, captureOutput, captureSeed, closeBrowser, fakeBridge, launch, seedFile } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
@@ -142,6 +142,6 @@ try {
   console.log('ADR-0746 D1 capture passed');
   console.log(JSON.stringify({ read: read.length, held: selected.rings.length, inViewLines: selected.links.length }));
 } finally {
-  await browser?.close();
+  if (browser) await closeBrowser(browser);
   server.close();
 }

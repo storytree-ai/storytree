@@ -7,7 +7,7 @@ import type { Browser, Page, ViewportSize } from "playwright-core";
 
 import type { StorytreeBridge } from "../bridge.js";
 import { fakeBridge, type FakeBridge, type FakeBridgeOptions } from "./fake-bridge.js";
-import { launch } from "./launch.js";
+import { closeBrowser, launch } from "./launch.js";
 import { captureOutput } from "./output.js";
 
 export interface CaptureSeed {
@@ -48,6 +48,8 @@ interface CaptureOptions {
   dist?: string;
   /** Pure HTML/SVG previews use Chromium's ordinary compositor, without the WebGL flags. */
   softwareGL?: boolean;
+  /** How long a close may run on after the browser disconnects before its process is killed. */
+  closeGraceMs?: number;
 }
 
 export interface SeededCaptureOptions extends CaptureOptions {
@@ -76,7 +78,7 @@ export async function settle(page: Page, frames = 12): Promise<void> {
 const MIME: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".map": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".glb": "model/gltf-binary" };
 
 /** A shared server/browser lifetime for captures with their own interaction or measurement flow. */
-export async function withCapture<T>({ folder, dist, softwareGL = true }: CaptureOptions, run: (context: CaptureContext) => Promise<T>): Promise<T> {
+export async function withCapture<T>({ folder, dist, softwareGL = true, closeGraceMs }: CaptureOptions, run: (context: CaptureContext) => Promise<T>): Promise<T> {
   const out = captureOutput(folder);
   const server = dist === undefined ? undefined : createServer((request, response) => {
     try {
@@ -101,7 +103,7 @@ export async function withCapture<T>({ folder, dist, softwareGL = true }: Captur
     browser = await launch(undefined, { softwareGL });
     return await run({ browser, origin, out, settle });
   } finally {
-    try { await browser?.close(); }
+    try { if (browser !== undefined) await closeBrowser(browser, { afterDisconnectMs: closeGraceMs }); }
     finally {
       if (server?.listening) {
         server.closeAllConnections();

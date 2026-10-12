@@ -100,6 +100,24 @@ const pendingChange = z.union([
  */
 const knowledgeHead = { title: nonEmpty, description: nonEmpty, links: ids.optional() };
 
+/**
+ * Where a friction report stands (ADR-1016 D1): filed and not yet judged, judged with a remedy owed,
+ * its remedy landed, or judged as needing nothing.
+ */
+export const FRICTION_STATES = ["open", "routed", "resolved", "dismissed"] as const;
+/** Where a friction report stands. */
+export type FrictionState = (typeof FRICTION_STATES)[number];
+
+/**
+ * The state a judgement leaves a friction report in (ADR-1016 D2): routed to nothing it is
+ * dismissed; routed anywhere else it is resolved when it carries the reference that discharged it,
+ * and routed, its remedy owed, when it does not.
+ */
+export function judgedState(route: string, dischargedBy: string | undefined): FrictionState {
+  if (route === "nothing") return "dismissed";
+  return dischargedBy === undefined ? "routed" : "resolved";
+}
+
 /** When and by which session a friction or a re-steer was filed, and by what: 0.2's capture provenance. */
 const provenance = z
   .object({ branch: nonEmpty, date: nonEmpty, source: z.enum(["retro", "run-analysis"]) })
@@ -332,7 +350,8 @@ export const RECORD_SCHEMAS = {
   /**
    * What fought a session, with evidence (6-b). `route` and `routeReason` are set when it is
    * adjudicated, `reinforcedBy` logs each recurrence with its own evidence, and `dischargedBy` names
-   * the remedy that landed.
+   * the remedy that landed. Its `state` (ADR-1016 D1) is moved only by the library's own verbs:
+   * filing, routing, reinforcing and closing the increment that remedies it.
    */
   friction: z
     .object({
@@ -340,6 +359,7 @@ export const RECORD_SCHEMAS = {
       statement: nonEmpty,
       evidence: nonEmpty,
       impact: nonEmpty,
+      state: z.enum(FRICTION_STATES),
       route: z.enum(["adr", "tool", "principle", "guardrail", "process", "definition", "edit-existing", "nothing"]).optional(),
       routeReason: nonEmpty.optional(),
       provenance: provenance.optional(),
@@ -527,7 +547,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   pattern: 1,
   process: 1,
   agent: 1,
-  friction: 1,
+  friction: 2,
   resteer: 1,
   techstack: 1,
   check: 1,

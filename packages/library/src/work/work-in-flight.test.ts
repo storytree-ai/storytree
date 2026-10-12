@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Work in flight (ADR-0640): one test per contract 10.1-10.6 in the library story,
+ * Capability 10 · Work in flight (ADR-0640): one test per contract 10.1-10.21 in the library story,
  * each run on BOTH backends:
  *
  * - memory: a WorkModel and a WorkInFlight over SchemaRecords over a fresh MemoryTransactions;
@@ -16,6 +16,7 @@ import { connect } from "../project/index.js";
 import { MissingReferenceError } from "../references.js";
 import { SCHEMA_VERSIONS, SchemaError, SchemaRecords, type SchemaRecord } from "../schema/index.js";
 import { dropTestDatabases, testServerUrl, uniqueProjectName, withCountedProject } from "../testing/pg.js";
+import { Knowledge } from "../knowledge/index.js";
 import { MemoryTransactions, type Transactions } from "../transactions/index.js";
 import { LifecycleError, WorkInFlight, WorkModel, type ArcView, type NewIncrement } from "./index.js";
 
@@ -537,6 +538,66 @@ for (const backend of [memory, postgres]) {
     await flight.settleQuestion(question.id, { answer: "A" });
     assert.deepEqual(Object.keys(await parked()).sort(), [form!.id, mail!.id].sort(), "once settled it asks nothing");
     assert.equal(lone!.id in (await parked()), false);
+  });
+
+  /** File one friction report through the library's own door, judged as given. */
+  const report = async (records: SchemaRecords, judgement: Record<string, string> = {}): Promise<string> => {
+    const knowledge = new Knowledge(records);
+    const filed = await knowledge.writeKnowledge("friction", { title: "The seed refused", description: "One line", statement: "It refused", evidence: "`pnpm seed` exit code 1", impact: "The seed waits" });
+    if (Object.keys(judgement).length > 0) await knowledge.editNote(filed.id, judgement);
+    return filed.id;
+  };
+  const frictionOf = async (records: SchemaRecords, id: string): Promise<Record<string, unknown>> => ((await records.get(id))?.fields ?? {}) as Record<string, unknown>;
+
+  contract("10.20", "closing an increment as landed resolves each friction in its remedies, stamped with its pull request or else the increment, and a closure corrected to landed does the same", async ({ work, flight, records }) => {
+    const arc = await work.createArc(ARC);
+    const routed = await report(records, { route: "tool", routeReason: "Build the verb" });
+    const unjudged = await report(records);
+    const dismissed = await report(records, { route: "nothing", routeReason: "A one-off" });
+    const untouched = await report(records, { route: "tool", routeReason: "Another fix" });
+    const fix = await flight.addIncrement({ arc: arc.id, ...WORK, remedies: [routed, unjudged, dismissed] });
+    await flight.closeIncrement(fix.id, { pr: "1290", disposition: "landed" });
+    for (const id of [routed, unjudged, dismissed]) {
+      const fields = await frictionOf(records, id);
+      assert.deepEqual([fields["state"], fields["dischargedBy"]], ["resolved", "#1290"], `${id} is resolved, stamped with the pull request`);
+    }
+    assert.equal((await frictionOf(records, untouched))["state"], "routed", "a report it does not remedy is left");
+
+    const noted = await report(records, { route: "process", routeReason: "Write it down" });
+    const quiet = await flight.addIncrement({ arc: arc.id, ...WORK, remedies: [noted] });
+    await flight.closeIncrement(quiet.id, { note: "Landed with the docs", disposition: "landed" });
+    assert.deepEqual([(await frictionOf(records, noted))["state"], (await frictionOf(records, noted))["dischargedBy"]], ["resolved", quiet.id], "with no pull request the increment is the stamp");
+
+    const late = await report(records, { route: "adr", routeReason: "Decide it" });
+    const misread = await flight.addIncrement({ arc: arc.id, ...WORK, remedies: [late] });
+    await flight.closeIncrement(misread.id, { note: "Thought it failed", disposition: "failed" });
+    await flight.correctIncrementClosure(misread.id, { pr: "#77", disposition: "landed" }, "It landed after all");
+    assert.deepEqual([(await frictionOf(records, late))["state"], (await frictionOf(records, late))["dischargedBy"]], ["resolved", "#77"], "a closure corrected to landed resolves it");
+  });
+
+  contract("10.21", "closing an increment failed or withdrawn reopens each friction it left routed unless another open increment remedies it, and a closure corrected from landed reopens those it resolved", async ({ work, flight, records }) => {
+    const arc = await work.createArc(ARC);
+    for (const disposition of ["failed", "withdrawn"] as const) {
+      const owed = await report(records, { route: "tool", routeReason: "Build the verb" });
+      const shared = await report(records, { route: "tool", routeReason: "Build the other verb" });
+      const settled = await report(records, { route: "process", routeReason: "Fixed already", dischargedBy: "#3" });
+      await flight.addIncrement({ arc: arc.id, ...WORK, remedies: [shared] });
+      const attempt = await flight.addIncrement({ arc: arc.id, ...WORK, remedies: [owed, shared, settled] });
+      await flight.closeIncrement(attempt.id, { note: "It did not work", disposition });
+      const reopened = await frictionOf(records, owed);
+      assert.deepEqual([reopened["state"], reopened["route"], reopened["routeReason"]], ["open", undefined, undefined], `closed ${disposition}, its remedy owed is back in the drain`);
+      assert.deepEqual([(await frictionOf(records, shared))["state"], (await frictionOf(records, shared))["route"]], ["routed", "tool"], "another open increment still remedies it");
+      assert.deepEqual([(await frictionOf(records, settled))["state"], (await frictionOf(records, settled))["dischargedBy"]], ["resolved", "#3"], "a report already resolved stays so");
+    }
+
+    const resolved = await report(records, { route: "tool", routeReason: "Build it" });
+    const elsewhere = await report(records, { route: "tool", routeReason: "Built elsewhere", dischargedBy: "#5" });
+    const wrong = await flight.addIncrement({ arc: arc.id, ...WORK, remedies: [resolved, elsewhere] });
+    await flight.closeIncrement(wrong.id, { pr: "#40", disposition: "landed" });
+    await flight.correctIncrementClosure(wrong.id, { note: "Reverted", disposition: "failed" }, "It was reverted");
+    const back = await frictionOf(records, resolved);
+    assert.deepEqual([back["state"], back["dischargedBy"], back["route"]], ["open", undefined, undefined], "a closure corrected from landed reopens what it resolved");
+    assert.deepEqual([(await frictionOf(records, elsewhere))["state"], (await frictionOf(records, elsewhere))["dischargedBy"]], ["resolved", "#5"], "one another landing stamped stays resolved");
   });
 
   contract("10.19", "an increment may name the one machine that can take it: parked with it, edited to another, and cleared by an edit that removes the field; an empty name is refused with nothing written", async ({ work, flight, records, transactions }) => {

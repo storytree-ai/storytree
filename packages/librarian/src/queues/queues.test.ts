@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Queues: one test per contract 5.1-5.3 in the librarian story, each in a fresh
+ * Capability 5 · Queues: one test per contract 5.1-5.6 in the librarian story, each in a fresh
  * project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -48,11 +48,10 @@ test("5.1 the worklist drains only lapsed open questions across arcs, longest la
   });
 });
 
-test("5.2 the friction drain takes three unrouted reports from other branches, most recurrences first and oldest first on ties", async () => {
+test("5.2 the friction drain takes three open reports from other branches, most recurrences first and oldest first on ties", async () => {
   await withLibrary(async (library) => {
     const own = await friction(library, "Own report", "claude/me");
     const routed = await friction(library, "Routed report", "claude/other");
-    await route(library, routed.id, "nothing", "A one-off: the app was open.");
     const a = await friction(library, "Report A", "claude/other");
     const b = await friction(library, "Report B");
     const c = await friction(library, "Report C", "codex/third");
@@ -63,6 +62,8 @@ test("5.2 the friction drain takes three unrouted reports from other branches, m
         branch: `repeat/${index}`, date: "2026-09-28", evidence: `#${index + 1}: happened again`,
       })) });
     }
+    // Judged after its recurrences: a recurrence on a settled report would reopen it (5.6).
+    await route(library, routed.id, "nothing", "A one-off: the app was open.");
 
     const drain = await frictionDrain(library, { branch: "claude/me" });
     assert.deepEqual(drain.map((one) => one.id), [c.id, b.id, d.id]);
@@ -118,7 +119,7 @@ test("5.4 a tool route needs an open increment naming this friction, unless a de
 test("5.5 a report already routed is routed again only to the same route; routing it elsewhere is refused naming the earlier route and its reason, and nothing is written (regression, 2026-10-01: two passes 23 s apart, the later route silently replacing the earlier)", async () => {
   await withLibrary(async (library) => {
     const report = await friction(library, "Seed refused", "claude/other");
-    await route(library, report.id, "edit-existing", "Edited the seeding note in place.");
+    await route(library, report.id, "edit-existing", "Edited the seeding note in place.", { dischargedBy: "#8" });
     const history = await library.history();
 
     await assert.rejects(route(library, report.id, "nothing", "A one-off."), /already routed to edit-existing: Edited the seeding note in place\./);
@@ -126,5 +127,30 @@ test("5.5 a report already routed is routed again only to the same route; routin
 
     const again = await route(library, report.id, "edit-existing", "Edited the seeding note, and its example.");
     assert.equal(again.fields.routeReason, "Edited the seeding note, and its example.", "the same route takes a clearer reason");
+  });
+});
+
+test("5.6 every route but nothing needs an open increment remedying the report or a delivery stamp, and the drain offers a reopened report again, to be routed afresh", async () => {
+  await withLibrary(async (library) => {
+    const arc = await library.createArc({ title: "Seeding", intent: "Seed live", endState: "Seed works" });
+    for (const to of ["adr", "principle", "guardrail", "process", "definition", "edit-existing"] as const) {
+      const report = await friction(library, `Seed refused (${to})`, "claude/other");
+      const history = await library.history();
+      await assert.rejects(route(library, report.id, to, "Write it down"), new RegExp(`routing to ${to} needs a live increment whose remedies names ${report.id}`));
+      assert.deepEqual(await library.history(), history, `an ${to} route with no remedy writes nothing`);
+
+      await library.addIncrement({ arc: arc.id, title: "Write it down", objective: "Record it", body: "Record it", remedies: [report.id] });
+      assert.equal((await route(library, report.id, to, "Write it down")).fields.state, "routed", `an ${to} route with its remedy parked is routed`);
+      const stamped = await friction(library, `Seed refused again (${to})`, "claude/other");
+      assert.equal((await route(library, stamped.id, to, "Already written", { dischargedBy: "#5" })).fields.state, "resolved", `an ${to} route carrying its stamp is resolved`);
+    }
+    const dismissed = await friction(library, "A one-off", "claude/other");
+    assert.equal((await route(library, dismissed.id, "nothing", "The app was open")).fields.state, "dismissed", "nothing needs no remedy");
+
+    assert.deepEqual((await frictionDrain(library, { branch: "claude/me" })).map(({ id }) => id), [], "settled and routed reports are not offered");
+    await library.editNote(dismissed.id, { reinforcedBy: [{ branch: "codex/again", date: "2026-10-12", evidence: "`pnpm seed` refused again" }] });
+    assert.deepEqual((await frictionDrain(library, { branch: "claude/me" })).map(({ id }) => id), [dismissed.id], "a recurrence puts it back in the drain");
+    const rerouted = await route(library, dismissed.id, "guardrail", "It recurs: refuse it", { dischargedBy: "#6" });
+    assert.deepEqual([rerouted.fields.route, rerouted.fields.state], ["guardrail", "resolved"], "a reopened report is judged afresh, on any route");
   });
 });

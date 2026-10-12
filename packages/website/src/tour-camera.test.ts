@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { GlobeTarget } from "@storytree/forest/view";
-import { createCameraPlayer, type CameraStep, type Stop } from "./tour-camera.js";
+import { createCameraPlayer, freePlayFraming, viewFraming, type CameraStep, type Stop } from "./tour-camera.js";
+import { steps } from "./tour-copy.js";
 import type { TourDetail, TourStep } from "./tour.js";
 
 /** A clock the test moves by hand, and a camera on it that writes down what it does and when. */
@@ -120,4 +121,16 @@ test("2.15 · a step's island drawn late is aimed at again until it is drawn, by
   assert.deepEqual(log, [], "the island is not drawn yet");
   rigged.drawn = new Set(["a", "core"]); advance(50);
   assert.deepEqual(log, ["210 a ×0.8 2600ms"], "aimed at on the next beat once it is, by the latest aim only: the far pose it superseded never pulls the camera back out");
+});
+
+test("2.22 · on a phone storytree's own globe is framed smaller, more so at 320px, in the arrival, the everything step and free play; the shop's is not", () => {
+  const own = steps.filter(step => step.map === "own" || step.id === "everything");
+  assert.deepEqual(own.map(step => step.id), ["pain", "grow", "value", "fixes", "everything"]);
+  for (const step of own) {
+    const laptop = viewFraming(step, 1440, 1.1), wide = viewFraming(step, 390, 1.1), narrow = viewFraming(step, 320, 1.1);
+    assert.ok(wide > laptop && narrow > wide, `${step.id}: ${laptop} on a laptop, ${wide} at 390px, ${narrow} at 320px`);
+  }
+  assert.ok(freePlayFraming("storytree", 390, 1.1) > 1.1 && freePlayFraming("storytree", 320, 1.1) > freePlayFraming("storytree", 390, 1.1));
+  assert.equal(freePlayFraming("storytree", 1440, 1.1), 1.1);
+  assert.equal(freePlayFraming("shop", 320, 1.1), 1.1);
 });

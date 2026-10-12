@@ -1,0 +1,13 @@
+{
+  "story": "The website",
+  "commit": "unpublished local build",
+  "evidence": "packages/website/evidence/own-globe-phone/after",
+  "note": "Locally built website served from packages/website/dist, SwiftShader",
+  "checks": [
+    {
+      "contract": "2.22",
+      "name": "On 390 and 320 phones storytree's globe keeps every island name inside the screen and clear of the compass in the arrival, the everything step and free play",
+      "observed": "pass"
+    }
+  ]
+}

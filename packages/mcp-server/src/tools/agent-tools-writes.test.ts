@@ -1120,6 +1120,26 @@ test("map 3.8 focus answers for a mapped story from the folder this machine impo
   });
 });
 
+test("map 3.9 focus with crossing counts the imports across a line in a mapped island, and lists them on show", async () => {
+  await withProject(async ({ folder }) => {
+    const shop = path.join(folder, "..", "shop");
+    mkdirSync(path.join(shop, "src", "ui"), { recursive: true });
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
+    writeFileSync(path.join(shop, "src", "ui", "menu.ts"), "export const menu = 1;\n");
+    writeFileSync(path.join(shop, "src", "index.ts"), "import { menu } from \"./ui/menu.js\";\nexport const shop = menu;\n");
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      assert.equal((await agent.call("import_project", { folder: "../shop" })).isError, false);
+      const counted = await agent.call("focus", { crossing: ["src/ui"] });
+      assert.equal(counted.isError, false, counted.text);
+      assert.match(counted.text, /In, from the island's other files: 1 file, 1 import/);
+      const shown = await agent.call("focus", { crossing: ["src/ui"], select: "story:shop", mode: "show" });
+      assert.match(shown.text, /in\s+island\s+src\/index\.ts -> src\/ui\/menu\.ts/);
+      const neither = await agent.call("focus", {});
+      assert.equal(neither.isError, true);
+    });
+  });
+});
+
 test("6.62 park_increment and edit_plan set an increment's machine to a machine Machines knows, edit_plan's \"none\" clears it, and an unknown name is refused with nothing written", async () => {
   await withProject(async ({ folder, library }) => {
     const mint = `m-${randomBytes(4).toString("hex")}`;

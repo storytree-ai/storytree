@@ -3,10 +3,11 @@
  * and `storytree quality ledger` print the checks and ledger readings through quality assurance's public API,
  * the same readings its tools on the MCP server give. Its contracts 2.1, 2.2 and 4.1 at this front door: the
  * change-reviewer's loop, `quality brief`, `take`, `answer` and `standing`, run through the same API; and its 5.1:
- * `quality graduate`.
+ * `quality graduate`. Its 2.8: `quality brief` run outside the increment's worktree reads the branch it was claimed on.
  */
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
@@ -91,6 +92,41 @@ test("quality-assurance 2.1, 2.2 and 4.1 · `quality brief`, `take`, `answer` an
     } finally {
       await storytree.close();
     }
+  });
+});
+
+test("quality-assurance 2.8 · `quality brief` run from another checkout reads the increment's change from the worktree on the branch it was claimed on, and is refused naming that branch while no worktree is on it", async () => {
+  await inWorld(command, async (world) => {
+    const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    git(world.folder, "init", "-q", "-b", "main");
+    git(world.folder, "add", ".");
+    git(world.folder, "commit", "-qm", "first");
+    git(world.folder, "update-ref", "refs/remotes/origin/main", "HEAD");
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "1 · Email form", story: story.id });
+    const arc = await library.createArc({ title: "Launch sign-up", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Email form", objective: "Build the email form", body: "Red then green", capabilities: [capability.id] });
+    git(world.folder, "checkout", "-qb", "feature");
+    const claimed = await world.run(["workspace", "claim", increment.id, "--reason", "building the form"], { CLAUDE_CODE_SESSION_ID: "claude-9" });
+    assert.equal(claimed.code, 0, claimed.stderr);
+    mkdirSync(path.join(world.folder, "packages/forms/src"), { recursive: true });
+    writeFileSync(path.join(world.folder, "packages/forms/src/email.ts"), "export const valid = 1;\n");
+    git(world.folder, "add", "packages");
+    git(world.folder, "commit", "-qm", "the change");
+    git(world.folder, "checkout", "-q", "main");
+    mkdirSync(path.join(world.folder, "tmp"));
+    writeFileSync(path.join(world.folder, "tmp/stray.txt"), "not the change\n");
+
+    const refused = await world.run(["quality", "brief", increment.id]);
+    assert.equal(refused.code, 1, refused.stdout);
+    assert.match(refused.stderr, /branch feature/);
+
+    git(world.folder, "worktree", "add", "-q", path.join(world.elsewhere, "wt"), "feature");
+    const brief = await world.run(["quality", "brief", increment.id]);
+    assert.equal(brief.code, 0, brief.stderr);
+    assert.match(brief.stdout, /export const valid = 1;/);
+    assert.doesNotMatch(brief.stdout, /stray|not the change/);
   });
 });
 

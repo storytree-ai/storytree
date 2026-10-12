@@ -71,6 +71,31 @@ test("9.3 a Codex rollout reads its last token count's input tokens as tokens us
   assert.deepEqual(codexTokens(text), { tokens: 40_210 });
 });
 
+/** One Pi message line, as Pi 1.1.0 writes its session file: an assistant message carries its request's usage. */
+function piLine(role: string, extra: Record<string, unknown> = {}): string {
+  return JSON.stringify({ type: "message", id: `m${Math.random()}`, timestamp: "2026-10-11T23:47:32.749Z", message: { role, content: [], ...extra } });
+}
+const piUsage = (input: number, output: number, cacheRead: number, cacheWrite: number, totalTokens?: number) => ({ input, output, cacheRead, cacheWrite, ...(totalTokens === undefined ? {} : { totalTokens }) });
+
+test("9.16 a Pi session's reading is its last own assistant message's total tokens, as Pi counts its context: an aborted or errored message, or one with no usage, does not change it, and what it is made of is reported absent", async () => {
+  const text = jsonl(
+    JSON.stringify({ type: "session", version: 3, id: "s-1", cwd: "/work/site" }),
+    piLine("user"),
+    piLine("assistant", { usage: piUsage(2_042, 15, 0, 2_042, 4_099), stopReason: "toolUse" }),
+    piLine("toolResult"),
+    // No totalTokens: the four parts, summed.
+    piLine("assistant", { usage: piUsage(64, 1, 2_042, 65), stopReason: "stop" }),
+    piLine("assistant", { usage: piUsage(90_000, 0, 0, 0, 90_000), stopReason: "aborted" }),
+    piLine("assistant", { usage: piUsage(0, 0, 0, 0, 0), stopReason: "stop" }),
+  );
+  const lines = [{ session: "s-1", harness: "pi", transcript: "/home/dev/.pi/agent/sessions/s-1.jsonl" }] as unknown as Parameters<typeof contextReading>[0];
+  const reading = await contextReading(lines, "s-1", { read: async () => text }) as Record<string, unknown>;
+  assert.equal(reading.tokens, 2_172);
+  assert.deepEqual(reading.composition, { absent: "storytree does not yet sort what a Pi session's context is made of" });
+  const none = await contextReading(lines, "s-1", { read: async () => jsonl(JSON.stringify({ type: "session", version: 3, id: "s-1" }), piLine("user")) });
+  assert.deepEqual("absent" in none ? none.absent : none, "the session file holds no assistant message's usage");
+});
+
 /** Run `body` with the log open on the test server, a fresh project to write in, and a throwaway folder. */
 async function withProject(body: (log: ActivityLog, project: string, dir: string) => Promise<void>): Promise<void> {
   const log = await openActivityLog(testServerUrl());

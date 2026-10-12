@@ -100,7 +100,7 @@ test("7.9 the card handed at session start says how to build beside mapped code"
       "Old code never imports new code",
       "Test the interface your package has with the old code",
       "bring in whatever serves its UI and import the rest",
-      "`focus` on what calls it and shape the work with the user",
+      "give `focus` the part's folders as its crossing",
     ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
   } finally {
     await session.close();

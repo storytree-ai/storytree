@@ -6,7 +6,9 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { actionTable, alternate, compareAction, compareTable, exitCode, judge, lagHome, NotRun, seededHome, summary, withAgainst } from "./desktop-lag.mjs";
+import { CATALOGUE } from "@storytree/forest/actions";
+
+import { actionTable, alternate, compareAction, compareTable, exitCode, judge, lagHome, NotRun, performRound, seededHome, summary, withAgainst } from "./desktop-lag.mjs";
 
 test("8.3 pnpm lag:desktop --home starts cold on a new home and warm on one an earlier run left", () => {
   const from = mkdtempSync(path.join(tmpdir(), "lag-home-from-"));
@@ -232,4 +234,33 @@ test("8.10 pnpm lag:desktop queues the whole run behind the machine's heavy-run 
     child.kill("SIGKILL");
     rmSync(home, { recursive: true, force: true });
   }
+});
+
+test("8.17 pnpm lag:desktop performs a start action as a real start of the page, the kept keys it names forgotten first, timed from the start's navigation with its first progress watched from its first frame", async () => {
+  const fresh = CATALOGUE.find((action) => action.name === "open-app-fresh");
+  const did = [];
+  // The page's clock restarts with the start: the old document read 5000 ms; the new one's first frame showed the bar at 40 ms.
+  const readings = [
+    { t: 300, inputs: 0, progress: true, startSettled: false },
+    { t: 900, inputs: 0, progress: true, startSettled: false },
+    { t: 1400, inputs: 0, progress: false, startSettled: true },
+  ];
+  const page = {
+    evaluate: async (source) => {
+      if (source.includes("localStorage")) return did.push(`forget ${source.match(/\[.*?\]/)[0]}`);
+      if (source.includes("__progressAt")) return 40;
+      if (source.includes("window.__ev.filter")) return { ev: [], loaf: [{ start: 100, duration: 80, scripts: [] }] };
+      if (source.includes("requestAnimationFrame")) return readings.shift() ?? { t: 1500, inputs: 0, progress: false, startSettled: true };
+      return { t: 5000, inputs: 7 };
+    },
+    reload: async (options) => did.push(`reload ${options.waitUntil}`),
+  };
+  const round = await performRound(page, fresh, { mark: async () => 0, since: async () => ({}) });
+  assert.deepEqual(did, ['forget ["storytree.forest.tree.v1:","storytree.forest.drawing.v1:"]', "reload domcontentloaded"]);
+  assert.equal(round.settled, 1400);
+  assert.equal(round.inputs, 0);
+  assert.equal(round.response, null);
+  assert.equal(round.progressAt, 40);
+  assert.equal(round.progressHeld, true);
+  assert.deepEqual(judge({ name: fresh.name, budget: fresh.budget, rounds: [round] }).verdict, { response: "n/a", smooth: "missed", settled: "within" });
 });

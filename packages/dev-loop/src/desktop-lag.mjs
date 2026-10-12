@@ -1,8 +1,9 @@
 // Capability 8 · Lag instruments. `pnpm lag:desktop`: what a user's actions cost in the desktop app (ADR-0836), measured by name
 // against their budgets (ADR-1001 D1, D2). It performs the catalogue of named actions (@storytree/forest/actions: open the island
-// with the fewest capabilities, the most, a named story's; close the panel; Library and back; open a Library note; open a
+// with the fewest capabilities, the most, a named story's; open the app again, with the forest the last start kept and without it; close the panel; Library and back; open a Library note; open a
 // session's row; a hover sweep; ten seconds idle) for a number of rounds, each through real input: a real mouse click at the
-// island's place on screen, which the page's locator (window.storytreeGlobe) gives. Per round it records:
+// island's place on screen, which the page's locator (window.storytreeGlobe) gives, and opening the app as a real start of the page,
+// timed from its navigation. Per round it records:
 // - the response (the input's Event Timing, input to paint), the frames over 50 ms until settled with the scripts each names,
 //   the settled time (the page shows what the entry says settled looks like), whether a sign of progress showed, and the IPC
 //   calls the action made, counted by channel;
@@ -136,7 +137,24 @@ const READ_PAGE = `(async () => {
   return { t: performance.now(), inputs: ${INPUTS}, selected: document.body.dataset.selected, note: document.body.dataset.note,
     panelOpen: panel !== null && !panel.hidden, mode: document.querySelector("[data-forest-mode]")?.dataset.forestMode,
     sessionSelected: document.querySelector(".session-row[data-selected]") !== null, still: window.storytreeGlobe?.still() ?? true,
-    progress: [...document.querySelectorAll("[role=progressbar], [aria-busy=true]")].some(shown) };
+    progress: [...document.querySelectorAll("[role=progressbar], [aria-busy=true]")].some(shown), startSettled: document.body.dataset.start === "settled" };
+})()`;
+
+/**
+ * Run on every document the page opens after the first, from its start: the frames and inputs are watched (OBSERVE), and the first
+ * frame that shows a loading bar or circle is kept in window.__progressAt, since the readings of a start begin only once its document
+ * has loaded.
+ */
+const ON_START = `${OBSERVE};
+(() => {
+  const look = () => {
+    if ([...document.querySelectorAll("[role=progressbar], [aria-busy=true]")].some((element) => !element.hidden && element.getClientRects().length > 0)) {
+      window.__progressAt = performance.now();
+      return;
+    }
+    if (document.body?.dataset.start !== "settled") requestAnimationFrame(look);
+  };
+  requestAnimationFrame(look);
 })()`;
 
 /** A round that could not be performed: it reads NOT RUN with `message`. */
@@ -202,6 +220,13 @@ async function prepare(page, step, round, limitMs) {
   if (step.kind === "key") return () => page.keyboard.press(step.key);
   if (step.kind === "idle") return () => page.waitForTimeout(step.ms);
   if (step.kind === "wait") return () => waitFor(page, step.until, round.island, limitMs);
+  if (step.kind === "start") {
+    // A start of the page, as opening the app is: the keys it names forgotten first, so the page starts without what they kept.
+    return async () => {
+      await page.evaluate(`for (const key of Object.keys(localStorage)) if (${JSON.stringify(step.forget)}.some((prefix) => key.startsWith(prefix))) localStorage.removeItem(key)`);
+      await page.reload({ waitUntil: "domcontentloaded", timeout: limitMs });
+    };
+  }
   // A hover sweep across the globe: every move picks.
   const canvas = await page.locator("canvas").first().boundingBox({ timeout: 2000 }).catch(() => null);
   if (canvas === null) throw new NotRun("no globe canvas on the page");
@@ -218,9 +243,11 @@ async function prepare(page, step, round, limitMs) {
 /**
  * One round of `action`: its setup, unmeasured, then its steps through real input, read each frame until settled. Records the
  * response (the longest Event Timing from the first input), the frames over 50 ms until settled with the scripts each names, the
- * settled time, when a sign of progress showed and whether it stayed, and the IPC calls made, by channel.
+ * settled time, when a sign of progress showed and whether it stayed, and the IPC calls made, by channel. A start is timed on its
+ * own document's clock, from its navigation, and makes no input.
  */
-async function performRound(page, action, ipc) {
+export async function performRound(page, action, ipc) {
+  const starts = action.perform.some((step) => step.kind === "start");
   const round = {};
   for (const step of action.setup) await (await prepare(page, step, round, action.limitMs))();
   let before;
@@ -232,7 +259,7 @@ async function performRound(page, action, ipc) {
     calls ??= await ipc.mark();
     await act();
   }
-  const start = before.t;
+  const start = starts ? 0 : before.t;
   const readings = await waitFor(page, action.settled, round.island, action.limitMs);
   const settledAt = readings.at(-1).t;
   const settledCalls = await ipc.mark();
@@ -242,14 +269,18 @@ async function performRound(page, action, ipc) {
   const { ev, loaf } = await page.evaluate(`({ ev: window.__ev.filter((e) => e.start >= ${start} && e.start <= ${settledAt}),
     loaf: window.__loaf.filter((e) => e.start + e.duration >= ${start} && e.start <= ${settledAt}) })`);
   const shown = readings.findIndex((reading) => reading.progress);
+  // A start's first sign of progress is watched from its first frame (ON_START); its readings show whether it stayed.
+  const watched = starts ? await page.evaluate("window.__progressAt ?? null") : null;
+  const progressAt = [watched, shown === -1 ? null : readings[shown].t].filter((t) => t !== null);
+  const held = readings.slice(Math.max(0, shown)).every((reading) => reading.progress || isSettled(action.settled, reading, round.island));
   return {
     ...(round.island === undefined ? {} : { island: round.island }),
-    inputs: after.inputs - before.inputs,
+    inputs: starts ? 0 : after.inputs - before.inputs,
     response: ev.length === 0 ? null : Math.max(...ev.map((e) => e.duration)),
     frames: loaf.map((e) => ({ duration: e.duration, scripts: e.scripts.map((s) => `${s.inv}/${s.fn}`) })),
     // An action with nothing to settle (a hover sweep, idle) has no settled time: its own length is not a wait.
     settled: Object.keys(action.settled).length === 0 ? null : settledAt - start,
-    ...(shown === -1 ? {} : { progressAt: readings[shown].t - start, progressHeld: readings.slice(shown).every((reading) => reading.progress || isSettled(action.settled, reading, round.island)) }),
+    ...(progressAt.length === 0 ? {} : { progressAt: Math.min(...progressAt) - start, progressHeld: held }),
     ipc: await ipc.since(calls),
     // The calls made by the time settled was seen: the page's lag recorder must make none of them (Lag in real use 1.2).
     ipcUntilSettled: await ipc.since(calls, settledCalls),
@@ -293,6 +324,7 @@ export async function alternate(actions, rounds, sides) {
 async function startMeasuring({ page, ipc, state, readyMs, extra }, { out, size }) {
   await page.waitForTimeout(3000);
   await page.evaluate(OBSERVE);
+  await page.addInitScript(ON_START);
   const marks = [];
   const mark = async (label) => marks.push({ label, perf: await page.evaluate("performance.now()"), wall: Date.now() });
   const cdp = await page.context().newCDPSession(page);

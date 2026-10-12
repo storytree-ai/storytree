@@ -14,11 +14,11 @@ import { connect as connectTo, createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { connect } from "@storytree/library";
 
-import { locateStorytree, MARKER_FILE, noteCodexHookRan, type Line } from "@storytree/session-management";
+import { locateStorytree, MARKER_FILE, noteCodexHookRan, registeredHookScripts, type Line } from "@storytree/session-management";
 import { withTempDir } from "@storytree/session-management/testing/folders";
 import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 
@@ -136,7 +136,7 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
-    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", cursor: "not here", statusLine: "installed" });
+    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", cursor: "not here", pi: "not here", statusLine: "installed" });
 
     const claude = readJson(home.claudeSettings);
     assert.deepEqual({ ...claude, hooks: undefined, statusLine: undefined }, { ...CLAUDE_SETTINGS, hooks: undefined, statusLine: undefined }, "Claude Code's other settings are as they were");
@@ -190,14 +190,14 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     const first = { claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") };
 
     const again = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
-    assert.deepEqual(again.hooks, { "claude-code": "already registered", codex: "already registered", cursor: "not here", statusLine: "already installed" });
+    assert.deepEqual(again.hooks, { "claude-code": "already registered", codex: "already registered", cursor: "not here", pi: "not here", statusLine: "already installed" });
     assert.deepEqual({ claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") }, first, "not a byte changed");
 
-    assert.deepEqual(removeHooks(home.homes), { "claude-code": "removed", codex: "removed", cursor: "none", statusLine: "removed" });
+    assert.deepEqual(removeHooks(home.homes), { "claude-code": "removed", codex: "removed", cursor: "none", pi: "none", statusLine: "removed" });
     assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS, "Claude Code's settings are as they were before storytree");
     assert.equal(existsSync(home.codexHooks), false, "the hooks file storytree made is gone");
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
-    assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", cursor: "none", statusLine: "none" }, "and removing again finds nothing");
+    assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", cursor: "none", pi: "none", statusLine: "none" }, "and removing again finds nothing");
 
     // An install from before the PowerShell tool was matched gets the new matchers at its next setup check.
     registerHooks(home.homes, HOOK);
@@ -770,6 +770,68 @@ test("8.28 the setup check registers storytree's hooks for Cursor where Cursor's
     const without = await check();
     assert.equal(without.hooks?.cursor, "already registered", "its hooks stay where its home is");
     assert.match(without.lines.find((each) => each.check === "agent-cli")?.message ?? "", /Cursor is not installed/);
+  });
+});
+
+test("8.29 the setup check installs storytree's Pi extension where Pi's agent folder is and says whether Pi is installed; the extension, loaded as Pi loads it, forwards Pi's events to the hook script and hands Pi back its refusal; removing storytree deletes it", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const pi = path.join(dir, ".pi", "agent");
+    const bin = path.join(dir, "bin");
+    for (const folder of [pi, bin]) mkdirSync(folder, { recursive: true });
+    const servers = '{"mcpServers":{"other":{"command":"npx"}}}';
+    writeFileSync(path.join(pi, "mcp.json"), servers);
+    mkdirSync(path.join(pi, "extensions"));
+    writeFileSync(path.join(pi, "extensions", "mine.ts"), "export default function () {}\n");
+    // A hook script standing in for storytree's: it notes each run, and refuses every edit it is asked about.
+    const heard = path.join(dir, "heard.jsonl");
+    const script = path.join(dir, "tools", "storytree-hook.mjs");
+    mkdirSync(path.dirname(script));
+    writeFileSync(script, `import { appendFileSync, readFileSync } from "node:fs";
+const input = JSON.parse(readFileSync(0, "utf8"));
+appendFileSync(${JSON.stringify(heard)}, JSON.stringify({ args: process.argv.slice(2), input }) + "\\n");
+if (process.argv.includes("--edit-gate")) process.stdout.write(JSON.stringify({ block: true, reason: "held by another session" }));
+`);
+    const hook = { node: process.execPath, script };
+    fakeTool(bin, "pi", { "--version": { out: "1.1.0", code: 0 } });
+    const check = () => runSetupCheck({
+      folder: dir, hook, homes: { ...home.homes, pi }, storytreeHome: home.storytreeHome, gh: async () => "signed in" as const,
+      machine: () => machineState({ path: bin, waitMs: 15_000, codexHome: home.homes.codex, localAppData: dir, applications: [] }),
+    });
+
+    const report = await check();
+    assert.equal(report.hooks?.pi, "registered");
+    const extension = path.join(pi, "extensions", "storytree.ts");
+    assert.ok(existsSync(extension));
+    assert.equal(readFileSync(path.join(pi, "mcp.json"), "utf8"), servers, "Pi's tool servers are untouched by the check");
+    assert.ok(existsSync(path.join(pi, "extensions", "mine.ts")), "the user's own extension is kept");
+    assert.match(report.lines.find((each) => each.check === "agent-cli")?.message ?? "", /Pi is installed/);
+    assert.match(report.lines.find((each) => each.check === "hooks")?.message ?? "", /Pi/);
+    assert.deepEqual(registeredHookScripts({ pi }), [script], "the worktree reaper keeps the build Pi runs");
+    const written = readFileSync(extension, "utf8");
+    assert.equal((await check()).hooks?.pi, "already registered");
+    assert.equal(readFileSync(extension, "utf8"), written, "not a byte changed");
+
+    // The extension as Pi loads it: a default export given Pi's API, whose handlers Pi calls with each event and its context.
+    const handlers: [string, (event: Record<string, unknown>, ctx: unknown) => Promise<unknown>][] = [];
+    const { default: load } = (await import(pathToFileURL(extension).href)) as { default: (pi: unknown) => void };
+    load({ on: (event: string, handler: (event: Record<string, unknown>, ctx: unknown) => Promise<unknown>) => void handlers.push([event, handler]) });
+    const ctx = { cwd: dir, sessionManager: { getSessionId: () => "pi-session-1", getSessionFile: () => path.join(pi, "sessions", "s.jsonl") } };
+    const fire = async (event: Record<string, unknown> & { type: string }) => (await Promise.all(handlers.filter(([name]) => name === event.type).map(([, handler]) => handler(event, ctx)))).filter((answer) => answer !== undefined);
+    const heardLines = () => existsSync(heard) ? readFileSync(heard, "utf8").trim().split("\n").map((line) => JSON.parse(line) as { args: string[]; input: Record<string, unknown> }) : [];
+
+    assert.deepEqual(await fire({ type: "tool_call", toolName: "write", toolCallId: "call_w", input: { path: "a.ts", content: "x" } }), [{ block: true, reason: "held by another session" }], "a write is refused as the hook said");
+    const [gate] = heardLines();
+    assert.deepEqual(gate?.args, ["pi", "--edit-gate"]);
+    assert.deepEqual(gate?.input, { type: "tool_call", toolName: "write", toolCallId: "call_w", input: { path: "a.ts", content: "x" }, hook_event_name: "tool_call", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") });
+    assert.deepEqual(await fire({ type: "tool_call", toolName: "read", toolCallId: "call_r", input: { path: "a.ts" } }), [], "a tool storytree does not hear runs no hook");
+    assert.deepEqual(await fire({ type: "before_agent_start", prompt: "hi", systemPrompt: "Pi's whole system prompt", systemPromptOptions: { tools: [] } }), [], "a prompt with nothing to add answers nothing");
+    assert.deepEqual(heardLines()[1], { args: ["pi"], input: { type: "before_agent_start", prompt: "hi", hook_event_name: "before_agent_start", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") } }, "the prompt is heard without the system prompt the hook does not read");
+
+    assert.equal(removeHooks({ ...home.homes, pi }).pi, "removed");
+    assert.equal(existsSync(extension), false);
+    assert.ok(existsSync(path.join(pi, "extensions", "mine.ts")));
+    assert.equal(removeHooks({ ...home.homes, pi }).pi, "none");
   });
 });
 

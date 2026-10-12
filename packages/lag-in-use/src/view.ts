@@ -28,6 +28,7 @@ function readPage(win: RecorderWindow, withProgress: boolean): PageState {
     mode: document.querySelector<HTMLElement>("[data-forest-mode]")?.dataset.forestMode,
     sessionSelected: document.querySelector(".session-row[data-selected]") !== null, still: win.storytreeGlobe?.still() ?? true,
     progress: withProgress && [...document.querySelectorAll("[role=progressbar], [aria-busy=true]")].some(shown),
+    startSettled: document.body.dataset.start === "settled",
   };
 }
 

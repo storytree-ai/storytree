@@ -127,3 +127,19 @@ test("6.66 a tool call from Cursor, which sends the tool server neither a sessio
     assert.match(unannounced ?? "", /^storytree-mcp-\S+ cursor$/, "no hook announced this tool's call");
   });
 });
+
+test("6.68 a tool call from Pi, which sends the tool server neither a session nor a call id, is recorded on the session Pi's extension named just before it, never on another harness's announcement", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    const calledBy = async (tool: string) => (await log.lines(project, { kinds: ["tool-called"], where: { tool } })).map((line) => `${line.session} ${line.harness}`);
+    // Pi's MCP client names itself "pi" (measured, Pi 1.1.0); its extension's tool_call names the session and Pi's own call id.
+    await withAgent(folder, { client: "pi" }, async (agent) => {
+      await log.append(project, { session: "cursor-conversation-2", harness: "cursor", source: "hook", folder, kind: "tool-requested", tool: "stale_claims", call: "gen-2:stale_claims", agent: "orchestrator" });
+      await log.append(project, { session: "pi-session-1", harness: "pi", source: "hook", folder, kind: "tool-requested", tool: "show_plan", call: "call_mcp_1", agent: "orchestrator" });
+      await agent.call("show_plan");
+      await agent.call("stale_claims");
+    });
+    assert.deepEqual(await calledBy("show_plan"), ["pi-session-1 pi"]);
+    const [unannounced] = await calledBy("stale_claims");
+    assert.match(unannounced ?? "", /^storytree-mcp-\S+ pi$/, "Cursor's announcement of the same tool is not Pi's");
+  });
+});

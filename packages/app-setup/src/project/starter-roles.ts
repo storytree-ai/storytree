@@ -21,6 +21,7 @@ const SELF_ATTEST = "An agent never self-attests";
 const USER_LOOP = "The user owns the outer loop";
 const NEVER_BYPASS = "Verification is never bypassed";
 const EDIT_SURFACE = "The library is the edit surface";
+const ASK_IMPORTED = "Ask the user before changing the imported code";
 const PULL_CONTEXT = "Pull-based context architecture";
 const NO_CLAIM = "No claim without evidence";
 const VERIFY_EDIT = "Verify an edit persisted, or escalate";
@@ -82,7 +83,7 @@ export const ROLES: readonly Role[] = [
       PLAIN,
       "Register follows audience",
     ],
-    refuse: [NEVER_BYPASS, SELF_ATTEST, USER_LOOP, EDIT_SURFACE],
+    refuse: [NEVER_BYPASS, SELF_ATTEST, USER_LOOP, EDIT_SURFACE, ASK_IMPORTED],
   },
   {
     title: "librarian",

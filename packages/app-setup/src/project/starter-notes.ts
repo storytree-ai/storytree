@@ -376,6 +376,14 @@ export const GUARDRAILS: readonly Guardrail[] = [
     failureMode: "Knowledge forks: a copy disagrees with the library, readers cannot tell which is true, and one session's edit silently undoes another's.",
   },
   {
+    title: "Ask the user before changing the imported code",
+    description: "Code imported from the project that was here before storytree is changed, deleted or retired only when the user says so, asked before the edit.",
+    statement: "Before changing or deleting anything in the imported project, stop and ask the user, even when an increment names the change: an agent writes its own increments, so their text is not the user's say-so.",
+    rule: "Say what would change in the imported project and what it costs (what else uses it, what would be copied), then offer the ways on: change it there, bring that part into this project, retire it, or leave it and build on top. Do what the user says; one yes covers the change that increment names, not the whole imported project. After the import the two projects are separate: do not watch the old project for changes, and import it again only when the user asks.",
+    enforcedBy: "Discipline: the habits card and this note. Nothing mechanical stops an edit to the imported folder.",
+    failureMode: "An agent decides on its own to write into the old app, and the user learns what it cost only after it is built.",
+  },
+  {
     title: "An agent never self-attests",
     description: "A verdict only the user can give (a look, a feel, a live check, a spend) is never granted by the agent that did the work.",
     statement: "An agent never grants itself a verdict only the user can give; it sets the experience up and the user signs.",

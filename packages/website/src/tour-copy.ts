@@ -47,6 +47,9 @@ const story = (id: string): GlobeTarget => ({ kind: "story", story: id });
 const forest = story("story_deee4230348c");
 // Storytree's own recorded growth (own-snapshot.json): Act 2 arrives on it, grown from a point as its agents built it (ADR-0889 2.2b).
 const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
+// On a phone storytree's globe is framed smaller, more so at 320px, so the names round its rim stay on the screen and clear of
+// the compass (2.22).
+const ownPhone = { framing: 1.36, narrowFraming: 1.55, side: 0 };
 // The shop (shop-snapshot.json): the store the test laptop's Claude Code sessions rebuilt side by side with storytree, where the
 // chapters teach (ADR-0890), walking only four of its stories: Signing in, Browsing, Cart and Checkout (ADR-0891, amended
 // 2026-10-05).
@@ -92,16 +95,16 @@ export const steps: TourStep[] = [
     "Right now, building with AI feels overwhelming, exhausting and disconnected.",
     "Storytree is here to fix that.",
   ], why: "Your attention is the scarcest resource in AI-driven development, and coding agents spend it on noise. Reading every line makes you the bottleneck the agents were meant to remove; trusting every line finds the problems in production. There's no in-between.",
-  decisions: [], surfaces: complete, framing: 1.1 },
+  decisions: [], surfaces: complete, framing: 1.1, phone: ownPhone },
   { id: "grow", explainer: "opening", kind: "beats", ...own, growth: { seconds: arrivalSeconds }, title: "Storytree, a living map", lines: [
     // The owner's words (2026-10-04), punctuation tidied.
     "This is storytree, a living map of your project, for both you and your agents.",
   ], chips: [{ kind: "recording", text: "Recorded {ownRecording} · timing compressed" }],
-  decisions: [], surfaces: complete, framing: 1.1 },
+  decisions: [], surfaces: complete, framing: 1.1, phone: ownPhone },
   // The owner's words, final (ADR-0889 2.3): the value statement has its slide to itself.
   { id: "value", explainer: "opening", kind: "statement", ...own, title: "Storytree builds a map of your project and glues it to your code.", lines: [
     "The map grows as your agents work, and says what needs you and what doesn't.",
-  ], decisions: [], surfaces: complete, framing: 1.1, drift: true },
+  ], decisions: [], surfaces: complete, framing: 1.1, phone: ownPhone, drift: true },
   // The owner's words, final (ADR-0889 2.4): each pain (its note) with its fix beside it. The four principles are this step's depth.
   { id: "fixes", explainer: "opening", kind: "fixes", ...own, title: "What storytree fixes", lines: [
     "See your whole project as a map",
@@ -112,7 +115,7 @@ export const steps: TourStep[] = [
     "Agents colliding in a void of code",
     "Agents forgetting why it was built that way",
   ], why: "Storytree answers to four principles. Signals must be real: everything you see comes from the real code and the real work, and says where it came from. Show what matters now and hide the rest: nothing asks for your attention unless it needs it. Your attention goes where you send it: you choose what to look into, and how deep to go. Nothing is out of reach: whatever storytree hides, you can always bring back.",
-  decisions: [], surfaces: complete, framing: 1.1, drift: true },
+  decisions: [], surfaces: complete, framing: 1.1, phone: ownPhone, drift: true },
 
   // The map (ADR-0891, amended 2026-10-11): seven steps in the owner's order. ★ the owner's words; the rest is DRAFT, approved as a
   // table and reworded to fit, as is every How and Why. The whole chapter plays forward in the shop's recorded time. The camera
@@ -248,5 +251,5 @@ export const steps: TourStep[] = [
     "Everything is back: the plan, the code, its health, the knowledge and the sessions.",
     "It's the globe you started on. Now you can read it.",
   ], why: "Nothing storytree hides is out of reach: the Show everything switch brings every surface back at any step.",
-  decisions: [decisions.busy, decisions.guide], chips: [principle(4)], surfaces: complete, target: forest, framing: 1.1, drift: true },
+  decisions: [decisions.busy, decisions.guide], chips: [principle(4)], surfaces: complete, target: forest, framing: 1.1, phone: ownPhone, drift: true },
 ];

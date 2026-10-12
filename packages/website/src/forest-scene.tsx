@@ -14,8 +14,8 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { globeOf, labelsAt, labelWords, momentStarts, placeTags, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
-import { createCameraPlayer } from "./tour-camera.js";
+import { aim, globeOf, labelsAt, labelWords, momentStarts, placeTags, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { createCameraPlayer, freePlayFraming, towardNarrow, viewFraming } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, recordedView, savedReading } from "./tour-reading.js";
 
@@ -201,7 +201,7 @@ function PanelPointer({ text, row: rowAt, within, label: name, under = false }: 
 function offsetFor(step: TourStep | undefined, width: number) {
   if (!step || width <= 600) {
     const { side = 0, narrow = side } = step?.phone ?? {};
-    return Math.round(side + (narrow - side) * Math.min(1, Math.max(0, (390 - width) / 70)));
+    return Math.round(towardNarrow(side, narrow, width));
   }
   const opening = step.kind === "beats" || step.kind === "statement" || step.kind === "fixes";
   // A chapter's lines start where the arrival's do (ADR-0890, amended 2026-10-05).
@@ -395,7 +395,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     const map = globe.map, overview = overviews[map];
     const view = (width > 600 ? shownStep!.laptop : shownStep!.phone) ?? shownStep!;
     const target = view.target ?? overview;
-    camera.step({ tour, before, switching: map !== shownMapNow.current, to: { target, framing: view.framing ?? restingFraming }, overview,
+    camera.step({ tour, before, switching: map !== shownMapNow.current, to: { target, framing: viewFraming(shownStep!, width, restingFraming) }, overview,
       shownOverview: overviews[shownMapNow.current], driftOrder: driftOrders[map], next: driftOrders[map].indexOf(ownerOf(target) ?? "") + 1,
       reduced: reduced(), place: stop => controls.stop({ ...stop, sideOffset }), show: () => setShownMap(map) });
   }, [controls, tour, sideOffset, openingActive, globe.map]);
@@ -421,8 +421,14 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   useEffect(() => { if (free) setSwitches(switchesFor(undefined, true)); }, [free]);
   useEffect(() => {
     if (!free || !controls) return;
-    const frame = requestAnimationFrame(() => controls.stop({ target: overviews[shownMap], framing: restingFraming, duration: reduced() ? 0 : 1200, sideOffset: 0 }));
-    return () => cancelAnimationFrame(frame);
+    // Free play takes the camera from the tour: a drift the last step left running would otherwise keep turning and framing it.
+    camera.cancel();
+    // A globe just swapped in may not be drawn yet (storytree's takes seconds with software WebGL): it is aimed at again, for up to
+    // 20 seconds, until it is, so the last globe's framing does not stay.
+    let again: ReturnType<typeof setTimeout> | undefined;
+    const frame = requestAnimationFrame(() => aim(target => controls.stop({ target, framing: freePlayFraming(shownMap, width, restingFraming), duration: reduced() ? 0 : 1200, sideOffset: 0 }),
+      overviews[shownMap], overviews[shownMap], run => { again = setTimeout(run, 50); }, 400));
+    return () => { cancelAnimationFrame(frame); clearTimeout(again); };
   }, [free, shownMap, controls]);
   useEffect(() => () => camera.cancel(), [camera]);
 
@@ -491,7 +497,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
           frame={grown?.snapshot.scene} easeMoves growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
           wisps={(heldClaims ? wisps : mapFrame?.wisps) ?? (shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps)} selected={selected}
           highlighted={focus?.length === 0 ? ["planned-only"] : focus ?? highlight} onPick={pickStory} onNote={pickNote}
-          onControls={onControls} surfaces={surfaces} framing={restingFraming} sideOffset={offsetFor(undefined, width)} mode={layers.mode} library={layers.library} />
+          onControls={onControls} surfaces={surfaces} framing={free ? freePlayFraming(shownMap, width, restingFraming) : restingFraming} sideOffset={offsetFor(undefined, width)} mode={layers.mode} library={layers.library} />
       </div>
     </GlobeBoundary>}
     {webgl && <Labels labels={shownLabels} controls={controls} arrived={arrived} />}

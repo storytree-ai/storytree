@@ -46,6 +46,10 @@
  #chapter2 .forest-views { top:60px; left:14px; }
  #chapter2 .planet-mini-globe { top:52px; right:6px; }
  #chapter2 .planet-mini-globe svg { width:88px; height:88px; }
+ /* While the tour talks, the mini globe sits at the top of the globe's room, beside the dated note, so storytree's own globe
+    keeps its names clear of it below (2.22). */
+ #chapter2[data-tour-mode="tour"] .planet-mini-globe { top:0; }
+ #chapter2[data-tour-mode="tour"] .planet-mini-globe svg { width:64px; height:64px; }
  #chapter2 .forest-views button, #chapter2 .tour-browse-toggle { min-height:44px; }
  #chapter2 .tour-browse-toggle { top:61px; left:180px; }
  #chapter2 .tour-project { top:110px; left:14px; }

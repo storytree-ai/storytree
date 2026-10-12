@@ -55,8 +55,9 @@ export type TourStep = {
   /** A laptop's own view where a phone's would not fit its panels (wider than 600px). */
   laptop?: { target: GlobeTarget; framing: number };
   /** A phone's own view (600px wide or less), with the globe's middle `side` pixels right of the screen's; at 320px wide
-   * `narrow` pixels instead, moving between the two from 390px down, so a narrower phone keeps its islands' names in view. */
-  phone?: { target?: GlobeTarget; framing: number; side: number; narrow?: number };
+   * `narrow` pixels instead and framed `narrowFraming`, moving between the two from 390px down, so a narrower phone keeps its
+   * islands' names in view. */
+  phone?: { target?: GlobeTarget; framing: number; side: number; narrow?: number; narrowFraming?: number };
   /** A story selected so its dependency lanes draw on. */
   select?: string;
   panel?: "story" | "arcs" | "sessions" | "knowledge" | "note";

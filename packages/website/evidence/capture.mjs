@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { verifyOpening, verifyOpeningFrames } from "./opening.mjs";
-import { verifyTour, verifyTourCamera, verifyImmersive, verifyRecordingFreeplay, reviewChapters, reviewFallbacks } from "./tour.mjs";
+import { verifyTour, verifyTourCamera, verifyImmersive, verifyRecordingFreeplay, verifyOwnGlobeFits, reviewChapters, reviewFallbacks } from "./tour.mjs";
 import { verifyForest } from "./forest.mjs";
 import { withBrowserCoverage } from "./browser-coverage.mjs";
 
@@ -68,6 +68,11 @@ try {
   else if (process.argv.includes("--review-chapters")) await reviewChapters(browser, url, output);
   else if (process.argv.includes("--review-fallbacks")) await reviewFallbacks(browser, url, output);
   else if (process.argv.includes("--verify-recording")) await verifyRecordingFreeplay(browser, url, output);
+  else if (process.argv.includes("--verify-own-globe")) {
+    // Storytree's names draw only with the live globe: software WebGL, as the journey's pictures use.
+    const drawing = await chromium.launch({ headless: true, args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"] });
+    try { await verifyOwnGlobeFits(drawing, url, output); } finally { await drawing.close(); }
+  }
   else if (process.argv.includes("--verify-immersive")) {
     // 2.19 is checked only in the browser: its verdict is written down for pnpm record:acceptance. A journey that stops
     // before 2.19's own checks finish has not observed it.

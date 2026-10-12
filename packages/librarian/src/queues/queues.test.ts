@@ -48,11 +48,10 @@ test("5.1 the worklist drains only lapsed open questions across arcs, longest la
   });
 });
 
-test("5.2 the friction drain takes three unrouted reports from other branches, most recurrences first and oldest first on ties", async () => {
+test("5.2 the friction drain takes three open reports from other branches, most recurrences first and oldest first on ties", async () => {
   await withLibrary(async (library) => {
     const own = await friction(library, "Own report", "claude/me");
     const routed = await friction(library, "Routed report", "claude/other");
-    await route(library, routed.id, "nothing", "A one-off: the app was open.");
     const a = await friction(library, "Report A", "claude/other");
     const b = await friction(library, "Report B");
     const c = await friction(library, "Report C", "codex/third");
@@ -63,6 +62,8 @@ test("5.2 the friction drain takes three unrouted reports from other branches, m
         branch: `repeat/${index}`, date: "2026-09-28", evidence: `#${index + 1}: happened again`,
       })) });
     }
+    // Judged after its recurrences: a recurrence on a settled report would reopen it (5.6).
+    await route(library, routed.id, "nothing", "A one-off: the app was open.");
 
     const drain = await frictionDrain(library, { branch: "claude/me" });
     assert.deepEqual(drain.map((one) => one.id), [c.id, b.id, d.id]);

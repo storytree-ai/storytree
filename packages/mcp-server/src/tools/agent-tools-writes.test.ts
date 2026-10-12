@@ -450,7 +450,7 @@ test("6.44 raising a question held on an increment the session holds, or a wait 
 test("6.15 reinforce appends dated concrete evidence to the existing friction, preserving its route, and refuses invalid recurrences", async () => {
   await withProject(async ({ folder, library }) => {
     const friction = await recordFriction(library, { title: "Slow mail", description: "Mail takes too long", statement: "The mailer timed out", evidence: "src/mail.ts: TimeoutError", impact: "Signup was delayed" });
-    await library.editNote(friction.id, { route: "nothing", routeReason: "An upstream outage" });
+    await library.editNote(friction.id, { route: "process", routeReason: "An upstream outage" });
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       assert.equal(idOf(await agent.call("reinforce", { friction: friction.id, evidence: "#81: mail still times out" })), friction.id);
       const first = await library.get(friction.id);

@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { claudeCodeWindow, codexWindow } from "./index.js";
+import { claudeCodeWindow, codexWindow, sessionWindow } from "./index.js";
 
 const jsonl = (...records: unknown[]): string => `${records.map((record) => JSON.stringify(record)).join("\n")}\n`;
 let uuid = 0;
@@ -96,4 +96,21 @@ test("9.10 a shell call opens the files its own cat, head, tail or sed -n names,
     { id: "packages/x/src/a.ts", call: "head" },
     { id: "packages/x/src/c.ts", call: "written" },
   ]);
+});
+
+test("9.10 a window is read only from a transcript storytree has a reader for: Pi's and Cursor's are never read as Claude Code's", async () => {
+  const text = jsonl(calls(call("open", "mcp__storytree__open", { id: "decision_000000000001" })), results(result("open", "Claims")));
+  const now = new Date("2026-10-12T03:00:00.000Z");
+  const windowOf = (harness: string) => sessionWindow(
+    [{ seq: 1, at: now.toISOString(), project: "test", session: "S", source: "hook", harness, kind: "session-started", transcript: "S.jsonl" }],
+    "S", { now, read: async () => text },
+  );
+  for (const harness of ["pi", "cursor"]) {
+    const window = await windowOf(harness);
+    assert.ok("absent" in window && !("opens" in window), `${harness}'s transcript is not read as Claude Code's`);
+    assert.match(window.absent, new RegExp(`^storytree reads no transcript of ${harness}$`, "i"));
+  }
+  const claude = await windowOf("claude-code");
+  assert.ok("opens" in claude);
+  assert.deepEqual(claude.opens.map(({ id }) => id), ["decision_000000000001"]);
 });

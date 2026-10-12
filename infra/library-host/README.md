@@ -30,11 +30,10 @@ library answers only over TLS, and storytree trusts its certificate only where t
 address names it (ADR-0997 D1): no build of storytree trusts it, and an address
 with no `sslrootcert` trusts Node's authorities alone, so it is refused
 `untrusted-server`. `mint-library.crt` here is that certificate's public half,
-committed because it is not a secret (ADR-0943 D3). While the box moves to a
-certificate that cannot sign for other hosts (ADR-0997 D4), it holds two: the one
-served today (SHA-256 90:B0:79:84:…:D3:F1:71) and its successor, issued CA:FALSE
-(SHA-256 4F:4E:25:4E:…:A8:AA:AD), so every client trusts the new one before the box
-serves it; once the old key is destroyed, the file holds the new one alone.
+committed because it is not a secret (ADR-0943 D3). It is a certificate that
+cannot sign for other hosts (ADR-0997 D4): issued CA:FALSE, SHA-256
+4F:4E:25:4E:…:A8:AA:AD. Its predecessor (90:B0:79:84:…:D3:F1:71, CA:TRUE) was retired
+on 2026-10-12 and its key destroyed, so no build that pinned it trusts anything now.
 
 - The laptop keeps its own copy at `C:\Users\mickh\.storytree\0.3\mint-library.crt`,
   and its library is

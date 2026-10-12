@@ -291,7 +291,7 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
 
     const empty = project("empty");
     assert.deepEqual(makeRepository(empty, { env: signed }), { state: "made" });
-    assert.equal(git(empty, "rev-parse", "--show-toplevel").trim(), empty);
+    assert.equal(path.resolve(git(empty, "rev-parse", "--show-toplevel").trim()), empty, "git prints / on Windows too");
     assert.equal(git(empty, "log", "--format=%an <%ae>").trim(), "A User <user@example.invalid>", "one commit, under the user's identity");
     assert.deepEqual(git(empty, "show", "--name-only", "--format=", "HEAD").trim().split("\n"), [MARKER_FILE], "the first commit holds the marker alone");
 

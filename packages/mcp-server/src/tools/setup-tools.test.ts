@@ -550,7 +550,7 @@ test("6.70 set_up_project in a folder in no git repository makes one whose first
         assert.match(setUp.text, /made it a git repository/);
         assert.deepEqual(setUp.data.repository, { state: "made" });
       });
-      assert.equal(git(empty, "rev-parse", "--show-toplevel"), empty);
+      assert.equal(path.resolve(git(empty, "rev-parse", "--show-toplevel")), empty, "git prints / on Windows too");
       assert.equal(git(empty, "show", "--name-only", "--format=", "HEAD"), MARKER_FILE);
 
       const repo = path.join(dir, `${inRepo}-repo`);

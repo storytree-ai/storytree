@@ -244,7 +244,8 @@ export async function crossingsOf(
   const refused = mode === "show" && rows.length > ceiling;
   const lined = new Set([...inside.values()].map(({ story }) => story));
   return {
-    mode, island, stories: islandStories.filter((story) => lined.has(story.id)).map((story) => story.title), patterns: options.patterns,
+    // The island as this machine names it: native separators, not the posix form matching uses.
+    mode, island: path.resolve(survey[islandStories[0]!.id]!.mapped!.folder), stories: islandStories.filter((story) => lined.has(story.id)).map((story) => story.title), patterns: options.patterns,
     inside: inside.size,
     in: { island: side("in", "island"), built: side("in", "built") },
     out: { island: side("out", "island"), built: side("out", "built") },

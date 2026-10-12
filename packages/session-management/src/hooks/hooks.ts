@@ -1,5 +1,6 @@
 /**
- * Capability 3 · Hooks (the Session management story): the commands Claude Code, Codex and Cursor, and any
+ * Capability 3 · Hooks (the Session management story): the commands Claude Code, Codex and Cursor, Pi through
+ * the extension storytree writes for it (pi.ts), and any
  * harness that names itself and sends the published input (self-named.ts), run by themselves when a session
  * starts, after every file edit and shell command, and when it ends, each adding one line about that
  * session to the agent activity log, so an agent that never calls storytree still shows up. They always
@@ -55,6 +56,7 @@ import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
 import { cursorLines, cursorSession } from "./cursor.js";
+import { piLines, piSession } from "./pi.js";
 import { EDIT_GATE, editGate } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
@@ -112,6 +114,8 @@ export function hookLines(harness: string, input: unknown): HookLines | undefine
       return codexLines(input as Record<string, unknown>);
     case "cursor":
       return cursorLines(input as Record<string, unknown>);
+    case "pi":
+      return piLines(input as Record<string, unknown>);
     default:
       // Any other name is a harness naming itself, sending the input storytree publishes (ADR-1007 D4).
       return isSelfNamed(harness) ? selfNamedLines(harness, input as Record<string, unknown>) : undefined;
@@ -125,15 +129,17 @@ export function inCursor(input: unknown): boolean {
 
 /**
  * What a prompt hook prints to add `context` for the agent, in the shape `harness` reads; undefined for
- * nothing to add. Cursor reads `additional_context`, and `continue` lets the prompt through.
+ * nothing to add. Cursor reads `additional_context`, and `continue` lets the prompt through; Pi's extension
+ * returns the answer from before_agent_start, where a message is added for the model and, with `display` off, not shown.
  */
 export function promptAnswer(harness: string, context: readonly string[] | undefined, input: unknown): string | undefined {
   if (context === undefined || context.length === 0 || (harness !== "cursor" && inCursor(input))) return undefined;
   const added = context.join("\n\n");
+  if (harness === "pi") return JSON.stringify({ message: { customType: "storytree", content: added, display: false } });
   return JSON.stringify(harness === "cursor" ? { continue: true, additional_context: added } : { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: added } });
 }
 
-/** A prompt the user sent, as each harness's prompt hook gives it (UserPromptSubmit; Cursor's beforeSubmitPrompt). */
+/** A prompt the user sent, as each harness's prompt hook gives it (UserPromptSubmit; Cursor's beforeSubmitPrompt; Pi's before_agent_start). */
 interface Prompted {
   readonly harness: Harness;
   readonly session: string;
@@ -327,6 +333,11 @@ function promptIn(harness: string, input: unknown): Prompted | undefined {
     const { hook_event_name: event, prompt } = input as Record<string, unknown>;
     const about = cursorSession(input as Record<string, unknown>);
     return event !== "beforeSubmitPrompt" || about === undefined || typeof prompt !== "string" ? undefined : { harness, ...about, prompt };
+  }
+  if (harness === "pi") {
+    const { hook_event_name: event, prompt } = input as Record<string, unknown>;
+    const about = piSession(input as Record<string, unknown>);
+    return event !== "before_agent_start" || about === undefined || typeof prompt !== "string" ? undefined : { harness, ...about, prompt };
   }
   if ((harness !== "claude-code" && harness !== "codex") || inCursor(input)) return undefined;
   const { hook_event_name: event, session_id: session, cwd: folder, prompt } = input as Record<string, unknown>;

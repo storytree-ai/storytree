@@ -2,7 +2,7 @@
 import { mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { codexHookTrust, HARNESS_IDS, watchedHarness } from "@storytree/session-management";
+import { codexHookTrust, HARNESS_IDS, PI_EXTENSION, watchedHarness } from "@storytree/session-management";
 
 import { CODEX_TRUST_STEP, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeHooks, removeLauncher, runsElevated } from "../setup/index.js";
 import { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
@@ -51,23 +51,30 @@ function locations(options: ConnectionOptions) {
   const storytree = env.STORYTREE_HOME || path.join(home, ".storytree", "0.3");
   // Cursor's home is ~/.cursor on every machine: no variable moves it (its documentation; not measured in a live session).
   const cursor = path.join(home, ".cursor");
-  return { home, env, claude, codex, cursor, storytree, files: {
+  // Pi's agent folder: PI_CODING_AGENT_DIR, else ~/.pi/agent (measured, Pi 1.1.0).
+  const pi = env.PI_CODING_AGENT_DIR || path.join(home, ".pi", "agent");
+  return { home, env, claude, codex, cursor, pi, storytree, files: {
     "claude-code": env.CLAUDE_CONFIG_DIR ? path.join(claude, ".claude.json") : path.join(home, ".claude.json"),
     codex: path.join(codex, "config.toml"),
     cursor: path.join(cursor, "mcp.json"),
+    pi: path.join(pi, "mcp.json"),
   } };
 }
 /** The hook the installation carries: its bundled Node and the hook script beside its tool server. */
 const hookCommand = (installed: InstalledToolServerCommand) => ({ node: installed.command, script: path.join(path.dirname(installed.args[0]), "storytree-hook.mjs") });
-const executable = (harness: Harness) => harness === "claude-code" ? "claude" : harness === "codex" ? "codex" : "cursor-agent";
+const executable = (harness: Harness) => harness === "claude-code" ? "claude" : harness === "codex" ? "codex" : harness === "pi" ? "pi" : "cursor-agent";
 const label = (harness: Harness) => watchedHarness(harness)?.label ?? harness;
-/** The file a harness keeps its hooks in: Claude Code's settings.json, Codex's and Cursor's hooks.json. */
-const hooksFileOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "claude-code" ? path.join(where.claude, "settings.json") : path.join(where[harness], "hooks.json");
-const homesOf = (where: ReturnType<typeof locations>) => ({ claude: where.claude, codex: where.codex, cursor: where.cursor });
+/** The file a harness keeps its hooks in: Claude Code's settings.json, Codex's and Cursor's hooks.json, and storytree's Pi extension. */
+const hooksFileOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "claude-code" ? path.join(where.claude, "settings.json") : harness === "pi" ? path.join(where.pi, PI_EXTENSION) : path.join(where[harness], "hooks.json");
+/** The folder a harness keeps its hooks file in: its home, and for Pi its agent folder, which holds the extensions folder. */
+const harnessHomeOf = (where: ReturnType<typeof locations>, harness: Harness) => harness === "pi" ? where.pi : path.dirname(hooksFileOf(where, harness));
+const homesOf = (where: ReturnType<typeof locations>) => ({ claude: where.claude, codex: where.codex, cursor: where.cursor, pi: where.pi });
+/** Pi's default exposure, codemode, declares no tool to the model: storytree's are declared directly (measured, Pi 1.1.0). */
+const PI_ENTRY = { exposure: "direct", description: "storytree: the project's plan, claims, library and questions" };
 async function openSettings(harness: Harness, options: ConnectionOptions): Promise<Settings> {
   const where = locations(options);
   // Cursor's mcp.json names its servers under mcpServers, as Claude Code's file does.
-  return harness !== "codex" ? claudeSettings(where.files[harness]) : codexSettings(where.files[harness], options.run ?? runHarness, where.env, where.codex === path.join(where.home, ".codex") ? undefined : where.codex);
+  return harness !== "codex" ? claudeSettings(where.files[harness], harness === "pi" ? PI_ENTRY : {}) : codexSettings(where.files[harness], options.run ?? runHarness, where.env, where.codex === path.join(where.home, ".codex") ? undefined : where.codex);
 }
 const ELEVATED = "This terminal runs as administrator, and Codex cannot run commands when started from one (its Windows sandbox times out on each): open Codex from a normal terminal, not \"Run as administrator\".";
 const conflict = (file: string) => `The existing storytree entry in ${file} is incompatible and was kept (including any 0.2 entry). Review or move that entry yourself before retrying. The name storytree is required by the existing hooks.`;
@@ -102,12 +109,13 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
     }
     let settings: Settings | undefined;
     const hooksFile = hooksFileOf(where, harness);
-    const harnessHome = path.dirname(hooksFile);
+    const harnessHome = harnessHomeOf(where, harness);
     let checkingFile = hooksFile;
     try {
       // A harness that has never started a session has no home yet (its --version makes none): make it, so its hooks go in now.
       mkdirSync(harnessHome, { recursive: true });
-      const hooksText = read(checkingFile);
+      // Pi's is an extension storytree writes whole, not a settings file.
+      const hooksText = harness === "pi" ? undefined : read(checkingFile);
       if (hooksText !== undefined) {
         const hooks: unknown = JSON.parse(hooksText);
         if (hooks === null || typeof hooks !== "object" || Array.isArray(hooks)) throw new Error("Expected a settings object");
@@ -124,16 +132,18 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       else if (settings.current === undefined) await settings.add(options.installed);
       markDisconnected(where.storytree, harness, false);
       checkingFile = hooksFile;
-      const registration = registerHooks(harness === "claude-code" ? { claude: where.claude } : { [harness]: where[harness] }, hook)[harness];
+      const registration = registerHooks(harness === "claude-code" ? { claude: where.claude } : { [harness]: harnessHome }, hook)[harness];
       if (registration !== "registered" && registration !== "already registered") throw new Error(`Hooks ${registration}`);
       // Codex shows the agent neither the tool server's instructions nor its tools until it searches, and
       // runs no hook until the user trusts it: its home's AGENTS.md is what sends its first session to check_setup.
-      if (harness === "codex") writeCodexInstructions(where.codex);
+      // Pi shows the agent no server instructions in either exposure (measured, Pi 1.1.0), and reads its agent folder's AGENTS.md in every folder.
+      if (harness === "codex" || harness === "pi") writeCodexInstructions(harnessHome);
       const trust = harness === "codex" ? codexHookTrust({ storytreeHome: where.storytree, codexHome: where.codex }) : "not registered";
       if (trust === "running") result(tools, "Tools connected in user settings; Codex has run storytree's hooks. Start a new Codex session in the folder of your project.", "running");
       else if (trust === "waiting") result(tools, `Tools connected in user settings. One step is yours: Codex runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work. ${CODEX_TRUST_STEP}`, "waiting for you to trust them in Codex");
       // Cursor's hooks are known from its documentation and code, not from a session: nothing here says they run.
       else if (harness === "cursor") result(tools, "Tools connected in user settings; hooks not verified. Start a new Cursor agent session in the folder of your project and call check_setup.");
+      else if (harness === "pi") result(tools, "Tools connected in user settings and storytree's Pi extension installed; hooks not verified. Start a new Pi session in the folder of your project and call check_setup.");
       else result(tools, "Tools connected in user settings; hooks not verified. Start a new agent session in the folder of your project and call check_setup; it names each missing hook until its event is received. Project or managed settings can override this user registration.");
     } catch {
       // Do not copy a CLI's stdout/stderr (which can include settings or credentials) into the result.
@@ -159,7 +169,7 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
       }
       // Validate/remove only this harness's hooks; never call the unscoped `setup remove` command.
       removeHooks(homesOf(where), { harness, hook });
-      if (harness === "codex") removeCodexInstructions(where.codex);
+      if (harness === "codex" || harness === "pi") removeCodexInstructions(harnessHomeOf(where, harness));
       if (settings.current !== undefined) await settings.remove();
       // So the setup check, run from another harness's session, does not register its hooks again.
       markDisconnected(where.storytree, harness, true);
@@ -185,6 +195,7 @@ export async function disconnectAgents(options: ConnectionOptions): Promise<Disc
         // The existing setup check registers hooks for every detected home, even an unchosen harness.
         for (const harness of HARNESS_IDS) removeHooks(homesOf(where), { harness, hook });
         removeCodexInstructions(where.codex);
+        removeCodexInstructions(where.pi);
         command = removeInstalledCommand(where.home, where.env, options.installed);
       } catch { command = "kept"; }
     }
@@ -211,7 +222,7 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
     let settings: Settings | undefined;
     try {
       removeHooks(homesOf(where), { harness, hook });
-      if (harness === "codex") removeCodexInstructions(where.codex);
+      if (harness === "codex" || harness === "pi") removeCodexInstructions(harnessHomeOf(where, harness));
       // Codex's own command line reads its TOML; without a storytree table there is nothing to ask it.
       if (harness === "codex" && !/mcp_servers\.["']?storytree\b/.test(read(where.files.codex) ?? "")) { results.push({ harness, tools: "none" }); continue; }
       settings = await openSettings(harness, { ...options, harnesses: [] });
@@ -221,7 +232,7 @@ export async function removeConnections(options: Omit<ConnectionOptions, "harnes
     } catch {
       const next = harness === "claude-code"
         ? `remove the storytree entry under mcpServers in ${where.files[harness]}, and storytree's hooks and status line in ${path.join(where.claude, "settings.json")}.`
-        : harness === "cursor"
+        : harness === "cursor" || harness === "pi"
           ? `remove the storytree entry under mcpServers in ${where.files[harness]}, and storytree's hooks in ${hooksFileOf(where, harness)}.`
           : `run codex mcp remove storytree, or delete the [mcp_servers.storytree] table in ${where.files[harness]}; storytree's hooks are in ${path.join(where.codex, "hooks.json")}.`;
       results.push({ harness, tools: "kept", next: `storytree could not remove its connection; ${next}` });

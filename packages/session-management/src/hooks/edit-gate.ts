@@ -7,7 +7,8 @@
  * in the patch, and gives an added file's text there. Cursor's Write, StrReplace and Delete name their file
  * (`file_path` from its command line, `path` in its editor's transcripts) and its ApplyPatch is the patch text;
  * a Claude Code hook that Cursor runs gates nothing, since Cursor's own entry does (3.28). A harness that names
- * itself sends a published Edit or Write (self-named.ts), and reads the refusal in Claude Code's shape.
+ * itself sends a published Edit or Write (self-named.ts), and reads the refusal in Claude Code's shape. Pi's
+ * write and edit name their file by `path` (pi.ts), and its extension hands Pi the `{block, reason}` refusal.
  *
  * Which capability a file declares is the map's rule, given by the hook command that runs this (the app
  * setup's, ADR-0969); a hook given none refuses nothing.
@@ -22,6 +23,7 @@ import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 import type { LocateOptions } from "../routing/index.js";
 import { patchEdits } from "./codex.js";
 import { cursorSession } from "./cursor.js";
+import { piEdit, piSession } from "./pi.js";
 import { withDeadline } from "./deadlines.js";
 import { isSelfNamed, selfNamedEdit } from "./self-named.js";
 import type { HookFailure } from "./failures.js";
@@ -36,6 +38,7 @@ const GATE_MS = 3_000;
 export function editIn(harness: string, input: unknown): { session: string; folder: string; files: { path: string; text?: string }[] } | undefined {
   if (typeof input !== "object" || input === null) return undefined;
   if (harness === "cursor") return cursorEditIn(input as Record<string, unknown>);
+  if (harness === "pi") return piEditIn(input as Record<string, unknown>);
   if (isSelfNamed(harness)) return selfNamedEditIn(input as Record<string, unknown>);
   if (typeof (input as Record<string, unknown>).cursor_version === "string") return undefined;
   const { hook_event_name: event, session_id: session, cwd: folder, tool_name: tool, tool_input: toolInput } = input as Record<string, unknown>;
@@ -57,6 +60,13 @@ function selfNamedEditIn(input: Record<string, unknown>): ReturnType<typeof edit
   const { hook_event_name: event, session_id: session, cwd: folder } = input;
   const file = selfNamedEdit(input);
   return event !== "PreToolUse" || !isText(session) || !isText(folder) || file === undefined ? undefined : { session, folder, files: [file] };
+}
+
+/** The file edit a Pi tool call is about to make. */
+function piEditIn(input: Record<string, unknown>): ReturnType<typeof editIn> {
+  const about = piSession(input);
+  const file = about === undefined ? undefined : piEdit(input, about.folder);
+  return input.hook_event_name !== "tool_call" || about === undefined || file === undefined ? undefined : { ...about, files: [file] };
 }
 
 /** Cursor's tools that write one named file. */
@@ -81,8 +91,10 @@ function cursorEditIn(input: Record<string, unknown>): ReturnType<typeof editIn>
 /**
  * A refusal in the shape `harness` reads. Claude Code reads the pre-tool decision and Codex the block it reads
  * from a Stop hook; Cursor reads a denied permission, and blocks the tool on any answer it cannot parse.
+ * Pi's extension returns the answer from its tool_call handler, and the model reads `reason` as the tool's result.
  */
 export function refusalAnswer(harness: string, reason: string): string {
+  if (harness === "pi") return JSON.stringify({ block: true, reason });
   if (harness === "cursor") return JSON.stringify({ permission: "deny", user_message: reason, agent_message: reason });
   return JSON.stringify({ decision: "block", reason, hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
 }

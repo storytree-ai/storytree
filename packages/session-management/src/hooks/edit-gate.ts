@@ -6,7 +6,8 @@
  * text, read for its declaration since a new file has none on disk. Codex's apply_patch names its files
  * in the patch, and gives an added file's text there. Cursor's Write, StrReplace and Delete name their file
  * (`file_path` from its command line, `path` in its editor's transcripts) and its ApplyPatch is the patch text;
- * a Claude Code hook that Cursor runs gates nothing, since Cursor's own entry does (3.28).
+ * a Claude Code hook that Cursor runs gates nothing, since Cursor's own entry does (3.28). A harness that names
+ * itself sends a published Edit or Write (self-named.ts), and reads the refusal in Claude Code's shape.
  *
  * Which capability a file declares is the map's rule, given by the hook command that runs this (the app
  * setup's, ADR-0969); a hook given none refuses nothing.
@@ -22,6 +23,7 @@ import type { LocateOptions } from "../routing/index.js";
 import { patchEdits } from "./codex.js";
 import { cursorSession } from "./cursor.js";
 import { withDeadline } from "./deadlines.js";
+import { isSelfNamed, selfNamedEdit } from "./self-named.js";
 import type { HookFailure } from "./failures.js";
 
 /** The flag of the hook before each file-edit tool. */
@@ -34,6 +36,7 @@ const GATE_MS = 3_000;
 export function editIn(harness: string, input: unknown): { session: string; folder: string; files: { path: string; text?: string }[] } | undefined {
   if (typeof input !== "object" || input === null) return undefined;
   if (harness === "cursor") return cursorEditIn(input as Record<string, unknown>);
+  if (isSelfNamed(harness)) return selfNamedEditIn(input as Record<string, unknown>);
   if (typeof (input as Record<string, unknown>).cursor_version === "string") return undefined;
   const { hook_event_name: event, session_id: session, cwd: folder, tool_name: tool, tool_input: toolInput } = input as Record<string, unknown>;
   if (event !== "PreToolUse" || !isText(session) || !isText(folder) || typeof toolInput !== "object" || toolInput === null) return undefined;
@@ -47,6 +50,13 @@ export function editIn(harness: string, input: unknown): { session: string; fold
           ? patchEdits(given.command)
           : [];
   return files.length === 0 ? undefined : { session, folder, files };
+}
+
+/** The file edit a self-named harness's pre-tool input is about to make: its published Edit or Write (ADR-1007 D4). */
+function selfNamedEditIn(input: Record<string, unknown>): ReturnType<typeof editIn> {
+  const { hook_event_name: event, session_id: session, cwd: folder } = input;
+  const file = selfNamedEdit(input);
+  return event !== "PreToolUse" || !isText(session) || !isText(folder) || file === undefined ? undefined : { session, folder, files: [file] };
 }
 
 /** Cursor's tools that write one named file. */

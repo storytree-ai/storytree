@@ -1,11 +1,11 @@
 /**
- * Capability 3 · Hooks (the Session management story): the commands Claude Code, Codex and Cursor run by
- * themselves when a session starts, after every file edit and shell command, and when it ends, each
- * adding one line about that session to the agent activity log, so an agent that never calls
- * storytree still shows up. They always exit cleanly and never print, so they can never break the
- * agent, and when storytree isn't running they do nothing. Two more name the session's agents
- * (ADR-0629 D2): one after a subagent is started, and one just before each call to storytree's own
- * tools, which the harness waits for.
+ * Capability 3 · Hooks (the Session management story): the commands Claude Code, Codex and Cursor, and any
+ * harness that names itself and sends the published input (self-named.ts), run by themselves when a session
+ * starts, after every file edit and shell command, and when it ends, each adding one line about that
+ * session to the agent activity log, so an agent that never calls storytree still shows up. They always
+ * exit cleanly and never print, so they can never break the agent, and when storytree isn't running
+ * they do nothing. Two more name the session's agents (ADR-0629 D2): one after a subagent is started,
+ * and one just before each call to storytree's own tools, which the harness waits for.
  *
  * The harness waits for a hook unless told not to. Claude Code can be told (`async`); Codex cannot,
  * so a Codex hook that must never make the agent wait (the one before each shell command, and the
@@ -61,6 +61,7 @@ import { noteCodexHookRan } from "./codex-trust.js";
 import { contextNudge } from "./context-nudge.js";
 import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
 import { hookIdentity, noteHookFailure, type HookFailure } from "./failures.js";
+import { isSelfNamed, selfNamedLines } from "./self-named.js";
 import { shellEdits } from "./shell-edits.js";
 
 /** What a hook is run with: the command's arguments (the harness first, then any flags) and its stdin. */
@@ -112,7 +113,8 @@ export function hookLines(harness: string, input: unknown): HookLines | undefine
     case "cursor":
       return cursorLines(input as Record<string, unknown>);
     default:
-      return undefined;
+      // Any other name is a harness naming itself, sending the input storytree publishes (ADR-1007 D4).
+      return isSelfNamed(harness) ? selfNamedLines(harness, input as Record<string, unknown>) : undefined;
   }
 }
 

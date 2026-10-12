@@ -136,7 +136,7 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const report = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
-    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", cursor: "not here", pi: "not here", statusLine: "installed" });
+    assert.deepEqual(report.hooks, { "claude-code": "registered", codex: "registered", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "installed" });
 
     const claude = readJson(home.claudeSettings);
     assert.deepEqual({ ...claude, hooks: undefined, statusLine: undefined }, { ...CLAUDE_SETTINGS, hooks: undefined, statusLine: undefined }, "Claude Code's other settings are as they were");
@@ -190,14 +190,14 @@ test("8.2 a second start changes nothing, and removing storytree takes out exact
     const first = { claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") };
 
     const again = await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
-    assert.deepEqual(again.hooks, { "claude-code": "already registered", codex: "already registered", cursor: "not here", pi: "not here", statusLine: "already installed" });
+    assert.deepEqual(again.hooks, { "claude-code": "already registered", codex: "already registered", cursor: "not here", pi: "not here", antigravity: "not here", statusLine: "already installed" });
     assert.deepEqual({ claude: readFileSync(home.claudeSettings, "utf8"), codex: readFileSync(home.codexHooks, "utf8") }, first, "not a byte changed");
 
-    assert.deepEqual(removeHooks(home.homes), { "claude-code": "removed", codex: "removed", cursor: "none", pi: "none", statusLine: "removed" });
+    assert.deepEqual(removeHooks(home.homes), { "claude-code": "removed", codex: "removed", cursor: "none", pi: "none", antigravity: "none", statusLine: "removed" });
     assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS, "Claude Code's settings are as they were before storytree");
     assert.equal(existsSync(home.codexHooks), false, "the hooks file storytree made is gone");
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG);
-    assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", cursor: "none", pi: "none", statusLine: "none" }, "and removing again finds nothing");
+    assert.deepEqual(removeHooks(home.homes), { "claude-code": "none", codex: "none", cursor: "none", pi: "none", antigravity: "none", statusLine: "none" }, "and removing again finds nothing");
 
     // An install from before the PowerShell tool was matched gets the new matchers at its next setup check.
     registerHooks(home.homes, HOOK);

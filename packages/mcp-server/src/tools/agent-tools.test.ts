@@ -517,7 +517,7 @@ test("6.57 plan_contract plans a contract whose title runs past 300 characters, 
   });
 });
 
-test("session-management 11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen, and storytree check pinned to this storytree's release", async () => {
+test("app-setup 11.1 on GitHub, wire_pipeline writes storytree's workflow: the project's install and tests on each system chosen, and storytree check pinned to this storytree's release", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
@@ -536,7 +536,7 @@ test("session-management 11.1 on GitHub, wire_pipeline writes storytree's workfl
   });
 });
 
-test("session-management 11.2 in a project not on GitHub, wire_pipeline writes nothing and gives the commands to add to the user's own pipeline", async () => {
+test("app-setup 11.2 in a project not on GitHub, wire_pipeline writes nothing and gives the commands to add to the user's own pipeline", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://gitlab.com/someone/shop.git");
@@ -551,7 +551,7 @@ test("session-management 11.2 in a project not on GitHub, wire_pipeline writes n
   });
 });
 
-test("session-management 11.3 wire_pipeline proposes branch protection as a command for the user to approve, and changes no repository setting itself", async () => {
+test("app-setup 11.3 wire_pipeline proposes branch protection as a command for the user to approve, and changes no repository setting itself", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "git@github.com:someone/shop.git");
@@ -568,7 +568,7 @@ test("session-management 11.3 wire_pipeline proposes branch protection as a comm
   });
 });
 
-test("session-management 11.5 when GitHub refuses protection on the repository's plan (a free private repository), wire_pipeline offers merging only after both checks pass instead of a command that would fail, and only reads the setting", async () => {
+test("app-setup 11.5 when GitHub refuses protection on the repository's plan (a free private repository), wire_pipeline offers merging only after both checks pass instead of a command that would fail, and only reads the setting", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
@@ -596,7 +596,7 @@ function testJobRuns(workflow: string): string[] {
   return [...job.matchAll(/^ {6}- run: (".*")$/gm)].map((match) => JSON.parse(match[1]!) as string);
 }
 
-test("session-management 11.6 in a project that imports a folder recorded by repository and commit, wire_pipeline's pipeline fetches it at that commit beside the checkout, where the folder sits, and installs its own dependencies, before the project's install and tests; it moves only when the folder is imported again", async () => {
+test("app-setup 11.6 in a project that imports a folder recorded by repository and commit, wire_pipeline's pipeline fetches it at that commit beside the checkout, where the folder sits, and installs its own dependencies, before the project's install and tests; it moves only when the folder is imported again", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");
@@ -649,7 +649,7 @@ test("session-management 11.6 in a project that imports a folder recorded by rep
   });
 });
 
-test("session-management 11.7 an import recorded with no repository is named by wire_pipeline as one CI cannot fetch, with what the user can do, and nothing is fetched for it", async () => {
+test("app-setup 11.7 an import recorded with no repository is named by wire_pipeline as one CI cannot fetch, with what the user can do, and nothing is fetched for it", async () => {
   await withProject(async ({ folder }) => {
     git(folder, "init", "-q");
     git(folder, "remote", "add", "origin", "https://github.com/someone/shop.git");

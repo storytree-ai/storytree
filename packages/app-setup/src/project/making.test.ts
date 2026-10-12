@@ -7,7 +7,7 @@
  * database is dropped afterwards, pass or fail.
  */
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -17,7 +17,7 @@ import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/s
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 import { openReviews } from "@storytree/quality-assurance";
 
-import { setUpProject, suggestProjectName } from "./making.js";
+import { makeRepository, setUpProject, suggestProjectName } from "./making.js";
 
 /** The project a lookup found and the folder holding its marker, leaving aside the database identity the marker records. */
 function named(lookup: ProjectLookup): { project: string; folder: string } | ProjectLookup {
@@ -270,5 +270,47 @@ test("6.7 setting a new project up seeds its library with every starter role (or
         await library.close();
       }
     });
+  });
+});
+
+test("6.10 a folder in no git repository gets one, whose first commit holds the project's marker; a folder already in one is left as it is; with no git, or no git identity, nothing is made and the setup goes on", async () => {
+  await withTempDir(async (dir) => {
+    // Git reads no config of this machine's: the test chooses the identity, or none.
+    const noConfig = path.join(dir, "no-gitconfig");
+    writeFileSync(noConfig, "");
+    const bare: NodeJS.ProcessEnv = { ...process.env, GIT_CONFIG_GLOBAL: noConfig, GIT_CONFIG_NOSYSTEM: "1" };
+    for (const name of ["GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"]) delete bare[name];
+    const signed = { ...bare, GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
+    const project = (name: string) => {
+      const folder = path.join(dir, name);
+      mkdirSync(folder);
+      writeFileSync(path.join(folder, MARKER_FILE), "{}\n");
+      writeFileSync(path.join(folder, "notes.txt"), "the user's own\n");
+      return folder;
+    };
+
+    const empty = project("empty");
+    assert.deepEqual(makeRepository(empty, { env: signed }), { state: "made" });
+    assert.equal(path.resolve(git(empty, "rev-parse", "--show-toplevel").trim()), empty, "git prints / on Windows too");
+    assert.equal(git(empty, "log", "--format=%an <%ae>").trim(), "A User <user@example.invalid>", "one commit, under the user's identity");
+    assert.deepEqual(git(empty, "show", "--name-only", "--format=", "HEAD").trim().split("\n"), [MARKER_FILE], "the first commit holds the marker alone");
+
+    const inside = path.join(empty, "sub");
+    mkdirSync(inside);
+    assert.deepEqual(makeRepository(inside, { env: signed }), { state: "already", root: empty });
+    assert.equal(existsSync(path.join(inside, ".git")), false, "a folder inside a repository gets no second one");
+    assert.equal(git(empty, "rev-list", "--count", "HEAD").trim(), "1");
+
+    const anonymous = project("anonymous");
+    const unnamed = makeRepository(anonymous, { env: { ...bare, HOME: dir, USERPROFILE: dir } });
+    assert.equal(unnamed.state, "could not");
+    assert.match(unnamed.state === "could not" ? unnamed.reason : "", /identity|user\.name|user\.email/i);
+    assert.equal(existsSync(path.join(anonymous, ".git")), false, "a repository that could not be committed to is not left half made");
+
+    const gitless = project("gitless");
+    const missing = makeRepository(gitless, { env: { ...signed, PATH: path.join(dir, "no-bin"), Path: path.join(dir, "no-bin") } });
+    assert.equal(missing.state, "could not");
+    assert.match(missing.state === "could not" ? missing.reason : "", /git is not installed/);
+    assert.equal(existsSync(path.join(gitless, ".git")), false);
   });
 });

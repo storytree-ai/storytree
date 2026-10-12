@@ -16,8 +16,8 @@ import { openStorytree } from "../setup/open-storytree.js";
 import { setUpProject, suggestProjectName, unusedName } from "./making.js";
 
 export { keepOnThisComputer, unusedName };
-export { notAProjectYet, setUpProject, suggestedName, suggestProjectName } from "./making.js";
-export type { SetUpOptions } from "./making.js";
+export { makeRepository, notAProjectYet, setUpProject, suggestedName, suggestProjectName } from "./making.js";
+export type { RepositoryMade, SetUpOptions } from "./making.js";
 export { ImportRefusedError, importProject } from "./importing.js";
 export type { Imported, ImportOptions } from "./importing.js";
 export { seedStarterPack, STARTER_PACK_VERSION, STARTER_ROLES, starterPackStatus, starterRolesIn, takeStarterPack, type StarterPackRecord, type StarterPackStatus, type StarterPackTake } from "./starter-pack.js";

@@ -661,7 +661,7 @@ test("6.69 plan_capability on a mapped story records what the agent explored wit
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { added: [app] } = await library.mapStories("/code/app", [{ package: ".", title: "app", folders: ["."] }]);
       const stats = idOf(await agent.call("plan_capability", { story: app!.id, title: "Stats page", covers: ["app/(app)/stats", "components/stats", "lib/stats.ts"], ...FOUNDED }));
-      assert.deepEqual((await library.get(stats))?.fields.covers, ["app/(app)/stats", "components/stats", "lib/stats.ts"]);
+      assert.deepEqual(((await library.get(stats))?.fields as { covers?: string[] } | undefined)?.covers, ["app/(app)/stats", "components/stats", "lib/stats.ts"]);
 
       const none = await agent.call("plan_capability", { story: app!.id, title: "Charts", ...FOUNDED });
       assert.equal(none.isError, true);
@@ -673,7 +673,7 @@ test("6.69 plan_capability on a mapped story records what the agent explored wit
 
       const corrected = await agent.call("edit_plan", { id: stats, covers: ["app/(app)/stats", "components/stats", "lib/stats.ts", "lib/stats-format.ts"] });
       assert.notEqual(corrected.isError, true, corrected.text);
-      assert.deepEqual((await library.get(stats))?.fields.covers, ["app/(app)/stats", "components/stats", "lib/stats.ts", "lib/stats-format.ts"]);
+      assert.deepEqual(((await library.get(stats))?.fields as { covers?: string[] } | undefined)?.covers, ["app/(app)/stats", "components/stats", "lib/stats.ts", "lib/stats-format.ts"]);
     });
   });
 });

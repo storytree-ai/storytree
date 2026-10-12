@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { graduate, graduatedFindings } from "../graduation/graduation.js";
 import { ledgerText, openLedger } from "../ledger/ledger.js";
-import { branchDiff, briefText, openReviews, standingText, takenText, type ReviewReturn } from "../review/review.js";
+import { branchBase, branchDiff, briefText, openReviews, standingText, takenText, type ReviewReturn } from "../review/review.js";
 import { checks, checksText } from "./checks.js";
 
 /** What a tool has to work with for one call, as far as the checks and ledger readings need it. */
@@ -55,13 +55,13 @@ export function qualityTools(): ToolExtension {
         const reading = await (await openLedger(storytree)).reading(project);
         return { text: ledgerText(reading), data: { ledger: reading } };
       });
-      define("quality_brief", "Issue the next review's brief for an increment's change: its diff against the default branch origin names (origin/main when it names none), the contracts of the capabilities it names and every live check. Give the diff, or the worktree whose branch is the change.", z.object({
+      define("quality_brief", "Issue the next review's brief for an increment's change: its diff against the default branch origin names (origin/main when it names none, and the local default branch in a repository with no origin/main), the contracts of the capabilities it names and every live check. Give the diff, or the worktree whose branch is the change.", z.object({
         increment: z.string().min(1).describe("The increment whose change is reviewed"),
         diff: z.string().optional().describe("The change's diff against its default branch, as git diff gives it"),
         worktree: z.string().optional().describe("The worktree whose branch is the change, to read the diff from"),
       }), async ({ increment, diff, worktree }, { library, storytree }) => {
         if (diff === undefined && worktree === undefined) throw new Error("Give the change's diff, or the worktree whose branch is the change: this server's folder is not the branch.");
-        const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? branchDiff(worktree!));
+        const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? branchDiff(worktree!), diff === undefined ? branchBase(worktree!) : undefined);
         return { text: briefText(brief), data: { brief } };
       });
       define("quality_take", "Take the change-reviewer's return on an increment's brief into the QA ledger, or refuse it naming what it leaves out, recording nothing. Give the worktree whose branch is the change, and what Guardrails' graduated checks find there is recorded with it.", z.object({

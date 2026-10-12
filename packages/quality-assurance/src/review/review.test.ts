@@ -176,6 +176,32 @@ function branchCheckout(trunk?: string): string {
   return dir;
 }
 
+test("2.6 · the diff read from a worktree holds its uncommitted work too, edits and new files Git does not ignore; a folder with no default branch is read against its commit", () => {
+  for (const origin of [true, false]) {
+    const dir = mkdtempSync(join(tmpdir(), "qa-uncommitted-"));
+    try {
+      const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: dir });
+      git("init", "-q");
+      mkdirSync(join(dir, "src/pages"), { recursive: true });
+      writeFileSync(join(dir, "src/app.ts"), "export const app = 1;\n");
+      writeFileSync(join(dir, ".gitignore"), "*.log\n");
+      git("add", ".");
+      git("commit", "-qm", "imported");
+      if (origin) git("update-ref", "refs/remotes/origin/main", "HEAD");
+      writeFileSync(join(dir, "src/app.ts"), "export const app = 2;\n");
+      writeFileSync(join(dir, "src/pages/new.ts"), "export const page = 1;\n");
+      writeFileSync(join(dir, "debug.log"), "noise\n");
+
+      const diff = branchDiff(dir);
+      const changed = diff.split("\n").filter((line) => /^[+-](?![+-])/.test(line)).sort();
+      assert.deepEqual(changed, ["+export const app = 2;", "+export const page = 1;", "-export const app = 1;"], origin ? "against origin/main" : "against the folder's commit");
+      assert.match(diff, /^diff --git a\/src\/pages\/new\.ts b\/src\/pages\/new\.ts$/m, "a new file is named as the brief's packages read it");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
 test("2.3 · the brief's tool issues the brief given the diff, or reads it from the worktree given, and refuses neither; the take tool takes the same return the loop takes", async () => {
   await withLibrary(async (library, storytree) => {
     const { increment, contracts, checks } = await plan(library);

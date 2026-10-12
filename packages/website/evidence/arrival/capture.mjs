@@ -210,7 +210,7 @@ const runs = {
       phoneFrames: frames, known: [], extra: { "map-capabilities": "1440-story-panel.png" } });
   },
   // Each map line's label (2.21), on every labelled line at 1920, 1440, 1280, 390 and 320, at the tour's own 0.75×: the picture as the
-  // line is said, and where its label stands against the screen's edges, the card, the bar, the panels and the islands' names.
+  // line is said, and where its label stands against the screen's edges, the card, the bar, the panels, the mini globe and the islands' names.
   // --before pictures the same moments with the labels hidden, for the before-and-after. They go to map-labels.
   async mapLabels() {
     const before = process.argv.includes("--before");
@@ -245,7 +245,7 @@ const runs = {
           return { labels: shown.map(node => ({ text: node.querySelector(".tour-tag-text")?.textContent, box: box(node.querySelector(".tour-tag-text")) })).filter(label => label.box),
             pointed: document.querySelector(".tour-session-surface")?.hasAttribute("data-pointed") ?? false,
             room: { width: innerWidth, height: innerHeight },
-            others: [["card", "#tour-card"], ["bar", "#tour-bar"], ["panel", ".story-panel"], ["sessions", ".tour-session-surface:not([hidden]) .sessions-list"], ["arcs", ".arc-overlay"]]
+            others: [["card", "#tour-card"], ["bar", "#tour-bar"], ["panel", ".story-panel"], ["sessions", ".tour-session-surface:not([hidden]) .sessions-list"], ["arcs", ".arc-overlay"], ["mini globe", "#website-forest .planet-mini-globe"]]
               .map(([name, selector]) => [name, box(document.querySelector(selector))]).filter(([, found]) => found),
             names: [...document.querySelectorAll(".planet-nameplate[data-story-id]")].filter(node => getComputedStyle(node).opacity !== "0").map(node => [node.querySelector(".planet-nameplate-title")?.textContent, box(node.querySelector(".planet-nameplate-title"))]).filter(([, found]) => found) };
         });
@@ -261,6 +261,7 @@ const runs = {
     }
     await writeFile(path.join(folder, `labels${before ? "-before" : ""}.json`), JSON.stringify(report, null, 2) + "\n");
     observed.push(`Map labels${before ? " (hidden, before)" : ""}: ${JSON.stringify(report.map(item => [item.name, item.labels, item.pointed, item.crowds]))}`);
+    if (!before) assert.deepEqual(report.filter(item => item.crowds.length).map(item => [item.name, item.crowds]), [], "every label stands clear (2.24)");
   },
   // The knowledge chapter in three steps (2.20, ADR-0990), pictured the same way: each step as it settles and on the lines that
   // change what it shows (the notes, the note's card, the flags), and a clip of the whole chapter at 1440.

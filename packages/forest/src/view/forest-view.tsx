@@ -6,7 +6,7 @@
  */
 import { createRoot } from "react-dom/client";
 import type { ForestScene, SessionWisp } from "@storytree/forest";
-import { KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
+import { KnowledgeKinds, KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { PlanetView } from "./planet-view.js";
 import { nextScene, sameWisps } from "./planet-update.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
@@ -78,6 +78,8 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
           {which === "stories" ? "Stories" : "Library"}
         </button>)}
       </div>
+      {/* The knowledge core's kind list unfolds under the Library switch, while it is on (knowledge core 5, D1). */}
+      {layers.library && <KnowledgeKinds core={core} />}
     </>);
   };
   const selection = new PanelSelection(next => {

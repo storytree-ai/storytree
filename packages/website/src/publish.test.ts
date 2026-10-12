@@ -7,7 +7,7 @@ import { test, type TestContext } from "node:test";
 import { publishWebsite } from "./publish.js";
 
 const api = "https://here.now/api/v1/publish/crisp-globe-bf6v";
-const site = "https://crisp-globe-bf6v.here.now/";
+const site = "https://storytree.dev/";
 const token = "test-secret-token";
 const files = new Map([
   ["index.html", Buffer.from("<main>storytree</main>")],

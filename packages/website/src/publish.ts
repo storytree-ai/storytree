@@ -12,7 +12,7 @@ export type PublishWebsiteOptions = {
 
 const slug = "crisp-globe-bf6v";
 const api = `https://here.now/api/v1/publish/${slug}`;
-const site = `https://${slug}.here.now/`;
+const site = "https://storytree.dev/";
 const contentTypes: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",

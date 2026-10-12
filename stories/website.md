@@ -153,8 +153,9 @@ command. CI and the public page use that file, never a live library connection.
 
 ## 4 · Publish on merge
 
-Merged website changes publish the built static folder to `crisp-globe-bf6v.here.now`, with no
-custom domain. The here.now key comes from Secret Manager (`heredotnow_api_key`), read through
+Merged website changes publish the built static folder to the here.now site `crisp-globe-bf6v`,
+which serves at the site's own domain, https://storytree.dev (the here.now address redirects
+there). The here.now key comes from Secret Manager (`heredotnow_api_key`), read through
 CI's keyless Google identity for the website (`infra/website-publish`); without that identity the
 publish is a clear skip, not a failed merge or a claim that the site was published.
 

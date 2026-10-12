@@ -1,8 +1,8 @@
 # The website's identity for publishing
 
 After each merge that changes the website, the **Publish website** workflow
-(`.github/workflows/website.yml`) builds `packages/website` and uploads it to
-https://crisp-globe-bf6v.here.now. The upload needs the here.now API key, which lives in Secret
+(`.github/workflows/website.yml`) builds `packages/website` and uploads it to the here.now site
+`crisp-globe-bf6v`, served at https://storytree.dev. The upload needs the here.now API key, which lives in Secret
 Manager as `heredotnow_api_key` in `storytree-498613`. To read it the workflow needs a Google
 identity of its own. This folder is that identity, written down; **the owner applies it by hand**.
 Until the last step is done, the publish step says "Website publishing skipped: no here.now key"
@@ -67,8 +67,8 @@ Actions > Publish website > Run workflow), and watch it: `gh run watch --repo st
 1. The run's **Sign in to Google as the website's publishing identity** step runs (it is skipped
    while the variables are unset).
 2. The **Publish, or clearly skip without a publishing identity** step logs
-   `Website published: https://crisp-globe-bf6v.here.now/` instead of the skip line.
-3. https://crisp-globe-bf6v.here.now serves the 0.3 site: the pitch, the install one-liner and the
+   `Website published: https://storytree.dev/` instead of the skip line.
+3. https://storytree.dev serves the 0.3 site: the pitch, the install one-liner and the
    project forest drawn from 0.3's own library.
 
 If it fails: a red sign-in step means step 2's variables do not match Terraform's outputs, or the

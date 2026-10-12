@@ -132,7 +132,7 @@ test("1.12 · the home and waitlist pages share as a 1200 x 630 picture of the m
   await buildWebsite(output);
   for (const page of ["index.html", "waitlist.html"]) {
     const html = await readFile(path.join(output, page), "utf8");
-    assert.match(html, /<meta property="og:image" content="https:\/\/crisp-globe-bf6v\.here\.now\/share\.png">/, page);
+    assert.match(html, /<meta property="og:image" content="https:\/\/storytree\.dev\/share\.png">/, page);
     assert.match(html, /<meta property="og:image:width" content="1200">/, page);
     assert.match(html, /<meta property="og:image:height" content="630">/, page);
     assert.match(html, /<meta name="twitter:card" content="summary_large_image">/, page);

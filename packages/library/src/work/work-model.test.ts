@@ -627,7 +627,8 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await work.editCapability(charts.id, { covers: ["app/charts", "lib/stats.ts"] }))?.fields.covers, ["app/charts", "lib/stats.ts"], "a path its owner let go is free");
     assert.deepEqual(((await records.get(charts.id)) as SchemaRecord<"capability">).fields.covers, ["app/charts", "lib/stats.ts"]);
     const { stories } = await work.projectTree();
-    assert.deepEqual(stories.find((story) => story.id === app!.id)?.capabilities.map((capability) => capability.covers), [["app/stats"], ["app/charts", "lib/stats.ts"]], "the plan's tree carries each one's covers");
+    const covers = new Map(stories.find((story) => story.id === app!.id)?.capabilities.map((capability) => [capability.id, capability.covers]));
+    assert.deepEqual(covers, new Map([[stats.id, ["app/stats"]], [charts.id, ["app/charts", "lib/stats.ts"]]]), "the plan's tree carries each one's covers");
   });
 }
 

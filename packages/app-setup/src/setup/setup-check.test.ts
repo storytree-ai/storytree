@@ -825,9 +825,8 @@ if (process.argv.includes("--edit-gate")) process.stdout.write(JSON.stringify({ 
     assert.deepEqual(gate?.args, ["pi", "--edit-gate"]);
     assert.deepEqual(gate?.input, { type: "tool_call", toolName: "write", toolCallId: "call_w", input: { path: "a.ts", content: "x" }, hook_event_name: "tool_call", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") });
     assert.deepEqual(await fire({ type: "tool_call", toolName: "read", toolCallId: "call_r", input: { path: "a.ts" } }), [], "a tool storytree does not hear runs no hook");
-    await fire({ type: "agent_end", messages: [{ role: "assistant", content: "a long run" }] });
-    for (let waited = 0; heardLines().length < 2 && waited < 100; waited += 1) await new Promise((resolve) => setTimeout(resolve, 100));
-    assert.deepEqual(heardLines()[1], { args: ["pi"], input: { type: "agent_end", hook_event_name: "agent_end", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") } }, "a turn's end is heard without its messages");
+    assert.deepEqual(await fire({ type: "before_agent_start", prompt: "hi", systemPrompt: "Pi's whole system prompt", systemPromptOptions: { tools: [] } }), [], "a prompt with nothing to add answers nothing");
+    assert.deepEqual(heardLines()[1], { args: ["pi"], input: { type: "before_agent_start", prompt: "hi", hook_event_name: "before_agent_start", session_id: "pi-session-1", cwd: dir, transcript_path: path.join(pi, "sessions", "s.jsonl") } }, "the prompt is heard without the system prompt the hook does not read");
 
     assert.equal(removeHooks({ ...home.homes, pi }).pi, "removed");
     assert.equal(existsSync(extension), false);

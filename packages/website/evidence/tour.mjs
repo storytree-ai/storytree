@@ -657,12 +657,14 @@ export async function reviewFallbacks(browser, url, output) {
   await writeFile(path.join(output, 'fallback-review.json'), JSON.stringify(observations, null, 2) + '\n');
 }
 
-// 2.22 on a phone: storytree's own globe, as the arrival grows it, as the everything step shows it and in free play on it,
-// keeps every island name it shows inside the screen and clear of the compass, sampled as the globe grows and drifts.
-export async function verifyOwnGlobeFits(browser, url, output) {
-  const failures = new Map();
-  for (const width of [390, 320]) {
-    const page = await browser.newPage({ viewport: { width, height: 844 }, deviceScaleFactor: 1 });
+// 2.22 on a phone and 2.23 on a laptop: storytree's own globe, as the arrival grows it, as the everything step shows it and in
+// free play on it, keeps every island name it shows inside the screen and clear of the compass, and on a laptop clear of the
+// bottom bar's band too (the tour bar, or free play's line and waitlist button), sampled as the globe grows and drifts.
+export async function verifyOwnGlobeFits(browser, url, output, sizes = [[390, 844], [320, 844], [1440, 900], [1280, 800]]) {
+  const failures = { "2.22": new Map(), "2.23": new Map() };
+  for (const [width, height] of sizes) {
+    const laptop = width > 600, contract = laptop ? "2.23" : "2.22";
+    const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await page.goto(url);
     await page.waitForFunction(() => document.querySelector("#website-forest")?.dataset.forestState === "live", null, { timeout: 90_000 });
@@ -670,12 +672,15 @@ export async function verifyOwnGlobeFits(browser, url, output) {
     // A sample counts only for the view the page shows as it is read: the tour can end between a loop's check and its sample,
     // and free play's first frames still show the everything step's pose under free play's larger compass.
     const sample = async where => {
-      const { view, plates, compass } = await page.evaluate(() => {
+      const { view, plates, compass, bar } = await page.evaluate(() => {
         const box = node => { const { x, y, width, height } = node.getBoundingClientRect(); return { x, y, width, height }; };
         const mini = document.querySelector("#chapter2 .planet-mini-globe svg"), { tourMode, tourStep } = document.querySelector("#chapter2").dataset;
+        const top = Math.min(...["#tour-bar", "#tour-hatch"].map(id => document.querySelector(id)).filter(node => node?.checkVisibility()).map(node => node.getBoundingClientRect().top));
         return {
           view: tourMode === "tour" ? tourStep : tourMode,
           compass: mini && getComputedStyle(mini).visibility === "visible" ? box(mini) : undefined,
+          // The band across the screen's foot from the bar's top: free play's bar is see-through, but its line and button sit there.
+          bar: Number.isFinite(top) ? { x: 0, y: top, width: innerWidth, height: innerHeight - top } : undefined,
           plates: [...document.querySelectorAll("#website-forest .planet-nameplate[data-story-id]:not(.crowded)")]
             .filter(node => getComputedStyle(node).visibility === "visible" && Number(getComputedStyle(node).opacity) > .1)
             .map(node => ({ text: node.textContent, ...box(node) })).filter(plate => plate.width),
@@ -685,9 +690,10 @@ export async function verifyOwnGlobeFits(browser, url, output) {
       seen.add(where);
       for (const plate of plates) {
         const off = plate.x < -.5 || plate.x + plate.width > width + .5, under = compass !== undefined && overlap(plate, compass) > 0;
-        if (!off && !under) continue;
-        const key = `${width}px ${where}: ${plate.text} ${off ? "runs past the screen's edge" : "sits under the compass"}`;
-        if (!failures.has(key)) failures.set(key, JSON.stringify({ plate, compass }));
+        const barred = laptop && bar !== undefined && overlap(plate, bar) > 0;
+        if (!off && !under && !barred) continue;
+        const key = `${width}px ${where}: ${plate.text} ${off ? "runs past the screen's edge" : under ? "sits under the compass" : "sits in the bottom bar"}`;
+        if (!failures[contract].has(key)) failures[contract].set(key, JSON.stringify({ plate, compass, bar }));
         if (!pictured.has(where)) { pictured.add(where); await page.screenshot({ path: path.join(output, `own-globe-failed-${where}-${width}.png`) }); }
       }
       // Each view's picture, as it last stood when sampled.
@@ -695,9 +701,16 @@ export async function verifyOwnGlobeFits(browser, url, output) {
     };
     // The arrival, played through at 1.5× from the growth to the three fixes.
     await goToStep(page, "grow");
-    for (let tap = 0; tap < 2; tap++) await page.locator("#tour-speed-cycle").click();
+    // A phone cycles the speeds with one button; a laptop shows each.
+    if (laptop) await page.locator('#tour-bar [data-speed="1.5"]').click();
+    else for (let tap = 0; tap < 2; tap++) await page.locator("#tour-speed-cycle").click();
     if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
     for (let step = await stepOf(page); ["grow", "value", "fixes"].includes(step); step = await stepOf(page)) { await sample(step); await page.waitForTimeout(250); }
+    // A view the play-through passed between two samples (software WebGL's slow frames) is gone to and sampled as it drifts.
+    for (const missed of ["value", "fixes"].filter(view => !seen.has(view))) {
+      await goToStep(page, missed);
+      for (let tick = 0; tick < 12 && await stepOf(page) === missed; tick++) { await sample(missed); await page.waitForTimeout(250); }
+    }
     // The everything step, as it drifts.
     await goToStep(page, "everything");
     if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
@@ -717,6 +730,6 @@ export async function verifyOwnGlobeFits(browser, url, output) {
     assert.deepEqual([...seen], ["grow", "value", "fixes", "everything", "freeplay"], `storytree's globe was sampled at every view at ${width}px`);
     await page.close();
   }
-  assert.deepEqual([...failures].map(([key, at]) => `${key} ${at}`), [], "website 2.22: storytree's globe keeps its names on the screen and clear of the compass");
-  console.log("PASS contract 2.22: on 390 and 320 phones storytree's globe keeps every name inside the screen and clear of the compass");
+  // Each contract's verdict, its failures listed: an empty list passes.
+  return Object.fromEntries(Object.entries(failures).map(([contract, found]) => [contract, [...found].map(([key, at]) => `${key} ${at}`)]));
 }

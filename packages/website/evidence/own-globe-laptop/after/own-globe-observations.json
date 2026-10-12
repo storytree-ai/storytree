@@ -1,0 +1,18 @@
+{
+  "story": "The website",
+  "commit": "unpublished local build",
+  "evidence": "packages/website/evidence/own-globe-laptop/after",
+  "note": "Locally built website served from packages/website/dist, SwiftShader",
+  "checks": [
+    {
+      "contract": "2.22",
+      "name": "On 390 and 320 phones storytree's globe keeps every island name inside the screen and clear of the compass in the arrival, the everything step and free play",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.23",
+      "name": "On 1440 and 1280 laptops storytree's globe keeps every island name inside the screen and clear of the compass and the bottom bar in the arrival, the everything step and free play",
+      "observed": "pass"
+    }
+  ]
+}

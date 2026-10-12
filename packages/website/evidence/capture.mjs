@@ -69,18 +69,28 @@ try {
   else if (process.argv.includes("--review-fallbacks")) await reviewFallbacks(browser, url, output);
   else if (process.argv.includes("--verify-recording")) await verifyRecordingFreeplay(browser, url, output);
   else if (process.argv.includes("--verify-own-globe")) {
-    // 2.22 is checked only in the browser: its verdict is written down for pnpm record:acceptance. Storytree's names draw only
-    // with the live globe: software WebGL, as the journey's pictures use.
-    const check = { contract: "2.22", name: "On 390 and 320 phones storytree's globe keeps every island name inside the screen and clear of the compass in the arrival, the everything step and free play", observed: "not-observed" };
+    // 2.22 and 2.23 are checked only in the browser: their verdicts are written down for pnpm record:acceptance. Storytree's names
+    // draw only with the live globe: software WebGL, as the journey's pictures use.
+    const checks = [
+      { contract: "2.22", name: "On 390 and 320 phones storytree's globe keeps every island name inside the screen and clear of the compass in the arrival, the everything step and free play", observed: "not-observed" },
+      { contract: "2.23", name: "On 1440 and 1280 laptops storytree's globe keeps every island name inside the screen and clear of the compass and the bottom bar in the arrival, the everything step and free play", observed: "not-observed" },
+    ];
     const drawing = await chromium.launch({ headless: true, args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"] });
-    try { await verifyOwnGlobeFits(drawing, url, output); check.observed = "pass"; }
-    catch (error) { if (error.message?.includes("website 2.22")) { check.observed = "fail"; check.detail = error.message; } throw error; }
+    try {
+      const found = await verifyOwnGlobeFits(drawing, url, output);
+      for (const check of checks) {
+        check.observed = found[check.contract].length ? "fail" : "pass";
+        if (found[check.contract].length) check.detail = found[check.contract].join("\n");
+        else console.log(`PASS contract ${check.contract}: ${check.name}`);
+      }
+      for (const check of checks) assert.deepEqual(found[check.contract], [], `website ${check.contract}: ${check.name}`);
+    }
     finally {
       await drawing.close();
       await writeFile(path.join(output, "own-globe-observations.json"), JSON.stringify({
         story: "The website", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
         evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
-        note: "Locally built website served from packages/website/dist, SwiftShader", checks: [check],
+        note: "Locally built website served from packages/website/dist, SwiftShader", checks,
       }, null, 2) + "\n");
     }
   }

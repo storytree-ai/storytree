@@ -103,7 +103,9 @@ const search: Verb = {
     const ranked = await (await context.library()).rankAll(query, limit === undefined ? {} : { limit: Number(limit) });
     const heading = ranked.by === "meaning" ? `closest in meaning to "${query}":` : `ranked by words: ${ranked.why}; the records holding every word of "${query}":`;
     if (ranked.hits.length === 0) return { text: `${heading}\n  none` };
-    const lines = ranked.hits.map(({ note, score }) => `  ${score === undefined ? "" : `${score.toFixed(2)}  `}${note.id}  [${note.type}]  ${labelOf(note.fields)}`);
+    // A friction report says where it stands, so a settled one found by meaning reads as settled (ADR-1016 D4).
+    const kindOf = (note: (typeof ranked.hits)[number]["note"]): string => note.type === "friction" ? `friction: ${note.fields.state}` : note.type;
+    const lines = ranked.hits.map(({ note, score }) => `  ${score === undefined ? "" : `${score.toFixed(2)}  `}${note.id}  [${kindOf(note)}]  ${labelOf(note.fields)}`);
     return {
       text: [heading, ...lines].join("\n"),
       next: [{ command: "storytree library read <id>", why: "read one whole" }],
@@ -337,11 +339,12 @@ const retire: Verb = {
 
 const list: Verb = {
   name: "list",
-  usage: "library list <kind> [--where <field>=<value>]…",
-  summary: "every live record of a kind, optionally filtered by fields",
+  usage: "library list <kind> [--where <field>=<value>]… [--all]",
+  summary: "every live record of a kind, optionally filtered by fields; settled friction (resolved or dismissed) only with --all or a --where on its state",
+  switches: ["all"],
   async act(args, context) {
     const kind = args.word(0, "the kind of record", this.usage);
-    const unsupported = args.names.filter((name) => name !== "where");
+    const unsupported = args.names.filter((name) => name !== "where" && name !== "all");
     if (unsupported.length > 0) {
       throw new Refusal(`unsupported option${unsupported.length === 1 ? "" : "s"}: ${unsupported.map((name) => `--${name}`).join(", ")}; filter with --where <field>=<value>\nusage: storytree ${this.usage}`, { code: 2 });
     }
@@ -350,14 +353,24 @@ const list: Verb = {
       if (equals < 1) throw new Refusal(`--where needs <field>=<value>, not ${JSON.stringify(where)}`, { code: 2 });
       return { field: where.slice(0, equals), value: valueOf(where.slice(equals + 1)) };
     });
-    const records = (await (await context.library()).list(kind as RecordType))
+    const matching = (await (await context.library()).list(kind as RecordType))
       .filter((record) => filters.every(({ field, value }) => isDeepStrictEqual((record.fields as Fields)[field], value)));
+    // Settled friction stays live but out of the default list (ADR-1016 D4).
+    const hideSettled = kind === "friction" && !args.has("all") && !filters.some(({ field }) => field === "state");
+    const records = hideSettled ? matching.filter((record) => !SETTLED.has(String((record.fields as Fields)["state"]))) : matching;
+    const left = matching.length - records.length;
+    const leftOut = left === 0 ? [] : [`${left} settled (resolved or dismissed) left out; --all lists them.`];
     return {
-      text: records.length === 0 ? `No ${kind} records match.` : [`${records.length} ${kind} records:`, ...records.map((record) => `  ${record.id}  ${labelOf(record.fields)}`)].join("\n"),
+      text: records.length === 0
+        ? [`No ${kind} records match.`, ...leftOut].join("\n")
+        : [`${records.length} ${kind} records:`, ...records.map((record) => `  ${record.id}  ${labelOf(record.fields)}`), ...leftOut].join("\n"),
       next: [{ command: "storytree library read <id>", why: "read one whole" }],
     };
   },
 };
+
+/** The friction states that leave the default list (ADR-1016 D4). */
+const SETTLED: ReadonlySet<string> = new Set(["resolved", "dismissed"]);
 
 const history: Verb = {
   name: "history",

@@ -8,7 +8,7 @@
  * stores it upgraded, in place. A step is never removed: the history keeps records on every
  * version ever written.
  */
-import { RECORD_SCHEMAS, SCHEMA_VERSIONS, type LibrarySchema, type UpgradeStep } from "./types.js";
+import { judgedState, RECORD_SCHEMAS, SCHEMA_VERSIONS, type LibrarySchema, type UpgradeStep } from "./types.js";
 
 export const UPGRADES: readonly UpgradeStep[] = [
   {
@@ -64,6 +64,20 @@ export const UPGRADES: readonly UpgradeStep[] = [
       const links = [...new Set([...(Array.isArray(fields["links"]) ? (fields["links"] as string[]) : []), ...others])];
       return { ...fields, ...(capabilities.length === 0 ? {} : { capabilities }), ...(links.length === 0 ? {} : { links }) };
     },
+  },
+  {
+    // Capability 6 (ADR-1016 D1): a friction report carries its state. One written before reads it
+    // from what it carries: unrouted it is open, and routed it stands as its judgement left it.
+    // Settling the routed ones whose remedy landed unstamped is the backfill's, not a read's.
+    type: "friction",
+    from: 1,
+    name: "friction-state",
+    up: (fields) => ({
+      ...fields,
+      state: typeof fields["route"] === "string"
+        ? judgedState(fields["route"], typeof fields["dischargedBy"] === "string" ? fields["dischargedBy"] : undefined)
+        : "open",
+    }),
   },
 ];
 

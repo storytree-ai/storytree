@@ -230,6 +230,39 @@ test("3.5 `list` shows only live records of the kind and filters by a field", as
   });
 });
 
+test("3.20 `list friction` leaves out resolved and dismissed reports unless --all, saying how many, and `search` says each report's state", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const file = (title: string) => library.writeKnowledge("friction", { title, description: `${title}.`, statement: `${title}.`, evidence: "`pnpm seed` exit code 1", impact: "Work stops." });
+    const open = await file("Seed refused open");
+    const routed = await file("Seed refused routed");
+    const resolved = await file("Seed refused resolved");
+    const dismissed = await file("Seed refused dismissed");
+    await library.editNote(routed.id, { route: "tool", routeReason: "Build it" });
+    await library.editNote(resolved.id, { route: "tool", routeReason: "Built it", dischargedBy: "#4" });
+    await library.editNote(dismissed.id, { route: "nothing", routeReason: "A one-off" });
+
+    const shown = await world.run(["library", "list", "friction"]);
+    assert.equal(shown.code, 0, shown.stderr);
+    for (const { id } of [open, routed]) assert.ok(shown.stdout.includes(id), shown.stdout);
+    for (const { id } of [resolved, dismissed]) assert.ok(!shown.stdout.includes(id), shown.stdout);
+    assert.match(shown.stdout, /2 settled \(resolved or dismissed\) left out; --all lists them/);
+
+    const all = await world.run(["library", "list", "friction", "--all"]);
+    assert.equal(all.code, 0, all.stderr);
+    for (const { id } of [open, routed, resolved, dismissed]) assert.ok(all.stdout.includes(id), all.stdout);
+    assert.doesNotMatch(all.stdout, /left out/);
+    const asked = await world.run(["library", "list", "friction", "--where", "state=resolved"]);
+    assert.ok(asked.stdout.includes(resolved.id), "a filter on the state is answered as asked");
+
+    const found = await world.run(["library", "search", "refused", "--limit", "10"]);
+    assert.equal(found.code, 0, found.stderr);
+    for (const [{ id }, state] of [[open, "open"], [routed, "routed"], [resolved, "resolved"], [dismissed, "dismissed"]] as const) {
+      assert.match(found.stdout, new RegExp(`${id}  \\[friction: ${state}\\]`), found.stdout);
+    }
+  });
+});
+
 test("3.19 `list` refuses a flag it does not read, naming --where <field>=<value>, and lists nothing", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

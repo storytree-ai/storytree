@@ -360,6 +360,26 @@ test("6.6 searching and opening a note leaves a log line saying which session re
   });
 });
 
+test("6.72 search_notes says each friction report's state, so a settled one found by meaning reads as settled", async () => {
+  await withProject(async ({ folder, library }) => {
+    const file = (title: string) => library.writeKnowledge("friction", { title, description: `${title}.`, statement: `${title}.`, evidence: "`pnpm seed` exit code 1", impact: "Work stops." });
+    const open = await file("Seed refused while open");
+    const resolved = await file("Seed refused, since fixed");
+    const dismissed = await file("Seed refused once");
+    await library.editNote(resolved.id, { route: "tool", routeReason: "Built it", dischargedBy: "#4" });
+    await library.editNote(dismissed.id, { route: "nothing", routeReason: "A one-off" });
+
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const found = await agent.call("search_notes", { query: "seed refused" });
+      assert.equal(found.isError, false, found.text);
+      for (const [{ id }, state] of [[open, "open"], [resolved, "resolved"], [dismissed, "dismissed"]] as const) {
+        assert.ok(found.text.includes(`(${id}, ${state})`), found.text);
+        assert.equal((found.data.notes as { id: string; state?: string }[]).find((note) => note.id === id)?.state, state);
+      }
+    });
+  });
+});
+
 test("6.7 each read names the agent that made it, as the harness revealed it: a subagent by its id, type and task, the orchestrator, or unknown when the harness said nothing", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     const note = await library.defineTerm({ term: "Delivery", meaning: "Mailgun needs a verified domain" });

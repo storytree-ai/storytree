@@ -101,7 +101,10 @@ export async function recordFriction(library: Library, friction: NewFriction, op
   return library.writeKnowledge("friction", { ...fields, provenance: { branch, date, source: "retro" } }, options);
 }
 
-/** Append a recurrence to one existing friction, never changing its route or minting a twin. */
+/**
+ * Append a recurrence to one existing friction, never minting a twin. Its route stands while it is
+ * routed; a resolved or dismissed one the library reopens, since the fix or dismissal was wrong (ADR-1016 D2).
+ */
 export async function reinforceFriction(library: Library, id: string, recurrence: Reinforcement, options?: WriteOptions): Promise<SchemaRecord<"friction">> {
   requireConcreteEvidence(recurrence.evidence);
   const friction = await library.get(id);

@@ -29,8 +29,12 @@ export interface Knowledge {
 /** The library's note kinds (its NoteType): memory notes, decisions, definitions, the eight kinds and quality control checks. */
 const NOTE_TYPES = new Set(["memory", "decision", "definition", "principle", "guardrail", "pattern", "process", "agent", "friction", "resteer", "techstack", "check"]);
 
+/** The friction states the Library leaves out: its remedy landed, or it was judged as needing nothing. */
+const SETTLED: ReadonlySet<string> = new Set(["resolved", "dismissed"]);
+
 /**
- * Read a project's knowledge from its change history (changesSince(0)): its live notes, which
+ * Read a project's knowledge from its change history (changesSince(0)): its live notes, settled
+ * friction left out, which
  * decisions are ghosts and beside what, which are proposed, and the links between the rest.
  *
  * A decision is superseded once an accepted decision names it in `supersedes`, the library's own
@@ -63,7 +67,9 @@ export function knowledge(changes: readonly Change[]): Knowledge {
       );
       clearedFor.set(id, covers.map(({ id: cover }) => cover));
     }
-    notes.set(change.recordId, change.record);
+    // Settled friction stays live in the library but out of the Library's view (ADR-1016 D4).
+    if (change.type === "friction" && SETTLED.has(String(change.record.fields.state))) notes.delete(change.recordId);
+    else notes.set(change.recordId, change.record);
   }
 
   const decisions = [...notes.values()].filter((note) => note.type === "decision");

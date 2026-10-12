@@ -277,9 +277,11 @@ async function recordReads(call: Call, reads: readonly { note: string; found: Fo
 
 function spineLine(note: Findable): string {
   const first = firstLineOf(note);
-  return `- ${quoted(spineOf(note))} (${note.id})${first === "" ? "" : `: ${first}`}`;
+  // A friction report says where it stands, so a settled one found by meaning reads as settled (ADR-1016 D4).
+  const state = note.type === "friction" ? `, ${note.fields.state}` : "";
+  return `- ${quoted(spineOf(note))} (${note.id}${state})${first === "" ? "" : `: ${first}`}`;
 }
 
-function spineData(note: Findable): { id: string; kind: string; spine: string; firstLine: string } {
-  return { id: note.id, kind: note.type, spine: spineOf(note), firstLine: firstLineOf(note) };
+function spineData(note: Findable): { id: string; kind: string; spine: string; firstLine: string; state?: string } {
+  return { id: note.id, kind: note.type, spine: spineOf(note), firstLine: firstLineOf(note), ...(note.type === "friction" ? { state: note.fields.state } : {}) };
 }

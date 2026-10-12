@@ -13,7 +13,7 @@ import { brokenEdges, type BrokenEdge } from "../decision-log/index.js";
 import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
 import { relatedUnlinked, unrestedDecisions } from "../links/index.js";
 import { allNotes } from "../notes.js";
-import { DRAIN, openQuestions, unroutedFriction } from "../queues/index.js";
+import { DRAIN, openQuestions, openFriction } from "../queues/index.js";
 
 /** The curated kinds: a write to any of them since the session started makes the whole pass due. */
 export const CURATED: readonly string[] = ["decision", "question", "principle", "guardrail", "pattern", "process", "definition", "agent"];
@@ -45,7 +45,7 @@ export interface Worklist {
   readonly graduation: MemoryItem[];
   /** Queues (5): the friction drain. Always there, since filing friction is not a curated write. */
   readonly friction: SchemaRecord<"friction">[];
-  /** How many more unrouted reports from other branches wait beyond these; absent when none do. */
+  /** How many more open reports from other branches wait beyond these; absent when none do. */
   readonly frictionMore?: number;
   /** The rest, when the trigger fired. */
   readonly rest?: {
@@ -82,9 +82,9 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
   await phase("friction");
   // The live notes, read once for every list that needs them (6.7).
   const notes = await allNotes(library);
-  const unrouted = await unroutedFriction(library, options.branch === undefined ? {} : { branch: options.branch }, notes);
-  const friction = unrouted.slice(0, DRAIN);
-  const more = unrouted.length > friction.length ? { frictionMore: unrouted.length - friction.length } : {};
+  const open = await openFriction(library, options.branch === undefined ? {} : { branch: options.branch }, notes);
+  const friction = open.slice(0, DRAIN);
+  const more = open.length > friction.length ? { frictionMore: open.length - friction.length } : {};
   await phase("trigger");
   if (!(await roundDue(library, options)).rest) return { graduation, friction, ...more };
   const { since } = options;

@@ -131,11 +131,11 @@ test("9.2 a re-steer whose evidence is a paraphrase is refused; the quote and se
   });
 });
 
-test("9.3 `reinforce` appends a dated recurrence to the existing friction, keeping its route", async () => {
+test("9.3 `reinforce` appends a dated recurrence to the existing friction, keeping the route of a routed one", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const note = await recordFriction(library, { title: "Slow mail", description: "Delay", statement: "Timeout", evidence: "src/mail.ts: TimeoutError", impact: "Readers cannot join" });
-    await library.editNote(note.id, { route: "nothing", routeReason: "Upstream outage" });
+    await library.editNote(note.id, { route: "process", routeReason: "Upstream outage" });
     execFileSync("git", ["init", "-b", "fix/mail", world.folder], { stdio: "ignore" });
     const before = new Date().toISOString().slice(0, 10);
     for (const evidence of ["#81: timed out again", "src/mail.ts: another TimeoutError"]) {
@@ -146,7 +146,7 @@ test("9.3 `reinforce` appends a dated recurrence to the existing friction, keepi
     const saved = (await library.list("friction"))[0]!;
     assert.equal((await library.list("friction")).length, 1);
     assert.equal(saved.id, note.id);
-    assert.equal(saved.fields.route, "nothing");
+    assert.equal(saved.fields.route, "process");
     assert.equal(saved.fields.routeReason, "Upstream outage");
     assert.deepEqual(saved.fields.reinforcedBy?.map(({ branch, evidence }) => ({ branch, evidence })), [
       { branch: "fix/mail", evidence: "#81: timed out again" },

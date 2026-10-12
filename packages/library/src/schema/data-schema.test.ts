@@ -527,6 +527,26 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.history(), before, "no history entry was written");
   });
 
+  contract("3.10", "a friction report written before reports carried a state reads one worked out from its route and stamp, and its next write stores it so", async ({ records, transactions }) => {
+    const head = { title: "The seed refused", description: "One line", statement: "It refused", evidence: "`pnpm seed` exit code 1", impact: "The seed waits" };
+    const stored = [
+      ["friction-unrouted", {}, "open"],
+      ["friction-nothing", { route: "nothing", routeReason: "A one-off" }, "dismissed"],
+      ["friction-stamped", { route: "tool", routeReason: "Built it", dischargedBy: "#4" }, "resolved"],
+      ["friction-owed", { route: "principle", routeReason: "Needs a rule" }, "routed"],
+    ] as const;
+    for (const [id, judgement] of stored) await transactions.save({ id, type: "friction", version: 1, fields: { ...head, ...judgement } });
+    for (const [id, judgement, state] of stored) {
+      const read = await records.get(id);
+      assert.equal(read?.version, SCHEMA_VERSIONS.friction);
+      assert.deepEqual(read?.fields, { ...head, ...judgement, state }, `${id} reads ${state}`);
+    }
+    assert.equal((await transactions.get("friction-owed"))?.version, 1, "reading stores nothing");
+    await records.edit("friction-owed", { impact: "The seed still waits" });
+    const rewritten = await transactions.get("friction-owed");
+    assert.deepEqual([rewritten?.version, rewritten?.fields["state"]], [SCHEMA_VERSIONS.friction, "routed"], "an edit stores it upgraded, in place");
+  });
+
   contract("3.9", "an older record with no upgrade step to the current version is refused, naming the missing step", async ({ records, transactions }) => {
     const written = await records.create("story", MINIMAL.story, { id: "story-1" });
     const before = await transactions.history();

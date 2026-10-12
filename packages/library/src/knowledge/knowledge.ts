@@ -22,7 +22,7 @@ import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord, type Expected } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import { unstorable } from "../schema/records.js";
-import type { FieldsOf, KnowledgeKind } from "../schema/types.js";
+import { judgedState, type FieldsOf, type KnowledgeKind } from "../schema/types.js";
 import { defaultEmbedder } from "./bge-small.js";
 import { DecisionLog, type DecisionNumberPlan, type DecisionView, type NewDecision } from "./decision-log.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
@@ -39,7 +39,7 @@ const LINK_FIELDS = ["links", "context", "rules", "antiPatterns", "stepRefs", "b
 /** The kinds of artifact: decisions, definitions, the eight kinds of ADR-0640 and ADR-0956's check. */
 export type NoteType = "decision" | "definition" | KnowledgeKind;
 /** A new artifact of one of the knowledge kinds: its fields. Every reference in it must name a live artifact. */
-export type NewKnowledge<K extends KnowledgeKind = KnowledgeKind> = FieldsOf<K>;
+export type NewKnowledge<K extends KnowledgeKind = KnowledgeKind> = K extends "friction" ? Omit<FieldsOf<K>, "state"> : FieldsOf<K>;
 /** A stored artifact of any kind. */
 export type Note = SchemaRecord<NoteType>;
 /** What a ranked search is computed with: the embedder, and where its vectors are kept (capability 14). */
@@ -136,6 +136,27 @@ const OWN_VERBS: Readonly<Record<string, string>> = {
   composed: "a composed statement is written with composeStatement",
 };
 
+/** Why a friction report's state is never named in a write. */
+const UNNAMED_STATE = "a friction report's state is never named: filing makes it open, and routing, a recurrence or closing the increment that remedies it moves it (ADR-1016 D2)";
+
+type FrictionEdit = { [F in keyof FieldsOf<"friction">]?: FieldsOf<"friction">[F] | undefined };
+
+/**
+ * The edit a friction report takes, with the state it moves to (ADR-1016 D2). A recurrence on a
+ * resolved or dismissed report reopens it, its route, reason and stamp leaving its fields for its
+ * history, since the fix or the dismissal was wrong. A judgement (a route, or a stamp on a routed
+ * report) leaves it as judgedState says; a route taken away leaves it open. Any other edit leaves it.
+ */
+function frictionMove(before: FieldsOf<"friction">, edit: FrictionEdit): FrictionEdit {
+  const after = { ...before, ...edit };
+  const recurred = (after.reinforcedBy?.length ?? 0) > (before.reinforcedBy?.length ?? 0);
+  if (recurred && (before.state === "resolved" || before.state === "dismissed")) {
+    return { ...edit, state: "open", route: undefined, routeReason: undefined, dischargedBy: undefined };
+  }
+  if (!("route" in edit) && !("dischargedBy" in edit)) return edit;
+  return { ...edit, state: after.route === undefined ? "open" : judgedState(after.route, after.dischargedBy) };
+}
+
 /** What an artifact may link to: another artifact, never the work (capability 9). */
 const NOTE: Expected = artifactsOnly(NOTE_TYPES);
 /** What a check may enforce (ADR-0956 D3): the principles and guardrails that carry a rule's reason. */
@@ -223,7 +244,11 @@ export class Knowledge {
       throw new RangeError(`writeKnowledge writes ${KNOWLEDGE_KINDS.join(", ")}, not ${JSON.stringify(kind)}`);
     }
     await this.#checkNoteReferences(fields);
-    return this.#records.create(kind, fields, options);
+    if (kind === "friction") {
+      if ("state" in fields) throw new RangeError(UNNAMED_STATE);
+      return this.#records.create(kind, { ...fields, state: "open" } as FieldsOf<K>, options);
+    }
+    return this.#records.create(kind, fields as FieldsOf<K>, options);
   }
 
   /** Define a term. Its links are checked against live artifacts. */
@@ -243,6 +268,10 @@ export class Knowledge {
     if (own !== undefined) throw new RangeError(`editNote does not change ${JSON.stringify(own)}: ${OWN_VERBS[own]}`);
     const note = await liveRecord(this.#records, id, NOTE_TYPES);
     if (note === null) return null;
+    if (note.type === "friction") {
+      if ("state" in fields) throw new RangeError(UNNAMED_STATE);
+      fields = frictionMove(note.fields, fields as FrictionEdit);
+    }
     await this.#checkNoteReferences(fields);
     if (LINK_FIELDS.some((field) => field in fields)) await this.#refuseLinkLoop(id, { ...note.fields, ...fields });
     if ("frontCoverOf" in fields) await this.#checkFrontCover(fields.frontCoverOf);

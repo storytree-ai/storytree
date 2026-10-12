@@ -244,7 +244,7 @@ test("11.16 · work is left out while a capability on its list is on the list of
     "offered again once the holder's claim is no longer live");
 });
 
-test("11.17 · only the body's leading needs clause routes work: read-only, blind or another machine said later is not its need", () => {
+test("11.17 · only the body's leading needs clause routes work: read-only or blind said later is not its need", () => {
   const sameLine = "Needs: packages/website; Mint-capable. Build the panels and retain usable read-only panels for a blind reviewer on the laptop.";
   const quoted = "Needs: packages/dev-loop.\nThe bug: a label reading needs: read-only, blind, or needs: the laptop, later in a body.";
   for (const body of [sameLine, quoted]) {
@@ -255,19 +255,18 @@ test("11.17 · only the body's leading needs clause routes work: read-only, blin
   assert.equal(blind("Needs: blind review of the change."), true);
   assert.equal(readOnly("needs: read-only, blind"), true);
   assert.equal(blind("needs: read-only, blind"), true);
-  const { picks, skipped } = pickPool(survey([increment("build", quoted), increment("laptop", "needs: the laptop. Then build.")]), { now });
-  assert.deepEqual(picks.map((one) => one.id), ["build"]);
-  assert.deepEqual(skipped, [{ id: "laptop", why: "needs another machine" }]);
+  assert.deepEqual(pickPool(survey([increment("build", quoted)]), { now }).picks.map((one) => one.id), ["build"]);
 });
 
-test("11.19 · work whose machine field names another machine is left out, with that machine's name; work naming this one, or none, is picked", () => {
+test("11.19 · work whose machine field names another machine is left out, with that machine's name; work naming this one, or none, is picked, whatever its body says", () => {
   const work = survey([
     increment("laptop", "Build it in packages/app.", { machine: "laptop" }),
     increment("mint", "Build it in packages/app.", { machine: "mint" }),
     increment("any", "Build it in packages/app.", { parked: "2026-10-06T00:00:01Z" }),
+    increment("worded", "needs: the laptop, or another machine. Build it there.", { parked: "2026-10-06T00:00:02Z" }),
   ], { here: "mint" });
-  const { picks, skipped } = pickPool(work, { max: 3, now });
-  assert.deepEqual(picks.map((one) => one.id), ["mint", "any"]);
+  const { picks, skipped } = pickPool(work, { max: 4, now });
+  assert.deepEqual(picks.map((one) => one.id), ["mint", "any", "worded"]);
   assert.deepEqual(skipped, [{ id: "laptop", why: "needs laptop" }]);
-  assert.deepEqual(pickPool({ ...work, here: undefined }, { max: 3, now }).skipped.map((skip) => skip.id), ["laptop", "mint"], "an unnamed machine takes no work that names one");
+  assert.deepEqual(pickPool({ ...work, here: undefined }, { max: 4, now }).skipped.map((skip) => skip.id), ["laptop", "mint"], "an unnamed machine takes no work that names one");
 });

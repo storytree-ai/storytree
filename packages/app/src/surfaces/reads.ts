@@ -11,7 +11,8 @@
  */
 import path from "node:path";
 
-import { idleAfterMs, importsOf, leaveAfterMs, lookAsApp, machineOf, projectFolder, storytreeHome, openActivityLog, pruneTranscripts, standingDelegations, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
+import { lookAsApp, projectFolder, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
+import { idleAfterMs, importsOf, leaveAfterMs, machineOf, storytreeHome, standingDelegations } from "@storytree/project-and-caller";
 import type { Library, Storytree } from "@storytree/library";
 
 import type { PageReadsBridge } from "./bridge.js";

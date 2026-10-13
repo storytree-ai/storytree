@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { openActivityLog } from "@storytree/session-management";
-import { testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
 import { readDoors } from "./index.js";
 

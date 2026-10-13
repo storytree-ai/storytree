@@ -10,7 +10,7 @@
  * naming exactly the tools the server has, within 60 lines.
  */
 import { CONTRACT_DEFINITION } from "@storytree/library";
-import { decisionRights } from "@storytree/session-management";
+import { decisionRights } from "@storytree/project-and-caller";
 
 const DECISION_RIGHTS = decisionRights();
 

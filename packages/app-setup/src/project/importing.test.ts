@@ -10,9 +10,9 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync }
 import path from "node:path";
 import { test } from "node:test";
 
-import { importsOf, machineOf, recordImport } from "@storytree/session-management";
-import { git, withTempDir } from "@storytree/session-management/testing/folders";
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { importsOf, machineOf, recordImport } from "@storytree/project-and-caller";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect, type Library, type SchemaRecord, type Storytree } from "@storytree/library";
 
 import { importProject } from "./importing.js";

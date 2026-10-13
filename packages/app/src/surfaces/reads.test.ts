@@ -10,8 +10,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { ACTIVITY_DATABASE, machineOf, openActivityLog, recordImport, pruneTranscripts, RETAIN_MS, shipTranscript, type ActivityLog } from "@storytree/session-management";
-import { countingStore, longHistory } from "@storytree/session-management/testing/egress";
+import { ACTIVITY_DATABASE, openActivityLog, pruneTranscripts, RETAIN_MS, shipTranscript, type ActivityLog } from "@storytree/session-management";
+import { machineOf, recordImport } from "@storytree/project-and-caller";
+import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";

@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect, type Library } from "@storytree/library";
 
 import { PRINCIPLES } from "./starter-notes.js";

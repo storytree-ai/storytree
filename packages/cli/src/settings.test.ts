@@ -7,7 +7,7 @@ import { after, before, test } from "node:test";
 
 import { arcSurfaces } from "@storytree/arc-surface/surfaces";
 import { forestSurfaces } from "@storytree/forest/surfaces";
-import { readSettings } from "@storytree/session-management";
+import { readSettings } from "@storytree/project-and-caller";
 import unbundled from "./parts/surfaces.js";
 
 import { BuiltCommand, storytree } from "./testing/cli.js";

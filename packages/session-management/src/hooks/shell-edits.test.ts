@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node
 import path from "node:path";
 import { test } from "node:test";
 
-import { git, withTempDir } from "../testing/folders.js";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { shellEdits } from "./shell-edits.js";
 
 test("3.22 a first observation invents no edit, worktrees keep separate baselines, and a failed Git read preserves the last good observation and says why", async () => {

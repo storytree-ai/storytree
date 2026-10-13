@@ -15,7 +15,7 @@
 import { execFileSync } from "node:child_process";
 
 import { currentBranch } from "../activity/branch.js";
-import { route } from "../routing/index.js";
+import { route } from "@storytree/project-and-caller";
 import { alreadyGiven, notYetGivenIds } from "./given-once.js";
 
 /** The flag of the Stop hook that asks the agent to close out. */

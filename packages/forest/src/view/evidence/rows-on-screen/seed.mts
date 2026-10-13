@@ -7,7 +7,7 @@ import { writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openNamedProject, requireApproval, route } from '@storytree/session-management';
+import { openNamedProject, requireApproval, route } from '@storytree/project-and-caller';
 import { connect } from '@storytree/library';
 
 const here = path.dirname(fileURLToPath(import.meta.url));

@@ -12,10 +12,10 @@ import { stopTestChild, testChildArgs } from '@storytree/processes/testing';
 import { listRuns } from '@storytree/processes/listing';
 import { createAgentTools } from './server.js';
 import { openActivityLog } from '@storytree/session-management';
-import { removeTempDir } from '@storytree/session-management/testing/folders';
+import { removeTempDir } from '@storytree/project-and-caller/testing/folders';
 import { connect, ConnectionError } from '@storytree/library';
 import { libraryDown } from './answers.js';
-import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName, dropTestProjects } from '@storytree/session-management/testing/pg';
+import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName, dropTestProjects } from '@storytree/project-and-caller/testing/pg';
 
 for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: own tools, ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-tools-'));

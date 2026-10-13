@@ -43,7 +43,8 @@
     "google-auth-library": "^10.6.2",
     "playwright-core": "1.60.0",
     "typescript": "~7.0.2",
-    "@storytree/plugin-loader": "workspace:*"
+    "@storytree/plugin-loader": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*"
   },
   "optionalDependencies": {
     "@embedded-postgres/darwin-arm64": "17.10.0-beta.17",

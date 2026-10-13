@@ -6,7 +6,7 @@
  */
 import path from "node:path";
 
-import { findProject, MARKER_FILE } from "@storytree/session-management/routing";
+import { findProject, MARKER_FILE } from "@storytree/project-and-caller/routing";
 
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";

@@ -15,7 +15,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { codexHookTrust, findProject, readAppRecords, storytreeHome, type AppPlaces, type AppReading } from "@storytree/session-management";
+import { codexHookTrust, readAppRecords, type AppPlaces, type AppReading } from "@storytree/session-management";
+import { findProject, storytreeHome } from "@storytree/project-and-caller";
 
 import { firstCommit, suggestedName } from "../project/making.js";
 import { defaultHomes, disconnectedHarnesses, registeredHookScripts, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";

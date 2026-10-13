@@ -10,7 +10,8 @@ import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync
 import { homedir } from "node:os";
 import path from "node:path";
 import { installedToolServerCommand, removeConnections, type RunHarness } from "../connect/index.js";
-import { locateApp, storytreeHome, watchedHarness } from "@storytree/session-management";
+import { locateApp, storytreeHome } from "@storytree/project-and-caller";
+import { watchedHarness } from "@storytree/session-management";
 import { toolPaths } from "./payload.js";
 
 export type LibraryChoice = "keep" | "remove";

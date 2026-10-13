@@ -25,11 +25,11 @@ import { nameThisMachine } from "@storytree/session-management/machines";
 import { recordFriction, reinforceFriction } from "@storytree/session-management";
 import type { ToolExtension } from "./index.js";
 import { readClaims } from "@storytree/session-management";
-import { MARKER_FILE } from "@storytree/session-management";
+import { MARKER_FILE } from "@storytree/project-and-caller";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
-import { countingStore, longHistory } from "@storytree/session-management/testing/egress";
-import { git, withTempDir } from "@storytree/session-management/testing/folders";
-import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { FOUNDED, planned, TOOLS, withProject } from "../testing/tool-world.js";
 
 test("6.4 a held claim refusal explains the running command and dirty-main close-out disagreement", async () => {

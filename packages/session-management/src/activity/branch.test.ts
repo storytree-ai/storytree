@@ -8,7 +8,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { git, withTempDir } from "../testing/folders.js";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { currentBranch } from "./branch.js";
 
 test("3.16 the branch a line records is the one its folder's worktree is on: a linked worktree's own, from a subfolder too, and none on a detached head", async () => {

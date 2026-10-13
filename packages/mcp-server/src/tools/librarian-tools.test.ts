@@ -16,7 +16,7 @@ import { librarianTools } from "@storytree/librarian";
 import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "@storytree/session-management";
-import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { createAgentTools } from "./index.js";
 
 const VERBS = ["worklist", "link", "supersede", "correct", "annotate", "retire", "park", "graduate", "route"];

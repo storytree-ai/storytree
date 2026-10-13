@@ -15,23 +15,8 @@ import { existsSync, readFileSync, realpathSync, rmSync, writeFileSync } from "n
 import path from "node:path";
 
 import type { Storytree } from "@storytree/library";
-import {
-  approveTrunk,
-  findProject,
-  forgetProjectActivity,
-  forgetTrunk,
-  inMainCheckout,
-  keepOnThisComputer,
-  machineOf,
-  MARKER_FILE,
-  ProjectFolderError,
-  recordProjectChoice,
-  registerTrunk,
-  rememberApproval,
-  storytreeHome,
-  trunksOn,
-  type Trunk,
-} from "@storytree/session-management";
+import { forgetProjectActivity } from "@storytree/session-management";
+import { approveTrunk, findProject, forgetTrunk, inMainCheckout, keepOnThisComputer, machineOf, MARKER_FILE, ProjectFolderError, recordProjectChoice, registerTrunk, rememberApproval, storytreeHome, trunksOn, type Trunk } from "@storytree/project-and-caller";
 
 import { seedStarterPack } from "./starter-pack.js";
 

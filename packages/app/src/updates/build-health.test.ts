@@ -6,7 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { setLibrary } from "@storytree/session-management";
+import { setLibrary } from "@storytree/project-and-caller";
 
 import { refreshOwnHealth } from "./build-health.js";
 

@@ -1,5 +1,5 @@
 /** Capability 3 · Surfaces. */
-import { mountDecisionRights, mountSettings, type SettingsBridge } from "@storytree/session-management/view";
+import { mountDecisionRights, mountSettings, type SettingsBridge } from "@storytree/project-and-caller/view";
 import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesBridge } from "../surfaces/bridge.js";
 import { renderAppMenu, renderSwitcher } from "./render.js";

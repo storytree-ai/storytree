@@ -14,7 +14,7 @@ import {
 } from "@storytree/library";
 
 import { CaptureError } from "@storytree/session-management";
-import { ProjectFolderError } from "@storytree/session-management";
+import { ProjectFolderError } from "@storytree/project-and-caller";
 
 /** A tool's answer: one plain sentence (or a few lines), what it made or found as data, and whether it refused. */
 export interface Answer {

@@ -26,10 +26,10 @@ import pg from "pg";
 
 import { openActivityLog } from "@storytree/session-management";
 import { readClaims } from "@storytree/session-management";
-import { MARKER_FILE } from "@storytree/session-management";
+import { MARKER_FILE } from "@storytree/project-and-caller";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
-import { git, withTempDir } from "@storytree/session-management/testing/folders";
-import { approveCheckout, dropTestProjects, placeTestServer, projectDatabase, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, dropTestProjects, placeTestServer, projectDatabase, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { NOT_RUNNING_ANSWER } from "./index.js";
 import { registerWorkTools } from "./work-tools.js";
 import type { Answer, Call, Define } from "./server.js";

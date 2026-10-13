@@ -90,6 +90,9 @@ importers:
       '@storytree/plugin-loader':
         specifier: workspace:*
         version: link:../../packages/plugin-loader
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../../packages/project-and-caller
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../../packages/session-management
@@ -132,6 +135,9 @@ importers:
       '@storytree/mark':
         specifier: workspace:*
         version: link:../mark
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -184,6 +190,9 @@ importers:
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       '@storytree/quality-assurance':
         specifier: workspace:*
         version: link:../quality-assurance
@@ -304,6 +313,9 @@ importers:
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       '@storytree/quality-assurance':
         specifier: workspace:*
         version: link:../quality-assurance
@@ -359,6 +371,9 @@ importers:
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -398,6 +413,9 @@ importers:
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -764,6 +782,9 @@ importers:
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       '@storytree/quality-assurance':
         specifier: workspace:*
         version: link:../quality-assurance
@@ -827,6 +848,37 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  packages/project-and-caller:
+    dependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+    devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+      happy-dom:
+        specifier: 'catalog:'
+        version: 20.14.5
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
   packages/quality-assurance:
     dependencies:
       '@storytree/guardrails':
@@ -854,6 +906,9 @@ importers:
 
   packages/reading-the-front-doors:
     dependencies:
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -876,6 +931,9 @@ importers:
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       pg:
         specifier: ^8.23.0
         version: 8.23.0
@@ -928,6 +986,9 @@ importers:
       '@storytree/mark':
         specifier: workspace:*
         version: link:../mark
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       react:
         specifier: ^19.1.1
         version: 19.3.0

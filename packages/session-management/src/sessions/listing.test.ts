@@ -7,8 +7,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { openActivityLog } from "../activity/index.js";
-import { withTempDir } from "../testing/folders.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { sessionsListing } from "./index.js";
 
 test("4.13 the sessions listing shows each listed session's state and why it needs you; a verified close-out shows only with all", async () => {

@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { connect, type Line, type NewLine } from "@storytree/library";
 import pg from "pg";
 
-import { databasesOnTestServer, dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { databasesOnTestServer, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { selectLines } from "./bounded.js";
 import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type LinesCache } from "./index.js";
 

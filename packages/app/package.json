@@ -20,7 +20,8 @@
     "@storytree/session-management": "workspace:*",
     "@storytree/library": "workspace:*",
     "electron-updater": "6.8.9",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "@storytree/project-and-caller": "workspace:*"
   },
   "devDependencies": {
     "@storytree/local-postgres": "workspace:*",

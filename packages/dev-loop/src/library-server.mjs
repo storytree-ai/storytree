@@ -82,7 +82,7 @@ export async function holdSeedLock(url, { log }) {
 export async function appLibraryServer(command, { writes, log = (line) => console.log(line) }) {
   const [{ start }, { locateStorytree }, { APP_OWNER, appHome }] = await Promise.all([
     import("@storytree/local-postgres"),
-    import("@storytree/session-management"),
+    import("@storytree/project-and-caller"),
     import("../../../apps/desktop/src/home.ts"),
   ]);
   const server = await libraryServer({

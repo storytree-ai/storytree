@@ -7,7 +7,7 @@
  */
 import type { ConnectOptions } from "@storytree/library";
 
-import { withConnectTimeout } from "../routing/index.js";
+import { withConnectTimeout } from "@storytree/project-and-caller";
 
 /** The longest a hook may run, start to finish. Reaching storytree is given up well before this. */
 export const DEADLINE_MS = 5_000;

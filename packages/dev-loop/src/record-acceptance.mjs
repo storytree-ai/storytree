@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
-import { readLibrary } from "@storytree/session-management";
+import { readLibrary } from "@storytree/project-and-caller";
 import { connect } from "@storytree/library";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";

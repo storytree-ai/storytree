@@ -11,9 +11,9 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import path from "node:path";
 import { test } from "node:test";
 
-import { findProject, MARKER_FILE, requireApproval, type ProjectLookup } from "@storytree/session-management";
-import { git, withTempDir } from "@storytree/session-management/testing/folders";
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { findProject, MARKER_FILE, requireApproval, type ProjectLookup } from "@storytree/project-and-caller";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 import { openReviews } from "@storytree/quality-assurance";
 

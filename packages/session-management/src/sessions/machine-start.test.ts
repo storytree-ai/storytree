@@ -6,7 +6,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { openActivityLog } from "../activity/index.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { recordMachineStart } from "./machine-start.js";
 
 test("4.30 the first hook on a machine to reach a project's log after the machine starts records that start there, once: a later hook, reading the same start a moment apart, writes nothing; the next start, or another project, is recorded again", async () => {

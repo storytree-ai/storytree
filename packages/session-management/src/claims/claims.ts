@@ -35,7 +35,7 @@ import type { Hold, Holds, IncrementStatus, Library, Line, SchemaRecord, WriteOp
 
 import { thisMachine, type ActivityLog } from "../activity/index.js";
 import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, LogFold, LONGEST_COMMAND_MS, partOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
-import { idleAfterMs } from "../settings/settings.js";
+import { idleAfterMs } from "@storytree/project-and-caller";
 import { endClaim } from "./endings.js";
 
 export { attributeFrom, claimFrom, claimsFrom } from "../readings.js";

@@ -6,7 +6,8 @@
 // node --import tsx packages/app-setup/evidence/shop/harness/record-library.ts (--port <p> | --library <postgres url>) --out <file> [--project shop]
 import { writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { openNamedProject, openActivityLog } from "@storytree/session-management";
+import { openActivityLog } from "@storytree/session-management";
+import { openNamedProject } from "@storytree/project-and-caller";
 import { connect } from "@storytree/library";
 
 const { values } = parseArgs({ options: { port: { type: "string" }, library: { type: "string" }, out: { type: "string" }, project: { type: "string", default: "shop" } } });

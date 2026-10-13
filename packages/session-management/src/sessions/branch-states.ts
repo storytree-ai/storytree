@@ -33,7 +33,7 @@ import path from "node:path";
 
 import { thisMachine, type ActivityLog, type BranchFacts } from "../activity/index.js";
 import type { Line, NewLine } from "@storytree/library";
-import { findProject } from "../routing/routing.js";
+import { findProject } from "@storytree/project-and-caller";
 import { ask, type Answer } from "./ask.js";
 import { due, ghAllMergedPulls, projectTempFile, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";
 

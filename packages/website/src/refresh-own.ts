@@ -23,7 +23,8 @@ async function history(): Promise<{ capturedAt: string; tree: AnnotatedTree; cha
     if (saved.project !== project) throw new Error(`The record is of ${saved.project}, not ${project}.`);
     return saved;
   }
-  const { route, requireApproval, openNamedProject, openActivityLog } = await import("@storytree/session-management");
+  const { route, requireApproval, openNamedProject } = await import("@storytree/project-and-caller");
+  const { openActivityLog } = await import("@storytree/session-management");
   const { connect } = await import("@storytree/library");
   const routed = route(process.cwd());
   if (routed.status !== "routed") throw new Error(routed.message);

@@ -68,7 +68,7 @@ export type TourStep = {
   note?: string;
   /** The recorded session whose reads the knowledge core draws while the step shows. */
   follow?: string;
-  /** Leave the story panel's room before a later step opens it, so the globe does not slide when it does. */
+  /** Leave the note card's room before a later step opens it, so the globe does not slide when it does. */
   panelRoom?: boolean;
   /** Open the panel when this line is told, after the map has shown its preceding ideas. */
   panelFromLine?: number;
@@ -226,6 +226,18 @@ export function stepAt(step: TourStep, lines: number): TourStep {
   let shown = step;
   for (const [from, view] of Object.entries(step.lineViews ?? {})) if (lines >= Number(from)) shown = { ...shown, ...view };
   return shown;
+}
+/** Where an overlay plays over the stage (ADR-1018 D7): top right, the real thing closer; top left, a diagram we drew. */
+export type Corner = "right" | "left";
+export type Overlay = { panel: Exclude<TourStep["panel"], undefined | "knowledge">; corner: Corner };
+/**
+ * The one overlay on show once `moments` are told (ADR-1018 D6, D9): the step's panel from the line or moment that brings it,
+ * giving way to the next a later line names, and gone when the step ends. Every panel the tour opens is the real product, so
+ * it plays in the top right; the knowledge core is drawn on the globe, not over it.
+ */
+export function overlayAt(step: TourStep, moments: number): Overlay | undefined {
+  const panel = moments >= (step.panelFromLine ?? 1) ? stepAt(step, moments).panel : undefined;
+  return panel && panel !== "knowledge" ? { panel, corner: "right" } : undefined;
 }
 /** Where the camera faces once `lines` lines are told, on a laptop (`wide`) or a phone. */
 export function viewOf(step: TourStep, lines: number, wide: boolean): CameraView & { side?: number; narrow?: number } {

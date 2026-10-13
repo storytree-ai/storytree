@@ -8,6 +8,7 @@ import { after, before, test } from "node:test";
 import { arcSurfaces } from "@storytree/arc-surface/surfaces";
 import { forestSurfaces } from "@storytree/forest/surfaces";
 import { readSettings } from "@storytree/session-management";
+import unbundled from "./parts/surfaces.js";
 
 import { BuiltCommand, storytree } from "./testing/cli.js";
 
@@ -131,6 +132,5 @@ test("1.20 · `storytree settings show` lists the surfaces its story packages' m
   const listed = [...shown.stdout.split("Surfaces of the app")[1]!.matchAll(/^  .+ \(([\w-]+)\): /gm)].map((line) => line[1]);
   assert.deepEqual(listed, expected.map((surface) => surface.id), "the bundle's Surfaces, in the menu's order");
   assert.equal(import.meta.resolve("#parts/surfaces"), new URL("./parts/surfaces.ts", import.meta.url).href, "the command line's #parts/surfaces is its composing module");
-  const { default: unbundled } = await import("#parts/surfaces");
   assert.deepEqual(unbundled, expected);
 });

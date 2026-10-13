@@ -56,7 +56,13 @@ test("4.20 the release notes' Mac sentence says what the build is: ad-hoc, notar
   assert.match(macReleaseNote("pending"), /Developer ID.*not yet notarised/);
   // The draft is written before the Mac build; its upload puts in what Apple actually answered.
   const body = ["## Install", "", macReleaseNote("pending"), "", "Development installations follow every published build."].join("\n");
-  assert.equal(withMacNote(body, "notarised"), body.replace(macReleaseNote("pending"), macReleaseNote("notarised")));
+  assert.equal(withMacNote(body, "notarised"), [
+    "## Install",
+    "",
+    "The macOS (Apple Silicon) zip and dmg are built on the same commit, signed with storytree's Developer ID and notarised by Apple.",
+    "",
+    "Development installations follow every published build.",
+  ].join("\n"));
   assert.equal(withMacNote(withMacNote(body, "ad-hoc"), "pending"), body);
 });
 

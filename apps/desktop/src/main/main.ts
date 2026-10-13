@@ -219,6 +219,8 @@ if (refusal !== undefined) {
 async function run(): Promise<void> {
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   const appVersion = app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0");
+  // The journey stays in the frame, not in a manifest (ADR-1030 D4): the frame is its client too, telling it of the launch,
+  // an added project, a failure and the quit, so the frame makes the one runtime and answers the page with it.
   journey = createJourneyRuntime({ home: home.dir, appVersion });
   answerPage(ipcMain, JOURNEY_CHANNELS, journey);
   // The page operations the stories' manifests name, each answered with the app's home and version (ADR-1021).
@@ -228,6 +230,8 @@ async function run(): Promise<void> {
   answerPage(ipcMain, SETTINGS_CHANNELS, settings);
   const surfaces = surfacesActions(SURFACES, home.dir);
   answerPage(ipcMain, SURFACES_CHANNELS, surfaces);
+  // Setup help stays in the frame (ADR-1030 D4): its actions need Electron's dialog, shell and clipboard, the license
+  // file's path and the open library, and adding a project also tells the journey, which the frame holds.
   const help = setupHelpActions({
     licenseFile: path.join(app.isPackaged ? process.resourcesPath : __dirname, "LICENSE"),
     storytreeHome: home.dir,
@@ -245,6 +249,8 @@ async function run(): Promise<void> {
   // Adding a project also tells the journey, so the frame composes that answer from the two stories'.
   answerPage(ipcMain, SETUP_HELP_CHANNELS, { ...help, addProject: () => help.addProject().then(result => journey!.afterProjectAdded(result)) });
   // Sign-in for feedback, when this build offers it: the page asks for it before it loads, and gets only an id and an email.
+  // It stays in the frame (ADR-1030 D4): the preload asks whether it is offered before the page loads, and its sign-in
+  // returns through the frame's own app events (open-url, second-instance) and the protocol the frame registers.
   const feedbackIdentity = identityConfig === undefined ? undefined : startFeedbackIdentity(identityConfig);
   ipcMain.on(FEEDBACK_IDENTITY_OFFERED, (event) => { event.returnValue = feedbackIdentity !== undefined; });
   if (feedbackIdentity !== undefined) {

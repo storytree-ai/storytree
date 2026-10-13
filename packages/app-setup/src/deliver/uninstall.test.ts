@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { connectAgents, installedToolServerCommand, type RunHarness } from "@storytree/app-setup/connect";
 
 import { toolPaths } from "./payload.js";
-import { uninstall, uninstallAsks } from "./uninstall.js";
+import { openUninstaller, uninstall, uninstallAsks } from "./uninstall.js";
 
 // Only Codex's command line is fake: it reads and writes the TOML it was pointed at, as the real one does.
 const run: RunHarness = async (_executable, args, options) => {
@@ -134,4 +135,65 @@ test("1.8: a connection that cannot be removed is named, and the rest is still r
   assert.ok(report.lines.some((line) => line.startsWith("Codex") && line.includes("config.toml")), report.lines.join("\n"));
   assert.equal(JSON.parse(readFileSync(m.claudeFile, "utf8")).mcpServers.storytree, undefined);
   assert.equal(existsSync(m.home), false);
+});
+
+/** A Linux user's machine after install.sh: its folder, menu entry and marked ~/.profile line, both agents connected. */
+const posix = { skip: process.platform === "win32" && "platform:posix: install.sh writes the PATH line under a POSIX shell, which Windows CI does not provide" };
+
+async function installedLinuxMachine(t: { after(fn: () => void): void }) {
+  const user = mkdtempSync(path.join(tmpdir(), "storytree linux uninstall "));
+  t.after(() => rmSync(user, { recursive: true, force: true }));
+  const installDir = path.join(user, ".local", "share", "storytree-0.3");
+  const home = path.join(user, ".storytree", "0.3");
+  const tools = toolPaths(installDir, "linux");
+  mkdirSync(tools.dir, { recursive: true });
+  for (const file of [tools.app, tools.node, tools.mcp, tools.hook, path.join(installDir, "storytree-0.3.png")]) writeFileSync(file, "installed");
+  const menu = path.join(user, ".local", "share", "applications");
+  mkdirSync(menu, { recursive: true });
+  writeFileSync(path.join(menu, "storytree-0.3.desktop"), `[Desktop Entry]\nExec="${tools.app}" %U\n`);
+  writeFileSync(path.join(menu, "someone-else.desktop"), "[Desktop Entry]\n");
+  for (const dir of [path.join(home, "pgdata"), path.join(home, "bin")]) mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(home, "pgdata", "PG_VERSION"), "17");
+  writeFileSync(path.join(home, "delivery.json"), JSON.stringify({ schema: 1, installDir, tools }));
+  // The PATH line is the one install.sh itself writes, between the user's own lines.
+  const profile = path.join(user, ".profile");
+  writeFileSync(profile, "# the user's own\nexport EDITOR=vi\n");
+  const script = path.join(import.meta.dirname, "install.sh");
+  execFileSync("sh", ["-c", `STORYTREE_INSTALL_LIBRARY=1; . "$1"; st_profile_add "$2" "$3"`, "sh", script, profile, path.join(home, "bin")]);
+  appendFileSync(profile, "export PATH=\"$HOME/bin:$PATH\"\n");
+  assert.match(readFileSync(profile, "utf8"), /setup uninstall/);
+
+  mkdirSync(path.join(user, ".claude"));
+  writeFileSync(path.join(user, ".claude.json"), JSON.stringify({ mcpServers: {} }));
+  const env = { PATH: path.join(home, "bin") };
+  const connected = await connectAgents({ harnesses: ["claude-code"], installed: installedToolServerCommand(tools.node, tools.mcp), home: user, env, run });
+  assert.deepEqual(connected.map((result) => result.tools), ["connected"]);
+  const options = { home, userHome: user, env, run, platform: "linux" as const };
+  return { user, installDir, home, menu, profile, options };
+}
+
+test("1.8: uninstalling on Linux removes the installation folder, menu entry and marked PATH line, and only those", posix, async (t) => {
+  const m = await installedLinuxMachine(t);
+  const said = await openUninstaller("remove", toolPaths(m.installDir, "linux").dir, m.options);
+  assert.equal(existsSync(m.installDir), false);
+  assert.deepEqual(readdirSync(m.menu), ["someone-else.desktop"]);
+  assert.equal(readFileSync(m.profile, "utf8"), "# the user's own\nexport EDITOR=vi\nexport PATH=\"$HOME/bin:$PATH\"\n");
+  assert.equal(existsSync(m.home), false);
+  assert.equal(JSON.parse(readFileSync(path.join(m.user, ".claude.json"), "utf8")).mcpServers.storytree, undefined);
+  assert.match(said, /removed/);
+});
+
+test("1.8: on Linux a library is kept or removed only on the user's say", posix, async (t) => {
+  const m = await installedLinuxMachine(t);
+  const helper = toolPaths(m.installDir, "linux").dir;
+  await assert.rejects(openUninstaller(undefined, helper, m.options), /--keep-library or --remove-library/);
+  assert.equal(existsSync(m.installDir), true, "nothing is removed before the user chooses");
+  writeFileSync(path.join(m.home, "app.json"), JSON.stringify({ pid: process.pid }));
+  await assert.rejects(openUninstaller("keep", helper, m.options), /Quit storytree/);
+  assert.equal(existsSync(m.installDir), true, "nothing is removed while the app runs from it");
+  rmSync(path.join(m.home, "app.json"));
+  const said = await openUninstaller("keep", helper, m.options);
+  assert.deepEqual(readdirSync(m.home), ["pgdata"]);
+  assert.equal(existsSync(m.installDir), false);
+  assert.match(said, new RegExp(m.home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });

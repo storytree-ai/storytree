@@ -5,6 +5,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "imports": {
+    "#parts/tools": "./src/parts/tools.ts"
+  },
   "scripts": {
     "typecheck": "tsc -p ."
   },
@@ -20,6 +23,7 @@
     "@storytree/quality-assurance": "workspace:*",
     "@storytree/app-setup": "workspace:*",
     "zod": "^4.6.5",
+    "@storytree/plugin-loader": "workspace:*",
     "@storytree/project-and-caller": "workspace:*"
   },
   "devDependencies": {

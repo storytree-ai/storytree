@@ -5,6 +5,15 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "storytree": {
+    "tools": [
+      {
+        "from": ".",
+        "export": "librarianToolParts",
+        "order": 1
+      }
+    ]
+  },
   "scripts": {
     "typecheck": "tsc -p ."
   },

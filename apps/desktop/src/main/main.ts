@@ -32,15 +32,15 @@
  * surface on show says it drew every story of the project and every one of its capabilities.
  */
 import { smokeArcSurface } from "@storytree/arc-surface";
-import { offThreadSurveyReader } from "@storytree/forest/code-survey";
-import { FOREST_CHANNELS } from "@storytree/forest/page";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
 import path from "node:path";
 
 // The app's surfaces (ADR-0750), in the Surfaces menu's order: the plugin loader composes them into the bundle
 // from the manifests of the story packages this app depends on (ADR-1021; build.mjs).
-import SURFACES from "storytree:parts/surfaces";
+import SURFACES from "#parts/surfaces";
+// The page operations the stories' manifests name, composed in the same way.
+import PAGE_ANSWERS from "#parts/pageAnswers";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, safeStorage, shell, Tray } from "electron";
 
 import {
@@ -79,8 +79,6 @@ import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANN
 import { settingsActions, SETTINGS_CHANNELS } from "@storytree/project-and-caller/settings";
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
-import { createLagRuntime } from "@storytree/lag-in-use/runtime";
-import { LAG_CHANNELS } from "@storytree/lag-in-use/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
@@ -102,7 +100,7 @@ import { createCeremony, createPublicWorkOS, createSessionManager, registerProto
 import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-session";
 
 import { APP_OWNER, appHome } from "../home.js";
-import { answerPage } from "../page-operations.js";
+import { answerPage, answerPageParts } from "../page-operations.js";
 import { parseArgs } from "./args.js";
 import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { followTaskbar, iconColourway } from "./app-icon.js";
@@ -219,15 +217,27 @@ if (refusal !== undefined) {
 async function run(): Promise<void> {
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   const appVersion = app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0");
+  // The journey stays in the frame, not in a manifest (ADR-1030 D4): the frame is its client too, telling it of the launch,
+  // an added project, a failure and the quit, so the frame makes the one runtime and answers the page with it.
   journey = createJourneyRuntime({ home: home.dir, appVersion });
   answerPage(ipcMain, JOURNEY_CHANNELS, journey);
-  // The page's lag readings are kept in the home and go nowhere else (Lag in real use).
-  answerPage(ipcMain, LAG_CHANNELS, createLagRuntime({ home: home.dir, appVersion }));
+  // The tree the page last read for each project, which the code survey surveys rather than reading it a second time.
+  const treesRead = new Map<unknown, AnnotatedTree>();
+  // The page operations the stories' manifests name, each answered with what the frame offers (ADR-1021, ADR-1030 D2).
+  answerPageParts(ipcMain, PAGE_ANSWERS, {
+    home: home.dir,
+    appVersion,
+    library: open,
+    treeRead: (project) => treesRead.get(project),
+    surveyWorker: path.join(__dirname, "survey-worker.cjs"),
+  });
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
   const settings = settingsActions(home.dir);
   answerPage(ipcMain, SETTINGS_CHANNELS, settings);
   const surfaces = surfacesActions(SURFACES, home.dir);
   answerPage(ipcMain, SURFACES_CHANNELS, surfaces);
+  // Setup help stays in the frame (ADR-1030 D4): its actions need Electron's dialog, shell and clipboard, the license
+  // file's path and the open library, and adding a project also tells the journey, which the frame holds.
   const help = setupHelpActions({
     licenseFile: path.join(app.isPackaged ? process.resourcesPath : __dirname, "LICENSE"),
     storytreeHome: home.dir,
@@ -245,6 +255,8 @@ async function run(): Promise<void> {
   // Adding a project also tells the journey, so the frame composes that answer from the two stories'.
   answerPage(ipcMain, SETUP_HELP_CHANNELS, { ...help, addProject: () => help.addProject().then(result => journey!.afterProjectAdded(result)) });
   // Sign-in for feedback, when this build offers it: the page asks for it before it loads, and gets only an id and an email.
+  // It stays in the frame (ADR-1030 D4): the preload asks whether it is offered before the page loads, and its sign-in
+  // returns through the frame's own app events (open-url, second-instance) and the protocol the frame registers.
   const feedbackIdentity = identityConfig === undefined ? undefined : startFeedbackIdentity(identityConfig);
   ipcMain.on(FEEDBACK_IDENTITY_OFFERED, (event) => { event.returnValue = feedbackIdentity !== undefined; });
   if (feedbackIdentity !== undefined) {
@@ -268,25 +280,12 @@ async function run(): Promise<void> {
     const now = open();
     return (now[method as keyof typeof PAGE_READS_CHANNELS] as (...asked: unknown[]) => unknown).apply(now, asked);
   }])) as unknown as PageReads;
-  // The code survey surveys the tree the page last read, rather than reading it a second time.
-  const treesRead = new Map<unknown, AnnotatedTree>();
   answerPage(ipcMain, PAGE_READS_CHANNELS, {
     ...lateReads,
     projectTree: async (name: unknown) => {
       const tree = await open().projectTree(name);
       treesRead.set(name, tree);
       return tree;
-    },
-  });
-  // Surveys parse every changed file: on a worker thread, so the main process keeps answering meanwhile (map 8.16),
-  // and kept between starts, so a start with main unmoved parses nothing (map 8.25). A start's first survey answers
-  // from the main already fetched, without waiting on the fetch; the page asks again for what it brought (map 8.27).
-  const surveys = offThreadSurveyReader(path.join(__dirname, "survey-worker.cjs"), { keptIn: path.join(home.dir, "code-survey"), startFromFetched: true });
-  answerPage(ipcMain, FOREST_CHANNELS, {
-    codeSurvey: async (name: unknown) => {
-      const folder = await open().projectFolder(name);
-      // The folders this machine imports, where the survey reads the project's mapped stories (ADR-0993 D2).
-      return folder === undefined ? {} : surveys.read(folder, treesRead.get(name) ?? await open().projectTree(name), await open().projectImports(name));
     },
   });
 

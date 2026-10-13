@@ -6,6 +6,15 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "storytree": {
+    "tools": [
+      {
+        "from": ".",
+        "export": "qualityToolParts",
+        "order": 2
+      }
+    ]
+  },
   "scripts": {
     "typecheck": "tsc -p ."
   },

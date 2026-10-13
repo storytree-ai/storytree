@@ -1,6 +1,7 @@
 // The release's bootstraps and its checksum manifest ship in the same draft as each platform's feed.
 // Windows writes storytree-delivery.json beside the NSIS installer; the Mac runner, which alone has the
-// zip, writes its entry as storytree-delivery-mac.json, merged into the manifest when the release publishes.
+// zip, writes its entry as storytree-delivery-mac.json, and the Linux runner its AppImage's as storytree-delivery-linux.json;
+// both are merged into the manifest when the release publishes. The Mac's install-storytree.sh serves Linux too.
 import { createHash } from "node:crypto";
 import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -36,8 +37,16 @@ export function macDeliveryAssets(dir, version) {
   writeFileSync(path.join(dir, "install-storytree-mac-development.txt"), MAC_DEVELOPMENT_COMMAND);
 }
 
-/** The release's delivery manifest with the Mac runner's entry in it; another version's entry is refused. */
-export function mergeDelivery(manifest, mac) {
-  if (mac.version !== manifest.version) throw new Error(`The Mac delivery entry is for ${mac.version}, not ${manifest.version}`);
-  return { ...manifest, macos: mac.macos };
+export function linuxDeliveryAssets(dir, version) {
+  const name = `storytree-0.3-${version}-linux-x86_64.AppImage`;
+  const bytes = readFileSync(path.join(dir, name));
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  writeFileSync(path.join(dir, "storytree-delivery-linux.json"), JSON.stringify({ version, linux: { x64: { name, sha256, size: bytes.length } } }, null, 2) + "\n");
+}
+
+/** The release's delivery manifest with a Mac or Linux runner's entry in it; another version's entry is refused. */
+export function mergeDelivery(manifest, entry) {
+  const { version, ...systems } = entry;
+  if (version !== manifest.version) throw new Error(`The ${Object.keys(systems).join(", ")} delivery entry is for ${version}, not ${manifest.version}`);
+  return { ...manifest, ...systems };
 }

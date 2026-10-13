@@ -5,6 +5,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "imports": {
+    "#parts/surfaces": "./src/parts/surfaces.ts"
+  },
   "bin": {
     "storytree": "./dist/storytree.mjs"
   },
@@ -41,6 +44,7 @@
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "@storytree/plugin-loader": "workspace:*"
   }
 }

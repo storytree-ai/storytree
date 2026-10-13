@@ -11,6 +11,7 @@ import { buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/a
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
+import { partsPlugin } from "@storytree/plugin-loader";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -34,6 +35,8 @@ export async function buildCommand(outdir: string): Promise<string> {
     // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
     external: ["koffi", "pg-native", "pg-cloudflare", "cloudflare:sockets", "@huggingface/transformers"],
+    // The parts storytree's own story packages name in their manifests, composed in for each host package it holds (ADR-1021).
+    plugins: [partsPlugin()],
   });
   await stageNativeProbes(outdir);
   // On Windows the command a setup check puts on the path is a program built beside this script (ADR-0854).

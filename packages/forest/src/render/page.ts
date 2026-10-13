@@ -12,3 +12,6 @@ export interface ForestBridge {
 export const FOREST_CHANNELS = {
   codeSurvey: "storytree:code-survey",
 } as const;
+
+/** The page's side, named in the forest's manifest (`pageChannels`, ADR-1030): the desktop's preload offers the page these. */
+export const forestPageChannels = [FOREST_CHANNELS];

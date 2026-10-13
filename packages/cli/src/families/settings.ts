@@ -72,10 +72,9 @@ function librarySaid(reading: LibraryReading): string {
   return `library: ${where} (${reading.source})\n  Default: ${reading.default}.\n  ${reading.meaning}`;
 }
 
-/** The app's surfaces, as each story declares them (ADR-0750), in the order the Surfaces menu lists them. */
+/** The app's surfaces, as each story's manifest declares them (ADR-0750, ADR-1021), in the order the Surfaces menu lists them. */
 async function surfaces() {
-  const [{ forestSurfaces }, { arcSurfaces }] = await Promise.all([import("@storytree/forest/surfaces"), import("@storytree/arc-surface/surfaces")]);
-  return [...forestSurfaces, ...arcSurfaces];
+  return (await import("#parts/surfaces")).default;
 }
 
 function surfacesSaid(surfaces: readonly SurfaceReading[]): string {

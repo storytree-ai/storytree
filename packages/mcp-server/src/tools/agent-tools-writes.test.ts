@@ -1157,7 +1157,7 @@ test("6.74 import_project on a folder already imported says the commit recorded 
       assert.match(again.text, new RegExp(`The commit moved from ${one.slice(0, 12)} to ${two.slice(0, 12)}`));
       assert.match(again.text, /12 added, 0 changed, 1 removed/);
       assert.match(again.text, /added: src\/f01\.ts, .*src\/f10\.ts, and 2 more/);
-      assert.doesNotMatch(again.text, /f11/);
+      assert.doesNotMatch(again.text, /src\/f11\.ts/);
       assert.match(again.text, /removed: src\/menu\.ts/);
       assert.match(again.text, new RegExp(`Menu" \\(${menu.id}\\) covers src/menu\\.ts, no longer in the folder; it is left as it stands`));
     });

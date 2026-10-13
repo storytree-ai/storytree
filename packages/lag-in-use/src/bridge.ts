@@ -22,3 +22,6 @@ export interface LagBridge {
 }
 
 export const LAG_CHANNELS = { recordLag: "storytree:record-lag" } as const;
+
+/** The page's side of this story's operations, named in its manifest (`pageChannels`, ADR-1021): the desktop's preload offers them. */
+export const lagPageChannels = [LAG_CHANNELS];

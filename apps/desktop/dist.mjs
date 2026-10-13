@@ -1,7 +1,7 @@
 // Package the host's platform. On Windows: x64/arm64 in one NSIS installer, keeping win-arm64-unpacked/
 // and the arm64 portable exe for existing development uses. On macOS: an Apple Silicon .app as a zip
-// (the update feed's) and a dmg, ad-hoc signed until a Developer ID is configured (then CSC_LINK, and
-// notarised when Apple's credentials are in the environment). On Linux: an x64 AppImage, whose update
+// (the update feed's) and a dmg, ad-hoc signed until a Developer ID is configured (then signed as the
+// identity mac-signing.mjs prepare put in a keychain, and notarised). On Linux: an x64 AppImage, whose update
 // feed is latest-linux.yml; its one-command delivery is the curl install's. Only the release workflow publishes:
 // even with GH_TOKEN or a tag in the environment, this command only builds artifacts and update metadata.
 //
@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stageTools } from "./tools.mjs";
-import { deliveryAssets, macDeliveryAssets } from "./delivery-assets.mjs";
+import { deliveryAssets, linuxDeliveryAssets, macDeliveryAssets } from "./delivery-assets.mjs";
 import { builderEnv, macSigning } from "./mac-signing.mjs";
 
 process.env.ELECTRON_BUILDER_7Z_FILTER ??= "BCJ";
@@ -30,7 +30,8 @@ const identity = signing?.mode === "ad-hoc" ? { mac: { identity: signing.identit
 if (identity.mac) process.env.CSC_FOR_PULL_REQUEST = "true";
 if (mac) {
   const env = builderEnv(process.env);
-  for (const name of ["CSC_LINK", "CSC_KEY_PASSWORD"]) if (!(name in env)) delete process.env[name];
+  for (const name of ["CSC_LINK", "CSC_KEY_PASSWORD"]) delete process.env[name];
+  Object.assign(process.env, env);
 }
 // The packaged package.json records the Mac signing mode: only a Developer ID build follows releases (updates 4.21),
 // because Squirrel.Mac refuses an update to an app that is not Developer ID signed.
@@ -41,4 +42,4 @@ await build({
   ...(Object.keys(extraMetadata).length === 0 ? {} : { config: { extraMetadata, ...identity } }),
 });
 const here = path.dirname(fileURLToPath(import.meta.url));
-if (process.platform !== "linux") (mac ? macDeliveryAssets : deliveryAssets)(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);
+(mac ? macDeliveryAssets : process.platform === "linux" ? linuxDeliveryAssets : deliveryAssets)(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);

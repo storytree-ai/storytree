@@ -2,7 +2,7 @@
  * Capability 2 · Readings file. The app's side of the bridge: the main process keeps each batch the page sends, checked and stamped
  * with the app's version, one batch after another so two never interleave. Keeping them never fails the page.
  */
-import type { LagBridge } from "./bridge.js";
+import { LAG_CHANNELS, type LagBridge } from "./bridge.js";
 import { appendReadings, isReading, storytreeHome } from "./readings.js";
 
 export function createLagRuntime(options: { home?: string; appVersion: string; now?: () => number }): LagBridge {
@@ -19,3 +19,12 @@ export function createLagRuntime(options: { home?: string; appVersion: string; n
     },
   };
 }
+
+/** What a host offers this story's page part: the app's home and the version its readings are stamped with. */
+export interface LagPageFrame {
+  readonly home: string;
+  readonly appVersion: string;
+}
+
+/** The main process's side, named in its manifest (`pageAnswers`, ADR-1021): the desktop answers the page's readings with it. */
+export const lagPageAnswers = [(frame: LagPageFrame) => ({ channels: LAG_CHANNELS, answers: createLagRuntime({ home: frame.home, appVersion: frame.appVersion }) })];

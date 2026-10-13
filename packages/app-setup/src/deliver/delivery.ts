@@ -75,10 +75,11 @@ export async function finishDelivery(options: DeliveryOptions, effects = { launc
   return { state: "ready", tools, command };
 }
 
-/** The helper runs only from its own payload's Node: Windows x64 or arm64, or an Apple Silicon Mac (install.sh). */
+/** The helper runs only from its own payload's Node: Windows x64 or arm64, an Apple Silicon Mac or x64 Linux (install.sh). */
 export function runtimeProblem(arch: Architecture, runtime = { platform: process.platform, arch: process.arch, node: process.versions.node }): string | undefined {
   if (runtime.platform === "darwin" && arch !== "arm64") return "storytree needs a Mac with Apple Silicon";
-  if ((runtime.platform !== "win32" && runtime.platform !== "darwin") || runtime.arch !== arch || runtime.node.split(".")[0] !== "24") {
+  if (runtime.platform === "linux" && arch !== "x64") return "storytree on Linux needs an x64 computer";
+  if (!["win32", "darwin", "linux"].includes(runtime.platform) || runtime.arch !== arch || runtime.node.split(".")[0] !== "24") {
     return "The bundled Node runtime does not match this installation";
   }
   return undefined;

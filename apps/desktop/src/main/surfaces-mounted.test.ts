@@ -23,6 +23,8 @@ import { forestSurfaces } from "@storytree/forest/surfaces";
 import { connect } from "@storytree/library";
 import { partsPlugin } from "@storytree/plugin-loader";
 
+import unbundled from "./parts/surfaces.js";
+
 async function until(check: () => boolean): Promise<void> {
   const end = Date.now() + 10_000;
   while (!check() && Date.now() < end) await delay(10);
@@ -40,14 +42,16 @@ test("3.8 the app's Surfaces menu lists the arc surface as Arcs, with no setting
   assert.equal(surfaceOn(readSurfaces(arcSurfaces, home), "arcs"), false, "a fresh read, as the next launch makes, finds it off");
 });
 
-test("3.12 the desktop app's Surfaces menu lists the surfaces its story packages' manifests name, composed into its bundle by the plugin loader: the forest's, then the arc surface's", async (t) => {
+test("3.12 the desktop app's Surfaces menu lists the surfaces its story packages' manifests name, composed into its bundle by the plugin loader, and the same run unbundled: the forest's, then the arc surface's", async (t) => {
   const desktop = fileURLToPath(new URL("../..", import.meta.url));
   const out = mkdtempSync(path.join(tmpdir(), "storytree-desktop-parts-"));
   t.after(() => rmSync(out, { recursive: true, force: true }));
   const outfile = path.join(out, "surfaces.mjs");
-  await build({ stdin: { contents: `export { default } from "storytree:parts/surfaces";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsPlugin({ host: desktop })] });
+  await build({ stdin: { contents: `export { default } from "#parts/surfaces";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsPlugin()] });
   const { default: mounted } = await import(pathToFileURL(outfile).href) as { default: unknown };
   assert.deepEqual(mounted, [...forestSurfaces, ...arcSurfaces]);
+  assert.equal(import.meta.resolve("#parts/surfaces"), new URL("./parts/surfaces.ts", import.meta.url).href, "the app's #parts/surfaces is its composing module");
+  assert.deepEqual(unbundled, [...forestSurfaces, ...arcSurfaces]);
 });
 
 test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed read, sees a claim on its next poll, ages without new lines and reports what it drew", async () => {

@@ -300,7 +300,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
         }
       }
       const files = map === undefined ? sources : [...sources, map];
-      const packages = JSON.stringify(read.filter(pkg => Object.keys(pkg.exports).length > 0).map(({ root, name, exports }) => ({ root, name, exports })));
+      const packages = JSON.stringify(read.filter(pkg => Object.keys(pkg.exports).length > 0 || Object.keys(pkg.imports).length > 0).map(({ root, name, exports, imports }) => ({ root, name, exports, imports })));
       if (last !== undefined && last.capabilities === capabilities && last.packages === packages && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read, sources.map(inRepository), base] as const];
       const coverage = map === undefined ? {} : coverageFrom(map.text);
       const measured = surveyStory(
@@ -389,15 +389,17 @@ export function offThreadSurveyReader(workerFile: string | URL, options: { execA
   const started = (): Worker => {
     if (worker !== undefined) return worker;
     const made = new Worker(workerFile, { execArgv: options.execArgv, workerData: { keep, startFromFetched: options.startFromFetched === true } });
-    made.unref();
     made.on("message", ({ id, survey, error }: { id: number; survey?: ProjectSurvey; error?: string }) => {
       const asked = waiting.get(id);
       waiting.delete(id);
       if (error === undefined) asked?.resolve(survey!);
       else asked?.reject(new Error(error));
+      if (waiting.size === 0) made.unref();
     });
     made.on("error", failAll);
     made.on("exit", (code) => { if (worker === made) failAll(new Error(`the survey worker stopped (exit ${code})`)); });
+    // An idle worker holds no process open; it is unref'd after its listeners, since attaching one refs it again.
+    made.unref();
     worker = made;
     return made;
   };
@@ -406,7 +408,10 @@ export function offThreadSurveyReader(workerFile: string | URL, options: { execA
       return new Promise((resolve, reject) => {
         const id = next++;
         waiting.set(id, { resolve, reject });
-        started().postMessage({ id, folder, tree, imports });
+        const asking = started();
+        // While an ask waits, its answer holds the process open.
+        asking.ref();
+        asking.postMessage({ id, folder, tree, imports });
       });
     },
     async close(): Promise<void> {

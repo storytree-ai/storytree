@@ -75,7 +75,13 @@ test("6.2 a lock whose holder has gone does not block the next run", async (t) =
 
 function commandMachine(t) {
   const dir = mkdtempSync(path.join(tmpdir(), "heavy-command-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  // One hook, children first: node:test runs after hooks in registration order, and Windows refuses
+  // to remove a folder a running child has as its cwd (EPERM, run 38408741009, friction_4e62a3d43a1b).
+  const children = [];
+  t.after(async () => {
+    for (const { child, done } of children) { killTree(child); await done.catch(() => {}); }
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  });
   const env = { ...process.env, STORYTREE_HOME: dir };
   delete env.STORYTREE_HEAVY_LOCK_HOLDER;
   const start = (args, extraEnv = {}) => {
@@ -87,7 +93,7 @@ function commandMachine(t) {
       child.once("error", reject);
       child.once("close", code => resolve({ code, output }));
     });
-    t.after(async () => { killTree(child); await done; });
+    children.push({ child, done });
     return { child, done, output: () => output };
   };
   const wrapper = (...args) => start([path.join(root, "packages/dev-loop/src/heavy-lock.mjs"), "--", ...args]);

@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { surveyStory } from "./code-survey.js";
+import { manifestFrom } from "./survey-source.js";
 
 const capabilities = [
   { id: "cap-claims", title: "3 · Claims" },
@@ -282,6 +283,18 @@ test("8.12 a CommonJS require of a relative file or the package's own exported s
     ["src/core/index.js", "cap-core"], ["src/auth/index.js", "cap-auth"], ["src/auth/sign-in.js", "cap-auth"],
   ]);
   assert.deepEqual(survey.imports, [{ from: "src/auth/index.js", to: "src/core/index.js" }, { from: "src/auth/index.js", to: "src/auth/sign-in.js" }]);
+});
+
+test("8.28 a '#' specifier the importing package's package.json imports field names literally is an ordinary import of the file it maps to, so a file reached only that way falls in the capability whose numbered test imports it", () => {
+  const manifest = manifestFrom(JSON.stringify({ name: "@x/server", exports: { ".": "./src/index.ts" }, imports: { "#parts/tools": "./src/parts/tools.ts", "#parts/*": "./src/parts/*.ts", "#cond": { node: "./src/cond.ts" } } }));
+  assert.deepEqual(manifest?.imports, { "#parts/tools": "./src/parts/tools.ts" }, "only literal string targets are followed, as with exports");
+  const tree = [
+    { path: "src/parts/tools.ts", text: "export default [];\n" },
+    { path: "src/parts/other.ts", text: "export default [];\n" },
+    { path: "src/tools/tool-parts.test.ts", text: 'import toolParts from "#parts/tools";\nimport other from "#parts/other";\ntest("6.75 the server mounts its tool parts", () => [toolParts, other]);\n' },
+  ];
+  const survey = surveyStory(tree, [{ id: "cap-tools", title: "6 · Tools" }], {}, "server", [{ root: "", name: "@x/server", exports: manifest!.exports, imports: manifest!.imports }]);
+  assert.deepEqual(survey.files.map(({ path, capability }) => [path, capability]), [["src/parts/tools.ts", "cap-tools"], ["src/parts/other.ts", undefined]]);
 });
 
 test("8.14 a test file that runs an imported behaviour suite carries the suite's numbered titles, for its proofs and its reach; comments and a file that registers no tests credit nothing", () => {

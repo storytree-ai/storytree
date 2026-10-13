@@ -8,7 +8,9 @@ words, chooses the channel as `install.ps1` does, reads the release's `storytree
 (its `macos.arm64` entry: the zip's name, SHA-256 and size), refuses a checksum mismatch, unpacks the
 `.app` into `~/Applications/storytree-0.3.app` (or the folder `delivery.json` names), runs the same
 `finish`, and puts `~/.storytree/0.3/bin` on PATH through one line in `~/.zprofile`, marked so
-`setup uninstall`'s Mac twin can take it out. Its questions are read from `/dev/tty`, since the
+`storytree setup uninstall` can take it out: on a Mac it uninstalls in place (no app running, a
+library kept or removed only on `--keep-library`/`--remove-library`), removing the `.app` and that
+line from `${ZDOTDIR:-~}/.zprofile`. Its questions are read from `/dev/tty`, since the
 script itself arrives on standard input; with no terminal it skips them and says how to come back.
 Every step is a function and the last line runs them, so a download cut short runs nothing.
 

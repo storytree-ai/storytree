@@ -5,6 +5,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "imports": {
+    "#parts/tools": "./src/parts/tools.ts"
+  },
   "scripts": {
     "typecheck": "tsc -p ."
   },
@@ -19,7 +22,8 @@
     "@storytree/processes": "workspace:*",
     "@storytree/quality-assurance": "workspace:*",
     "@storytree/app-setup": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@storytree/plugin-loader": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.1.0",

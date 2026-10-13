@@ -5,6 +5,9 @@
   "description": "storytree 0.3 desktop app: a project's stories and their health, read from the local library",
   "type": "module",
   "main": "dist/main.cjs",
+  "imports": {
+    "#parts/surfaces": "./src/main/parts/surfaces.ts"
+  },
   "scripts": {
     "build": "node --import tsx build.mjs",
     "start": "node --import tsx build.mjs && electron .",

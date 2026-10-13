@@ -25,8 +25,17 @@ test("4.20 an ad-hoc Mac build hands electron-builder no CSC_LINK or CSC_KEY_PAS
   assert.equal("CSC_LINK" in adHoc, false);
   assert.equal("CSC_KEY_PASSWORD" in adHoc, false);
   assert.equal(adHoc.PATH, "/usr/bin");
-  const signed = { CSC_LINK: "base64p12", CSC_KEY_PASSWORD: "pw", ...apple };
-  assert.deepEqual(builderEnv(signed), signed);
+});
+
+test("4.20 a Developer ID Mac build hands electron-builder the identity prepare put in the keychain, not the certificate to import again", () => {
+  // electron-builder's own import unlocked its keychain with the certificate's password and macOS refused it.
+  const identity = "FEDCBA9876543210FEDCBA9876543210FEDCBA98";
+  const signed = builderEnv({ CSC_LINK: "base64p12", CSC_KEY_PASSWORD: "pw", ...apple, STORYTREE_MAC_IDENTITY: identity, PATH: "/usr/bin" });
+  assert.equal("CSC_LINK" in signed, false);
+  assert.equal("CSC_KEY_PASSWORD" in signed, false);
+  assert.equal(signed.CSC_NAME, identity);
+  assert.deepEqual([signed.APPLE_API_KEY, signed.APPLE_API_KEY_ID, signed.APPLE_API_ISSUER], [apple.APPLE_API_KEY, apple.APPLE_API_KEY_ID, apple.APPLE_API_ISSUER]);
+  assert.throws(() => builderEnv({ CSC_LINK: "base64p12", CSC_KEY_PASSWORD: "pw", ...apple }), /STORYTREE_MAC_IDENTITY/);
 });
 
 test("4.20 with the certificate and Apple's key the Mac build imports a keychain, signs as the Developer ID find-identity lists, and notarises", () => {

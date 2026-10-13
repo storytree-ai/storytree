@@ -2,7 +2,7 @@
 // reaches the library only through the library's public API.
 export { checks, checksText } from "./checks/checks.js";
 export type { Check, Enforced, Graduated } from "./checks/checks.js";
-export { qualityTools } from "./checks/tools.js";
+export { qualityToolParts, qualityTools } from "./checks/tools.js";
 export { graduate, graduatedFindings } from "./graduation/graduation.js";
 export type { GraduatedFindings } from "./graduation/graduation.js";
 export { forgetProjectQuality, LEDGER_DATABASE, ledgerText, openLedger } from "./ledger/ledger.js";

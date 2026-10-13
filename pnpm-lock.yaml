@@ -191,6 +191,9 @@ importers:
         specifier: workspace:*
         version: link:../session-management
     devDependencies:
+      '@storytree/plugin-loader':
+        specifier: workspace:*
+        version: link:../plugin-loader
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -314,6 +317,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/plugin-loader':
+        specifier: workspace:*
+        version: link:../plugin-loader
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -752,6 +758,9 @@ importers:
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
+      '@storytree/plugin-loader':
+        specifier: workspace:*
+        version: link:../plugin-loader
       '@storytree/processes':
         specifier: workspace:*
         version: link:../processes

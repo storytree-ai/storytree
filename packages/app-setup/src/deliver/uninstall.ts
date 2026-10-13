@@ -1,14 +1,16 @@
 /**
  * Capability 1 · Get storytree. Leaving storytree: what the NSIS uninstaller runs, from the installation's own bundled Node, just
- * before it deletes the app's files. It undoes what delivery and connection added: both agents'
- * registration, hooks and status line, the command and its PATH entry, the home, and the updater's
- * download cache. The user's project folders are never touched, not even their storytree marker.
+ * before it deletes the app's files, and what `storytree setup uninstall` runs itself on Linux and macOS, where nothing else would. It
+ * undoes what delivery and connection added: both agents' registration, hooks and status line, the command and its PATH
+ * entry, the home, and the updater's download cache; on Linux and macOS also install.sh's installation folder (the .app on a
+ * Mac), Linux's menu entry, and the marked ~/.profile (Mac: .zprofile) line. The user's project folders are never touched, not even their storytree marker.
  */
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import path from "node:path";
 import { installedToolServerCommand, removeConnections, type RunHarness } from "../connect/index.js";
-import { watchedHarness } from "@storytree/session-management";
+import { locateApp, storytreeHome, watchedHarness } from "@storytree/session-management";
 import { toolPaths } from "./payload.js";
 
 export type LibraryChoice = "keep" | "remove";
@@ -75,6 +77,48 @@ function updaterCache(installDir: string, localAppData: string | undefined): str
  */
 const library = new Set(["pgdata", "pgdata.owner.json", "pgdata.auth", "backups", "settings.json", "machine.json", "project-choice.json", "queued-lines"]);
 
+/** install.sh marks the PATH line it adds with this, so only that line is taken out again. */
+const PROFILE_MARKER = "# storytree 0.3's command: added by its installer, taken out by storytree setup uninstall";
+
+/** Takes install.sh's marked lines out of a shell profile, leaving every other line as it was; false when there were none. */
+export function removeMarkedLines(file: string): boolean {
+  if (!existsSync(file)) return false;
+  const lines = readFileSync(file, "utf8").split("\n");
+  const kept = lines.filter((line) => !line.includes(PROFILE_MARKER));
+  if (kept.length === lines.length) return false;
+  writeFileSync(file, kept.join("\n"));
+  return true;
+}
+
+/** What install.sh added on Linux outside the home: the installation folder, its menu entry and the PATH line. */
+function removeLinuxInstallation(installDir: string, userHome: string, lines: string[]): boolean {
+  const profile = path.join(userHome, ".profile");
+  try {
+    if (removeMarkedLines(profile)) lines.push("The storytree command is off your PATH from your next login.");
+    remove(path.join(userHome, ".local", "share", "applications", "storytree-0.3.desktop"));
+    remove(installDir);
+    lines.push(`The app and its menu entry were removed from ${path.dirname(installDir)}.`);
+    return true;
+  } catch {
+    lines.push(`Remove ${installDir}, ~/.local/share/applications/storytree-0.3.desktop and the line marked "storytree setup uninstall" in ${profile}.`);
+    return false;
+  }
+}
+
+/** What install.sh added on a Mac outside the home: the .app and the PATH line in zsh's login profile. */
+function removeMacInstallation(installDir: string, userHome: string, env: NodeJS.ProcessEnv, lines: string[]): boolean {
+  const profile = path.join(env.ZDOTDIR || userHome, ".zprofile");
+  try {
+    if (removeMarkedLines(profile)) lines.push("The storytree command is off your PATH from your next Terminal window.");
+    remove(installDir);
+    lines.push(`The app was removed from ${path.dirname(installDir)}.`);
+    return true;
+  } catch {
+    lines.push(`Move ${installDir} to the Bin and remove the line marked "storytree setup uninstall" in ${profile}.`);
+    return false;
+  }
+}
+
 const remove = (target: string) => rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
 
 export async function uninstall(options: UninstallOptions): Promise<UninstallReport> {
@@ -94,21 +138,28 @@ export async function uninstall(options: UninstallOptions): Promise<UninstallRep
   }
   if (!ownsHome(options.installDir, options.home)) return { complete, lines };
 
-  const entry = path.join(options.home, "bin");
-  const userPath = options.effects ?? windowsUserPath;
-  try {
-    const current = userPath.readUserPath();
-    if (current !== undefined) {
-      const next = withoutPathEntry(current, entry);
-      if (next !== current) { userPath.writeUserPath(next); lines.push("The storytree command is off your PATH."); }
+  const platform = options.platform ?? process.platform;
+  if (platform === "linux") {
+    if (!removeLinuxInstallation(options.installDir, options.userHome ?? homedir(), lines)) complete = false;
+  } else if (platform === "darwin") {
+    if (!removeMacInstallation(options.installDir, options.userHome ?? homedir(), options.env ?? process.env, lines)) complete = false;
+  } else {
+    const entry = path.join(options.home, "bin");
+    const userPath = options.effects ?? windowsUserPath;
+    try {
+      const current = userPath.readUserPath();
+      if (current !== undefined) {
+        const next = withoutPathEntry(current, entry);
+        if (next !== current) { userPath.writeUserPath(next); lines.push("The storytree command is off your PATH."); }
+      }
+    } catch {
+      complete = false;
+      lines.push(`PATH: remove ${entry} from your user Path environment variable.`);
     }
-  } catch {
-    complete = false;
-    lines.push(`PATH: remove ${entry} from your user Path environment variable.`);
-  }
 
-  const cache = updaterCache(options.installDir, options.localAppData ?? options.env?.LOCALAPPDATA ?? process.env.LOCALAPPDATA);
-  if (cache !== undefined && existsSync(cache)) remove(cache);
+    const cache = updaterCache(options.installDir, options.localAppData ?? options.env?.LOCALAPPDATA ?? process.env.LOCALAPPDATA);
+    if (cache !== undefined && existsSync(cache)) remove(cache);
+  }
 
   try {
     if (options.library === "keep") {
@@ -123,7 +174,7 @@ export async function uninstall(options: UninstallOptions): Promise<UninstallRep
     }
   } catch {
     complete = false;
-    lines.push(`Some of ${options.home} was in use and stayed; delete it after restarting Windows.`);
+    lines.push(`Some of ${options.home} was in use and stayed; delete it after restarting ${platform === "win32" ? "Windows" : "the computer"}.`);
   }
   return { complete, lines };
 }
@@ -134,10 +185,25 @@ export async function uninstall(options: UninstallOptions): Promise<UninstallRep
  * from the installation, this one included, but only after it has checked for PowerShell (a second or
  * more), by when this command has printed and returned. It is started directly: Windows PowerShell,
  * started detached as a delay, has no console and exits without running anything.
+ * Linux and macOS have no uninstaller, so it uninstalls here, once the app is not running from what it removes;
+ * the helper runs without a terminal, so a library is removed or kept only when the user chose which.
  */
-export async function openUninstaller(choice?: string, helperDir = path.dirname(process.argv[1] ?? "")): Promise<string> {
+export async function openUninstaller(choice?: string, helperDir = path.dirname(process.argv[1] ?? ""), host: Partial<Omit<UninstallOptions, "installDir" | "library">> = {}): Promise<string> {
   if (choice !== undefined && choice !== "keep" && choice !== "remove") throw new Error("usage: storytree setup uninstall [--keep-library|--remove-library]");
-  const installDir = path.resolve(helperDir, "..", "..");
+  const platform = host.platform ?? process.platform;
+  // The helper sits in resources/agent-tools, which a Mac bundle keeps under Contents.
+  const installDir = path.resolve(helperDir, "..", "..", ...(platform === "darwin" ? [".."] : []));
+  if (platform === "linux" || platform === "darwin") {
+    const home = host.home ?? storytreeHome();
+    const asks = uninstallAsks(installDir, home);
+    if (asks === "not ours") throw new Error(`${installDir} is not the storytree installation recorded in ${path.join(home, "delivery.json")}; run that installation's storytree setup uninstall. Nothing was removed.`);
+    if (asks === "ask" && choice === undefined) throw new Error(`Your library is in ${home}. Run storytree setup uninstall --keep-library or --remove-library. Nothing was removed.`);
+    if (locateApp(home).running) throw new Error("storytree is running: Quit storytree from its window or tray, then run storytree setup uninstall again. Nothing was removed.");
+    const report = await uninstall({ ...host, installDir, home, library: choice ?? "remove" });
+    const said = [...report.lines, "Your project folders were left alone. Restart your agents afterwards."].join("\n");
+    if (!report.complete) throw new Error(said);
+    return said;
+  }
   const uninstaller = path.join(installDir, "Uninstall storytree-0.3.exe");
   if (process.platform !== "win32" || !existsSync(uninstaller)) {
     throw new Error(`This storytree has no Windows uninstaller at ${uninstaller}; only the installed Windows app has one. Your projects are not affected either way.`);

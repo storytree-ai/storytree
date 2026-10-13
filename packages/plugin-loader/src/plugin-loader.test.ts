@@ -1,6 +1,6 @@
 /** The plugin loader: the manifests a host's story packages carry, and the parts composed from them into its bundle. */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
@@ -9,6 +9,9 @@ import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 
 import { partsPlugin, storyParts } from "./index.js";
+
+/** The loader's own entry, as a fixture host's composing module imports it (the fixture installs no loader of its own). */
+const LOADER = JSON.stringify(new URL("./index.ts", import.meta.url).href);
 
 interface Story { readonly name: string; readonly manifest?: unknown; readonly exports?: Record<string, string>; readonly files?: Record<string, string> }
 
@@ -56,13 +59,28 @@ test("1.3 storyParts orders parts by their manifest's order, unordered last, tie
   assert.deepEqual(storyParts(dir, "surfaces").map((part) => part.export), ["forestSurfaces", "arcSurfaces", "a", "z"]);
 });
 
-test("2.1 a bundle importing storytree:parts/<kind> gets every part's declarations, concatenated in storyParts' order, and an empty list for a kind no manifest names", async (t) => {
+test("2.1 a bundle importing #parts/<kind> gets every part's declarations, concatenated in storyParts' order, the host being the importing file's package, and an empty list for a kind no manifest names", async (t) => {
   const dir = host(t, [surfaces("@s/arcs", "arcSurfaces", ["arcs"], 2), surfaces("@s/forest", "forestSurfaces", ["globe", "library"], 1)]);
-  writeFileSync(path.join(dir, "entry.js"), `import surfaces from "storytree:parts/surfaces";\nimport pages from "storytree:parts/pages";\nexport { surfaces, pages };\n`);
+  mkdirSync(path.join(dir, "src"));
+  writeFileSync(path.join(dir, "src", "entry.js"), `import surfaces from "#parts/surfaces";\nimport pages from "#parts/pages";\nexport { surfaces, pages };\n`);
   const outfile = path.join(dir, "out.mjs");
-  await build({ entryPoints: [path.join(dir, "entry.js")], outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", absWorkingDir: dir, plugins: [partsPlugin({ host: dir })] });
+  await build({ entryPoints: [path.join(dir, "src", "entry.js")], outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", absWorkingDir: dir, plugins: [partsPlugin()] });
   rmSync(path.join(dir, "node_modules"), { recursive: true, force: true });
   const bundled = await import(pathToFileURL(outfile).href) as { surfaces: unknown; pages: unknown };
   assert.deepEqual(bundled.surfaces, [{ id: "globe" }, { id: "library" }, { id: "arcs" }]);
   assert.deepEqual(bundled.pages, []);
+});
+
+test("3.1 an unbundled host importing #parts/<kind>, which its imports map to its own module calling composeParts, gets every part's declarations in storyParts' order, and an empty list for a kind no manifest names", async (t) => {
+  const dir = host(t, [surfaces("@s/arcs", "arcSurfaces", ["arcs"], 2), surfaces("@s/forest", "forestSurfaces", ["globe", "library"], 1)]);
+  const manifest = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as Record<string, unknown>;
+  writeFileSync(path.join(dir, "package.json"), JSON.stringify({ ...manifest, type: "module", imports: { "#parts/surfaces": "./src/parts/surfaces.js", "#parts/pages": "./src/parts/pages.js" } }));
+  mkdirSync(path.join(dir, "src", "parts"), { recursive: true });
+  for (const kind of ["surfaces", "pages"]) {
+    writeFileSync(path.join(dir, "src", "parts", `${kind}.js`), `import { composeParts } from ${LOADER};\nexport default await composeParts(import.meta.url, ${JSON.stringify(kind)});\n`);
+  }
+  writeFileSync(path.join(dir, "src", "entry.js"), `import surfaces from "#parts/surfaces";\nimport pages from "#parts/pages";\nexport { surfaces, pages };\n`);
+  const composed = await import(pathToFileURL(path.join(dir, "src", "entry.js")).href) as { surfaces: unknown; pages: unknown };
+  assert.deepEqual(composed.surfaces, [{ id: "globe" }, { id: "library" }, { id: "arcs" }]);
+  assert.deepEqual(composed.pages, []);
 });

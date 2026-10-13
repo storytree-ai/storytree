@@ -40,7 +40,7 @@ import path from "node:path";
 
 // The app's surfaces (ADR-0750), in the Surfaces menu's order: the plugin loader composes them into the bundle
 // from the manifests of the story packages this app depends on (ADR-1021; build.mjs).
-import SURFACES from "storytree:parts/surfaces";
+import SURFACES from "#parts/surfaces";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, safeStorage, shell, Tray } from "electron";
 
 import {

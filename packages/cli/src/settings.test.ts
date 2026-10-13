@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
+import { arcSurfaces } from "@storytree/arc-surface/surfaces";
+import { forestSurfaces } from "@storytree/forest/surfaces";
 import { readSettings } from "@storytree/session-management";
 
 import { BuiltCommand, storytree } from "./testing/cli.js";
@@ -109,6 +111,8 @@ test("settings: the app's surfaces are listed and switched from the command line
   assert.equal(shown.code, 0, shown.stderr);
   assert.match(shown.stdout, /Sessions \(sessions\): on \(default\)/);
   assert.match(shown.stdout, /Forest globe \(globe\): always on/);
+  const listed = [...shown.stdout.split("Surfaces of the app")[1]!.matchAll(/^  .+ \(([\w-]+)\): /gm)].map((line) => line[1]);
+  assert.deepEqual(listed, [...forestSurfaces, ...arcSurfaces].map((surface) => surface.id), "the Surfaces menu's order: the Forest's, then the arc board's");
 
   const off = await invoke(["settings", "set", "surface", "sessions", "off"]);
   assert.equal(off.code, 0, off.stderr);

@@ -35,13 +35,14 @@
  *   waits for it; its input names no event, so each command names its own (`--event=`), and the hooks before
  *   a command and at the end of a run pass `--background`.
  * - In all five, the hook before each file-edit tool runs in the foreground, since its answer may refuse
- *   the edit (ADR-0949 D3).
+ *   the edit (ADR-0949 D3). In Claude Code and Codex, a guard after each shell command runs in the foreground
+ *   too, since what it prints tells the agent of the command's changes to imported code (ADR-1015).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, EVENT, HARNESS_IDS, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
+import { ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, EVENT, HARNESS_IDS, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, SHELL_GUARD, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
 
 import { piExtension } from "./pi-extension.js";
 
@@ -211,6 +212,7 @@ function isStorytreesStatusLine(statusLine: unknown): boolean {
 /** Claude Code's entries: the hook script run with arguments, no shell. */
 function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[]> {
   const run = (background: boolean) => ({ type: "command", command: node, args: [script, "claude-code"], ...(background ? { async: true } : {}) });
+  const guard = { type: "command", command: node, args: [script, "claude-code", SHELL_GUARD] };
   return {
     SessionStart: [{ hooks: [run(true)] }],
     PreToolUse: [
@@ -219,8 +221,9 @@ function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[
       // Before each file edit, in the foreground: an edit to a capability the session may not write is refused (ADR-0949 D3).
       { matcher: "Write|Edit|MultiEdit|NotebookEdit", hooks: [{ type: "command", command: node, args: [script, "claude-code", EDIT_GATE] }] },
     ],
-    PostToolUse: [{ matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task", hooks: [run(true)] }],
-    PostToolUseFailure: [{ matcher: "Bash|PowerShell", hooks: [run(true)] }],
+    // After each shell command, finished or failed, also in the foreground: its changes to imported code are told to the agent (ADR-1015).
+    PostToolUse: [{ matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Agent|Task", hooks: [run(true)] }, { matcher: "Bash|PowerShell", hooks: [guard] }],
+    PostToolUseFailure: [{ matcher: "Bash|PowerShell", hooks: [run(true)] }, { matcher: "Bash|PowerShell", hooks: [guard] }],
     // The turn's line in the background; then, in the foreground, a check that may ask the agent to close out (ADR-0758 D4).
     Stop: [{ hooks: [run(true)] }, { hooks: [{ type: "command", command: node, args: [script, "claude-code", CLOSE_OUT_REMINDER] }] }],
     UserPromptSubmit: [{ hooks: [run(false)] }],
@@ -243,7 +246,7 @@ function codexEntries({ node, script }: HookCommand): Record<string, HookEntry[]
       { matcher: "^Bash$", hooks: [run(10, true)] },
       { matcher: "^apply_patch$", hooks: [{ type: "command", command: `${line} ${EDIT_GATE}`, timeout: 10 }] },
     ],
-    PostToolUse: [{ matcher: "^(apply_patch|Bash|spawn_agent)$", hooks: [run(10)] }],
+    PostToolUse: [{ matcher: "^(apply_patch|Bash|spawn_agent)$", hooks: [run(10)] }, { matcher: "^Bash$", hooks: [{ type: "command", command: `${line} ${SHELL_GUARD}`, timeout: 10 }] }],
     // As in Claude Code: the turn's line in the background, then a foreground check whose block Codex reads (ADR-0758 D4).
     Stop: [{ hooks: [run(10, true)] }, { hooks: [{ type: "command", command: `${line} ${CLOSE_OUT_REMINDER}`, timeout: 10 }] }],
     UserPromptSubmit: [{ hooks: [run(10)] }],

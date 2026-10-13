@@ -163,8 +163,8 @@ export async function recordYesAfterEdit(harness: string, input: unknown, locate
   }
 }
 
-/** Run `work` with the gate's view of the session's project, when its folder is an approved project on a reachable storytree. */
-async function gated<T>(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, locate: LocateOptions | undefined, home: string, work: (context: GateContext, checkout: string, imports: readonly ImportedFolderPlace[]) => Promise<T>): Promise<T | undefined> {
+/** Run `work` with the gate's view of the session's project, when its folder is an approved project on a reachable storytree (also the shell guard's, shell-guard.ts). */
+export async function gated<T>(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, locate: LocateOptions | undefined, home: string, work: (context: GateContext, checkout: string, imports: readonly ImportedFolderPlace[]) => Promise<T>): Promise<T | undefined> {
   const { route, requireApproval, openNamedProject, ProjectFolderError, importsOf, machineOf } = await import("../routing/index.js");
   const where = route(edit.folder, locate);
   if (where.status !== "routed") return undefined;

@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { connect, type Line } from "@storytree/library";
 
-import { locateStorytree, MARKER_FILE, noteCodexHookRan, registeredHookScripts } from "@storytree/session-management";
+import { locateStorytree, MARKER_FILE, noteCodexHookRan, registeredHookScripts, SHELL_GUARD } from "@storytree/session-management";
 import { withTempDir } from "@storytree/session-management/testing/folders";
 import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 
@@ -104,6 +104,7 @@ interface HookEntry {
 interface Registered {
   matcher: string;
   background: boolean;
+  guard: boolean;
 }
 
 /**
@@ -121,7 +122,7 @@ function storytreeHooks(settings: Record<string, unknown>, script: string, harne
       );
       if (ours === undefined) continue;
       const background = ours.async === true || (ours.args ?? ours.command.split(" ")).includes("--background");
-      (found[event] ??= []).push({ matcher: entry.matcher ?? "", background });
+      (found[event] ??= []).push({ matcher: entry.matcher ?? "", background, guard: (ours.args ?? ours.command.split(" ")).includes(SHELL_GUARD) });
     }
   }
   return found;
@@ -178,6 +179,12 @@ test("8.1 in a throwaway home with only the tool server installed, the first ses
       assert.equal(events.Stop?.[1]?.background, false, `${harness}: and in the foreground at the end of a turn`);
       // The one at each prompt adds the project's definitions for the agent, so the harness waits for it.
       assert.equal(events.UserPromptSubmit?.[0]?.background, false, `${harness}: in the foreground at each prompt`);
+      // After a shell command, finished or failed, it waits for a guard that tells the agent of its changes to imported code (ADR-1015).
+      for (const event of harness === "claude-code" ? ["PostToolUse", "PostToolUseFailure"] : ["PostToolUse"]) {
+        const guards = (events[event] ?? []).filter((entry) => entry.guard);
+        const shells = harness === "claude-code" ? ["Bash", "PowerShell"] : ["Bash"];
+        assert.ok(guards.length === 1 && !guards[0]!.background && shells.every((tool) => runsFor(guards[0], tool, anchored)) && !runsFor(guards[0], edited[0]!, anchored), `${harness}: in the foreground after a shell command (${event}), and no other`);
+      }
     }
     assert.equal(readFileSync(home.codexConfig, "utf8"), CODEX_CONFIG, "Codex's config is untouched");
   });

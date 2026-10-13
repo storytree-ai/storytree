@@ -199,7 +199,8 @@ function reader(root: string, deadline: number): Git {
   return (args, input) => {
     const timeout = deadline - Date.now();
     if (timeout <= 0) throw new Error(`the Git reads took longer than ${OBSERVE_MS} ms`);
-    return execFileSync("git", args, {
+    // Never takes the index lock, whose leftover would block the user's own Git in an imported folder.
+    return execFileSync("git", ["--no-optional-locks", ...args], {
       cwd: root, input, encoding: "utf8", timeout, maxBuffer: 8 * 1024 * 1024,
       stdio: ["pipe", "pipe", "ignore"], windowsHide: true,
     });

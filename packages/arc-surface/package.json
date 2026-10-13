@@ -9,6 +9,15 @@
     "./view": "./src/view/index.ts",
     "./view/styles.css": "./src/view/styles.css"
   },
+  "storytree": {
+    "surfaces": [
+      {
+        "from": "./surfaces",
+        "export": "arcSurfaces",
+        "order": 2
+      }
+    ]
+  },
   "scripts": {
     "typecheck": "tsc -p ."
   },

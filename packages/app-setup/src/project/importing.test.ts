@@ -1,5 +1,5 @@
 /**
- * Capability 12 · Import an existing project: one test per contract 12.1-12.3 in the app setup story (ADR-0993 D1, D2, D6).
+ * Capability 12 · Import an existing project: one test per contract 12.1-12.4 in the app setup story (ADR-0993 D1, D2, D6).
  *
  * The storytree project and the imported folders are throwaway directories. The project is set up on the
  * real Postgres `pnpm test` provides, named with uniqueProjectName(), and its database is dropped
@@ -10,7 +10,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync }
 import path from "node:path";
 import { test } from "node:test";
 
-import { importsOf, machineOf } from "@storytree/session-management";
+import { importsOf, machineOf, recordImport } from "@storytree/session-management";
 import { git, withTempDir } from "@storytree/session-management/testing/folders";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 import { connect, type Library, type SchemaRecord, type Storytree } from "@storytree/library";
@@ -157,5 +157,52 @@ test("12.3 a folder that does not exist, one inside the storytree project, and o
     assert.deepEqual(await library.history(), before, "no story was written");
     assert.deepEqual(await importsOf(storytree, library.name, machineOf(home).id), [], "no import was recorded");
     assert.equal(readFileSync(path.join(inside, "package.json"), "utf8"), JSON.stringify({ name: "lib" }));
+  });
+});
+
+test("12.4 importing again says the commit recorded before and now and the files added, changed and removed between them, and names each explored capability whose covered files are gone, leaving it as it stands", async () => {
+  await withProject(async ({ dir, home, storytree, library }) => {
+    const shop = path.join(dir, "shop");
+    write(shop, { "package.json": { name: "shop" }, "src/a.ts": "export const a = 1;\n", "src/b.ts": "export const b = 1;\n", "src/ui/menu.ts": "export const menu = 1;\n" });
+    git(shop, "init", "-q");
+    git(shop, "add", ".");
+    git(shop, "commit", "-qm", "one");
+    git(shop, "remote", "add", "origin", "https://github.com/shop/shop.git");
+    const one = git(shop, "rev-parse", "HEAD").trim();
+    const first = await importProject({ folder: shop, library, storytree, storytreeHome: home });
+    assert.equal(first.before, undefined, "a first import has nothing before it");
+    assert.equal(first.changes, undefined);
+    assert.deepEqual(first.stranded, []);
+    const [story] = first.added;
+    const menu = await library.addCapability({ title: "Menu", story: story!.id, covers: ["src/ui"] });
+    const bee = await library.addCapability({ title: "Bee", story: story!.id, covers: ["src/b.ts", "src/a.ts"] });
+
+    const same = await importProject({ folder: shop, library, storytree, storytreeHome: home });
+    assert.deepEqual(same.before, { commit: one });
+    assert.equal(same.commit, one);
+    assert.deepEqual(same.changes, { added: [], changed: [], removed: [] }, "the commit did not move");
+
+    write(shop, { "src/a.ts": "export const a = 2;\n", "src/c.ts": "export const c = 1;\n" });
+    rmSync(path.join(shop, "src/b.ts"));
+    rmSync(path.join(shop, "src/ui"), { recursive: true });
+    git(shop, "add", "-A");
+    git(shop, "commit", "-qm", "two");
+    const two = git(shop, "rev-parse", "HEAD").trim();
+    const again = await importProject({ folder: shop, library, storytree, storytreeHome: home });
+    assert.deepEqual(again.before, { commit: one });
+    assert.equal(again.commit, two);
+    assert.deepEqual(again.changes, { added: ["src/c.ts"], changed: ["src/a.ts"], removed: ["src/b.ts", "src/ui/menu.ts"] });
+    assert.deepEqual(again.stranded, [
+      { id: menu.id, title: menu.fields.title, story: story!.id, gone: ["src/ui"] },
+      { id: bee.id, title: bee.fields.title, story: story!.id, gone: ["src/b.ts"] },
+    ].sort((x, y) => x.id.localeCompare(y.id)));
+    assert.deepEqual(((await library.get(bee.id)) as SchemaRecord<"capability"> | null)?.fields.covers, ["src/b.ts", "src/a.ts"], "the re-import reshapes no capability an agent drew");
+    assert.notEqual(await library.get(menu.id), null);
+
+    // A recorded commit git no longer knows: the commits are still said, the files are not.
+    await recordImport(storytree, { project: library.name, machine: machineOf(home).id, machineName: machineOf(home).name, folder: shop, repository: "https://github.com/shop/shop.git", commit: "0".repeat(40) });
+    const unknown = await importProject({ folder: shop, library, storytree, storytreeHome: home });
+    assert.deepEqual(unknown.before, { commit: "0".repeat(40) });
+    assert.equal(unknown.changes, undefined);
   });
 });

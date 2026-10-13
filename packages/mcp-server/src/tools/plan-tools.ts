@@ -6,7 +6,7 @@
  */
 import path from "node:path";
 
-import { importProject, ImportRefusedError } from "@storytree/app-setup/project";
+import { importLines, importProject, ImportRefusedError } from "@storytree/app-setup/project";
 import { CONTRACT_DEFINITION, heldBack, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
 import { z } from "zod";
 
@@ -163,7 +163,7 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "import_project",
-    "Import an existing JavaScript or TypeScript project into this storytree project, when the user asks: its folder is recorded as imported, and each package it declares becomes a mapped story, with no capabilities. Importing again adds new packages and drops gone ones. Nothing is written into the folder.",
+    "Import an existing JavaScript or TypeScript project into this storytree project, when the user asks: its folder is recorded as imported, and each package it declares becomes a mapped story, with no capabilities. Importing again adds new packages and drops gone ones, and says the commit recorded before and now, the files changed between them, and any explored capability whose files are gone, which it leaves for an agent to reshape. Nothing is written into the folder.",
     z.object({ folder: z.string().min(1).describe("The folder of the project to import, absolute or relative to this project's folder") }),
     async ({ folder }, { library, storytree, folder: here }) => {
       const imported = await importProject({ folder: path.resolve(here, folder), library, storytree }).catch((error: unknown) => {
@@ -173,8 +173,17 @@ export function registerPlanTools(define: Define): void {
       if (imported instanceof ImportRefusedError) return { text: imported.message, refused: true };
       const added = imported.added.map((story) => `${quoted(story.title)} (${story.id})`).join(", ");
       return {
-        text: `Imported ${imported.folder}: ${imported.added.length} mapped stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`,
-        data: { folder: imported.folder, added: imported.added.map((story) => story.id), retired: imported.retired, kept: imported.kept },
+        text: [`Imported ${imported.folder}: ${imported.added.length} mapped stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`, ...importLines(imported)].join("\n"),
+        data: {
+          folder: imported.folder,
+          added: imported.added.map((story) => story.id),
+          retired: imported.retired,
+          kept: imported.kept,
+          ...(imported.commit === undefined ? {} : { commit: imported.commit }),
+          ...(imported.before === undefined ? {} : { before: imported.before }),
+          ...(imported.changes === undefined ? {} : { changes: imported.changes }),
+          stranded: imported.stranded,
+        },
       };
     },
   );

@@ -68,7 +68,7 @@ export const importFamily: Family = {
     summary: "record the folder as imported by this project and map each package it declares to a mapped story; again, it adds new packages and drops gone ones; nothing is written into the folder",
     async act(args, context) {
       if (args.words.length !== 1 || args.names.length) throw new Refusal(`usage: storytree ${IMPORT_USAGE}`, { code: 2 });
-      const { importProject, ImportRefusedError } = await import("@storytree/app-setup");
+      const { importLines, importProject, ImportRefusedError } = await import("@storytree/app-setup");
       const folder = path.resolve(context.cwd, args.word(0, "a folder", IMPORT_USAGE));
       const imported = await importProject({ folder, library: await context.library(), storytree: await context.server() }).catch((error: unknown) => {
         throw error instanceof ImportRefusedError ? new Refusal(error.message) : error;
@@ -78,6 +78,7 @@ export const importFamily: Family = {
         `Imported ${imported.folder}${from}: ${imported.added.length} mapped ${imported.added.length === 1 ? "story" : "stories"} added, ${imported.retired.length} retired, ${imported.kept.length} kept as they stand.`,
         ...imported.added.map((story) => `  + ${story.id}  ${story.title}`),
         ...imported.retired.map((id) => `  - ${id}  retired: its package is gone`),
+        ...importLines(imported),
       ];
       return { text: lines.join("\n"), next: [{ command: "storytree tree", why: "see the mapped stories in the plan" }] };
     },

@@ -3,7 +3,11 @@
  * JavaScript or TypeScript project's folder: the folder is recorded on the project beside its trunk, through
  * Session management's recordImport, and each package the folder declares becomes a mapped story, through the
  * library's mapStories, the only way a story is made mapped. Importing again maps the folder afresh. Nothing is
- * written into the imported folder: it is read, and git is only asked where it came from.
+ * written into the imported folder: it is read, and git is only asked where it came from and what changed.
+ *
+ * Importing again runs only these deterministic steps (ADR-0993 D2, D5): it says the commit recorded before and
+ * now, and the files git finds added, changed and removed between them, and names each capability an agent
+ * explored whose covered files are gone, leaving it as it stands: reshaping it is an agent's work.
  *
  * The packages are what the folder declares: pnpm-workspace.yaml's `packages`, else package.json's
  * `workspaces` (a list, or `{ packages }`), each a folder glob; a folder declaring none is one package.
@@ -13,7 +17,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "n
 import path from "node:path";
 
 import type { Library, MappedPackage, Storytree } from "@storytree/library";
-import { findProject, machineOf, recordImport, storytreeHome, trunksOn } from "@storytree/session-management";
+import { findProject, importsOf, machineOf, recordImport, storytreeHome, trunksOn } from "@storytree/session-management";
 
 export interface ImportOptions {
   /** The folder of the project to import. */
@@ -26,7 +30,11 @@ export interface ImportOptions {
   readonly storytreeHome?: string;
 }
 
-/** What one import did: the folder as recorded, where it came from, and the stories mapStories added, retired and kept. */
+/**
+ * What one import did: the folder as recorded, where it came from, and the stories mapStories added, retired and
+ * kept. Imported again: what was recorded before, the files changed since that commit (absent when git cannot
+ * compare the two), and each kept story's explored capability that covers a path no longer in the folder.
+ */
 export interface Imported {
   readonly folder: string;
   readonly repository?: string;
@@ -34,6 +42,24 @@ export interface Imported {
   readonly added: { readonly id: string; readonly title: string }[];
   readonly retired: string[];
   readonly kept: string[];
+  readonly before?: { readonly commit?: string };
+  readonly changes?: FileChanges;
+  readonly stranded: Stranded[];
+}
+
+/** The files, relative to the imported folder and sorted, git finds added, changed and removed between two commits. */
+export interface FileChanges {
+  readonly added: string[];
+  readonly changed: string[];
+  readonly removed: string[];
+}
+
+/** An explored capability whose covered paths, `gone`, are no longer in the imported folder. */
+export interface Stranded {
+  readonly id: string;
+  readonly title: string;
+  readonly story: string;
+  readonly gone: string[];
 }
 
 /** Why a folder cannot be imported. */
@@ -61,15 +87,77 @@ export async function importProject({ folder, library, storytree, storytreeHome:
   if (!existsSync(path.join(at, "package.json"))) throw new ImportRefusedError(`${at} has no package.json at its top, so it holds no JavaScript or TypeScript package to import.`);
   const origin = gitOrigin(at);
   const packages = packagesOf(at);
+  const recorded = (await importsOf(storytree, library.name, machine.id)).find((imported) => imported.folder === at);
   await recordImport(storytree, { project: library.name, machine: machine.id, machineName: machine.name, folder: at, ...origin });
   const mapped = await library.mapStories(origin.repository ?? at, packages);
+  const changes = recorded?.commit !== undefined && origin.commit !== undefined ? changedBetween(at, recorded.commit, origin.commit) : undefined;
   return {
     folder: at,
     ...origin,
     added: mapped.added.map((story) => ({ id: story.id, title: story.fields.title })),
     retired: mapped.retired,
     kept: mapped.kept,
+    ...(recorded === undefined ? {} : { before: recorded.commit === undefined ? {} : { commit: recorded.commit } }),
+    ...(changes === undefined ? {} : { changes }),
+    stranded: mapped.kept.length === 0 ? [] : await strandedIn(library, at, new Set(mapped.kept)),
   };
+}
+
+/** The most file names of each kind importLines lists; the rest are counted. */
+const NAMED = 10;
+
+/** What an import did, as lines for the user: the commit before and now and the files changed between them, then each stranded capability. */
+export function importLines(imported: Imported): string[] {
+  if (imported.before === undefined) return [];
+  const short = (commit: string | undefined): string => commit?.slice(0, 12) ?? "no commit";
+  if (imported.before.commit === undefined && imported.commit === undefined) return ["No commit is recorded: the folder is not a git checkout with a remote.", ...strandedLines(imported)];
+  const lines = [imported.before.commit === imported.commit
+    ? `The commit did not move: ${short(imported.commit)}.`
+    : `The commit moved from ${short(imported.before.commit)} to ${short(imported.commit)}.`];
+  const { changes } = imported;
+  if (changes === undefined) {
+    if (imported.before.commit !== imported.commit) lines.push("Git could not compare the two commits, so the files changed between them are not known.");
+  } else if (imported.before.commit !== imported.commit) {
+    const kinds = [["added", changes.added], ["changed", changes.changed], ["removed", changes.removed]] as const;
+    lines.push(`Files between them: ${kinds.map(([kind, files]) => `${files.length} ${kind}`).join(", ")}.`);
+    for (const [kind, files] of kinds) {
+      if (files.length === 0) continue;
+      const more = files.length - NAMED;
+      lines.push(`  ${kind}: ${files.slice(0, NAMED).join(", ")}${more > 0 ? `, and ${more} more` : ""}`);
+    }
+  }
+  return [...lines, ...strandedLines(imported)];
+}
+
+/** A line for each explored capability whose covered paths are gone. */
+function strandedLines({ stranded }: Imported): string[] {
+  return stranded.map((capability) => `Capability "${capability.title}" (${capability.id}) covers ${capability.gone.join(", ")}, no longer in the folder; it is left as it stands, for an agent to reshape.`);
+}
+
+/** The files git finds added, changed and removed from commit `from` to `to` in `folder`; undefined when it cannot compare them. */
+function changedBetween(folder: string, from: string, to: string): FileChanges | undefined {
+  if (from === to) return { added: [], changed: [], removed: [] };
+  const run = spawnSync("git", ["-C", folder, "diff", "--name-status", "--no-renames", "-z", from, to], { encoding: "utf8", env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } });
+  if (run.status !== 0) return undefined;
+  const changes = { added: [] as string[], changed: [] as string[], removed: [] as string[] };
+  const fields = run.stdout.split("\0");
+  for (let at = 0; at + 1 < fields.length; at += 2) {
+    const status = fields[at]!;
+    const file = fields[at + 1]!;
+    (status === "A" ? changes.added : status === "D" ? changes.removed : changes.changed).push(file);
+  }
+  return { added: changes.added.sort(), changed: changes.changed.sort(), removed: changes.removed.sort() };
+}
+
+/** The capabilities of `stories` whose covered paths are not all in `folder`, by id, each with the paths gone. */
+async function strandedIn(library: Library, folder: string, stories: ReadonlySet<string>): Promise<Stranded[]> {
+  return (await library.list("capability"))
+    .filter((capability) => stories.has(capability.fields.story))
+    .flatMap((capability) => {
+      const gone = (capability.fields.covers ?? []).filter((cover) => !existsSync(path.join(folder, cover)));
+      return gone.length === 0 ? [] : [{ id: capability.id, title: capability.fields.title, story: capability.fields.story, gone }];
+    })
+    .sort((one, other) => one.id.localeCompare(other.id));
 }
 
 /** The packages `root` declares, by folder, each named as its package.json names it (else by its folder). */

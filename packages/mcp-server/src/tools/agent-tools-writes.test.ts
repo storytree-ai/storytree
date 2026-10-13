@@ -1129,6 +1129,41 @@ test("6.58 import_project imports a folder into the project as mapped stories, o
   });
 });
 
+test("6.74 import_project on a folder already imported says the commit recorded before and now, counts the files changed between them naming up to ten of each, and names each explored capability whose files are gone", async () => {
+  await withProject(async ({ folder, library }) => {
+    const shop = path.join(folder, "..", "shop");
+    mkdirSync(path.join(shop, "src"), { recursive: true });
+    writeFileSync(path.join(shop, "package.json"), JSON.stringify({ name: "shop" }));
+    writeFileSync(path.join(shop, "src", "menu.ts"), "export const menu = 1;\n");
+    git(shop, "init", "-q");
+    git(shop, "add", ".");
+    git(shop, "commit", "-qm", "one");
+    git(shop, "remote", "add", "origin", "https://github.com/shop/shop.git");
+    const one = git(shop, "rev-parse", "HEAD").trim();
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const first = await agent.call("import_project", { folder: "../shop" });
+      assert.doesNotMatch(first.text, /commit/, "a first import has no commit before it to compare");
+      const [story] = (await library.list("story")).filter((found) => found.fields.mapped !== undefined);
+      const menu = await library.addCapability({ title: "Menu", story: story!.id, covers: ["src/menu.ts"] });
+      assert.match((await agent.call("import_project", { folder: "../shop" })).text, new RegExp(`The commit did not move: ${one.slice(0, 12)}`));
+
+      for (let file = 1; file <= 12; file += 1) writeFileSync(path.join(shop, "src", `f${String(file).padStart(2, "0")}.ts`), "export {};\n");
+      git(shop, "rm", "-q", "src/menu.ts");
+      git(shop, "add", "-A");
+      git(shop, "commit", "-qm", "two");
+      const two = git(shop, "rev-parse", "HEAD").trim();
+      const again = await agent.call("import_project", { folder: "../shop" });
+      assert.equal(again.isError, false, again.text);
+      assert.match(again.text, new RegExp(`The commit moved from ${one.slice(0, 12)} to ${two.slice(0, 12)}`));
+      assert.match(again.text, /12 added, 0 changed, 1 removed/);
+      assert.match(again.text, /added: src\/f01\.ts, .*src\/f10\.ts, and 2 more/);
+      assert.doesNotMatch(again.text, /f11/);
+      assert.match(again.text, /removed: src\/menu\.ts/);
+      assert.match(again.text, new RegExp(`Menu" \\(${menu.id}\\) covers src/menu\\.ts, no longer in the folder; it is left as it stands`));
+    });
+  });
+});
+
 test("map 3.8 focus answers for a mapped story from the folder this machine imports it from", async () => {
   await withProject(async ({ folder }) => {
     const shop = path.join(folder, "..", "shop");

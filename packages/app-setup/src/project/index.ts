@@ -18,8 +18,8 @@ import { setUpProject, suggestProjectName, unusedName } from "./making.js";
 export { keepOnThisComputer, unusedName };
 export { firstCommit, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, suggestedName, suggestProjectName } from "./making.js";
 export type { RepositoryMade, SetUpOptions } from "./making.js";
-export { ImportRefusedError, importProject } from "./importing.js";
-export type { Imported, ImportOptions } from "./importing.js";
+export { ImportRefusedError, importLines, importProject } from "./importing.js";
+export type { FileChanges, Imported, ImportOptions, Stranded } from "./importing.js";
 export { seedStarterPack, STARTER_PACK_VERSION, STARTER_ROLES, starterPackStatus, starterRolesIn, takeStarterPack, type StarterPackRecord, type StarterPackStatus, type StarterPackTake } from "./starter-pack.js";
 
 /** The project a folder belongs to, or the name no project has yet to suggest for it. The folder need not exist yet. */

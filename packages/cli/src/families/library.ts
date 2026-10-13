@@ -6,7 +6,8 @@
  *
  * - `new` hands the fields to the one library function that writes that kind, and the library
  *   judges them. A new contract skips the numbers its story package's tests carry, and one whose title runs past
- *   LONG_CONTRACT_TITLE characters gets an advisory quoting CONTRACT_DEFINITION, as plan_contract does. Friction and re-steers are not written here: they go through Session management's
+ *   LONG_CONTRACT_TITLE characters gets an advisory quoting CONTRACT_DEFINITION, and its answer names the
+ *   capability's other contracts no numbered test carries yet, as plan_contract does. Friction and re-steers are not written here: they go through Session management's
  *   capture functions (capability 9), whose evidence rules a person meets exactly as an agent does.
  * - A field's value is text, except `true`, `false`, a whole number, or one starting with `[` or
  *   `{`, which are read as JSON (a list of links, a number, a switch). `@file` reads the file.
@@ -189,18 +190,26 @@ const create: Verb = {
     }
     const library = await context.library();
     const fields = fieldsOf(args);
-    const options = kind === "contract" && typeof fields.capability === "string" ? { ...context.writer(), testedNumbers: await testedNumbersOf(context.cwd, library, fields.capability) } : context.writer();
+    const numbers = kind === "contract" && typeof fields.capability === "string" ? await testedNumbersOf(context.cwd, library, fields.capability) : undefined;
+    const options = numbers === undefined ? context.writer() : { ...context.writer(), testedNumbers: numbers.tested };
     const written = await withIdLists(fields, (given) => write(library, given, options));
+    const untested = numbers?.untested ?? [];
+    const open = untested.length === 0 ? "" : `\nNo numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, perhaps planned by a lane that backed off; if this contract repeats one's promise, retire it and build that one:${untested.map((title) => `\n  - ${title}`).join("")}`;
     const long = kind === "contract" && String(fields.title ?? "").length > LONG_CONTRACT_TITLE;
     const advice = long ? `\nIts title runs past ${LONG_CONTRACT_TITLE} characters, which often means more than one promise: ${CONTRACT_DEFINITION} Split it with \`storytree library edit\` and \`storytree library new contract\` if so.` : "";
-    return { text: `Wrote ${kind} ${written.id}.${advice}`, next: [{ command: `storytree library read ${written.id}`, why: "read it back" }] };
+    return { text: `Wrote ${kind} ${written.id}.${open}${advice}`, next: [{ command: `storytree library read ${written.id}`, why: "read it back" }] };
   },
 };
 
-/** The contract numbers `capability`'s story package's numbered tests carry in the checkout `cwd` is in. */
-async function testedNumbersOf(cwd: string, library: Library, capability: string): Promise<string[]> {
-  const [{ checkoutOf }, { testedNumbers }] = await Promise.all([import("@storytree/guardrails"), import("@storytree/map/code-survey")]);
-  return testedNumbers(checkoutOf(cwd), await library.projectTree(), capability);
+/**
+ * The contract numbers `capability`'s story package's numbered tests carry in the checkout `cwd` is in, and the
+ * titles of its planned contracts none of them carries yet.
+ */
+async function testedNumbersOf(cwd: string, library: Library, capability: string): Promise<{ tested: string[]; untested: string[] }> {
+  const [{ checkoutOf }, { testedNumbers, untestedContracts }] = await Promise.all([import("@storytree/guardrails"), import("@storytree/map/code-survey")]);
+  const tree = await library.projectTree();
+  const tested = await testedNumbers(checkoutOf(cwd), tree, capability);
+  return { tested, untested: untestedContracts(tree, capability, tested) };
 }
 
 /** A record as the library returns it. */

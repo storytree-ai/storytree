@@ -389,15 +389,17 @@ export function offThreadSurveyReader(workerFile: string | URL, options: { execA
   const started = (): Worker => {
     if (worker !== undefined) return worker;
     const made = new Worker(workerFile, { execArgv: options.execArgv, workerData: { keep, startFromFetched: options.startFromFetched === true } });
-    made.unref();
     made.on("message", ({ id, survey, error }: { id: number; survey?: ProjectSurvey; error?: string }) => {
       const asked = waiting.get(id);
       waiting.delete(id);
       if (error === undefined) asked?.resolve(survey!);
       else asked?.reject(new Error(error));
+      if (waiting.size === 0) made.unref();
     });
     made.on("error", failAll);
     made.on("exit", (code) => { if (worker === made) failAll(new Error(`the survey worker stopped (exit ${code})`)); });
+    // An idle worker holds no process open; it is unref'd after its listeners, since attaching one refs it again.
+    made.unref();
     worker = made;
     return made;
   };
@@ -406,7 +408,10 @@ export function offThreadSurveyReader(workerFile: string | URL, options: { execA
       return new Promise((resolve, reject) => {
         const id = next++;
         waiting.set(id, { resolve, reject });
-        started().postMessage({ id, folder, tree, imports });
+        const asking = started();
+        // While an ask waits, its answer holds the process open.
+        asking.ref();
+        asking.postMessage({ id, folder, tree, imports });
       });
     },
     async close(): Promise<void> {

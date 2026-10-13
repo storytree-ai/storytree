@@ -84,7 +84,7 @@ test("a folder whose project was deleted (from another computer) is refused by a
   });
 });
 
-test("3.17 storytree import <folder> imports it into the folder's project, saying the mapped stories it added; a refused folder is said with why", async () => {
+test("3.17 storytree import <folder> imports it into the folder's project, saying the mapped stories it added and, imported again, what moved; a refused folder is said with why", async () => {
   await inWorld(command, async ({ elsewhere, run, library }) => {
     const shop = path.join(elsewhere, "shop");
     mkdirSync(shop);
@@ -95,6 +95,9 @@ test("3.17 storytree import <folder> imports it into the folder's project, sayin
     const stories = (await (await library()).list("story")).filter((story) => story.fields.mapped !== undefined);
     assert.deepEqual(stories.map((story) => story.fields), [{ title: "shop", mapped: { from: shop, package: ".", folders: ["."] } }]);
     assert.match(imported.stdout, new RegExp(stories[0]!.id));
+    const again = await run(["import", shop]);
+    assert.equal(again.code, 0, again.stderr);
+    assert.match(again.stdout, /No commit is recorded: the folder is not a git checkout/, "imported again, it says what it recorded");
 
     const refused = await run(["import", path.join(elsewhere, "missing")]);
     assert.notEqual(refused.code, 0);

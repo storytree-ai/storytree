@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, wr
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { macRuntime, NODE_VERSION, stageRuntime, windowsRuntime } from "./runtime.js";
+import { linuxRuntime, macRuntime, NODE_VERSION, stageRuntime, windowsRuntime } from "./runtime.js";
 
 test("1.1 / 1.4: runtime acquisition verifies bytes before replacing a payload", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree runtime "));
@@ -78,6 +78,29 @@ test("1.11: the pinned darwin-arm64 runtime runs on an Apple Silicon Mac", {
   const file = path.join(dir, "storytree.app", "Contents", "Resources", "agent-tools", "node");
   try {
     await stageRuntime(file, macRuntime("arm64"));
+    const result = spawnSync(file, ["--version"], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), `v${NODE_VERSION}`);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("1.11: a Linux runtime is pinned to Node's linux-x64 archive and its executable; x64 only", () => {
+  const pinned = linuxRuntime("x64");
+  assert.equal(pinned.url, `https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz`);
+  assert.equal(pinned.entry, `node-v${NODE_VERSION}-linux-x64/bin/node`);
+  assert.match(pinned.sha256, /^[a-f0-9]{64}$/);
+  assert.match(pinned.executableSha256, /^[a-f0-9]{64}$/);
+  assert.throws(() => linuxRuntime("arm64" as "x64"), /x64/);
+});
+
+test("1.11: the pinned linux-x64 runtime runs on x64 Linux", {
+  skip: (process.platform !== "linux" || process.arch !== "x64") && "platform:linux-x64: only x64 Linux can run Node's linux-x64 build",
+  timeout: 240_000,
+}, async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree linux runtime "));
+  const file = path.join(dir, "linux-unpacked", "resources", "agent-tools", "node");
+  try {
+    await stageRuntime(file, linuxRuntime("x64"));
     const result = spawnSync(file, ["--version"], { encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout.trim(), `v${NODE_VERSION}`);

@@ -43,6 +43,37 @@
 #chapter2 .tour-inset .planet-mini-globe { display:none; }
 @keyframes tour-inset-in { from { opacity:0; transform:scale(.96); transform-origin:top right; } }
 @media (prefers-reduced-motion:reduce) { #chapter2 .tour-inset { animation:none; } }
+/* The diagram (ADR-1018 D7): a drawing in the top left, so its corner says it is not a recording. Its three beats play once over
+   the line it belongs to (--diagram-length): the island, then a decision glued beneath it, then the tunnel of decisions down to
+   the core, one caption at a time beneath. Every part's resting style is the last frame, so with reduced motion it stands still. */
+#chapter2 .tour-diagram { position:absolute; top:var(--overlay-top); left:var(--overlay-side); z-index:60; width:var(--overlay-width); margin:0; overflow:hidden; border:1px solid #3d4748; border-radius:12px; background:#101418; box-shadow:0 8px 30px #0006; pointer-events:none; animation:tour-diagram-in .6s ease both; }
+#chapter2 .tour-diagram-title { padding:.55rem .85rem; border-bottom:1px solid #3d4748; color:#e7e8ea; font:650 13px/1.4 system-ui, sans-serif; }
+#chapter2 .tour-diagram-view { display:block; width:100%; height:auto; max-height:min(300px, 34vh); }
+#chapter2 .tour-diagram-captions { display:grid; margin:0; padding:.45rem .85rem .65rem; color:var(--soft); font:14px/1.4 system-ui, sans-serif; }
+#chapter2 .diagram-caption { grid-area:1 / 1; opacity:0; }
+#chapter2 .diagram-caption-3 { opacity:1; }
+#chapter2 .diagram-globe { fill:#141c21; stroke:#5b7f8c; stroke-width:2; stroke-dasharray:7 6; }
+#chapter2 .diagram-land { fill:var(--green); }
+#chapter2 .diagram-underside { fill:#6b5a46; }
+#chapter2 .diagram-tree { fill:#6f9a5c; }
+#chapter2 .diagram-glue { stroke:#7fb2e5; stroke-width:2; }
+#chapter2 .diagram-decision { fill:#7fb2e5; }
+#chapter2 .diagram-link { stroke:#7fb2e5; stroke-width:1.2; opacity:.55; }
+#chapter2 .diagram-tunnel { fill:none; stroke:#7fb2e5; stroke-width:1; stroke-dasharray:3 5; opacity:.5; }
+#chapter2 .diagram-core { fill:url(#tour-diagram-core); }
+#chapter2 .diagram-loose { fill:#a5c5d1; opacity:.6; }
+#chapter2 .tour-diagram .diagram-beat-1 { animation:tour-diagram-beat .7s ease both; }
+#chapter2 .tour-diagram .diagram-beat-2 { animation:tour-diagram-glue .7s ease calc(var(--diagram-length) * .3) both; }
+#chapter2 .tour-diagram .diagram-beat-3 > :not(.diagram-deeper) { animation:tour-diagram-beat .9s ease calc(var(--diagram-length) * .6) both; }
+#chapter2 .tour-diagram .diagram-deeper { animation:tour-diagram-glue .5s ease calc(var(--diagram-length) * (.6 + var(--deeper) * .25)) both; }
+#chapter2 .tour-diagram .diagram-caption-1 { animation:tour-diagram-caption calc(var(--diagram-length) * .3) ease both; }
+#chapter2 .tour-diagram .diagram-caption-2 { animation:tour-diagram-caption calc(var(--diagram-length) * .3) ease calc(var(--diagram-length) * .3) both; }
+#chapter2 .tour-diagram .diagram-caption-3 { animation:tour-diagram-beat .5s ease calc(var(--diagram-length) * .6) both; }
+@keyframes tour-diagram-in { from { opacity:0; transform:scale(.96); transform-origin:top left; } }
+@keyframes tour-diagram-beat { from { opacity:0; } }
+@keyframes tour-diagram-glue { from { opacity:0; transform:translateY(-10px); } }
+@keyframes tour-diagram-caption { 0%, 100% { opacity:0; } 10%, 90% { opacity:1; } }
+@media (prefers-reduced-motion:reduce) { #chapter2 .tour-diagram, #chapter2 .tour-diagram * { animation:none !important; } }
 /* The mini globe would sit under the corner's overlay, so it steps aside while one shows. */
 #chapter2[data-overlay="right"] .planet-mini-globe { visibility:hidden; }
 #chapter2[data-tour-mode="freeplay"]:has(.tour-session-surface:not([hidden])) .forest-drawing { bottom:calc(var(--bar-h) + var(--tour-sessions, 0px)); }
@@ -87,6 +118,10 @@
  #chapter2[data-overlay-panel="story"] .tour-story-panel .panel-tree-frame { height:min(220px, 30dvh); }
  #chapter2 .tour-inset { top:auto; left:10px; right:10px; bottom:var(--overlay-under); width:auto; transform-origin:bottom center; }
  #chapter2 .tour-inset-view { height:min(230px, 30dvh); }
+ #chapter2 .tour-diagram { top:auto; left:10px; right:10px; bottom:var(--overlay-under); width:auto; }
+ #chapter2 .tour-diagram-view { max-height:min(200px, 26dvh); }
+ @keyframes tour-diagram-in { from { opacity:0; transform:scale(.96); transform-origin:bottom center; } }
+ #chapter2[data-overlay="left"] .planet-mini-globe { visibility:hidden; }
  #chapter2[data-tour-mode="tour"] .arc-overlay { top:auto; left:10px; right:10px; bottom:var(--overlay-under); width:auto; max-height:136px; }
  #chapter2[data-tour-mode="tour"] .arc-overlay .arc-handle { border-radius:12px 12px 0 0; }
 }

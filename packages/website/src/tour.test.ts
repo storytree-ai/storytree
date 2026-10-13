@@ -7,6 +7,9 @@ import { aim, createTour, depthLink, flight, globeOf, groups, insetAt, islandsKe
 import { decisionLabel, freePlayLines, steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
 import { globeSide } from "./tour-camera.js";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { DecisionsDiagram } from "./tour-diagram.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
   id, title: id, explainer, lines, decisions: [], surfaces: {},
@@ -597,4 +600,34 @@ test("2.28 · the parts step plays an inset of signing in in the top right, its 
   assert.deepEqual([1, 2].map(moment => [tinted(moment).territories, tinted(moment).fileCircles ?? false]), [["plain", false], ["plain", true]], "its parts, then its files as dots");
   // A step with no inset has none.
   assert.equal(insetAt(tourSteps.find(item => item.id === "map-claims")!, 3), undefined);
+});
+
+test("2.29 · where the knowledge chapter says decisions sit beneath the map, a drawn diagram plays in the top left with that line, the corner's only overlay, then leaves with the step", () => {
+  const find = (id: string) => tourSteps.find(item => item.id === id)!;
+  const overlays = (item: TourStep) => momentStarts(item).map((_, index) => overlayAt(item, index + 1));
+  const inside = find("knowledge-inside");
+  // It arrives with the third line, and the top left is the drawn corner (ADR-1018 D7).
+  assert.deepEqual(overlays(inside), [undefined, undefined, { panel: "diagram", corner: "left" }]);
+  // Played, it leaves: the next step has none, and no other step draws one.
+  assert.equal(overlays(find("knowledge-shelf")).some(overlay => overlay?.panel === "diagram"), false);
+  assert.deepEqual(tourSteps.filter(item => overlays(item).some(overlay => overlay?.corner === "left")).map(item => item.id), ["knowledge-inside"]);
+  // The globe keeps its place behind it.
+  const { lineViews: _, ...bare } = inside;
+  for (const width of [1440, 1024]) assert.equal(globeSide(inside, width), globeSide(bare, width));
+});
+
+test("2.29 · the diagram plays over its line's length, and draws each decision as the globe places it: the cover beneath the island, each one it stands on deeper, toward the core", () => {
+  const html = renderToStaticMarkup(createElement(DecisionsDiagram, { seconds: 7.7 }));
+  assert.match(html, /--diagram-length:7\.7s/);
+  // Every decision's depth below the surface, in the order drawn: the cover first, then the ones it stands on.
+  const decisions = [...html.matchAll(/<circle class="diagram-decision" cx="([\d.]+)" cy="([\d.]+)"/g)].map(([, x, y]) => ({ x: Number(x), y: Number(y) }));
+  const core = /<circle class="diagram-core" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/.exec(html)!.slice(1).map(Number);
+  const [cover, ...deeper] = decisions;
+  assert.ok(deeper.length >= 3);
+  assert.ok(deeper.every(decision => decision.y > cover!.y), "the cover hangs nearest the island");
+  assert.ok(decisions.every(decision => decision.y < core[1]! - core[2]! / 2), "every decision hangs above the core it tunnels to");
+  // Deeper decisions crowd closer to the island's line, as one turned angle spans less nearer the centre.
+  const spread = (y: number) => Math.max(...decisions.filter(decision => decision.y === y).map(decision => Math.abs(decision.x - cover!.x)));
+  const depths = [...new Set(deeper.map(decision => decision.y))].sort((a, b) => a - b);
+  assert.ok(spread(depths.at(-1)!) < spread(depths[0]!));
 });

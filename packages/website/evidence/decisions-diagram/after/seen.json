@@ -1,0 +1,197 @@
+{
+  "errors": [],
+  "failures": [],
+  "seen": [
+    {
+      "name": "1440-island",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "tour-diagram",
+          "x": 16,
+          "y": 76,
+          "right": 456,
+          "bottom": 451,
+          "width": 440,
+          "height": 375
+        }
+      ],
+      "card": {
+        "x": 58,
+        "y": 524,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 299
+      },
+      "corner": "left",
+      "caption": [
+        "An island: one story on the globe."
+      ]
+    },
+    {
+      "name": "1440-glued",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "tour-diagram",
+          "x": 16,
+          "y": 76,
+          "right": 456,
+          "bottom": 451,
+          "width": 440,
+          "height": 375
+        }
+      ],
+      "card": {
+        "x": 58,
+        "y": 524,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 299
+      },
+      "corner": "left",
+      "caption": [
+        "A decision is glued beneath it."
+      ]
+    },
+    {
+      "name": "1440-tunnel",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "tour-diagram",
+          "x": 16,
+          "y": 76,
+          "right": 456,
+          "bottom": 451,
+          "width": 440,
+          "height": 375
+        }
+      ],
+      "card": {
+        "x": 58,
+        "y": 524,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 299
+      },
+      "corner": "left",
+      "caption": [
+        "What it stands on goes deeper: a tunnel down to the core."
+      ]
+    },
+    {
+      "name": "1440-after",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [],
+      "card": {
+        "x": 58,
+        "y": 651,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 172
+      },
+      "caption": []
+    },
+    {
+      "name": "390-tunnel",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "tour-diagram",
+          "x": 10,
+          "y": 105,
+          "right": 380,
+          "bottom": 401,
+          "width": 370,
+          "height": 296
+        }
+      ],
+      "card": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "corner": "left",
+      "caption": [
+        "What it stands on goes deeper: a tunnel down to the core."
+      ]
+    },
+    {
+      "name": "1440-reduced",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "tour-diagram",
+          "x": 16,
+          "y": 76,
+          "right": 456,
+          "bottom": 451,
+          "width": 440,
+          "height": 375
+        }
+      ],
+      "card": {
+        "x": 58,
+        "y": 524,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 299
+      },
+      "corner": "left",
+      "caption": [
+        "What it stands on goes deeper: a tunnel down to the core."
+      ]
+    }
+  ]
+}

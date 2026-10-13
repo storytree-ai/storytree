@@ -300,7 +300,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
         }
       }
       const files = map === undefined ? sources : [...sources, map];
-      const packages = JSON.stringify(read.filter(pkg => Object.keys(pkg.exports).length > 0).map(({ root, name, exports }) => ({ root, name, exports })));
+      const packages = JSON.stringify(read.filter(pkg => Object.keys(pkg.exports).length > 0 || Object.keys(pkg.imports).length > 0).map(({ root, name, exports, imports }) => ({ root, name, exports, imports })));
       if (last !== undefined && last.capabilities === capabilities && last.packages === packages && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read, sources.map(inRepository), base] as const];
       const coverage = map === undefined ? {} : coverageFrom(map.text);
       const measured = surveyStory(

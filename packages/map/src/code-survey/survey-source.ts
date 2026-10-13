@@ -13,7 +13,7 @@ export const SKIPPED = new Set(["node_modules", "dist", "out", "evidence"]);
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"] as const;
 
 /** A package.json's name and the packages it depends on through any field; undefined when it cannot be read. */
-export function manifestFrom(text: string): { name: string; deps: string[]; exports: SurveyPackage["exports"] } | undefined {
+export function manifestFrom(text: string): { name: string; deps: string[]; exports: SurveyPackage["exports"]; imports: NonNullable<SurveyPackage["imports"]> } | undefined {
   try {
     const parsed = JSON.parse(text) as Record<string, unknown>;
     if (typeof parsed.name !== "string") return undefined;
@@ -26,7 +26,12 @@ export function manifestFrom(text: string): { name: string; deps: string[]; expo
       (key === "." || key.startsWith("./")) && !key.includes("*") && typeof target === "string" && target.startsWith("./")
       && !target.includes("*") && !target.split("/").slice(1).some(part => part === ".." || part === "node_modules"),
     ) as [string, string][] : [];
-    return { name: parsed.name, deps: [...new Set(deps)], exports: Object.fromEntries(literal) };
+    // Its own '#' imports, read the same way: a literal key mapped to a literal file inside the package.
+    const own = typeof parsed.imports === "object" && parsed.imports !== null ? Object.entries(parsed.imports).filter(([key, target]) =>
+      key.startsWith("#") && !key.includes("*") && typeof target === "string" && target.startsWith("./")
+      && !target.includes("*") && !target.split("/").slice(1).some(part => part === ".." || part === "node_modules"),
+    ) as [string, string][] : [];
+    return { name: parsed.name, deps: [...new Set(deps)], exports: Object.fromEntries(literal), imports: Object.fromEntries(own) };
   } catch {
     return undefined;
   }

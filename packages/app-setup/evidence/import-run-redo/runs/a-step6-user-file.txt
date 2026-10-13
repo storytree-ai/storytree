@@ -1,0 +1,17 @@
+=== before 2026-10-13T12:18:31.0501084+11:00 HEAD ce6537d7
+  Depth 1: capability 2, file 284, story 1
+  Mapped: 285
+warning: in the working copy of 'lib/owner-note.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/owner-note.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/owner-note.ts', LF will be replaced by CRLF the next time Git touches it
+committed: 59eaecfa lib: the owner's note
+=== after, no import 2026-10-13T12:18:33.1066759+11:00 HEAD 59eaecfa
+  Depth 1: capability 2, file 285, story 1
+  Mapped: 286
+node.exe : Map selection not found: file:../viewer-for-reddit/lib/owner-note.ts
+At C:\Users\mickh\st-redo\st.ps1:7 char:1
++ & "$t\node.exe" "$t\storytree.mjs" @r
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Map selection n...b/owner-note.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

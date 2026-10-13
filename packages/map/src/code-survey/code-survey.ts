@@ -9,6 +9,7 @@
  *   nearest (fewest ordinary imports away), then most; a tie goes to the lower number. So a test's own
  *   subject stays its own, and a file reached only through others goes to the capability nearest it.
  * - A CommonJS `require("…")` of a relative file or the package's own exported subpath is an ordinary import (8.12).
+ * - A `#name` its package.json's imports field maps literally to a file of the package is an ordinary import of it (8.28).
  * - A test file that runs an imported behaviour suite (a file it reaches by value that imports node:test
  *   itself) carries the numbered titles the suite registers, for its proofs and its reach (8.14).
  * - A package-prefixed title proves that package's numbered contracts (ADR-0845). A foreign prefix
@@ -39,7 +40,7 @@ export { packageOf };
 export type SourceFile = { readonly path: string; readonly text: string; readonly testSupport?: boolean };
 
 /** A package's literal exports, in the same coordinates as its source files. */
-export type SurveyPackage = { readonly root: string; readonly name: string; readonly exports: Readonly<Record<string, string>> };
+export type SurveyPackage = { readonly root: string; readonly name: string; readonly exports: Readonly<Record<string, string>>; readonly imports?: Readonly<Record<string, string>> };
 
 /** A capability as the survey needs it: its id and its numbered title ("3 · Claims"). */
 export type SurveyCapability = { readonly id: string; readonly title: string };
@@ -211,7 +212,7 @@ function resolve(from: string, specifier: string, paths: ReadonlySet<string>, pa
     const own = packages.find(pkg => from.startsWith(pkg.root));
     if (own === undefined) return undefined;
     const subpath = specifier === own.name ? "." : specifier.startsWith(own.name + "/") ? "." + specifier.slice(own.name.length) : undefined;
-    const target = subpath === undefined ? undefined : own.exports[subpath];
+    const target = specifier.startsWith("#") ? own.imports?.[specifier] : subpath === undefined ? undefined : own.exports[subpath];
     if (target === undefined) return undefined;
     return resolve(own.root + "package.json", target, paths, []);
   }

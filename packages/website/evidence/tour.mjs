@@ -112,19 +112,21 @@ export async function verifyTourCamera(browser, url) {
     if (!pathway) failures.push("The pathways are explained where they are drawn");
     const stories = await settled();
     if (distance(empty, stories) > 6) failures.push(`The first three steps keep one view: ${JSON.stringify({ empty, stories })}`);
-    // 2.16: the camera flies into signing in as capabilities are named; the dots, then the panel, follow with no move.
+    // 2.16, 2.28: the globe holds the four stories while an inset of signing in plays its parts and its dots; then the panel.
     await step("map-capabilities");
     await page.waitForTimeout(3500);
     const inside = await settled();
-    if (distance(stories, inside) < 30) failures.push(`The camera flies into signing in for its capabilities: ${JSON.stringify({ stories, inside })}`);
+    if (distance(stories, inside) > 6) failures.push(`The globe keeps the four stories while the inset plays: ${JSON.stringify({ stories, inside })}`);
+    if (!await page.locator(".tour-inset").isVisible()) failures.push("An inset of signing in plays in the corner");
     assert.equal(await page.locator(".story-panel").count(), 0, "2.16: the capabilities and their dots arrive before the panel");
     if (await page.locator("#tour-lines .tour-line").count() !== 1) failures.push("The capabilities step says one line");
     await moment(3);
     await page.locator(".story-panel").waitFor({ state: "visible" });
     assert.match(await page.locator(".story-panel").textContent(), /Signing in.*Session/s, "2.16: the real story panel opens at the step's third moment");
     const pointed = await page.locator('.tour-arc-pointer[data-label="panel"]:not(.away) .tour-tag-text').textContent({ timeout: 5000 }).catch(() => undefined);
-    if (pointed !== "how its capabilities work together") failures.push(`The panel is pointed out as it opens: ${pointed}`);
+    if (pointed !== "how its parts work together") failures.push(`The panel is pointed out as it opens: ${pointed}`);
     if (distance(inside, await signingIn()) > 6) failures.push(`The panel opens with no camera move: ${JSON.stringify({ inside, now: await signingIn() })}`);
+    if (await page.locator(".tour-inset").count()) failures.push("The inset has gone when the panel takes its corner");
     // 2.16: back to the four stories for the claims; the arcs panel, then the sessions list, on their lines.
     await step("map-claims");
     await page.waitForTimeout(3500);

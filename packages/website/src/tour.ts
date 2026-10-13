@@ -63,7 +63,10 @@ export type TourStep = {
   phone?: { target?: GlobeTarget; framing: number; side: number; narrow?: number; narrowFraming?: number };
   /** A story selected so its dependency lanes draw on. */
   select?: string;
-  panel?: "story" | "arcs" | "sessions" | "knowledge" | "note";
+  panel?: "story" | "arcs" | "sessions" | "knowledge" | "note" | "inset";
+  /** The island the "inset" panel shows close up, and how close (ADR-1018 D7): the globe keeps its own view behind it. A story
+   * panel the step opens later is this island's. */
+  inset?: { target: GlobeTarget; framing: number };
   /** The library note whose card the "note" panel opens. */
   note?: string;
   /** The recorded session whose reads the knowledge core draws while the step shows. */
@@ -238,6 +241,13 @@ export type Overlay = { panel: Exclude<TourStep["panel"], undefined | "knowledge
 export function overlayAt(step: TourStep, moments: number): Overlay | undefined {
   const panel = moments >= (step.panelFromLine ?? 1) ? stepAt(step, moments).panel : undefined;
   return panel && panel !== "knowledge" ? { panel, corner: "right" } : undefined;
+}
+/**
+ * The inset on show once `moments` are told (ADR-1018 D7, D10): while the step's overlay is its inset, the island it shows close
+ * up, how close, and the labels of the current moment, which point into the inset rather than the globe behind it.
+ */
+export function insetAt(step: TourStep, moments: number, options: { width?: number; still?: boolean } = {}): (NonNullable<TourStep["inset"]> & { labels: readonly Label[] }) | undefined {
+  return overlayAt(step, moments)?.panel === "inset" && step.inset ? { ...step.inset, labels: labelsAt(step, moments, options) } : undefined;
 }
 /** Where the camera faces once `lines` lines are told, on a laptop (`wide`) or a phone. */
 export function viewOf(step: TourStep, lines: number, wide: boolean): CameraView & { side?: number; narrow?: number } {

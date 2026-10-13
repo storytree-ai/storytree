@@ -35,6 +35,14 @@
 #chapter2[data-tour-mode="tour"] { --overlay-top:76px; --overlay-side:16px; --overlay-width:min(440px, 34vw); --overlay-height:min(440px, calc(100% - var(--bar-h) - 100px)); }
 #chapter2[data-overlay-panel="sessions"] .sessions-list { top:var(--overlay-top); right:var(--overlay-side); left:auto; bottom:auto; width:var(--overlay-width); max-height:var(--overlay-height); z-index:60; border:1px solid #3d4748; border-radius:12px; }
 #chapter2[data-overlay-panel="story"] .tour-story-panel { top:var(--overlay-top); right:var(--overlay-side); bottom:auto; width:var(--overlay-width); max-height:calc(100% - var(--bar-h) - 100px); z-index:60; }
+/* The inset (ADR-1018 D7): an island close up in the corner's box, a second view of the globe behind it, named above it. It is
+   watched, not handled, so the visitor's hand passes through it to the globe; it fades in as it arrives. */
+#chapter2 .tour-inset { position:absolute; top:var(--overlay-top); right:var(--overlay-side); z-index:60; width:var(--overlay-width); margin:0; overflow:hidden; border:1px solid #3d4748; border-radius:12px; background:#101418; box-shadow:0 8px 30px #0006; pointer-events:none; animation:tour-inset-in .6s ease both; }
+#chapter2 .tour-inset-title { padding:.55rem .85rem; border-bottom:1px solid #3d4748; color:#e7e8ea; font:650 13px/1.4 system-ui, sans-serif; }
+#chapter2 .tour-inset-view { position:relative; height:min(340px, 40vh); }
+#chapter2 .tour-inset .planet-mini-globe { display:none; }
+@keyframes tour-inset-in { from { opacity:0; transform:scale(.96); transform-origin:top right; } }
+@media (prefers-reduced-motion:reduce) { #chapter2 .tour-inset { animation:none; } }
 /* The mini globe would sit under the corner's overlay, so it steps aside while one shows. */
 #chapter2[data-overlay="right"] .planet-mini-globe { visibility:hidden; }
 #chapter2[data-tour-mode="freeplay"]:has(.tour-session-surface:not([hidden])) .forest-drawing { bottom:calc(var(--bar-h) + var(--tour-sessions, 0px)); }
@@ -77,6 +85,8 @@
  #chapter2[data-overlay-panel="story"] .tour-story-panel { max-height:min(320px, 44%); padding:.7rem .85rem; }
  #chapter2[data-overlay-panel="story"] .tour-story-panel .panel-sentences { display:none; }
  #chapter2[data-overlay-panel="story"] .tour-story-panel .panel-tree-frame { height:min(220px, 30dvh); }
+ #chapter2 .tour-inset { top:auto; left:10px; right:10px; bottom:var(--overlay-under); width:auto; transform-origin:bottom center; }
+ #chapter2 .tour-inset-view { height:min(230px, 30dvh); }
  #chapter2[data-tour-mode="tour"] .arc-overlay { top:auto; left:10px; right:10px; bottom:var(--overlay-under); width:auto; max-height:136px; }
  #chapter2[data-tour-mode="tour"] .arc-overlay .arc-handle { border-radius:12px 12px 0 0; }
 }

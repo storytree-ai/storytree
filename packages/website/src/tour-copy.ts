@@ -75,7 +75,6 @@ const signingIn = story(signingInId);
 const whole = 1.32;
 // The map chapter's two views: the four stories, and close on signing in.
 const shop = { target: browsing, framing: whole, phone: { target: browsing, framing: 1.3, side: 0 } };
-const near = { target: signingIn, framing: .8, phone: { target: signingIn, framing: 1.05, side: 0 } };
 // The knowledge chapter's globe: the map chapter's, held where it ends (the 03:08:57 survey), with its notes beneath the land. Its
 // records are read at 03:06, once the session building orders has read checkout's shelf (03:04) and claimed its parts (03:05).
 const kept = { map: "shop" as const, growth: { seconds: 1, stage: "pr7-building", until: "pr7-building" }, sessionsAt: "2026-10-05T03:06:00.000Z" };
@@ -180,17 +179,19 @@ export const steps: TourStep[] = [
     4: [{ target: cart, text: "a story", narrowest: 601 }, { target: checkout, text: "a story", narrowest: 601 }],
     5: [{ target: { kind: "pathway", link: "capability_ed214990be99->capability_ae20917d7a32", along: .2 }, text: "a pathway: the cart needs signing in", narrowest: 390 }] } },
   // Signing in's and browsing's code reached the map when their pull request merged (02:06); the cart and checkout have none yet,
-  // so each of their planned capabilities has an equal share of the island. The owner's one line; the territories, then the file
-  // dots, then the story panel, each a moment within it with a label on what arrives.
+  // so each of their planned capabilities has an equal share of the island. The owner's one line; the globe stays on the four
+  // stories while an inset of signing in plays in the top right (ADR-1018 D7, D10): its territories, then its file dots, each a
+  // moment with one label; then the inset goes and the story panel takes its corner.
   { id: "map-capabilities", explainer: "map", template: "narrated", map: "shop", cues: [4.5, 7.5], growth: { seconds: 7, stage: `land-${shopServer}`, until: "pr1" }, title: "Parts and your code.", lines: [
     // ★
     "Each story shows the parts that make it work.",
   ], how: "Each story is broken into the parts that make it work, and each part's territory arrives in the order the agent built it, signing in's shop server first. Parts hold your code: each dot is a file, sized by its lines, in the part whose tests reach it. The cart and checkout have no code yet, so each of their planned parts has an equal share of the island, with no dots. Select a story and a panel shows how its parts work together: what each one is, and what depends on what.",
   why: "You can see where the code went and which promises it serves, without opening a file.",
-  decisions: [], surfaces: { ...plain, roads: true }, lineSurfaces: { 2: { ...files, roads: true } }, ...near, panel: "story", panelFromLine: 3,
-  // Signing in's largest file in the survey its code arrived with (02:06).
-  labels: { 1: [{ target: { kind: "capability", capability: shopServer }, text: "a part", narrowest: 601 }],
-    2: [{ target: { kind: "file", story: signingInId, path: "src/server/server.js" }, read: "file", text: "each dot is a file", narrowest: 390 }],
+  decisions: [], surfaces: { ...plain, roads: true }, lineSurfaces: { 2: { ...files, roads: true } }, ...shop,
+  panel: "inset", inset: { target: signingIn, framing: .32 }, lineViews: { 3: { panel: "story" } },
+  // Signing in's largest file in the survey its code arrived with (02:06), said as what the visitor gets (D10).
+  labels: { 1: [{ target: { kind: "capability", capability: shopServer }, text: "a part, as your agent built it" }],
+    2: [{ target: { kind: "file", story: signingInId, path: "src/server/server.js" }, read: "file", text: "your code, without opening a file" }],
     3: [{ point: "panel", text: "how its parts work together" }] } },
   // The record: three sessions claimed browsing's, the cart's and checkout's capabilities between 02:28:12 and 02:28:27. The flags
   // drop with the first line; the arcs panel and then the sessions list read the record at 02:28:30.

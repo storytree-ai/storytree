@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { aim, createTour, depthLink, flight, globeOf, groups, islandsKeptOff, labelsAt, labelWords, lineStarts, linesOn, momentStarts, overlayAt, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
+import { aim, createTour, depthLink, flight, globeOf, groups, insetAt, islandsKeptOff, labelsAt, labelWords, lineStarts, linesOn, momentStarts, overlayAt, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
 import { decisionLabel, freePlayLines, steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
 import { globeSide } from "./tour-camera.js";
@@ -247,10 +247,10 @@ test("2.16 · the map chapter plays six steps in the owner's order: the beginnin
   assert.deepEqual((stories!.growth as { beats: unknown }).beats, [{ line: 2, stage: "planned" }, { line: 3, stage: "risen-browsing" }, { line: 4, stage: "risen-round" }, { line: 5, stage: "pathways" }]);
   assert.deepEqual([1, 2, 3, 4, 5].map(moment => tinted(stories!, moment).roads), [false, false, false, false, true]);
   assert.ok(!tinted(stories!, 5).territories, "nothing is drawn inside an island");
-  // Step 4: one line, the owner's; the capabilities, then the dots, then the panel, each a moment within it.
+  // Step 4: one line, the owner's; the capabilities, then the dots, both in the inset, then the panel, each a moment within it.
   assert.deepEqual(capabilities!.lines, ["Each story shows the parts that make it work."]);
   assert.deepEqual([tinted(capabilities!, 1).territories, tinted(capabilities!, 1).fileCircles, tinted(capabilities!, 2).fileCircles], ["plain", false, true]);
-  assert.deepEqual(panels(capabilities!), [undefined, undefined, "story"]);
+  assert.deepEqual(panels(capabilities!), ["inset", "inset", "story"]);
   // Step 5: the flags, then the arcs panel, then the sessions list, read as the flags stand (after 02:28:27, before 02:29:25).
   assert.deepEqual(panels(claims!), [undefined, "arcs", "sessions"]);
   assert.ok(claims!.sessionsAt! > "2026-10-05T02:28:27" && claims!.sessionsAt! < "2026-10-05T02:29:25");
@@ -260,21 +260,13 @@ test("2.16 · the map chapter plays six steps in the owner's order: the beginnin
   assert.deepEqual(health!.compare?.sources.map(source => source?.name), ["VS Code docs", "Aider docs", undefined], "the comparison with file-browsing tools closes the chapter");
 });
 
-test("2.16 · across the map chapter the camera moves twice: into signing in for its capabilities, and back to the four stories for the claims", () => {
+test("2.16 · across the map chapter the camera holds the four stories once they have risen: the parts step shows its island in an inset, not by flying in", () => {
   const chapter = tourSteps.filter(item => item.explainer === "map");
+  const [, , stories] = chapter;
   for (const wide of [true, false]) {
-    const moves: string[] = [];
-    let before: string | undefined;
-    for (const item of chapter) item.lines.forEach((_, index) => {
-      const view = JSON.stringify(viewOf(item, index + 1, wide));
-      if (before !== undefined && view !== before) moves.push(`${item.id}:${index + 1}`);
-      before = view;
-    });
-    assert.deepEqual(moves, ["map-capabilities:1", "map-claims:1"], wide ? "laptop" : "phone");
+    const views = chapter.slice(2).flatMap(item => momentStarts(item).map((_, index) => JSON.stringify(viewOf(item, index + 1, wide))));
+    assert.deepEqual([...new Set(views)], [JSON.stringify(viewOf(stories!, 1, wide))], wide ? "laptop" : "phone");
   }
-  const [, , stories, capabilities, claims] = chapter;
-  assert.deepEqual(viewOf(capabilities!, 1, true).target, { kind: "story", story: "story_d263ef0f3f72" }, "it flies into signing in");
-  assert.deepEqual(viewOf(claims!, 1, true), viewOf(stories!, 1, true), "and back to the view of the four stories");
 });
 
 test("2.16 · a replay can hold a stage until a line begins, and stops short of the stage it runs until", () => {
@@ -392,8 +384,8 @@ test("2.21 · each map line labels the one thing it talks about, in words true t
   assert.deepEqual(said("map-stories", 5), [`${JSON.stringify({ kind: "pathway", link: "capability_ed214990be99->capability_ae20917d7a32", along: .2 })} a pathway: the cart needs signing in`]);
   // Capabilities: the first territory as it arrives, then the largest of signing in's files, saying each dot is a file; then the
   // story panel, pointed out as it opens.
-  assert.deepEqual(said("map-capabilities", 1), [`${JSON.stringify({ kind: "capability", capability: "capability_323895c5a414" })} a part`]);
-  assert.deepEqual(said("map-capabilities", 2), [`${JSON.stringify({ kind: "file", story: signIn, path: "src/server/server.js" })} each dot is a file: server.js · 110 lines`]);
+  assert.deepEqual(said("map-capabilities", 1), [`${JSON.stringify({ kind: "capability", capability: "capability_323895c5a414" })} a part, as your agent built it`]);
+  assert.deepEqual(said("map-capabilities", 2), [`${JSON.stringify({ kind: "file", story: signIn, path: "src/server/server.js" })} your code, without opening a file: server.js · 110 lines`]);
   assert.deepEqual(said("map-capabilities", 3), ["point:panel"]);
   // Claims: the first flag, named by the session that planted it; the arcs line has none; the sessions list is pointed out, not labelled.
   assert.deepEqual(said("map-claims", 1, 2), [`${JSON.stringify({ kind: "capability", capability: "capability_f29c62742cce" })} Part 2: product page, sorting, cart`]);
@@ -412,10 +404,11 @@ test("2.21 · each map line labels the one thing it talks about, in words true t
     assert.ok(next.every(label => !now.includes(label)), `${step.id} ${line}: gone when the line passes`);
     if (step.explainer !== "map") assert.deepEqual(now, [], step.id);
   }
-  // On a phone, at most one label on the globe in a step; the narrowest keeps fewer still.
-  const onPhone = (width: number) => tourSteps.map(step => new Set(momentStarts(step).flatMap((_, line) => labelsAt(step, line + 1, { width }).flatMap(label => "point" in label ? [] : [label.target.kind]))).size);
+  // On a phone, at most one label on the globe in a step; the narrowest keeps fewer still. An inset's labels are its own (2.28).
+  const onPhone = (width: number) => tourSteps.map(step => new Set(momentStarts(step).flatMap((_, line) => insetAt(step, line + 1) ? []
+    : labelsAt(step, line + 1, { width }).flatMap(label => "point" in label ? [] : [label.target.kind]))).size);
   assert.ok(onPhone(390).every(count => count <= 1));
-  assert.deepEqual([onPhone(1440), onPhone(390), onPhone(320)].map(counts => counts.reduce((sum, count) => sum + count, 0)), [6, 3, 1]);
+  assert.deepEqual([onPhone(1440), onPhone(390), onPhone(320)].map(counts => counts.reduce((sum, count) => sum + count, 0)), [4, 2, 1]);
 });
 
 test("2.21 · a moment within a line brings its own labels, surfaces and panel, and a waiting step shows every label its last line brings", () => {
@@ -573,7 +566,7 @@ test("2.27 · a step's real panels play one at a time as an overlay in the top r
   const overlays = (item: TourStep) => momentStarts(item).map((_, index) => overlayAt(item, index + 1));
   const right = (panel: string) => ({ panel, corner: "right" });
   assert.deepEqual(overlays(find("map-arcs")), [right("arcs")]);
-  assert.deepEqual(overlays(find("map-capabilities")), [undefined, undefined, right("story")], "the story panel arrives with the moment that names it");
+  assert.deepEqual(overlays(find("map-capabilities")), [right("inset"), right("inset"), right("story")], "the inset plays, then the story panel arrives with the moment that names it");
   assert.deepEqual(overlays(find("map-claims")), [undefined, right("arcs"), right("sessions")], "the plans list gives way to the sessions list: one at a time");
   // The globe keeps its place as an overlay arrives: it may cover the globe, because it plays and then goes (ADR-1018 D6).
   const unpanelled = (item: TourStep): TourStep => { const { panel: _, panelFromLine: __, panelRoom: ___, lineViews: ____, ...rest } = item; return rest; };
@@ -586,4 +579,22 @@ test("2.27 · a step's real panels play one at a time as an overlay in the top r
   const shelf = find("knowledge-shelf");
   assert.deepEqual(overlays(shelf), [undefined, right("note")]);
   assert.ok(globeSide(shelf, 1440) < globeSide(unpanelled(shelf), 1440));
+});
+
+test("2.28 · the parts step plays an inset of signing in in the top right, its parts and then its files, each with one plain label, before the story panel takes the corner", () => {
+  const capabilities = tourSteps.find(item => item.id === "map-capabilities")!;
+  const signingIn = { kind: "story", story: "story_d263ef0f3f72" };
+  const shown = (moment: number, width: number) => insetAt(capabilities, moment, { width });
+  for (const width of [1440, 390]) {
+    // The island close up, while its parts and then its files arrive; each moment one label, pointing into the inset.
+    assert.deepEqual([1, 2].map(moment => shown(moment, width)?.target), [signingIn, signingIn], `${width}px`);
+    assert.deepEqual([1, 2].map(moment => shown(moment, width)!.labels.map(label => "target" in label && label.target.kind)), [["capability"], ["file"]], `${width}px: one label at a time`);
+    // Played, it leaves: the story panel takes the corner, on the inset's island.
+    assert.equal(shown(3, width), undefined);
+  }
+  assert.ok(shown(1, 1440)!.framing < 1, "close up: the island fills the inset");
+  const tinted = (moment: number) => Object.entries(capabilities.lineSurfaces ?? {}).reduce((on, [from, next]) => moment >= Number(from) ? next : on, capabilities.surfaces);
+  assert.deepEqual([1, 2].map(moment => [tinted(moment).territories, tinted(moment).fileCircles ?? false]), [["plain", false], ["plain", true]], "its parts, then its files as dots");
+  // A step with no inset has none.
+  assert.equal(insetAt(tourSteps.find(item => item.id === "map-claims")!, 3), undefined);
 });

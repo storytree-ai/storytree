@@ -1,0 +1,183 @@
+{
+  "errors": [],
+  "failures": [],
+  "cost": {
+    "cpu ×1": {
+      "one globe growing (the stories step)": {
+        "fps": 60.1,
+        "busy": "16%",
+        "canvases": 1
+      },
+      "globe growing and inset": {
+        "fps": 57.6,
+        "busy": "51%",
+        "canvases": 2
+      },
+      "globe and story panel": {
+        "fps": 60.3,
+        "busy": "15%",
+        "canvases": 1
+      }
+    },
+    "cpu ×4": {
+      "one globe growing (the stories step)": {
+        "fps": 60.3,
+        "busy": "61%",
+        "canvases": 1
+      },
+      "globe growing and inset": {
+        "fps": 48.2,
+        "busy": "111%",
+        "canvases": 2
+      },
+      "globe and story panel": {
+        "fps": 60.3,
+        "busy": "61%",
+        "canvases": 1
+      }
+    }
+  },
+  "seen": [
+    {
+      "name": "1440-parts",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "tour-inset",
+          "x": 984,
+          "y": 76,
+          "right": 1424,
+          "bottom": 455,
+          "width": 440,
+          "height": 379
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 718,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 105
+      },
+      "inset": "Signing in, up close",
+      "globeTags": [],
+      "insetTags": [
+        "a part, as your agent built it"
+      ],
+      "canvases": 2
+    },
+    {
+      "name": "1440-files",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "tour-inset",
+          "x": 984,
+          "y": 76,
+          "right": 1424,
+          "bottom": 455,
+          "width": 440,
+          "height": 379
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 718,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 105
+      },
+      "inset": "Signing in, up close",
+      "globeTags": [],
+      "insetTags": [
+        "your code, without opening a file: server.js · 110 lines"
+      ],
+      "canvases": 2
+    },
+    {
+      "name": "1440-panel",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "story-panel",
+          "x": 984,
+          "y": 76,
+          "right": 1424,
+          "bottom": 592,
+          "width": 440,
+          "height": 516
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 718,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 105
+      },
+      "globeTags": [],
+      "insetTags": [],
+      "canvases": 1
+    },
+    {
+      "name": "390-files",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "tour-inset",
+          "x": 10,
+          "y": 132,
+          "right": 380,
+          "bottom": 401,
+          "width": 370,
+          "height": 269
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "inset": "Signing in, up close",
+      "globeTags": [],
+      "insetTags": [
+        "your code, without opening a file: server.js · 110 lines"
+      ],
+      "canvases": 2
+    }
+  ]
+}

@@ -14,7 +14,7 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { aim, globeOf, islandsKeptOff, labelsAt, labelWords, momentStarts, overlayAt, placeTags, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { aim, globeOf, insetAt, islandsKeptOff, labelsAt, labelWords, momentStarts, overlayAt, placeTags, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type Label, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
 import { createCameraPlayer, freePlayFraming, globeSide, viewFraming } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, recordedView, savedReading } from "./tour-reading.js";
@@ -215,6 +215,60 @@ function PanelPointer({ text, row: rowAt, within, label: name, under = false }: 
   </div>;
 }
 
+/**
+ * The inset (ADR-1018 D7, D10): a second live view of the globe on show, close on one island, in the stage's top right, or a
+ * full-width card above the caption on a phone (D9). It draws the same frame of the recorded growth as the globe behind it, with
+ * the same engine, so the island's parts and then its files arrive as the shop's agents built them, and the current moment's one
+ * label points into it. It is watched, not handled: the visitor's hand stays on the globe behind it.
+ */
+function Inset({ title, target, framing, labels, view }: { title: string; target: GlobeTarget; framing: number; labels: readonly ShownLabel[];
+  view: Pick<Parameters<typeof PlanetView>[0], "core" | "scene" | "places" | "frame" | "growth" | "surfaces"> }) {
+  const [controls, setControls] = useState<GlobeControls>();
+  const host = useRef<HTMLDivElement>(null), tags = useRef(new Map<string, HTMLDivElement>());
+  const surfaces = useMemo(() => ({ ...view.surfaces, knowledgeCore: false, nameplates: false }), [view.surfaces]);
+  // The island fills the inset as it opens: aimed at again until the frame has drawn it.
+  useEffect(() => {
+    if (!controls) return;
+    let again: ReturnType<typeof setTimeout> | undefined;
+    aim(at => controls.stop({ target: at, framing, duration: 0, sideOffset: 0 }), target, target, run => { again = setTimeout(run, 50); });
+    return () => clearTimeout(again);
+  }, [controls, target, framing]);
+  // Each label sits on what it names in the inset, its words centred under the island, or over it near the inset's foot, and
+  // kept inside the inset.
+  useEffect(() => {
+    if (!controls || !labels.length) return;
+    let frame = 0;
+    const place = () => {
+      const box = host.current?.getBoundingClientRect(), island = controls.islands().find(drawn => "story" in target && drawn.story === target.story);
+      for (const label of labels) {
+        const node = tags.current.get(label.key), at = controls.position(label.target);
+        if (!node || !box) continue;
+        if (!at?.visible) { node.classList.add("away"); continue; }
+        node.style.transform = `translate(${Math.round(at.x)}px, ${Math.round(at.y)}px)`;
+        const words = node.lastElementChild as HTMLElement, size = words.getBoundingClientRect();
+        words.style.left = `${Math.round(Math.min(Math.max(-size.width / 2, 8 - at.x), box.width - 8 - at.x - size.width))}px`;
+        const under = Math.max(26, island ? island.y + island.height + 10 - at.y : 0);
+        words.style.top = `${Math.round(at.y + under + size.height <= box.height - 8 ? under : -26 - size.height)}px`;
+        node.classList.remove("away");
+      }
+      frame = requestAnimationFrame(place);
+    };
+    frame = requestAnimationFrame(place);
+    return () => cancelAnimationFrame(frame);
+  }, [controls, labels, target]);
+  return <figure className="tour-inset" aria-label={`${title}, up close`}>
+    <figcaption className="tour-inset-title">{title}, up close</figcaption>
+    <div ref={host} className="tour-inset-view" aria-hidden="true">
+      <PlanetView {...view} wisps={[]} selected={undefined} onPick={() => {}} onNote={() => {}} surfaces={surfaces} library={false}
+        framing={framing} sideOffset={0} onControls={setControls} />
+      {labels.map(label => <div key={label.key} ref={node => { if (node) tags.current.set(label.key, node); else tags.current.delete(label.key); }}
+        className="tour-tag away" data-label={label.key} data-target={label.target.kind}>
+        <span className="tour-tag-ring" /><span className="tour-tag-text">{label.text}</span>
+      </div>)}
+    </div>
+  </figure>;
+}
+
 type ForestHost = { ready(): void; failed(): void; webgl: boolean };
 function Forest({ core, recording, replay, finishRecording, ready, failed, webgl }: ForestHost & { core: KnowledgeCore; recording: Recording; replay(): void; finishRecording(): void }) {
   const [tour, setTour] = useState<TourDetail>();
@@ -385,7 +439,9 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     // a full-width card above the caption on a phone (ADR-1018 D9).
     const told = requestedPanel === "note" && window.innerWidth > 600 ? step?.note : undefined;
     setNote(told); activeCore.pin(told);
-    if (requestedPanel === "story") { setStory(ownerOf(step!.target)); setToldStory(ownerOf(step!.target)); setCapability(step!.target?.kind === "capability" ? step!.target.capability : undefined); }
+    // A step whose inset showed an island opens that island's panel once the inset has played.
+    const island = step?.inset?.target ?? step?.target;
+    if (requestedPanel === "story") { setStory(ownerOf(island)); setToldStory(ownerOf(island)); setCapability(island?.kind === "capability" ? island.capability : undefined); }
     else { setStory(undefined); setCapability(undefined); }
     // The shop's core draws the reads of the session the step follows, and no one's elsewhere (ADR-0921).
     growthCores.shop.select(step?.map === "shop" ? step.follow : undefined);
@@ -474,14 +530,18 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   // The current line's or moment's labels, their words read from the frame on show: a session is named as it had named itself by
   // then (2.21). A waiting step shows every label its last line brings.
   const still = (state?.holds.length ?? 0) > 0;
-  const lineLabels = inMapChapter && mapFrame && step && state ? labelsAt(step, state.moments, { width, still }) : [];
+  // While the step's inset plays, its moment's label points into the inset, not the globe behind it (2.28).
+  const inset = inMapChapter && mapFrame && step && state && overlay?.panel === "inset" ? insetAt(step, state.moments, { width, still }) : undefined;
+  const lineLabels = inMapChapter && mapFrame && step && state && !inset ? labelsAt(step, state.moments, { width, still }) : [];
   const named = (session: string) => shop.reading?.recording.lines.filter(line => line.kind === "session-named" && line.session === session && line.at <= mapFrame!.at).flatMap(line => "title" in line ? [String(line.title)] : []).at(-1);
-  const labelKey = JSON.stringify(lineLabels.flatMap(label => {
+  const keyed = (labels: readonly Label[]) => JSON.stringify(labels.flatMap(label => {
     if ("point" in label) return [];
     const text = labelWords(label, mapFrame!, named);
     return text ? [{ key: `${step!.id}:${JSON.stringify(label.target)}:${text}`, target: label.target, text }] : [];
   }));
+  const labelKey = keyed(lineLabels), insetKey = inset ? keyed(inset.labels) : "[]";
   const shownLabels = useMemo((): ShownLabel[] => JSON.parse(labelKey), [labelKey]);
+  const insetLabels = useMemo((): ShownLabel[] => JSON.parse(insetKey), [insetKey]);
   // The sessions list is pointed out while the line that names it is said, not labelled on the globe.
   const pointed = lineLabels.some(label => "point" in label && label.point === "sessions");
   // The arcs list's first arc is pointed out and named while the line that names it is said, with or without the globe.
@@ -564,6 +624,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
           ? <Arcs key="shop" project={shop.project} recording={shopView.recording} open={false} />
           : <Arcs key="storytree" project={snapshot.project} recording={recording} open={requestedPanel === "arcs"} />}
       </div>
+      {inset && grown && drawing && <Inset key={`${step!.id}:${state!.generation}`} title={shop.titles[ownerOf(inset.target) ?? ""] ?? "A story"} target={inset.target} framing={inset.framing} labels={insetLabels}
+        view={{ core: growthCores.shop, scene: drawn, places: grown.places, frame: grown.snapshot.scene, growth, surfaces }} />}
       {arcPoint && <PanelPointer key={arcPoint} text={arcPoint} row="#chapter2 .tour-arc-surface:not([hidden]) .arc-overlay:not([hidden]) .arc-lane" within=".arc-overlay" label="arc" />}
       {panelPoint && <PanelPointer key={panelPoint} text={panelPoint} row="#chapter2 .tour-story-panel .panel-tree-frame" within=".tour-story-panel" label="panel" under />}
     </>, panelHost)}

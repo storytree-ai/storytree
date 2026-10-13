@@ -7,6 +7,7 @@ import { test } from "node:test";
 // required (zsh is the Mac's login shell); elsewhere a shell that is not installed is skipped with its reason.
 const script = fileURLToPath(new URL("./install.sh", import.meta.url));
 const steps = fileURLToPath(new URL("./install.test.sh", import.meta.url));
+const linuxSteps = fileURLToPath(new URL("./install-linux.test.sh", import.meta.url));
 for (const shell of ["sh", "bash", "zsh"]) {
   test(`1.12 under ${shell}: the macOS one-liner refuses another system or chip, takes the channel's release and checks its checksum, writes one marked .zprofile line once, asks to connect agents and for the project folder, and run again updates an older app`, {
     skip: process.platform === "win32" && "platform:posix: the Mac's one-liner runs under a POSIX shell, which Windows CI does not provide",
@@ -15,6 +16,15 @@ for (const shell of ["sh", "bash", "zsh"]) {
     if (found.error && process.platform !== "darwin") return t.skip(`platform:darwin: ${shell} unavailable here; macOS CI runs this proof`);
     assert.ifError(found.error);
     const result = spawnSync(shell, [steps, script], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /install\.sh PASS/);
+  });
+  test(`1.13 under ${shell}: on x64 Linux the same one-liner refuses another chip, names the apt command for a missing libfuse2, takes the release's AppImage, installs it with its agent tools and icon under ~/.local/share/storytree-0.3 and a menu entry that starts it, reads its version from the AppImage, and writes the PATH line to ~/.profile`, {
+    skip: process.platform === "win32" && "platform:posix: the one-liner runs under a POSIX shell, which Windows CI does not provide",
+  }, (t) => {
+    const found = spawnSync(shell, ["-c", "exit 0"]);
+    if (found.error) return t.skip(`${shell} unavailable here; the other shells run this proof`);
+    const result = spawnSync(shell, [linuxSteps, script], { encoding: "utf8" });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /install\.sh PASS/);
   });

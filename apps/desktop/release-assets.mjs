@@ -22,9 +22,9 @@ export const PLATFORMS = {
     uploads: (name) => /^(latest-mac\.yml|install-storytree\.sh|install-storytree-mac(-development)?\.txt|storytree-delivery-mac\.json)$/.test(name) || /\.(zip|dmg)(\.blockmap)?$/.test(name),
   },
   linux: {
-    // An AppImage carries its blockmap inside it, so its update feed is its only companion.
-    required: (version) => [`storytree-0.3-${version}-linux-x86_64.AppImage`, "latest-linux.yml"],
-    uploads: (name) => name === "latest-linux.yml" || name.endsWith(".AppImage"),
+    // An AppImage carries its blockmap inside it, so its update feed and its delivery entry are its only companions.
+    required: (version) => [`storytree-0.3-${version}-linux-x86_64.AppImage`, "latest-linux.yml", "storytree-delivery-linux.json"],
+    uploads: (name) => name === "latest-linux.yml" || name === "storytree-delivery-linux.json" || name.endsWith(".AppImage"),
   },
 };
 

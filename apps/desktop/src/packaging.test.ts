@@ -12,7 +12,7 @@ import { test } from "node:test";
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
 import { hostPlatform, missingAssets, platformUploads } from "../release-assets.mjs";
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
-import { macDeliveryAssets, mergeDelivery } from "../delivery-assets.mjs";
+import { linuxDeliveryAssets, macDeliveryAssets, mergeDelivery } from "../delivery-assets.mjs";
 
 const windows = (version: string) => [
   `storytree-0.3-${version}-setup.exe`, `storytree-0.3-${version}-setup.exe.blockmap`, "latest.yml",
@@ -23,8 +23,8 @@ const mac = (version: string) => [
   `storytree-0.3-${version}-arm64.dmg`, `storytree-0.3-${version}-arm64.dmg.blockmap`, "latest-mac.yml",
   "install-storytree.sh", "install-storytree-mac.txt", "install-storytree-mac-development.txt", "storytree-delivery-mac.json",
 ];
-// The AppImage carries its blockmap inside it, so latest-linux.yml is its only companion.
-const linux = (version: string) => [`storytree-0.3-${version}-linux-x86_64.AppImage`, "latest-linux.yml"];
+// The AppImage carries its blockmap inside it, so latest-linux.yml and its delivery entry are its only companions.
+const linux = (version: string) => [`storytree-0.3-${version}-linux-x86_64.AppImage`, "latest-linux.yml", "storytree-delivery-linux.json"];
 
 test("4.6 a release is published only when every platform's asset set is complete: Windows alone, or a Mac or Linux set missing its update feed, is refused", () => {
   const all = (version: string) => [...windows(version), ...mac(version), ...linux(version)];
@@ -63,6 +63,28 @@ test("4.6 the Mac runner stages the shell bootstrap, its one-liners and the Mac 
     assert.equal(readFileSync(path.join(dir, "install-storytree-mac.txt"), "utf8"), "curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh\n");
     assert.equal(readFileSync(path.join(dir, "install-storytree-mac-development.txt"), "utf8"), "curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel development\n");
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("1.13 the Linux runner writes the AppImage's checksum entry beside it", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-linux-delivery-"));
+  try {
+    const bytes = Buffer.from("the already-built AppImage");
+    writeFileSync(path.join(dir, "storytree-0.3-0.3.700-linux-x86_64.AppImage"), bytes);
+    linuxDeliveryAssets(dir, "0.3.700");
+    assert.deepEqual(JSON.parse(readFileSync(path.join(dir, "storytree-delivery-linux.json"), "utf8")), {
+      version: "0.3.700",
+      linux: { x64: { name: "storytree-0.3-0.3.700-linux-x86_64.AppImage", sha256: createHash("sha256").update(bytes).digest("hex"), size: bytes.length } },
+    });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("1.13 publishing merges the Linux AppImage's entry beside the Mac app's, and refuses another version's", () => {
+  const windows = { schema: 1, channelSchema: 1, version: "0.3.700", installer: { name: "storytree-0.3-0.3.700-setup.exe", sha256: "a".repeat(64), sha512: "b", size: 3 } };
+  const arm64 = { name: "storytree-0.3-0.3.700-mac-arm64.zip", sha256: "c".repeat(64), size: 5 };
+  const x64 = { name: "storytree-0.3-0.3.700-linux-x86_64.AppImage", sha256: "d".repeat(64), size: 7 };
+  const merged = mergeDelivery(mergeDelivery(windows, { version: "0.3.700", macos: { arm64 } }), { version: "0.3.700", linux: { x64 } });
+  assert.deepEqual(merged, { ...windows, macos: { arm64 }, linux: { x64 } });
+  assert.throws(() => mergeDelivery(windows, { version: "0.3.699", linux: { x64 } }), /0\.3\.699/);
 });
 
 test("4.6 publishing merges the Mac app's entry into the release's delivery manifest, and refuses another version's", () => {

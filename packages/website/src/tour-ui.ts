@@ -1,5 +1,5 @@
 /** Capability 2 · The forest on the site. */
-import { createTour, globeOf, groups, type FreePlayProject, type Hold, type TourState, type TourStep } from "./tour.js";
+import { createTour, depthLink, globeOf, groups, linesOn, type FreePlayProject, type Hold, type TourState, type TourStep } from "./tour.js";
 import { groupTitles, researchDate, steps } from "./tour-copy.js";
 import { fill } from "./tour-counts.js";
 
@@ -26,7 +26,7 @@ export function wireTour() {
   // The globe sets up behind the pain beat; the time-lapse waits until it is live, or has fallen back to its still (2.10).
   const tour = createTour(steps, { ready: () => document.getElementById("website-forest")?.dataset.forestState !== "loading" });
   const recorded = get("tour-recorded");
-  const card = get("tour-card"), kicker = get("tour-kicker"), heading = get("tour-title"), lines = get("tour-lines"), chips = get("tour-chips"), marks = get("tour-marks"), marksNote = get("tour-marks-note");
+  const card = get("tour-card"), heading = get("tour-title"), lines = get("tour-lines"), chips = get("tour-chips"), marks = get("tour-marks"), marksNote = get("tour-marks-note");
   const depthToggle = get<HTMLButtonElement>("tour-depth"), depth = get("tour-why");
   const play = get<HTMLButtonElement>("tour-play"), icon = play.querySelector("path")!;
   const pips = get<HTMLOListElement>("tour-pips"), label = get("tour-label"), held = get("tour-held");
@@ -131,6 +131,7 @@ export function wireTour() {
     root.dataset.tourMode = state.freePlay ? "freeplay" : "tour";
     root.dataset.tourStep = step.id;
     root.dataset.tourKind = step.kind ?? "lines";
+    root.dataset.tourTemplate = step.template ?? "";
     const globe = globeOf(step, state, tour.elapsed());
     root.dataset.globeMap = globe.map;
     root.dataset.tourRunning = String(running);
@@ -138,7 +139,6 @@ export function wireTour() {
     root.dataset.tourMoment = String(state.moments);
     if (changedStep) {
       const at = where(state.index);
-      kicker.textContent = state.freePlay ? "Act 2 · Your turn" : step.explainer === "opening" || step.explainer === "ending" ? `Act 2 · ${at.title}` : `${at.title} · ${at.at} of ${at.of}`;
       heading.textContent = state.freePlay ? "Your turn." : text(step.title);
       if (state.freePlay) {
         lines.replaceChildren(...[state.project === "shop" ? "Explore the whole shop: open an island, the arcs or the library." : "Explore storytree's own project: open an island, the arcs or the library.",
@@ -161,8 +161,8 @@ export function wireTour() {
       const dated = stepChips.find(chip => chip.kind === "recording");
       recorded.textContent = dated ? text(dated.text) : "";
       recorded.hidden = !dated;
-      depthToggle.hidden = state.freePlay || !step.why;
-      depthToggle.textContent = step.kind === "compare" ? "Sources and decisions" : step.how ? step.compare ? "How, why and other tools" : "How and why" : step.decisions.length ? `Why it exists · ${step.decisions.length} ${step.decisions.length === 1 ? "decision" : "decisions"}` : "Why it exists";
+      depthToggle.hidden = state.freePlay || !depthLink(step);
+      depthToggle.textContent = depthLink(step) ?? "";
       card.classList.remove("is-in"); void card.offsetWidth; card.classList.add("is-in");
       label.textContent = !state.freePlay ? `${at.title} · ${at.at} of ${at.of}` : state.project === "shop"
         ? text("Free play · an online shop agents built with storytree, recorded {shopDay} · read only") : text("Free play · storytree’s own project, saved {saved} · read only");
@@ -178,14 +178,11 @@ export function wireTour() {
       : globe.map === "shop" ? text("An online shop agents built with storytree · replayed from its own records, {shopDay}")
       : step.chips?.some(chip => chip.kind === "recording") && !state.freePlay ? text("Recording · storytree's activity, {recording}") : text("storytree's own project · saved {saved} · read only");
     // A step's lines arrive one at a time; a waiting step shows them all (the engine says how many).
-    const shown = state.freePlay ? lines.children.length : state.lines;
-    [...lines.children].forEach((line, index) => {
-      const on = step.kind === "beats" && !state.freePlay
-        ? index === shown - 1 || (index === shown - 2 && shown === step.lines.length) : index < shown;
-      line.classList.toggle("on", on);
-    });
-    // The arrival's beats show one line at a time, so their room is measured again as each arrives.
-    if (changedStep || state.lines !== previous?.lines) fitRoom();
+    const on = state.freePlay ? [...lines.children].map(() => true) : linesOn(step, state.lines, !running);
+    [...lines.children].forEach((line, index) => line.classList.toggle("on", !!on[index]));
+    // The arrival's beats and a narrated stage show one line at a time, so their room is measured again as each arrives, and
+    // when a waiting step shows every line told.
+    if (changedStep || state.lines !== previous?.lines || state.holds.length !== previous?.holds.length) fitRoom();
     if (!changedStep && previous && state.lines > previous.lines && !state.freePlay) live.textContent = step.lines.slice(previous.lines, state.lines).map(text).join(" ");
     const reading = state.holds.includes("reading");
     if (reading && !previous?.holds.includes("reading")) { drawDepth(step); depth.hidden = false; depth.querySelector<HTMLElement>("h3")?.focus({ preventScroll: true }); depth.scrollIntoView({ block: "nearest" }); }
@@ -200,7 +197,6 @@ export function wireTour() {
     speeds.forEach(button => button.setAttribute("aria-pressed", String(Number(button.dataset.speed) === state.speed)));
     cycle.textContent = `${state.speed}×`;
     cycle.setAttribute("aria-label", `Tour speed ${state.speed}×, change it`);
-    label.hidden = !held.hidden;
     everything.setAttribute("aria-checked", String(state.holds.includes("everything")));
     projects.hidden = !state.freePlay;
     projectButtons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.project === state.project)));

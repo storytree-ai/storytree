@@ -159,6 +159,8 @@ jobs:
       # entry, merged on publish) beside the installers; they upload with them, so first-run delivery
       # never meets a partial release.
       # APPLE_API_KEY is not set here: prepare exported it as the key file's path, which notarisation reads.
+      # CSC_LINK here only tells dist.mjs the build is Developer ID: electron-builder never sees it, and signs as
+      # STORYTREE_MAC_IDENTITY, which prepare exported, from prepare's keychain.
       - run: pnpm desktop:dist
         env:
           CSC_LINK: ${{ matrix.system == 'macOS' && secrets.CSC_LINK || '' }}

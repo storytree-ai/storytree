@@ -11,7 +11,9 @@ import type { SurfacesBridge } from "@storytree/app";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS, type FeedbackIdentityBridge, type SetupHelpBridge } from "@storytree/app-setup/bridge";
 import { FOREST_CHANNELS, type ForestBridge } from "@storytree/forest/page";
 import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/journey-events/bridge";
-import { LAG_CHANNELS, type LagBridge } from "@storytree/lag-in-use/bridge";
+import type { LagBridge } from "@storytree/lag-in-use/bridge";
+
+import PAGE_CHANNELS from "#parts/pageChannels";
 
 import { pageMethods } from "./page-operations.js";
 
@@ -42,6 +44,7 @@ export function createBridge(
     ...pageMethods<Omit<SetupHelpBridge, "feedbackIdentity">>(SETUP_HELP_CHANNELS, invoke),
     ...pageMethods<PageReadsBridge>(PAGE_READS_CHANNELS, invoke),
     ...pageMethods<ForestBridge>(FOREST_CHANNELS, invoke),
-    ...pageMethods<LagBridge>(LAG_CHANNELS, invoke),
+    // The stories whose manifests name their page channels (ADR-1021); the page's type still names them for the renderer.
+    ...Object.assign({}, ...PAGE_CHANNELS.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as LagBridge,
   };
 }

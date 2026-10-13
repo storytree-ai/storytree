@@ -41,6 +41,8 @@ import path from "node:path";
 // The app's surfaces (ADR-0750), in the Surfaces menu's order: the plugin loader composes them into the bundle
 // from the manifests of the story packages this app depends on (ADR-1021; build.mjs).
 import SURFACES from "#parts/surfaces";
+// The page operations the stories' manifests name, composed in the same way.
+import PAGE_ANSWERS from "#parts/pageAnswers";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, safeStorage, shell, Tray } from "electron";
 
 import {
@@ -79,8 +81,6 @@ import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANN
 import { settingsActions, SETTINGS_CHANNELS } from "@storytree/session-management/settings";
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
-import { createLagRuntime } from "@storytree/lag-in-use/runtime";
-import { LAG_CHANNELS } from "@storytree/lag-in-use/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
@@ -102,7 +102,7 @@ import { createCeremony, createPublicWorkOS, createSessionManager, registerProto
 import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-session";
 
 import { APP_OWNER, appHome } from "../home.js";
-import { answerPage } from "../page-operations.js";
+import { answerPage, answerPageParts } from "../page-operations.js";
 import { parseArgs } from "./args.js";
 import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { followTaskbar, iconColourway } from "./app-icon.js";
@@ -221,8 +221,8 @@ async function run(): Promise<void> {
   const appVersion = app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0");
   journey = createJourneyRuntime({ home: home.dir, appVersion });
   answerPage(ipcMain, JOURNEY_CHANNELS, journey);
-  // The page's lag readings are kept in the home and go nowhere else (Lag in real use).
-  answerPage(ipcMain, LAG_CHANNELS, createLagRuntime({ home: home.dir, appVersion }));
+  // The page operations the stories' manifests name, each answered with the app's home and version (ADR-1021).
+  answerPageParts(ipcMain, PAGE_ANSWERS, { home: home.dir, appVersion });
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
   const settings = settingsActions(home.dir);
   answerPage(ipcMain, SETTINGS_CHANNELS, settings);

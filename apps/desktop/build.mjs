@@ -76,6 +76,8 @@ await build({
   format: "cjs",
   target: "node22",
   external: ["electron"],
+  // The page channels the story packages' manifests name, composed in as data (ADR-1021).
+  plugins: [partsPlugin()],
 });
 
 await build({

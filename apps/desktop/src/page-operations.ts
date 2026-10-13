@@ -30,3 +30,23 @@ export function answerPage<Channels extends Readonly<Record<string, string>>>(
     handlers.handle(channel, (_event: unknown, ...args: unknown[]) => answer.apply(answers, args));
   }
 }
+
+/** One story's page channels, as its manifest's `pageChannels` names them: each bridge method and the channel it travels on. */
+export type PageChannelMap = Readonly<Record<string, string>>;
+
+/** What the frame offers a story's page part (ADR-1021): the app's home and its build's version. A part declares the same shape itself. */
+export interface PageFrame {
+  readonly home: string;
+  readonly appVersion: string;
+}
+
+/** A story's page part, as its manifest's `pageAnswers` names it: given the frame, its channels and the answers to them, or none here. */
+export type PagePart = (frame: PageFrame) => { readonly channels: PageChannelMap; readonly answers: object } | undefined;
+
+/** The main process answers every page part's channels, each made with the frame. */
+export function answerPageParts(handlers: PageHandlers, parts: readonly PagePart[], frame: PageFrame): void {
+  for (const part of parts) {
+    const page = part(frame);
+    if (page !== undefined) answerPage(handlers, page.channels, page.answers as { readonly [method: string]: (...args: never[]) => unknown });
+  }
+}

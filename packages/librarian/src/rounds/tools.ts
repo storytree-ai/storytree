@@ -10,10 +10,13 @@ import { annotate, correct, supersede } from "../decision-log/index.js";
 import { claudeCodeMemoryFolder, graduate, park } from "../graduation/index.js";
 import { link } from "../links/index.js";
 import { route } from "../queues/index.js";
-import type { ToolCall, ToolExtension } from "./host.js";
+import type { ToolCall, ToolExtension, ToolHost } from "./host.js";
 import { roundDue, worklist, worklistView } from "./rounds.js";
 
 const text = z.string().trim().min(1);
+
+/** The librarian's tool part, named in its manifest (ADR-1021): served for storytree's own library first (ADR-0644 U1). */
+export const librarianToolParts = [({ project, tools }: ToolHost): ToolExtension | undefined => (project === "storytree" ? librarianTools({ tools }) : undefined)];
 
 /** The server supplies its discovered tool names; another host can supply the same catalogue. */
 export function librarianTools({ tools }: { tools?: () => readonly string[] } = {}): ToolExtension {

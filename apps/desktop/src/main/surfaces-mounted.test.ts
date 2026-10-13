@@ -45,7 +45,7 @@ test("3.12 the desktop app's Surfaces menu lists the surfaces its story packages
   const out = mkdtempSync(path.join(tmpdir(), "storytree-desktop-parts-"));
   t.after(() => rmSync(out, { recursive: true, force: true }));
   const outfile = path.join(out, "surfaces.mjs");
-  await build({ stdin: { contents: `export { default } from "storytree:parts/surfaces";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsPlugin({ host: desktop })] });
+  await build({ stdin: { contents: `export { default } from "#parts/surfaces";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsPlugin()] });
   const { default: mounted } = await import(pathToFileURL(outfile).href) as { default: unknown };
   assert.deepEqual(mounted, [...forestSurfaces, ...arcSurfaces]);
 });

@@ -3,7 +3,7 @@
  * bound, and capability 5 · Graduation: the checks and ledger readings, the change-reviewer's loop and a check's graduation as tools on the MCP server's one server, through
  * its extension point (its ToolExtension, ADR-0643 D6, ADR-0969 D1). The extension's shape is restated rather
  * than imported, as the librarian's is: no story may depend on the MCP server, which depends on this
- * package to serve the tool, and checks the two still fit where it registers qualityTools.
+ * package to serve the tool, and checks the two still fit where it mounts its tool parts (its test 6.75).
  */
 import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
@@ -35,6 +35,9 @@ export interface ToolExtension {
   readonly registerTools?: (define: DefineTool) => void;
   readonly instructions?: string;
 }
+
+/** Quality assurance's tool part, named in its manifest (ADR-1021): served for every project's library (ADR-0996). */
+export const qualityToolParts = [(): ToolExtension => qualityTools()];
 
 /** What the change-reviewer returns, as a tool's argument; the loop itself refuses a return that does not answer its brief. */
 const reviewReturn = z.object({

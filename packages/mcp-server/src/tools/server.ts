@@ -39,10 +39,12 @@ import { agentOf, callLines, endMergedClaims, findProject, harnessOfClient, idle
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
 import { type SetupOptions } from "@storytree/app-setup/setup";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
-import { librarianTools } from "@storytree/librarian";
-import { qualityTools } from "@storytree/quality-assurance";
 import { appDatabaseWork } from "@storytree/processes/listing";
 import type { z } from "zod";
+
+// The other stories' tools (ADR-0643 D6), in their manifests' order: the plugin loader composes them from the
+// manifests of the story packages this server depends on (ADR-1021).
+import TOOL_PARTS from "#parts/tools";
 
 import { habitsCard } from "../instructions/habits.js";
 import { failureOf, isUnreachable, libraryDown, NOT_RUNNING_ANSWER, outcomeOf, refusalOf, result, type Answer, type DoorOutcome } from "./answers.js";
@@ -138,14 +140,22 @@ export interface ToolExtension {
   readonly landNext?: (capability: string, call: Call) => Promise<string | undefined> | string | undefined;
 }
 
+/** What a story's tool part is given: the project the server serves (none outside a project) and the tools it serves. */
+export interface ToolHost {
+  readonly project: string | undefined;
+  readonly tools: () => readonly string[];
+}
+
+/** A story's tool part, as its manifest's `tools` names it: its extension for this server, or none where it serves nothing. */
+export type ToolPart = (host: ToolHost) => ToolExtension | undefined;
+
 export function createAgentTools(options: AgentToolOptions): AgentTools {
-  // ADR-0644 U1: enable the librarian for storytree's own library first. Quality assurance's checks and review
-  // loop (ADR-0956) serve every project, whose starter pack seeds the checks and the change-reviewer (ADR-0996).
-  // Their behaviour stays in their packages; this is the shared registration point for other stories (ADR-0643 D6).
+  // Which project each part serves is the part's own call (the librarian's is storytree's own library first, ADR-0644 U1);
+  // their behaviour stays in their packages, and this is the shared registration point for other stories (ADR-0643 D6).
   const servedTools = ["check_setup", "set_up_project", ...OWN_TOOLS];
+  const host: ToolHost = { project: findProject(options.folder).project, tools: () => servedTools };
   const extensions = [
-    ...(findProject(options.folder).project === "storytree" ? [librarianTools({ tools: () => servedTools })] : []),
-    qualityTools(),
+    ...TOOL_PARTS.flatMap((part) => part(host) ?? []),
     ...options.extensions ?? [],
   ];
   const instructions = [habitsCard(), ...extensions.flatMap((extension) => extension.instructions === undefined ? [] : [extension.instructions])].join("\n");

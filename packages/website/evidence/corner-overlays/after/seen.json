@@ -1,0 +1,634 @@
+{
+  "errors": [],
+  "failures": [],
+  "seen": [
+    {
+      "name": "1440-map-arcs-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 984,
+          "y": 124,
+          "right": 1424,
+          "bottom": 216,
+          "width": 440,
+          "height": 92
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 718,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 105
+      },
+      "tags": [
+        "a plan"
+      ],
+      "pointers": [
+        {
+          "label": "arc",
+          "x": 1000,
+          "y": 163,
+          "right": 1426,
+          "bottom": 214,
+          "width": 426,
+          "height": 51
+        }
+      ]
+    },
+    {
+      "name": "1440-map-capabilities-12s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "story-panel",
+          "x": 984,
+          "y": 76,
+          "right": 1424,
+          "bottom": 592,
+          "width": 440,
+          "height": 516
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 718,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 105
+      },
+      "tags": [
+        "how its parts work together"
+      ],
+      "pointers": [
+        {
+          "label": "panel",
+          "x": 1001,
+          "y": 208,
+          "right": 1407,
+          "bottom": 566,
+          "width": 406,
+          "height": 358
+        }
+      ]
+    },
+    {
+      "name": "1440-map-claims-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 984,
+          "y": 124,
+          "right": 1424,
+          "bottom": 226,
+          "width": 440,
+          "height": 102
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 689,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 134
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "1440-map-claims-line-3-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 984,
+          "y": 76,
+          "right": 1424,
+          "bottom": 232,
+          "width": 440,
+          "height": 156
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 689,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 134
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "1440-knowledge-shelf-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "story-panel",
+          "x": 948,
+          "y": 66,
+          "right": 1428,
+          "bottom": 830,
+          "width": 480,
+          "height": 764
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 651,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 172
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "1440-knowledge-reads-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 984,
+          "y": 76,
+          "right": 1424,
+          "bottom": 232,
+          "width": 440,
+          "height": 156
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 544,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 279
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "390-map-arcs-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 10,
+          "y": 312,
+          "right": 380,
+          "bottom": 401,
+          "width": 370,
+          "height": 90
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [
+        "a plan"
+      ],
+      "pointers": [
+        {
+          "label": "arc",
+          "x": 26,
+          "y": 350,
+          "right": 382,
+          "bottom": 399,
+          "width": 356,
+          "height": 49
+        }
+      ]
+    },
+    {
+      "name": "390-map-capabilities-12s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "story-panel",
+          "x": 10,
+          "y": 105,
+          "right": 380,
+          "bottom": 401,
+          "width": 370,
+          "height": 296
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [
+        "how its parts work together"
+      ],
+      "pointers": [
+        {
+          "label": "panel",
+          "x": 22,
+          "y": 153,
+          "right": 369,
+          "bottom": 379,
+          "width": 347,
+          "height": 226
+        }
+      ]
+    },
+    {
+      "name": "390-map-claims-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 10,
+          "y": 302,
+          "right": 380,
+          "bottom": 401,
+          "width": 370,
+          "height": 100
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "390-map-claims-line-3-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 10,
+          "y": 266,
+          "right": 380,
+          "bottom": 401,
+          "width": 370,
+          "height": 135
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "390-knowledge-shelf-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "390-knowledge-reads-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 10,
+          "y": 266,
+          "right": 380,
+          "bottom": 401,
+          "width": 370,
+          "height": 135
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "320-map-arcs-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 10,
+          "y": 214,
+          "right": 310,
+          "bottom": 303,
+          "width": 300,
+          "height": 90
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 311,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 183
+      },
+      "tags": [
+        "a plan"
+      ],
+      "pointers": [
+        {
+          "label": "arc",
+          "x": 26,
+          "y": 252,
+          "right": 312,
+          "bottom": 301,
+          "width": 286,
+          "height": 49
+        }
+      ]
+    },
+    {
+      "name": "320-map-capabilities-12s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [
+        {
+          "kind": "story-panel",
+          "x": 10,
+          "y": 35,
+          "right": 310,
+          "bottom": 303,
+          "width": 300,
+          "height": 268
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 311,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 183
+      },
+      "tags": [
+        "how its parts work together"
+      ],
+      "pointers": [
+        {
+          "label": "panel",
+          "x": 22,
+          "y": 83,
+          "right": 299,
+          "bottom": 281,
+          "width": 277,
+          "height": 198
+        }
+      ]
+    },
+    {
+      "name": "320-map-claims-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 10,
+          "y": 204,
+          "right": 310,
+          "bottom": 303,
+          "width": 300,
+          "height": 100
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 311,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 183
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "320-map-claims-line-3-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 10,
+          "y": 152,
+          "right": 310,
+          "bottom": 303,
+          "width": 300,
+          "height": 151
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 311,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 183
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "320-knowledge-shelf-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [],
+      "caption": {
+        "x": 10,
+        "y": 311,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 183
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "320-knowledge-reads-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 10,
+          "y": 113,
+          "right": 310,
+          "bottom": 264,
+          "width": 300,
+          "height": 151
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 272,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 222
+      },
+      "tags": [],
+      "pointers": []
+    }
+  ]
+}

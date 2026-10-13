@@ -1,0 +1,590 @@
+{
+  "errors": [],
+  "failures": [],
+  "seen": [
+    {
+      "name": "1440-map-arcs-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 58,
+          "y": 140,
+          "right": 458,
+          "bottom": 232,
+          "width": 400,
+          "height": 92
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 718,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 105
+      },
+      "tags": [
+        "a plan"
+      ],
+      "pointers": [
+        {
+          "label": "arc",
+          "x": 74,
+          "y": 179,
+          "right": 460,
+          "bottom": 230,
+          "width": 386,
+          "height": 51
+        }
+      ]
+    },
+    {
+      "name": "1440-map-capabilities-12s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "story-panel",
+          "x": 948,
+          "y": 66,
+          "right": 1428,
+          "bottom": 830,
+          "width": 480,
+          "height": 764
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 718,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 105
+      },
+      "tags": [
+        "how its parts work together"
+      ],
+      "pointers": [
+        {
+          "label": "panel",
+          "x": 965,
+          "y": 198,
+          "right": 1411,
+          "bottom": 556,
+          "width": 446,
+          "height": 358
+        }
+      ]
+    },
+    {
+      "name": "1440-map-claims-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 58,
+          "y": 140,
+          "right": 458,
+          "bottom": 242,
+          "width": 400,
+          "height": 102
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 689,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 134
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "1440-map-claims-line-3-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 474,
+          "y": 691,
+          "right": 1424,
+          "bottom": 828,
+          "width": 950,
+          "height": 137
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 689,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 134
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "1440-knowledge-shelf-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "story-panel",
+          "x": 948,
+          "y": 66,
+          "right": 1428,
+          "bottom": 830,
+          "width": 480,
+          "height": 764
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 651,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 172
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "1440-knowledge-reads-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 474,
+          "y": 691,
+          "right": 1424,
+          "bottom": 828,
+          "width": 950,
+          "height": 137
+        }
+      ],
+      "caption": {
+        "x": 58,
+        "y": 544,
+        "right": 458,
+        "bottom": 823,
+        "width": 400,
+        "height": 279
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "390-map-arcs-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 0,
+          "y": 48,
+          "right": 390,
+          "bottom": 137,
+          "width": 390,
+          "height": 89
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [
+        "a plan"
+      ],
+      "pointers": [
+        {
+          "label": "arc",
+          "x": 15,
+          "y": 87,
+          "right": 393,
+          "bottom": 136,
+          "width": 378,
+          "height": 49
+        }
+      ]
+    },
+    {
+      "name": "390-map-capabilities-12s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "390-map-claims-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 0,
+          "y": 48,
+          "right": 390,
+          "bottom": 147,
+          "width": 390,
+          "height": 99
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "390-map-claims-line-3-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 10,
+          "y": 8,
+          "right": 380,
+          "bottom": 143,
+          "width": 370,
+          "height": 135
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "390-knowledge-shelf-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "390-knowledge-reads-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 844
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 10,
+          "y": 8,
+          "right": 380,
+          "bottom": 143,
+          "width": 370,
+          "height": 135
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 409,
+        "right": 380,
+        "bottom": 698,
+        "width": 370,
+        "height": 289
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "320-map-arcs-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 0,
+          "y": 48,
+          "right": 320,
+          "bottom": 137,
+          "width": 320,
+          "height": 89
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 311,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 183
+      },
+      "tags": [
+        "a plan"
+      ],
+      "pointers": [
+        {
+          "label": "arc",
+          "x": 15,
+          "y": 87,
+          "right": 323,
+          "bottom": 136,
+          "width": 308,
+          "height": 49
+        }
+      ]
+    },
+    {
+      "name": "320-map-capabilities-12s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [],
+      "caption": {
+        "x": 10,
+        "y": 311,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 183
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "320-map-claims-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [
+        {
+          "kind": "arc-overlay",
+          "x": 0,
+          "y": 48,
+          "right": 320,
+          "bottom": 147,
+          "width": 320,
+          "height": 99
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 311,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 183
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "320-map-claims-line-3-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 10,
+          "y": 8,
+          "right": 310,
+          "bottom": 148,
+          "width": 300,
+          "height": 140
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 311,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 183
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "320-knowledge-shelf-line-2-2s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [],
+      "caption": {
+        "x": 10,
+        "y": 311,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 183
+      },
+      "tags": [],
+      "pointers": []
+    },
+    {
+      "name": "320-knowledge-reads-3s",
+      "stage": {
+        "x": 0,
+        "y": 0,
+        "right": 320,
+        "bottom": 640,
+        "width": 320,
+        "height": 640
+      },
+      "overlays": [
+        {
+          "kind": "sessions-list",
+          "x": 10,
+          "y": 8,
+          "right": 310,
+          "bottom": 148,
+          "width": 300,
+          "height": 140
+        }
+      ],
+      "caption": {
+        "x": 10,
+        "y": 272,
+        "right": 310,
+        "bottom": 494,
+        "width": 300,
+        "height": 222
+      },
+      "tags": [],
+      "pointers": []
+    }
+  ]
+}

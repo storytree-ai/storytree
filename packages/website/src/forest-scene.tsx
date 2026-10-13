@@ -14,8 +14,8 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { aim, globeOf, islandsKeptOff, labelsAt, labelWords, momentStarts, placeTags, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
-import { createCameraPlayer, freePlayFraming, towardNarrow, viewFraming } from "./tour-camera.js";
+import { aim, globeOf, islandsKeptOff, labelsAt, labelWords, momentStarts, overlayAt, placeTags, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { createCameraPlayer, freePlayFraming, globeSide, viewFraming } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, recordedView, savedReading } from "./tour-reading.js";
 
@@ -215,19 +215,6 @@ function PanelPointer({ text, row: rowAt, within, label: name, under = false }: 
   </div>;
 }
 
-/** Where the globe's middle sits: in the room the card (left) and any side panel (right) leave it. */
-function offsetFor(step: TourStep | undefined, width: number) {
-  if (!step || width <= 600) {
-    const { side = 0, narrow = side } = step?.phone ?? {};
-    return Math.round(towardNarrow(side, narrow, width));
-  }
-  const opening = step.kind === "beats" || step.kind === "statement" || step.kind === "fixes";
-  // A chapter's lines start where the arrival's do (ADR-0890, amended 2026-10-05).
-  const cardRight = Math.min(64, width * .04) + (opening ? Math.min(560, width * .46) : Math.min(400, width * .36));
-  const panel = step.panel === "story" || step.panel === "note" || step.panelRoom ? Math.min(480, width - 24) + 12 : 0;
-  return Math.round(Math.min(width * .2, (cardRight - panel) / 2));
-}
-
 type ForestHost = { ready(): void; failed(): void; webgl: boolean };
 function Forest({ core, recording, replay, finishRecording, ready, failed, webgl }: ForestHost & { core: KnowledgeCore; recording: Recording; replay(): void; finishRecording(): void }) {
   const [tour, setTour] = useState<TourDetail>();
@@ -300,7 +287,14 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   // The step as its told lines and moments leave it: one can move the camera, or give its panel way to another (ADR-0891, amended 2026-10-11).
   const shownStep = step && stepAt(step, state?.moments ?? 1);
   const requestedPanel = touring && !everything && (state?.moments ?? 1) >= (step?.panelFromLine ?? 1) ? shownStep?.panel : undefined;
-  const sideOffset = offsetFor(touring && !everything ? shownStep : undefined, width);
+  // The one overlay on show, and its corner (ADR-1018 D7, D9): the stage carries it, so the panel on show takes the corner's place.
+  const overlay = touring && !everything && step ? overlayAt(step, state?.moments ?? 1) : undefined;
+  useEffect(() => {
+    if (!panelHost) return;
+    if (overlay) { panelHost.dataset.overlay = overlay.corner; panelHost.dataset.overlayPanel = overlay.panel; }
+    else { delete panelHost.dataset.overlay; delete panelHost.dataset.overlayPanel; }
+  }, [panelHost, overlay?.corner, overlay?.panel]);
+  const sideOffset = globeSide(touring && !everything ? shownStep : undefined, width);
   const globe: GlobeOn = step && state ? globeOf(step, state, tour!.elapsed) : { map: "storytree" };
 
   // Touching the globe hands it to the visitor: the tour waits, and says so (ADR-0879 D3).
@@ -387,10 +381,11 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     if (!tour || free) return;
     setSwitches(switchesFor(requestedPanel, false));
     setBrowserOpen(false);
-    // A phone has no room for the app’s story panel or a note's card beside the card: the step says it in words instead.
+    // A phone has no room for a note's card beside the card: the step says it in words instead. The story panel is an overlay,
+    // a full-width card above the caption on a phone (ADR-1018 D9).
     const told = requestedPanel === "note" && window.innerWidth > 600 ? step?.note : undefined;
     setNote(told); activeCore.pin(told);
-    if (requestedPanel === "story" && window.innerWidth > 600) { setStory(ownerOf(step!.target)); setToldStory(ownerOf(step!.target)); setCapability(step!.target?.kind === "capability" ? step!.target.capability : undefined); }
+    if (requestedPanel === "story") { setStory(ownerOf(step!.target)); setToldStory(ownerOf(step!.target)); setCapability(step!.target?.kind === "capability" ? step!.target.capability : undefined); }
     else { setStory(undefined); setCapability(undefined); }
     // The shop's core draws the reads of the session the step follows, and no one's elsewhere (ADR-0921).
     growthCores.shop.select(step?.map === "shop" ? step.follow : undefined);
@@ -515,7 +510,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
           frame={grown?.snapshot.scene} easeMoves growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
           wisps={(heldClaims ? wisps : mapFrame?.wisps) ?? (shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps)} selected={selected}
           highlighted={focus?.length === 0 ? ["planned-only"] : focus ?? highlight} onPick={pickStory} onNote={pickNote}
-          onControls={onControls} surfaces={surfaces} framing={free ? freePlayFraming(shownMap, width, restingFraming) : restingFraming} sideOffset={offsetFor(undefined, width)} mode={layers.mode} library={layers.library} />
+          onControls={onControls} surfaces={surfaces} framing={free ? freePlayFraming(shownMap, width, restingFraming) : restingFraming} sideOffset={globeSide(undefined, width)} mode={layers.mode} library={layers.library} />
       </div>
     </GlobeBoundary>}
     {webgl && <Labels labels={shownLabels} controls={controls} arrived={arrived} />}

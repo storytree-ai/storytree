@@ -187,7 +187,7 @@ export const steps: TourStep[] = [
     "Each story shows the parts that make it work.",
   ], how: "Each story is broken into the parts that make it work, and each part's territory arrives in the order the agent built it, signing in's shop server first. Parts hold your code: each dot is a file, sized by its lines, in the part whose tests reach it. The cart and checkout have no code yet, so each of their planned parts has an equal share of the island, with no dots. Select a story and a panel shows how its parts work together: what each one is, and what depends on what.",
   why: "You can see where the code went and which promises it serves, without opening a file.",
-  decisions: [], surfaces: { ...plain, roads: true }, lineSurfaces: { 2: { ...files, roads: true } }, ...near, panel: "story", panelFromLine: 3, panelRoom: true,
+  decisions: [], surfaces: { ...plain, roads: true }, lineSurfaces: { 2: { ...files, roads: true } }, ...near, panel: "story", panelFromLine: 3,
   // Signing in's largest file in the survey its code arrived with (02:06).
   labels: { 1: [{ target: { kind: "capability", capability: shopServer }, text: "a part", narrowest: 601 }],
     2: [{ target: { kind: "file", story: signingInId, path: "src/server/server.js" }, read: "file", text: "each dot is a file", narrowest: 390 }],

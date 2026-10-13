@@ -7,6 +7,23 @@ export function towardNarrow(wide: number, narrow: number, width: number): numbe
   return wide + (narrow - wide) * Math.min(1, Math.max(0, (390 - width) / 70));
 }
 
+/**
+ * Where the globe's middle sits, in pixels right of the screen's: in the room the caption leaves it on a laptop, or a phone's own
+ * side. An overlay plays over the globe and goes, so it leaves the globe where it is (ADR-1018 D6); only the knowledge chapter's
+ * note card keeps its room beside it.
+ */
+export function globeSide(step: TourStep | undefined, width: number): number {
+  if (!step || width <= 600) {
+    const { side = 0, narrow = side } = step?.phone ?? {};
+    return Math.round(towardNarrow(side, narrow, width));
+  }
+  const opening = step.kind === "beats" || step.kind === "statement" || step.kind === "fixes";
+  // A chapter's lines start where the arrival's do (ADR-0890, amended 2026-10-05).
+  const cardRight = Math.min(64, width * .04) + (opening ? Math.min(560, width * .46) : Math.min(400, width * .36));
+  const panel = step.panel === "note" || step.panelRoom ? Math.min(480, width - 24) + 12 : 0;
+  return Math.round(Math.min(width * .2, (cardRight - panel) / 2));
+}
+
 /** The framing a step's view asks for at `width`: a laptop's own view above 600px, a phone's at or below, narrowing toward 320px. */
 export function viewFraming(step: Pick<TourStep, "framing" | "laptop" | "phone">, width: number, resting: number): number {
   if (width > 600) return (step.laptop ?? step).framing ?? resting;

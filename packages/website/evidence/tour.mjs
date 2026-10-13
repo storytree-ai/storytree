@@ -87,15 +87,15 @@ export async function verifyTourCamera(browser, url) {
     await step("map-arcs");
     await page.waitForTimeout(1500);
     if (await page.locator(".tour-arc-surface").evaluate(node => node.hidden)) failures.push("The arcs panel opens over the bare globe");
-    // 2.18 on a laptop: while the tour plays the arcs drawer is a small list at the edge, with no detail panel, clear of the
-    // globe; 2.21: its first arc is pointed out and named.
+    // 2.18 on a laptop: while the tour plays the arcs drawer is a small list with no detail panel, an overlay in the stage's top
+    // right (2.27); 2.21: its first arc is pointed out and named.
     const arcsList = await page.evaluate(() => {
       const list = document.querySelector(".tour-arc-surface .arc-overlay").getBoundingClientRect(), globe = document.querySelector("#website-forest canvas").getBoundingClientRect();
       const briefing = document.querySelector(".tour-arc-surface .arc-briefing");
       const pointer = document.querySelector(".tour-arc-pointer:not(.away) .tour-tag-text");
-      return { share: list.width * list.height / (innerWidth * innerHeight), briefing: !!briefing?.checkVisibility(), pointer: pointer?.textContent, right: list.right, globeMiddle: globe.left + globe.width / 2 };
+      return { share: list.width * list.height / (innerWidth * innerHeight), briefing: !!briefing?.checkVisibility(), pointer: pointer?.textContent, right: list.right, top: list.top, width: innerWidth, globeMiddle: globe.left + globe.width / 2 };
     });
-    if (arcsList.share > .1 || arcsList.briefing || arcsList.right > arcsList.globeMiddle - 200) failures.push(`The arcs list is small, at the edge, with no detail panel: ${JSON.stringify(arcsList)}`);
+    if (arcsList.share > .1 || arcsList.briefing || arcsList.right < arcsList.width - 40 || arcsList.top > 200) failures.push(`The arcs list is small, in the top right, with no detail panel: ${JSON.stringify(arcsList)}`);
     for (let tries = 0; tries < 20 && !arcsList.pointer; tries++) { await page.waitForTimeout(150); arcsList.pointer = await page.locator(".tour-arc-pointer:not(.away) .tour-tag-text").textContent().catch(() => undefined); }
     if (arcsList.pointer !== "a plan of work: an arc") failures.push(`The arcs line points out the arc: ${arcsList.pointer}`);
     if (await risen() !== 0) failures.push(`The globe stays bare while the arcs are shown: ${await risen()}`);

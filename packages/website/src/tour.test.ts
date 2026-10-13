@@ -3,9 +3,10 @@ import { test } from "node:test";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { aim, createTour, depthLink, flight, globeOf, groups, islandsKeptOff, labelsAt, labelWords, lineStarts, linesOn, momentStarts, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
+import { aim, createTour, depthLink, flight, globeOf, groups, islandsKeptOff, labelsAt, labelWords, lineStarts, linesOn, momentStarts, overlayAt, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
 import { decisionLabel, freePlayLines, steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
+import { globeSide } from "./tour-camera.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
   id, title: id, explainer, lines, decisions: [], surfaces: {},
@@ -232,7 +233,7 @@ test("2.16 · the map chapter plays six steps in the owner's order: the beginnin
   for (const item of chapter) assert.ok(item.how && item.why && item.decisions.length === 0);
   const [empty, arcs, stories, capabilities, claims, health] = chapter;
   const tinted = (item: TourStep, moment: number) => { let shown = item.surfaces; for (const [from, next] of Object.entries(item.lineSurfaces ?? {})) if (moment >= Number(from)) shown = next; return shown; };
-  const panels = (item: TourStep) => momentStarts(item).map((_, index) => index + 1 >= (item.panelFromLine ?? 1) ? stepAt(item, index + 1).panel : undefined);
+  const panels = (item: TourStep) => momentStarts(item).map((_, index) => overlayAt(item, index + 1)?.panel);
   // Steps 1 and 2: the bare globe; then the arcs panel over it, read before the first claim (01:53:08), the arc pointed out as
   // its one line is said.
   assert.deepEqual(panels(empty!), [undefined]);
@@ -478,7 +479,7 @@ test("2.20 · the knowledge chapter plays three steps on the globe the map chapt
   // One idea per line: the notes come in with the first step's third line, the note's card with the shelf's second, and the
   // orders session's flags with the reads step's third.
   const tinted = (item: TourStep, line: number) => { let shown = item.surfaces; for (const [from, next] of Object.entries(item.lineSurfaces ?? {})) if (line >= Number(from)) shown = next; return shown; };
-  const panels = (item: TourStep) => item.lines.map((_, index) => index + 1 >= (item.panelFromLine ?? 1) ? stepAt(item, index + 1).panel : undefined);
+  const panels = (item: TourStep) => item.lines.map((_, index) => overlayAt(item, index + 1)?.panel);
   assert.deepEqual([1, 2, 3].map(line => tinted(inside, line).knowledgeCore).concat([tinted(shelf, 1).knowledgeCore, tinted(reads, 1).knowledgeCore]), [false, false, true, true, true]);
   assert.deepEqual(panels(shelf), [undefined, "note"]);
   assert.deepEqual(panels(reads), reads.lines.map(() => "sessions"));
@@ -565,4 +566,24 @@ test("2.26 · outside the knowledge chapter the tour shows plain words: part, pl
   shown.push(...freePlayLines.shop, ...freePlayLines.storytree);
   assert.deepEqual(shown.filter(words => coined.test(words)), []);
   assert.ok(shown.some(words => /\bstory\b/.test(words)) && shown.some(words => /\bplan\b/.test(words)) && shown.some(words => /\bparts?\b/.test(words)));
+});
+
+test("2.27 · a step's real panels play one at a time as an overlay in the top right, arriving with the line that names them, over the globe rather than sliding it aside", () => {
+  const find = (id: string) => tourSteps.find(item => item.id === id)!;
+  const overlays = (item: TourStep) => momentStarts(item).map((_, index) => overlayAt(item, index + 1));
+  const right = (panel: string) => ({ panel, corner: "right" });
+  assert.deepEqual(overlays(find("map-arcs")), [right("arcs")]);
+  assert.deepEqual(overlays(find("map-capabilities")), [undefined, undefined, right("story")], "the story panel arrives with the moment that names it");
+  assert.deepEqual(overlays(find("map-claims")), [undefined, right("arcs"), right("sessions")], "the plans list gives way to the sessions list: one at a time");
+  // The globe keeps its place as an overlay arrives: it may cover the globe, because it plays and then goes (ADR-1018 D6).
+  const unpanelled = (item: TourStep): TourStep => { const { panel: _, panelFromLine: __, panelRoom: ___, lineViews: ____, ...rest } = item; return rest; };
+  const bare = unpanelled(find("map-capabilities"));
+  for (const width of [1440, 1024]) {
+    assert.equal(globeSide(find("map-capabilities"), width), globeSide(bare, width), `at ${width}px the story panel does not slide the globe`);
+    assert.equal(globeSide(find("map-claims"), width), globeSide(bare, width));
+  }
+  // The knowledge chapter's note card keeps its room beside the globe, as it did.
+  const shelf = find("knowledge-shelf");
+  assert.deepEqual(overlays(shelf), [undefined, right("note")]);
+  assert.ok(globeSide(shelf, 1440) < globeSide(unpanelled(shelf), 1440));
 });

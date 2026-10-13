@@ -28,7 +28,7 @@ import { habitsCard } from "../instructions/habits.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 
 /** The hook fixtures Session management's own hook tests run on: a harness's input, as it sends it. */
-const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.resolve("@storytree/project-and-caller/testing/pg"))), "..", "hooks", "fixtures");
+const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.resolve("@storytree/session-management"))), "hooks", "fixtures");
 
 /** A hook command as the setup check registers it: registering never runs it. */
 const HOOK: HookCommand = { node: process.execPath, script: path.join(tmpdir(), "storytree", "dist", "storytree-hook.mjs") };

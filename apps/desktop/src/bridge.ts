@@ -34,6 +34,8 @@ export function createBridge(
   options: BridgeOptions = {},
 ): StorytreeBridge & SettingsBridge & SurfacesBridge {
   return {
+    // Sign-in for feedback, the journey and setup help stay named here: their main-process side stays in the frame (ADR-1030 D4),
+    // and sign-in for feedback is one object offered only by some builds, where a manifest's channels are flat and always there.
     ...(options.feedbackIdentity === true ? { feedbackIdentity: pageMethods<FeedbackIdentityBridge>(FEEDBACK_IDENTITY_CHANNELS, invoke) } : {}),
     ...pageMethods<JourneyBridge>(JOURNEY_CHANNELS, invoke),
     ...pageMethods<SettingsBridge>(SETTINGS_CHANNELS, invoke),

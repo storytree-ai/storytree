@@ -1,5 +1,5 @@
 /** Capability 1 · Front door. */
-import { locateStorytree } from '@storytree/session-management/routing';
+import { locateStorytree } from '@storytree/project-and-caller/routing';
 import { Refusal } from '../answer.js';
 import type { Family } from '../door.js';
 import { commandSession, NAME_A_SESSION } from '../writer.js';

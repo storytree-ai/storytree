@@ -1,5 +1,5 @@
 /** Capability 1 · Get storytree. */
-import { locateApp, locateStorytree, readLibrary, storytreeHome } from "@storytree/session-management";
+import { locateApp, locateStorytree, readLibrary, storytreeHome } from "@storytree/project-and-caller";
 import { spawn } from "node:child_process";
 import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";

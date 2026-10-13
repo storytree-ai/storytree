@@ -31,7 +31,7 @@
 import type { ActivityLog } from "../activity/index.js";
 import type { Line } from "@storytree/library";
 import { holdersOf, LogFold, LONGEST_COMMAND_MS, sessionsFrom, type Session, type SessionOptions } from "../readings.js";
-import { idleAfterMs, leaveAfterMs } from "../settings/settings.js";
+import { idleAfterMs, leaveAfterMs } from "@storytree/project-and-caller";
 
 export { closeOut } from "./close-out.js";
 export { nameRefusal, nameSession, SESSION_NAME_LIMIT } from "./name.js";

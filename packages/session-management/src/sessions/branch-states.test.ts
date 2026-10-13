@@ -10,8 +10,8 @@ import { mock, test } from "node:test";
 
 import { openActivityLog } from "../activity/index.js";
 import type { Line } from "@storytree/library";
-import { git, withTempDir } from "../testing/folders.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { gitRunner, type GitRunner } from "./branch-states.js";
 import { lookAsApp, projectFolder, resolveBranches, sessionsFrom } from "./index.js";
 

@@ -17,8 +17,8 @@ import { testChildArgs } from "@storytree/processes/testing";
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import type { Line } from "@storytree/library";
 import { readClaims } from "../claims/index.js";
-import { removeTempDir } from "../testing/folders.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, LEAVE_MS, readSessions } from "./index.js";
 
 async function withProject(body: (log: ActivityLog, project: string, home: string) => Promise<void>): Promise<void> {

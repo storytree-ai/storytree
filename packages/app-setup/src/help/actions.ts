@@ -1,7 +1,8 @@
 /** Capability 3 · First-run guide. */
 import { homedir } from "node:os";
 import path from "node:path";
-import { codexHookTrust, readProjectChoice } from "@storytree/session-management";
+import { codexHookTrust } from "@storytree/session-management";
+import { readProjectChoice } from "@storytree/project-and-caller";
 
 import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Storytree } from "@storytree/library";

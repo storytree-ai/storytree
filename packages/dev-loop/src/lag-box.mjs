@@ -31,7 +31,7 @@ import { fileURLToPath } from "node:url";
 
 import { CATALOGUE } from "@storytree/forest/actions";
 import { connect } from "@storytree/library";
-import { locateLibrary, storytreeHome } from "@storytree/session-management";
+import { locateLibrary, storytreeHome } from "@storytree/project-and-caller";
 
 import { comparedRows } from "./desktop-lag.mjs";
 import { clearAbandonedHeavyLock } from "./heavy-lock.mjs";

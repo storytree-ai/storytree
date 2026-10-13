@@ -15,7 +15,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { storytreeHome } from "@storytree/session-management";
+import { storytreeHome } from "@storytree/project-and-caller";
 import { defaultHomes, registeredHookScripts, type HookCommand, type Homes } from "./hooks-config.js";
 
 export interface FollowMainOptions {

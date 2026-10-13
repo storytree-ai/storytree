@@ -12,7 +12,7 @@ import { test } from "node:test";
 
 import { connect, type ConnectOptions } from "@storytree/library";
 
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { ACTIVITY_DATABASE, openActivityLog } from "./index.js";
 
 const CONTRACT = "2.5 lines two machines write for one project, each through its own library connection, are both read back from either, in order";

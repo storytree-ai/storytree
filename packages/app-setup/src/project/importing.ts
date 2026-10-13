@@ -17,7 +17,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "n
 import path from "node:path";
 
 import type { Library, MappedPackage, Storytree } from "@storytree/library";
-import { findProject, importsOf, machineOf, recordImport, storytreeHome, trunksOn } from "@storytree/session-management";
+import { findProject, importsOf, machineOf, recordImport, storytreeHome, trunksOn } from "@storytree/project-and-caller";
 
 export interface ImportOptions {
   /** The folder of the project to import. */

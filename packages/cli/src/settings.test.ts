@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { readSettings } from "@storytree/session-management";
+import { readSettings } from "@storytree/project-and-caller";
 
 import { BuiltCommand, storytree } from "./testing/cli.js";
 

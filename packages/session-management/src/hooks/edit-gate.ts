@@ -27,7 +27,7 @@
 import path from "node:path";
 
 import type { DeclaredCapabilities, GateContext, ImportedFolderPlace } from "../claims/edit-gate.js";
-import type { LocateOptions } from "../routing/index.js";
+import type { LocateOptions } from "@storytree/project-and-caller";
 import { patchEdits } from "./codex.js";
 import { cursorSession } from "./cursor.js";
 import { piEdit, piSession } from "./pi.js";
@@ -205,7 +205,7 @@ export async function yesSaid(harness: string, prompted: { session: string; fold
 
 /** Run `work` with the gate's view of the session's project, when its folder is an approved project on a reachable storytree (also the shell guard's, shell-guard.ts). */
 export async function gated<T>(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, locate: LocateOptions | undefined, home: string, work: (context: GateContext, checkout: string, imports: readonly ImportedFolderPlace[]) => Promise<T>): Promise<T | undefined> {
-  const { route, requireApproval, openNamedProject, ProjectFolderError, importsOf, machineOf } = await import("../routing/index.js");
+  const { route, requireApproval, openNamedProject, ProjectFolderError, importsOf, machineOf } = await import("@storytree/project-and-caller");
   const where = route(edit.folder, locate);
   if (where.status !== "routed") return undefined;
   const [{ openActivityLog, thisMachine }, { worktreeRoot }, { connect }] = await Promise.all([

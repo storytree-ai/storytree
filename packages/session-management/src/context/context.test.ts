@@ -11,10 +11,10 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
-import { MARKER_FILE } from "../routing/index.js";
-import { setSetting } from "../settings/settings.js";
-import { withTempDir } from "../testing/folders.js";
-import { approveCheckout, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { MARKER_FILE } from "@storytree/project-and-caller";
+import { setSetting } from "@storytree/project-and-caller";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { claudeCodeTokens, codexTokens, contextCommand, contextReading, readContext } from "./index.js";
 
 /** One Claude Code assistant line: a request's usage, as the harness records it. */

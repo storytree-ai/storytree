@@ -12,8 +12,8 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { openActivityLog } from "../activity/index.js";
-import { removeTempDir } from "../testing/folders.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { commandInput, commandUsage, SESSION_VERBS, toolInput, VerbRefusal, type DoorWords, type Verb } from "./verbs.js";
 
 const DOORS: Record<"command" | "tool", DoorWords> = {

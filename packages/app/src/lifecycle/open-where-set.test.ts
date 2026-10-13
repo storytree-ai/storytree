@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { setLibrary } from "@storytree/session-management";
+import { setLibrary } from "@storytree/project-and-caller";
 import { ConnectionError, type ConnectOptions, type Storytree } from "@storytree/library";
 
 import { openAppLibrary } from "./open-where-set.js";

@@ -75,7 +75,7 @@ import {
 } from "@storytree/app";
 import { projectsOnThisComputer, setupHelpActions } from "@storytree/app-setup";
 import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANNELS } from "@storytree/app-setup/bridge";
-import { settingsActions, SETTINGS_CHANNELS } from "@storytree/session-management/settings";
+import { settingsActions, SETTINGS_CHANNELS } from "@storytree/project-and-caller/settings";
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
 import { createLagRuntime } from "@storytree/lag-in-use/runtime";

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { start } from '@storytree/local-postgres';
 import { connect } from '@storytree/library';
-import { findProject } from '@storytree/session-management';
+import { findProject } from '@storytree/project-and-caller';
 import { setUpProject } from '@storytree/app-setup/project';
 import { setupHelpActions } from '../../src/index.ts';
 

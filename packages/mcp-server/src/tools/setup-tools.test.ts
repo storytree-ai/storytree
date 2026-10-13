@@ -15,19 +15,20 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { MARKER_FILE, noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/session-management";
+import { noteCodexHookRan, noteHookFailure, type Homes } from "@storytree/session-management";
+import { MARKER_FILE } from "@storytree/project-and-caller";
 import { CHECK_FILE, registerHooks, type GhState, type HookCommand } from "@storytree/app-setup/setup";
 import { buildBins } from "@storytree/app-setup/bins";
 import { STARTER_PACK_VERSION } from "@storytree/app-setup/project";
-import { withTempDir } from "@storytree/session-management/testing/folders";
-import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect } from "@storytree/library";
 
 import { habitsCard } from "../instructions/habits.js";
 import { claudeCode, codex, withAgent } from "../testing/agent.js";
 
 /** The hook fixtures Session management's own hook tests run on: a harness's input, as it sends it. */
-const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.resolve("@storytree/session-management/testing/pg"))), "..", "hooks", "fixtures");
+const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.resolve("@storytree/project-and-caller/testing/pg"))), "..", "hooks", "fixtures");
 
 /** A hook command as the setup check registers it: registering never runs it. */
 const HOOK: HookCommand = { node: process.execPath, script: path.join(tmpdir(), "storytree", "dist", "storytree-hook.mjs") };

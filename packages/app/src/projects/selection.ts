@@ -1,5 +1,5 @@
 /** Capability 2 · Storytree projects. Storytree projects (app 2): the remembered picker choice and the current list. */
-import { readProjectChoice, recordProjectChoice } from "@storytree/session-management";
+import { readProjectChoice, recordProjectChoice } from "@storytree/project-and-caller";
 
 export interface ProjectSelection {
   projects: string[];

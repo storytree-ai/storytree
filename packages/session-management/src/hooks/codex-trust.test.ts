@@ -7,7 +7,7 @@ import { mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { withTempDir } from "../testing/folders.js";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { codexHookTrust, runHook } from "./index.js";
 
 test("3.18 Codex's hooks read as waiting once registered, as running once one of them has run, even outside a project, and as waiting again after a later registration", async () => {

@@ -32,17 +32,17 @@ import pg from "pg";
 import { openActivityLog } from "../activity/index.js";
 import { buildHook } from "../testing/hook-bin.js";
 import { readContext } from "../context/index.js";
-import { machineOf, MARKER_FILE, recordImport } from "../routing/index.js";
+import { machineOf, MARKER_FILE, recordImport } from "@storytree/project-and-caller";
 import { claim, readClaims } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
 import { SHELL_GUARD } from "./shell-guard.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
 import { BACKGROUND, hookLines } from "./hooks.js";
 import { queueFolder } from "./queue.js";
-import { readSettings, setSetting } from "../settings/settings.js";
-import { countingStore, longHistory } from "../testing/egress.js";
-import { git, removeTempDir, withTempDir } from "../testing/folders.js";
-import { approveCheckout, dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { readSettings, setSetting } from "@storytree/project-and-caller";
+import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
+import { git, removeTempDir, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
 const FIXTURES = fileURLToPath(new URL("./fixtures/", import.meta.url));
 /** The name of the machine the tests run on, as every line a hook writes names it. */

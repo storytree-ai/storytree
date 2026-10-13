@@ -24,8 +24,8 @@ import path from "node:path";
 
 import type { ConnectOptions, Line } from "@storytree/library";
 
-import { openNamedProject, requireApproval, route } from "../routing/index.js";
-import { idleAfterMs } from "../settings/settings.js";
+import { openNamedProject, requireApproval, route } from "@storytree/project-and-caller";
+import { idleAfterMs } from "@storytree/project-and-caller";
 import { withDeadline } from "./deadlines.js";
 
 /** How long the status line waits for storytree before showing nothing. */

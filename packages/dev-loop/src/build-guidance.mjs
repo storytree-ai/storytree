@@ -22,7 +22,7 @@ import { userInfo } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { locateLibrary, readLibrary } from "@storytree/session-management";
+import { locateLibrary, readLibrary } from "@storytree/project-and-caller";
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/session-management/readings";
 import { connect } from "@storytree/library";
 import { DataDirInUseError, start } from "@storytree/local-postgres";

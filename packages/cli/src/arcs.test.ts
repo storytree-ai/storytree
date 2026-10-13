@@ -12,7 +12,7 @@ import pg from "pg";
 import { connect, type Line } from "@storytree/library";
 import { nameThisMachine } from "@storytree/session-management/machines";
 import { claim, openActivityLog, readClaims, recordFriction, release, type ActivityLog } from "@storytree/session-management";
-import { withTempDir } from "@storytree/session-management/testing/folders";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";

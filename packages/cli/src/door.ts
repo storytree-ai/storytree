@@ -20,7 +20,7 @@
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
 import type { ActivityLog, Claim } from "@storytree/session-management";
-import { openNamedProject, ProjectFolderError, requireApproval, route } from "@storytree/session-management/routing";
+import { openNamedProject, ProjectFolderError, requireApproval, route } from "@storytree/project-and-caller/routing";
 import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
 

@@ -8,7 +8,8 @@
 import { execFileSync } from "node:child_process";
 import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { findProject, forgetProjectActivity, forgetTrunk, keepOnThisComputer, machineOf, MARKER_FILE, openActivityLog, ProjectFolderError, readClaims, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, storytreeHome, trunksOn } from "@storytree/session-management";
+import { forgetProjectActivity, openActivityLog, readClaims } from "@storytree/session-management";
+import { findProject, forgetTrunk, keepOnThisComputer, machineOf, MARKER_FILE, ProjectFolderError, readLibrary, readProjectChoice, recordRemovedProjects, removedProjects, storytreeHome, trunksOn } from "@storytree/project-and-caller";
 import type { Storytree } from "@storytree/library";
 import { forgetProjectQuality } from "@storytree/quality-assurance";
 

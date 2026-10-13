@@ -14,10 +14,10 @@ import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
-import { machineOf, registerTrunk } from "../routing/trunks.js";
+import { machineOf, registerTrunk } from "@storytree/project-and-caller";
 import { MACHINE_VERBS, SESSION_VERBS, VerbRefusal, type DoorWords, type Verb, type VerbContext } from "../sessions/verbs.js";
-import { removeTempDir } from "../testing/folders.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { incrementMachine, MachineNameError, machineNames, nameThisMachine, NO_MACHINE } from "./machines.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` };

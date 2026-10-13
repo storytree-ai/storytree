@@ -14,7 +14,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools } from "../index.js";
-import { decisionRights } from "@storytree/session-management";
+import { decisionRights } from "@storytree/project-and-caller";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */

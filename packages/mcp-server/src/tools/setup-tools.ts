@@ -10,8 +10,9 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { z } from "zod";
 
 import { habitsCard } from "../instructions/habits.js";
-import { hookFailures, MARKER_FILE, type HookFailure } from "@storytree/session-management";
-import { findProject, storytreeHome } from "@storytree/session-management";
+import { hookFailures, type HookFailure } from "@storytree/session-management";
+import { MARKER_FILE } from "@storytree/project-and-caller";
+import { findProject, storytreeHome } from "@storytree/project-and-caller";
 import { IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, takeStarterPack, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";

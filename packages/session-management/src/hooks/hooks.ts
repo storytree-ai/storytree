@@ -53,7 +53,7 @@ import type { NewLine, Storytree } from "@storytree/library";
 
 import type { MergeContext, MergeWatch } from "../claims/index.js";
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
-import { findProject, openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "../routing/index.js";
+import { findProject, openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "@storytree/project-and-caller";
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";

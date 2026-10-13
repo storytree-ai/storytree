@@ -12,8 +12,8 @@ import { connect } from "@storytree/library";
 
 import { openActivityLog } from "../activity/index.js";
 import { claim, release } from "../claims/index.js";
-import { git, withTempDir } from "../testing/folders.js";
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions, reapWorktrees } from "./index.js";
 
 test("4.12, 4.18 a new admitted claim reopens a closed-out session and keeps its fresh worktree before any edit; a later close-out permits reaping", async () => {

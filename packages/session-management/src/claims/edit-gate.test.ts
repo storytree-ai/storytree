@@ -11,8 +11,8 @@ import { connect } from "@storytree/library";
 
 import { openActivityLog } from "../activity/index.js";
 import { declaredInTests } from "../testing/declared.js";
-import { withTempDir } from "../testing/folders.js";
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { claim, closed, release } from "./claims.js";
 import { allowIncrement, allowSaid, editRefusal, recordPromptYes, refusalMessage } from "./edit-gate.js";
 import { refusalAnswer } from "../hooks/edit-gate.js";

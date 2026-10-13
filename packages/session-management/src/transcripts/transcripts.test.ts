@@ -11,8 +11,8 @@ import { test } from "node:test";
 import pg from "pg";
 
 import { ACTIVITY_DATABASE, openActivityLog } from "../activity/index.js";
-import { withTempDir } from "../testing/folders.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { pruneTranscripts, scrub, shipTranscript, storedContextReading, storedSessionWindow, TranscriptCache } from "./index.js";
 
 // Fakes built at run time, so no scanner mistakes this file for a leak.

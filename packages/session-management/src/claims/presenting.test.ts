@@ -10,7 +10,7 @@ import { connect } from "@storytree/library";
 
 import { openActivityLog } from "../activity/index.js";
 import { closeOut } from "../sessions/index.js";
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { presentQuestion, presentersOf, stopPresenting } from "./presenting.js";
 
 test("5.36 a question one live session is putting to the owner is refused to another, naming it, and listed as presented; it is free again once that session stops, ends or closes out, and settling it clears it", async () => {

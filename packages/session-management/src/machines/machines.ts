@@ -9,7 +9,7 @@ import { hostname } from "node:os";
 
 import type { Storytree } from "@storytree/library";
 
-import { machineOf, storytreeHome, trunksPool } from "../routing/trunks.js";
+import { machineOf, storytreeHome, trunksPool } from "@storytree/project-and-caller";
 
 /** Whatever reaches the library server's own databases: a connection to it, or a project's library on it. */
 export type Server = Pick<Storytree, "ownDatabase">;

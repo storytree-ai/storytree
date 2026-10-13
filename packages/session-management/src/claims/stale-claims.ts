@@ -9,7 +9,7 @@
  */
 import type { ActivityLog } from "../activity/index.js";
 import { holdersOf, LogFold, type Claim, type Restart } from "../readings.js";
-import { idleAfterMs } from "../settings/settings.js";
+import { idleAfterMs } from "@storytree/project-and-caller";
 import { COMMANDS_MS, thisRestart } from "./claims.js";
 import { ghAllOpenPulls, type AllOpenPulls, type OpenPull } from "./merges.js";
 

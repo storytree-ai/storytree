@@ -18,9 +18,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { connect, type Line } from "@storytree/library";
 
-import { locateStorytree, MARKER_FILE, noteCodexHookRan, registeredHookScripts, SHELL_GUARD } from "@storytree/session-management";
-import { withTempDir } from "@storytree/session-management/testing/folders";
-import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { noteCodexHookRan, registeredHookScripts, SHELL_GUARD } from "@storytree/session-management";
+import { locateStorytree, MARKER_FILE } from "@storytree/project-and-caller";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
 import { buildBins } from "../bins/build.js";
 import { makeRepository, setUpProject } from "../project/making.js";

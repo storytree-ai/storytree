@@ -1,7 +1,7 @@
 /** Capability 6 · Agent tools (the MCP server). The agent front door for The map; its selection, graph and responses stay in the map package. */
 import { formatFocus } from "@storytree/map";
 import { crossingProject, focusProject, formatCrossing } from "@storytree/map/read";
-import { importsOf, machineOf, storytreeHome } from "@storytree/session-management";
+import { importsOf, machineOf, storytreeHome } from "@storytree/project-and-caller";
 import { z } from "zod";
 import type { Define } from "./server.js";
 

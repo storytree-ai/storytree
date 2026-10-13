@@ -1,6 +1,6 @@
 /**
  * Capability 1 · Project routing: Session management's light routing entry (contract 1.15). The command
- * line asks "is this a project, and is storytree running?" through `@storytree/session-management/routing`
+ * line asks "is this a project, and is storytree running?" through `@storytree/project-and-caller/routing`
  * rather than the link's root, so that answer does not wait on everything else the link carries.
  */
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route } from "@storytree/session-management/routing";
+import { MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, route } from "@storytree/project-and-caller/routing";
 
 import { withTempDir } from "../testing/folders.js";
 

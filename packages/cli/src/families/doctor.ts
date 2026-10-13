@@ -24,7 +24,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 import type { SetupReport } from "@storytree/app-setup/setup";
-import { findProject, ProjectFolderError, requireApproval } from "@storytree/session-management/routing";
+import { findProject, ProjectFolderError, requireApproval } from "@storytree/project-and-caller/routing";
 import { setUpProject, suggestProjectName } from "@storytree/app-setup/project";
 import type { ConnectOptions } from "@storytree/library";
 

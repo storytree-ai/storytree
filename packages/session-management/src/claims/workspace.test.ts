@@ -12,8 +12,8 @@ import { test } from "node:test";
 import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
-import { git, withTempDir } from "../testing/folders.js";
-import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { readSessions } from "../sessions/index.js";
 import { claim, makeWorkspace, readClaims, release, type ClaimContext } from "./index.js";
 import * as workspace from "./workspace.js";

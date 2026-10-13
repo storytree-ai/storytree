@@ -16,7 +16,8 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import type { Storytree } from "@storytree/library";
-import { ask, importsOf, machineOf, storytreeHome, type Answer } from "@storytree/session-management";
+import { ask, type Answer } from "@storytree/session-management";
+import { importsOf, machineOf, storytreeHome } from "@storytree/project-and-caller";
 
 /** The release stamped into a bundled build, as JSON; undeclared when run from source. */
 declare const STORYTREE_RELEASE: string | undefined;

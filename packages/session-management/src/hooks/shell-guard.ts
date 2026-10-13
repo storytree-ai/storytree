@@ -24,7 +24,7 @@ import type { NewLine, Storytree } from "@storytree/library";
 
 import { worktreeRoot } from "../activity/branch.js";
 import type { DeclaredCapabilities, ImportedFolderPlace } from "../claims/edit-gate.js";
-import { importsOf, machineOf, route, type LocateOptions } from "../routing/index.js";
+import { importsOf, machineOf, route, type LocateOptions } from "@storytree/project-and-caller";
 import { gated } from "./edit-gate.js";
 import type { HookFailure } from "./failures.js";
 import type { HookLines } from "./hooks.js";

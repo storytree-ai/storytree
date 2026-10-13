@@ -9,9 +9,10 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
 
-import { ACTIVITY_DATABASE, claim, claimRefusal, openActivityLog, readClaims, setSetting, type MergeWatch } from "@storytree/session-management";
-import { withTempDir } from "@storytree/session-management/testing/folders";
-import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { ACTIVITY_DATABASE, claim, claimRefusal, openActivityLog, readClaims, type MergeWatch } from "@storytree/session-management";
+import { setSetting } from "@storytree/project-and-caller";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect } from "@storytree/library";
 
 import { claudeCode, withAgent } from "../testing/agent.js";

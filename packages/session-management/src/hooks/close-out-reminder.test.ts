@@ -12,8 +12,8 @@ import { test } from "node:test";
 
 import { openActivityLog } from "../activity/index.js";
 import { closeOut } from "../sessions/index.js";
-import { git, withTempDir } from "../testing/folders.js";
-import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { CLOSE_OUT_REMINDER, runHook } from "./index.js";
 
 test("3.17 a turn (or a Pi run) that ends with its branch merged and no close-out is asked, once, to close out; a fresh branch with no commits of its own (made by checkout or as a workspace), a branch still ahead, main, a stop the reminder caused, or a session that closed out is not", async () => {

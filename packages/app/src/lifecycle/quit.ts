@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { locateApp, storytreeHome } from "@storytree/session-management";
+import { locateApp, storytreeHome } from "@storytree/project-and-caller";
 
 export type QuitResult = { state: "quit" } | { state: "not running" } | { state: "still running" } | { state: "no record"; message: string };
 

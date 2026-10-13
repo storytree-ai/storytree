@@ -9,10 +9,10 @@ import path from "node:path";
 import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "@storytree/session-management";
-import { MARKER_FILE } from "@storytree/session-management";
+import { MARKER_FILE } from "@storytree/project-and-caller";
 import { idOf, type Agent } from "./agent.js";
-import { withTempDir } from "@storytree/session-management/testing/folders";
-import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
 /** The toolbox: every tool the server offers. */
 export const TOOLS = [

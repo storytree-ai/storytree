@@ -8,8 +8,8 @@ import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog } 
 import { claim, claimRefusal, readClaims } from "../claims/index.js";
 import { claimsFrom, sessionsFrom } from "../readings.js";
 import { readSessions } from "../sessions/index.js";
-import { withTempDir } from "../testing/folders.js";
-import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { setSetting } from "./settings.js";
 
 test("10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover", async () => {

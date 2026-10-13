@@ -4,6 +4,7 @@ import { CODEX_TRUST_STEP } from "./verify.js";
 import type { ServerEntry, SetupReport } from "./setup.js";
 import { HARNESS_IDS, MARKER_FILE, watchedHarness, type AppReading, type Harness } from "@storytree/session-management";
 import { compareVersions } from "./hooks-release.js";
+import { IDENTITY_FIX } from "../project/making.js";
 
 export interface SetupLine {
   readonly check: "storytree" | "hooks" | "hooks-release" | "codex-server" | "codex-hooks" | "elevated" | "transcripts" | "status-line" | "command" | "gh" | "agent-cli" | "git" | "node" | "archives" | "project" | "repository";
@@ -123,6 +124,7 @@ export function setupLines(report: Omit<SetupReport, "lines">): SetupLine[] {
   lines.push(project.status === "set up"
     ? { check: "project", state: "ok", message: `This folder is storytree project ${JSON.stringify(project.name)}.` }
     : { check: "project", state: "needs-attention", message: "This folder isn't a storytree project yet.", fix: `Only after the user says yes, set up project ${JSON.stringify(project.suggestion)} or a name they choose (lower-case letters, digits and hyphens).` });
+  if (report.firstCommit !== undefined) lines.push(firstCommitLine(report.firstCommit));
   if (report.repository !== undefined) lines.push(repositoryLine(report.repository));
   return lines;
 }
@@ -134,6 +136,13 @@ function repositoryLine(lack: "no repository" | "no origin"): SetupLine {
   return lack === "no repository"
     ? { check: "repository", state: "needs-attention", message: `This project's folder is in no git repository, so ${why}`, fix: `Make it one with a first commit (git init, then commit ${MARKER_FILE}); then ${remote}` }
     : { check: "repository", state: "needs-attention", message: `This project's git repository has no origin remote, so ${why}`, fix: `Once its work is committed, ${remote}` };
+}
+
+/** What a repository set_up_project began with no git identity is told (8.31): its first commit made, or the identity it waits for. */
+function firstCommitLine(first: "made" | "no identity"): SetupLine {
+  return first === "made"
+    ? { check: "repository", state: "fixed", message: `storytree made this project's repository's first commit, holding ${MARKER_FILE}, now that git has an identity to make it with.` }
+    : { check: "repository", state: "needs-attention", message: `This project's git repository is waiting for its first commit, holding ${MARKER_FILE}: git has no identity to make it with (user.name and user.email), so storytree cannot review or land its work yet.`, fix: `${IDENTITY_FIX.charAt(0).toUpperCase()}${IDENTITY_FIX.slice(1)}.` };
 }
 
 /**

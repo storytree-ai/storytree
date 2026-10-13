@@ -17,7 +17,7 @@ import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/s
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 import { openReviews } from "@storytree/quality-assurance";
 
-import { makeRepository, setUpProject, suggestProjectName } from "./making.js";
+import { firstCommit, makeRepository, setUpProject, suggestProjectName } from "./making.js";
 
 /** The project a lookup found and the folder holding its marker, leaving aside the database identity the marker records. */
 function named(lookup: ProjectLookup): { project: string; folder: string } | ProjectLookup {
@@ -273,7 +273,7 @@ test("6.7 setting a new project up seeds its library with every starter role (or
   });
 });
 
-test("6.10 a folder in no git repository gets one, whose first commit holds the project's marker; a folder already in one is left as it is; with no git, or no git identity, nothing is made and the setup goes on", async () => {
+test("6.10 a folder in no git repository gets one, whose first commit holds the project's marker; a folder already in one is left as it is; with no git nothing is made, and with no git identity the repository waits, its marker staged, for the first commit once git has one; the setup goes on", async () => {
   await withTempDir(async (dir) => {
     // Git reads no config of this machine's: the test chooses the identity, or none.
     const noConfig = path.join(dir, "no-gitconfig");
@@ -302,10 +302,26 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
     assert.equal(git(empty, "rev-list", "--count", "HEAD").trim(), "1");
 
     const anonymous = project("anonymous");
-    const unnamed = makeRepository(anonymous, { env: { ...bare, HOME: dir, USERPROFILE: dir } });
-    assert.equal(unnamed.state, "could not");
-    assert.match(unnamed.state === "could not" ? unnamed.reason : "", /identity|user\.name|user\.email/i);
-    assert.equal(existsSync(path.join(anonymous, ".git")), false, "a repository that could not be committed to is not left half made");
+    const nobody = { ...bare, HOME: dir, USERPROFILE: dir };
+    const unnamed = makeRepository(anonymous, { env: nobody });
+    assert.equal(unnamed.state, "no identity");
+    assert.match(unnamed.state === "no identity" ? unnamed.reason : "", /identity|user\.name|user\.email/i);
+    assert.equal(path.resolve(git(anonymous, "rev-parse", "--show-toplevel").trim()), anonymous, "with no identity the repository is kept");
+    assert.deepEqual(git(anonymous, "ls-files").trim().split("\n"), [MARKER_FILE], "its marker staged, alone, for the first commit");
+    assert.deepEqual(firstCommit(anonymous, { env: nobody })?.state, "no identity", "still no identity: still no commit");
+    assert.deepEqual(firstCommit(anonymous, { env: signed }), { state: "made" }, "once git has an identity the first commit is made");
+    assert.equal(git(anonymous, "log", "--format=%an <%ae>").trim(), "A User <user@example.invalid>");
+    assert.deepEqual(git(anonymous, "show", "--name-only", "--format=", "HEAD").trim().split("\n"), [MARKER_FILE]);
+    assert.equal(firstCommit(anonymous, { env: signed }), undefined, "a repository with a commit is no longer waiting for its first");
+    assert.equal(firstCommit(empty, { env: signed }), undefined);
+
+    // A repository the user began, with nothing or something else staged, is theirs: storytree commits nothing in it.
+    const theirs = project("theirs");
+    git(theirs, "init", "-q");
+    assert.equal(firstCommit(theirs, { env: signed }), undefined);
+    git(theirs, "add", "--", MARKER_FILE, "notes.txt");
+    assert.equal(firstCommit(theirs, { env: signed }), undefined);
+    assert.equal(firstCommit(path.join(dir, "no-such-folder"), { env: signed }), undefined);
 
     const gitless = project("gitless");
     const missing = makeRepository(gitless, { env: { ...signed, PATH: path.join(dir, "no-bin"), Path: path.join(dir, "no-bin") } });

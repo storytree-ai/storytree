@@ -17,7 +17,7 @@ import path from "node:path";
 
 import { codexHookTrust, findProject, readAppRecords, storytreeHome, type AppPlaces, type AppReading } from "@storytree/session-management";
 
-import { suggestedName } from "../project/making.js";
+import { firstCommit, suggestedName } from "../project/making.js";
 import { defaultHomes, disconnectedHarnesses, registeredHookScripts, registerHooks, type HookCommand, type Homes, type HooksReport } from "./hooks-config.js";
 import { hooksRelease, type HooksRelease, type LatestRelease } from "./hooks-release.js";
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
@@ -100,6 +100,11 @@ export interface SetupReport {
    * origin remote. Undefined outside a project, where git cannot be asked, or when nothing is missing.
    */
   readonly repository?: "no repository" | "no origin";
+  /**
+   * The first commit of a repository set_up_project began with no git identity (8.31): made by this check, now that
+   * git has one, or still waiting for one. Undefined for every other folder.
+   */
+  readonly firstCommit?: "made" | "no identity";
 }
 
 /** A stdio server entry: the command and arguments an MCP client starts storytree's tool server with. */
@@ -132,8 +137,10 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   ]);
   // The tool server is built beside the hook script, as the `storytree` command is.
   const serverEntry = options.hook === undefined ? undefined : { command: options.hook.node, args: [path.join(path.dirname(options.hook.script), "storytree-mcp.mjs")] };
+  const committed = found.project === undefined ? undefined : firstCommit(found.folder)?.state;
+  const first = committed === "made" || committed === "no identity" ? committed : undefined;
   const repository = found.project === undefined ? undefined : repositoryLack(found.folder);
-  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released, serverEntry, ...(options.connected === undefined ? {} : { connected: options.connected }), ...(repository === undefined ? {} : { repository }) };
+  const report = { storytree, hooks, codexServer, codexHooks, project, command, gh, machine, archives, hooksRelease: released, serverEntry, ...(options.connected === undefined ? {} : { connected: options.connected }), ...(repository === undefined ? {} : { repository }), ...(first === undefined ? {} : { firstCommit: first }) };
   return { ...report, lines: setupLines(report) };
 }
 

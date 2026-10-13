@@ -100,17 +100,28 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
   return { project, marker };
 }
 
-/** What making a project's folder a git repository came to (6.10). */
-export type RepositoryMade = { readonly state: "made" } | { readonly state: "already"; readonly root: string } | { readonly state: "could not"; readonly reason: string };
+/**
+ * What making a project's folder a git repository came to (6.10). With no git identity, the repository is made and
+ * its marker staged, waiting for the first commit (firstCommit) once git has one.
+ */
+export type RepositoryMade =
+  | { readonly state: "made" }
+  | { readonly state: "already"; readonly root: string }
+  | { readonly state: "no identity"; readonly reason: string }
+  | { readonly state: "could not"; readonly reason: string };
+
+/** What the user is asked to do when git has no identity to commit a project's repository with (6.10, 8.31). */
+export const IDENTITY_FIX = 'ask the user for the name and email their commits should carry, and with their words run git config --global user.name "<name>" and git config --global user.email "<email>"; the next check_setup then makes the first commit';
 
 /**
  * Make `folder`, a project's folder, a git repository when it is in none (6.10, increment_c270de438175): review,
  * landing and verified health all read one. The first commit holds the project's marker alone, under the user's own
- * git identity, never a guessed one. A folder already in a repository is left as it is. Never throws: with no git,
- * or no identity, nothing is made (a half-made repository is taken away again) and the reason is said.
+ * git identity, never a guessed one. A folder already in a repository is left as it is. Never throws: with no git
+ * nothing is made; with no identity the repository stays, its marker staged for the first commit
+ * (increment_e2cb527f4320); any other failure takes the half-made repository away again. Each says its reason.
  */
 export function makeRepository(folder: string, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): RepositoryMade {
-  const run = (...args: string[]) => execFileSync("git", args, { cwd: folder, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
+  const run = gitIn(folder, env);
   try {
     return { state: "already", root: canonical(run("rev-parse", "--show-toplevel")) };
   } catch (error) {
@@ -118,17 +129,46 @@ export function makeRepository(folder: string, { env = process.env }: { env?: No
   }
   try {
     run("init", "-q");
+    run("add", "--", MARKER_FILE);
   } catch (error) {
+    rmSync(path.join(folder, ".git"), { recursive: true, force: true });
     return { state: "could not", reason: `git init failed: ${gitError(error)}` };
   }
+  const made = commitMarker(run);
+  if (made.state === "could not") rmSync(path.join(folder, ".git"), { recursive: true, force: true });
+  return made;
+}
+
+/**
+ * Make the first commit of a repository makeRepository began in `folder` with no identity (6.10, 8.31): one whose
+ * root is the folder, with no commit yet and the project's marker alone staged. Undefined for any other folder, so a
+ * repository the user began is never committed to.
+ */
+export function firstCommit(folder: string, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): Exclude<RepositoryMade, { state: "already" }> | undefined {
+  const run = gitIn(folder, env);
   try {
-    run("add", "--", MARKER_FILE);
+    if (canonical(run("rev-parse", "--show-toplevel")) !== canonical(path.resolve(folder))) return undefined;
+    if (run("rev-list", "-n", "1", "--all") !== "") return undefined;
+    if (run("ls-files") !== MARKER_FILE) return undefined;
+  } catch {
+    return undefined;
+  }
+  return commitMarker(run);
+}
+
+/** Run git in `folder` with `env`, giving back what it printed, trimmed. */
+function gitIn(folder: string, env: NodeJS.ProcessEnv): (...args: string[]) => string {
+  return (...args) => execFileSync("git", args, { cwd: folder, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
+}
+
+/** Commit the staged marker under the user's own identity, never one git guesses. */
+function commitMarker(run: (...args: string[]) => string): Exclude<RepositoryMade, { state: "already" }> {
+  try {
     run("-c", "user.useConfigOnly=true", "commit", "-q", "-m", "Set up storytree project", "--", MARKER_FILE);
     return { state: "made" };
   } catch (error) {
-    rmSync(path.join(folder, ".git"), { recursive: true, force: true });
     const said = gitError(error);
-    return { state: "could not", reason: /user\.(name|email)|identity|author/i.test(said) ? `git has no identity to commit with (user.name and user.email): ${said}` : `git could not commit: ${said}` };
+    return /user\.(name|email)|identity|author/i.test(said) ? { state: "no identity", reason: `git has no identity to commit with (user.name and user.email): ${said}` } : { state: "could not", reason: `git could not commit: ${said}` };
   }
 }
 

@@ -16,7 +16,7 @@ import { openStorytree } from "../setup/open-storytree.js";
 import { setUpProject, suggestProjectName, unusedName } from "./making.js";
 
 export { keepOnThisComputer, unusedName };
-export { makeRepository, notAProjectYet, setUpProject, suggestedName, suggestProjectName } from "./making.js";
+export { firstCommit, IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, suggestedName, suggestProjectName } from "./making.js";
 export type { RepositoryMade, SetUpOptions } from "./making.js";
 export { ImportRefusedError, importProject } from "./importing.js";
 export type { Imported, ImportOptions } from "./importing.js";

@@ -6,4 +6,5 @@ export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandA
 export { boardClaims, currentBranch, endMergedClaims } from "./merges.js";
 export type { MergeContext, MergedPull, MergedPulls, MergeWatch } from "./merges.js";
 export { attachWorkspace, makeWorkspace } from "./workspace.js";
+export { allowCommand, allowIncrement, type AllowAnswer } from "./edit-gate.js";
 export type { ClaimedWorkspace, OpenPullForWork, WorkspaceAnswer, WorkspaceAttachment, WorkspaceOptions, WorkspaceRefusal } from "./workspace.js";

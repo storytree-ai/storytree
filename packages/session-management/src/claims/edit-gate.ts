@@ -17,7 +17,11 @@
  * path against the imported folders and the covers of the explored capabilities of the stories mapped from them,
  * cheap enough for the hook. It is refused unless the session's increment lists the explored capability that covers
  * it, a session holding no increment included; when the increment does list it, the edit still needs the user's own
- * yes, asked before the edit (an "ask"), because an agent writes its own increments (ADR-1015 D2).
+ * yes, asked before the edit (an "ask"), because an agent writes its own increments (ADR-1015 D2). One yes covers the
+ * increment (contract 5.41): the capabilities its list named when the user gave it, over the files each covered then. A
+ * capability listed later, or a cover widened since, is asked again. The yes is a `user-allowed` line, written only by
+ * the hook after an edit the harness's prompt let through, or by a command the user types at their own terminal: a
+ * line any other way writes is not read as one, and no tool writes one.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -56,7 +60,15 @@ export type EditRefusal =
  * it may; `declared` places each file in its capability. A refusal because another live session holds the capability writes a claim-refused line, so
  * the activity log shows who was turned away and by whom.
  */
-export async function editRefusal(context: Pick<ClaimContext, "log" | "library" | "project" | "session" | "harness" | "folder" | "quietMs" | "restarted">, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[] = []): Promise<EditRefusal | undefined> {
+export async function editRefusal(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[] = []): Promise<EditRefusal | undefined> {
+  return refusalOf(context, checkout, files, declared, imports, true);
+}
+
+/** What the gate reads and writes through: the session's log, its project's library, and who it is. */
+export type GateContext = Pick<ClaimContext, "log" | "library" | "project" | "session" | "harness" | "folder" | "quietMs" | "restarted">;
+
+/** The gate's answer; `noting` writes the claim-refused line, which an edit that already happened must not. */
+async function refusalOf(context: GateContext, checkout: string, files: readonly EditedFile[], declared: DeclaredCapabilities, imports: readonly ImportedFolderPlace[], noting: boolean): Promise<EditRefusal | undefined> {
   const inImports = files.flatMap((file) => {
     const absolute = path.resolve(checkout, file.path);
     const imported = imports.find(({ folder }) => isWithin(absolute, folder));
@@ -89,7 +101,7 @@ export async function editRefusal(context: Pick<ClaimContext, "log" | "library" 
     const listing = direct === undefined && !owned ? others.find((claim) => claim.increment !== undefined && lists.get(claim.increment)!.includes(capability)) : undefined;
     const holder = direct ?? listing;
     if (holder !== undefined) {
-      await context.log.append(context.project, {
+      if (noting) await context.log.append(context.project, {
         session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: "hook", ...(context.folder === undefined ? {} : { folder: context.folder }),
         kind: "claim-refused", capability, holder: holder.session, reason: `edit to ${file} refused before it happened`, ...(driving === undefined ? {} : { under: driving }),
       });
@@ -100,16 +112,87 @@ export async function editRefusal(context: Pick<ClaimContext, "log" | "library" 
       return { refused: "unlisted", capability, title, file, increment: driving, listed: lists.get(driving)! };
     }
   }
-  // Imported code: the increment must list the explored capability covering the file, and the user must then say yes.
+  // Imported code: the increment must list the explored capability covering the file, and the user must have said yes, or be asked.
   const listedByMe = (capability: string): boolean => mine.some((claim) => lists.get(claim.increment!)!.includes(capability));
+  let yeses: Promise<AllowedCapability[]> | undefined;
   let ask: EditRefusal | undefined;
   for (const { imported, file, covering } of explored) {
     if (driving === undefined || covering === undefined || !listedByMe(covering.capability)) {
       return { refused: "imported", file, folder: imported.folder, ...(driving === undefined ? {} : { increment: driving }), ...(covering === undefined ? {} : { covering }) };
     }
+    yeses ??= yesesOn(context, [...new Set(mine.map((claim) => claim.increment!))]);
+    if ((await yeses).some((yes) => yes.capability === covering.capability && covered(yes.covers, file))) continue;
     ask ??= { refused: "ask", file, folder: imported.folder, capability: covering.capability, title: covering.title, increment: driving };
   }
   return ask;
+}
+
+/** A capability a user's yes named, with what it covered then. */
+interface AllowedCapability {
+  readonly capability: string;
+  readonly covers: string[];
+}
+
+/**
+ * The capabilities the user said yes to on `increments`, from the lines the gate trusts: a prompt's, written by the
+ * hook, or a command's, typed by a person at their own terminal (ADR-1015 D2).
+ */
+async function yesesOn(context: GateContext, increments: readonly string[]): Promise<AllowedCapability[]> {
+  const lines = await context.log.lines(context.project, { kinds: ["user-allowed"], where: { increment: increments } });
+  return lines.flatMap((line) => {
+    if (line.kind !== "user-allowed") return [];
+    const trusted = line.how === "prompt" ? line.source === "hook" : line.source === "tool" && line.session.startsWith("person:");
+    return trusted ? line.capabilities : [];
+  });
+}
+
+/** Whether `file` (relative to its imported folder, forward slashes) is under one of `covers`. */
+function covered(covers: readonly string[], file: string): boolean {
+  return covers.some((cover) => cover === "." || file === cover || file.startsWith(`${cover}/`));
+}
+
+/** What a yes on `increment` names: each capability on its list now, with the folders and files it covers now. */
+async function allowedNow(library: Library, increment: string): Promise<AllowedCapability[]> {
+  const [listed, tree] = await Promise.all([listOf(library, increment), library.projectTree()]);
+  const covers = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id, covers: its }) => [id, its ?? []] as const)));
+  return listed.map((capability) => ({ capability, covers: [...(covers.get(capability) ?? [])] }));
+}
+
+/**
+ * After an edit tool changed `files`: when the gate would have asked the user for it, the harness's prompt asked, and
+ * the edit happening is the user's yes, so it is recorded on the increment for the edits after it (contract 5.41).
+ * Only a hook calls this, after the harness ran the edit. Returns the increment the yes was recorded on, if any.
+ */
+export async function recordPromptYes(context: GateContext, checkout: string, files: readonly EditedFile[], imports: readonly ImportedFolderPlace[]): Promise<string | undefined> {
+  const imported = files.filter((file) => imports.some(({ folder }) => isWithin(path.resolve(checkout, file.path), folder)));
+  if (imported.length === 0) return undefined;
+  const refusal = await refusalOf(context, checkout, imported, async () => new Map(), imports, false);
+  if (refusal?.refused !== "ask") return undefined;
+  await context.log.append(context.project, {
+    session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: "hook", ...(context.folder === undefined ? {} : { folder: context.folder }),
+    kind: "user-allowed", increment: refusal.increment, how: "prompt", capabilities: await allowedNow(context.library, refusal.increment),
+  });
+  return refusal.increment;
+}
+
+/** What the user's yes from their own terminal recorded, or why it was not. */
+export type AllowAnswer = { readonly ok: true; readonly capabilities: readonly AllowedCapability[] } | { readonly ok: false; readonly reason: string };
+
+/**
+ * The user's yes, typed at their own terminal, to changing imported code for `increment` (contract 5.41): for a harness
+ * that cannot ask them at the edit. `person` is who typed it; the front door gives it only from a terminal no agent
+ * session runs, so an agent never writes it for itself (ADR-1015 D2).
+ */
+export async function allowIncrement(context: Pick<ClaimContext, "log" | "library" | "project" | "folder">, person: string, increment: string): Promise<AllowAnswer> {
+  const record = await context.library.get(increment);
+  if (record?.type !== "increment") return { ok: false, reason: `${increment} is not an increment of this project.` };
+  const capabilities = await allowedNow(context.library, increment);
+  if (capabilities.length === 0) return { ok: false, reason: `${increment} lists no capabilities yet, so a yes would allow nothing: the agent lists the explored capability it means to change first.` };
+  await context.log.append(context.project, {
+    session: `person:${person}`, source: "tool", ...(context.folder === undefined ? {} : { folder: context.folder }),
+    kind: "user-allowed", increment, how: "command", capabilities,
+  });
+  return { ok: true, capabilities };
 }
 
 /** Whether `file` is `folder` or lies under it, both absolute. */
@@ -123,7 +206,7 @@ function coveringOf(tree: AnnotatedTree, imported: ImportedFolderPlace, file: st
   for (const story of tree.stories) {
     const from = story.mapped?.from;
     if (from === undefined || (from !== imported.repository && path.resolve(from) !== path.resolve(imported.folder))) continue;
-    const found = story.capabilities.find(({ covers }) => (covers ?? []).some((cover) => cover === "." || file === cover || file.startsWith(`${cover}/`)));
+    const found = story.capabilities.find(({ covers }) => covered(covers ?? [], file));
     if (found !== undefined) return { capability: found.id, title: found.title };
   }
   return undefined;
@@ -142,7 +225,7 @@ export function refusalMessage(refusal: EditRefusal): string {
     return `[storytree] Your edit to ${where}, was refused before it happened: imported code is changed only when your increment names its explored capability, and then only on the user's yes (ADR-0993 D4, ADR-1015). ${covered}, ${listing}, then edit again; or ask the user what to do: change it there, bring that part into storytree, retire it, or leave it.`;
   }
   if (refusal.refused === "ask") {
-    return `[storytree] This edit changes ${refusal.file} in ${refusal.folder}, your original project imported into storytree, for "${refusal.title}" (${refusal.capability}) on increment ${refusal.increment}. Imported code is changed only on your explicit permission (ADR-1015): allow it only if you want the agent to change your original code here.`;
+    return `[storytree] This edit changes ${refusal.file} in ${refusal.folder}, your original project imported into storytree, for "${refusal.title}" (${refusal.capability}) on increment ${refusal.increment}. Imported code is changed only on your explicit permission (ADR-1015): allow it only if you want the agent to change your original code for this increment; one yes covers the increment's other edits to what it lists now. Where no prompt can appear (a headless run), the user allows it from their own terminal: ${allowCommand(refusal.increment)}.`;
   }
   const what = `"${refusal.title}" (${refusal.capability})`;
   if (refusal.refused === "held") {
@@ -151,6 +234,11 @@ export function refusalMessage(refusal: EditRefusal): string {
   }
   const list = [...refusal.listed, refusal.capability].join(",");
   return `[storytree] Your edit to ${refusal.file} was refused before it happened: it is in ${what}, which the capabilities list of your increment ${refusal.increment} does not name (ADR-0949 D3). If you mean to change it, add it to the list and claim it, then edit again: the edit_plan and claim tools, or \`storytree arc increment edit ${refusal.increment} --capabilities ${list}\` and \`storytree workspace claim ${refusal.capability} --reason …\`.`;
+}
+
+/** The command a user types at their own terminal to allow `increment`'s changes to imported code; an agent's shell is refused it. */
+export function allowCommand(increment: string): string {
+  return `storytree workspace allow ${increment}`;
 }
 
 /** The capability each of `files` declares, in the plan's stories, in order; a file that declares none is left out. */

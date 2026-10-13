@@ -13,7 +13,10 @@
  * Which capability a file declares is the map's rule, given by the hook command that runs this (the app
  * setup's, ADR-0969); a hook given none refuses nothing. A file in a folder the project imports on this machine is
  * placed by the gate itself (claims/edit-gate.ts); when its edit may go ahead only on the user's yes (ADR-1015), Claude
- * Code is answered "ask", so the harness asks its user, and a harness with no such answer is refused.
+ * Code is answered "ask", so the harness asks its user, and a harness with no such answer is refused, naming the command
+ * the user types at their own terminal to say yes. After Claude Code runs an edit it was told to ask about, the user
+ * allowed it: the hook after the edit records that yes on the increment (recordPromptYes), so its next edits go
+ * through unasked (contract 5.41).
  *
  * Like every hook it never breaks the agent: outside a storytree project, in a checkout whose trunk is
  * not approved, when storytree cannot be reached in time, or on any failure, it says nothing and the
@@ -21,7 +24,7 @@
  */
 import path from "node:path";
 
-import type { DeclaredCapabilities } from "../claims/edit-gate.js";
+import type { DeclaredCapabilities, GateContext, ImportedFolderPlace } from "../claims/edit-gate.js";
 import type { LocateOptions } from "../routing/index.js";
 import { patchEdits } from "./codex.js";
 import { cursorSession } from "./cursor.js";
@@ -107,7 +110,7 @@ function cursorEditIn(input: Record<string, unknown>): ReturnType<typeof editIn>
  */
 export function refusalAnswer(harness: string, reason: string, ask = false): string {
   if (ask && harness === "claude-code") return JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: reason } });
-  if (ask) reason = `${reason} This harness cannot ask the user at the edit, so it is refused: ask the user in the conversation, and if they say yes, they make the change themselves or run you in a harness that can ask them.`;
+  if (ask) reason = `${reason} This harness cannot ask the user at the edit, so it is refused: ask the user in the conversation, and if they say yes, they run that command at their own terminal (an agent's shell is refused it), then edit again.`;
   if (harness === "pi") return JSON.stringify({ block: true, reason });
   if (harness === "antigravity") return JSON.stringify({ decision: "deny", reason });
   if (harness === "cursor") return JSON.stringify({ permission: "deny", user_message: reason, agent_message: reason });
@@ -133,11 +136,40 @@ export async function editGate(harness: string, input: unknown, declared: Declar
 }
 
 async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string): Promise<{ reason: string; ask: boolean } | undefined> {
+  const { editRefusal, refusalMessage } = await import("../claims/edit-gate.js");
+  return gated(harness, edit, locate, home, async (context, checkout, imports) => {
+    const refusal = await editRefusal(context, checkout, edit.files, declared, imports);
+    return refusal === undefined ? undefined : { reason: refusalMessage(refusal), ask: refusal.refused === "ask" };
+  });
+}
+
+/**
+ * After a Claude Code edit tool ran (its PostToolUse): record the user's yes when the gate would have asked for the
+ * edit, which the harness then asked its user and they allowed (contract 5.41). Never throws; `failed` keeps why it gave up.
+ */
+export async function recordYesAfterEdit(harness: string, input: unknown, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<void> {
+  if (harness !== "claude-code" || typeof input !== "object" || input === null || (input as Record<string, unknown>).hook_event_name !== "PostToolUse") return;
+  const edit = editIn(harness, { ...input, hook_event_name: "PreToolUse" });
+  if (edit === undefined) return;
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), GATE_MS)));
+  try {
+    const { recordPromptYes } = await import("../claims/edit-gate.js");
+    await Promise.race([gated(harness, edit, locate, home, (context, checkout, imports) => recordPromptYes(context, checkout, edit.files, imports)), late]);
+  } catch (error) {
+    failed("hook", error);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Run `work` with the gate's view of the session's project, when its folder is an approved project on a reachable storytree. */
+async function gated<T>(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, locate: LocateOptions | undefined, home: string, work: (context: GateContext, checkout: string, imports: readonly ImportedFolderPlace[]) => Promise<T>): Promise<T | undefined> {
   const { route, requireApproval, openNamedProject, ProjectFolderError, importsOf, machineOf } = await import("../routing/index.js");
   const where = route(edit.folder, locate);
   if (where.status !== "routed") return undefined;
-  const [{ openActivityLog, thisMachine }, { worktreeRoot }, { connect }, { editRefusal, refusalMessage }] = await Promise.all([
-    import("../activity/index.js"), import("../activity/branch.js"), import("@storytree/library"), import("../claims/edit-gate.js"),
+  const [{ openActivityLog, thisMachine }, { worktreeRoot }, { connect }] = await Promise.all([
+    import("../activity/index.js"), import("../activity/branch.js"), import("@storytree/library"),
   ]);
   const checkout = worktreeRoot(edit.folder) ?? path.resolve(edit.folder);
   const storytree = await connect(withDeadline(where.library, GATE_MS, GATE_MS));
@@ -153,8 +185,7 @@ async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof e
     try {
       const library = await openNamedProject(storytree, where.project, where.identity);
       const imports = await importsOf(storytree, where.project, machineOf(home).id);
-      const refusal = await editRefusal({ log, library, project: where.project, session: edit.session, harness, folder: checkout }, checkout, edit.files, declared, imports);
-      return refusal === undefined ? undefined : { reason: refusalMessage(refusal), ask: refusal.refused === "ask" };
+      return await work({ log, library, project: where.project, session: edit.session, harness, folder: checkout }, checkout, imports);
     } finally {
       await log.close();
     }

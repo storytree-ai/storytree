@@ -12,8 +12,8 @@ export type { ActivityLog, LinesCache, LockedLog, OpenOptions } from "./activity
 export { harnessOfClient, HARNESS_IDS, SESSION_ENV, tierOf, watchedHarness, WATCHED_HARNESSES, type Harness, type Tier, type WatchedHarness } from "./harnesses.js";
 export { closeOut, labelOf, nameRefusal, nameSession, SESSION_NAME_LIMIT, lookAsApp, projectFolder, QUIET_MS, readSessions, sessionsFrom, sessionsListing } from "./sessions/index.js";
 export type { CloseOut, CloseOutContext, Session, SessionOptions, SessionState } from "./sessions/index.js";
-export { attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, presentersOf, presentQuestion, readAttribution, readClaim, readClaims, release, releaseAsked, releaseFor, staleClaims, stopPresenting, CLAIM_REASON_LIMIT, claimRefusal, endMergedClaims, increments } from "./claims/index.js";
-export type { Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, PresentAnswer, Presenter, ReleaseAnswer, ReleaseForAnswer, StaleClaim, StaleWorklist, MergeWatch, ClaimedWorkspace, OpenPullForWork, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";
+export { allowCommand, allowIncrement, attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, presentersOf, presentQuestion, readAttribution, readClaim, readClaims, release, releaseAsked, releaseFor, staleClaims, stopPresenting, CLAIM_REASON_LIMIT, claimRefusal, endMergedClaims, increments } from "./claims/index.js";
+export type { AllowAnswer, Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, PresentAnswer, Presenter, ReleaseAnswer, ReleaseForAnswer, StaleClaim, StaleWorklist, MergeWatch, ClaimedWorkspace, OpenPullForWork, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";
 export { agentOf, callLines, lineOf, requestOf, seenCaller } from "./sessions/caller.js";
 export type { Caller, CallMeta } from "./sessions/caller.js";
 export { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, codexHookTrust, EDIT_GATE, EVENT, noteCodexHookRan, STORYTREE_TOOLS } from "./hooks/index.js";

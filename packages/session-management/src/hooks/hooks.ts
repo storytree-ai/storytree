@@ -57,7 +57,7 @@ import { codexLines } from "./codex.js";
 import { cursorLines, cursorSession } from "./cursor.js";
 import { piLines, piSession } from "./pi.js";
 import { antigravityLines } from "./antigravity.js";
-import { EDIT_GATE, editGate } from "./edit-gate.js";
+import { EDIT_GATE, editGate, recordYesAfterEdit } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
 import { contextNudge } from "./context-nudge.js";
@@ -190,7 +190,8 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
       return promptAnswer(harness, context, parsed);
     }
     if (made === undefined) return;
-    await writeLines(harness, input, flags, made, handOff, merges, locate, failed);
+    // After an edit the gate asked the user about, the user's yes is recorded on the increment (contract 5.41).
+    await Promise.all([writeLines(harness, input, flags, made, handOff, merges, locate, failed), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed)]);
   } catch (error) {
     // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said, but why is kept here.
     failed("hook", error);

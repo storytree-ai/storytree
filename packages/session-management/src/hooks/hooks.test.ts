@@ -32,7 +32,7 @@ import pg from "pg";
 import { openActivityLog } from "../activity/index.js";
 import { buildHook } from "../testing/hook-bin.js";
 import { readContext } from "../context/index.js";
-import { MARKER_FILE } from "../routing/index.js";
+import { machineOf, MARKER_FILE, recordImport } from "../routing/index.js";
 import { claim, readClaims } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
@@ -1116,6 +1116,44 @@ test("3.26 the hook before a file-edit tool, run as setup registers it, refuses 
       const patch = "*** Begin Patch\n*** Add File: packages/visitor-can-sign-up/src/more.ts\n+/**\n+ * Capability 1 · Email form\n+ */\n*** End Patch\n";
       assert.equal(refusalIn(await runHook("codex", before("apply_patch", { command: patch }), home, [EDIT_GATE]))?.decision, "block", "an added file is read from the patch");
       assert.equal(refusalIn(await runHook("claude-code", before("Write", { file_path: path.join(src, "notes.ts"), content: "export const notes = 2;\n" }), home, [EDIT_GATE])), undefined);
+    } finally {
+      await log.close();
+      await storytree.close();
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("3.34 after Claude Code runs an edit to imported code that the gate had it ask the user about, the hook after the edit records the user's yes, so the increment's next edit there is not asked again; a harness that cannot ask is refused, naming the command the user types at their own terminal (ADR-1015, contract 5.41)", async () => {
+  await withTempDir(async (dir) => {
+    const project = uniqueProjectName();
+    const home = storytreeHome(dir, true);
+    const folder = await projectFolder(dir, project);
+    const viewer = path.join(dir, "viewer");
+    mkdirSync(path.join(viewer, "app", "stats"), { recursive: true });
+    const storytree = await connect({ url: testServerUrl() });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const machine = machineOf(home);
+      await recordImport(storytree, { project, machine: machine.id, machineName: machine.name, folder: viewer, repository: "https://github.com/someone/viewer.git" });
+      const library = await storytree.openProject(project);
+      const { added: [mapped] } = await library.mapStories("https://github.com/someone/viewer.git", [{ package: ".", title: "viewer", folders: ["."] }]);
+      const stats = (await library.addCapability({ title: "Stats page", story: mapped!.id, covers: ["app/stats"] })).id;
+      const arc = await library.createArc({ title: "Stats", intent: "A stats page", endState: "Stats shown", stories: [mapped!.id] });
+      const increment = (await library.addIncrement({ arc: arc.id, title: "stats page", objective: "stats page", body: "stats page", capabilities: [stats] })).id;
+      assert.equal((await claim({ log, library, project, session: "editor", harness: "claude-code" }, increment, "the stats page")).ok, true);
+      const write = (event: string, file: string) => JSON.stringify({ session_id: "editor", cwd: folder, hook_event_name: event, tool_name: "Write", tool_input: { file_path: path.join(viewer, "app", "stats", file), content: "export {};\n" } });
+      const patch = JSON.stringify({ session_id: "editor", cwd: folder, hook_event_name: "PreToolUse", tool_name: "apply_patch", tool_input: { command: `*** Begin Patch\n*** Add File: ${path.join(viewer, "app", "stats", "more.tsx")}\n+export {};\n*** End Patch\n` } });
+      const answer = (ran: Ran) => (ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { decision?: string; reason?: string; hookSpecificOutput?: { permissionDecision?: string } }));
+
+      assert.equal(answer(await runHook("claude-code", write("PreToolUse", "page.tsx"), home, [EDIT_GATE]))?.hookSpecificOutput?.permissionDecision, "ask");
+      const refused = answer(await runHook("codex", patch, home, [EDIT_GATE]));
+      assert.equal(refused?.decision, "block", "a harness that cannot ask is refused");
+      assert.ok(refused?.reason?.includes(`storytree workspace allow ${increment}`), "naming the command the user types to say yes");
+      assert.equal(answer(await runHook("claude-code", write("PreToolUse", "chart.tsx"), home, [EDIT_GATE]))?.hookSpecificOutput?.permissionDecision, "ask", "asking alone records no yes");
+      await runHook("claude-code", write("PostToolUse", "page.tsx"), home);
+      assert.equal(answer(await runHook("claude-code", write("PreToolUse", "chart.tsx"), home, [EDIT_GATE])), undefined, "the increment's next edit goes through unasked");
+      assert.equal(answer(await runHook("codex", patch, home, [EDIT_GATE])), undefined, "the yes is on the increment, whichever harness edits for it");
     } finally {
       await log.close();
       await storytree.close();

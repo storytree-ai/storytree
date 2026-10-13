@@ -1,4 +1,4 @@
-/** Capability 11 · Workspace: a terminal front door onto Session management's claimed workspace, claim and release. */
+/** Capability 11 · Workspace: a terminal front door onto Session management's claimed workspace, claim and release, and the user's yes to changing imported code. */
 import type { Hold } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
@@ -182,9 +182,27 @@ function waitSaid(wait: Waiting): string {
   return `${wait.increment} waits on ${wait.onOwner ? "the owner's question " : ""}${wait.on} (${wait.reason})${wait.forGood ? ", which will never release" : ""}`;
 }
 
+const allow: Verb = {
+  name: "allow",
+  usage: "workspace allow <increment>",
+  summary: "say yes, at your own terminal, to the agent changing your imported code for an increment, where its harness cannot ask you at the edit (ADR-1015)",
+  async act(args, context) {
+    const id = args.word(0, "the increment's id", this.usage);
+    const caller = await context.activityContext();
+    // The yes is the user's own: never from an agent's shell, nor from anything that is not a person at a terminal (ADR-1015 D2).
+    if (!caller.session.startsWith("person:")) throw new Refusal(`An agent cannot give the user's yes: ask the user, and if they agree, they run \`storytree ${this.usage}\` at their own terminal.`);
+    if (process.stdin.isTTY !== true) throw new Refusal("This needs you at your own terminal: run it there, not through a pipe or a script.");
+    const { allowIncrement } = await import("@storytree/session-management");
+    const allowed = await allowIncrement(caller, caller.session.slice("person:".length), id);
+    if (!allowed.ok) throw new Refusal(allowed.reason);
+    const named = allowed.capabilities.map(({ capability, covers }) => `  ${capability}: ${covers.length === 0 ? "(covers nothing yet)" : covers.join(", ")}`);
+    return { text: `Allowed: the agent may change your imported code for ${id}, in what it lists now:\n${named.join("\n")}\nA capability added to its list later, or a cover widened, is asked again.` };
+  },
+};
+
 export const workspace: Family = {
   name: "workspace",
-  summary: "prepare or attach a workspace, claim or release work for this agent session, or list stale claims",
-  verbs: [attach, claimOnly, releaseClaim, stale],
+  summary: "prepare or attach a workspace, claim or release work for this agent session, list stale claims, or allow an increment's changes to imported code",
+  verbs: [attach, claimOnly, releaseClaim, stale, allow],
   bare: make,
 };

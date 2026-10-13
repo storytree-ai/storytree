@@ -3,7 +3,7 @@
  * changed since the last survey (ADR-0836 D2). Written against a small package in a temporary folder.
  */
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -640,6 +640,30 @@ test("8.16 a survey read on a worker thread answers what one read in place does,
       `the asking thread's loop was busy ${(offThread.utilization * 100).toFixed(0)}% of an off-thread read, ${(inPlace.utilization * 100).toFixed(0)}% of one in place`);
   } finally {
     await reader.close();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("8.16 a process holding an open off-thread reader that answered once exits by itself", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-unref-"));
+  try {
+    const src = path.join(folder, "packages", "shop", "src");
+    await mkdir(src, { recursive: true });
+    await writeFile(path.join(src, "value.ts"), "export const value = 1;\n");
+    // The child answers one survey and never closes its reader: only an unref'd worker lets it end.
+    const script = `import { offThreadSurveyReader } from ${JSON.stringify(new URL("./read-survey.ts", import.meta.url).href)};
+const reader = offThreadSurveyReader(new URL(${JSON.stringify(new URL("./survey-worker.ts", import.meta.url).href)}), { execArgv: ["--import", "tsx"] });
+const survey = await reader.read(${JSON.stringify(folder)}, ${JSON.stringify(tree)});
+console.log(survey["story-shop"].files.length);`;
+    const exited = await new Promise<{ code: number | null; out: string }>((resolve, reject) => {
+      const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { stdio: ["ignore", "pipe", "inherit"], windowsHide: true });
+      let out = "";
+      child.stdout.on("data", chunk => { out += chunk; });
+      const stuck = setTimeout(() => { child.kill(); reject(new Error(`the process answered ${JSON.stringify(out.trim())} and was still running after 30s`)); }, 30_000);
+      child.on("exit", code => { clearTimeout(stuck); resolve({ code, out }); });
+    });
+    assert.deepEqual(exited, { code: 0, out: "1\n" });
+  } finally {
     await rm(folder, { recursive: true, force: true });
   }
 });

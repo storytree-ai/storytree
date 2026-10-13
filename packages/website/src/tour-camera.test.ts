@@ -125,7 +125,7 @@ test("2.15 · a step's island drawn late is aimed at again until it is drawn, by
 
 test("2.22 · on a phone storytree's own globe is framed smaller, more so at 320px, in the arrival, the everything step and free play; the shop's is not", () => {
   const own = steps.filter(step => step.map === "own" || step.id === "everything");
-  assert.deepEqual(own.map(step => step.id), ["pain", "grow", "value", "fixes", "everything"]);
+  assert.deepEqual(own.map(step => step.id), ["pain", "grow", "value", "fixes", "harness", "everything"]);
   for (const step of own) {
     const wide = viewFraming(step, 390, 1.1), narrow = viewFraming(step, 320, 1.1);
     assert.ok(wide > 1.1 && narrow > wide, `${step.id}: ${wide} at 390px, ${narrow} at 320px`);

@@ -89,7 +89,8 @@ const langsmith = { name: "LangSmith docs", url: "https://docs.langchain.com/lan
 const linear = { name: "Linear docs", url: "https://linear.app/docs/initiatives" };
 // The harnesses storytree watches and its setup check verifies (each its maker's own published mark: evidence/map-harness/ and
 // evidence/harness-pi/ READMEs).
-// Another harness is one more entry here, once storytree watches it; one that only speaks MCP gets the line beneath (ADR-1007 D5).
+// Another harness is one more entry here, once storytree watches it; one that only speaks MCP is covered by the line beneath (ADR-1007 D5, as
+// ADR-1018 D11 words it).
 const harnesses: Mark[] = [{ name: "Claude Code", src: "/harness/claude-code.png" }, { name: "Codex", src: "/harness/codex.png" },
   { name: "Pi", src: "/harness/pi.svg" }];
 
@@ -124,8 +125,16 @@ export const steps: TourStep[] = [
     "Agents forgetting why it was built that way",
   ], why: "Storytree answers to four principles. Signals must be real: everything you see comes from the real code and the real work, and says where it came from. Show what matters now and hide the rest: nothing asks for your attention unless it needs it. Your attention goes where you send it: you choose what to look into, and how deep to go. Nothing is out of reach: whatever storytree hides, you can always bring back.",
   decisions: [], surfaces: complete, framing: 1.1, laptop: ownLaptop, phone: ownPhone, drift: true },
+  // The owner's line, the claim; the harnesses storytree works with, each by its own mark, are its one support, and the line
+  // beneath them is his wording (2026-10-13). The intro's fifth step (ADR-1018 D11).
+  { id: "harness", explainer: "opening", kind: "beats", template: "claim", ...own, title: "Works with your harness.", lines: [
+    // ★
+    "Storytree works with your existing coding harness.",
+  ], how: "Storytree doesn't replace the agent you code with. When you set up a project it looks for Claude Code and Codex, and joins their sessions through hooks and an MCP server: the hooks tell storytree what each session reads and changes, and the MCP server gives the agent storytree's tools for the plan and the library. Any other harness that speaks MCP can connect to the server too: it gets the plan, claims and the library, though storytree doesn't watch its session.",
+  why: "You keep the agents, prompts and habits you already have; storytree adds the map beside them.",
+  decisions: [], surfaces: complete, framing: 1.1, laptop: ownLaptop, phone: ownPhone, drift: true, marks: harnesses, marksNote: "And any harness that speaks MCP." },
 
-  // The map (ADR-0891, amended 2026-10-11): seven steps in the owner's order. ★ the owner's words; the rest is DRAFT, approved as a
+  // The map (ADR-0891, amended 2026-10-11, and ADR-1018 D11): six steps in the owner's order. ★ the owner's words; the rest is DRAFT, approved as a
   // table and reworded to fit, as is every How and Why. The whole chapter plays forward in the shop's recorded time. The camera
   // moves twice, each as a step begins: into signing in as capabilities are named, and back out to the four stories for the
   // claims. Every claim is a flag in its capability's share (ADR-0968).
@@ -135,13 +144,6 @@ export const steps: TourStep[] = [
   ], how: "The shop starts as an empty globe. Its agents plan the work before they write any code, and each story they plan will be an island here.",
   why: "Watching a project grow from nothing shows you how to read the map of one that is already big.",
   decisions: [], surfaces: land, ...shop },
-  // The bare globe step 1 leaves, with the harnesses storytree works with beneath the owner's line.
-  { id: "map-harness", explainer: "map", template: "narrated", map: "shop", growth: { seconds: 1, stage: "plans", until: "plans" }, title: "Works with your harness.", lines: [
-    // ★
-    "Storytree works with your existing coding harness.",
-  ], how: "Storytree doesn't replace the agent you code with. When you set up a project it looks for Claude Code and Codex, and joins their sessions through hooks and an MCP server: the hooks tell storytree what each session reads and changes, and the MCP server gives the agent storytree's tools for the plan and the library. Any other agent that speaks MCP can connect to the server too: it gets the plan, claims and the library, though storytree doesn't watch its session.",
-  why: "You keep the agents, prompts and habits you already have; storytree adds the map beside them.",
-  decisions: [], surfaces: land, ...shop, marks: harnesses, marksNote: "Any other agent that speaks MCP can use the plan too." },
   // The record just before the first claim (01:53:08): the shop's first arc and its four parts, none held yet. The arcs list is
   // small while the tour plays, and its first arc is pointed out and named.
   { id: "map-arcs", explainer: "map", template: "narrated", map: "shop", sessionsAt: "2026-10-05T01:53:00.000Z", growth: { seconds: 1, stage: "plans", until: "plans" },

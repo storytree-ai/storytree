@@ -9,7 +9,7 @@ import { PROJECTS_CHANNELS, type ProjectsBridge } from "@storytree/app/projects/
 import { UPDATES_CHANNELS, type UpdatesBridge } from "@storytree/app/updates/bridge";
 import type { SurfacesBridge } from "@storytree/app";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS, type FeedbackIdentityBridge, type SetupHelpBridge } from "@storytree/app-setup/bridge";
-import { FOREST_CHANNELS, type ForestBridge } from "@storytree/forest/page";
+import type { ForestBridge } from "@storytree/forest/page";
 import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/journey-events/bridge";
 import type { LagBridge } from "@storytree/lag-in-use/bridge";
 
@@ -45,8 +45,7 @@ export function createBridge(
     ...pageMethods<ProjectsBridge>(PROJECTS_CHANNELS, invoke),
     ...pageMethods<Omit<SetupHelpBridge, "feedbackIdentity">>(SETUP_HELP_CHANNELS, invoke),
     ...pageMethods<PageReadsBridge>(PAGE_READS_CHANNELS, invoke),
-    ...pageMethods<ForestBridge>(FOREST_CHANNELS, invoke),
     // The stories whose manifests name their page channels (ADR-1030); the page's type above still names them for the renderer.
-    ...(Object.assign({}, ...PAGE_CHANNELS.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag">),
+    ...(Object.assign({}, ...PAGE_CHANNELS.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey">),
   };
 }

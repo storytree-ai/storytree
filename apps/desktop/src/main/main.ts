@@ -32,8 +32,6 @@
  * surface on show says it drew every story of the project and every one of its capabilities.
  */
 import { smokeArcSurface } from "@storytree/arc-surface";
-import { offThreadSurveyReader } from "@storytree/forest/code-survey";
-import { FOREST_CHANNELS } from "@storytree/forest/page";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
 import path from "node:path";
@@ -223,8 +221,16 @@ async function run(): Promise<void> {
   // an added project, a failure and the quit, so the frame makes the one runtime and answers the page with it.
   journey = createJourneyRuntime({ home: home.dir, appVersion });
   answerPage(ipcMain, JOURNEY_CHANNELS, journey);
-  // The page operations the stories' manifests name, each answered with the app's home and version (ADR-1021).
-  answerPageParts(ipcMain, PAGE_ANSWERS, { home: home.dir, appVersion });
+  // The tree the page last read for each project, which the code survey surveys rather than reading it a second time.
+  const treesRead = new Map<unknown, AnnotatedTree>();
+  // The page operations the stories' manifests name, each answered with what the frame offers (ADR-1021, ADR-1030 D2).
+  answerPageParts(ipcMain, PAGE_ANSWERS, {
+    home: home.dir,
+    appVersion,
+    library: open,
+    treeRead: (project) => treesRead.get(project),
+    surveyWorker: path.join(__dirname, "survey-worker.cjs"),
+  });
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
   const settings = settingsActions(home.dir);
   answerPage(ipcMain, SETTINGS_CHANNELS, settings);
@@ -274,25 +280,12 @@ async function run(): Promise<void> {
     const now = open();
     return (now[method as keyof typeof PAGE_READS_CHANNELS] as (...asked: unknown[]) => unknown).apply(now, asked);
   }])) as unknown as PageReads;
-  // The code survey surveys the tree the page last read, rather than reading it a second time.
-  const treesRead = new Map<unknown, AnnotatedTree>();
   answerPage(ipcMain, PAGE_READS_CHANNELS, {
     ...lateReads,
     projectTree: async (name: unknown) => {
       const tree = await open().projectTree(name);
       treesRead.set(name, tree);
       return tree;
-    },
-  });
-  // Surveys parse every changed file: on a worker thread, so the main process keeps answering meanwhile (map 8.16),
-  // and kept between starts, so a start with main unmoved parses nothing (map 8.25). A start's first survey answers
-  // from the main already fetched, without waiting on the fetch; the page asks again for what it brought (map 8.27).
-  const surveys = offThreadSurveyReader(path.join(__dirname, "survey-worker.cjs"), { keptIn: path.join(home.dir, "code-survey"), startFromFetched: true });
-  answerPage(ipcMain, FOREST_CHANNELS, {
-    codeSurvey: async (name: unknown) => {
-      const folder = await open().projectFolder(name);
-      // The folders this machine imports, where the survey reads the project's mapped stories (ADR-0993 D2).
-      return folder === undefined ? {} : surveys.read(folder, treesRead.get(name) ?? await open().projectTree(name), await open().projectImports(name));
     },
   });
 

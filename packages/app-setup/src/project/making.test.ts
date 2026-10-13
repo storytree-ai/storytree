@@ -308,7 +308,7 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
     assert.match(unnamed.state === "no identity" ? unnamed.reason : "", /identity|user\.name|user\.email/i);
     assert.equal(path.resolve(git(anonymous, "rev-parse", "--show-toplevel").trim()), anonymous, "with no identity the repository is kept");
     assert.deepEqual(git(anonymous, "ls-files").trim().split("\n"), [MARKER_FILE], "its marker staged, alone, for the first commit");
-    assert.deepEqual(firstCommit(anonymous, { env: nobody }).state, "no identity", "still no identity: still no commit");
+    assert.deepEqual(firstCommit(anonymous, { env: nobody })?.state, "no identity", "still no identity: still no commit");
     assert.deepEqual(firstCommit(anonymous, { env: signed }), { state: "made" }, "once git has an identity the first commit is made");
     assert.equal(git(anonymous, "log", "--format=%an <%ae>").trim(), "A User <user@example.invalid>");
     assert.deepEqual(git(anonymous, "show", "--name-only", "--format=", "HEAD").trim().split("\n"), [MARKER_FILE]);

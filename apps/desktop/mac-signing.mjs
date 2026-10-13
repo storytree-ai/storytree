@@ -6,7 +6,10 @@
 // The release workflow's macOS job runs `prepare` before desktop:dist and `cleanup` at its end:
 // prepare imports the certificate into a temporary keychain, writes Apple's key to a file for notarytool
 // and exports STORYTREE_MAC_IDENTITY (tools.mjs signs the payload with it); with no certificate it does nothing.
-// cleanup deletes the keychain and the key file.
+// cleanup deletes the keychain and the key file. Notarisation is ours, not electron-builder's (dist.mjs calls
+// notariseApp): Apple's answer is waited for only until a bound, so a release never waits on Apple; a build Apple
+// has not accepted by then ships signed but not notarised, and its release note says so. `history` prints
+// Apple's answers to past submissions (the notary workflow), and one submission's log when given its id.
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { appendFileSync, existsSync, rmSync, writeFileSync } from "node:fs";
@@ -34,6 +37,33 @@ export function builderEnv(env) {
   return { ...rest, CSC_NAME: env.STORYTREE_MAC_IDENTITY };
 }
 
+/** electron-builder's Mac signing settings: it never notarises, because its notarytool wait has no bound and held
+ * three releases until the job's limit cancelled them (0.3.1346, 0.3.1349, 0.3.1353). */
+export function macBuilderConfig(signing) {
+  return signing.mode === "ad-hoc" ? { identity: signing.identity, notarize: false } : { notarize: false };
+}
+
+/** Submits the build and asks Apple for its answer every pollMs until waitMs has passed. Only "Accepted" is
+ * notarised; "In Progress" at the bound, or a refusal ("Invalid", "Rejected"), leaves the build signed but not
+ * notarised. A later acceptance of the same submission still notarises this very build: Gatekeeper asks Apple online. */
+export async function notarise({ submit, info, sleep, now, waitMs, pollMs }) {
+  const id = submit();
+  const deadline = now() + waitMs;
+  let status = info(id);
+  while (status === "In Progress" && now() < deadline) {
+    await sleep(pollMs);
+    status = info(id);
+  }
+  return { id, status, notarised: status === "Accepted" };
+}
+
+/** Apple's submission history as one line per submission: id, date and status, nothing else it returned. */
+export function historyLines(json) {
+  const { history } = JSON.parse(json);
+  if (history.length === 0) return ["No submissions."];
+  return history.map((entry) => `${entry.id}  ${entry.createdDate}  ${entry.status}`);
+}
+
 /** The Developer ID Application identity `security find-identity -v -p codesigning` lists, by its SHA-1. */
 export function identityFrom(listing) {
   const match = /^\s*\d+\)\s+([0-9A-F]{40})\s+"Developer ID Application: [^"]+"/m.exec(listing);
@@ -41,11 +71,40 @@ export function identityFrom(listing) {
   return match[1];
 }
 
-/** The release page's sentence about the Mac build. */
-export function macReleaseNote(signed) {
-  return signed
-    ? "The macOS (Apple Silicon) zip and dmg are built on the same commit, signed with storytree's Developer ID and notarised by Apple."
-    : "The macOS (Apple Silicon) zip and dmg are built and ad-hoc signed on the same commit, but not yet notarised: macOS refuses to open them until a release that is.";
+const MAC_NOTES = {
+  "ad-hoc": "The macOS (Apple Silicon) zip and dmg are built and ad-hoc signed on the same commit, but not yet notarised: macOS refuses to open them until a release that is.",
+  notarised: "The macOS (Apple Silicon) zip and dmg are built on the same commit, signed with storytree's Developer ID and notarised by Apple.",
+  pending: "The macOS (Apple Silicon) zip and dmg are built on the same commit and signed with storytree's Developer ID, but not yet notarised: Apple had not accepted them when this release was made, and macOS opens them once it does.",
+};
+
+/** The release page's sentence about the Mac build: "ad-hoc", "notarised" or "pending" (signed, Apple not yet accepted). */
+export function macReleaseNote(mode) {
+  return MAC_NOTES[mode];
+}
+
+/** The release page's text with its Mac sentence, whichever it was, replaced by the one for this mode. */
+export function withMacNote(body, mode) {
+  return Object.values(MAC_NOTES).reduce((text, note) => text.replace(note, macReleaseNote(mode)), body);
+}
+
+function notarytool(env, ...args) {
+  return execFileSync("xcrun", ["notarytool", ...args, "--key", env.APPLE_API_KEY, "--key-id", env.APPLE_API_KEY_ID, "--issuer", env.APPLE_API_ISSUER, "--output-format", "json"], { encoding: "utf8" });
+}
+
+/** Notarises a Developer ID build's zip within the bound, writing Apple's answer beside it for the upload. */
+export async function notariseApp(zip, outcomeFile, env = process.env) {
+  const outcome = await notarise({
+    submit: () => JSON.parse(notarytool(env, "submit", zip)).id,
+    info: (id) => JSON.parse(notarytool(env, "info", id)).status,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    now: () => Date.now(),
+    waitMs: 10 * 60_000,
+    pollMs: 30_000,
+  });
+  writeFileSync(outcomeFile, JSON.stringify(outcome) + "\n");
+  if (outcome.notarised) console.log(`Apple notarised submission ${outcome.id}.`);
+  else console.log(`::warning::Apple's answer to submission ${outcome.id} is "${outcome.status}": the Mac build ships signed but not notarised. Read it with the notary workflow.`);
+  return outcome;
 }
 
 function keychainPath() {
@@ -71,11 +130,31 @@ function prepare(env) {
     rmSync(certificate, { force: true });
   }
   const identity = identityFrom(security("find-identity", "-v", "-p", "codesigning", keychain));
-  const appleKey = path.join(process.env.RUNNER_TEMP, `AuthKey_${env.APPLE_API_KEY_ID}.p8`);
-  writeFileSync(appleKey, env.APPLE_API_KEY, { mode: 0o600 });
-  // electron-builder's notarisation reads APPLE_API_KEY as the key file's path.
+  const appleKey = writeAppleKey(env);
+  // Notarisation (notariseApp) reads APPLE_API_KEY as the key file's path.
   appendFileSync(process.env.GITHUB_ENV, `STORYTREE_MAC_IDENTITY=${identity}\nAPPLE_API_KEY=${appleKey}\n`);
   console.log(`Developer ID identity ${identity} is in a temporary keychain; the Mac build is signed and notarised.`);
+}
+
+function writeAppleKey(env) {
+  const appleKey = path.join(process.env.RUNNER_TEMP, `AuthKey_${env.APPLE_API_KEY_ID}.p8`);
+  writeFileSync(appleKey, env.APPLE_API_KEY, { mode: 0o600 });
+  return appleKey;
+}
+
+/** Apple's answers to past submissions; with a submission id, also that submission's status and what Apple objected to. */
+function history(env, submission) {
+  if (submission && !/^[0-9a-f-]{36}$/i.test(submission)) throw new Error("A submission id is a UUID");
+  const keyed = { ...env, APPLE_API_KEY: writeAppleKey(env) };
+  try {
+    for (const line of historyLines(notarytool(keyed, "history"))) console.log(line);
+    if (submission) {
+      const { status, statusSummary, issues } = JSON.parse(notarytool(keyed, "log", submission));
+      console.log(JSON.stringify({ status, statusSummary, issues: issues ?? [] }, null, 2));
+    }
+  } finally {
+    rmSync(keyed.APPLE_API_KEY, { force: true });
+  }
 }
 
 function cleanup() {
@@ -87,5 +166,6 @@ function cleanup() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (process.argv[2] === "prepare") prepare(process.env);
   else if (process.argv[2] === "cleanup") cleanup();
-  else throw new Error("Use prepare or cleanup");
+  else if (process.argv[2] === "history") history(process.env, process.env.NOTARY_SUBMISSION);
+  else throw new Error("Use prepare, cleanup or history");
 }

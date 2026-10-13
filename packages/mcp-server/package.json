@@ -19,7 +19,8 @@
     "@storytree/processes": "workspace:*",
     "@storytree/quality-assurance": "workspace:*",
     "@storytree/app-setup": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@storytree/project-and-caller": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.1.0",

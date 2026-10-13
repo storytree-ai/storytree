@@ -5,12 +5,12 @@ import path from "node:path";
 import { test } from "node:test";
 import { connect } from "@storytree/library";
 import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog } from "../activity/index.js";
-import { claim, claimRefusal, readClaims } from "../claims/index.js";
+import { claim, claimRefusal, readClaims } from "./index.js";
 import { claimsFrom, sessionsFrom } from "../readings.js";
 import { readSessions } from "../sessions/index.js";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
-import { setSetting } from "./settings.js";
+import { setSetting } from "@storytree/project-and-caller";
 
 test("10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover", async () => {
   await withTempDir(async (home) => {

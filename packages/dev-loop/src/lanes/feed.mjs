@@ -159,7 +159,7 @@ export async function readSurvey({ library, claims, refusals = async () => [], h
 }
 
 async function withLibrary(project, use) {
-  const { locateLibrary } = await import("@storytree/session-management");
+  const { locateLibrary } = await import("@storytree/project-and-caller");
   const { connect } = await import("@storytree/library");
   const where = locateLibrary();
   if (!where.found) throw new Error(where.message);

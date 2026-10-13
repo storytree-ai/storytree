@@ -54,7 +54,7 @@ export const mapFamily: Family = {
       const crossing = args.text("crossing");
       const select = crossing === undefined ? args.need("select", this.usage) : args.text("select");
       const { crossingCommand, mapCommand } = await import("@storytree/map/read");
-      const { importsOf, machineOf, storytreeHome } = await import("@storytree/session-management");
+      const { importsOf, machineOf, storytreeHome } = await import("@storytree/project-and-caller");
       const library = await context.library();
       // The folders this machine imports, where the map reads the mapped stories (ADR-0993 D2).
       const imports = await importsOf(await context.server(), library.name, machineOf(storytreeHome()).id);

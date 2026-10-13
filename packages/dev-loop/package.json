@@ -12,7 +12,8 @@
     "@storytree/map": "workspace:*",
     "pg": "^8.23.0",
     "playwright-core": "1.60.0",
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "@storytree/project-and-caller": "workspace:*"
   },
   "exports": {
     "./browser-coverage": "./src/browser-coverage.mjs"

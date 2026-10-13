@@ -26,7 +26,8 @@ async function history(): Promise<{ capturedAt: string; tree: AnnotatedTree; cha
     if (saved.project !== project) throw new Error(`The record is of ${saved.project}, not ${project}.`);
     return saved;
   }
-  const { openNamedProject, openActivityLog } = await import("@storytree/session-management");
+  const { openNamedProject } = await import("@storytree/project-and-caller");
+  const { openActivityLog } = await import("@storytree/session-management");
   const { connect } = await import("@storytree/library");
   const server = await connect({ url: values.library! });
   try {

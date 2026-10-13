@@ -13,7 +13,7 @@ export const settings: Family = {
     summary: "show each setting's value, type, default and meaning",
     async act(args) {
       if (args.words.length || args.names.length) throw new Refusal("usage: storytree settings show", { code: 2 });
-      const { readSettings } = await import("@storytree/session-management");
+      const { readSettings } = await import("@storytree/project-and-caller");
       const { readSurfaces } = await import("@storytree/app");
       const read = readSettings();
       const settings = Object.values(read).map((reading) => reading.name === "library" ? librarySaid(reading) : settingSaid(reading)).join("\n\n");
@@ -25,7 +25,7 @@ export const settings: Family = {
     summary: "save a setting for your user account",
     async act(args) {
       const usage = "settings set <name> <value>";
-      const { setLibrary, setSetting } = await import("@storytree/session-management");
+      const { setLibrary, setSetting } = await import("@storytree/project-and-caller");
       if (args.words[0] === "library" && !args.names.length && args.words.length >= 2) {
         return { text: librarySaid(setLibrary(args.words.slice(1))), next: [{ command: "storytree settings show", why: "read your settings" }] };
       }

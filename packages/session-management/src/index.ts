@@ -1,12 +1,6 @@
 // Capability 2 · Agent activity log. @storytree/session-management: the record of what the user's own Claude Code or Codex does with storytree
 // (the Session management story). It reaches the library only through the library's public API. The MCP server's wrapper calls
 // what it exports to name a call's session, record the call and end merged claims (ADR-0969 D1).
-export { findProject, inMainCheckout, locateApp, locateLibrary, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, openNamedProject, requireApproval, route, storytreeHome, withConnectTimeout } from "@storytree/project-and-caller";
-export { approveTrunk, forgetTrunk, importsOf, machineOf, ProjectFolderError, recordImport, registerTrunk, rememberApproval, trunksOn } from "@storytree/project-and-caller";
-export type { ImportedFolder, LocateOptions, ProjectLookup, Route, StorytreeAddress, Trunk } from "@storytree/project-and-caller";
-export { keepOnThisComputer, readProjectChoice, recordProjectChoice, recordRemovedProjects, removedProjects, type HiddenProject } from "@storytree/project-and-caller";
-export { idleAfterMs, leaveAfterMs, readLibrary, readSettings, readSurfaceChoices, setLibrary, setSetting, setSurfaceChoice } from "@storytree/project-and-caller";
-export type { LibraryLocation, LibraryReading, SettingReading, SettingsReading, SurfaceChoices } from "@storytree/project-and-caller";
 export { ACTIVITY_DATABASE, cachedLines, currentBranch, forgetProjectActivity, fullLineText, lineText, openActivityLog, thisMachine } from "./activity/index.js";
 export type { ActivityLog, LinesCache, LockedLog, OpenOptions } from "./activity/index.js";
 export { harnessOfClient, HARNESS_IDS, SESSION_ENV, tierOf, watchedHarness, WATCHED_HARNESSES, type Harness, type Tier, type WatchedHarness } from "./harnesses.js";
@@ -26,9 +20,6 @@ export type { AppPlaces, AppReading } from "./sessions/app-records.js";
 export { hookFailures, noteHookFailure } from "./hooks/failures.js";
 export type { HookFailure } from "./hooks/failures.js";
 export type { CodexHookTrust } from "./hooks/index.js";
-export { decisionRights } from "@storytree/project-and-caller";
-export type { DecisionRights } from "@storytree/project-and-caller";
-export { STANDING_DELEGATION, standingDelegations } from "@storytree/project-and-caller";
 export { contextCommand, contextReading, readContext, sessionWindow } from "./context/index.js";
 export { guidanceSentence } from "./context/guidance.js";
 export { pruneTranscripts, RETAIN_MS, scrub, shipTranscript, storedContextReading, storedSessionWindow } from "./transcripts/index.js";

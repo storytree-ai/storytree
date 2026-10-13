@@ -10,7 +10,7 @@ import { test } from "node:test";
 // The release workflow's completeness check, kept with the packaging it describes (apps/desktop's
 // release-assets.mjs). Each platform's runner uploads its own set into one draft; publishing waits for all.
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
-import { missingAssets, platformUploads } from "../release-assets.mjs";
+import { hostPlatform, missingAssets, platformUploads } from "../release-assets.mjs";
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
 import { macDeliveryAssets, mergeDelivery } from "../delivery-assets.mjs";
 
@@ -23,19 +23,30 @@ const mac = (version: string) => [
   `storytree-0.3-${version}-arm64.dmg`, `storytree-0.3-${version}-arm64.dmg.blockmap`, "latest-mac.yml",
   "install-storytree.sh", "install-storytree-mac.txt", "install-storytree-mac-development.txt", "storytree-delivery-mac.json",
 ];
+// The AppImage carries its blockmap inside it, so latest-linux.yml is its only companion.
+const linux = (version: string) => [`storytree-0.3-${version}-linux-x86_64.AppImage`, "latest-linux.yml"];
 
-test("4.6 a release is published only when every platform's asset set is complete: Windows alone, or a Mac set missing its update feed, is refused", () => {
-  assert.deepEqual(missingAssets([...windows("0.3.700"), ...mac("0.3.700")], "0.3.700"), {});
-  assert.deepEqual(missingAssets(windows("0.3.700"), "0.3.700"), { mac: mac("0.3.700") });
-  assert.deepEqual(missingAssets([...windows("0.3.700"), ...mac("0.3.700").filter((name) => name !== "latest-mac.yml")], "0.3.700"), { mac: ["latest-mac.yml"] });
+test("4.6 a release is published only when every platform's asset set is complete: Windows alone, or a Mac or Linux set missing its update feed, is refused", () => {
+  const all = (version: string) => [...windows(version), ...mac(version), ...linux(version)];
+  assert.deepEqual(missingAssets(all("0.3.700"), "0.3.700"), {});
+  assert.deepEqual(missingAssets(windows("0.3.700"), "0.3.700"), { mac: mac("0.3.700"), linux: linux("0.3.700") });
+  assert.deepEqual(missingAssets(all("0.3.700").filter((name) => name !== "latest-mac.yml"), "0.3.700"), { mac: ["latest-mac.yml"] });
+  assert.deepEqual(missingAssets(all("0.3.700").filter((name) => name !== "latest-linux.yml"), "0.3.700"), { linux: ["latest-linux.yml"] });
+  assert.deepEqual(missingAssets(all("0.3.700").filter((name) => !name.endsWith(".AppImage")), "0.3.700"), { linux: ["storytree-0.3-0.3.700-linux-x86_64.AppImage"] });
   // Another version's assets are not this release's.
-  assert.deepEqual(Object.keys(missingAssets([...windows("0.3.699"), ...mac("0.3.699")], "0.3.700")), ["windows", "mac"]);
+  assert.deepEqual(Object.keys(missingAssets(all("0.3.699"), "0.3.700")), ["windows", "mac", "linux"]);
 });
 
 test("4.6 each platform's runner uploads only its own release assets, never build scratch files", () => {
-  const built = [...windows("0.3.700"), ...mac("0.3.700"), "storytree-0.3-0.3.700-portable-arm64.exe", "builder-debug.yml", "builder-effective-config.yaml", "win-unpacked", "mac-arm64"];
+  const built = [...windows("0.3.700"), ...mac("0.3.700"), ...linux("0.3.700"), "storytree-0.3-0.3.700-portable-arm64.exe", "builder-debug.yml", "builder-effective-config.yaml", "win-unpacked", "mac-arm64", "linux-unpacked"];
   assert.deepEqual(platformUploads("windows", built).sort(), [...windows("0.3.700"), "storytree-0.3-0.3.700-portable-arm64.exe"].sort());
   assert.deepEqual(platformUploads("mac", built).sort(), mac("0.3.700").sort());
+  assert.deepEqual(platformUploads("linux", built).sort(), linux("0.3.700").sort());
+});
+
+test("4.6 a Linux runner uploads the Linux set; a system with no release platform is refused", () => {
+  assert.equal(hostPlatform("linux"), "linux");
+  assert.throws(() => hostPlatform("freebsd"), /freebsd/);
 });
 
 test("4.6 the Mac runner stages the shell bootstrap, its one-liners and the Mac app's checksum entry beside the zip", () => {

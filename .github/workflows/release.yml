@@ -118,6 +118,9 @@ jobs:
           - system: macOS
             runner: macos-latest
             check: node --import tsx apps/desktop/check-install-mac.mjs
+          - system: Linux
+            runner: ubuntu-latest
+            check: node --import tsx apps/desktop/check-install-linux.mjs
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     permissions:

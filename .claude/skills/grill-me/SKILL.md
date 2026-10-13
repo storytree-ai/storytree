@@ -88,7 +88,7 @@ He asks for this in most rounds: send everything safe and ready, not only what h
 
 ### 7. Owner-only actions (credentials, applies, spend)
 
-Before asking him to act, find every requirement first (org policy, every permission, the resource owner, expiry limits) and give the complete steps once, with the exact command. Test what he provides before storing it, never print a secret, and switch back off anything you enabled if it fails, so no lane is left stuck. Each extra round trip costs his attention (one credential once took five).
+Before asking him to act, find every requirement first (org policy, every permission, the resource owner, expiry limits) and give the complete steps once, with the exact command. Write every command for Windows PowerShell 5.1, his terminal and the desktop app's Run button, and test it there before you hand it over (a session with no PowerShell says it is untested): no `&&`, no Bash-only `VAR=value` prefixes, and no tool he may not have installed (openssl was missing). A secret file goes to a native command by redirection, `cmd /c "tool < file"`, never a PowerShell pipe: the pipe rewrites line endings and adds a byte order mark (a 3,476-byte key arrived as 3,481 bytes, friction_9639f332f221). Test what he provides before storing it, never print a secret, and switch back off anything you enabled if it fails, so no lane is left stuck. Each extra round trip costs his attention (one credential once took five).
 
 ### 8. Ending the round
 

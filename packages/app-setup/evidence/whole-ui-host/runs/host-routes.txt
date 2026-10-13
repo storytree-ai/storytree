@@ -1,0 +1,42 @@
+Route (app)
+┌ ◐ /
+├ ○ /_not-found
+├ ○ /about
+├ ◐ /active
+├ ƒ /api/auth/callback/reddit
+├ ƒ /api/auth/login
+├ ƒ /api/auth/signout
+├ ○ /api/dev/capture
+├ ○ /apple-icon.png
+├ ○ /donate
+├ ◐ /home
+├ ○ /icon.png
+├   /live/[id]
+│ └ ◐ /live/[id]
+├   /m/[multi]
+│ └ ◐ /m/[multi]
+├ ○ /manifest.webmanifest
+├ ◐ /multis
+├   /multis/[multi]
+│ └ ◐ /multis/[multi]
+├   /r/[subreddit]
+│ └ ◐ /r/[subreddit]
+├   /r/[subreddit]/comments/[id]/[[...rest]]
+│ └ ◐ /r/[subreddit]/comments/[id]/[[...rest]]
+├ ○ /robots.txt
+├ ◐ /saved
+├ ◐ /search
+├ ◐ /settings
+├ ○ /sitemap.xml
+├ ◐ /subreddits
+├   /user/[username]
+│ └ ◐ /user/[username]
+└   /user/[username]/m/[multi]
+  └ ◐ /user/[username]/m/[multi]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)             prerendered as static content
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+ƒ  (Dynamic)            server-rendered on demand

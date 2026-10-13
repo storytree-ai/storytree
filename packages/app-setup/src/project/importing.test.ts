@@ -196,7 +196,7 @@ test("12.4 importing again says the commit recorded before and now and the files
       { id: menu.id, title: menu.fields.title, story: story!.id, gone: ["src/ui"] },
       { id: bee.id, title: bee.fields.title, story: story!.id, gone: ["src/b.ts"] },
     ].sort((x, y) => x.id.localeCompare(y.id)));
-    assert.deepEqual((await library.get(bee.id))?.fields.covers, ["src/b.ts", "src/a.ts"], "the re-import reshapes no capability an agent drew");
+    assert.deepEqual(((await library.get(bee.id)) as SchemaRecord<"capability"> | null)?.fields.covers, ["src/b.ts", "src/a.ts"], "the re-import reshapes no capability an agent drew");
     assert.notEqual(await library.get(menu.id), null);
 
     // A recorded commit git no longer knows: the commits are still said, the files are not.

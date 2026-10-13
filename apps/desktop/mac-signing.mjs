@@ -23,12 +23,15 @@ export function macSigning(env) {
   return { mode: "developer-id", keychain: true, notarize: true };
 }
 
-/** The environment electron-builder builds in: an ad-hoc build drops CSC_LINK and CSC_KEY_PASSWORD, since the
- * release passes an absent secret as "" and electron-builder would read an empty CSC_LINK as a certificate path. */
+/** The environment electron-builder builds in, never with CSC_LINK or CSC_KEY_PASSWORD. Ad-hoc: the release passes
+ * an absent secret as "" and electron-builder would read an empty CSC_LINK as a certificate path. Developer ID:
+ * given the certificate, electron-builder imports it into a keychain of its own and unlocks that with the
+ * certificate's password, which macOS refuses; so it gets CSC_NAME, the identity prepare put in our keychain. */
 export function builderEnv(env) {
-  if (macSigning(env).mode === "developer-id") return env;
   const { CSC_LINK, CSC_KEY_PASSWORD, ...rest } = env;
-  return rest;
+  if (macSigning(env).mode === "ad-hoc") return rest;
+  if (!env.STORYTREE_MAC_IDENTITY) throw new Error("STORYTREE_MAC_IDENTITY is not set: run `node apps/desktop/mac-signing.mjs prepare` before a Developer ID build");
+  return { ...rest, CSC_NAME: env.STORYTREE_MAC_IDENTITY };
 }
 
 /** The Developer ID Application identity `security find-identity -v -p codesigning` lists, by its SHA-1. */

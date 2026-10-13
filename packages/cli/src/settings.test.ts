@@ -111,8 +111,6 @@ test("settings: the app's surfaces are listed and switched from the command line
   assert.equal(shown.code, 0, shown.stderr);
   assert.match(shown.stdout, /Sessions \(sessions\): on \(default\)/);
   assert.match(shown.stdout, /Forest globe \(globe\): always on/);
-  const listed = [...shown.stdout.split("Surfaces of the app")[1]!.matchAll(/^  .+ \(([\w-]+)\): /gm)].map((line) => line[1]);
-  assert.deepEqual(listed, [...forestSurfaces, ...arcSurfaces].map((surface) => surface.id), "the Surfaces menu's order: the Forest's, then the arc board's");
 
   const off = await invoke(["settings", "set", "surface", "sessions", "off"]);
   assert.equal(off.code, 0, off.stderr);
@@ -122,4 +120,17 @@ test("settings: the app's surfaces are listed and switched from the command line
   const refused = await invoke(["settings", "set", "surface", "globe", "off"]);
   assert.equal(refused.code, 1);
   assert.match(refused.stderr, /always on/);
+});
+
+test("1.20 · `storytree settings show` lists the surfaces its story packages' manifests name, composed into its bundle by the plugin loader, and the same run unbundled: the forest's, then the arc surface's", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-settings-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const shown = await storytree(command.script, ["settings", "show"], { cwd: dir, home: path.join(dir, "home") });
+  assert.equal(shown.code, 0, shown.stderr);
+  const expected = [...forestSurfaces, ...arcSurfaces];
+  const listed = [...shown.stdout.split("Surfaces of the app")[1]!.matchAll(/^  .+ \(([\w-]+)\): /gm)].map((line) => line[1]);
+  assert.deepEqual(listed, expected.map((surface) => surface.id), "the bundle's Surfaces, in the menu's order");
+  assert.equal(import.meta.resolve("#parts/surfaces"), new URL("./parts/surfaces.ts", import.meta.url).href, "the command line's #parts/surfaces is its composing module");
+  const { default: unbundled } = await import("#parts/surfaces");
+  assert.deepEqual(unbundled, expected);
 });

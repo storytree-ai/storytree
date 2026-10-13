@@ -18,7 +18,7 @@ const dist = path.resolve(here, "../../dist");
 const pictures = process.argv.includes("--check") ? await mkdtemp(path.join(tmpdir(), "journey-check-")) : here;
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : undefined;
 // Today's tour, in order (src/tour-copy.ts).
-const steps = ["pain", "grow", "value", "fixes", "map-empty", "map-harness", "map-arcs", "map-stories", "map-capabilities", "map-claims",
+const steps = ["pain", "grow", "value", "fixes", "harness", "map-empty", "map-arcs", "map-stories", "map-capabilities", "map-claims",
   "map-health", "knowledge-inside", "knowledge-shelf", "knowledge-reads", "everything"];
 const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".json": "application/json", ".svg": "image/svg+xml" };
 const server = createServer(async (req, res) => {

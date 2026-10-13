@@ -144,11 +144,23 @@ test("2.10 · the time-lapse waits for its globe to be set up, then plays from i
   assert.deepEqual(globeOf(arrival[1]!, tour.state, tour.elapsed()), { map: "own", at: 3 });
 });
 
-test("2.12 · after the fixes, the map chapter opens on the shop's empty globe, swelling from a point, with no cut beat between", () => {
-  const at = tourSteps.findIndex(item => item.id === "fixes");
-  assert.ok(tourSteps.slice(0, at + 1).every(item => item.map === "own"), "the pain, the growth, the value and the fixes are all over storytree's own globe");
+test("2.12 · the intro's fifth step, after the fixes, is the harness claim over storytree's own globe, the harnesses' marks its one support", () => {
+  const intro = tourSteps.filter(item => item.explainer === "opening");
+  assert.deepEqual(intro.map(item => item.id), ["pain", "grow", "value", "fixes", "harness"]);
+  const harness = intro[4]!;
+  assert.deepEqual([harness.template, harness.kind, harness.map, harness.lines], ["claim", "beats", "own", ["Storytree works with your existing coding harness."]]);
+  assert.ok(!harness.growth && !harness.panel && !harness.labels, "storytree's own globe, held whole as the other intro steps hold it, with nothing over it");
+  assert.deepEqual(harness.marks?.map(mark => [mark.name, mark.src]), [["Claude Code", "/harness/claude-code.png"], ["Codex", "/harness/codex.png"], ["Pi", "/harness/pi.svg"]]);
+  assert.equal(harness.marksNote, "And any harness that speaks MCP.");
+  assert.ok(tourSteps.every(item => item === harness || (!item.marks && !item.marksNote)), "the marks and their line are the harness step's alone");
+  assert.match(harness.how ?? "", /Any other harness that speaks MCP can connect to the server too/);
+});
+
+test("2.12 · after the intro, the map chapter opens on the shop's empty globe, swelling from a point, with no cut beat between", () => {
+  const at = tourSteps.findIndex(item => item.id === "harness");
+  assert.ok(tourSteps.slice(0, at + 1).every(item => item.map === "own"), "the pain, the growth, the value, the fixes and the harness step are all over storytree's own globe");
   const opening = tourSteps[at + 1]!;
-  assert.equal(opening.explainer, "map", "the map chapter follows the fixes at once");
+  assert.equal(opening.explainer, "map", "the map chapter follows the intro at once");
   const tour = atOne(tourSteps);
   tour.go(at + 1);
   assert.deepEqual(globeOf(opening, tour.state, tour.elapsed()), { map: "shop", at: 0 }, "the shop's globe, still a point");
@@ -213,40 +225,35 @@ test("2.15 · a step's view is reached even when its island is drawn after the s
   assert.ok(tries > 0 && tries <= 100, "an island that never comes is given up on");
 });
 
-test("2.16 · the map chapter plays seven steps in the owner's order: the beginning, your harness, arcs, stories and pathways, capabilities and code, claims, health", () => {
+test("2.16 · the map chapter plays six steps in the owner's order: the beginning, arcs, stories and pathways, capabilities and code, claims, health", () => {
   const chapter = tourSteps.filter(item => item.explainer === "map");
-  assert.deepEqual(chapter.map(item => item.id), ["map-empty", "map-harness", "map-arcs", "map-stories", "map-capabilities", "map-claims", "map-health"]);
+  assert.deepEqual(chapter.map(item => item.id), ["map-empty", "map-arcs", "map-stories", "map-capabilities", "map-claims", "map-health"]);
   assert.ok(chapter.every(item => item.map === "shop" && typeof item.growth === "object"), "every step replays the shop's record");
   for (const item of chapter) assert.ok(item.how && item.why && item.decisions.length === 0);
-  const [empty, harness, arcs, stories, capabilities, claims, health] = chapter;
+  const [empty, arcs, stories, capabilities, claims, health] = chapter;
   const tinted = (item: TourStep, moment: number) => { let shown = item.surfaces; for (const [from, next] of Object.entries(item.lineSurfaces ?? {})) if (moment >= Number(from)) shown = next; return shown; };
   const panels = (item: TourStep) => momentStarts(item).map((_, index) => index + 1 >= (item.panelFromLine ?? 1) ? stepAt(item, index + 1).panel : undefined);
-  // Steps 1 to 3: the bare globe; the harnesses storytree works with, each by its own mark and name, over it; then the arcs
-  // panel over it, read before the first claim (01:53:08), the arc pointed out as its one line is said.
+  // Steps 1 and 2: the bare globe; then the arcs panel over it, read before the first claim (01:53:08), the arc pointed out as
+  // its one line is said.
   assert.deepEqual(panels(empty!), [undefined]);
-  assert.deepEqual(panels(harness!), [undefined]);
-  assert.deepEqual(harness!.marks?.map(mark => [mark.name, mark.src]), [["Claude Code", "/harness/claude-code.png"], ["Codex", "/harness/codex.png"], ["Pi", "/harness/pi.svg"]]);
-  assert.match(harness!.marksNote ?? "", /MCP/, "under the marks, one line for every other harness that speaks MCP");
-  assert.ok(chapter.every(item => item === harness || !item.marksNote), "the line is the harness step's alone");
-  assert.deepEqual([(harness!.growth as { stage: string; until: string }).stage, (harness!.growth as { until: string }).until], ["plans", "plans"]);
   assert.deepEqual(panels(arcs!), ["arcs"]);
   assert.deepEqual(labelsAt(arcs!, 1), [{ point: "arc", text: "a plan of work: an arc" }]);
   assert.ok(arcs!.sessionsAt! < "2026-10-05T01:53:08", "the arcs read the record before anything is held");
   assert.deepEqual([(empty!.growth as { until: string }).until, (arcs!.growth as { stage: string; until: string }).stage, (arcs!.growth as { until: string }).until], ["plans", "plans", "plans"], "the globe stays bare");
-  // Step 4: one line, the owner's; each island rises as a moment within it, then the pathways come on with the last.
+  // Step 3: one line, the owner's; each island rises as a moment within it, then the pathways come on with the last.
   assert.deepEqual(stories!.lines, ["In storytree, projects are made from stories. As your agents build, stories show up on the map as islands."]);
   assert.deepEqual((stories!.growth as { stage: string }).stage, "plans");
   assert.deepEqual((stories!.growth as { beats: unknown }).beats, [{ line: 2, stage: "planned" }, { line: 3, stage: "risen-browsing" }, { line: 4, stage: "risen-round" }, { line: 5, stage: "pathways" }]);
   assert.deepEqual([1, 2, 3, 4, 5].map(moment => tinted(stories!, moment).roads), [false, false, false, false, true]);
   assert.ok(!tinted(stories!, 5).territories, "nothing is drawn inside an island");
-  // Step 5: one line, the owner's; the capabilities, then the dots, then the panel, each a moment within it.
+  // Step 4: one line, the owner's; the capabilities, then the dots, then the panel, each a moment within it.
   assert.deepEqual(capabilities!.lines, ["Each story shows the parts that make it work."]);
   assert.deepEqual([tinted(capabilities!, 1).territories, tinted(capabilities!, 1).fileCircles, tinted(capabilities!, 2).fileCircles], ["plain", false, true]);
   assert.deepEqual(panels(capabilities!), [undefined, undefined, "story"]);
   // Step 5: the flags, then the arcs panel, then the sessions list, read as the flags stand (after 02:28:27, before 02:29:25).
   assert.deepEqual(panels(claims!), [undefined, "arcs", "sessions"]);
   assert.ok(claims!.sessionsAt! > "2026-10-05T02:28:27" && claims!.sessionsAt! < "2026-10-05T02:29:25");
-  assert.deepEqual(chapter.map(item => item.lines.some((_, index) => tinted(item, index + 1).sessionTints === true)), [false, false, false, false, false, true, true], "flags show from the claims step on, and lift in health");
+  assert.deepEqual(chapter.map(item => item.lines.some((_, index) => tinted(item, index + 1).sessionTints === true)), [false, false, false, false, true, true], "flags show from the claims step on, and lift in health");
   assert.deepEqual(claims!.compare?.sources.map(source => source?.name), ["Cursor docs", "LangSmith docs", "Linear docs", undefined], "the agents chapter's comparison is kept in the claims step's depth");
   assert.equal(tinted(health!, 1).territories, "health");
   assert.deepEqual(health!.compare?.sources.map(source => source?.name), ["VS Code docs", "Aider docs", undefined], "the comparison with file-browsing tools closes the chapter");
@@ -264,7 +271,7 @@ test("2.16 · across the map chapter the camera moves twice: into signing in for
     });
     assert.deepEqual(moves, ["map-capabilities:1", "map-claims:1"], wide ? "laptop" : "phone");
   }
-  const [, , , stories, capabilities, claims] = chapter;
+  const [, , stories, capabilities, claims] = chapter;
   assert.deepEqual(viewOf(capabilities!, 1, true).target, { kind: "story", story: "story_d263ef0f3f72" }, "it flies into signing in");
   assert.deepEqual(viewOf(claims!, 1, true), viewOf(stories!, 1, true), "and back to the view of the four stories");
 });

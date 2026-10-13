@@ -174,7 +174,7 @@ export async function verifyTour(browser, url, output) {
   const rows = () => page.locator(".tour-session-surface .session-row").allTextContents();
   // 2.8: one pip per step, grouped by explainer; a pip jumps to its step.
   const pips = await page.locator("#tour-pips [data-go]").count();
-  assert.equal(pips, 15, "one pip per step, with seven in the map chapter and three in the knowledge chapter");
+  assert.equal(pips, 15, "one pip per step, with five in the intro, six in the map chapter and three in the knowledge chapter");
   assert.deepEqual(await page.locator("#tour-pips .tb-group").evaluateAll(groups => groups.map(group => group.dataset.group)),
     ["opening", "map", "knowledge", "ending"]);
   await goToStep(page, "map-capabilities");
@@ -222,11 +222,11 @@ export async function verifyTour(browser, url, output) {
   assert.match(await page.locator("#tour-why").textContent(), /Checked against each tool's own documentation on \d+ \w+ \d{4}/);
   await page.screenshot({ path: path.join(output, "390-map-depth.png") });
   await page.locator("#tour-depth").click();
-  // 2.16: the harness step shows the harnesses storytree works with, each by its mark and name, with no panel open.
-  await goToStep(page, "map-harness"); await page.clock.runFor(500);
+  // 2.12: the intro's harness step shows the harnesses storytree works with, each by its mark and name, with no panel open.
+  await goToStep(page, "harness"); await page.clock.runFor(500);
   assert.deepEqual(await page.locator("#tour-marks .tour-mark").evaluateAll(nodes => nodes.map(node => [node.textContent, node.querySelector("img")?.complete && node.querySelector("img").naturalWidth > 0])), [["Claude Code", true], ["Codex", true], ["Pi", true]], "each harness by its own mark and name");
   assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), true, "no panel opens on the harness step");
-  assert.match(await page.locator("#tour-marks-note").evaluate(node => node.hidden ? "" : node.textContent), /MCP/, "one line under the marks for every other harness");
+  assert.equal(await page.locator("#tour-marks-note").evaluate(node => node.hidden ? "" : node.textContent), "And any harness that speaks MCP.", "one line under the marks for every other harness");
   // 2.16: the arcs step opens the shop's first arc over the bare globe, its four parts none held yet.
   await goToStep(page, "map-arcs"); await page.clock.runFor(500);
   assert.equal(await page.locator(".tour-arc-surface").evaluate(node => node.hidden), false, "the arcs panel is open");
@@ -327,7 +327,7 @@ const overlap = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - M
 // 2.16's framing, at every width: no island's name shown in the map chapter, as it plays through, hides under the heading or
 // the dated note above the globe.
 async function verifyNamesClearHeader(page, width, output) {
-  const map = ["map-empty", "map-harness", "map-arcs", "map-stories", "map-capabilities", "map-claims", "map-health"];
+  const map = ["map-empty", "map-arcs", "map-stories", "map-capabilities", "map-claims", "map-health"];
   await goToStep(page, map[0]);
   await page.locator('#tour-bar [data-speed="1.5"]').evaluate(button => button.click());
   if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
@@ -597,7 +597,7 @@ export async function reviewChapters(browser, url, output) {
       const steps = await page.locator('#tour-pips [data-step]').evaluateAll(nodes => nodes.map(node => node.dataset.step));
       for (const id of steps) {
         await goToStep(page, id);
-        const plays = { grow: 20, 'map-empty': 14, 'map-harness': 10, 'map-arcs': 14, 'map-stories': 24, 'map-capabilities': 18, 'map-claims': 22, 'map-health': 22 };
+        const plays = { grow: 20, harness: 10, 'map-empty': 14, 'map-arcs': 14, 'map-stories': 24, 'map-capabilities': 18, 'map-claims': 22, 'map-health': 22 };
         if (id in plays) {
           await page.locator('#tour-play').click();
           await page.waitForTimeout(plays[id] * 1000);
@@ -671,7 +671,7 @@ export async function verifyOwnGlobeFits(browser, url, output, sizes = [[390, 84
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await page.goto(url);
     await page.waitForFunction(() => document.querySelector("#website-forest")?.dataset.forestState === "live", null, { timeout: 90_000 });
-    const seen = new Set(), pictured = new Set(), samples = { grow: 0, value: 0, fixes: 0, everything: 0, freeplay: 0 };
+    const seen = new Set(), pictured = new Set(), samples = { grow: 0, value: 0, fixes: 0, harness: 0, everything: 0, freeplay: 0 };
     // A sample counts only for the view the page shows as it is read: the tour can end between a loop's check and its sample,
     // and free play's first frames still show the everything step's pose under free play's larger compass.
     const sample = async where => {
@@ -702,15 +702,15 @@ export async function verifyOwnGlobeFits(browser, url, output, sizes = [[390, 84
       // Each view's picture, as it last stood when sampled.
       if (++samples[where] % 4 === 1) await page.screenshot({ path: path.join(output, `own-globe-${where}-${width}.png`) });
     };
-    // The arrival, played through at 1.5× from the growth to the three fixes.
+    // The arrival, played through at 1.5× from the growth to the harness step.
     await goToStep(page, "grow");
     // A phone cycles the speeds with one button; a laptop shows each.
     if (laptop) await page.locator('#tour-bar [data-speed="1.5"]').click();
     else for (let tap = 0; tap < 2; tap++) await page.locator("#tour-speed-cycle").click();
     if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
-    for (let step = await stepOf(page); ["grow", "value", "fixes"].includes(step); step = await stepOf(page)) { await sample(step); await page.waitForTimeout(250); }
+    for (let step = await stepOf(page); ["grow", "value", "fixes", "harness"].includes(step); step = await stepOf(page)) { await sample(step); await page.waitForTimeout(250); }
     // A view the play-through passed between two samples (software WebGL's slow frames) is gone to and sampled as it drifts.
-    for (const missed of ["value", "fixes"].filter(view => !seen.has(view))) {
+    for (const missed of ["value", "fixes", "harness"].filter(view => !seen.has(view))) {
       await goToStep(page, missed);
       for (let tick = 0; tick < 12 && await stepOf(page) === missed; tick++) { await sample(missed); await page.waitForTimeout(250); }
     }
@@ -730,7 +730,7 @@ export async function verifyOwnGlobeFits(browser, url, output, sizes = [[390, 84
     const where = () => page.locator("#website-forest .planet-nameplate[data-story-id]").evaluateAll(plates => plates.map(plate => { const { x, y } = plate.getBoundingClientRect(); return `${Math.round(x)},${Math.round(y)}`; }).join(" "));
     for (let last = "", now = await where(), tick = 0; now !== last && tick < 40; tick++) { await page.waitForTimeout(750); last = now; now = await where(); }
     for (let tick = 0; tick < 8; tick++) { await sample("freeplay"); await page.waitForTimeout(250); }
-    assert.deepEqual([...seen], ["grow", "value", "fixes", "everything", "freeplay"], `storytree's globe was sampled at every view at ${width}px`);
+    assert.deepEqual([...seen], ["grow", "value", "fixes", "harness", "everything", "freeplay"], `storytree's globe was sampled at every view at ${width}px`);
     await page.close();
   }
   // Each contract's verdict, its failures listed: an empty list passes.

@@ -1,0 +1,1 @@
+I want to start using storytree with an app I already have. This folder is empty: set it up as a new storytree project called reddit-stats-a. My existing app is a Reddit viewer, cloned at ..\viewer-for-reddit (a Next.js app). Bring it into the project so I can build on top of it. Tell me what you did and what storytree now shows.

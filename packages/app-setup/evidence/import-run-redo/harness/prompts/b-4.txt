@@ -1,0 +1,1 @@
+I want to see this summary as a Stats page in the app, linked from its navigation. Build it, and tell me how to see it.

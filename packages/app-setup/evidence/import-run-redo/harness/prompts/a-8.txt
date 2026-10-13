@@ -1,0 +1,1 @@
+I changed my viewer myself: I added a note to its README and committed it. Import it into the project again so storytree is up to date, and tell me what changed.

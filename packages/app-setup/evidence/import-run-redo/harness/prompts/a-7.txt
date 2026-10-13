@@ -1,0 +1,1 @@
+In my viewer, change the About page heading so it says "About this viewer".

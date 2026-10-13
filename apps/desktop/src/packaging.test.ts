@@ -65,7 +65,7 @@ test("4.6 the Mac runner stages the shell bootstrap, its one-liners and the Mac 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("1.13 the Linux runner writes the AppImage's checksum entry beside it", () => {
+test("app setup 1.13 the Linux runner writes the AppImage's checksum entry beside it", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-linux-delivery-"));
   try {
     const bytes = Buffer.from("the already-built AppImage");
@@ -73,12 +73,12 @@ test("1.13 the Linux runner writes the AppImage's checksum entry beside it", () 
     linuxDeliveryAssets(dir, "0.3.700");
     assert.deepEqual(JSON.parse(readFileSync(path.join(dir, "storytree-delivery-linux.json"), "utf8")), {
       version: "0.3.700",
-      linux: { x64: { name: "storytree-0.3-0.3.700-linux-x86_64.AppImage", sha256: createHash("sha256").update(bytes).digest("hex"), size: bytes.length } },
+      linux: { x64: { name: "storytree-0.3-0.3.700-linux-x86_64.AppImage", sha256: "d826718312a0cc15e225f19726b416e373df123331a5bbe901fcec2d0abc4207", size: 26 } },
     });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("1.13 publishing merges the Linux AppImage's entry beside the Mac app's, and refuses another version's", () => {
+test("app setup 1.13 publishing merges the Linux AppImage's entry beside the Mac app's, and refuses another version's", () => {
   const windows = { schema: 1, channelSchema: 1, version: "0.3.700", installer: { name: "storytree-0.3-0.3.700-setup.exe", sha256: "a".repeat(64), sha512: "b", size: 3 } };
   const arm64 = { name: "storytree-0.3-0.3.700-mac-arm64.zip", sha256: "c".repeat(64), size: 5 };
   const x64 = { name: "storytree-0.3-0.3.700-linux-x86_64.AppImage", sha256: "d".repeat(64), size: 7 };

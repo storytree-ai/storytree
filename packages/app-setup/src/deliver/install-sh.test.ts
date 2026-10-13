@@ -23,7 +23,8 @@ for (const shell of ["sh", "bash", "zsh"]) {
     skip: process.platform === "win32" && "platform:posix: the one-liner runs under a POSIX shell, which Windows CI does not provide",
   }, (t) => {
     const found = spawnSync(shell, ["-c", "exit 0"]);
-    if (found.error) return t.skip(`${shell} unavailable here; the other shells run this proof`);
+    if (found.error && process.platform !== "darwin") return t.skip(`platform:darwin: ${shell} unavailable here; macOS CI runs this proof`);
+    assert.ifError(found.error);
     const result = spawnSync(shell, [linuxSteps, script], { encoding: "utf8" });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(result.stdout, /install\.sh PASS/);

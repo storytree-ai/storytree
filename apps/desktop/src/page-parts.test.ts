@@ -15,8 +15,8 @@ import { build } from "esbuild";
 import { readReadings } from "@storytree/lag-in-use";
 import { partsPlugin } from "@storytree/plugin-loader";
 
-import pageAnswers from "#parts/pageAnswers";
-import pageChannels from "#parts/pageChannels";
+import pageAnswers from "./main/parts/page-answers.js";
+import pageChannels from "./parts/page-channels.js";
 
 import { createBridge } from "./bridge.js";
 import { answerPageParts } from "./page-operations.js";
@@ -27,6 +27,8 @@ test("1.18 a story's page operations its package's manifest names are answered i
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
   answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, { home, appVersion: "0.3.99" });
 
+  assert.equal(import.meta.resolve("#parts/pageAnswers"), new URL("./main/parts/page-answers.ts", import.meta.url).href, "the app's #parts/pageAnswers is its composing module");
+  assert.equal(import.meta.resolve("#parts/pageChannels"), new URL("./parts/page-channels.ts", import.meta.url).href, "the app's #parts/pageChannels is its composing module");
   const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args));
   await page.recordLag([{ name: "open-island", response: 40, longFrames: 1, longestFrame: 72, settled: 300, progress: false }]);
   assert.deepEqual(readReadings(home).map(({ name, version, settled }) => ({ name, version, settled })), [{ name: "open-island", version: "0.3.99", settled: 300 }]);

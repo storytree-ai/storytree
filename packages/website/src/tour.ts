@@ -63,7 +63,8 @@ export type TourStep = {
   phone?: { target?: GlobeTarget; framing: number; side: number; narrow?: number; narrowFraming?: number };
   /** A story selected so its dependency lanes draw on. */
   select?: string;
-  panel?: "story" | "arcs" | "sessions" | "knowledge" | "note" | "inset";
+  /** "diagram" is the one overlay we drew, not the product: decisions glued beneath an island, tunnelling to the core. */
+  panel?: "story" | "arcs" | "sessions" | "knowledge" | "note" | "inset" | "diagram";
   /** The island the "inset" panel shows close up, and how close (ADR-1018 D7): the globe keeps its own view behind it. A story
    * panel the step opens later is this island's. */
   inset?: { target: GlobeTarget; framing: number };
@@ -235,12 +236,12 @@ export type Corner = "right" | "left";
 export type Overlay = { panel: Exclude<TourStep["panel"], undefined | "knowledge">; corner: Corner };
 /**
  * The one overlay on show once `moments` are told (ADR-1018 D6, D9): the step's panel from the line or moment that brings it,
- * giving way to the next a later line names, and gone when the step ends. Every panel the tour opens is the real product, so
- * it plays in the top right; the knowledge core is drawn on the globe, not over it.
+ * giving way to the next a later line names, and gone when the step ends. A real panel plays in the top right and a diagram we
+ * drew in the top left, so its place says it is a drawing; the knowledge core is drawn on the globe, not over it.
  */
 export function overlayAt(step: TourStep, moments: number): Overlay | undefined {
   const panel = moments >= (step.panelFromLine ?? 1) ? stepAt(step, moments).panel : undefined;
-  return panel && panel !== "knowledge" ? { panel, corner: "right" } : undefined;
+  return panel && panel !== "knowledge" ? { panel, corner: panel === "diagram" ? "left" : "right" } : undefined;
 }
 /**
  * The inset on show once `moments` are told (ADR-1018 D7, D10): while the step's overlay is its inset, the island it shows close

@@ -240,7 +240,9 @@ export const steps: TourStep[] = [
     "Storytree keeps each decision inside the globe, beneath the part of the map it's about.",
   ], how: "By the time the first round was green, the shop's agents had written {shopDecisions} decisions, most of them while planning, before any code. Each is a note in storytree's library, a knowledge graph: a note links to the notes it stands on, and the graph refuses loops, so every chain of reasons reads to its end. Principles, which steer judgement, are notes too. A note about no one part gathers at the core.",
   why: "Every new agent session starts on its first day. Keeping the decisions with the work means the next session doesn't relearn them, and you don't explain them again.",
-  decisions: [], surfaces: lit({ ...health, roads: true }), lineSurfaces: { 3: inside }, ...shopHeld },
+  // With its third line, a drawn diagram plays in the top left: a decision glued beneath its island, and the decisions beneath
+  // it tunnelling down to the core (ADR-1018 D7).
+  decisions: [], surfaces: lit({ ...health, roads: true }), lineSurfaces: { 3: inside }, lineViews: { 3: { panel: "diagram" } }, ...shopHeld },
   { id: "knowledge-shelf", explainer: "knowledge", ...kept, title: "Every story keeps a shelf.", lines: [
     // DRAFT.
     "Each story and capability keeps a shelf: the decisions that shaped it.",

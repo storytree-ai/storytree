@@ -14,7 +14,8 @@ import ownSaved from "./own-snapshot.json" with { type: "json" };
 import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest-world/planet";
 import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { aim, globeOf, insetAt, islandsKeptOff, labelsAt, labelWords, momentStarts, overlayAt, placeTags, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type Label, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { aim, globeOf, insetAt, islandsKeptOff, labelsAt, labelWords, momentStarts, overlayAt, placeTags, readingTime, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type Label, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { DecisionsDiagram } from "./tour-diagram.js";
 import { createCameraPlayer, freePlayFraming, globeSide, viewFraming } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, recordedView, savedReading } from "./tour-reading.js";
@@ -626,6 +627,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
       </div>
       {inset && grown && drawing && <Inset key={`${step!.id}:${state!.generation}`} title={shop.titles[ownerOf(inset.target) ?? ""] ?? "A story"} target={inset.target} framing={inset.framing} labels={insetLabels}
         view={{ core: growthCores.shop, scene: drawn, places: grown.places, frame: grown.snapshot.scene, growth, surfaces }} />}
+      {/* The drawn diagram plays once over the line that brings it, at the tour's speed (ADR-1018 D7). */}
+      {overlay?.panel === "diagram" && <DecisionsDiagram key={`${step!.id}:${state!.generation}`} seconds={readingTime(step!.lines[state!.lines - 1] ?? "") / 1000 / state!.speed} />}
       {arcPoint && <PanelPointer key={arcPoint} text={arcPoint} row="#chapter2 .tour-arc-surface:not([hidden]) .arc-overlay:not([hidden]) .arc-lane" within=".arc-overlay" label="arc" />}
       {panelPoint && <PanelPointer key={panelPoint} text={panelPoint} row="#chapter2 .tour-story-panel .panel-tree-frame" within=".tour-story-panel" label="panel" under />}
     </>, panelHost)}

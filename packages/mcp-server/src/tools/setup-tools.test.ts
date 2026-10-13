@@ -531,11 +531,11 @@ test("app-setup 8.24 the check tells a session the hook failures this machine tr
   });
 });
 
-test("6.70 set_up_project in a folder in no git repository makes one whose first commit holds the marker, and says so; a folder already in one is left as it is, and joining makes none", async () => {
-  const [fresh, inRepo] = [uniqueProjectName(), uniqueProjectName()];
+test("6.70 set_up_project in a folder in no git repository makes one whose first commit holds the marker, and says so, or with no git identity makes it with the marker staged and asks the user for a name and email; a folder already in one is left as it is, and joining makes none", async () => {
+  const [fresh, inRepo, nameless] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   // The identity a user's git would have; CI's runners have none of their own.
   const identity = { GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
-  const before = Object.fromEntries(Object.keys(identity).map((key) => [key, process.env[key]]));
+  const before = Object.fromEntries([...Object.keys(identity), "GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM"].map((key) => [key, process.env[key]]));
   Object.assign(process.env, identity);
   const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   await withTempDir(async (dir) => {
@@ -574,12 +574,30 @@ test("6.70 set_up_project in a folder in no git repository makes one whose first
         assert.equal(joined.data.repository, undefined);
       });
       assert.equal(existsSync(path.join(empty, ".git")), false, "joining makes no repository");
+
+      // With no git identity, the repository is made with its marker staged, and the user is asked for a name and email.
+      for (const key of Object.keys(identity)) delete process.env[key];
+      const noConfig = path.join(dir, "no-gitconfig");
+      writeFileSync(noConfig, "");
+      Object.assign(process.env, { GIT_CONFIG_GLOBAL: noConfig, GIT_CONFIG_NOSYSTEM: "1" });
+      const anonymous = path.join(dir, nameless);
+      mkdirSync(anonymous);
+      await withAgent(anonymous, claudeCode(`claude-${nameless}`, setup), async (agent) => {
+        const setUp = await agent.call("set_up_project", { name: nameless });
+        assert.equal(setUp.isError, false, setUp.text);
+        assert.equal((setUp.data.repository as { state: string }).state, "no identity");
+        assert.match(setUp.text, /made it one with \.storytree\.json staged/);
+        assert.match(setUp.text, /ask the user for the name and email/);
+        assert.match(setUp.text, /check_setup then makes the first commit/);
+      });
+      assert.equal(path.resolve(git(anonymous, "rev-parse", "--show-toplevel")), anonymous);
+      assert.equal(git(anonymous, "ls-files"), MARKER_FILE);
     } finally {
       for (const [key, value] of Object.entries(before)) {
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;
       }
-      await dropTestProjects([fresh, inRepo]);
+      await dropTestProjects([fresh, inRepo, nameless]);
     }
   });
 });

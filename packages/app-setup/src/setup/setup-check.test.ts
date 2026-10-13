@@ -23,7 +23,7 @@ import { withTempDir } from "@storytree/session-management/testing/folders";
 import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/session-management/testing/pg";
 
 import { buildBins } from "../bins/build.js";
-import { setUpProject } from "../project/making.js";
+import { makeRepository, setUpProject } from "../project/making.js";
 import { runSetupCheck } from "./index.js";
 import { builtFromMain, FIX_SENTENCES, ghState, launcherFile, machineState, putCommandOnPath, registerHooks, removeCommand, removeHooks, verifyHooks, type HookCommand, type Homes } from "./index.js";
 
@@ -395,6 +395,56 @@ test("8.31 in a project with no git repository, or a repository with no origin r
       git("remote", "add", "origin", "https://github.com/someone/somewhere.git");
       assert.equal((await runSetupCheck(options)).lines.find((line) => line.check === "repository"), undefined);
     } finally {
+      await storytree.close();
+      await dropTestProjects([name]);
+    }
+  });
+});
+
+test("8.31 a project's repository begun with no git identity, its marker staged, gets its first commit from the check once git has one; until then the check asks the user for a name and email", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const name = uniqueProjectName();
+    const folder = path.join(dir, name);
+    mkdirSync(folder);
+    const options = { ...ANSWERED, folder, homes: home.homes, storytreeHome: home.storytreeHome };
+    const storytree = await connect({ url: testServerUrl() });
+    // Git reads no config of this machine's: the test chooses the identity, or none.
+    const noConfig = path.join(dir, "no-gitconfig");
+    writeFileSync(noConfig, "");
+    const keys = ["GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"];
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    for (const key of keys) delete process.env[key];
+    Object.assign(process.env, { GIT_CONFIG_GLOBAL: noConfig, GIT_CONFIG_NOSYSTEM: "1" });
+    const git = (...args: string[]) => spawnSync("git", args, { cwd: folder, encoding: "utf8" });
+    try {
+      await setUpProject({ folder, project: name, storytree, storytreeHome: home.storytreeHome });
+      assert.equal(makeRepository(folder).state, "no identity");
+
+      const waiting = (await runSetupCheck(options)).lines.filter((line) => line.check === "repository");
+      assert.equal(waiting[0]?.state, "needs-attention");
+      assert.match(waiting[0]?.message ?? "", /waiting for its first commit/);
+      assert.match(waiting[0]?.fix ?? "", /ask the user for the name and email/i);
+      assert.match(waiting[0]?.fix ?? "", /git config --global user\.name "<name>"/);
+      assert.match(waiting[1]?.message ?? "", /no origin remote/, "the remote is still proposed");
+      assert.equal(git("rev-list", "--all", "--count").stdout.trim(), "0");
+
+      git("config", "user.name", "A User");
+      git("config", "user.email", "user@example.invalid");
+      const made = (await runSetupCheck(options)).lines.filter((line) => line.check === "repository");
+      assert.equal(made[0]?.state, "fixed");
+      assert.match(made[0]?.message ?? "", /first commit/);
+      assert.equal(git("log", "--format=%an <%ae>").stdout.trim(), "A User <user@example.invalid>");
+      assert.equal(git("show", "--name-only", "--format=", "HEAD").stdout.trim(), MARKER_FILE);
+
+      const after = (await runSetupCheck(options)).lines.filter((line) => line.check === "repository");
+      assert.deepEqual(after.map((line) => line.state), ["needs-attention"], "made once: then only the remote is left");
+      assert.equal(git("rev-list", "--all", "--count").stdout.trim(), "1");
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
       await storytree.close();
       await dropTestProjects([name]);
     }

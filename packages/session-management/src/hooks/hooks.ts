@@ -67,7 +67,7 @@ import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } 
 import { hookIdentity, noteHookFailure, type HookFailure } from "./failures.js";
 import { isSelfNamed, selfNamedLines } from "./self-named.js";
 import { shellEdits } from "./shell-edits.js";
-import { rememberedImports, SHELL_GUARD, shellGuard, watchImports } from "./shell-guard.js";
+import { rememberedImports, SHELL_GUARD, shellGuard, watchImports, watchWorktree } from "./shell-guard.js";
 
 /** What a hook is run with: the command's arguments (the harness first, then any flags) and its stdin. */
 export interface HookInput {
@@ -184,19 +184,19 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
     if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed);
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
     if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed);
-    // The hook after each shell command that the harness waits for tells the agent of its changes to imported code (ADR-1015).
-    if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed);
+    // The hook after each shell command that the harness waits for tells the agent of its changes to imported code (ADR-1015), and to capabilities its claims do not cover (ADR-0949 D3).
+    if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities);
     const made = hookLines(harness, parsed);
     if (flags.includes(UPKEEP)) return void (made === undefined ? undefined : await upkeep(made, merges, locate));
     const asked = promptIn(harness, parsed);
     // A prompt's line is written while its context is looked up: the harness waits for both.
     if (asked !== undefined) {
-      const [context] = await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed)]);
+      const [context] = await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed, declaredCapabilities !== undefined)]);
       return promptAnswer(harness, context, parsed);
     }
     if (made === undefined) return;
     // After an edit the gate asked the user about, the user's yes is recorded on the increment (contract 5.41).
-    await Promise.all([writeLines(harness, input, flags, made, handOff, merges, locate, failed), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed)]);
+    await Promise.all([writeLines(harness, input, flags, made, handOff, merges, locate, failed, declaredCapabilities !== undefined), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed)]);
   } catch (error) {
     // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said, but why is kept here.
     failed("hook", error);
@@ -205,7 +205,7 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
 }
 
 /** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine; a failure is traced with `failed`. Never throws. */
-async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<void> {
+async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false): Promise<void> {
   try {
     if (made.lines.length === 0) return;
     const where = route(made.folder, locate);
@@ -226,6 +226,8 @@ async function writeLines(harness: string, input: string, flags: readonly string
     // a command's edit line feeds the same upkeep/claim path as an explicit edit tool (3.22).
     const firstLine = made.lines[0];
     if (root !== undefined && firstLine !== undefined) made = { ...made, lines: [...made.lines, ...shellEdits(home, root, firstLine, (error) => failed("observe", error))] };
+    // The shell guard's own baseline of the worktree is set here too, when it is given the map's rule to judge claims by.
+    if (guarded && root !== undefined && firstLine !== undefined) watchWorktree(home, root, firstLine, failed);
     const { enqueue, uploadQueued } = await import("./queue.js");
     if (where.status === "not-running") {
       enqueue(home, where.project, made.lines);

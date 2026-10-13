@@ -14,9 +14,11 @@
  * setup's, ADR-0969); a hook given none refuses nothing. A file in a folder the project imports on this machine is
  * placed by the gate itself (claims/edit-gate.ts); when its edit may go ahead only on the user's yes (ADR-1015), Claude
  * Code is answered "ask", so the harness asks its user, and a harness with no such answer is refused, naming the command
- * the user types at their own terminal to say yes. After Claude Code runs an edit it was told to ask about, the user
- * allowed it: the hook after the edit records that yes on the increment (recordPromptYes), so its next edits go
- * through unasked (contract 5.41).
+ * the user types at their own terminal to say yes, or sends as their own message. After Claude Code runs an edit it was
+ * told to ask about, the user allowed it: the hook after the edit records that yes on the increment (recordPromptYes),
+ * so its next edits go through unasked (contract 5.41). A user who sends that command on its own line of a message has
+ * said yes in the conversation: the prompt hook, which sees the user's words and never the agent's, records it for its
+ * session (yesSaid, contract 5.42).
  *
  * Like every hook it never breaks the agent: outside a storytree project, in a checkout whose trunk is
  * not approved, when storytree cannot be reached in time, or on any failure, it says nothing and the
@@ -110,7 +112,7 @@ function cursorEditIn(input: Record<string, unknown>): ReturnType<typeof editIn>
  */
 export function refusalAnswer(harness: string, reason: string, ask = false): string {
   if (ask && harness === "claude-code") return JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: reason } });
-  if (ask) reason = `${reason} This harness cannot ask the user at the edit, so it is refused: ask the user in the conversation, and if they say yes, they run that command at their own terminal (an agent's shell is refused it), then edit again.`;
+  if (ask) reason = `${reason} This harness cannot ask the user at the edit, so it is refused: ask the user in the conversation, and if they say yes, they send that command on its own line as their own message (you cannot send it for them), or run it at their own terminal (an agent's shell is refused it), then edit again.`;
   if (harness === "pi") return JSON.stringify({ block: true, reason });
   if (harness === "antigravity") return JSON.stringify({ decision: "deny", reason });
   if (harness === "cursor") return JSON.stringify({ permission: "deny", user_message: reason, agent_message: reason });
@@ -158,6 +160,44 @@ export async function recordYesAfterEdit(harness: string, input: unknown, locate
     await Promise.race([gated(harness, edit, locate, home, (context, checkout, imports) => recordPromptYes(context, checkout, edit.files, imports)), late]);
   } catch (error) {
     failed("hook", error);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** The allow command on a line of its own, as the user types it at a terminal or sends it, perhaps in backticks or led by pnpm or npx. */
+const SAID_ALLOW = /^`?(?:(?:pnpm|npx)\s+(?:-s\s+)?)?storytree\s+workspace\s+allow\s+(\S+?)`?$/;
+
+/** The increments a user's prompt says yes to: each line that is, trimmed, the allow command. A sentence that mentions it says nothing. */
+export function allowsSaidIn(prompt: string): string[] {
+  return [...new Set(prompt.split(/\r?\n/).flatMap((line) => SAID_ALLOW.exec(line.trim())?.[1] ?? []))];
+}
+
+/**
+ * At a prompt: record the yes the user said for each increment the prompt names with the allow command on its own line
+ * (contract 5.42), and what to tell the agent of each; undefined when it names none. Never throws; `failed` keeps why it gave up.
+ */
+export async function yesSaid(harness: string, prompted: { session: string; folder: string; prompt: string }, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<string[] | undefined> {
+  const increments = allowsSaidIn(prompted.prompt);
+  if (increments.length === 0) return undefined;
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), GATE_MS)));
+  try {
+    const { allowSaid } = await import("../claims/edit-gate.js");
+    const told = await Promise.race([gated(harness, { session: prompted.session, folder: prompted.folder, files: [] }, locate, home, async (context) => {
+      const answers: string[] = [];
+      for (const increment of increments) {
+        const allowed = await allowSaid(context, increment);
+        answers.push(allowed.ok
+          ? `[storytree] The user's yes to changing imported code for increment ${increment} is recorded for this session: it covers what the increment lists now (${allowed.capabilities.map(({ capability }) => capability).join(", ")}). Make the edit again.`
+          : `[storytree] The user said yes for ${increment}, but nothing was recorded: ${allowed.reason}`);
+      }
+      return answers;
+    }), late]);
+    return told === undefined || told.length === 0 ? undefined : told;
+  } catch (error) {
+    failed("hook", error);
+    return undefined;
   } finally {
     clearTimeout(timer);
   }

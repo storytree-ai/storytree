@@ -1163,6 +1163,52 @@ test("3.34 after Claude Code runs an edit to imported code that the gate had it 
   });
 });
 
+test("3.37 a user who replies with the allow command on its own line of their own message says yes in the conversation: the prompt hook records it on the increment for that session and tells the agent, so its next edit to imported code goes through; the command only mentioned in a sentence records nothing, and a harness that cannot ask names replying with it (ADR-1015, contract 5.42)", async () => {
+  await withTempDir(async (dir) => {
+    const project = uniqueProjectName();
+    const home = storytreeHome(dir, true);
+    const folder = await projectFolder(dir, project);
+    const viewer = path.join(dir, "viewer");
+    mkdirSync(path.join(viewer, "app", "stats"), { recursive: true });
+    const storytree = await connect({ url: testServerUrl() });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const machine = machineOf(home);
+      await recordImport(storytree, { project, machine: machine.id, machineName: machine.name, folder: viewer, repository: "https://github.com/someone/viewer.git" });
+      const library = await storytree.openProject(project);
+      const { added: [mapped] } = await library.mapStories("https://github.com/someone/viewer.git", [{ package: ".", title: "viewer", folders: ["."] }]);
+      const stats = (await library.addCapability({ title: "Stats page", story: mapped!.id, covers: ["app/stats"] })).id;
+      const arc = await library.createArc({ title: "Stats", intent: "A stats page", endState: "Stats shown", stories: [mapped!.id] });
+      const increment = (await library.addIncrement({ arc: arc.id, title: "stats page", objective: "stats page", body: "stats page", capabilities: [stats] })).id;
+      assert.equal((await claim({ log, library, project, session: "editor", harness: "codex" }, increment, "the stats page")).ok, true);
+      const patch = JSON.stringify({ session_id: "editor", cwd: folder, hook_event_name: "PreToolUse", tool_name: "apply_patch", tool_input: { command: `*** Begin Patch\n*** Add File: ${path.join(viewer, "app", "stats", "more.tsx")}\n+export {};\n*** End Patch\n` } });
+      const gate = async () => {
+        const ran = await runHook("codex", patch, home, [EDIT_GATE]);
+        return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { decision?: string; reason?: string });
+      };
+
+      const refused = await gate();
+      assert.equal(refused?.decision, "block");
+      assert.match(refused?.reason ?? "", new RegExp(`own message.*storytree workspace allow ${increment}|storytree workspace allow ${increment}.*own message`, "s"), "the refusal names replying with the command");
+
+      const mentioned = await runHook("codex", prompted("codex", folder, `What does storytree workspace allow ${increment} do?`, "editor"), home);
+      assert.equal(addedContext(mentioned)?.includes(increment) ?? false, false, "a sentence that mentions the command says nothing of a yes");
+      assert.equal((await gate())?.decision, "block", "and records none");
+
+      const said = await runHook("codex", prompted("codex", folder, `yes, change it\n  pnpm storytree workspace allow ${increment}  \n`, "editor"), home);
+      assert.deepEqual({ code: said.code, stderr: said.stderr }, { code: 0, stderr: "" });
+      assert.ok(addedContext(said)?.includes(increment), "the agent is told the user's yes is recorded");
+      assert.equal(await gate(), undefined, "the session's next edit there goes through");
+      const yes = (await log.lines(project, { kinds: ["user-allowed"] })).map((line) => line.kind === "user-allowed" && [line.session, line.source, line.how, line.increment]);
+      assert.deepEqual(yes, [["editor", "hook", "said", increment]]);
+    } finally {
+      await log.close();
+      await storytree.close();
+      await dropTestProjects([project]);
+    }
+  });
+});
+
 test("3.35 a shell command that changes or deletes files in an imported folder without the user's yes is told to the agent at once, by the hook after it that the harness waits for (Claude Code, also after a failed command, and Codex), and recorded as an edit there; a command that changes nothing there, or only what the user's yes covers, says nothing (ADR-1015)", async () => {
   await withTempDir(async (dir) => {
     const project = uniqueProjectName();

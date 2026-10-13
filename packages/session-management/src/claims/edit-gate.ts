@@ -21,7 +21,8 @@
  * yes, asked before the edit (an "ask"), because an agent writes its own increments (ADR-1015 D2). One yes covers the
  * increment (contract 5.41): the capabilities its list named when the user gave it, over the files each covered then. A
  * capability listed later, or a cover widened since, is asked again. The yes is a `user-allowed` line, written only by
- * the hook after an edit the harness's prompt let through, or by a command the user types at their own terminal: a
+ * the hook after an edit the harness's prompt let through, by a command the user types at their own terminal, or by the
+ * prompt hook that heard the user say that command in the conversation, which counts for that session alone (5.42): a
  * line any other way writes is not read as one, and no tool writes one.
  */
 import { readFileSync } from "node:fs";
@@ -146,13 +147,18 @@ interface AllowedCapability {
 
 /**
  * The capabilities the user said yes to on `increments`, from the lines the gate trusts: a prompt's, written by the
- * hook, or a command's, typed by a person at their own terminal (ADR-1015 D2).
+ * hook, a command's, typed by a person at their own terminal, or one said in the conversation, written by the prompt
+ * hook of this session (ADR-1015 D2). A said yes counts for the session that heard it alone, because an agent could
+ * start a harness of its own from its shell whose prompt hook would hear the command from it (5.42).
  */
 async function yesesOn(context: GateContext, increments: readonly string[]): Promise<AllowedCapability[]> {
   const lines = await context.log.lines(context.project, { kinds: ["user-allowed"], where: { increment: increments } });
   return lines.flatMap((line) => {
     if (line.kind !== "user-allowed") return [];
-    const trusted = line.how === "prompt" ? line.source === "hook" : line.source === "tool" && line.session.startsWith("person:");
+    const trusted =
+      line.how === "prompt" ? line.source === "hook"
+      : line.how === "said" ? line.source === "hook" && line.session === context.session
+      : line.source === "tool" && line.session.startsWith("person:");
     return trusted ? line.capabilities : [];
   });
 }
@@ -215,14 +221,25 @@ export type AllowAnswer = { readonly ok: true; readonly capabilities: readonly A
  * session runs, so an agent never writes it for itself (ADR-1015 D2).
  */
 export async function allowIncrement(context: Pick<ClaimContext, "log" | "library" | "project" | "folder">, person: string, increment: string): Promise<AllowAnswer> {
+  return recordYes(context, increment, { session: `person:${person}`, source: "tool", how: "command" });
+}
+
+/**
+ * The user's yes to changing imported code for `increment`, said in the conversation as the allow command on its own line
+ * of their own message (contract 5.42): for a harness that cannot ask them at the edit. Only the prompt hook calls this,
+ * with the session whose user sent the message, and the yes counts for that session alone.
+ */
+export async function allowSaid(context: GateContext, increment: string): Promise<AllowAnswer> {
+  return recordYes(context, increment, { session: context.session, ...(context.harness === undefined ? {} : { harness: context.harness }), source: "hook", how: "said" });
+}
+
+/** Record the user's yes on `increment`, as `by` gave it, over what it lists now; refused when it is no increment or lists nothing. */
+async function recordYes(context: Pick<ClaimContext, "log" | "library" | "project" | "folder">, increment: string, by: { session: string; harness?: string; source: "tool" | "hook"; how: "command" | "said" }): Promise<AllowAnswer> {
   const record = await context.library.get(increment);
   if (record?.type !== "increment") return { ok: false, reason: `${increment} is not an increment of this project.` };
   const capabilities = await allowedNow(context.library, increment);
   if (capabilities.length === 0) return { ok: false, reason: `${increment} lists no capabilities yet, so a yes would allow nothing: the agent lists the explored capability it means to change first.` };
-  await context.log.append(context.project, {
-    session: `person:${person}`, source: "tool", ...(context.folder === undefined ? {} : { folder: context.folder }),
-    kind: "user-allowed", increment, how: "command", capabilities,
-  });
+  await context.log.append(context.project, { ...by, ...(context.folder === undefined ? {} : { folder: context.folder }), kind: "user-allowed", increment, capabilities });
   return { ok: true, capabilities };
 }
 
@@ -256,7 +273,7 @@ export function refusalMessage(refusal: EditRefusal, after = false): string {
     return `[storytree] Your edit to ${where}, was refused before it happened: imported code is changed only when your increment names its explored capability, and then only on the user's yes (ADR-0993 D4, ADR-1015). ${covered}, ${listing}, then edit again; or ask the user what to do: change it there, bring that part into storytree, retire it, or leave it.`;
   }
   if (refusal.refused === "ask") {
-    return `[storytree] This edit changes ${refusal.file} in ${refusal.folder}, your original project imported into storytree, for "${refusal.title}" (${refusal.capability}) on increment ${refusal.increment}. Imported code is changed only on your explicit permission (ADR-1015): allow it only if you want the agent to change your original code for this increment; one yes covers the increment's other edits to what it lists now. Where no prompt can appear (a headless run), the user allows it from their own terminal: ${allowCommand(refusal.increment)}.`;
+    return `[storytree] This edit changes ${refusal.file} in ${refusal.folder}, your original project imported into storytree, for "${refusal.title}" (${refusal.capability}) on increment ${refusal.increment}. Imported code is changed only on your explicit permission (ADR-1015): allow it only if you want the agent to change your original code for this increment; one yes covers the increment's other edits to what it lists now. Where no prompt can appear (a headless run), the user allows it by sending ${allowCommand(refusal.increment)} on its own line as their own message, or by running it at their own terminal.`;
   }
   const what = `"${refusal.title}" (${refusal.capability})`;
   const lead = after ? `Your last shell command changed ${refusal.file}, which an edit tool would have been refused` : `Your edit to ${refusal.file} was refused before it happened`;
@@ -268,7 +285,7 @@ export function refusalMessage(refusal: EditRefusal, after = false): string {
   return `[storytree] ${lead}: it is in ${what}, which the capabilities list of your increment ${refusal.increment} does not name (ADR-0949 D3). If you mean to change it, add it to the list and claim it${after ? "" : ", then edit again"}: the edit_plan and claim tools, or \`storytree arc increment edit ${refusal.increment} --capabilities ${list}\` and \`storytree workspace claim ${refusal.capability} --reason …\`${after ? "; if not, undo your change there" : ""}.`;
 }
 
-/** The command a user types at their own terminal to allow `increment`'s changes to imported code; an agent's shell is refused it. */
+/** The command a user types at their own terminal, or sends on its own line as their own message, to allow `increment`'s changes to imported code; an agent's shell is refused it. */
 export function allowCommand(increment: string): string {
   return `storytree workspace allow ${increment}`;
 }

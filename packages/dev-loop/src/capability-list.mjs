@@ -2,7 +2,8 @@
 // changed file is mapped to its capability by the lookup edit claims share (ADR-0925 D4,
 // @storytree/map/code-survey's capabilitiesOfFiles): a file's own declaration (a source file's
 // opening "Capability N · <title>", a test file's one numbered capability), else the code survey's
-// inference. A file none of these places changes no capability. The branch's increment is the one its
+// inference. A file none of these places changes no capability, nor does one whose only change rewrites an
+// import of a package the branch renames, so a rename claims no importer's capability. The branch's increment is the one its
 // name carries (a workspace's branch is claude/increment-<id>-<suffix>); a branch naming none is not
 // checked. It reads the plan with that increment's pending changes laid over, and fails one written
 // against a record that has changed since (ADR-0966 D3, D5).
@@ -98,6 +99,54 @@ export async function branchVerdict(library, root, branch, changed, options = {}
   return { unlisted: unlistedCapabilities(owners, record.fields.capabilities ?? [], tree), checked: owners.size, stale };
 }
 
+/** The names the workspace's packages (packages/*, apps/*) declare at commit `rev`, or in the checkout when it is undefined. */
+function workspacePackages(root, rev) {
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  const listed = rev === undefined
+    ? git("ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "packages", "apps")
+    : git("ls-tree", "-r", "--name-only", "-z", rev, "--", "packages", "apps");
+  const names = new Set();
+  for (const file of listed.split("\0").filter((each) => /^(packages|apps)\/[^/]+\/package\.json$/.test(each))) {
+    try {
+      const { name } = JSON.parse(rev === undefined ? readFileSync(path.join(root, file), "utf8") : git("show", `${rev}:${file}`));
+      if (typeof name === "string") names.add(name);
+    } catch {
+      // a manifest deleted from the checkout, or one that does not parse, names no package
+    }
+  }
+  return names;
+}
+
+/**
+ * Which of `files` (repo-relative, changed since the merge base with `base`) change only by rewriting an
+ * import of a package the branch renames: a quoted specifier naming a package declared at the merge base
+ * and gone from the checkout, or one the checkout declares that the merge base did not, with the same
+ * subpath. Such a file is left out of the check, so renaming a package claims no importer's capability.
+ */
+export function importRewritesOnly(root, files, base = "origin/main") {
+  const mergeBase = execFileSync("git", ["merge-base", base, "HEAD"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const before = workspacePackages(root, mergeBase);
+  const after = workspacePackages(root);
+  const gone = [...before].filter((name) => !after.has(name));
+  const born = [...after].filter((name) => !before.has(name));
+  if (gone.length === 0 || born.length === 0) return new Set();
+  const escape = (name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const specifier = new RegExp(`(["'\`])(?:${[...gone, ...born].map(escape).join("|")})(?=[/"'\`])`, "g");
+  const renamed = (text) => text.replace(specifier, "$1\0renamed");
+  const rewrites = new Set();
+  for (const file of files) {
+    let was, now;
+    try {
+      was = execFileSync("git", ["show", `${mergeBase}:${file}`], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+      now = readFileSync(path.join(root, file), "utf8");
+    } catch {
+      continue; // a file the branch adds or deletes is a change of its own
+    }
+    if (was !== now && renamed(was) === renamed(now)) rewrites.add(file);
+  }
+  return rewrites;
+}
+
 /** A changed file's text: as the checkout has it, or as the branch's base had it when the branch deleted it. */
 function textReader(root) {
   let base;
@@ -120,7 +169,10 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
     const increment = incrementOfBranch(branch);
     const { withLibrary } = await import("./build-guidance.mjs");
     const { changedFiles } = await import("./test-scope.mjs");
-    const changed = changedFiles(root);
+    const touched = changedFiles(root);
+    const rewrites = importRewritesOnly(root, touched);
+    const changed = touched.filter((file) => !rewrites.has(file));
+    if (rewrites.size > 0) console.log(`${rewrites.size} file${rewrites.size === 1 ? "" : "s"} only rewrite an import of a package this branch renames, so change no capability`);
     const verdict = await withLibrary((library) => branchVerdict(library, root, branch, changed, { readText: textReader(root) }),
       "node --import tsx packages/dev-loop/src/capability-list.mjs");
     if (verdict === undefined) process.exitCode = 1;

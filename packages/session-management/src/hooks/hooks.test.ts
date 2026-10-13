@@ -35,6 +35,7 @@ import { readContext } from "../context/index.js";
 import { machineOf, MARKER_FILE, recordImport } from "../routing/index.js";
 import { claim, readClaims } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
+import { SHELL_GUARD } from "./shell-guard.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
 import { BACKGROUND, hookLines } from "./hooks.js";
 import { queueFolder } from "./queue.js";
@@ -1154,6 +1155,70 @@ test("3.34 after Claude Code runs an edit to imported code that the gate had it 
       await runHook("claude-code", write("PostToolUse", "page.tsx"), home);
       assert.equal(answer(await runHook("claude-code", write("PreToolUse", "chart.tsx"), home, [EDIT_GATE])), undefined, "the increment's next edit goes through unasked");
       assert.equal(answer(await runHook("codex", patch, home, [EDIT_GATE])), undefined, "the yes is on the increment, whichever harness edits for it");
+    } finally {
+      await log.close();
+      await storytree.close();
+      await dropTestProjects([project]);
+    }
+  });
+});
+
+test("3.35 a shell command that changes or deletes files in an imported folder without the user's yes is told to the agent at once, by the hook after it that the harness waits for (Claude Code, also after a failed command, and Codex), and recorded as an edit there; a command that changes nothing there, or only what the user's yes covers, says nothing (ADR-1015)", async () => {
+  await withTempDir(async (dir) => {
+    const project = uniqueProjectName();
+    const home = storytreeHome(dir, true);
+    const folder = await projectFolder(dir, project);
+    const viewer = path.join(dir, "viewer");
+    mkdirSync(path.join(viewer, "app", "stats"), { recursive: true });
+    writeFileSync(path.join(viewer, "app", "page.tsx"), "export default 1;\n");
+    writeFileSync(path.join(viewer, "README.md"), "# viewer\n");
+    git(viewer, "init", "-q");
+    git(viewer, "add", ".");
+    git(viewer, "commit", "-q", "-m", "viewer");
+    const storytree = await connect({ url: testServerUrl() });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const machine = machineOf(home);
+      await recordImport(storytree, { project, machine: machine.id, machineName: machine.name, folder: viewer, repository: "https://github.com/someone/viewer.git" });
+      const library = await storytree.openProject(project);
+      const { added: [mapped] } = await library.mapStories("https://github.com/someone/viewer.git", [{ package: ".", title: "viewer", folders: ["."] }]);
+      const stats = (await library.addCapability({ title: "Stats page", story: mapped!.id, covers: ["app/stats"] })).id;
+      const arc = await library.createArc({ title: "Stats", intent: "A stats page", endState: "Stats shown", stories: [mapped!.id] });
+      const increment = (await library.addIncrement({ arc: arc.id, title: "stats page", objective: "stats page", body: "stats page", capabilities: [stats] })).id;
+      assert.equal((await claim({ log, library, project, session: "shell", harness: "claude-code" }, increment, "the stats page")).ok, true);
+      const as = (harness: "claude-code" | "codex", name: string) => JSON.stringify({ ...JSON.parse(recorded(harness, name, folder)) as object, session_id: "shell" });
+      const told = (ran: Ran) => {
+        assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
+        return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { hookSpecificOutput?: { hookEventName?: string; additionalContext?: string } }).hookSpecificOutput;
+      };
+
+      await runHook("claude-code", as("claude-code", "session-start-startup"), home);
+      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "nothing changed there");
+
+      writeFileSync(path.join(viewer, "app", "page.tsx"), "export default 2;\n");
+      rmSync(path.join(viewer, "README.md"));
+      const after = told(await runHook("claude-code", as("claude-code", "post-tool-use-failure-bash"), home, [SHELL_GUARD]));
+      assert.equal(after?.hookEventName, "PostToolUseFailure");
+      assert.match(after?.additionalContext ?? "", /README\.md.*app\/page\.tsx/s);
+      assert.ok(after?.additionalContext?.includes(viewer), "naming the imported folder");
+      assert.match(after?.additionalContext ?? "", /ask the user/, "and asking the user, never restoring on its own: they may have changed it themselves");
+      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "told once");
+      await runHook("claude-code", as("claude-code", "user-prompt-submit"), home);
+      const edits = (await linesOf(project)).filter((line) => line.kind === "file-edited" && line.folder === viewer);
+      assert.deepEqual(edits.map((line) => line.kind === "file-edited" && line.files), [["README.md", "app/page.tsx"]], "recorded where the user sees it");
+
+      // The user's yes to the increment (the hook after an edit the gate asked about) covers its capability's files: a command changing only those says nothing.
+      const write = JSON.stringify({ session_id: "shell", cwd: folder, hook_event_name: "PostToolUse", tool_name: "Write", tool_input: { file_path: path.join(viewer, "app", "stats", "page.tsx"), content: "export {};\n" } });
+      writeFileSync(path.join(viewer, "app", "stats", "page.tsx"), "export {};\n");
+      await runHook("claude-code", write, home);
+      writeFileSync(path.join(viewer, "app", "stats", "chart.tsx"), "export {};\n");
+      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "what the yes covers");
+
+      writeFileSync(path.join(viewer, "package.json"), "{}\n");
+      const codex = told(await runHook("codex", as("codex", "post-tool-use-bash"), home, [SHELL_GUARD]));
+      assert.equal(codex?.hookEventName, "PostToolUse");
+      assert.match(codex?.additionalContext ?? "", /package\.json/);
+      assert.doesNotMatch(codex?.additionalContext ?? "", /chart\.tsx/);
     } finally {
       await log.close();
       await storytree.close();

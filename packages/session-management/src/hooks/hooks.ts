@@ -22,6 +22,8 @@
  * One more, before each file-edit tool, which the harness waits for (`--edit-gate`, edit-gate.ts),
  * refuses an edit to a capability the session's claimed increment does not list, or that another live
  * session holds (ADR-0949 D3): it prints the refusal, which the agent reads instead of the edit happening.
+ * And one after each shell command, which the harness waits for (`--shell-guard`, shell-guard.ts), prints
+ * what the command changed in imported code that no yes of the user's covers (ADR-1015).
  *
  * One more, at each prompt (ADR-0636 D1, b2), prints: the project's definitions
  * for the terms the prompt names (definitions.ts), and once-per-session advice to start fresh when a
@@ -65,6 +67,7 @@ import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } 
 import { hookIdentity, noteHookFailure, type HookFailure } from "./failures.js";
 import { isSelfNamed, selfNamedLines } from "./self-named.js";
 import { shellEdits } from "./shell-edits.js";
+import { rememberedImports, SHELL_GUARD, shellGuard, watchImports } from "./shell-guard.js";
 
 /** What a hook is run with: the command's arguments (the harness first, then any flags) and its stdin. */
 export interface HookInput {
@@ -181,6 +184,8 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
     if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed);
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
     if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed);
+    // The hook after each shell command that the harness waits for tells the agent of its changes to imported code (ADR-1015).
+    if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed);
     const made = hookLines(harness, parsed);
     if (flags.includes(UPKEEP)) return void (made === undefined ? undefined : await upkeep(made, merges, locate));
     const asked = promptIn(harness, parsed);
@@ -256,8 +261,10 @@ async function writeLines(harness: string, input: string, flags: readonly string
     try {
       // A folder whose marker names a deleted project's database writes nothing, under its name or into a new project of it (ADR-0831).
       if (where.identity !== undefined && (await storytree.projectIdentities())[where.project] !== where.identity) return;
-      // Lines that waited go first, so the log keeps each session's lines in the order they happened.
-      await uploadQueued(home, log, (project, folder) => approved(storytree, project, folder, homeOf(locate)));
+      // The folders the project imports here are remembered, and their baselines set, for the shell guard (shell-guard.ts).
+      if (firstLine !== undefined) await watchImports(storytree, where.project, homeOf(locate), home, firstLine, failed);
+      // Lines that waited go first, so the log keeps each session's lines in the order they happened; the guard's are in an imported folder.
+      await uploadQueued(home, log, async (project, folder) => rememberedImports(home, project).some((place) => place.folder === folder) || approved(storytree, project, folder, homeOf(locate)));
       // The first hook to reach the log since this machine started says so, once: sessions it outlived read gone everywhere (4.29).
       const [by] = made.lines;
       if (by !== undefined) {

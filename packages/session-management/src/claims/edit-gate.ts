@@ -3,7 +3,8 @@
  * claimed increment's capabilities list does not name, or one another live session holds, by its own
  * claim or on the list of an increment it holds (ADR-0949 D3). The refusal names the holder, or the
  * way through: add the capability to the increment's list and claim it. This reverses ADR-0924 D2 for
- * the edit tools; edits through the shell are still never stopped. Nothing claims after the edit:
+ * the edit tools; edits through the shell are still never stopped (one to imported code is caught after it, by the
+ * hooks' shell guard, which asks here what no yes covers). Nothing claims after the edit:
  * ADR-0953 D5 retired ADR-0924's edit claims and their notices.
  *
  * Only a file's own declaration places it here (an opening "Capability N · <title>", or a test file's
@@ -173,6 +174,18 @@ export async function recordPromptYes(context: GateContext, checkout: string, fi
     kind: "user-allowed", increment: refusal.increment, how: "prompt", capabilities: await allowedNow(context.library, refusal.increment),
   });
   return refusal.increment;
+}
+
+/**
+ * Of `files` in imported folders, which a shell command already changed, those the gate would have refused or asked
+ * about: no yes of the user's on the session's increment covers them. Writes nothing, since the change already happened.
+ */
+export async function unallowedImportEdits(context: GateContext, checkout: string, files: readonly EditedFile[], imports: readonly ImportedFolderPlace[]): Promise<EditedFile[]> {
+  const unallowed = async (some: readonly EditedFile[]) => (await refusalOf(context, checkout, some, async () => new Map(), imports, false)) !== undefined;
+  if (!(await unallowed(files))) return [];
+  const found: EditedFile[] = [];
+  for (const file of files) if (await unallowed([file])) found.push(file);
+  return found;
 }
 
 /** What the user's yes from their own terminal recorded, or why it was not. */

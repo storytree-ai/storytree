@@ -16,7 +16,7 @@ export { allowCommand, allowIncrement, attachWorkspace, attributeFrom, boardClai
 export type { AllowAnswer, Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, PresentAnswer, Presenter, ReleaseAnswer, ReleaseForAnswer, StaleClaim, StaleWorklist, MergeWatch, ClaimedWorkspace, OpenPullForWork, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";
 export { agentOf, callLines, lineOf, requestOf, seenCaller } from "./sessions/caller.js";
 export type { Caller, CallMeta } from "./sessions/caller.js";
-export { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, codexHookTrust, EDIT_GATE, EVENT, noteCodexHookRan, STORYTREE_TOOLS } from "./hooks/index.js";
+export { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, codexHookTrust, EDIT_GATE, EVENT, noteCodexHookRan, SHELL_GUARD, STORYTREE_TOOLS } from "./hooks/index.js";
 export { ANTIGRAVITY_HOOKS, defaultHomes, PI_EXTENSION, PI_EXTENSION_SCRIPT, piExtensionScript, registeredHookScripts, scriptsIn } from "./hooks/registered.js";
 export type { Homes } from "./hooks/registered.js";
 export { ask, pathEnv } from "./sessions/ask.js";

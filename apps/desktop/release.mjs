@@ -109,6 +109,8 @@ function notes(command, macCommand, sha) {
     "",
     "It installs the app and opens it; Help → First-run guide in the app connects your agent.",
     "",
+    "On x64 Linux (Ubuntu 24.04 or later), download the .AppImage below, make it executable and run it.",
+    "",
     `Windows x64 and arm64 installer, built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
     "",
     // The draft is written before the Mac build, so the workflow says whether its certificate is set.

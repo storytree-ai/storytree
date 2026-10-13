@@ -36,6 +36,18 @@ export function macRuntime(arch: Architecture): Runtime & { entry: string; execu
   };
 }
 
+/** x64 Linux only (arc_38613dac8d7c). The executable's hash was measured from the pinned archive's bin/node. */
+export function linuxRuntime(arch: Architecture): Runtime & { entry: string; executableSha256: string } {
+  if (arch !== "x64") throw new Error("storytree on Linux supports x64 only");
+  const name = `node-v${NODE_VERSION}-linux-x64`;
+  return {
+    url: `https://nodejs.org/dist/v${NODE_VERSION}/${name}.tar.gz`,
+    sha256: "6e1db87ef58b8819e5d5402eff1536491b18edd8eb7bee5ef7897876e88dc5ff",
+    entry: `${name}/bin/node`,
+    executableSha256: "7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c",
+  };
+}
+
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 export async function stageRuntime(file: string, runtime: Runtime, download: typeof fetch = fetch): Promise<void> {

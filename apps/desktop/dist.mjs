@@ -1,7 +1,8 @@
 // Package the host's platform. On Windows: x64/arm64 in one NSIS installer, keeping win-arm64-unpacked/
 // and the arm64 portable exe for existing development uses. On macOS: an Apple Silicon .app as a zip
 // (the update feed's) and a dmg, ad-hoc signed until a Developer ID is configured (then signed as the
-// identity mac-signing.mjs prepare put in a keychain, and notarised). Only the release workflow publishes:
+// identity mac-signing.mjs prepare put in a keychain, and notarised). On Linux: an x64 AppImage, whose update
+// feed is latest-linux.yml; its one-command delivery is the curl install's. Only the release workflow publishes:
 // even with GH_TOKEN or a tag in the environment, this command only builds artifacts and update metadata.
 //
 // ELECTRON_BUILDER_7Z_FILTER=BCJ: the 7-Zip that electron-builder uses compresses arm64
@@ -36,9 +37,9 @@ if (mac) {
 // because Squirrel.Mac refuses an update to an app that is not Developer ID signed.
 const extraMetadata = { ...(version === undefined ? {} : { version }), ...(signing ? { storytree: { macSigning: signing.mode } } : {}) };
 await build({
-  ...(mac ? { mac: [] } : { win: [] }), // use package.json's per-target architectures
+  ...(mac ? { mac: [] } : process.platform === "linux" ? { linux: [] } : { win: [] }), // use package.json's per-target architectures
   publish: "never",
   ...(Object.keys(extraMetadata).length === 0 ? {} : { config: { extraMetadata, ...identity } }),
 });
 const here = path.dirname(fileURLToPath(import.meta.url));
-(mac ? macDeliveryAssets : deliveryAssets)(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);
+if (process.platform !== "linux") (mac ? macDeliveryAssets : deliveryAssets)(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);

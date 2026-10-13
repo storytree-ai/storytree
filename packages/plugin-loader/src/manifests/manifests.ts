@@ -34,6 +34,14 @@ function installed(name: string, from: string): PackageJson | undefined {
   }
 }
 
+/** The host a file belongs to: the nearest folder above it holding a package.json, as Node finds the package a file is in. */
+export function hostOf(from: string): string {
+  for (let dir = path.resolve(from); ; dir = path.dirname(dir)) {
+    if (existsSync(path.join(dir, "package.json"))) return dir;
+    if (path.dirname(dir) === dir) throw new Error(`${from} is in no package: no package.json above it.`);
+  }
+}
+
 const exported = (exports: unknown, from: string): boolean =>
   typeof exports === "object" && exports !== null && !Array.isArray(exports) && Object.hasOwn(exports, from);
 

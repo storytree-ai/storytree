@@ -21,7 +21,6 @@
 #chapter2[data-arriving] .tour-card { opacity:0; }
 #chapter2 .tour-card { transition:opacity .6s ease; }
 @keyframes tour-card-in { from { opacity:0; transform:translateY(8px); } }
-#chapter2 .tour-kicker { margin:0 0 6px; color:var(--green); font:650 11px/1.5 system-ui, sans-serif; letter-spacing:.13em; text-transform:uppercase; }
 #chapter2 .tour-title { margin:0 0 12px; font-size:clamp(22px, 1.9vw, 27px); font-weight:500; line-height:1.14; letter-spacing:-.035em; text-wrap:balance; }
 #chapter2 .tour-title:focus { outline:none; }
 #chapter2 .tour-lines { display:grid; gap:8px; margin:0 0 12px; padding:0; list-style:none; }
@@ -77,6 +76,10 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 #chapter2[data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"]) .tour-lines { gap:.6em; margin:0 0 14px; }
 #chapter2[data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"]) .tour-line { padding:0; color:#eceee6; font-size:clamp(18px, 1.5vw, 23px); line-height:1.36; letter-spacing:-.015em; text-wrap:pretty; }
 #chapter2[data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"]) .tour-line::before { display:none; }
+/* A narrated stage tells one sentence at a time in the same place: while the tour plays, its lines share one cell, sitting
+   on the depth link beneath them, and each new one replaces the last (ADR-1018 D5). A waiting step lists every line told. */
+#chapter2[data-tour-template="narrated"][data-tour-running="true"] .tour-line { grid-area:1 / 1; align-self:end; }
+#chapter2[data-tour-template="narrated"][data-tour-running="true"] .tour-line:not(.on) { visibility:hidden; transition:none; }
 @keyframes tour-beat-in { from { opacity:0; transform:translateY(8px); } }
 /* Act 2 arrives (ADR-0889): the pain in words on the dark screen chapter 1 leaves, before any globe or name. */
 #chapter2[data-tour-step="pain"][data-tour-mode="tour"] :is(.tour-heading h1, .tour-note) { opacity:0; transition:none; }
@@ -101,7 +104,6 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 #chapter2 .forest-unavailable strong { display:block; margin-bottom:4px; color:#f0f0e7; font-weight:600; }
 
 /* The value statement, alone on its slide: the headline and its subhead, nothing else. */
-#chapter2[data-tour-kind="statement"] .tour-kicker { visibility:hidden; }
 #chapter2[data-tour-kind="statement"] .tour-title { margin:0 0 .5em; color:#f0f0e7; font-size:clamp(30px, 3.3vw, 50px); font-weight:600; line-height:1.1; letter-spacing:-.04em; text-wrap:balance; animation:tour-beat-in .9s ease both; }
 #chapter2[data-tour-kind="statement"] .tour-lines { display:block; margin:0; }
 #chapter2[data-tour-kind="statement"] .tour-line { padding:0; color:var(--soft); font-size:clamp(19px, 1.7vw, 25px); line-height:1.35; letter-spacing:-.015em; text-wrap:balance; animation:tour-beat-in .9s ease .5s both; }
@@ -205,7 +207,14 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 #chapter2[data-tour-mode="freeplay"] .tour-bar > :not(#tour-replay, .tb-where), #chapter2[data-tour-mode="freeplay"] .tb-pips, #chapter2[data-tour-mode="freeplay"] .tb-held { display:none; }
 #chapter2[data-tour-mode="tour"] .tour-browse-toggle { display:none; }
 
-@media (max-width:1000px) { #chapter2 .tb-label { display:none; } }
+/* While the tour waits, its bar says why in place of where the visitor is. */
+#chapter2 .tb-where:has(.tb-held:not([hidden])) .tb-label { display:none; }
+/* With no room beside the pips, where the visitor is sits small beneath them: the bar, not a line above the words, says the
+   chapter and the step (ADR-1018 D3). */
+@media (max-width:1000px) {
+  #chapter2[data-tour-mode="tour"] .tb-where { position:relative; }
+  #chapter2[data-tour-mode="tour"] .tb-label { position:absolute; left:0; right:0; bottom:-3px; font-size:10.5px; line-height:1.2; pointer-events:none; }
+}
 @media (max-width:760px) {
   #chapter2 .tour-bar { padding-right:16px; }
   #chapter2 .tour-hatch { bottom:calc(var(--bar-h) + 10px); }
@@ -267,6 +276,9 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tb-group { flex:var(--n, 1) 1 0; }
   #chapter2 .tb-pip { flex:1 1 0; width:auto; min-width:5px; }
   #chapter2 .tb-held { display:none; }
+  /* A phone has no room for why the tour waits, so where the visitor is stays, clear of the waitlist hatch. */
+  #chapter2 .tb-where:has(.tb-held:not([hidden])) .tb-label { display:block; }
+  #chapter2[data-tour-mode="tour"] .tb-label { right:157px; bottom:0; }
   #chapter2 .tb-btn { padding:6px 9px; }
   #chapter2 .tb-speed button { min-width:40px; }
   #chapter2 .tour-hatch { right:10px; bottom:8px; min-height:44px; padding:6px 12px; font-size:13px; }
@@ -280,7 +292,6 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   /* A short phone tells a chapter's lines a little tighter, so they and their How and Why fit below the globe. */
   #chapter2[data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"]) .tour-lines { gap:.4em; margin-bottom:6px; }
   #chapter2[data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"]) .tour-line { font-size:16px; line-height:1.3; }
-  #chapter2[data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"]) .tour-kicker { margin-bottom:4px; }
 }
 @media (max-width:360px) {
   /* A narrow phone tells a chapter's lines at the explain mode's floor, so the long steps fit below the globe. */

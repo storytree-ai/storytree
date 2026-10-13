@@ -133,9 +133,12 @@ export async function verifyTourCamera(browser, url) {
     const back = await settled();
     if (distance(stories, back) > 40) failures.push(`The claims step returns to the four stories' view: ${JSON.stringify({ stories, back })}`);
     if (!(await page.locator(".tour-arc-surface").evaluate(node => node.hidden)) || !(await page.locator(".tour-session-surface").evaluate(node => node.hidden))) failures.push("The flags are shown before any panel");
-    await lines(2); await page.waitForTimeout(400);
+    await moment(2); await page.waitForTimeout(400);
     if (await page.locator(".tour-arc-surface").evaluate(node => node.hidden)) failures.push("The arcs panel opens on the claims step's second line");
-    await lines(3); await page.waitForTimeout(400);
+    // 2.25: a narrated stage's second line replaces its first in the same place.
+    const said = await page.locator("#tour-lines .tour-line.on").allTextContents();
+    if (said.length !== 1 || !said[0].startsWith("The plan shows it too")) failures.push(`The claims step's second line replaces its first: ${JSON.stringify(said)}`);
+    await moment(3); await page.waitForTimeout(400);
     if (await page.locator(".tour-session-surface").evaluate(node => node.hidden) || !(await page.locator(".tour-arc-surface").evaluate(node => node.hidden))) failures.push("The arcs panel gives way to the sessions list on the third line");
     // 2.16: health keeps the first round's four stories, and the chapter ends on them: the second round never rises.
     await step("map-health");

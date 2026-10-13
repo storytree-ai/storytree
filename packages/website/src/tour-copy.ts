@@ -99,22 +99,22 @@ const harnesses: Mark[] = [{ name: "Claude Code", src: "/harness/claude-code.png
  */
 export const steps: TourStep[] = [
   // The owner's words, final (2026-10-04): the feeling leads, and the guide's line bridges to the value statement.
-  { id: "pain", explainer: "opening", kind: "beats", ...own, growth: "seed", title: "The problem", lines: [
+  { id: "pain", explainer: "opening", kind: "beats", template: "statement", ...own, growth: "seed", title: "The problem", lines: [
     "Right now, building with AI feels overwhelming, exhausting and disconnected.",
     "Storytree is here to fix that.",
   ], why: "Your attention is the scarcest resource in AI-driven development, and coding agents spend it on noise. Reading every line makes you the bottleneck the agents were meant to remove; trusting every line finds the problems in production. There's no in-between.",
   decisions: [], surfaces: complete, framing: 1.1, laptop: ownLaptop, phone: ownPhone },
-  { id: "grow", explainer: "opening", kind: "beats", ...own, growth: { seconds: arrivalSeconds }, title: "Storytree, a living map", lines: [
+  { id: "grow", explainer: "opening", kind: "beats", template: "claim", ...own, growth: { seconds: arrivalSeconds }, title: "Storytree, a living map", lines: [
     // The owner's words (2026-10-04), punctuation tidied.
     "This is storytree, a living map of your project, for both you and your agents.",
   ], chips: [{ kind: "recording", text: "Recorded {ownRecording} · timing compressed" }],
   decisions: [], surfaces: complete, framing: 1.1, laptop: ownLaptop, phone: ownPhone },
   // The owner's words, final (ADR-0889 2.3): the value statement has its slide to itself.
-  { id: "value", explainer: "opening", kind: "statement", ...own, title: "Storytree builds a map of your project and glues it to your code.", lines: [
+  { id: "value", explainer: "opening", kind: "statement", template: "claim", ...own, title: "Storytree builds a map of your project and glues it to your code.", lines: [
     "The map grows as your agents work, and says what needs you and what doesn't.",
   ], decisions: [], surfaces: complete, framing: 1.1, laptop: ownLaptop, phone: ownPhone, drift: true },
   // The owner's words, final (ADR-0889 2.4): each pain (its note) with its fix beside it. The four principles are this step's depth.
-  { id: "fixes", explainer: "opening", kind: "fixes", ...own, title: "What storytree fixes", lines: [
+  { id: "fixes", explainer: "opening", kind: "fixes", template: "claim", ...own, title: "What storytree fixes", lines: [
     "See your whole project as a map",
     "Agents see each other working on the map",
     "Every decision remembered, anchored to the map",
@@ -129,14 +129,14 @@ export const steps: TourStep[] = [
   // table and reworded to fit, as is every How and Why. The whole chapter plays forward in the shop's recorded time. The camera
   // moves twice, each as a step begins: into signing in as capabilities are named, and back out to the four stories for the
   // claims. Every claim is a flag in its capability's share (ADR-0968).
-  { id: "map-empty", explainer: "map", map: "shop", growth: { seconds: 10, until: "plans" }, title: "The beginning.", lines: [
+  { id: "map-empty", explainer: "map", template: "narrated", map: "shop", growth: { seconds: 10, until: "plans" }, title: "The beginning.", lines: [
     // ★
     "Let's start from the beginning and build a shopping site, so you can see how storytree draws a map as your agents build.",
   ], how: "The shop starts as an empty globe. Its agents plan the work before they write any code, and each story they plan will be an island here.",
   why: "Watching a project grow from nothing shows you how to read the map of one that is already big.",
   decisions: [], surfaces: land, ...shop },
   // The bare globe step 1 leaves, with the harnesses storytree works with beneath the owner's line.
-  { id: "map-harness", explainer: "map", map: "shop", growth: { seconds: 1, stage: "plans", until: "plans" }, title: "Works with your harness.", lines: [
+  { id: "map-harness", explainer: "map", template: "narrated", map: "shop", growth: { seconds: 1, stage: "plans", until: "plans" }, title: "Works with your harness.", lines: [
     // ★
     "Storytree works with your existing coding harness.",
   ], how: "Storytree doesn't replace the agent you code with. When you set up a project it looks for Claude Code and Codex, and joins their sessions through hooks and an MCP server: the hooks tell storytree what each session reads and changes, and the MCP server gives the agent storytree's tools for the plan and the library. Any other agent that speaks MCP can connect to the server too: it gets the plan, claims and the library, though storytree doesn't watch its session.",
@@ -144,7 +144,7 @@ export const steps: TourStep[] = [
   decisions: [], surfaces: land, ...shop, marks: harnesses, marksNote: "Any other agent that speaks MCP can use the plan too." },
   // The record just before the first claim (01:53:08): the shop's first arc and its four parts, none held yet. The arcs list is
   // small while the tour plays, and its first arc is pointed out and named.
-  { id: "map-arcs", explainer: "map", map: "shop", sessionsAt: "2026-10-05T01:53:00.000Z", growth: { seconds: 1, stage: "plans", until: "plans" },
+  { id: "map-arcs", explainer: "map", template: "narrated", map: "shop", sessionsAt: "2026-10-05T01:53:00.000Z", growth: { seconds: 1, stage: "plans", until: "plans" },
     title: "Plans of work are arcs.", lines: [
     // ✎
     "Tell your agents what you want to build and they will set up a plan of work.",
@@ -154,7 +154,7 @@ export const steps: TourStep[] = [
   // The owner's one line (2026-10-11); the map tells the rest, a moment at a time within the line: each island rises, named a
   // story, in the order the agents started on them (first claims 01:53, 01:58, 02:28), then the pathways draw on, those to
   // signing in first, then those to browsing, one of them explained where it is drawn.
-  { id: "map-stories", explainer: "map", map: "shop", cues: [2, 4.5, 7, 9.5],
+  { id: "map-stories", explainer: "map", template: "narrated", map: "shop", cues: [2, 4.5, 7, 9.5],
     growth: { seconds: 16, stage: "plans", until: `land-${shopServer}`, beats: [{ line: 2, stage: "planned" }, { line: 3, stage: "risen-browsing" }, { line: 4, stage: "risen-round" }, { line: 5, stage: "pathways" }] },
     title: "Stories and pathways.", lines: [
     // ★ His words, punctuation tidied.
@@ -171,7 +171,7 @@ export const steps: TourStep[] = [
   // Signing in's and browsing's code reached the map when their pull request merged (02:06); the cart and checkout have none yet,
   // so each of their planned capabilities has an equal share of the island. The owner's one line; the territories, then the file
   // dots, then the story panel, each a moment within it with a label on what arrives.
-  { id: "map-capabilities", explainer: "map", map: "shop", cues: [4.5, 7.5], growth: { seconds: 7, stage: `land-${shopServer}`, until: "pr1" }, title: "Capabilities and your code.", lines: [
+  { id: "map-capabilities", explainer: "map", template: "narrated", map: "shop", cues: [4.5, 7.5], growth: { seconds: 7, stage: `land-${shopServer}`, until: "pr1" }, title: "Capabilities and your code.", lines: [
     // ★
     "Each story shows the parts that make it work.",
   ], how: "Each story is broken into capabilities, the pieces that make it work, and each capability's territory arrives in the order the agent built it, signing in's shop server first. Capabilities hold your code: each dot is a file, sized by its lines, in the capability whose tests reach it. The cart and checkout have no code yet, so each of their planned capabilities has an equal share of the island, with no dots. Select a story and a panel shows how its capabilities work together: what each one is, and what depends on what.",
@@ -183,7 +183,7 @@ export const steps: TourStep[] = [
     3: [{ point: "panel", text: "how its capabilities work together" }] } },
   // The record: three sessions claimed browsing's, the cart's and checkout's capabilities between 02:28:12 and 02:28:27. The flags
   // drop with the first line; the arcs panel and then the sessions list read the record at 02:28:30.
-  { id: "map-claims", explainer: "map", map: "shop", sessionsAt: "2026-10-05T02:28:30.000Z",
+  { id: "map-claims", explainer: "map", template: "narrated", map: "shop", sessionsAt: "2026-10-05T02:28:30.000Z",
     growth: { seconds: 8, stage: "pr3-building", until: `lifted-${productPage}`, beats: [{ line: 2, stage: "together" }] },
     title: "Agents claim their work.", lines: [
     "Agents claim capabilities before they work on them, so each can see what the others are working on.",
@@ -200,7 +200,7 @@ export const steps: TourStep[] = [
   decisions: [], surfaces: lit({ ...files, roads: true }), ...shop, lineViews: { 2: { panel: "arcs" }, 3: { panel: "sessions" } },
   // The first flag (02:28:12), named by its session, which had named itself at 02:27:06; on a phone it would cover browsing's name.
   labels: { 1: [{ target: { kind: "capability", capability: productPage }, read: "holder", narrowest: 601 }], 3: [{ point: "sessions" }] } },
-  { id: "map-health", explainer: "map", map: "shop", growth: { seconds: 16, stage: `lifted-${productPage}`, until: "pr7-building" }, title: "Health.", lines: [
+  { id: "map-health", explainer: "map", template: "narrated", map: "shop", growth: { seconds: 16, stage: `lifted-${productPage}`, until: "pr7-building" }, title: "Health.", lines: [
     // ✎
     "As your automated tests run in CI, storytree shows you which capabilities are healthy and which need your attention.",
     // DRAFT.

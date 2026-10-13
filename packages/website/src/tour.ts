@@ -24,6 +24,9 @@ export type TourStep = {
   /** beats replace one another; lines accumulate; a comparison's lines each carry a source; a statement is a headline and
    * its subhead, alone; fixes pair each pain (its note) with its fix (its line). */
   kind?: "beats" | "lines" | "compare" | "statement" | "fixes";
+  /** The step's layout (ADR-1018 D2): a statement, one claim alone; a claim beside the stage, with at most one support
+   * beneath it; or a narrated stage, one sentence of caption at a time beside the globe. */
+  template?: "statement" | "claim" | "narrated";
   lines: string[];
   /** Moments within the lines, each in seconds at 1× from the step's start: a label, a surface or a panel can arrive partway
    * through a line, as the map shows what the line would otherwise say. Where a step has cues, every number below keyed by
@@ -116,6 +119,18 @@ const duration = (step: TourStep) => Math.max(step.lines.reduce((sum, line) => s
   ...(step.cues ?? []).map(cue => cue * 1000 + readingTime(""))) + settle;
 const reached = (starts: readonly number[], elapsed: number) => Math.max(1, starts.filter(start => elapsed >= start * 1000 - 1e-6).length);
 const shown = (step: TourStep, elapsed: number) => reached(lineStarts(step), elapsed);
+
+/** The link to a step's depth, worded the same on every step that has one (ADR-1018 D4). */
+export const depthLink = (step: TourStep): string | undefined => step.how || step.why ? "Read more" : undefined;
+/**
+ * Which of a step's lines show once `lines` are told. A narrated stage shows one sentence at a time, each replacing the last
+ * in the same place (ADR-1018 D5); a beat shows alone, but for its coda beneath the line before it; other steps keep each
+ * line told. A waiting step (`still`) shows every line told, so a visitor who pauses can read the whole step.
+ */
+export function linesOn(step: TourStep, lines: number, still: boolean): boolean[] {
+  return step.lines.map((_, index) => still || (step.template !== "narrated" && step.kind !== "beats") ? index < lines
+    : step.kind === "beats" ? index === lines - 1 || (index === lines - 2 && lines === step.lines.length) : index === lines - 1);
+}
 
 /** The progress bar's groups: consecutive steps of one explainer share a group. */
 export function groups(steps: readonly TourStep[]): { explainer: Group; steps: number[] }[] {

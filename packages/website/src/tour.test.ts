@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
-import { aim, createTour, flight, globeOf, groups, islandsKeptOff, labelsAt, labelWords, lineStarts, momentStarts, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
+import { aim, createTour, depthLink, flight, globeOf, groups, islandsKeptOff, labelsAt, labelWords, lineStarts, linesOn, momentStarts, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
 import { steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
 
@@ -527,4 +527,25 @@ test("2.24 · a label's words stand clear of every drawn island but the one it p
   const [up] = placeTags([small], phone, { keepOut: [...shore, ...names], sides: ["right", "left", "below", "above"] });
   const words = { x: small.x + up!.x, y: small.y + up!.y, width: small.width, height: small.height };
   for (const other of [...shore, ...names]) assert.ok(!meets(words, other), `clear of ${JSON.stringify(other)}: ${JSON.stringify(words)}`);
+});
+
+test("2.25 · every step with depth offers it in one wording, and a narrated stage's new line replaces the last while the tour plays", () => {
+  const told = tourSteps.filter(s => !s.id.startsWith("knowledge-"));
+  const wordings = new Set(told.filter(s => s.how || s.why).map(depthLink));
+  assert.equal(wordings.size, 1, `one wording of the depth link, not ${[...wordings].join(" / ")}`);
+  for (const s of told.filter(s => !s.how && !s.why)) assert.equal(depthLink(s), undefined, `${s.id} has no depth to offer`);
+  // Each intro and map step states its template; the map chapter is narrated.
+  for (const s of told.filter(s => s.explainer === "opening" || s.explainer === "map")) assert.ok(s.template, `${s.id} names its template`);
+  assert.deepEqual(told.filter(s => s.explainer === "map").map(s => s.template), told.filter(s => s.explainer === "map").map(() => "narrated"));
+  const claims = tourSteps.find(s => s.id === "map-claims")!;
+  assert.deepEqual(linesOn(claims, 1, false), [true, false, false]);
+  assert.deepEqual(linesOn(claims, 2, false), [false, true, false], "the second line takes the first's place");
+  assert.deepEqual(linesOn(claims, 3, false), [false, false, true]);
+  // A waiting step shows every line told, so a visitor who pauses can read the whole step.
+  assert.deepEqual(linesOn(claims, 3, true), [true, true, true]);
+  // The intro's beats keep their coda beneath the line before it; a claim's support stays with its claim.
+  const pain = tourSteps.find(s => s.id === "pain")!, fixes = tourSteps.find(s => s.id === "fixes")!;
+  assert.deepEqual(linesOn(pain, 1, false), [true, false]);
+  assert.deepEqual(linesOn(pain, 2, false), [true, true]);
+  assert.deepEqual(linesOn(fixes, 2, false), [true, true, false]);
 });

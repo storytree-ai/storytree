@@ -111,7 +111,8 @@ test("7.9 the card handed at session start says how to build beside mapped code"
       "storytree does not draw or watch it",
     ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
     // ADR-1015: bringing in what serves the UI is one answer the user can give, not the agent's first move.
-    assert.ok(!served.includes("bring in whatever serves its UI"), "the card still sends the agent to bring in the UI first");  } finally {
+    assert.ok(!served.includes("bring in whatever serves its UI"), "the card still sends the agent to bring in the UI first");
+  } finally {
     await session.close();
   }
 });

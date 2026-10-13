@@ -454,6 +454,25 @@ test("3.15 `new contract` numbers past the capability's contracts and the number
   });
 });
 
+test("3.21 `new contract`'s answer names the capability's other contracts that no numbered test carries yet, as plan_contract does", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "The shop" });
+    const capability = await library.addCapability({ title: "1 · Cart", story: story.id });
+    await library.addContract({ title: "1.1 · Holds an item", capability: capability.id });
+    await library.addContract({ title: "1.2 · Refuses a sold-out item", capability: capability.id });
+    const src = path.join(world.folder, "packages/shop/src");
+    mkdirSync(src, { recursive: true });
+    writeFileSync(path.join(src, "cart.ts"), "export const cart = 1;\n");
+    writeFileSync(path.join(src, "cart.test.ts"), 'import { cart } from "./cart.js";\ntest("1.1 an item is held", () => cart);\n');
+
+    const written = await world.run(["library", "new", "contract", "--capability", capability.id, "--title", "Totals its items"]);
+    assert.equal(written.code, 0, written.stderr);
+    assert.match(written.stdout, /1\.2 · Refuses a sold-out item/, "the untested contract an earlier lane planned is named");
+    assert.doesNotMatch(written.stdout, /1\.1 · Holds an item|1\.3 · Totals its items/, "neither the tested contract nor the one just written is named");
+  });
+});
+
 test("3.16 `new contract` with a title past 300 characters is written, and its answer adds an advisory quoting the library's definition of a contract; a shorter title gets none", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();

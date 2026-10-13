@@ -6,6 +6,8 @@
   "type": "module",
   "main": "dist/main.cjs",
   "imports": {
+    "#parts/pageAnswers": "./src/main/parts/page-answers.ts",
+    "#parts/pageChannels": "./src/parts/page-channels.ts",
     "#parts/surfaces": "./src/main/parts/surfaces.ts"
   },
   "scripts": {

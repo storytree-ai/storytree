@@ -8,6 +8,20 @@
     "./runtime": "./src/runtime.ts",
     "./view": "./src/view.ts"
   },
+  "storytree": {
+    "pageChannels": [
+      {
+        "from": "./bridge",
+        "export": "lagPageChannels"
+      }
+    ],
+    "pageAnswers": [
+      {
+        "from": "./runtime",
+        "export": "lagPageAnswers"
+      }
+    ]
+  },
   "scripts": {
     "typecheck": "tsc -p ."
   },

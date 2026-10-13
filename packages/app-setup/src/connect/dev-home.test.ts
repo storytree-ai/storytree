@@ -189,7 +189,10 @@ for (const crashed of [false, true]) {
     assert.equal(alive(postgresPid), false, "the real Postgres process stopped before its home was deleted");
     await exited;
     await disconnected;
-    assert.equal(shutdown, "57P01", "Postgres shut down through its native fast-stop path");
+    // On Windows the backend's close can reset the socket before its 57P01 is read; the same
+    // pg_ctl fast stop runs on every platform, so Linux and macOS pin the message itself.
+    assert.ok(shutdown === "57P01" || (process.platform === "win32" && shutdown === "ECONNRESET"),
+      `Postgres shut down through its native fast-stop path (saw ${shutdown})`);
     assert.equal(existsSync(ownerFile), false, "ownership was released");
     assert.equal(existsSync(dir), false, "the developer home was removed");
   });

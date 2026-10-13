@@ -5,6 +5,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "imports": {
+    "#parts/surfaces": "./src/parts/surfaces.ts"
+  },
   "bin": {
     "storytree": "./dist/storytree.mjs"
   },

@@ -6,11 +6,11 @@
   "type": "module",
   "main": "dist/main.cjs",
   "scripts": {
-    "build": "node build.mjs",
-    "start": "node build.mjs && electron .",
-    "smoke": "node build.mjs && electron . --smoke --screenshot smoke.png",
+    "build": "node --import tsx build.mjs",
+    "start": "node --import tsx build.mjs && electron .",
+    "smoke": "node --import tsx build.mjs && electron . --smoke --screenshot smoke.png",
     "typecheck": "tsc -p .",
-    "dist": "node build.mjs && node --import tsx dist.mjs"
+    "dist": "node --import tsx build.mjs && node --import tsx dist.mjs"
   },
   "devDependencies": {
     "@storytree/mark": "workspace:*",
@@ -38,6 +38,7 @@
     "google-auth-library": "^10.6.2",
     "playwright-core": "1.60.0",
     "typescript": "~7.0.2",
+    "@storytree/plugin-loader": "workspace:*",
     "@storytree/project-and-caller": "workspace:*"
   },
   "optionalDependencies": {

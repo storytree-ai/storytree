@@ -32,14 +32,15 @@
  * surface on show says it drew every story of the project and every one of its capabilities.
  */
 import { smokeArcSurface } from "@storytree/arc-surface";
-import { arcSurfaces } from "@storytree/arc-surface/surfaces";
 import { offThreadSurveyReader } from "@storytree/forest/code-survey";
 import { FOREST_CHANNELS } from "@storytree/forest/page";
-import { forestSurfaces } from "@storytree/forest/surfaces";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { format } from "node:util";
 import path from "node:path";
 
+// The app's surfaces (ADR-0750), in the Surfaces menu's order: the plugin loader composes them into the bundle
+// from the manifests of the story packages this app depends on (ADR-1021; build.mjs).
+import SURFACES from "storytree:parts/surfaces";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, safeStorage, shell, Tray } from "electron";
 
 import {
@@ -116,8 +117,6 @@ declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 
 const args = parseArgs(process.argv);
 const home = appHome();
-/** The app's surfaces, as each story declares them (ADR-0750), in the Surfaces menu's order. */
-const SURFACES = [...forestSurfaces, ...arcSurfaces];
 /** How long the smoke check may take, start to finish, before it gives up. */
 const SMOKE_TIMEOUT_MS = 180_000;
 

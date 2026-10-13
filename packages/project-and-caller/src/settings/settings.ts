@@ -1,11 +1,11 @@
-/** Capability 10 · Per-user settings, owned by Session management (ADR-0729; the library's location, ADR-0734/0735). */
+/** Capability 2 · Settings: per-user settings, owned by Project and caller (ADR-0729, ADR-1025; the library's location, ADR-0734/0735). */
 import { randomUUID } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { storytreeHome } from "../routing/index.js";
 
-/** The gear menu tab a setting shows under (Session management's settings view offers its rows by group). */
+/** The gear menu tab a setting shows under (the settings view offers its rows by group). */
 export type SettingGroup = "sessions" | "library";
 
 const contextGuidance = {
@@ -100,7 +100,7 @@ export interface SettingsReading {
 
 /**
  * The app's surface choices (ADR-0750): per surface id, `on` and each setting's chosen value. The
- * Session management keeps them and checks their shape; each story declares what they mean.
+ * Project and caller keeps them and checks their shape; each story declares what they mean.
  */
 export type SurfaceChoices = Readonly<Record<string, Readonly<Record<string, boolean | string>>>>;
 

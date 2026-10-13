@@ -1,5 +1,5 @@
 /**
- * Helpers for Session management's tests that need a real Postgres.
+ * Helpers for the tests that need a real Postgres, for Project and caller and every story that stands on it.
  *
  * `pnpm test` (packages/dev-loop/src/test.mjs) starts a throwaway local server through @storytree/local-postgres
  * and hands it to the tests as STORYTREE_TEST_PG_URL, with its data directory as
@@ -7,7 +7,7 @@
  * missing throws.
  *
  * The library keeps its own test helpers inside its package, where nothing outside it can import
- * them, so the few Session management needs are restated here.
+ * them, so the few these tests need are restated here.
  */
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";

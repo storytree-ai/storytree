@@ -1,4 +1,4 @@
-/** Contract 10.10: the user's idle duration controls both liveness and claim takeover. */
+/** Capability 5 · Claims, contract 5.43: the user's idle duration controls both liveness and claim takeover (the setting itself is Project and caller's 2.10). */
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
@@ -12,7 +12,7 @@ import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { setSetting } from "@storytree/project-and-caller";
 
-test("10.10 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover", async () => {
+test("5.43 after 15 quiet minutes, the default keeps sessions and claims live; 10m makes them idle and permits takeover", async () => {
   await withTempDir(async (home) => {
     const previous = process.env.STORYTREE_HOME;
     process.env.STORYTREE_HOME = home;

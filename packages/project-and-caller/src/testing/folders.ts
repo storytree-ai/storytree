@@ -1,5 +1,5 @@
 /**
- * Throwaway folders for Session management's tests: each test's folders live under one fresh directory
+ * Throwaway folders for the tests of Project and caller and the stories that stand on it: each test's folders live under one fresh directory
  * in the system's temp directory, removed afterwards, pass or fail.
  */
 import { execFileSync } from "node:child_process";

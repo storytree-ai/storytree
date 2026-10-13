@@ -1,4 +1,4 @@
-/** Capability 10 · Per-user settings. The explicit project choice shared by setup and the app (ADR-0657 D3), kept beside the settings in the storytree home. */
+/** Capability 2 · Settings. The explicit project choice shared by setup and the app (ADR-0657 D3), kept beside the settings in the storytree home. */
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";

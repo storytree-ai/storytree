@@ -4,7 +4,7 @@ import { readSettings } from "../settings/settings.js";
 import { withTempDir } from "../testing/folders.js";
 import { renderSettings, saveState } from "./render.js";
 
-test("10.7 the panel renders every reading with its value, source, meaning and labelled control", async () => {
+test("2.7 the panel renders every reading with its value, source, meaning and labelled control", async () => {
   await withTempDir((home) => {
     const readings = readSettings(home);
     const html = renderSettings(readings);
@@ -27,7 +27,7 @@ test("10.7 the panel renders every reading with its value, source, meaning and l
   });
 });
 
-test("10.7 each settings tab shows the settings that declare its group, and a new one joins by its group alone", async () => {
+test("2.7 each settings tab shows the settings that declare its group, and a new one joins by its group alone", async () => {
   await withTempDir((home) => {
     const readings = readSettings(home);
     const names = (html: string) => [...html.matchAll(/data-setting="([^"]+)"/g)].map((match) => match[1]);
@@ -38,6 +38,6 @@ test("10.7 each settings tab shows the settings that declare its group, and a ne
   });
 });
 
-test("10.8 saving the library location says it applies when the app next opens", () => {
+test("2.8 saving the library location says it applies when the app next opens", () => {
   assert.equal(saveState("library", { ok: true, value: {} }).status, "Saved · applies when storytree next opens");
 });

@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Project routing (the Session management story): which project a folder belongs to. Making a folder a
+ * Capability 1 · Project routing (the Project and caller story): which project a folder belongs to. Making a folder a
  * project, after the user's yes, is the app setup story's (ADR-0969 D3), and leaves a marker naming the
  * project. From then on everything an agent does anywhere in that folder is routed to that project. It never picks a project by itself, and when storytree isn't running
  * it says so at once.
@@ -21,7 +21,7 @@
  *   A record whose process has ended is a
  *   crashed app's leftover, and counts as not running: its address is never tried, so nothing
  *   waits on it.
- * - Unless the user's `library` setting (capability 10, ADR-0734/0735) names a Google Cloud SQL
+ * - Unless the user's `library` setting (capability 2, ADR-0734/0735) names a Google Cloud SQL
  *   instance: then a project routes to that instance and the account to sign in as, whatever the
  *   app's local database is doing, and no local address is looked up at all. What a routed project
  *   carries is the library's own connect() options, so every caller reaches the same place.

@@ -7,8 +7,8 @@ import { renderSettings } from "../view/render.js";
 import { settingsActions } from "./panel.js";
 import { readSettings, setSetting } from "./settings.js";
 
-// Capability 10, proposed contracts 10.7–10.9 in evidence/settings-panel/library-update.
-test("10.7 the panel reads every setting and writes through the CLI's writers", async () => {
+// Capability 2, proposed contracts 2.7–2.9 in evidence/settings-panel/library-update.
+test("2.7 the panel reads every setting and writes through the CLI's writers", async () => {
   await withTempDir(async (home) => {
     const panel = settingsActions(home);
     assert.deepEqual(await panel.readSettings(), { ok: true, value: readSettings(home) });
@@ -25,7 +25,7 @@ test("10.7 the panel reads every setting and writes through the CLI's writers", 
   });
 });
 
-test("10.13 the panel offers a Postgres address as a third library location, saved through the same writer", async () => {
+test("2.13 the panel offers a Postgres address as a third library location, saved through the same writer", async () => {
   await withTempDir(async (home) => {
     const panel = settingsActions(home);
     const address = "postgres://me@db.example.com:5432/postgres";
@@ -41,7 +41,7 @@ test("10.13 the panel offers a Postgres address as a third library location, sav
   });
 });
 
-test("10.8 refusal crosses IPC as the exact writer reason and preserves saved bytes", async () => {
+test("2.8 refusal crosses IPC as the exact writer reason and preserves saved bytes", async () => {
   await withTempDir(async (home) => {
     const panel = settingsActions(home);
     setSetting("context-guidance", "420000", home);

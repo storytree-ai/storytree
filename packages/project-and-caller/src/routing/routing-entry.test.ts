@@ -1,7 +1,7 @@
 /**
- * Capability 1 · Project routing: Session management's light routing entry (contract 1.15). The command
+ * Capability 1 · Project routing: Project and caller's light routing entry (contract 1.15). The command
  * line asks "is this a project, and is storytree running?" through `@storytree/project-and-caller/routing`
- * rather than the link's root, so that answer does not wait on everything else the link carries.
+ * rather than the package's root, so that answer does not wait on everything else the link carries.
  */
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";

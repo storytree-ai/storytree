@@ -207,7 +207,7 @@ test("1.6 with the library set to Cloud SQL, a project routes to that instance w
   }
 });
 
-test("10.13 with the library set to a Postgres address, a project routes to that address and no local address is tried", async () => {
+test("2.13 with the library set to a Postgres address, a project routes to that address and no local address is tried", async () => {
   await withTempDir((dir) => {
     const folder = markedFolder(dir, "site");
     const home = path.join(dir, "home");

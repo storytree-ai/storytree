@@ -1,4 +1,4 @@
-/** Capability 10 · Settings: who decides what, as the MCP server's habits card states it and the app's panel shows it (10.14). */
+/** Capability 2 · Settings: who decides what, as the MCP server's habits card states it and the app's panel shows it (2.14). */
 
 /**
  * Who decides what (ADR-0842 D1, D2): the kinds of decision a user's agent makes and records, the

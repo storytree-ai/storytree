@@ -1,4 +1,4 @@
-/** Capability 10 · Settings: the project's standing delegations, which the app shows beside who decides what (10.14). */
+/** Capability 2 · Settings: the project's standing delegations, which the app shows beside who decides what (2.14). */
 import type { Library } from "@storytree/library";
 
 /** The term of the definition a project keeps its owner's standing delegations under. */

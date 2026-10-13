@@ -1,4 +1,4 @@
-/** Capability 10 · Settings. */
+/** Capability 2 · Settings. */
 import type { PanelReadings, SettingsResult } from "../settings/bridge.js";
 import type { SettingGroup } from "../settings/settings.js";
 

@@ -27,7 +27,7 @@ function page(t: TestContext, bridge: SettingsBridge) {
   return { window, host, panel };
 }
 
-test("10.9 the mounted panel shows a failed read without rows, and clicking Retry reads again", async (t) => {
+test("2.9 the mounted panel shows a failed read without rows, and clicking Retry reads again", async (t) => {
   await withTempDir(async (home) => {
     const readings = readSettings(home);
     let reads = 0;
@@ -55,7 +55,7 @@ test("10.9 the mounted panel shows a failed read without rows, and clicking Retr
   });
 });
 
-test("10.9 the mounted panel keeps Save available after transport failure, and clicking it again saves", async (t) => {
+test("2.9 the mounted panel keeps Save available after transport failure, and clicking it again saves", async (t) => {
   await withTempDir(async (home) => {
     const readings = readSettings(home);
     const saves: { name: string; values: readonly string[] }[] = [];

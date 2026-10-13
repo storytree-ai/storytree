@@ -1,7 +1,7 @@
 /**
  * What Session management promises of a call that comes through the MCP server: the wrapper ends merged
- * claims before the tool runs (session-management 5.10), and the idle-after setting is reread by a running
- * server (session-management 10.10). The rules are Session management's; these tests prove the server calls them.
+ * claims before the tool runs (session-management 5.10), and a running server rereads the idle-after setting
+ * for claim takeover (session-management 5.43). The rules are Session management's; these tests prove the server calls them.
  */
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
@@ -39,7 +39,7 @@ test("session-management 5.10 a tool call ends a claim whose branch merged after
   });
 });
 
-test("session-management 10.10 / 9.7 a running MCP server rereads idle-after without blocking independent context readings", async () => {
+test("session-management 5.43 / 9.7 a running MCP server rereads idle-after without blocking independent context readings", async () => {
   await withTempDir(async (home) => {
     const previous = process.env.STORYTREE_HOME;
     process.env.STORYTREE_HOME = home;

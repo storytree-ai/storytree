@@ -1,4 +1,4 @@
-/** Capability 10 · Settings: every home here is thrown away after its test. */
+/** Capability 2 · Settings: every home here is thrown away after its test. */
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -7,7 +7,7 @@ import { test } from "node:test";
 import * as agentLink from "../index.js";
 import { withTempDir } from "../testing/folders.js";
 
-test("10.1 without a settings file, context guidance reads as 600,000 tokens with its type and meaning", async () => {
+test("2.1 without a settings file, context guidance reads as 600,000 tokens with its type and meaning", async () => {
   await withTempDir((dir) => {
     const home = path.join(dir, "home");
     assert.equal(typeof agentLink.readSettings, "function", "settings need a public reader");
@@ -24,7 +24,7 @@ test("10.1 without a settings file, context guidance reads as 600,000 tokens wit
   });
 });
 
-test("10.4 invalid settings are reported on read and set, and their bytes are preserved", async () => {
+test("2.4 invalid settings are reported on read and set, and their bytes are preserved", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
     for (const content of [
@@ -52,7 +52,7 @@ test("10.4 invalid settings are reported on read and set, and their bytes are pr
   });
 });
 
-test("10.4 an unreadable settings path is reported and a set does not replace it", async () => {
+test("2.4 an unreadable settings path is reported and a set does not replace it", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
     // A directory fails as a file on all supported platforms, including Windows and root-run tests.
@@ -71,7 +71,7 @@ test("10.4 an unreadable settings path is reported and a set does not replace it
   });
 });
 
-test("10.3 unknown names and values that are not positive whole numbers are refused without changing the file", async () => {
+test("2.3 unknown names and values that are not positive whole numbers are refused without changing the file", async () => {
   await withTempDir((home) => {
     agentLink.setSetting("context-guidance", "400000", home);
     const file = path.join(home, "settings.json");
@@ -92,7 +92,7 @@ test("10.3 unknown names and values that are not positive whole numbers are refu
 
 const INSTANCE = "my-project:australia-southeast1:my-instance";
 
-test("10.10 idle-after defaults to 30 minutes and accepts positive durations without losing other settings", async () => {
+test("2.10 idle-after defaults to 30 minutes and accepts positive durations without losing other settings", async () => {
   await withTempDir((home) => {
     const initial = agentLink.readSettings(home)["idle-after"];
     assert.equal(initial.value, "30m");
@@ -110,7 +110,7 @@ test("10.10 idle-after defaults to 30 minutes and accepts positive durations wit
   });
 });
 
-test("10.11 leave-after defaults to 1 hour and accepts positive durations; one that is not a duration is refused and the file is left byte for byte (ADR-0754 D4, ADR-0758 D5)", async () => {
+test("2.11 leave-after defaults to 1 hour and accepts positive durations; one that is not a duration is refused and the file is left byte for byte (ADR-0754 D4, ADR-0758 D5)", async () => {
   await withTempDir((home) => {
     const initial = agentLink.readSettings(home)["leave-after"];
     assert.deepEqual({ value: initial.value, default: initial.default, type: initial.type, source: initial.source }, { value: "1h", default: "1h", type: "duration", source: "default" });
@@ -123,7 +123,7 @@ test("10.11 leave-after defaults to 1 hour and accepts positive durations; one t
   });
 });
 
-test("10.10 invalid idle durations are refused with a reason and leave the file byte for byte", async () => {
+test("2.10 invalid idle durations are refused with a reason and leave the file byte for byte", async () => {
   await withTempDir((home) => {
     agentLink.setSetting("context-guidance", "400000", home);
     const file = path.join(home, "settings.json");
@@ -142,7 +142,7 @@ test("10.10 invalid idle durations are refused with a reason and leave the file 
   });
 });
 
-test("10.5 the library is local by default, set to a Cloud SQL instance, and set back to local", async () => {
+test("2.5 the library is local by default, set to a Cloud SQL instance, and set back to local", async () => {
   await withTempDir((home) => {
     const initial = agentLink.readSettings(home).library;
     assert.equal(initial.location, "local");
@@ -161,7 +161,7 @@ test("10.5 the library is local by default, set to a Cloud SQL instance, and set
   });
 });
 
-test("10.6 a library setting that is not local or a well-written Cloud SQL instance and account is refused, the file untouched", async () => {
+test("2.6 a library setting that is not local or a well-written Cloud SQL instance and account is refused, the file untouched", async () => {
   await withTempDir((home) => {
     agentLink.setLibrary(["local"], home);
     const file = path.join(home, "settings.json");
@@ -176,7 +176,7 @@ test("10.6 a library setting that is not local or a well-written Cloud SQL insta
   });
 });
 
-test("10.12 the library is set to a Postgres address without its password, and an address carrying one is refused, the file untouched (ADR-0846 D1)", async () => {
+test("2.12 the library is set to a Postgres address without its password, and an address carrying one is refused, the file untouched (ADR-0846 D1)", async () => {
   await withTempDir((home) => {
     const address = "postgres://me@db.example.com:5432/postgres?sslmode=require";
     const initial = agentLink.readSettings(home).library;
@@ -215,7 +215,7 @@ test("the settings file keeps the app's surface choices beside the settings, and
   });
 });
 
-test("10.2 setting context guidance to 400000 writes it to settings.json in the storytree home, and a fresh read gives 400,000 marked as set", async () => {
+test("2.2 setting context guidance to 400000 writes it to settings.json in the storytree home, and a fresh read gives 400,000 marked as set", async () => {
   await withTempDir((home) => {
     agentLink.setSetting("context-guidance", "400000", home);
     assert.deepEqual(JSON.parse(readFileSync(path.join(home, "settings.json"), "utf8")), { "context-guidance": 400_000 });

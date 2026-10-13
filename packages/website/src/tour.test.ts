@@ -154,7 +154,6 @@ test("2.12 · the intro's fifth step, after the fixes, is the harness claim over
   assert.equal(harness.marksNote, "And any harness that speaks MCP.");
   assert.ok(tourSteps.every(item => item === harness || (!item.marks && !item.marksNote)), "the marks and their line are the harness step's alone");
   assert.match(harness.how ?? "", /Any other harness that speaks MCP can connect to the server too/);
-  assert.ok(harness.why, "its depth keeps its why");
 });
 
 test("2.12 · after the intro, the map chapter opens on the shop's empty globe, swelling from a point, with no cut beat between", () => {

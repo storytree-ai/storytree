@@ -14,7 +14,7 @@ import { declaredInTests } from "../testing/declared.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claim, closed, release } from "./claims.js";
-import { editRefusal, refusalMessage } from "./edit-gate.js";
+import { allowIncrement, editRefusal, recordPromptYes, refusalMessage } from "./edit-gate.js";
 import { refusalAnswer } from "../hooks/edit-gate.js";
 
 test("5.31 an edit tool aimed at a capability its session's claimed increment does not list, or that another live session holds by claim or on its increment's list, is refused before the edit, naming the way through or the holder; a file that declares no capability, or a session's own listed capability, is never refused (ADR-0949 D3)", async () => {
@@ -121,6 +121,57 @@ test("5.40 an edit tool aimed at a file in an imported folder is refused before 
 
       assert.equal((await claim(as("B"), stats, "a fix to the stats page")).ok, true);
       assert.equal((await gate("A", "app/stats/page.tsx"))?.refused, "held", "an explored capability another live session holds is refused as any other");
+    });
+  } finally {
+    try {
+      await log.close();
+      await storytree.close();
+    } finally {
+      await dropTestProjects([project]);
+    }
+  }
+});
+
+test("5.41 one yes from the user covers an increment's edits to imported code: given at the harness's prompt (recorded by the hook after the edit it let through) or typed at the user's own terminal, it covers what the increment listed and each capability covered then; a capability listed later or a cover widened since is asked again, and a yes an agent wrote is not one (ADR-1015)", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (root) => {
+      const checkout = path.join(root, "project");
+      const viewer = path.join(root, "viewer");
+      const library = await storytree.openProject(project);
+      const { added: [mapped] } = await library.mapStories("https://github.com/someone/viewer.git", [{ package: ".", title: "viewer", folders: ["."] }]);
+      const stats = (await library.addCapability({ title: "Stats page", story: mapped!.id, covers: ["app/stats"] })).id;
+      const nav = (await library.addCapability({ title: "Navigation", story: mapped!.id, covers: ["components/nav"] })).id;
+      const arc = await library.createArc({ title: "Stats", intent: "A stats page", endState: "Stats shown", stories: [mapped!.id] });
+      const mine = (await library.addIncrement({ arc: arc.id, title: "stats page", objective: "stats page", body: "stats page", capabilities: [stats] })).id;
+      const imports = [{ folder: viewer, repository: "https://github.com/someone/viewer.git" }];
+      const as = { log, library, project, session: "A", harness: "claude-code", folder: checkout };
+      const files = (...names: string[]) => names.map((file) => ({ path: path.join(viewer, file) }));
+      const gate = async (file: string) => (await editRefusal(as, checkout, files(file), declaredInTests, imports))?.refused;
+      assert.equal((await claim(as, mine, "driving the stats page")).ok, true);
+
+      assert.equal(await gate("app/stats/page.tsx"), "ask", "with no yes, the user is asked");
+      await log.append(project, { session: "A", harness: "claude-code", source: "tool", folder: checkout, kind: "user-allowed", increment: mine, how: "command", capabilities: [{ capability: stats, covers: ["."] }] });
+      await log.append(project, { session: "person:mallory", source: "hook", kind: "user-allowed", increment: mine, how: "command", capabilities: [{ capability: stats, covers: ["."] }] });
+      assert.equal(await gate("app/stats/page.tsx"), "ask", "a yes written from the agent's session, or not by a terminal, is not the user's");
+
+      assert.equal(await recordPromptYes(as, checkout, files("app/stats/page.tsx"), imports), mine, "the edit the prompt let through records the yes");
+      assert.equal(await gate("app/stats/chart.tsx"), undefined, "the increment's next edits under what it listed go through unasked");
+      assert.equal(await recordPromptYes(as, checkout, files("app/stats/chart.tsx"), imports), undefined, "an edit that was not asked about records nothing");
+      assert.equal(await gate("lib/util.ts"), "imported", "a file no listed capability covers is still refused");
+
+      await library.editIncrement(mine, { capabilities: [stats, nav] });
+      assert.equal(await gate("components/nav/menu.tsx"), "ask", "a capability listed after the yes is asked again");
+      await library.editCapability(stats, { covers: ["app/stats", ".env.local"] });
+      assert.equal(await gate(".env.local"), "ask", "a cover widened after the yes is asked again");
+      assert.equal(await gate("app/stats/page.tsx"), undefined, "what it covered at the yes stays allowed");
+
+      assert.deepEqual(await allowIncrement({ log, library, project, folder: checkout }, "sam", arc.id), { ok: false, reason: `${arc.id} is not an increment of this project.` });
+      const allowed = await allowIncrement({ log, library, project, folder: checkout }, "sam", mine);
+      assert.deepEqual(allowed.ok && allowed.capabilities, [{ capability: stats, covers: ["app/stats", ".env.local"] }, { capability: nav, covers: ["components/nav"] }]);
+      assert.deepEqual([await gate(".env.local"), await gate("components/nav/menu.tsx")], [undefined, undefined], "the user's yes typed at their terminal covers what the increment lists now");
     });
   } finally {
     try {

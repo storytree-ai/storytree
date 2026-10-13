@@ -514,3 +514,22 @@ test("11.14 `workspace claim` from the main checkout, then `workspace <increment
 async function logged(log: ActivityLog, project: string): Promise<{ lines: Line[] }> {
   return { lines: (await log.since(project, 0)).lines.filter((line) => line.kind !== "door-answered") };
 }
+
+test("11.16 `workspace allow <increment>` is refused from an agent's shell and from no terminal, writing no yes: only the user at their own terminal gives it (ADR-1015 D2)", async () => {
+  await inWorld(command, async (world) => {
+    const increment = await withRepository(world);
+
+    const agent = await world.run(["workspace", "allow", increment], { CLAUDE_CODE_SESSION_ID: "agent-session" });
+    assert.equal(agent.code, 1);
+    assert.match(agent.stderr, /An agent cannot give the user's yes/);
+    const piped = await world.run(["workspace", "allow", increment]);
+    assert.equal(piped.code, 1);
+    assert.match(piped.stderr, /your own terminal/);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      assert.deepEqual(await log.lines(world.project, { kinds: ["user-allowed"] }), []);
+    } finally {
+      await log.close();
+    }
+  });
+});

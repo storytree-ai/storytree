@@ -134,6 +134,14 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * session after messaging it (ADR-0944 D7), it names the `holder` whose claim it ends and the `reason`.
    */
   z.object({ ...common, kind: z.literal("released"), ...part, holder: z.string().min(1).optional(), reason: z.string().min(1).optional() }).strict().refine(onePart, ONE_PART),
+  /**
+   * The user's yes to changing imported code for an increment (ADR-1015, Session management's contract 5.41): the
+   * capabilities its list named then, each with the folders and files it covered then. `how` says where the user gave it:
+   * at the harness's own prompt before an edit (`prompt`, written by the hook after the edit it allowed), or by a command
+   * typed at their own terminal, never an agent's shell (`command`). No tool writes one.
+   */
+  z.object({ ...common, kind: z.literal("user-allowed"), increment: z.string().min(1), how: z.enum(["prompt", "command"]),
+    capabilities: z.array(z.object({ capability: z.string().min(1), covers: z.array(z.string().min(1)) }).strict()) }).strict(),
   z.object({ ...common, kind: z.literal("landed"), capability: z.string().min(1) }).strict(),
   /** An increment closed through storytree, with what the close meant: it ends any claim on it (ADR-0643 D1, 6). */
   z.object({ ...common, kind: z.literal("closed"), increment: z.string().min(1), disposition: z.enum(["landed", "failed", "withdrawn"]) }).strict(),

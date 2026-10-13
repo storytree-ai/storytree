@@ -1,9 +1,9 @@
 /**
  * Capability 1 · Get storytree. Leaving storytree: what the NSIS uninstaller runs, from the installation's own bundled Node, just
- * before it deletes the app's files, and what `storytree setup uninstall` runs itself on Linux, where nothing else would. It
+ * before it deletes the app's files, and what `storytree setup uninstall` runs itself on Linux and macOS, where nothing else would. It
  * undoes what delivery and connection added: both agents' registration, hooks and status line, the command and its PATH
- * entry, the home, and the updater's download cache; on Linux also install.sh's installation folder, menu entry and marked
- * ~/.profile line. The user's project folders are never touched, not even their storytree marker.
+ * entry, the home, and the updater's download cache; on Linux and macOS also install.sh's installation folder (the .app on a
+ * Mac), Linux's menu entry, and the marked ~/.profile (Mac: .zprofile) line. The user's project folders are never touched, not even their storytree marker.
  */
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
@@ -105,6 +105,20 @@ function removeLinuxInstallation(installDir: string, userHome: string, lines: st
   }
 }
 
+/** What install.sh added on a Mac outside the home: the .app and the PATH line in zsh's login profile. */
+function removeMacInstallation(installDir: string, userHome: string, env: NodeJS.ProcessEnv, lines: string[]): boolean {
+  const profile = path.join(env.ZDOTDIR || userHome, ".zprofile");
+  try {
+    if (removeMarkedLines(profile)) lines.push("The storytree command is off your PATH from your next Terminal window.");
+    remove(installDir);
+    lines.push(`The app was removed from ${path.dirname(installDir)}.`);
+    return true;
+  } catch {
+    lines.push(`Move ${installDir} to the Bin and remove the line marked "storytree setup uninstall" in ${profile}.`);
+    return false;
+  }
+}
+
 const remove = (target: string) => rmSync(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
 
 export async function uninstall(options: UninstallOptions): Promise<UninstallReport> {
@@ -124,9 +138,11 @@ export async function uninstall(options: UninstallOptions): Promise<UninstallRep
   }
   if (!ownsHome(options.installDir, options.home)) return { complete, lines };
 
-  const linux = (options.platform ?? process.platform) === "linux";
-  if (linux) {
+  const platform = options.platform ?? process.platform;
+  if (platform === "linux") {
     if (!removeLinuxInstallation(options.installDir, options.userHome ?? homedir(), lines)) complete = false;
+  } else if (platform === "darwin") {
+    if (!removeMacInstallation(options.installDir, options.userHome ?? homedir(), options.env ?? process.env, lines)) complete = false;
   } else {
     const entry = path.join(options.home, "bin");
     const userPath = options.effects ?? windowsUserPath;
@@ -158,7 +174,7 @@ export async function uninstall(options: UninstallOptions): Promise<UninstallRep
     }
   } catch {
     complete = false;
-    lines.push(`Some of ${options.home} was in use and stayed; delete it after restarting ${linux ? "the computer" : "Windows"}.`);
+    lines.push(`Some of ${options.home} was in use and stayed; delete it after restarting ${platform === "win32" ? "Windows" : "the computer"}.`);
   }
   return { complete, lines };
 }
@@ -169,13 +185,15 @@ export async function uninstall(options: UninstallOptions): Promise<UninstallRep
  * from the installation, this one included, but only after it has checked for PowerShell (a second or
  * more), by when this command has printed and returned. It is started directly: Windows PowerShell,
  * started detached as a delay, has no console and exits without running anything.
- * Linux has no uninstaller, so it uninstalls here, once the app is not running from what it removes; the
- * helper runs without a terminal, so a library is removed or kept only when the user chose which.
+ * Linux and macOS have no uninstaller, so it uninstalls here, once the app is not running from what it removes;
+ * the helper runs without a terminal, so a library is removed or kept only when the user chose which.
  */
 export async function openUninstaller(choice?: string, helperDir = path.dirname(process.argv[1] ?? ""), host: Partial<Omit<UninstallOptions, "installDir" | "library">> = {}): Promise<string> {
   if (choice !== undefined && choice !== "keep" && choice !== "remove") throw new Error("usage: storytree setup uninstall [--keep-library|--remove-library]");
-  const installDir = path.resolve(helperDir, "..", "..");
-  if ((host.platform ?? process.platform) === "linux") {
+  const platform = host.platform ?? process.platform;
+  // The helper sits in resources/agent-tools, which a Mac bundle keeps under Contents.
+  const installDir = path.resolve(helperDir, "..", "..", ...(platform === "darwin" ? [".."] : []));
+  if (platform === "linux" || platform === "darwin") {
     const home = host.home ?? storytreeHome();
     const asks = uninstallAsks(installDir, home);
     if (asks === "not ours") throw new Error(`${installDir} is not the storytree installation recorded in ${path.join(home, "delivery.json")}; run that installation's storytree setup uninstall. Nothing was removed.`);

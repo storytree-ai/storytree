@@ -197,3 +197,60 @@ test("1.8: on Linux a library is kept or removed only on the user's say", posix,
   assert.equal(existsSync(m.installDir), false);
   assert.match(said, new RegExp(m.home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
+
+/** A Mac user's machine after install.sh: the .app in ~/Applications and the marked .zprofile line, Claude Code connected. */
+async function installedMacMachine(t: { after(fn: () => void): void }, zdotdir?: string) {
+  const user = mkdtempSync(path.join(tmpdir(), "storytree mac uninstall "));
+  t.after(() => rmSync(user, { recursive: true, force: true }));
+  const applications = path.join(user, "Applications");
+  const installDir = path.join(applications, "storytree-0.3.app");
+  const home = path.join(user, ".storytree", "0.3");
+  const tools = toolPaths(installDir, "darwin");
+  mkdirSync(tools.dir, { recursive: true });
+  mkdirSync(path.dirname(tools.app), { recursive: true });
+  for (const file of [tools.app, tools.node, tools.mcp, tools.hook]) writeFileSync(file, "installed");
+  mkdirSync(path.join(applications, "Someone Else.app"));
+  for (const dir of [path.join(home, "pgdata"), path.join(home, "bin")]) mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(home, "pgdata", "PG_VERSION"), "17");
+  writeFileSync(path.join(home, "delivery.json"), JSON.stringify({ schema: 1, installDir, tools }));
+  const profileDir = zdotdir ?? user;
+  mkdirSync(profileDir, { recursive: true });
+  const profile = path.join(profileDir, ".zprofile");
+  writeFileSync(profile, "# the user's own\nexport EDITOR=vi\n");
+  const script = path.join(import.meta.dirname, "install.sh");
+  execFileSync("sh", ["-c", `STORYTREE_INSTALL_LIBRARY=1; . "$1"; st_profile_add "$2" "$3"`, "sh", script, profile, path.join(home, "bin")]);
+  assert.match(readFileSync(profile, "utf8"), /setup uninstall/);
+
+  mkdirSync(path.join(user, ".claude"));
+  writeFileSync(path.join(user, ".claude.json"), JSON.stringify({ mcpServers: {} }));
+  const env = { PATH: path.join(home, "bin"), ...(zdotdir === undefined ? {} : { ZDOTDIR: zdotdir }) };
+  const connected = await connectAgents({ harnesses: ["claude-code"], installed: installedToolServerCommand(tools.node, tools.mcp), home: user, env, run });
+  assert.deepEqual(connected.map((result) => result.tools), ["connected"]);
+  const options = { home, userHome: user, env, run, platform: "darwin" as const };
+  return { user, applications, installDir, home, profile, options, helper: tools.dir };
+}
+
+test("1.8: uninstalling on a Mac removes the .app and the marked .zprofile line, and only those", posix, async (t) => {
+  const m = await installedMacMachine(t);
+  const said = await openUninstaller("remove", m.helper, m.options);
+  assert.deepEqual(readdirSync(m.applications), ["Someone Else.app"]);
+  assert.equal(readFileSync(m.profile, "utf8"), "# the user's own\nexport EDITOR=vi\n");
+  assert.equal(existsSync(m.home), false);
+  assert.equal(JSON.parse(readFileSync(path.join(m.user, ".claude.json"), "utf8")).mcpServers.storytree, undefined);
+  assert.match(said, /removed/);
+});
+
+test("1.8: on a Mac the .zprofile line goes from ZDOTDIR when zsh reads it there, and a library stays only on the user's say", posix, async (t) => {
+  const zdotdir = path.join(tmpdir(), `storytree zdotdir ${process.pid}`);
+  t.after(() => rmSync(zdotdir, { recursive: true, force: true }));
+  const m = await installedMacMachine(t, zdotdir);
+  await assert.rejects(openUninstaller(undefined, m.helper, m.options), /--keep-library or --remove-library/);
+  writeFileSync(path.join(m.home, "app.json"), JSON.stringify({ pid: process.pid }));
+  await assert.rejects(openUninstaller("keep", m.helper, m.options), /Quit storytree/);
+  assert.equal(existsSync(m.installDir), true, "nothing is removed while the app runs");
+  rmSync(path.join(m.home, "app.json"));
+  await openUninstaller("keep", m.helper, m.options);
+  assert.equal(readFileSync(m.profile, "utf8"), "# the user's own\nexport EDITOR=vi\n");
+  assert.deepEqual(readdirSync(m.home), ["pgdata"]);
+  assert.equal(existsSync(m.installDir), false);
+});

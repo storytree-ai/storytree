@@ -44,7 +44,7 @@ export function createBridge(
     ...pageMethods<Omit<SetupHelpBridge, "feedbackIdentity">>(SETUP_HELP_CHANNELS, invoke),
     ...pageMethods<PageReadsBridge>(PAGE_READS_CHANNELS, invoke),
     ...pageMethods<ForestBridge>(FOREST_CHANNELS, invoke),
-    // The stories whose manifests name their page channels (ADR-1021); the page's type still names them for the renderer.
-    ...Object.assign({}, ...PAGE_CHANNELS.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as LagBridge,
+    // The stories whose manifests name their page channels (ADR-1030); the page's type above still names them for the renderer.
+    ...(Object.assign({}, ...PAGE_CHANNELS.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag">),
   };
 }

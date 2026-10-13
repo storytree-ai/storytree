@@ -15,7 +15,6 @@ trap 'rm -rf "$root"' EXIT
 # System and chip: only an Apple Silicon Mac goes on; anything else is told why, in plain words.
 st_platform Darwin arm64; check "$ST_SYSTEM $ST_ARCH" "darwin arm64" "an Apple Silicon Mac is accepted"
 refused "Apple Silicon" "an Intel Mac is refused" st_platform Darwin x86_64
-refused "Linux" "Linux is not yet a branch" st_platform Linux x86_64
 refused "PowerShell" "Windows is sent to its own command" st_platform MINGW64_NT-10.0 x86_64
 
 # The JSON the release and the helper speak, read without jq or python.

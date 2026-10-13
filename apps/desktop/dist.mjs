@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stageTools } from "./tools.mjs";
-import { deliveryAssets, macDeliveryAssets } from "./delivery-assets.mjs";
+import { deliveryAssets, linuxDeliveryAssets, macDeliveryAssets } from "./delivery-assets.mjs";
 import { builderEnv, macSigning } from "./mac-signing.mjs";
 
 process.env.ELECTRON_BUILDER_7Z_FILTER ??= "BCJ";
@@ -42,4 +42,4 @@ await build({
   ...(Object.keys(extraMetadata).length === 0 ? {} : { config: { extraMetadata, ...identity } }),
 });
 const here = path.dirname(fileURLToPath(import.meta.url));
-if (process.platform !== "linux") (mac ? macDeliveryAssets : deliveryAssets)(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);
+(mac ? macDeliveryAssets : process.platform === "linux" ? linuxDeliveryAssets : deliveryAssets)(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);

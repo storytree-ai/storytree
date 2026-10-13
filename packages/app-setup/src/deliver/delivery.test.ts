@@ -188,8 +188,13 @@ test("1.12: the delivery helper runs from a Mac's own payload as from Windows, a
   assert.equal(runtimeProblem("x64", { platform: "win32", arch: "x64", node: "24.21.0" }), undefined);
   assert.match(runtimeProblem("x64", { platform: "darwin", arch: "x64", node: "24.21.0" })!, /Apple Silicon/);
   assert.match(runtimeProblem("arm64", { platform: "darwin", arch: "x64", node: "24.21.0" })!, /does not match/);
-  assert.match(runtimeProblem("x64", { platform: "linux", arch: "x64", node: "24.21.0" })!, /does not match/);
+  assert.match(runtimeProblem("x64", { platform: "freebsd", arch: "x64", node: "24.21.0" })!, /does not match/);
   assert.match(runtimeProblem("arm64", { platform: "darwin", arch: "arm64", node: "22.1.0" })!, /does not match/);
+});
+
+test("1.13: the delivery helper runs from x64 Linux's own payload, and refuses an Arm Linux", () => {
+  assert.equal(runtimeProblem("x64", { platform: "linux", arch: "x64", node: "24.21.0" }), undefined);
+  assert.match(runtimeProblem("arm64", { platform: "linux", arch: "arm64", node: "24.21.0" })!, /x64/);
 });
 
 test("1.12: on an Apple Silicon Mac, finish opens the bundle's own executable and puts a storytree command in the home's bin", async () => {

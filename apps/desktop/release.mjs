@@ -79,11 +79,12 @@ if (process.argv[2] === "source") {
     } else {
       const missing = missingAssets(release.assets.map((asset) => asset.name), version);
       if (Object.keys(missing).length > 0) throw new Error(`Release ${tag} is incomplete: ${JSON.stringify(missing)}`);
-      // Only the Mac runner has the zip, so its manifest entry joins Windows' manifest here, before anyone can read it.
+      // Only the Mac and Linux runners have their apps, so their manifest entries join Windows' manifest here, before anyone can read it.
       const dir = mkdtempSync(path.join(tmpdir(), "storytree-delivery-"));
-      gh("release", "download", tag, "--repo", repository, "--dir", dir, "--pattern", "storytree-delivery.json", "--pattern", "storytree-delivery-mac.json");
+      gh("release", "download", tag, "--repo", repository, "--dir", dir, "--pattern", "storytree-delivery.json", "--pattern", "storytree-delivery-mac.json", "--pattern", "storytree-delivery-linux.json");
       const read = (name) => JSON.parse(readFileSync(path.join(dir, name), "utf8"));
-      writeFileSync(path.join(dir, "storytree-delivery.json"), JSON.stringify(mergeDelivery(read("storytree-delivery.json"), read("storytree-delivery-mac.json")), null, 2) + "\n");
+      const merged = ["storytree-delivery-mac.json", "storytree-delivery-linux.json"].reduce((manifest, entry) => mergeDelivery(manifest, read(entry)), read("storytree-delivery.json"));
+      writeFileSync(path.join(dir, "storytree-delivery.json"), JSON.stringify(merged, null, 2) + "\n");
       gh("release", "upload", tag, path.join(dir, "storytree-delivery.json"), "--repo", repository, "--clobber");
       gh("release", "edit", tag, "--repo", repository, "--draft=false", "--latest");
     }
@@ -101,7 +102,7 @@ function notes(command, macCommand, sha) {
     command,
     "```",
     "",
-    "On an Apple Silicon Mac, in Terminal, run:",
+    "On an Apple Silicon Mac or x64 Linux (Linux Mint 22 or Ubuntu 24.04 and later), in a terminal, run:",
     "",
     "```sh",
     macCommand,
@@ -109,13 +110,11 @@ function notes(command, macCommand, sha) {
     "",
     "It installs the app and opens it; Help → First-run guide in the app connects your agent.",
     "",
-    "On x64 Linux (Ubuntu 24.04 or later), download the .AppImage below, make it executable and run it.",
-    "",
     `Windows x64 and arm64 installer, built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
     "",
     // The draft is written before the Mac build, so the workflow says whether its certificate is set.
     macReleaseNote(process.env.STORYTREE_MAC_SIGNED === "true"),
     "",
-    "Development installations follow every published build. To install development explicitly, use the command in install-storytree-development.txt (Windows) or install-storytree-mac-development.txt (Mac). Existing installations retain their channel.",
+    "Development installations follow every published build. To install development explicitly, use the command in install-storytree-development.txt (Windows) or install-storytree-mac-development.txt (Mac and Linux). Existing installations retain their channel.",
   ].join("\n");
 }

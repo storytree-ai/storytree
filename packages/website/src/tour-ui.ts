@@ -41,6 +41,10 @@ export function wireTour() {
     root.style.setProperty("--tour-room", `${card.scrollHeight}px`);
   };
   window.addEventListener("resize", fitRoom);
+  // The bar wraps to two rows when the window is too narrow for its controls on one: the tour tells the stylesheet the bar's
+  // real height (--bar-room), so the card's words and depth link sit clear above it at every width.
+  const bar = get("tour-bar");
+  new ResizeObserver(() => root.style.setProperty("--bar-room", `${bar.offsetHeight}px`)).observe(bar);
   let previous: TourState | undefined;
   let visible = false;
   let openingActive = !document.getElementById("opening")?.hidden;

@@ -10,11 +10,11 @@
 #chapter2 .tour-stage { position:absolute; inset:0; }
 #chapter2 #website-forest { isolation:isolate; z-index:0; position:absolute; inset:0; width:100%; height:100%; min-height:0; }
 #chapter2 .forest-still, #chapter2 .forest-canvas, #chapter2 .forest-drawing { position:absolute; inset:0; }
-#chapter2 .forest-still { inset:8% 10% calc(var(--bar-h) + 6%) 34%; }
+#chapter2 .forest-still { inset:8% 10% calc(var(--bar-room, var(--bar-h)) + 6%) 34%; }
 #chapter2 .forest-still::after { display:none; }
 
 /* The card: what this step shows, a line at a time, and its depth on demand. */
-#chapter2 .tour-card { position:absolute; z-index:65; left:24px; bottom:calc(var(--bar-h) + 18px); width:min(400px, 36vw); max-height:calc(100% - var(--bar-h) - 104px);
+#chapter2 .tour-card { position:absolute; z-index:65; left:24px; bottom:calc(var(--bar-room, var(--bar-h)) + 18px); width:min(400px, 36vw); max-height:calc(100% - var(--bar-room, var(--bar-h)) - 104px);
   overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#3a4549 transparent;
   padding:18px 20px 16px; border:1px solid var(--edge); border-radius:14px; background:var(--card-ink); box-shadow:0 20px 44px -22px #000e; }
 #chapter2 .tour-card.is-in { animation:tour-card-in .45s cubic-bezier(.2,1,.3,1) both; }
@@ -60,7 +60,7 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"], [data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"])) .tour-depth { align-self:flex-start; min-height:32px; padding:4px 0; border:0; color:var(--dim); font-size:13px; text-decoration:underline; text-underline-offset:4px; }
 #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"], [data-tour-mode="tour"]:is([data-tour-kind="lines"], [data-tour-kind="compare"])) .tour-depth:hover { color:#dfe6de; }
 #chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-stage::before { content:""; position:absolute; z-index:4; inset:0 auto 0 0; width:min(820px, 70%); background:linear-gradient(90deg, #101418f2 48%, #10141800); pointer-events:none; }
-#chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-card { top:84px; bottom:calc(var(--bar-h) + 18px); left:clamp(24px, 4vw, 64px); width:min(560px, 46vw); max-height:none; display:flex; flex-direction:column; justify-content:center; padding:0; border:0; background:none; box-shadow:none; }
+#chapter2:is([data-tour-kind="beats"], [data-tour-kind="statement"], [data-tour-kind="fixes"])[data-tour-mode="tour"] .tour-card { top:84px; bottom:calc(var(--bar-room, var(--bar-h)) + 18px); left:clamp(24px, 4vw, 64px); width:min(560px, 46vw); max-height:none; display:flex; flex-direction:column; justify-content:center; padding:0; border:0; background:none; box-shadow:none; }
 #chapter2[data-tour-kind="beats"] .tour-title { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 #chapter2[data-tour-kind="beats"] .tour-lines { display:block; margin:0 0 18px; }
 #chapter2[data-tour-kind="beats"] .tour-line { display:none; padding:0; color:#f0f0e7; font-size:clamp(25px, 2.6vw, 38px); font-weight:500; line-height:1.18; letter-spacing:-.035em; text-wrap:balance; }
@@ -89,7 +89,7 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 #chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-card { left:0; right:0; width:min(860px, calc(100% - 48px)); margin-inline:auto; text-align:center; align-items:center; }
 #chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-depth { align-self:center; }
 /* A recording's date is small print in the bottom-left corner, above the bar. */
-#chapter2 .tour-recorded { position:absolute; z-index:66; left:24px; bottom:calc(var(--bar-h) + 8px); margin:0; color:var(--dim); font:10.5px/1.4 system-ui, sans-serif; letter-spacing:.01em; pointer-events:none; }
+#chapter2 .tour-recorded { position:absolute; z-index:66; left:24px; bottom:calc(var(--bar-room, var(--bar-h)) + 8px); margin:0; color:var(--dim); font:10.5px/1.4 system-ui, sans-serif; letter-spacing:.01em; pointer-events:none; }
 #chapter2[data-tour-mode="freeplay"] .tour-recorded { display:none; }
 /* Until a growth's drawing is live (loading, or no WebGL), storytree's saved still is not the growth: the arrival stays dark.
    Free play on the shop shows the shop's own still, captured from the same renderer; a tour step on the shop replays one

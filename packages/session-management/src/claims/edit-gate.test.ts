@@ -14,7 +14,7 @@ import { declaredInTests } from "../testing/declared.js";
 import { withTempDir } from "../testing/folders.js";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { claim, closed, release } from "./claims.js";
-import { allowIncrement, editRefusal, recordPromptYes, refusalMessage } from "./edit-gate.js";
+import { allowIncrement, allowSaid, editRefusal, recordPromptYes, refusalMessage } from "./edit-gate.js";
 import { refusalAnswer } from "../hooks/edit-gate.js";
 
 test("5.31 an edit tool aimed at a capability its session's claimed increment does not list, or that another live session holds by claim or on its increment's list, is refused before the edit, naming the way through or the holder; a file that declares no capability, or a session's own listed capability, is never refused (ADR-0949 D3)", async () => {
@@ -172,6 +172,48 @@ test("5.41 one yes from the user covers an increment's edits to imported code: g
       const allowed = await allowIncrement({ log, library, project, folder: checkout }, "sam", mine);
       assert.deepEqual(allowed.ok && allowed.capabilities, [{ capability: stats, covers: ["app/stats", ".env.local"] }, { capability: nav, covers: ["components/nav"] }]);
       assert.deepEqual([await gate(".env.local"), await gate("components/nav/menu.tsx")], [undefined, undefined], "the user's yes typed at their terminal covers what the increment lists now");
+    });
+  } finally {
+    try {
+      await log.close();
+      await storytree.close();
+    } finally {
+      await dropTestProjects([project]);
+    }
+  }
+});
+
+test("5.42 a yes the user says in the conversation, recorded by the prompt hook that heard it, covers the increment's edits to imported code for the session that heard it alone: a said yes another session heard, or one an agent wrote, is not one, and a successor session on the increment is asked again (ADR-1015 D2)", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (root) => {
+      const checkout = path.join(root, "project");
+      const viewer = path.join(root, "viewer");
+      const library = await storytree.openProject(project);
+      const { added: [mapped] } = await library.mapStories("https://github.com/someone/viewer.git", [{ package: ".", title: "viewer", folders: ["."] }]);
+      const stats = (await library.addCapability({ title: "Stats page", story: mapped!.id, covers: ["app/stats"] })).id;
+      const arc = await library.createArc({ title: "Stats", intent: "A stats page", endState: "Stats shown", stories: [mapped!.id] });
+      const mine = (await library.addIncrement({ arc: arc.id, title: "stats page", objective: "stats page", body: "stats page", capabilities: [stats] })).id;
+      const empty = (await library.addIncrement({ arc: arc.id, title: "nothing listed", objective: "nothing listed", body: "nothing listed", capabilities: [] })).id;
+      const imports = [{ folder: viewer, repository: "https://github.com/someone/viewer.git" }];
+      const as = (session: string) => ({ log, library, project, session, harness: "codex", folder: checkout });
+      const gate = async (session: string) => (await editRefusal(as(session), checkout, [{ path: path.join(viewer, "app/stats/page.tsx") }], declaredInTests, imports))?.refused;
+      assert.equal((await claim(as("A"), mine, "driving the stats page")).ok, true);
+
+      await log.append(project, { session: "B", harness: "codex", source: "hook", folder: checkout, kind: "user-allowed", increment: mine, how: "said", capabilities: [{ capability: stats, covers: ["."] }] });
+      await log.append(project, { session: "A", harness: "codex", source: "tool", folder: checkout, kind: "user-allowed", increment: mine, how: "said", capabilities: [{ capability: stats, covers: ["."] }] });
+      assert.equal(await gate("A"), "ask", "a said yes another session heard, or one not written by a hook, is not this session's user's");
+
+      assert.deepEqual(await allowSaid(as("A"), empty), { ok: false, reason: `${empty} lists no capabilities yet, so a yes would allow nothing: the agent lists the explored capability it means to change first.` });
+      const said = await allowSaid(as("A"), mine);
+      assert.deepEqual(said.ok && said.capabilities, [{ capability: stats, covers: ["app/stats"] }]);
+      assert.equal(await gate("A"), undefined, "the session that heard the yes edits unasked");
+
+      assert.equal((await release(as("A"), mine)).ok, true);
+      assert.equal((await claim(as("C"), mine, "taking over the stats page")).ok, true);
+      assert.equal(await gate("C"), "ask", "a successor session on the increment is asked again");
     });
   } finally {
     try {

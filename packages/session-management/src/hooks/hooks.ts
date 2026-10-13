@@ -26,8 +26,9 @@
  * what the command changed in imported code that no yes of the user's covers (ADR-1015).
  *
  * One more, at each prompt (ADR-0636 D1, b2), prints: the project's definitions
- * for the terms the prompt names (definitions.ts), and once-per-session advice to start fresh when a
- * Claude Code session passes its context guidance (context-nudge.ts). The harness waits for it, so it gives up
+ * for the terms the prompt names (definitions.ts), once-per-session advice to start fresh when a
+ * Claude Code session passes its context guidance (context-nudge.ts), and, when the user's message carries the
+ * allow command on a line of its own, that their yes to changing imported code is recorded (edit-gate.ts, ADR-1015). The harness waits for it, so it gives up
  * after 2 s and prints nothing. It also writes a line saying the session's turn began (ADR-0754 D5). And a
  * second hook at the end of each turn (`--close-out-reminder`, close-out-reminder.ts) may
  * print one request to close out, once per session, deciding from this machine alone (ADR-0758 D4).
@@ -59,7 +60,7 @@ import { codexLines } from "./codex.js";
 import { cursorLines, cursorSession } from "./cursor.js";
 import { piLines, piSession } from "./pi.js";
 import { antigravityLines } from "./antigravity.js";
-import { EDIT_GATE, editGate, recordYesAfterEdit } from "./edit-gate.js";
+import { EDIT_GATE, editGate, recordYesAfterEdit, yesSaid } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
 import { contextNudge } from "./context-nudge.js";
@@ -191,8 +192,10 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
     const asked = promptIn(harness, parsed);
     // A prompt's line is written while its context is looked up: the harness waits for both.
     if (asked !== undefined) {
-      const [context] = await Promise.all([withinTime(contextForPrompt(asked)), made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed)]);
-      return promptAnswer(harness, context, parsed);
+      // The user's own words may carry their yes to changing imported code (contract 5.42); a harness's notice is not theirs.
+      const said = isHarnessNotice(asked.prompt) ? undefined : yesSaid(harness, asked, locate, homeOf(locate), failed);
+      const [context, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed)]);
+      return promptAnswer(harness, yes === undefined ? context : [...yes, ...(context ?? [])], parsed);
     }
     if (made === undefined) return;
     // After an edit the gate asked the user about, the user's yes is recorded on the increment (contract 5.41).

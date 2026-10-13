@@ -19,6 +19,18 @@
         "export": "forestSurfaces",
         "order": 1
       }
+    ],
+    "pageChannels": [
+      {
+        "from": "./page",
+        "export": "forestPageChannels"
+      }
+    ],
+    "pageAnswers": [
+      {
+        "from": "./code-survey",
+        "export": "forestPageAnswers"
+      }
     ]
   },
   "scripts": {

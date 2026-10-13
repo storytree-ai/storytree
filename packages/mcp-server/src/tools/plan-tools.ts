@@ -10,6 +10,7 @@ import { importProject, ImportRefusedError } from "@storytree/app-setup/project"
 import { CONTRACT_DEFINITION, heldBack, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
 import { z } from "zod";
 
+import { untestedContracts } from "@storytree/map/code-survey";
 import { healthWorklistAt } from "@storytree/map/read";
 import { readClaims } from "@storytree/session-management";
 import { readSessions } from "@storytree/session-management";
@@ -90,16 +91,19 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_contract",
-    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may promise something else; the reply names those tests, so when this contract is one's promise you give that number in the title. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
+    "Plan a contract: one testable promise a capability makes. Leave its number off the title: it is given the capability's next free one, past the numbers its contracts and its story package's numbered tests carry, even a test no contract carries yet, since that test may promise something else; the reply names those tests, so when this contract is one's promise you give that number in the title. It also names the capability's other contracts no numbered test carries yet, perhaps planned by a lane that backed off: build one of those rather than plan its promise again. A number another contract of the capability carries is refused. Write its test, see it fail, and report it red.",
     z.object({ capability: id("capability it belongs to"), title, description }),
     async ({ capability, title: name, description: about }, call) => {
-      const tested = await testedNumbers(call, capability);
+      const tree = await call.library.projectTree();
+      const tested = await testedNumbers(call, capability, tree);
       const contract = await call.library.addContract({ title: name, capability, ...optional({ description: about }) }, { ...call.writer, testedNumbers: tested });
       const orphans = await orphanTests(call, capability, contract.fields.title, tested);
       const named = orphans.length === 0 ? "" : ` Numbered ${orphans.length === 1 ? `test ${orphans[0]} has` : `tests ${orphans.slice(0, -1).join(", ")} and ${orphans.at(-1)} have`} no contract: if this contract is ${orphans.length === 1 ? "its" : "one's"} promise, give it that number with edit_plan.`;
+      const untested = untestedContracts(tree, capability, tested);
+      const open = untested.length === 0 ? "" : ` No numbered test carries ${untested.length === 1 ? "this other contract" : `these ${untested.length} other contracts`} of the capability yet, perhaps planned by a lane that backed off: ${untested.map(quoted).join(", ")}. If this contract repeats one's promise, retire it and build that one.`;
       const long = contract.fields.title.length > LONG_CONTRACT;
       const advice = long ? ` Its title runs past ${LONG_CONTRACT} characters, which often means more than one promise: ${CONTRACT_DEFINITION} Split it with edit_plan and plan_contract if so.` : "";
-      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named}${advice} Write its test, see it fail, and report it red.`, data: { id: contract.id, orphans, long } };
+      return { text: `Planned contract ${quoted(contract.fields.title)} (${contract.id}).${named}${open}${advice} Write its test, see it fail, and report it red.`, data: { id: contract.id, orphans, untested, long } };
     },
   );
 

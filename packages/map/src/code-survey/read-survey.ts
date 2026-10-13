@@ -107,6 +107,19 @@ export async function testedNumbers(root: string, tree: AnnotatedTree, capabilit
   return (surveyed[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || title.package === own).map((title) => title.number));
 }
 
+/**
+ * The titles of `capability`'s planned contracts whose number none of `tested` carries (the numbers
+ * {@link testedNumbers} reads), in plan order; none for a capability `tree` lacks.
+ */
+export function untestedContracts(tree: AnnotatedTree, capability: string, tested: readonly string[]): string[] {
+  const proven = new Set(tested);
+  const contracts = tree.stories.flatMap((story) => story.capabilities).find((part) => part.id === capability)?.contracts ?? [];
+  return contracts.map((contract) => contract.title).filter((title) => {
+    const number = /^(\d+\.\d+) · /.exec(title)?.[1];
+    return number !== undefined && !proven.has(number);
+  });
+}
+
 /** A file as last read: kept while its disk fingerprint or Git blob is unchanged. */
 type Kept = { readonly version: string; readonly file: SourceFile };
 

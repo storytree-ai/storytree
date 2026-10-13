@@ -1,6 +1,6 @@
 /** Capability 2 · The forest on the site. */
 import { createTour, depthLink, globeOf, groups, linesOn, type FreePlayProject, type Hold, type TourState, type TourStep } from "./tour.js";
-import { groupTitles, researchDate, steps } from "./tour-copy.js";
+import { decisionLabel, freePlayLines, groupTitles, researchDate, steps } from "./tour-copy.js";
 import { fill } from "./tour-counts.js";
 
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text = "", className = "") => {
@@ -117,7 +117,7 @@ export function wireTour() {
     const list = element("ul", "", "tour-decisions");
     list.append(...step.decisions.map(decision => {
       const item = element("li");
-      item.append(element("span", `ADR-${String(decision.number).padStart(4, "0")}`, "number"), ` ${decision.title}`);
+      item.append(element("span", decisionLabel(decision.number), "number"), ` ${decision.title}`);
       return item;
     }));
     // A chapter's depth is How and Why as curated explainers, never decision numbers (ADR-0891); older steps keep their decisions.
@@ -145,8 +145,7 @@ export function wireTour() {
       const at = where(state.index);
       heading.textContent = state.freePlay ? "Your turn." : text(step.title);
       if (state.freePlay) {
-        lines.replaceChildren(...[state.project === "shop" ? "Explore the whole shop: open an island, the arcs or the library." : "Explore storytree's own project: open an island, the arcs or the library.",
-          "It's a saved reading, so nothing you do changes the project."].map(line => element("li", line, "tour-line on")));
+        lines.replaceChildren(...freePlayLines[state.project === "shop" ? "shop" : "storytree"].map(line => element("li", line, "tour-line on")));
       } else drawLines(step);
       const stepChips = state.freePlay ? [] : step.chips ?? [];
       chips.replaceChildren(...stepChips.filter(chip => chip.kind !== "recording").map(chip => element("span", text(chip.text), `chip chip-${chip.kind}`)));

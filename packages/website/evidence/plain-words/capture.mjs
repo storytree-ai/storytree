@@ -1,0 +1,56 @@
+// Plain words on the site (increment_d62ecf825954, ADR-1019 D1, D4), from the locally built site, on SwiftShader: each map-chapter step whose
+// title, label or line changed, at 1440 and 390, each as it settles while it plays.
+// pnpm --filter @storytree/website build && node packages/website/evidence/plain-words/capture.mjs [--dist <main's dist> --before]
+import { createServer } from "node:http";
+import { capturePath } from "../capture-path.mjs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "playwright-core";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const dist = process.argv.includes("--dist") ? path.resolve(process.argv[process.argv.indexOf("--dist") + 1]) : path.resolve(here, "../../dist");
+const before = process.argv.includes("--before");
+const folder = path.join(here, before ? "before" : "after");
+await mkdir(folder, { recursive: true });
+const types = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".png": "image/png", ".svg": "image/svg+xml", ".json": "application/json" };
+const server = createServer(async (req, res) => {
+  const { file, status } = capturePath(dist, req.url);
+  if (status) { res.writeHead(status).end(); return; }
+  try { res.setHeader("Content-Type", types[path.extname(file)] ?? "application/octet-stream"); res.end(await readFile(file)); }
+  catch { res.writeHead(404).end(); }
+});
+await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+const url = `http://127.0.0.1:${server.address().port}/`;
+const browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"] });
+const errors = [];
+// [step, line, seconds into the line]: a step that does not exist on this build is skipped.
+const moments = [["map-arcs", 1, 3], ["map-capabilities", 1, 3], ["map-capabilities", 1, 9], ["map-claims", 1, 3], ["map-health", 1, 3]];
+const seen = [];
+try {
+  for (const [width, height] of [[1440, 900], [390, 844]]) {
+    const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
+    page.on("pageerror", error => errors.push(error.message));
+    await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
+    await page.goto(url);
+    await page.waitForFunction(() => document.querySelector("#website-forest")?.dataset.forestState === "live", null, { timeout: 90_000 });
+    for (const [id, line, into] of moments) {
+      const pip = page.locator(`#tour-pips [data-step="${id}"]`);
+      if (!await pip.count()) continue;
+      if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click();
+      await pip.click();
+      await page.waitForFunction(line => document.querySelectorAll("#tour-lines .tour-line.on").length === line, line, { timeout: 60_000 });
+      await page.waitForTimeout(into * 1000);
+      const name = `${width}-${id}${line > 1 ? `-line-${line}` : ""}-${into}s`;
+      await page.screenshot({ path: path.join(folder, `${name}.png`) });
+      seen.push({ name, ...await page.evaluate(() => {
+        const box = node => { const r = node?.getBoundingClientRect(); return r && r.width ? { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) } : undefined; };
+        return { title: document.querySelector("#tour-title")?.textContent, lines: [...document.querySelectorAll("#tour-lines .tour-line.on")].map(node => node.textContent), arcs: box(document.querySelector(".tour-arc-surface:not([hidden]) .arc-overlay")), detail: box(document.querySelector(".tour-arc-surface:not([hidden]) .arc-overlay .arc-detail")),
+          drawing: box(document.querySelector(".forest-drawing")), tags: [...document.querySelectorAll("#tour-tags .tour-tag:not(.away) .tour-tag-text, .tour-arc-pointer:not(.away) .tour-tag-text")].map(node => node.textContent) };
+      }) });
+    }
+    await page.close();
+  }
+  await writeFile(path.join(folder, "seen.json"), JSON.stringify({ errors, seen }, null, 2) + "\n");
+  console.log(JSON.stringify({ errors, seen }, null, 2));
+} finally { await browser.close(); server.close(); }

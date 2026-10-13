@@ -12,7 +12,7 @@ import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import pg from "pg";
 
-import { branchTree, branchVerdict, capabilitiesOf, capabilityListFor, incrementOfBranch, staleProblems, unlistedCapabilities } from "./capability-list.mjs";
+import { branchTree, branchVerdict, capabilitiesOf, capabilityListFor, importRewritesOnly, incrementOfBranch, staleProblems, unlistedCapabilities } from "./capability-list.mjs";
 import { runGate } from "./gate.mjs";
 
 /** A checkout holding the till's package: a declared source file, its test, and a file only the survey places. */
@@ -50,6 +50,41 @@ test("7.4 a branch that changes a capability its increment does not list fails, 
   assert.deepEqual(unlisted, [{ capability: "cap-receipts", title: "The till 2 · Receipts", files: ["packages/till/src/receipt.ts", "packages/till/src/receipt.test.ts"] }]);
   assert.deepEqual(unlistedCapabilities(owners, ["cap-drawer", "cap-receipts"], tree), [], "a branch inside its list passes");
   assert.equal(unlistedCapabilities(owners, [], tree).length, 2, "an empty list holds every capability the branch changes");
+});
+
+test("7.4 a file whose only change rewrites an import of a package the branch renames changes no capability", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "capability-list-rename-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const git = (...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: root, stdio: "pipe" });
+  const write = (files) => {
+    for (const [file, text] of Object.entries(files)) {
+      mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      writeFileSync(path.join(root, file), text);
+    }
+  };
+  git("init", "-q", "-b", "main");
+  write({
+    "packages/agent-link/package.json": JSON.stringify({ name: "@x/agent-link" }),
+    "packages/till/src/drawer.ts": "import { link } from \"@x/agent-link/sessions\";\nexport const drawer = link;\n",
+    "packages/till/src/receipt.ts": "import { link } from '@x/agent-link';\nexport const receipt = link;\n",
+    "packages/till/src/helper.ts": "import { a } from \"./a\";\nexport const helper = a;\n",
+    "packages/till/src/stamp.ts": "import { link } from \"@x/agent-link\";\nexport const stamp = link;\n",
+  });
+  git("add", "-A");
+  git("commit", "-qm", "base");
+  git("update-ref", "refs/remotes/origin/main", "HEAD");
+  git("mv", "packages/agent-link", "packages/session-management");
+  write({
+    "packages/session-management/package.json": JSON.stringify({ name: "@x/session-management" }),
+    "packages/till/src/drawer.ts": "import { link } from \"@x/session-management/sessions\";\nexport const drawer = link;\n",
+    "packages/till/src/receipt.ts": "import { link } from '@x/session-management';\nexport const receipt = link;\n",
+    "packages/till/src/helper.ts": "import { a } from \"./b\";\nexport const helper = a;\n",
+    "packages/till/src/stamp.ts": "import { link } from \"@x/session-management\";\nexport const stamp = link + 1;\n",
+    "packages/till/src/new.ts": "import { link } from \"@x/session-management\";\n",
+  });
+  const changed = ["packages/till/src/drawer.ts", "packages/till/src/receipt.ts", "packages/till/src/helper.ts", "packages/till/src/stamp.ts", "packages/till/src/new.ts"];
+  assert.deepEqual([...importRewritesOnly(root, changed)].sort(), ["packages/till/src/drawer.ts", "packages/till/src/receipt.ts"],
+    "a rewritten import of an unrenamed module, a rewrite with another change, and a new file each still change their capability");
 });
 
 test("7.4 a branch naming no increment leaves the check NOT RUN with its reason; the gate runs it on an increment's branch", async (t) => {

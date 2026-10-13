@@ -9,7 +9,7 @@
  */
 import { allocationProblems, checkoutOf } from "@storytree/guardrails";
 import type { Library } from "@storytree/library";
-import { packageOf, testedNumbers as testedNumbersIn } from "@storytree/map/code-survey";
+import { packageOf, testedNumbers as testedNumbersIn, untestedContracts as untestedIn } from "@storytree/map/code-survey";
 import { z } from "zod";
 
 import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, staleClaims, type Claim, type ClaimAnswer, type ClaimContext, type MergeWatch, type WorkspaceRefusal } from "@storytree/session-management";
@@ -205,13 +205,7 @@ async function unplacedFiles({ library, folder }: Call, capability: string): Pro
  */
 async function untestedContracts(call: Call, capability: string): Promise<string[]> {
   const tree = await call.library.projectTree();
-  const story = tree.stories.find((one) => one.capabilities.some((part) => part.id === capability));
-  if (story === undefined) return [];
-  const proven = new Set(await testedNumbers(call, capability, tree));
-  return (story.capabilities.find((part) => part.id === capability)?.contracts ?? []).map((contract) => contract.title).filter((title) => {
-    const number = /^(\d+\.\d+) · /.exec(title)?.[1];
-    return number !== undefined && !proven.has(number);
-  });
+  return untestedIn(tree, capability, await testedNumbers(call, capability, tree));
 }
 
 /** The contract numbers the numbered tests in `capability`'s story package carry, in the checkout the session works in. */

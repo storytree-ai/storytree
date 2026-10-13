@@ -4,7 +4,7 @@ import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
 import { aim, createTour, depthLink, flight, globeOf, groups, islandsKeptOff, labelsAt, labelWords, lineStarts, linesOn, momentStarts, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
-import { steps as tourSteps } from "./tour-copy.js";
+import { decisionLabel, freePlayLines, steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
@@ -237,7 +237,7 @@ test("2.16 · the map chapter plays six steps in the owner's order: the beginnin
   // its one line is said.
   assert.deepEqual(panels(empty!), [undefined]);
   assert.deepEqual(panels(arcs!), ["arcs"]);
-  assert.deepEqual(labelsAt(arcs!, 1), [{ point: "arc", text: "a plan of work: an arc" }]);
+  assert.deepEqual(labelsAt(arcs!, 1), [{ point: "arc", text: "a plan" }]);
   assert.ok(arcs!.sessionsAt! < "2026-10-05T01:53:08", "the arcs read the record before anything is held");
   assert.deepEqual([(empty!.growth as { until: string }).until, (arcs!.growth as { stage: string; until: string }).stage, (arcs!.growth as { until: string }).until], ["plans", "plans", "plans"], "the globe stays bare");
   // Step 3: one line, the owner's; each island rises as a moment within it, then the pathways come on with the last.
@@ -391,7 +391,7 @@ test("2.21 · each map line labels the one thing it talks about, in words true t
   assert.deepEqual(said("map-stories", 5), [`${JSON.stringify({ kind: "pathway", link: "capability_ed214990be99->capability_ae20917d7a32", along: .2 })} a pathway: the cart needs signing in`]);
   // Capabilities: the first territory as it arrives, then the largest of signing in's files, saying each dot is a file; then the
   // story panel, pointed out as it opens.
-  assert.deepEqual(said("map-capabilities", 1), [`${JSON.stringify({ kind: "capability", capability: "capability_323895c5a414" })} a capability`]);
+  assert.deepEqual(said("map-capabilities", 1), [`${JSON.stringify({ kind: "capability", capability: "capability_323895c5a414" })} a part`]);
   assert.deepEqual(said("map-capabilities", 2), [`${JSON.stringify({ kind: "file", story: signIn, path: "src/server/server.js" })} each dot is a file: server.js · 110 lines`]);
   assert.deepEqual(said("map-capabilities", 3), ["point:panel"]);
   // Claims: the first flag, named by the session that planted it; the arcs line has none; the sessions list is pointed out, not labelled.
@@ -555,4 +555,14 @@ test("2.25 · every step with depth offers it in one wording, and a narrated sta
   assert.deepEqual(linesOn(pain, 1, false), [true, false]);
   assert.deepEqual(linesOn(pain, 2, false), [true, true]);
   assert.deepEqual(linesOn(fixes, 2, false), [true, true, false]);
+});
+
+test("2.26 · outside the knowledge chapter the tour shows plain words: part, plan, piece of work, promise and decision, with story the one coined term", () => {
+  const coined = /\b(arcs?|capabilit(y|ies)|increments?|contracts?|ADRs?)\b/i;
+  const shown = tourSteps.filter(item => item.explainer !== "knowledge").flatMap(item => [item.title, ...item.lines, ...(item.notes ?? []), item.how ?? "", item.why ?? "",
+    item.marksNote ?? "", ...(item.chips ?? []).map(chip => chip.text), ...(item.compare?.lines.filter((_, index) => !item.compare!.sources[index]) ?? []),
+    ...Object.values(item.labels ?? {}).flat().map(label => "text" in label ? label.text ?? "" : ""), ...item.decisions.map(decision => decisionLabel(decision.number))]);
+  shown.push(...freePlayLines.shop, ...freePlayLines.storytree);
+  assert.deepEqual(shown.filter(words => coined.test(words)), []);
+  assert.ok(shown.some(words => /\bstory\b/.test(words)) && shown.some(words => /\bplan\b/.test(words)) && shown.some(words => /\bparts?\b/.test(words)));
 });

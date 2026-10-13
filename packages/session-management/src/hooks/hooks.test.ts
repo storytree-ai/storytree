@@ -1272,3 +1272,60 @@ test("3.35 a shell command that changes or deletes files in an imported folder w
     }
   });
 });
+
+test("3.36 a shell command that changes files in a capability its session's increment does not list, or that another live session holds, is told to the agent at once by the hook after it that the harness waits for, as the hook before an edit tool would refuse it; a change to a listed capability, or none, says nothing (ADR-0949 D3)", async () => {
+  await withTempDir(async (dir) => {
+    const project = uniqueProjectName();
+    const home = storytreeHome(dir, true);
+    const folder = await projectFolder(dir, project);
+    const src = path.join(folder, "packages", "visitor-can-sign-up", "src");
+    mkdirSync(src, { recursive: true });
+    writeFileSync(path.join(src, "form.ts"), "/**\n * Capability 1 · Email form\n */\n");
+    writeFileSync(path.join(src, "thanks.ts"), "/**\n * Capability 2 · Thanks page\n */\n");
+    writeFileSync(path.join(src, "footer.ts"), "/**\n * Capability 3 · Footer\n */\n");
+    git(folder, "init", "-q");
+    git(folder, "add", ".");
+    git(folder, "commit", "-q", "-m", "site");
+    const storytree = await connect({ url: testServerUrl() });
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const library = await storytree.openProject(project);
+      const story = await library.addStory({ title: "Visitor can sign up" });
+      const form = (await library.addCapability({ title: "1 · Email form", story: story.id })).id;
+      const thanks = (await library.addCapability({ title: "2 · Thanks page", story: story.id })).id;
+      await library.addCapability({ title: "3 · Footer", story: story.id });
+      const arc = await library.createArc({ title: "Launch sign-up", intent: "Ship sign-up", endState: "Visitors sign up", stories: [story.id] });
+      const held = (await library.addIncrement({ arc: arc.id, title: "email form", objective: "email form", body: "email form", capabilities: [form] })).id;
+      const mine = (await library.addIncrement({ arc: arc.id, title: "thanks page", objective: "thanks page", body: "thanks page", capabilities: [thanks] })).id;
+      assert.equal((await claim({ log, library, project, session: "holder", harness: "codex" }, held, "driving the email form")).ok, true);
+      assert.equal((await claim({ log, library, project, session: "shell", harness: "claude-code" }, mine, "driving the thanks page")).ok, true);
+      const as = (harness: "claude-code" | "codex", name: string) => JSON.stringify({ ...JSON.parse(recorded(harness, name, folder)) as object, session_id: "shell" });
+      const told = (ran: Ran) => {
+        assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
+        return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { hookSpecificOutput?: { hookEventName?: string; additionalContext?: string } }).hookSpecificOutput;
+      };
+
+      await runHook("claude-code", as("claude-code", "session-start-startup"), home);
+      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "nothing changed");
+      writeFileSync(path.join(src, "thanks.ts"), "/**\n * Capability 2 · Thanks page\n */\nexport {};\n");
+      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "the increment lists it");
+
+      writeFileSync(path.join(src, "footer.ts"), "/**\n * Capability 3 · Footer\n */\nexport {};\n");
+      const unlisted = told(await runHook("claude-code", as("claude-code", "post-tool-use-failure-bash"), home, [SHELL_GUARD]));
+      assert.equal(unlisted?.hookEventName, "PostToolUseFailure");
+      assert.match(unlisted?.additionalContext ?? "", /footer\.ts.*"3 · Footer".*does not name/s);
+      assert.match(unlisted?.additionalContext ?? "", /storytree workspace claim/, "naming the way through");
+      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "told once");
+
+      writeFileSync(path.join(src, "form.ts"), "/**\n * Capability 1 · Email form\n */\nexport {};\n");
+      const heldBy = told(await runHook("codex", as("codex", "post-tool-use-bash"), home, [SHELL_GUARD]));
+      assert.equal(heldBy?.hookEventName, "PostToolUse");
+      assert.match(heldBy?.additionalContext ?? "", /form\.ts.*"1 · Email form".*session holder holds it/s);
+      assert.match(heldBy?.additionalContext ?? "", /Back off/);
+    } finally {
+      await log.close();
+      await storytree.close();
+      await dropTestProjects([project]);
+    }
+  });
+});

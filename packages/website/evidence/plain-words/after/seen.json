@@ -1,0 +1,173 @@
+{
+  "errors": [],
+  "seen": [
+    {
+      "name": "1440-map-arcs-3s",
+      "title": "The plan comes first.",
+      "lines": [
+        "Tell your agents what you want to build and they will set up a plan of work."
+      ],
+      "arcs": {
+        "x": 58,
+        "y": 140,
+        "width": 400,
+        "height": 92
+      },
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "tags": [
+        "a plan"
+      ]
+    },
+    {
+      "name": "1440-map-capabilities-3s",
+      "title": "Parts and your code.",
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "tags": [
+        "a part"
+      ]
+    },
+    {
+      "name": "1440-map-capabilities-9s",
+      "title": "Parts and your code.",
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "tags": [
+        "each dot is a file: server.js · 110 lines"
+      ]
+    },
+    {
+      "name": "1440-map-claims-3s",
+      "title": "Agents claim their work.",
+      "lines": [
+        "Agents claim the parts they will work on before they start, so each can see what the others are working on."
+      ],
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "tags": [
+        "Part 2: product page, sorting, cart"
+      ]
+    },
+    {
+      "name": "1440-map-health-3s",
+      "title": "Health.",
+      "lines": [
+        "As your automated tests run in CI, storytree shows you which parts are healthy and which need your attention."
+      ],
+      "drawing": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      },
+      "tags": [
+        "not proved yet"
+      ]
+    },
+    {
+      "name": "390-map-arcs-3s",
+      "title": "The plan comes first.",
+      "lines": [
+        "Tell your agents what you want to build and they will set up a plan of work."
+      ],
+      "arcs": {
+        "x": 0,
+        "y": 48,
+        "width": 390,
+        "height": 89
+      },
+      "drawing": {
+        "x": 0,
+        "y": 104,
+        "width": 390,
+        "height": 309
+      },
+      "tags": [
+        "a plan"
+      ]
+    },
+    {
+      "name": "390-map-capabilities-3s",
+      "title": "Parts and your code.",
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 333
+      },
+      "tags": []
+    },
+    {
+      "name": "390-map-capabilities-9s",
+      "title": "Parts and your code.",
+      "lines": [
+        "Each story shows the parts that make it work."
+      ],
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 333
+      },
+      "tags": [
+        "each dot is a file: server.js · 110 lines"
+      ]
+    },
+    {
+      "name": "390-map-claims-3s",
+      "title": "Agents claim their work.",
+      "lines": [
+        "Agents claim the parts they will work on before they start, so each can see what the others are working on."
+      ],
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 333
+      },
+      "tags": []
+    },
+    {
+      "name": "390-map-health-3s",
+      "title": "Health.",
+      "lines": [
+        "As your automated tests run in CI, storytree shows you which parts are healthy and which need your attention."
+      ],
+      "drawing": {
+        "x": 0,
+        "y": 72,
+        "width": 390,
+        "height": 333
+      },
+      "tags": [
+        "not proved yet"
+      ]
+    }
+  ]
+}

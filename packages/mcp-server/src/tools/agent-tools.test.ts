@@ -499,6 +499,27 @@ test("6.50 plan_contract numbers a new contract past the numbers its capability'
   });
 });
 
+test("6.73 plan_contract's reply names the capability's other contracts that no numbered test carries yet, so a lane reuses a backed-off lane's promise instead of planning a duplicate", async () => {
+  await withProject(async ({ folder }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const story = idOf(await agent.call("plan_story", { title: "Shopping cart", ...FOUNDED }));
+      const capability = idOf(await agent.call("plan_capability", { story, title: "Adding", ...FOUNDED }));
+      const src = path.join(folder, "packages/shopping-cart/src");
+      mkdirSync(src, { recursive: true });
+      writeFileSync(path.join(folder, "packages/shopping-cart/package.json"), JSON.stringify({ name: "shopping-cart" }));
+      writeFileSync(path.join(src, "cart.test.js"), 'import { test } from "node:test";\ntest("1.1 adds", () => {});\n');
+      await agent.call("plan_contract", { capability, title: "1.1 · Adds an item" });
+      await agent.call("plan_contract", { capability, title: "Refuses a sold-out item" });
+
+      const planned = await agent.call("plan_contract", { capability, title: "Removes an item" });
+      assert.equal(planned.isError, false, planned.text);
+      assert.match(planned.text, /1\.3 · Removes an item/);
+      assert.match(planned.text, /1\.2 · Refuses a sold-out item/, "the untested contract an earlier lane planned is named");
+      assert.deepEqual(planned.data.untested, ["1.2 · Refuses a sold-out item"], "neither the tested contract nor the one just planned is named");
+    });
+  });
+});
+
 test("6.57 plan_contract plans a contract whose title runs past 300 characters, adding an advisory line that quotes the card's definition of a contract; a shorter title gets none", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

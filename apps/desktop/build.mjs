@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
 import { journeyDefine } from "@storytree/journey-events/release";
+import { partsPlugin } from "@storytree/plugin-loader";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, "dist");
@@ -31,6 +32,8 @@ await build({
   // local-postgres finds its binaries from its own location (import.meta.url) only when not told
   // where they are; the app always tells it (main.ts: postgresBinaries), so that path is never taken.
   logOverride: { "empty-import-meta": "silent" },
+  // The parts storytree's own story packages name in their manifests, composed in from this app's dependencies (ADR-1021).
+  plugins: [partsPlugin({ host: here })],
   // A release build stamps in PostHog's public project token (never a private key); others share nothing.
   // A build offering sign-in for feedback (the staging build) stamps in WorkOS's public client ID (app setup contract 5.6);
   // the app checks its token itself and offers no sign-in without the ID. It is not a secret.

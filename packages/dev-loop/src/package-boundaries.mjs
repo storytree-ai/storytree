@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>). */
-export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "lag-in-use", "knowledge-core", "librarian", "library", "local-postgres", "map", "mark", "mcp-server", "processes", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
+export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "lag-in-use", "knowledge-core", "librarian", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "processes", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
@@ -34,6 +34,7 @@ export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "
 // mark: story_b846911f0fc9 (The mark).
 // reading-the-front-doors: story_f8cd75d15d57 (Reading the front doors, ADR-0998).
 // lag-in-use: story_1c73ed7506ca (Lag in real use, ADR-1001 D4).
+// plugin-loader: story_09e58d68f87c (Plugin loader, ADR-1021).
 
 /**
  * Story code the frame still holds, each with the open question on storytree-0-3-scales-arc that

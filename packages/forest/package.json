@@ -12,6 +12,15 @@
     "./page": "./src/render/page.ts",
     "./snapshot": "./src/snapshot/forest-snapshot.ts"
   },
+  "storytree": {
+    "surfaces": [
+      {
+        "from": "./surfaces",
+        "export": "forestSurfaces",
+        "order": 1
+      }
+    ]
+  },
   "scripts": {
     "typecheck": "tsc -p ."
   },

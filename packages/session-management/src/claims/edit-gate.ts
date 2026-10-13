@@ -130,7 +130,7 @@ async function refusalOf(context: GateContext, checkout: string, files: readonly
 /** A capability a user's yes named, with what it covered then. */
 interface AllowedCapability {
   readonly capability: string;
-  readonly covers: readonly string[];
+  readonly covers: string[];
 }
 
 /**

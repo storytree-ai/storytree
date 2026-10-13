@@ -1,5 +1,5 @@
 /** Capability 2 · The forest on the site. */
-import type { CSSProperties } from "react";
+import React, { type CSSProperties } from "react";
 
 /**
  * The diagram in the top left (ADR-1018 D7): a drawing, not the globe, of how a decision is kept inside it, in three beats: an

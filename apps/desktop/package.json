@@ -41,6 +41,7 @@
   },
   "optionalDependencies": {
     "@embedded-postgres/darwin-arm64": "17.10.0-beta.17",
+    "@embedded-postgres/linux-x64": "17.10.0-beta.17",
     "@embedded-postgres/windows-x64": "17.10.0-beta.17"
   },
   "build": {
@@ -140,6 +141,26 @@
         }
       ],
       "artifactName": "storytree-0.3-${version}-mac-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "executableName": "storytree-0.3",
+      "icon": "../../packages/mark/icons/day/512.png",
+      "category": "Development",
+      "extraResources": [
+        {
+          "from": "node_modules/@embedded-postgres/linux-x64/native",
+          "to": "postgres"
+        }
+      ],
+      "artifactName": "storytree-0.3-${version}-linux-x86_64.${ext}"
     },
     "nsis": {
       "artifactName": "storytree-0.3-${version}-setup.${ext}",

@@ -1,7 +1,7 @@
 // What each platform contributes to a release (4.6). Every platform's runner uploads its own set into
 // one draft, and the draft is published only when every platform's required set is there, so an
-// installed app on any platform never meets a release that lacks its update feed. A new platform
-// (Linux, increment_5dd01490bd03) is one more entry here.
+// installed app on any platform never meets a release that lacks its update feed. A new platform is
+// one more entry here.
 export const PLATFORMS = {
   windows: {
     required: (version) => [
@@ -21,11 +21,16 @@ export const PLATFORMS = {
     ],
     uploads: (name) => /^(latest-mac\.yml|install-storytree\.sh|install-storytree-mac(-development)?\.txt|storytree-delivery-mac\.json)$/.test(name) || /\.(zip|dmg)(\.blockmap)?$/.test(name),
   },
+  linux: {
+    // An AppImage carries its blockmap inside it, so its update feed is its only companion.
+    required: (version) => [`storytree-0.3-${version}-linux-x86_64.AppImage`, "latest-linux.yml"],
+    uploads: (name) => name === "latest-linux.yml" || name.endsWith(".AppImage"),
+  },
 };
 
 /** The platform whose assets this runner builds and uploads. */
 export function hostPlatform(platform = process.platform) {
-  const name = { win32: "windows", darwin: "mac" }[platform];
+  const name = { win32: "windows", darwin: "mac", linux: "linux" }[platform];
   if (!name) throw new Error(`No release platform is packaged on ${platform}`);
   return name;
 }

@@ -1,7 +1,7 @@
 // Packaging adapter: reuse the app setup's build, then stage the host platform's native runtimes:
-// both Windows architectures on Windows, Apple Silicon on macOS.
+// both Windows architectures on Windows, Apple Silicon on macOS, x64 on Linux.
 import { buildBins, buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/app-setup/bins";
-import { macRuntime, NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
+import { linuxRuntime, macRuntime, NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
 import { closeSync, cpSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
@@ -132,7 +132,8 @@ export async function stageTools(platform = process.platform) {
   const version = process.env.STORYTREE_RELEASE_VERSION;
   const release = version === undefined ? undefined : { version, commit: execFileSync("git", ["-C", here, "rev-parse", "--short=7", "HEAD"], { encoding: "utf8" }).trim() };
   // Apple Silicon only (decision_dfb6e40aa9f7); sharp's darwin binaries install only on a Mac, so a Mac payload is staged there.
-  const archs = { win32: ["x64", "arm64"], darwin: ["arm64"] }[platform];
+  // Linux is x64 only (arc_38613dac8d7c), staged on a Linux host for the same reason.
+  const archs = { win32: ["x64", "arm64"], darwin: ["arm64"], linux: ["x64"] }[platform];
   if (!archs) throw new Error(`No desktop tool payload for ${platform}`);
   await buildToolBundle(common, { platform, arch: archs[0], release });
   for (const arch of archs) {
@@ -144,7 +145,7 @@ export async function stageTools(platform = process.platform) {
       // The `storytree` command for this architecture: a program of its own (ADR-0854).
       buildLauncher(path.join(dir, LAUNCHER_PROGRAM), arch);
       await stageRuntime(path.join(dir, "node.exe"), windowsRuntime(arch));
-    } else await stageRuntime(path.join(dir, "node"), macRuntime(arch));
+    } else await stageRuntime(path.join(dir, "node"), platform === "darwin" ? macRuntime(arch) : linuxRuntime(arch));
     const license = await fetch(`https://raw.githubusercontent.com/nodejs/node/v${NODE_VERSION}/LICENSE`, { signal: AbortSignal.timeout(30_000) });
     if (!license.ok) throw new Error(`Could not download the Node ${NODE_VERSION} license`);
     writeFileSync(path.join(dir, "NODE-LICENSE"), await license.text());

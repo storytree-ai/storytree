@@ -1,14 +1,14 @@
 // GitHub Actions' release front door. No builds or publication happen on import.
 // Source selection runs from main; the verified commit is then checked out in the build jobs.
 import { execFileSync, spawnSync } from "node:child_process";
-import { appendFileSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { releaseSource, versionAt } from "../../packages/app/src/updates/release-source.ts";
 import { INSTALL_COMMAND, MAC_INSTALL_COMMAND, mergeDelivery } from "./delivery-assets.mjs";
 import { hostPlatform, missingAssets, platformUploads, PLATFORMS } from "./release-assets.mjs";
-import { macReleaseNote } from "./mac-signing.mjs";
+import { macReleaseNote, withMacNote } from "./mac-signing.mjs";
 
 const repository = "storytree-ai/storytree";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
@@ -76,6 +76,15 @@ if (process.argv[2] === "source") {
       const missing = PLATFORMS[platform].required(version).filter((name) => !files.includes(name));
       if (missing.length > 0) throw new Error(`Missing ${platform} release assets: ${missing.join(", ")}`);
       gh("release", "upload", tag, ...files.map((file) => path.join(dir, file)), "--repo", repository, "--clobber");
+      // The draft's Mac sentence was written before the build; now say what Apple answered (contract 4.20).
+      if (platform === "mac") {
+        const answer = path.join(dir, "mac-notarisation.json");
+        const mode = !existsSync(answer) ? "ad-hoc" : JSON.parse(readFileSync(answer, "utf8")).notarised ? "notarised" : "pending";
+        const body = gh("release", "view", tag, "--repo", repository, "--json", "body", "--jq", ".body");
+        const notesFile = path.join(mkdtempSync(path.join(tmpdir(), "storytree-notes-")), "notes.md");
+        writeFileSync(notesFile, withMacNote(body, mode));
+        gh("release", "edit", tag, "--repo", repository, "--notes-file", notesFile);
+      }
     } else {
       const missing = missingAssets(release.assets.map((asset) => asset.name), version);
       if (Object.keys(missing).length > 0) throw new Error(`Release ${tag} is incomplete: ${JSON.stringify(missing)}`);
@@ -112,8 +121,9 @@ function notes(command, macCommand, sha) {
     "",
     `Windows x64 and arm64 installer, built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
     "",
-    // The draft is written before the Mac build, so the workflow says whether its certificate is set.
-    macReleaseNote(process.env.STORYTREE_MAC_SIGNED === "true"),
+    // The draft is written before the Mac build, so the workflow says whether its certificate is set; the Mac upload
+    // replaces this with Apple's answer.
+    macReleaseNote(process.env.STORYTREE_MAC_SIGNED === "true" ? "pending" : "ad-hoc"),
     "",
     "Development installations follow every published build. To install development explicitly, use the command in install-storytree-development.txt (Windows) or install-storytree-mac-development.txt (Mac and Linux). Existing installations retain their channel.",
   ].join("\n");

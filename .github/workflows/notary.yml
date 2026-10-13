@@ -1,0 +1,32 @@
+name: Read Apple's notarisation answers
+
+# Prints Apple's answer to each notarisation submission (id, date and status) and, given a submission's id, what
+# Apple objected to in it (its status summary and issues), so a session can read Apple's answer from CI
+# (increment_7460a5162816). Started by hand: `gh workflow run notary.yml [-f submission=<id>]`. The Apple key is
+# written to a file for notarytool and deleted after; nothing prints a secret.
+on:
+  workflow_dispatch:
+    inputs:
+      submission:
+        description: A submission id whose log to print (optional)
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  read:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: node apps/desktop/mac-signing.mjs history
+        env:
+          NOTARY_SUBMISSION: ${{ inputs.submission }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}

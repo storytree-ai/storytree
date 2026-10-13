@@ -1,7 +1,8 @@
 // Package the host's platform. On Windows: x64/arm64 in one NSIS installer, keeping win-arm64-unpacked/
 // and the arm64 portable exe for existing development uses. On macOS: an Apple Silicon .app as a zip
 // (the update feed's) and a dmg, ad-hoc signed until a Developer ID is configured (then signed as the
-// identity mac-signing.mjs prepare put in a keychain, and notarised). On Linux: an x64 AppImage, whose update
+// identity mac-signing.mjs prepare put in a keychain, and submitted to Apple, whose answer is waited for only
+// until a bound and written to release/mac-notarisation.json for the upload's release note). On Linux: an x64 AppImage, whose update
 // feed is latest-linux.yml; its one-command delivery is the curl install's. Only the release workflow publishes:
 // even with GH_TOKEN or a tag in the environment, this command only builds artifacts and update metadata.
 //
@@ -15,7 +16,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stageTools } from "./tools.mjs";
 import { deliveryAssets, linuxDeliveryAssets, macDeliveryAssets } from "./delivery-assets.mjs";
-import { builderEnv, macSigning } from "./mac-signing.mjs";
+import { builderEnv, macBuilderConfig, macSigning, notariseApp } from "./mac-signing.mjs";
 
 process.env.ELECTRON_BUILDER_7Z_FILTER ??= "BCJ";
 const version = process.env.STORYTREE_RELEASE_VERSION;
@@ -26,8 +27,8 @@ await stageTools();
 // Ad-hoc signing holds no secret, so a pull request's build signs too and CI proves the signature.
 // A certificate without Apple's notarisation key is refused here, before anything builds (contract 4.20).
 const signing = mac ? macSigning(process.env) : undefined;
-const identity = signing?.mode === "ad-hoc" ? { mac: { identity: signing.identity, notarize: signing.notarize } } : {};
-if (identity.mac) process.env.CSC_FOR_PULL_REQUEST = "true";
+const identity = signing ? { mac: macBuilderConfig(signing) } : {};
+if (signing?.mode === "ad-hoc") process.env.CSC_FOR_PULL_REQUEST = "true";
 if (mac) {
   const env = builderEnv(process.env);
   for (const name of ["CSC_LINK", "CSC_KEY_PASSWORD"]) delete process.env[name];
@@ -42,4 +43,7 @@ await build({
   ...(Object.keys(extraMetadata).length === 0 ? {} : { config: { extraMetadata, ...identity } }),
 });
 const here = path.dirname(fileURLToPath(import.meta.url));
-(mac ? macDeliveryAssets : process.platform === "linux" ? linuxDeliveryAssets : deliveryAssets)(path.join(here, "release"), version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version);
+const built = version ?? JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version;
+const release = path.join(here, "release");
+if (signing?.notarize) await notariseApp(path.join(release, `storytree-0.3-${built}-mac-arm64.zip`), path.join(release, "mac-notarisation.json"));
+(mac ? macDeliveryAssets : process.platform === "linux" ? linuxDeliveryAssets : deliveryAssets)(release, built);

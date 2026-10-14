@@ -300,3 +300,55 @@ test("13.11 · a pull request handed over to keep its increment open is watched 
   assert.equal(record.keepOpen, true); assert.equal(record.session, SESSION);
   assert.match(outs[0], /stays open/);
 });
+
+test("13.14 · a fix session refused by another session's claim hands back without counting, and is retried once the holder's session ends", async (t) => {
+  const b = await box(t);
+  await handOff(b, 41, "increment_one");
+  await handOff(b, 42, "increment_two");
+  b.looks[41] = red;
+  b.looks[42] = red;
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 2);
+  assert.match(b.fixes[1].brief, /watch\.mjs hand 42 increment_two --refused/, "the brief says how to hand back a refusal");
+  // #42's session is refused (#41's session holds what it needs), hands back with --refused, and ends.
+  await hand({ ...b.options, pr: 42, increment: "increment_two", session: SESSION, refused: true, startWatcher: async () => {} });
+  b.live.delete(1002);
+  for (let round = 0; round < 3; round++) await watchOnce(b.options);
+  assert.equal(b.fixes.length, 2, "no retry while the holder's fix session runs");
+  b.live.clear();
+  await watchOnce(b.options);
+  assert.deepEqual(b.fixes.map((fix) => fix.pr), [41, 42, 41], "#41's next session starts; #42 waits while it runs");
+  b.live.clear();
+  await watchOnce(b.options);
+  assert.deepEqual(b.fixes.map((fix) => fix.pr), [41, 42, 41, 42], "retried once no other fix session runs");
+  assert.match(b.fixes[3].brief, /Fix session 1 of 2/, "the refusal is not counted");
+  b.live.clear();
+  await watchOnce(b.options);
+  assert.ok(b.calls.some(([, , verb, inc, , waitFor]) => verb === "wait" && inc === "increment_one" && waitFor === "owner"), "#41 used its two");
+  assert.ok(!b.calls.some(([, , verb, inc, , waitFor]) => verb === "wait" && inc === "increment_two" && waitFor === "owner"),
+    "#42's refusal leaves it one more");
+  assert.equal(b.fixes.filter((fix) => fix.pr === 42).length, 3);
+});
+
+test("13.15 · pull requests that conflict with main are merged one at a time, lowest first, and none waits on the owner for it", async (t) => {
+  const b = await box(t);
+  const conflict = readPull(pull({ checks: [passed], mergeable: "CONFLICTING" }), { since: minutes(-60), now: at, graceMs: 0 });
+  for (const pr of [43, 41, 42]) { await handOff(b, pr, `increment_${pr}`); b.looks[pr] = conflict; }
+  await watchOnce(b.options);
+  assert.deepEqual(b.fixes.map((fix) => fix.pr), [41], "one merge session at a time");
+  await watchOnce(b.options);
+  assert.deepEqual(b.fixes.map((fix) => fix.pr), [41]);
+  b.live.clear();
+  b.looks[41] = { state: "merged", head: "h2" };
+  await watchOnce(b.options);
+  assert.deepEqual(b.fixes.map((fix) => fix.pr), [41, 42], "the next sibling once the first is done");
+  b.looks[42] = { state: "pending", head: "h2" };
+  b.live.clear();
+  await watchOnce(b.options);
+  assert.deepEqual(b.fixes.map((fix) => fix.pr), [41, 42, 43]);
+  b.looks[44] = red;
+  await handOff(b, 44, "increment_44");
+  await watchOnce(b.options);
+  assert.deepEqual(b.fixes.map((fix) => fix.pr), [41, 42, 43, 44], "a red that is no conflict does not wait for the merge");
+  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"));
+});

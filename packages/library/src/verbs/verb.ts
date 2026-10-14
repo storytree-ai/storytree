@@ -18,14 +18,17 @@ import type { WriteOptions } from "../schema/index.js";
  * left out it reads as nothing when `optional`, and given as only whitespace it is refused unless `blank`, which reads it as
  * empty, and kept as given, its leading and trailing whitespace included, when `verbatim`; with `many`, it is every such string, each word from `word` on or each
  * `--flag` given, and left out it reads as none when `optional`. `yes-no` is a boolean, a command's `--flag yes|no`;
- * `switch` is a boolean that is false unless given, a command's bare `--flag`. `fields` is an open set: each of a
- * command's `--<field> <value>` its other inputs do not name, by field, its values as given.
+ * `switch` is a boolean that is false unless given, a command's bare `--flag`. `count` is a whole number above 0, a
+ * command's `--flag <n>`, and left out it reads as nothing when `optional`. `fields` is an open set: each of a
+ * command's `--<field> <value>` its other inputs do not name, by field, its values as given; with `json`, each value is
+ * any JSON value, a tool's as given and a command's read by `fieldValue`.
  */
 export type VerbInput =
   | { readonly kind: "text"; readonly describe: string; readonly word?: number; readonly optional?: true; readonly many?: true; readonly blank?: true; readonly verbatim?: true }
   | { readonly kind: "yes-no"; readonly describe: string }
   | { readonly kind: "switch"; readonly describe: string }
-  | { readonly kind: "fields"; readonly describe: string };
+  | { readonly kind: "count"; readonly describe: string; readonly optional?: true }
+  | { readonly kind: "fields"; readonly describe: string; readonly json?: true };
 
 export type VerbInputs = Readonly<Record<string, VerbInput>>;
 
@@ -35,11 +38,27 @@ export type InputOf<I extends VerbInputs> = { readonly [K in keyof I]:
   : I[K] extends { kind: "text"; optional: true } ? string | undefined
   : I[K] extends { kind: "text" } ? string
   : I[K] extends { kind: "yes-no" | "switch" } ? boolean
+  : I[K] extends { kind: "count"; optional: true } ? number | undefined
+  : I[K] extends { kind: "count" } ? number
+  : I[K] extends { kind: "fields"; json: true } ? Readonly<Record<string, unknown>>
   : I[K] extends { kind: "fields" } ? Readonly<Record<string, string>>
   : VerbValue };
 
 /** Any one input's value. */
-export type VerbValue = string | boolean | undefined | readonly string[] | Readonly<Record<string, string>>;
+export type VerbValue = string | number | boolean | undefined | readonly string[] | Readonly<Record<string, unknown>>;
+
+/** A field's value given as text: JSON when it is `true`, `false`, a whole number, a list or an object, else the text. */
+export function fieldValue(text: string): unknown {
+  const trimmed = text.trim();
+  if (trimmed === "true" || trimmed === "false" || /^-?\d+$/.test(trimmed) || trimmed.startsWith("[") || trimmed.startsWith("{")) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return text;
+    }
+  }
+  return text;
+}
 
 /** How a door names a step: the tool, the command (after `storytree `), or both. */
 export interface Step {

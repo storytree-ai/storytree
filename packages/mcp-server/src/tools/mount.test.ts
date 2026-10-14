@@ -89,3 +89,28 @@ test("6.77 a mounted verb's many text input is a list of non-empty strings in it
   assert.equal(tool.input.safeParse({ trees: ["oak", ""] }).success, false);
   assert.equal(tool.input.safeParse({ trees: ["oak"], labels: { oak: true } }).success, false);
 });
+
+test("6.78 a mounted verb's count input is a whole number above 0 in its tool call, left out only when optional, and its fields input marked json an optional object of any values", async () => {
+  const measures = verb({
+    command: { family: "bed", name: "measure", summary: "measure a bed" },
+    tool: { name: "measure_bed", description: "Measure a bed." },
+    inputs: {
+      rows: { kind: "count", describe: "how many rows" },
+      limit: { kind: "count", optional: true, describe: "how many to measure" },
+      notes: { kind: "fields", json: true, describe: "a note on each bed" },
+    },
+    async act({ rows, limit, notes }) {
+      return { text: `Measured ${rows} rows, ${limit ?? "every"} bed, notes ${JSON.stringify(notes)}.` };
+    },
+  });
+  const served = new Map<string, { input: z.ZodObject; act: (args: Record<string, unknown>, call: Call) => Promise<Answer> }>();
+  const define = ((name, _description, input, act) => served.set(name, { input, act: act as never })) as Define;
+  mountTools(define, [measures]);
+  const call = { caller: { session: "s1" }, folder: process.cwd() } as unknown as Call;
+  const tool = served.get("measure_bed")!;
+
+  const full = tool.input.parse({ rows: 3, limit: 2, notes: { oak: ["by the gate"], elm: { height: 4 } } });
+  assert.equal((await tool.act(full, call)).text, `Measured 3 rows, 2 bed, notes {"oak":["by the gate"],"elm":{"height":4}}.`);
+  assert.equal((await tool.act(tool.input.parse({ rows: 3 }), call)).text, "Measured 3 rows, every bed, notes {}.");
+  for (const rows of [0, 2.5, "3", undefined]) assert.equal(tool.input.safeParse({ rows }).success, false, `rows ${String(rows)} is refused`);
+});

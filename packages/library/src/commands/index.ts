@@ -3,8 +3,8 @@
  * manifest's `verbs`, first among `storytree`'s families: read any record whole (several, and the records they link to,
  * in one start), list a kind, search the artifacts, see what links to an artifact and a record's history, all through
  * the library's own reads; write a new record of any kind, edit named fields of one, or retire one with its reason and
- * writer. Long text can come from a file; refusals are the library's own messages. No verb is a tool yet: the MCP
- * server keeps search_notes, open and write_note in its own code.
+ * writer. Long text can come from a file; refusals are the library's own messages. No verb is a tool: an agent searches,
+ * opens, writes and corrects artifacts with the tools the library declares beside them (notes.ts), which record its reads.
  *
  * - `new` hands the fields to the one library function that writes that kind, and the library
  *   judges them. A new contract skips the numbers its story package's tests carry, and one whose title runs past
@@ -26,12 +26,13 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 import { CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "../index.js";
-import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
+import { fieldValue, verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 
-/** A claim as the door reads it: the session holding it, the increment it is for when it is one, and since when. */
+/** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
 export interface HeldClaim {
   readonly session: string;
   readonly increment?: string | undefined;
+  readonly capability?: string | undefined;
   readonly since: string;
 }
 
@@ -54,22 +55,9 @@ function labelOf(fields: Readonly<Fields>): string {
   return line.length > 100 ? `${line.slice(0, 99)}…` : line;
 }
 
-/** A field's value: text, or JSON for `true`, `false`, a whole number, a list or an object. */
-function valueOf(text: string): unknown {
-  const trimmed = text.trim();
-  if (trimmed === "true" || trimmed === "false" || /^-?\d+$/.test(trimmed) || trimmed.startsWith("[") || trimmed.startsWith("{")) {
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      return text;
-    }
-  }
-  return text;
-}
-
 /** The fields given, each value read as `new` reads it. */
 function fieldsOf(given: Readonly<Record<string, string>>): Fields {
-  return Object.fromEntries(Object.entries(given).map(([name, text]) => [name, valueOf(text)]));
+  return Object.fromEntries(Object.entries(given).map(([name, text]) => [name, fieldValue(text)]));
 }
 
 /** Comma-separated ids: refuse a shell-joined word, never infer its intended ids. */
@@ -154,7 +142,7 @@ const ELSEWHERE: Readonly<Record<string, string>> = {
   resteer: "storytree resteer new",
 };
 
-const NOT_A_TOOL = { absent: "the MCP server keeps search_notes, open and write_note in its own code for now" } as const;
+const NOT_A_TOOL = { absent: "an agent's artifact tools are search_notes, open, write_note and correct_note, which record its reads" } as const;
 
 const search = verb({
   command: { family: "library", name: "search", summary: "the artifacts, stories, capabilities and contracts closest in meaning to the words, best first (10 unless --limit)", usage: "library search <words…> [--limit <n>]" },
@@ -427,7 +415,7 @@ const list = verb({
     const filters = where.map((one) => {
       const equals = one.indexOf("=");
       if (equals < 1) throw new VerbRefusal(`--where needs <field>=<value>, not ${JSON.stringify(one)}`, { misuse: true });
-      return { field: one.slice(0, equals), value: valueOf(one.slice(equals + 1)) };
+      return { field: one.slice(0, equals), value: fieldValue(one.slice(equals + 1)) };
     });
     const matching = (await context.library.list(kind as RecordType))
       .filter((record) => filters.every(({ field, value }) => isDeepStrictEqual((record.fields as Fields)[field], value)));
@@ -462,6 +450,8 @@ const history = verb({
     ])].join("\n") };
   },
 });
+
+export { NOTE_TOOLS, type Found, type NoteRead, type NoteToolContext, type Presenter } from "./notes.js";
 
 /** The library's command family, which the package's manifest names under `verbs` (ADR-1033), first among `storytree`'s. */
 export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{

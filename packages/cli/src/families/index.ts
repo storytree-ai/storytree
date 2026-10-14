@@ -14,8 +14,6 @@ import { doctorFamily, setupFamily } from "./doctor.js";
 import { doors } from "./doors.js";
 import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
-import { journeyFamily } from "./journey.js";
-import { lag } from "./lag.js";
 import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
 import { processes } from "./processes.js";
@@ -36,7 +34,6 @@ export const GUESSES: Readonly<Record<string, string>> = {
 const KEPT: readonly Family[] = [
   library,
   doors,
-  lag,
   doctorFamily,
   checkFamily,
   quality,
@@ -51,7 +48,6 @@ const KEPT: readonly Family[] = [
   importFamily,
   processes,
   settings,
-  journeyFamily,
   auth,
   signIn,
   accountStatus,

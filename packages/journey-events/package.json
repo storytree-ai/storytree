@@ -8,12 +8,14 @@
     "./bridge": "./src/bridge.ts",
     "./runtime": "./src/runtime.ts",
     "./deletion": "./src/deletion.ts",
-    "./release": "./src/release.ts"
+    "./release": "./src/release.ts",
+    "./verbs": "./src/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@storytree/project-and-caller": "workspace:*",
     "posthog-node": "5.55.0"
   },
   "devDependencies": {
@@ -21,5 +23,13 @@
     "happy-dom": "catalog:",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "JOURNEY_FAMILIES"
+      }
+    ]
   }
 }

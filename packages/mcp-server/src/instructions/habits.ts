@@ -6,87 +6,25 @@
  * app setup writes when it connects Codex. The starter roles are named by check_setup, not here:
  * both harnesses' first sessions opened them from that alone (increment_a3786e385e28).
  *
+ * Each story's package declares its own section in its manifest (the guidance kind, ADR-1021), and the card is
+ * composed from the packages the server mounts, in their manifests' order (contract 7.10). Only the opening and the
+ * closing are the server's own: what storytree is and what to do when it is not running speak of storytree as a
+ * whole, and belong to no one story.
+ *
  * The card names each tool in backticks, and uses backticks for nothing else: its tests hold it to
  * naming exactly the tools the server has, within 60 lines.
  */
 import { CONTRACT_DEFINITION } from "@storytree/library";
-import { decisionRights } from "@storytree/project-and-caller";
-
-const DECISION_RIGHTS = decisionRights();
-
-const DECISION_RIGHTS_LINES = [
-  "Who decides what.",
-  `- Decide yourself, and record what you chose: ${DECISION_RIGHTS.decides.join("; ")}.`,
-  `- Ask the owner before: ${DECISION_RIGHTS.asks.join("; ")}.`,
-  `- ${DECISION_RIGHTS.delegations}`,
-  `- ${DECISION_RIGHTS.override}`,
-  `- No file moves these: ${DECISION_RIGHTS.honesty.join("; ")}.`,
-].join("\n");
-
-/**
- * How to build beside mapped code (contract 7.9, ADR-0993 D4, D8 to D11, as ADR-1015 narrows D4 and D10 and ADR-1020 narrows D9 and D10): the
- * card carries it whole, so the setup check can hand a project with imports the same words.
- */
-export const MAPPED_CODE_GUIDANCE = [
-  "Build beside mapped code.",
-  "- A mapped story is code imported from a project that was here before storytree: assume it works.",
-  "- Before changing or deleting anything in the imported project, stop and ask the user, even when an increment names the change. Say what would change there and what it costs, and offer the ways on: change it there, bring that part into this project, retire it, or leave it and build on top. Do what the user says.",
-  "- The imported project and this one are separate after the import: do not watch the old project for changes, and call `import_project` again only when the user asks.",
-  "- Build new stories on top in their own packages, each depending on the mapped package by a link: to its folder under its own name (file: under npm, which has no link:). It declares no exports, so import its files by path; match its module type and path aliases, and link its single copy of its framework and type packages.",
-  "- Old code never imports new code. Wiring the old project to import a package here is the user's own business: storytree does not draw or watch it, so say that plainly before you do it on their yes.",
-  "- Bringing in a part of an app's screens means bringing in what serves the screens whole: a package here that serves every page and imports what it does not touch from the imported folder. Offer that, or changing it at source. For Next.js: copy the route folder unchanged, less what the old code imports back, with public/, the middleware or proxy, instrumentation and .env files; a next.config that spreads the old one and sets turbopack.root to the folder holding both; a tsconfig whose path aliases point at the imported folder; and its node_modules a link to the old project's, one copy of the framework.",
-  "- Test the interface your package has with the old code.",
-  "- Before asking about a part in its middle, give `focus` the part's folders as its crossing: it counts the files that import it and the files it imports. Bring those numbers to the user, and say so when the part is too large to move.",
-].join("\n");
+import GUIDANCE from "#parts/guidance";
 
 /** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (6.57). */
 export { CONTRACT_DEFINITION };
 
-const HABITS_CARD = `storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.
+const OPENING = "storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.";
 
-Start every session with \`check_setup\`, and do what it says. When it offers a newer starter pack, call \`take_starter_pack\` only if the user says yes: it never overwrites what they edited. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call \`set_up_project\` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only when they ask to add this computer's copy of a project they already have elsewhere. Once the project is set up, or when it adopts a pipeline, call \`wire_pipeline\` with its test command: it adds the tests and storytree's check to the project's CI, the checks storytree owns, so never write your own. Branch protection is a repository setting: propose it as \`wire_pipeline\` words it, and turn it on only if the user approves. To build on an existing JavaScript or TypeScript project, call \`import_project\` with its folder when the user asks: each package it declares becomes a mapped story, and nothing is written into it.
+const CLOSING = "If storytree says it isn't running, carry on without it.";
 
-Plan first.
-- \`focus\` shows what a file, capability, promise or story depends on (up) and what depends on it (down). Start with counts, then dry_run or a narrowed show; an oversized show refuses with counts.
-- \`show_plan\` shows the plan: every story, capability and contract with its health, who holds what, and which sessions are about. \`health_worklist\` lists the oldest capabilities that are not healthy, with why and who moves each: route each into an increment whose capabilities list names it, held on a question when only the owner can move it.
-- Plan a story (something a user can do) with \`plan_story\`, the parts that make it work with \`plan_capability\`, and each testable promise with \`plan_contract\`. ${CONTRACT_DEFINITION} A story or capability starts with its founding decision: what it is for, and the one choice that shapes it. Group stories under an initiative with \`plan_arc\`. Correct any of them with \`edit_plan\`, and \`retire_from_plan\` a capability or contract no longer wanted, with the reason.
-- Break an arc's work into increments with \`park_increment\` (the breakdown goes in its body, its capabilities list left empty); claiming one starts it, and as you plan it you fill its capabilities list, the capabilities it changes and nothing else, with \`edit_plan\`, citing its stories as links. \`move_increment\` re-homes one on another arc, keeping its id. \`add_remedies\` makes a parked one the fix for friction. \`park_arc\` parks or unparks an arc.
-- When one piece of work must wait for another, \`set_wait\` with the reason; when an increment waits for something outside the plan, an action only the owner can take that is not a decision, or an outside event, \`set_wait\` for the owner or the event, with a note (an event needs a day to check back). \`clear_wait\` when it no longer must.
-- When only the owner can decide (see Who decides what, below), land what is green first and push the rest to a branch named on the increment, then \`raise_question\` on the arc instead of only asking in chat, holding the increments that need the answer: it releases your claims on them. \`correct_question\` fixes its wording while it is open. Before you put an open question to the owner, \`present_question\` marks it as yours to ask; refused, another session is asking him already, so skip it, and \`present_question\` with done when you move on without his answer. \`settle_question\` with the answer, in the owner's own words; \`retire_question\` one that was wrong to ask.
-
-${DECISION_RIGHTS_LINES}
-
-Claim, and open the knowledge you need.
-- \`claim\` the increment you drive: that starts it. \`claim\` a capability before you touch it. Your reason names your session in the sessions list: 40 characters or fewer. If another session holds it, or it waits on other work, pick other work: nobody queues. If a capability you need is already held, you are late: push what is unfinished to a branch named on the increment, \`release\` all your claims, the increment's too, and pick other work. A session manager reads \`stale_claims\`: claimed increments whose holder is quiet, each with its route.
-- Once you know what you are doing, \`name_session\` names your row in the sessions list, in 40 characters or fewer; name it again when your work shifts. Until you do, the row reads your claim's reason, or your harness and folder.
-- To start work in its own workspace, call \`make_workspace\` before claiming it. Claude Code gets a claimed worktree and instructions to enter it. For Codex, it checks availability and returns ref and name: call the desktop app’s create_worktree with those exact arguments, then \`attach_workspace\` with the returned folder, ref, name and your reason. Use that directory explicitly; creation does not change your cwd. If the app returns a folder with a registration error, attach it; do not create another. The app owns the folder, including after a refusal.
-- \`open\` the capability to see its shelf: the decisions that are its way into the project's knowledge, as spines. Start at the shelf, open what matches your task, and stop when you can act. \`search_notes\` finds the artifacts closest in meaning to a question.
-
-Code the map can draw.
-- storytree draws a story's code on its island from the story's own package, packages/<story>/src, where <story> is the story's title in lower case with hyphens, without a leading "The" ("Shopping cart" is packages/shopping-cart). It reads JavaScript and TypeScript files (.js, .mjs, .jsx, .ts, .tsx and the like). A package.json dependency on another story's package draws the road between the two stories.
-- Start each test's title with the number of the contract it proves ("2.3 the cart keeps its items after a reload"): the files that test reaches are drawn inside that capability.
-- Lay a new project's code out this way. In an existing project, ask the user before moving code.
-
-${MAPPED_CODE_GUIDANCE}
-
-Red, then green, then landed.
-- Write a contract's test first, run it, see it fail, and \`report\` it red.
-- Make it pass, and \`report\` it green.
-- Before a green change lands, have it reviewed in a fresh context, as the library's change-reviewer role says: \`quality_brief\` gives the review the change's diff, the contracts its increment names and every check \`quality_checks\` reads, and \`quality_take\` records what it found. Answer each hit with \`quality_answer\`, fixed or rejected with a reason, and review again while \`quality_standing\` lists one. \`quality_ledger\` counts the hits by check; \`graduate_check\` records a part of a check that a deterministic check now enforces.
-- When its contracts pass, \`land\` the capability: your claim on it ends. A landing that leaves a source file of the story's package reached by no numbered test is held, naming each file: place it, then land again. A landing also names each planned contract no numbered test proves: write its test, or retire the contract. If you stop before then, \`release\` it.
-- A capability is proposed until you \`mark_built\` it, once you consider it built. Its card then says healthy, unhealthy or untested from what storytree verified, never from your report.
-- At an increment boundary, \`read_context\` says how many tokens your context holds; judge whether to take on more.
-- When the increment is done, \`close_increment\` with its outcome (landed, failed or withdrawn) and its pull request. Record work that landed without ever being parked with \`park_increment\` and its outcome.
-- When your session's work is done, \`close_out\`: say whether it is safe to close (pull requests merged, tree clean, nothing of yours running) and why. The sessions list checks a yes; anything it cannot bear out stays listed for the owner.
-
-Record what you learned.
-- \`write_note\` a decision, definition, principle, guardrail, pattern, process, agent role or tech stack artifact when you learn something worth keeping; give the chosen kind its required fields. With no place named, it goes onto the shelf of the capability you hold. \`correct_note\` fixes an artifact's wording in place.
-- \`record_friction\` when something got in your way, with concrete evidence; \`reinforce\` the existing item when it happens again, with its own evidence. \`record_resteer\` when the owner redirects you, quoting their own words.
-- Give storytree text holding a dollar sign followed by a name, or a line break, through its tools, or to its command line as a file (--body @body.txt), never typed on the command line itself: the shell reads typed words first, and swaps the name for its value, or stops on an unset one, before storytree runs.
-
-Use \`list_own_runs\` for this caller’s recorded work, \`list_all_runs\` for every recorded session on this computer, \`stop_own_run\` for named runs you own, and \`clear_own_runs\` to remove only your confirmed-gone records and read what remains on this computer. These tools work with the app offline; uncertain caller identity grants no stop authority.
-
-If storytree says it isn't running, carry on without it.`;
+const HABITS_CARD = [OPENING, ...GUIDANCE, CLOSING].join("\n\n");
 
 /** The habits card, as the tool server hands it to the agent. */
 export function habitsCard(): string {

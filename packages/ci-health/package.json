@@ -3,18 +3,28 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./verbs": "./src/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
   },
   "dependencies": {
     "@storytree/library": "workspace:*",
-    "@storytree/map": "workspace:*"
+    "@storytree/map": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "HEALTH_FAMILIES"
+      }
+    ]
   }
 }

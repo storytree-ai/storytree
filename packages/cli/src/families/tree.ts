@@ -5,12 +5,8 @@
  *
  * One reading of the library's projectTree, whose health is already rolled up by the library, and
  * one of Session management's claims. A story is named by its id or its title.
- *
- * `storytree health ci` reads the project's CI test results into its verified health (the CI health story, ADR-0902).
- * `storytree health worklist` prints the oldest three capabilities on the library's health
- * worklist (ADR-0825 D4), for the librarian pass to route, and how many a test run in progress holds back.
  */
-import { heldBack, type NodeHealth } from "@storytree/library";
+import type { NodeHealth } from "@storytree/library";
 
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
@@ -69,49 +65,4 @@ export const plan: Family = {
   summary: "the plan as a tree, with each part's reported health",
   verbs: [],
   bare: tree,
-};
-
-const worklist: Verb = {
-  name: "worklist",
-  usage: "health worklist",
-  summary: "the oldest three capabilities that are not healthy, with why, who moves each and since when",
-  async act(_args, context) {
-    const { healthWorklistAt } = await import("@storytree/map/read");
-    const all = await healthWorklistAt(await context.library(), context.cwd);
-    const held = heldBack(all);
-    const listed = all.filter(({ waits }) => waits === undefined);
-    if (listed.length === 0) return { text: ["Nothing waits on the health worklist: every capability is healthy or already routed.", ...(held === undefined ? [] : [held])].join("\n") };
-    const shown = listed.slice(0, 3);
-    const lines = shown.map(({ capability, title, status, why, since, contractsPass }) =>
-      `${title}  [${capability}]  ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `: ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}` +
-      (contractsPass ? "; its tests already pass on main; only its proposed flag is left" : ""),
-    );
-    if (listed.length > shown.length) lines.push(`${listed.length - shown.length} more wait.`);
-    if (held !== undefined) lines.push(held);
-    const built = shown.filter(({ contractsPass }) => contractsPass).map(({ capability }) => ({ command: `storytree capability built ${capability}`, why: "its tests already pass: switch its proposed flag off (ADR-0744 D2)" }));
-    const unbuilt = shown.some(({ contractsPass }) => !contractsPass);
-    return { text: lines.join("\n"), next: [...built, ...(unbuilt ? [{ command: "storytree arc increment new --arc <arc> --title <t> --objective <o> --body <text> --capabilities <capability> [--held-on <question>]", why: "route one: an increment whose capabilities list names it, held on a question when it needs the owner" }] : [])] };
-  },
-};
-
-const ci: Verb = {
-  name: "ci",
-  usage: "health ci",
-  summary: "read this project's CI test results (its newest push run on GitHub) into its verified health",
-  async act(_args, context) {
-    const { ghApi, gitIn, readProjectCi } = await import("@storytree/ci-health");
-    const read = await readProjectCi({ library: await context.library(), git: gitIn(context.cwd), github: ghApi() });
-    if (!read.written) return { text: read.why };
-    return {
-      text: `Read ${read.tests} test results from ${read.run} (commit ${read.commit.slice(0, 12)}): ${read.passing} contracts verified passing, ${read.failing} failing, ${read.notChecked} not checked by a skip` +
-        `${read.unmatched === 0 ? "." : `; ${read.unmatched} results named no contract of one story.`}`,
-      next: [{ command: "storytree tree", why: "see each contract's verified health beside the agent's report" }],
-    };
-  },
-};
-
-export const health: Family = {
-  name: "health",
-  summary: "the health worklist, and reading a project's CI into its verified health",
-  verbs: [worklist, ci],
 };

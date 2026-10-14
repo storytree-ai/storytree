@@ -6,7 +6,7 @@
 import declared from "#parts/verbs";
 
 import type { Family } from "../door.js";
-import { command } from "../mount.js";
+import { family as mounted } from "../mount.js";
 import { decisions } from "./adr.js";
 import { appFamily } from "./app.js";
 import { auth } from "./auth.js";
@@ -23,7 +23,7 @@ import { lag } from "./lag.js";
 import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
 import { importFamily, projectFamily } from "./project.js";
-import { health, plan } from "./tree.js";
+import { plan } from "./tree.js";
 import { processes } from "./processes.js";
 import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
@@ -57,7 +57,6 @@ const KEPT: readonly Family[] = [
   plan,
   mapFamily,
   affectedFamily,
-  health,
   capabilities,
   setupFamily,
   projectFamily,
@@ -73,6 +72,6 @@ const KEPT: readonly Family[] = [
 ];
 
 export const FAMILIES: readonly Family[] = [...declared].sort((a, b) => a.order - b.order).reduce(
-  (families, family) => families.toSpliced(family.order - 1, 0, { name: family.name, summary: family.summary, verbs: family.verbs.map(command), ...(family.bare === undefined ? {} : { bare: command(family.bare) }) }),
+  (families, family) => families.toSpliced(family.order - 1, 0, mounted(family)),
   KEPT,
 );

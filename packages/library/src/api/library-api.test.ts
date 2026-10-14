@@ -157,6 +157,8 @@ const RUNTIME_EXPORTS = [
   "WaitLoopError",
   "connect",
   "heldBack",
+  "knowledgeGuidance",
+  "planGuidance",
   "wordAndWhy",
 ];
 

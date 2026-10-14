@@ -30,7 +30,10 @@ function answerOf(answer: VerbAnswer): Answer {
 }
 
 function schemaOf(input: VerbInput): z.ZodType {
-  if (input.kind === "text") return z.string().min(1).describe(input.describe);
+  if (input.kind === "text") {
+    const text = z.string().min(1).describe(input.describe);
+    return input.optional ? text.optional() : text;
+  }
   const yes = z.boolean().describe(input.describe);
   return input.kind === "switch" ? yes.optional() : yes;
 }

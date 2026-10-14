@@ -6,6 +6,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import type { z } from "zod";
+
 import type { Verb } from "@storytree/project-and-caller/verbs";
 
 import { mountTools } from "./mount.js";
@@ -34,4 +36,26 @@ test("6.54 a mounted verb's next steps are named as tools, below its sentence an
   const bare = await served.get("show_thing")!({ id: "t1", bare: true }, call);
   assert.equal(bare.text, "Thing t1.");
   assert.equal(bare.data, undefined);
+});
+
+test("6.76 a mounted verb's optional text input may be left out of its tool call, and the verb reads it as nothing; a required one may not", async () => {
+  const prunes: Verb = {
+    command: { family: "tree", name: "prune", summary: "prune a tree" },
+    tool: { name: "prune_tree", description: "Prune a tree." },
+    inputs: { id: { kind: "text", describe: "the tree" }, to: { kind: "text", optional: true, describe: "the height to prune it to" } },
+    async act({ id, to }) {
+      return { text: `Pruned ${id} to ${to ?? "nothing named"}.` };
+    },
+  };
+  const served = new Map<string, { input: z.ZodObject; act: (args: Record<string, unknown>, call: Call) => Promise<Answer> }>();
+  const define = ((name, _description, input, act) => served.set(name, { input, act: act as never })) as Define;
+  mountTools(define, [prunes]);
+  const call = { caller: { session: "s1" }, folder: process.cwd() } as unknown as Call;
+  const tool = served.get("prune_tree")!;
+
+  const left = tool.input.safeParse({ id: "t1" });
+  assert.equal(left.success, true);
+  assert.equal((await tool.act(left.data!, call)).text, "Pruned t1 to nothing named.");
+  assert.equal((await tool.act(tool.input.parse({ id: "t1", to: "2m" }), call)).text, "Pruned t1 to 2m.");
+  assert.equal(tool.input.safeParse({ to: "2m" }).success, false);
 });

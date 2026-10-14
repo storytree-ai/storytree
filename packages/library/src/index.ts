@@ -11,10 +11,10 @@ export type { Change, Changes, Library, Storytree } from "./api/index.js";
 export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, OpenOptions, OwnDatabaseOptions, ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./project/index.js";
 
 export { ConnectionError, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
-export { LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
+export { knowledgeGuidance, LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
-export { CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, RetireRefusedError, WaitLoopError } from "./work/index.js";
+export { CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, NEW_LINE, SchemaError, UnknownTypeError } from "./schema/index.js";
 
 export type { Agent, FieldsOf, KnowledgeKind, Line, LineKind, LinesSince, NewLine, RecordType, SchemaRecord, WriteOptions } from "./schema/index.js";

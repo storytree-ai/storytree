@@ -27,6 +27,13 @@
         "from": "./settings",
         "export": "settingsPageAnswers"
       }
+    ],
+    "guidance": [
+      {
+        "from": ".",
+        "export": "decisionRightsGuidance",
+        "order": 30
+      }
     ]
   },
   "scripts": {

@@ -38,5 +38,14 @@
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
     "@storytree/plugin-loader": "workspace:*"
+  },
+  "storytree": {
+    "guidance": [
+      {
+        "from": "./setup",
+        "export": "setupGuidance",
+        "order": 10
+      }
+    ]
   }
 }

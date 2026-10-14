@@ -8,6 +8,7 @@
 // node packages/dev-loop/src/lanes/watch.mjs run                                     (the watcher: one per box; keeps `watch` running)
 // node packages/dev-loop/src/lanes/watch.mjs watch                                   (its look loop, which `run` starts; exits 3 on its own code change)
 // node packages/dev-loop/src/lanes/watch.mjs status
+// node packages/dev-loop/src/lanes/watch.mjs release-fix --pr <n> | --question <id>   (a release fix session records what it left; release-watch.mjs)
 import { execFile, spawn as spawnChild } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -18,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
+import { attempted, failedJob, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, watchReleases } from "./release-watch.mjs";
 
 /**
  * The code the watcher runs (13.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
@@ -25,7 +27,7 @@ import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
  * change anywhere else in the dev loop leaves it looking. When one of these files comes to import another file, name
  * that file here.
  */
-export const WATCH_CODE = ["watch.mjs", "queue.mjs", "runner.mjs", "engine.mjs"].map((name) => `packages/dev-loop/src/lanes/${name}`);
+export const WATCH_CODE = ["watch.mjs", "release-watch.mjs", "queue.mjs", "runner.mjs", "engine.mjs"].map((name) => `packages/dev-loop/src/lanes/${name}`);
 
 const run = promisify(execFile);
 const RED = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"]);
@@ -39,7 +41,8 @@ export const RESTART = 3;
 /**
  * A pull request, as GitHub's GraphQL returns it, read as merged, closed, red or pending. Red is a failed check on
  * its head, a conflict with main (no check fails on one, so it would otherwise wait out its check-back), or a removal
- * from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`.
+ * from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`. A conflict is marked as
+ * one whatever else failed: a conflict often fails the landing check too, and it still needs a merge (13.18).
  */
 export function readPull(pull, { since, now, graceMs }) {
   const head = pull.headRefOid;
@@ -47,13 +50,13 @@ export function readPull(pull, { since, now, graceMs }) {
   if (pull.state === "CLOSED") return { state: "closed", head };
   const checks = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
   const failed = checks.filter((check) => RED.has(check.conclusion ?? check.state));
-  if (failed.length) {
-    return { state: "red", head, why: failed.map((check) => `${check.name ?? check.context} failed`).join("; "),
-      logs: failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean) };
-  }
+  const why = failed.map((check) => `${check.name ?? check.context} failed`).join("; ");
+  const logs = failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean);
   if (pull.mergeable === "CONFLICTING") {
-    return { state: "red", head, why: "it conflicts with main: merge origin/main and resolve the conflicts", logs: [], conflict: true };
+    return { state: "red", head, why: `it conflicts with main: merge origin/main and resolve the conflicts${why ? `; also ${why}` : ""}`, logs,
+      conflict: true, branch: pull.headRefName };
   }
+  if (failed.length) return { state: "red", head, why, logs };
   const removal = pull.timelineItems?.nodes?.at(-1);
   const removedAt = Date.parse(removal?.createdAt);
   if (!pull.mergeQueueEntry && EJECTED.has(removal?.reason?.toUpperCase()) && removedAt > Date.parse(since) && now - removedAt > graceMs) {
@@ -63,7 +66,7 @@ export function readPull(pull, { since, now, graceMs }) {
 }
 
 const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
-  state headRefOid mergeable mergeQueueEntry { state }
+  state headRefOid headRefName mergeable mergeQueueEntry { state }
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
     __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 1) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } }
@@ -76,7 +79,39 @@ export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 
   return readPull(JSON.parse(stdout).data.repository.pullRequest, { since, now: now(), graceMs });
 }
 
+const REPO = "repos/storytree-ai/storytree";
+const ghJson = async (repo, path) => JSON.parse((await run("gh", ["api", path], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout);
+const jobsSeen = new Map();
+/** A run's jobs as { name, conclusion, steps }; a completed attempt's never change, so they are read once. */
+async function jobsOf(repo, run) {
+  const key = `${run.id}:${run.run_attempt}`;
+  if (jobsSeen.has(key)) return jobsSeen.get(key);
+  const jobs = (await ghJson(repo, `${REPO}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`)).jobs
+    .map((job) => ({ name: job.name, conclusion: job.conclusion, steps: job.steps?.length ?? 0 }));
+  if (run.status === "completed") jobsSeen.set(key, jobs);
+  return jobs;
+}
+const asRun = (run, jobs) => ({ id: run.id, sha: run.head_sha, created: run.created_at, updated: run.updated_at, status: run.status,
+  conclusion: run.conclusion, attempt: run.run_attempt, url: run.html_url, job: jobs && failedJob(jobs) });
+
+/** The latest published release, the release runs since it that attempted one, and main's push CI runs, judged (13.16). */
+export async function releasesOnGitHub({ repo, now = Date.now }) {
+  const latest = await ghJson(repo, `${REPO}/releases/latest`);
+  const release = { tag: latest.tag_name, sha: latest.target_commitish, at: latest.published_at };
+  const attempts = [];
+  for (const run of (await ghJson(repo, `${REPO}/actions/workflows/release.yml/runs?per_page=30`)).workflow_runs) {
+    if (Date.parse(run.created_at) <= Date.parse(release.at)) break;
+    const jobs = await jobsOf(repo, run);
+    if (attempted(jobs)) attempts.push(asRun(run, jobs));
+  }
+  const main = (await ghJson(repo, `${REPO}/actions/workflows/ci.yml/runs?branch=main&event=push&per_page=30`)).workflow_runs;
+  const head = main[0] && main[0].status === "completed" && main[0].conclusion !== "success" ? await jobsOf(repo, main[0]) : undefined;
+  return { release, ...judgeReleases({ release, attempts, main: main.map((run, i) => asRun(run, i === 0 ? head : undefined)), now: now() }) };
+}
+
 const recordPath = (dir, pr) => join(dir, `${pr}.json`);
+/** The look loop's pid and the code version it started on, for `status` (13.21). */
+const versionPath = (dir) => join(dir, "watch-loop.version");
 const save = (dir, record) => writeFile(recordPath(dir, record.pr), `${JSON.stringify(record, null, 2)}\n`);
 
 async function records(dir) {
@@ -172,13 +207,17 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * One look at every hand-off. MERGED: clear the wait, close the increment landed (unless it was handed over to stay
  * open), release what its session still holds and forget it. CLOSED: clear the wait and forget it. Red: with no fix session running and an engine slot
  * free, clear the wait and start one; once `limit` have run, put the increment on an owner wait instead. A conflict
- * with main needs a session, not the owner's call, so it gets one more fix session before that wait (13.12). A fix
+ * with main needs a session, not the owner's call, so it gets one more fix session (13.12), and past that it is never
+ * an owner wait: the hand-off is dropped and the increment goes back on its arc as ready work, its body naming the
+ * pull request and its branch (13.20). A fix session whose branch moved while it ran made progress, so it counts for
+ * nothing when the next red is a conflict, since a newer main made that one (13.19); `cap` sessions on one pull
+ * request, counted or not, end it as the limit does. A fix
  * session refused by another's claim counts for nothing, and its retry waits until no other fix session runs (13.14).
  * Conflicts are merged one at a time, lowest pull request first: siblings that conflict on one file would refuse
  * each other's claims if their merge sessions ran together (13.15). A hand-off on an increment that had already
  * closed has no wait to clear and nothing to close, and past its limit is only said (13.13).
  */
-export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, cap = 6, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -212,13 +251,33 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
     if (record.fixing) { record.fixing = null; await save(dir, record); }
     if (pull.state !== "red") continue;
     const allowed = pull.conflict ? limit + 1 : limit;
-    const counted = record.fixes.filter((fix) => !fix.refused).length;
-    if (counted >= allowed && record.closed) {
+    const last = record.fixes.at(-1);
+    if (pull.conflict && last && !last.refused && !last.moved && last.head && last.head !== pull.head) {
+      last.moved = true;
+      await save(dir, record);
+    }
+    const counted = record.fixes.filter((fix) => !fix.refused && !fix.moved).length;
+    const spent = counted >= allowed || record.fixes.length >= cap;
+    if (spent && record.closed) {
       await rm(recordPath(dir, pr), { force: true });
-      dated(`PR #${pr} still red after ${counted} fix sessions, and ${increment} had already closed, so nothing can wait on the owner: ${pull.why}`);
+      dated(`PR #${pr} still red after ${record.fixes.length} fix sessions, and ${increment} had already closed, so nothing can wait on the owner: ${pull.why}`);
       continue;
     }
-    if (counted >= allowed) {
+    if (spent && pull.conflict) {
+      const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
+      const residue = join(dir, `${pr}-residue.md`);
+      await writeFile(residue, `${body ? `${body}\n\n` : ""}**Back from the watcher, ${new Date(now()).toISOString().slice(0, 10)}.** PR #${pr}`
+        + ` (branch \`${pull.branch ?? "unknown"}\`) still conflicts with main after ${record.fixes.length} fix sessions`
+        + ` (logs: ${record.fixes.map((fix) => fix.log).join(", ")}). Take that branch, merge origin/main, resolve the conflicts,`
+        + ` see \`pnpm gate\` green, push, and hand PR #${pr} to the watcher again.\n`);
+      await tell(["arc", "increment", "edit", increment, "--body", `@${residue}`]);
+      await rm(residue, { force: true });
+      await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+      await rm(recordPath(dir, pr), { force: true });
+      dated(`PR #${pr} still conflicts with main after ${record.fixes.length} fix sessions: ${increment} is back on its arc as ready work`);
+      continue;
+    }
+    if (spent) {
       await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
       await storytree(["arc", "increment", "wait", increment, "--for", "owner", "--note",
         `PR #${pr} is still red after ${counted} fix sessions: ${pull.why}.${pull.logs.length ? ` Failing runs: ${pull.logs.join(", ")}.` : ""}`
@@ -261,6 +320,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const script = fileURLToPath(import.meta.url);
   // The watcher and its fix sessions belong to no agent session: they outlive the one that handed over.
   const free = { ...env };
+  const onBox = existsSync(join(lanesDir, "run-lane.sh"));
   const own = join(repo, "packages", "dev-loop", "src", "lanes", "watch.mjs");
   for (const name of ["CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"]) delete free[name];
   const detached = (args, log, cwd) => {
@@ -271,7 +331,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   };
   return {
     lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), status: join(lanesDir, "watch.status"), argsOf,
-    limit: Number(env.WATCH_FIX_LIMIT) || 2, intervalMs: Number(env.WATCH_INTERVAL_S ?? 60) * 1000, now: Date.now,
+    limit: Number(env.WATCH_FIX_LIMIT) || 2, cap: Number(env.WATCH_FIX_CAP) || 6, intervalMs: Number(env.WATCH_INTERVAL_S ?? 60) * 1000, now: Date.now,
     session: env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim() || "",
     storytree: async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout,
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt }),
@@ -294,10 +354,30 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       child.once("exit", (code) => ended(code ?? 1));
     }),
     // The box is the machine whose lanes folder has the lane runner; any other reaches it as `ssh mint`.
-    onBox: existsSync(join(lanesDir, "run-lane.sh")),
+    onBox,
     remote: async (args) => (await run("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", env.WATCH_BOX_HOST || "mint",
       `cd ~/code/storytree03 && node packages/dev-loop/src/lanes/watch.mjs ${args.join(" ")}`], { timeout: 120_000 })).stdout,
     sleep: (ms) => wait(ms),
+    // Only the box's watcher reads releases; a watcher a test starts under another home never reruns or alarms.
+    readReleases: onBox ? () => releasesOnGitHub({ repo }) : undefined,
+    // Its failed and cancelled jobs; a run with nothing left to rerun that way is rerun whole.
+    rerun: (one) => run("gh", ["run", "rerun", String(one.id), "--failed"], { cwd: repo })
+      .catch(() => run("gh", ["run", "rerun", String(one.id)], { cwd: repo })),
+    tail: async (one) => (await run("gh", ["run", "view", String(one.id), "--log-failed"], { cwd: repo, maxBuffer: 64 * 1024 * 1024 }))
+      .stdout.trimEnd().split("\n").slice(-30).join("\n"),
+    questionOpen: async (id) => !/, (settled|retired)\b/.test((await run("pnpm", ["-s", "storytree", "question", "show", id], { cwd: repo })).stdout.split("\n")[1] ?? ""),
+    raise: async (question) => {
+      const { stdout } = await run("pnpm", ["-s", "storytree", "question", "new", "--arc", RELEASE_ARC,
+        ...Object.entries(question).flatMap(([field, text]) => [`--${field}`, text])], { cwd: repo });
+      return /question_\w+/.exec(stdout)?.[0] ?? "a question";
+    },
+    startReleaseFix: async ({ n, brief }) => {
+      const base = join(dir, `release-fix-${Date.now()}-${n}`);
+      await writeFile(`${base}-brief.md`, brief);
+      const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
+        join(home, "code", "storytree03-wt"), lanesDir], `${base}.runner.log`, repo);
+      return { pid, log: `${base}.log` };
+    },
   };
 }
 
@@ -324,16 +404,30 @@ export async function main(args, box = {}) {
     out(`Close out with: pnpm storytree session close-out --safe yes --why "PR #${args[1]} open and green, handed to the watcher"`);
     return 0;
   }
+  if (args[0] === "release-fix" && /^--(pr|question)$/.test(args[1] ?? "") && args[2]) {
+    const recorded = await recordFix({ dir: b.dir, ...(args[1] === "--pr" ? { pr: Number(args[2]) } : { question: args[2] }) });
+    out(recorded ? `Recorded ${args[2]} on the release stop: the watcher starts no other fix session while it is open.`
+      : "No release stop is recorded: nothing to attach it to.");
+    return recorded ? 0 : 1;
+  }
   if (args[0] === "status") {
     const found = await records(b.dir);
     const pid = (await readFile(b.pidFile, "utf8").catch(() => "")).trim();
     const live = pid && MARKS[0].test(await b.argsOf(pid));
     out(`watcher: ${live ? `running (pid ${pid})` : "not running"}`);
+    // 13.21: a look loop on code other than the checkout's shows, even one older than the version it records.
+    const loopPid = (await readFile(b.loopPidFile, "utf8").catch(() => "")).trim();
+    if (loopPid && LOOP_MARKS[0].test(await b.argsOf(loopPid))) {
+      const [by, began] = (await readFile(versionPath(b.dir), "utf8").catch(() => "")).trim().split(" ");
+      const current = await Promise.resolve().then(b.codeVersion).catch(() => undefined);
+      out(`look loop: running (pid ${loopPid}) ${by !== loopPid || !began ? "on code of unknown version (it records none): restart the watcher"
+        : began === current ? `on the checkout's code (${began})` : `on stale code: ${began}, while the checkout has ${current ?? "an unreadable version"}`}`);
+    } else out("look loop: not running");
     for (const record of found) out(`PR #${record.pr} ${record.increment}: handed ${record.handedAt}, ${record.fixes.length} fix sessions${record.fixing ? `, one running (pid ${record.fixing.pid})` : ""}`);
     if (!found.length) out("no hand-offs");
     return 0;
   }
-  if (args[0] !== "run" && args[0] !== "watch") { out("usage: watch.mjs handover <pr> <increment> [--keep-open] | hand <pr> <increment> [--session <id>] [--keep-open] [--refused] | run | status"); return 2; }
+  if (args[0] !== "run" && args[0] !== "watch") { out("usage: watch.mjs handover <pr> <increment> [--keep-open] | hand <pr> <increment> [--session <id>] [--keep-open] [--refused] | release-fix --pr <n> | --question <id> | run | status"); return 2; }
   const say = b.say ?? ((line) => out(line));
   const dated = (message) => say(`${new Date(b.now()).toISOString()} ${message}`);
   if (args[0] === "run") {
@@ -352,12 +446,19 @@ export async function main(args, box = {}) {
   if (!loop.held) { say(`watcher look loop ${loop.by} is running: not starting`); return 1; }
   const version = () => Promise.resolve().then(b.codeVersion).catch(() => undefined);
   const began = await version();
+  if (began) await writeFile(versionPath(b.dir), `${b.pid ?? process.pid} ${began}\n`);
+  let releasesAt = 0;
   for (;;) {
     // Between looks, never in one: a fix session it started runs on, and its hand-off on disk keeps the count.
     const current = began && await version();
     if (current && current !== began) { dated(`dev loop code changed (${began} → ${current}): restarting`); return RESTART; }
     try { await watchOnce({ ...b, say }); }
     catch (error) { dated(`look failed: ${error.message.split("\n")[0]}`); }
+    if (b.readReleases && b.now() - releasesAt >= RELEASE_EVERY_MS) {
+      releasesAt = b.now();
+      try { await watchReleases({ ...b, startFix: b.startReleaseFix, say }); }
+      catch (error) { dated(`release look failed: ${error.message.split("\n")[0]}`); }
+    }
     await b.sleep(b.intervalMs);
   }
 }

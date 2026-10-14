@@ -24,7 +24,6 @@ import { processes } from "./processes.js";
 import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
-import { releaseFamily } from "./release.js";
 import { checkFamily } from "./guardrails.js";
 import { quality } from "./quality.js";
 
@@ -45,7 +44,6 @@ const KEPT: readonly Family[] = [
   checkFamily,
   quality,
   appFamily,
-  releaseFamily,
   plan,
   mapFamily,
   affectedFamily,

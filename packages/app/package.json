@@ -9,6 +9,7 @@
     "./projects/bridge": "./src/projects/bridge.ts",
     "./surfaces": "./src/surfaces/bridge.ts",
     "./updates/bridge": "./src/updates/bridge.ts",
+    "./updates/verbs": "./src/updates/verbs.ts",
     "./version": "./src/updates/version.ts",
     "./view": "./src/view/index.ts"
   },
@@ -32,5 +33,13 @@
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
     "@storytree/app-setup": "workspace:*"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./updates/verbs",
+        "export": "RELEASE_FAMILIES"
+      }
+    ]
   }
 }

@@ -106,7 +106,7 @@ test("17.2 · The library declares search_notes, open, write_note and correct_no
   assert.match(decided.text, new RegExp(`as a front cover of ${form.id}, the capability you hold`));
   const defined = await toolOf("write_note").act({ kind: "definition", fields: {}, term: "Postcode", meaning: "Where the post goes.", links: [], title: undefined, text: undefined, front_cover_of: undefined }, context, WORDS);
   const term = (defined.data as { id: string }).id;
-  assert.deepEqual((await library.get(term))?.fields.links, [cover.id], "a definition links inside the cover opened last");
+  assert.deepEqual(((await library.get(term))?.fields as { links?: string[] } | undefined)?.links, [cover.id], "a definition links inside the cover opened last");
 
   await assert.rejects(toolOf("write_note").act({ kind: "memory", fields: {}, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS), VerbRefusal);
 });

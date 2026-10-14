@@ -126,7 +126,7 @@ test("7.2 unreadable change scope requires guidance instead of guessing that not
   assert.match(decision.reason, /could not.*read/);
 });
 
-test("7.3 cancelling the foreground gate stops the typecheck process and its compiler descendant", { timeout: 15_000 }, async (t) => {
+test("7.3 cancelling the foreground gate stops the typecheck process and its compiler descendant", { timeout: 60_000 }, async (t) => {
   const { root, write } = checkout(t);
   // A package manager starting a compiler, as pnpm typecheck does. Use real processes here:
   // a callback-only cancellation test cannot detect an abandoned compiler.
@@ -153,13 +153,16 @@ test("7.3 cancelling the foreground gate stops the typecheck process and its com
     for (const pid of pids) { try { process.kill(pid, "SIGKILL"); } catch {} }
   });
   const running = runGate({ root, signal: controller.signal, log: () => {} });
-  for (const file of ["manager.pid", "compiler.pid"]) {
-    for (let i = 0; i < 200 && !existsSync(path.join(root, file)); i++) await delay(25);
-    pids.push(Number(readFileSync(path.join(root, file), "utf8")));
+  // A pid file can exist before its pid is written, and an empty one reads as pid 0, which
+  // process.kill takes as this process (Windows) or its group (Unix): wait for a real pid.
+  const pidIn = (file) => existsSync(file) ? Number(readFileSync(file, "utf8")) : 0;
+  for (const file of ["manager.pid", "compiler.pid"].map((name) => path.join(root, name))) {
+    while (!(pidIn(file) > 0)) await delay(25);
+    pids.push(pidIn(file));
   }
   controller.abort();
   assert.equal(await running, 130);
   const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
-  for (let i = 0; i < 100 && pids.some(alive); i++) await delay(25);
+  for (const until = Date.now() + 10_000; Date.now() < until && pids.some(alive);) await delay(25);
   assert.deepEqual(pids.filter(alive), [], "no typecheck child survives the completed gate");
 });

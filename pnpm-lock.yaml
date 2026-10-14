@@ -496,9 +496,6 @@ importers:
 
   packages/guardrails:
     dependencies:
-      '@storytree/library':
-        specifier: workspace:*
-        version: link:../library
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
@@ -506,6 +503,9 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
     devDependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

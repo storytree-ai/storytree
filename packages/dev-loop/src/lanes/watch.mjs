@@ -101,15 +101,19 @@ export async function handedOff(dir) {
  * Hand a pull request to the watcher: park the increment on an event wait so no session claims it while it lands
  * (checking back in three days, after which the pool may take it again: an event wait needs that day), record the hand-off (one per pull request; handing back keeps its fix sessions), and start the watcher.
  * `keepOpen` marks one of several pull requests for the increment: its merge releases the session's claims but closes nothing.
+ * An increment that already closed (on an earlier pull request of a stack) waits for nothing, so its refusal of the
+ * wait is no refusal of the hand-off: the record is marked `closed`, and the watcher still watches and fixes it (13.13).
  */
 export async function hand({ dir, pr, increment, session, keepOpen = false, storytree, startWatcher, now = Date.now }) {
   await mkdir(dir, { recursive: true });
   const old = (await records(dir)).find((record) => record.pr === pr);
+  let closed = false;
   await storytree(["arc", "increment", "wait", increment, "--for", "event", "--note",
     `PR #${pr} is open and green and handed to the Mint box's watcher, which ${keepOpen ? "leaves this open (more pull requests are to come) on its merge" : "closes this on its merge"} or starts a fix session on a red.`,
-    "--check-back", new Date(now() + 3 * 86_400_000).toISOString().slice(0, 10)]);
-  await save(dir, { fixes: [], fixing: null, ...old, pr, increment, session, keepOpen, handedAt: new Date(now()).toISOString() });
-  await startWatcher();
+    "--check-back", new Date(now() + 3 * 86_400_000).toISOString().slice(0, 10)])
+    .catch((error) => { if (/ is closed, and waits for nothing/.test(error.message)) closed = true; else throw error; });
+  await save(dir, { fixes: [], fixing: null, ...old, pr, increment, session, keepOpen, closed, handedAt: new Date(now()).toISOString() });
+  await startWatcher();  return { closed };
 }
 
 /**
@@ -130,7 +134,7 @@ export async function handOver({ pr, increment, session, keepOpen = false, onBox
   }
 }
 
-function fixBrief({ pr, increment, why, logs, n, limit, keepOpen }) {
+function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed }) {
   const handBack = `${pr} ${increment}${keepOpen ? " --keep-open" : ""}`;
   return `# Fix session ${n} of ${limit}: pull request #${pr} (${increment}) is red
 
@@ -139,7 +143,9 @@ and it has since gone red: ${why}.${logs.length ? `\nThe failing runs: ${logs.jo
 
 Your job is that pull request and nothing else. Work from ~/code/storytree03 and follow its AGENTS.md as the session-orchestrator.
 - Find the PR's branch (\`gh pr view ${pr} --json headRefName\`) and a worktree on it (\`git worktree list\`), or add one for it
-  under .claude/worktrees, and claim the increment there: \`pnpm storytree workspace attach ${increment} --folder <worktree> --reason "fix PR #${pr}"\`.
+  under .claude/worktrees, and ${closed
+    ? `work there without claiming the increment: ${increment} already closed on an earlier pull request, so claim only the capabilities you edit.`
+    : `claim the increment there: \`pnpm storytree workspace attach ${increment} --folder <worktree> --reason "fix PR #${pr}"\`.`}
 - Read the failing log (\`gh run view <run> --log-failed\`, or \`gh pr checks ${pr}\`). Suspect a stale branch first: merge
   origin/main, run \`pnpm install\`, and \`pnpm gate\`. Then fix what is really broken, see \`pnpm gate\` green and push.
   Never force-push, squash or \`gh pr merge\`.
@@ -149,7 +155,7 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
   A run already in the background is polled inside the same turn, never waited for by ending the turn.
 - Hand it back: \`node packages/dev-loop/src/lanes/watch.mjs hand ${handBack}\`, then
   \`pnpm storytree session close-out --safe yes --why "PR #${pr} fixed and handed back to the watcher"\`, and end.
-- If it needs the owner (a decision, a sign-in, a spend), raise the question on the increment's arc holding the increment, then close out and end.
+- If it needs the owner (a decision, a sign-in, a spend), raise the question on the increment's arc${closed ? "" : " holding the increment"}, then close out and end.
 `;
 }
 
@@ -157,7 +163,8 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * One look at every hand-off. MERGED: clear the wait, close the increment landed (unless it was handed over to stay
  * open), release what its session still holds and forget it. CLOSED: clear the wait and forget it. Red: with no fix session running and an engine slot
  * free, clear the wait and start one; once `limit` have run, put the increment on an owner wait instead. A conflict
- * with main needs a session, not the owner's call, so it gets one more fix session before that wait (13.12).
+ * with main needs a session, not the owner's call, so it gets one more fix session before that wait (13.12). A hand-off
+ * on an increment that had already closed has no wait to clear and nothing to close, and past its limit is only said (13.13).
  */
 export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
@@ -169,9 +176,9 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
     try { pull = await look(pr, record); }
     catch (error) { dated(`PR #${pr}: could not read it (${error.message.split("\n")[0]}); looking again next time`); continue; }
     if (pull.state === "merged" || pull.state === "closed") {
-      await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
       if (pull.state === "merged") {
-        if (!record.keepOpen) await tell(["arc", "increment", "close", increment, "--disposition", "landed", "--pr", String(pr)]);
+        if (!record.keepOpen && !record.closed) await tell(["arc", "increment", "close", increment, "--disposition", "landed", "--pr", String(pr)]);
         const board = await tell(["noticeboard"]);
         for (const line of board.split("\n")) {
           const held = /^\s*- (?:increment|capability) (\S+)\s/.exec(line);
@@ -179,7 +186,8 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
             await tell(["workspace", "release", held[1], "--holder", record.session, "--reason", `PR #${pr} merged; released by the watcher`]);
           }
         }
-        dated(record.keepOpen ? `PR #${pr} merged: ${increment} stays open for its next pull request` : `PR #${pr} merged: closed ${increment}`);
+        dated(record.closed ? `PR #${pr} merged: ${increment} had already closed`
+          : record.keepOpen ? `PR #${pr} merged: ${increment} stays open for its next pull request` : `PR #${pr} merged: closed ${increment}`);
       } else dated(`PR #${pr} closed without merging: ${increment} no longer waits on it`);
       await rm(recordPath(dir, pr), { force: true });
       continue;
@@ -188,6 +196,11 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
     if (record.fixing) { record.fixing = null; await save(dir, record); }
     if (pull.state !== "red") continue;
     const allowed = pull.conflict ? limit + 1 : limit;
+    if (record.fixes.length >= allowed && record.closed) {
+      await rm(recordPath(dir, pr), { force: true });
+      dated(`PR #${pr} still red after ${record.fixes.length} fix sessions, and ${increment} had already closed, so nothing can wait on the owner: ${pull.why}`);
+      continue;
+    }
     if (record.fixes.length >= allowed) {
       await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
       await storytree(["arc", "increment", "wait", increment, "--for", "owner", "--note",
@@ -198,9 +211,9 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
       continue;
     }
     if (!(await room())) continue;
-    await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+    if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
     const n = record.fixes.length + 1;
-    const fix = await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n, limit: allowed, keepOpen: record.keepOpen }) });
+    const fix = await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n, limit: allowed, keepOpen: record.keepOpen, closed: record.closed }) });
     record.fixing = { pid: fix.pid };
     record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: fix.pid, log: fix.log });
     await save(dir, record);
@@ -283,10 +296,11 @@ export async function main(args, box = {}) {
   if (args[0] === "hand" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {
     const at = args.indexOf("--session");
     const session = at > 0 ? args[at + 1] ?? "" : b.session;
-    await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, keepOpen, storytree: b.storytree, now: b.now,
+    const { closed } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, keepOpen, storytree: b.storytree, now: b.now,
       startWatcher: () => ensureWatcher({ pidFile: b.pidFile, argsOf: b.argsOf, spawn: b.startWatcher }) });
-    out(`PR #${args[1]} handed to the watcher (${join(b.dir, `${args[1]}.json`)}); ${args[2]} waits on it until it merges`
-      + (keepOpen ? ", then stays open for its next pull request." : "."));
+    out(`PR #${args[1]} handed to the watcher (${join(b.dir, `${args[1]}.json`)}); `
+      + (closed ? `${args[2]} had already closed, so the watcher watches and fixes it to its merge and closes nothing.`
+        : `${args[2]} waits on it until it merges${keepOpen ? ", then stays open for its next pull request." : "."}`));
     out(`Close out with: pnpm storytree session close-out --safe yes --why "PR #${args[1]} open and green, handed to the watcher"`);
     return 0;
   }

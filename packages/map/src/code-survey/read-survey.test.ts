@@ -10,9 +10,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import type { AnnotatedTree } from "@storytree/library";
-
-import type { StorySurvey } from "./code-survey.js";
+import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
 import { capabilitiesOfFiles, codeSurveyReader, offThreadSurveyReader, readCodeSurvey } from "./read-survey.js";
 import { focusProject } from "../read.js";

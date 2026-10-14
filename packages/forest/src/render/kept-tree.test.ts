@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AnnotatedTree } from "@storytree/library";
-import type { StorySurvey } from "@storytree/map";
+import type { StorySurvey } from "@storytree/library";
 import { drawingOf, keptDrawing, keptTree } from "./kept-tree.js";
 
 const tree: AnnotatedTree = { arcs: [{ id: "arc_1" }] as AnnotatedTree["arcs"], stories: [{

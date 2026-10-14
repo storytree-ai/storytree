@@ -292,8 +292,9 @@ export function branchDiff(cwd: string, base = branchBase(cwd)?.ref): string {
 
 /**
  * The folder to read an increment's change from (contract 2.8): `cwd` when it is on `branch`, the branch the increment was claimed
- * on, else the worktree of `cwd`'s repository checked out on that branch, so a brief run from another checkout never reviews that
- * checkout's work instead. Refused, naming the branch, when no worktree is on it; with no branch known, `cwd`.
+ * on, or on another branch whose name carries the same increment (a second pull request's), else the worktree of `cwd`'s repository
+ * checked out on that branch, so a brief run from another checkout never reviews that checkout's work instead. Refused, naming the
+ * branch, when no worktree is on it; with no branch known, `cwd`.
  */
 export function changeFolder(cwd: string, branch: string | undefined): string {
   if (branch === undefined) return cwd;
@@ -304,13 +305,22 @@ export function changeFolder(cwd: string, branch: string | undefined): string {
       return "";
     }
   };
-  if (git("symbolic-ref", "--quiet", "--short", "HEAD").trim() === branch) return cwd;
+  const current = git("symbolic-ref", "--quiet", "--short", "HEAD").trim();
+  if (current === branch) return cwd;
+  const increment = incrementOfBranch(branch);
+  if (increment !== undefined && incrementOfBranch(current) === increment) return cwd;
   for (const entry of git("worktree", "list", "--porcelain").split(/\n\n+/)) {
     const lines = entry.split("\n");
     const folder = lines.find((line) => line.startsWith("worktree "))?.slice("worktree ".length);
     if (folder !== undefined && lines.includes(`branch refs/heads/${branch}`)) return folder;
   }
   throw new Error(`The increment's change is on branch ${branch}, and no worktree of ${cwd}'s repository is on it: run the brief from the increment's worktree, or give its diff.`);
+}
+
+/** The increment a branch's name carries (claude/increment-<id>-<suffix>), as the gate's capability-list check reads it. */
+function incrementOfBranch(branch: string): string | undefined {
+  const named = /(?:^|[/_-])increment[-_]([0-9a-f]{12})(?![0-9a-f])/i.exec(branch);
+  return named === null ? undefined : named[1]!.toLowerCase();
 }
 
 /** A file Git does not track yet, as a diff that adds it. */

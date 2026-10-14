@@ -57,6 +57,15 @@ export async function notarise({ submit, info, sleep, now, waitMs, pollMs }) {
   return { id, status, notarised: status === "Accepted" };
 }
 
+/** Why the install check skips Gatekeeper's assessment, or undefined when it runs: Gatekeeper refuses an ad-hoc build and a
+ * Developer ID build Apple had not accepted by the bound ("Unnotarized Developer ID", rehearsal run 38635048881), and
+ * both ship by design, so only a notarised build is asked. answer is release/mac-notarisation.json, absent for ad-hoc. */
+export function gatekeeperSkip({ adHoc, answer }) {
+  if (adHoc) return "the app is ad-hoc signed, so not notarised";
+  if (answer && !answer.notarised) return `Apple's answer to submission ${answer.id} was "${answer.status}" at the bound, so the build ships signed but not notarised`;
+  return undefined;
+}
+
 /** Apple's submission history as one line per submission: id, date and status, nothing else it returned. */
 export function historyLines(json) {
   const { history } = JSON.parse(json);

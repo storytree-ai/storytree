@@ -13,7 +13,7 @@ const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
 const SESSION = "aaaa-session";
 
-async function box(t, { looks = {} } = {}) {
+async function box(t, { looks = {}, board = "" } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "lane-watch-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const calls = [], fixes = [], lines = [], live = new Set();
@@ -21,7 +21,7 @@ async function box(t, { looks = {} } = {}) {
   const options = {
     dir, limit: 2, say: (line) => lines.push(line), now: () => clock,
     look: async (pr) => looks[pr],
-    storytree: async (args) => { calls.push(args); return ""; },
+    storytree: async (args) => { calls.push(args); return args[0] === "noticeboard" ? board : ""; },
     branchOf: async (pr) => `claude/pr-${pr}`,
     alive: async (pid) => live.has(pid),
     room: async () => room,
@@ -334,7 +334,7 @@ test("13.14 · a refused fix session is not started again while the session its 
   await watchOnce(b.options);
   assert.match(b.fixes[0].brief, /--refused --holder <session>/, "the brief says how to name the holder");
   await main(["hand", "42", "increment_two", "--refused", "--holder", "bbbb-other"], { dir: b.dir, now: b.options.now, out: () => {},
-    storytree: b.options.storytree, pidFile: join(b.dir, "pid"), argsOf: async () => "", startWatcher: async () => 1 });
+    storytree: b.options.storytree, branchOf: b.options.branchOf, pidFile: join(b.dir, "pid"), argsOf: async () => "", startWatcher: async () => 1 });
   assert.equal((await saved(b, 42)).fixes.at(-1).holder, "bbbb-other");
   b.live.clear();
   for (let round = 0; round < 3; round++) { b.tick(60 * 60_000); await watchOnce(b.options); }

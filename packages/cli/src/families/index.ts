@@ -17,8 +17,6 @@ import { doctorFamily, setupFamily } from "./doctor.js";
 import { doors } from "./doors.js";
 import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
-import { journeyFamily } from "./journey.js";
-import { lag } from "./lag.js";
 import { questions } from "./question.js";
 import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
@@ -43,7 +41,6 @@ const KEPT: readonly Family[] = [
   questions,
   decisions,
   doors,
-  lag,
   doctorFamily,
   checkFamily,
   quality,
@@ -60,7 +57,6 @@ const KEPT: readonly Family[] = [
   importFamily,
   processes,
   settings,
-  journeyFamily,
   auth,
   signIn,
   accountStatus,

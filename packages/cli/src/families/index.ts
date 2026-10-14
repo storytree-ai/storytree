@@ -16,7 +16,6 @@ import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
-import { releaseFamily } from "./release.js";
 
 /** Words agents try for a family storytree does not have, each with the command for that job. */
 export const GUESSES: Readonly<Record<string, string>> = {
@@ -29,7 +28,6 @@ const KEPT: readonly Family[] = [
   library,
   doors,
   doctorFamily,
-  releaseFamily,
   plan,
   mapFamily,
   affectedFamily,

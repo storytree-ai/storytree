@@ -9,7 +9,6 @@
  * mounted with the families within it, its bare verb, its guesses and its retired words.
  */
 import { commandInput, commandUsage, mounted, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/project-and-caller/verbs";
-import type { SurfaceDeclaration } from "@storytree/app";
 
 import { Refusal, type Next } from "./answer.js";
 import type { ClaimContext, Context, Verb as Command, Family } from "./door.js";
@@ -37,6 +36,9 @@ export interface CommandPlace extends VerbPlace {
   out(text: string): void;
   surfaces(): Promise<readonly SurfaceDeclaration[]>;
 }
+
+/** A surface a story's manifest declares: the door hands the list on and reads none of its fields (ADR-1017 D2). */
+export type SurfaceDeclaration = object;
 
 /** The app's surfaces, as each story's manifest declares them (ADR-0750, ADR-1021), in the order the Surfaces menu lists them. */
 async function surfaces(): Promise<readonly SurfaceDeclaration[]> {

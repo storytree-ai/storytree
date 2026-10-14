@@ -9,6 +9,7 @@ import { after, before, test } from "node:test";
 
 import pg from "pg";
 import { openActivityLog } from "@storytree/session-management";
+import { RELEASE_FAMILIES } from "@storytree/app/updates/verbs";
 import { APP_FAMILIES } from "@storytree/app/lifecycle/verbs";
 import { SETTINGS_FAMILIES } from "@storytree/app/surfaces/verbs";
 import { HEALTH_FAMILIES } from "@storytree/ci-health/verbs";
@@ -29,7 +30,7 @@ import unbundled from "./parts/verbs.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-const DECLARED = [...APP_FAMILIES, ...SETTINGS_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...QUALITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...LIBRARIAN_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES];
+const DECLARED = [...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...QUALITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...LIBRARIAN_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());

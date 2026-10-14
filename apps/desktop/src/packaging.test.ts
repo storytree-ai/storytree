@@ -111,7 +111,7 @@ test("4.22 a release rehearsal never drafts, uploads or publishes, and checks on
   const cwd = mkdtempSync(path.join(tmpdir(), "storytree-rehearsal-"));
   try {
     // No GitHub event, release identity or token is given: a step that got past the refusal would fail differently.
-    const env = { ...process.env, STORYTREE_REHEARSAL: "true", STORYTREE_RELEASE_VERSION: version, GH_TOKEN: "" };
+    const env: NodeJS.ProcessEnv = { ...process.env, STORYTREE_REHEARSAL: "true", STORYTREE_RELEASE_VERSION: version, GH_TOKEN: "" };
     delete env.NODE_OPTIONS;
     delete env.GITHUB_EVENT_PATH;
     delete env.RELEASE_SHA;
@@ -123,12 +123,13 @@ test("4.22 a release rehearsal never drafts, uploads or publishes, and checks on
     }
     const release = path.join(cwd, "apps", "desktop", "release");
     mkdirSync(release, { recursive: true });
-    const required: string[] = PLATFORMS[hostPlatform()].required(version);
-    for (const name of required.slice(1)) writeFileSync(path.join(release, name), "");
+    const [first, ...rest]: string[] = PLATFORMS[hostPlatform()].required(version);
+    assert.ok(first);
+    for (const name of rest) writeFileSync(path.join(release, name), "");
     const incomplete = run("rehearse");
     assert.notEqual(incomplete.status, 0);
-    assert.match(incomplete.stderr, new RegExp(required[0].replaceAll(".", "\\.")));
-    writeFileSync(path.join(release, required[0]), "");
+    assert.match(incomplete.stderr, new RegExp(first.replaceAll(".", "\\.")));
+    writeFileSync(path.join(release, first), "");
     const complete = run("rehearse");
     assert.equal(complete.status, 0, complete.stderr);
     assert.match(complete.stdout, /nothing was drafted, uploaded or published/);

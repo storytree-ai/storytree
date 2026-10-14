@@ -6,7 +6,14 @@
  * the same work on the MCP server, with the inputs a tool takes.
  */
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "@storytree/project-and-caller/verbs";
-import type { SessionVerbContext } from "@storytree/session-management/verbs";
+
+/**
+ * What the quality verbs read off the door beyond the caller: the activity log a review's claims are read from, in this
+ * package's own copy of the field (ADR-1017 D2). Session management's reader takes it as its own type.
+ */
+interface QualityVerbContext extends VerbContext {
+  readonly log: unknown;
+}
 
 const NO_TOOL = { absent: "this package's tool parts serve the same work on the MCP server (quality_checks and the rest)" };
 
@@ -20,7 +27,7 @@ const checksVerb = verb({
   command: { family: "quality", name: "checks", summary: "every live quality control check: its question and the notes it enforces" },
   tool: NO_TOOL,
   inputs: {},
-  async act(_input, context: SessionVerbContext) {
+  async act(_input, context: QualityVerbContext) {
     const { checks, checksText } = await import("../index.js");
     const reading = await checks(context.library);
     return {
@@ -34,7 +41,7 @@ const ledgerVerb = verb({
   command: { family: "quality", name: "ledger", summary: "the QA ledger's counts: per check and package, the reviews that ran it and its hits by answer" },
   tool: NO_TOOL,
   inputs: {},
-  async act(_input, context: SessionVerbContext) {
+  async act(_input, context: QualityVerbContext) {
     const { ledgerText, openLedger } = await import("../index.js");
     return { text: ledgerText(await (await openLedger(server(context))).reading(context.library.name)) };
   },
@@ -47,14 +54,14 @@ const briefVerb = verb({
     increment: { kind: "text", word: 0, describe: "the increment whose change is reviewed" },
     diff: { kind: "text", optional: true, describe: "the change's diff against its default branch, as git diff gives it" },
   },
-  async act({ increment, diff }, context: SessionVerbContext) {
+  async act({ increment, diff }, context: QualityVerbContext) {
     const { branchBase, branchDiff, briefText, changeFolder, openReviews } = await import("../index.js");
     const reviews = await openReviews(server(context));
     // The change is the branch the increment was claimed on, wherever this runs (contract 2.8).
     let folder = context.folder;
     if (diff === undefined) {
       const { readClaims } = await import("@storytree/session-management");
-      folder = changeFolder(context.folder, (await readClaims(context.log, context.project)).find((claim) => claim.increment === increment)?.branch);
+      folder = changeFolder(context.folder, (await readClaims(context.log as Parameters<typeof readClaims>[0], context.project)).find((claim) => claim.increment === increment)?.branch);
     }
     const brief = await reviews.brief(context.library, increment, diff ?? branchDiff(folder), diff === undefined ? branchBase(folder) : undefined);
     return {
@@ -71,7 +78,7 @@ const takeVerb = verb({
     increment: { kind: "text", word: 0, describe: "the increment whose change was reviewed" },
     return: { kind: "text", describe: "the change-reviewer's return, as JSON" },
   },
-  async act({ increment, return: text }, context: SessionVerbContext) {
+  async act({ increment, return: text }, context: QualityVerbContext) {
     const { graduatedFindings, openReviews, takenText } = await import("../index.js");
     let review;
     try {
@@ -96,7 +103,7 @@ const answerVerb = verb({
     how: { kind: "text", word: 1, describe: "fixed or rejected" },
     reason: { kind: "text", optional: true, describe: "why the hit is rejected; needed for a rejection" },
   },
-  async act({ hit: word, how, reason }, context: SessionVerbContext) {
+  async act({ hit: word, how, reason }, context: QualityVerbContext) {
     const hit = Number(word);
     if (!Number.isInteger(hit)) throw new VerbRefusal("a hit is named by its number", { misuse: true });
     if (how !== "fixed" && how !== "rejected") throw new VerbRefusal(`a hit is answered fixed or rejected, not ${how}`, { misuse: true });
@@ -111,7 +118,7 @@ const standingVerb = verb({
   command: { family: "quality", name: "standing", summary: "the findings that still stand on an increment's change, or that it is ready for the gate" },
   tool: NO_TOOL,
   inputs: { increment: { kind: "text", word: 0, describe: "the increment whose change is reviewed" } },
-  async act({ increment }, context: SessionVerbContext) {
+  async act({ increment }, context: QualityVerbContext) {
     const { openReviews, standingText } = await import("../index.js");
     return { text: standingText(await (await openReviews(server(context))).standing(context.library.name, increment)) };
   },
@@ -126,7 +133,7 @@ const graduateVerb = verb({
     "enforced-by": { kind: "text", describe: "the Guardrails graduated check that enforces it" },
     whole: { kind: "switch", describe: "the part is all of the check, so it leaves the review brief" },
   },
-  async act({ check, part, "enforced-by": enforcedBy, whole }, context: SessionVerbContext) {
+  async act({ check, part, "enforced-by": enforcedBy, whole }, context: QualityVerbContext) {
     const { checks, checksText, graduate } = await import("../index.js");
     await graduate(context.library, check, { part, enforcedBy, ...(whole ? { whole: true as const } : {}) });
     return { text: `Graduated ${whole ? "all" : "part"} of ${check}.\n${checksText((await checks(context.library)).filter(({ id }) => id === check))}` };
@@ -134,7 +141,7 @@ const graduateVerb = verb({
 });
 
 /** The command line's `quality` family, 10th among `storytree`'s families. */
-export const QUALITY_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [{
+export const QUALITY_FAMILIES: readonly VerbFamily<QualityVerbContext>[] = [{
   name: "quality",
   summary: "the quality control checks, the QA ledger, the change-reviewer's loop (brief, take, answer, standing), and graduating a check",
   order: 10,

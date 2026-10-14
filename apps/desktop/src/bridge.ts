@@ -2,7 +2,7 @@
  * Capability 1 · Lifecycle. What the preload script hands the page, as `window.storytree`: these functions and nothing else.
  * Each is answered by the main process, which alone holds the library (@storytree/app's pageReads).
  */
-import { SETTINGS_CHANNELS, type SettingsBridge } from "@storytree/project-and-caller/view";
+import type { SettingsBridge } from "@storytree/project-and-caller/bridge";
 import { PAGE_READS_CHANNELS, SURFACES_CHANNELS, type PageReadsBridge } from "@storytree/app/surfaces";
 import { LIFECYCLE_CHANNELS, type LifecycleBridge } from "@storytree/app/lifecycle/bridge";
 import { PROJECTS_CHANNELS, type ProjectsBridge } from "@storytree/app/projects/bridge";
@@ -38,7 +38,6 @@ export function createBridge(
     // and sign-in for feedback is one object offered only by some builds, where a manifest's channels are flat and always there.
     ...(options.feedbackIdentity === true ? { feedbackIdentity: pageMethods<FeedbackIdentityBridge>(FEEDBACK_IDENTITY_CHANNELS, invoke) } : {}),
     ...pageMethods<JourneyBridge>(JOURNEY_CHANNELS, invoke),
-    ...pageMethods<SettingsBridge>(SETTINGS_CHANNELS, invoke),
     ...pageMethods<SurfacesBridge>(SURFACES_CHANNELS, invoke),
     ...pageMethods<UpdatesBridge>(UPDATES_CHANNELS, invoke),
     ...pageMethods<LifecycleBridge>(LIFECYCLE_CHANNELS, invoke),
@@ -46,6 +45,6 @@ export function createBridge(
     ...pageMethods<Omit<SetupHelpBridge, "feedbackIdentity">>(SETUP_HELP_CHANNELS, invoke),
     ...pageMethods<PageReadsBridge>(PAGE_READS_CHANNELS, invoke),
     // The stories whose manifests name their page channels (ADR-1030); the page's type above still names them for the renderer.
-    ...(Object.assign({}, ...PAGE_CHANNELS.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey">),
+    ...(Object.assign({}, ...PAGE_CHANNELS.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey"> & SettingsBridge),
   };
 }

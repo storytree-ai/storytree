@@ -1,5 +1,5 @@
 /** Capability 2 · Settings. */
-import type { SettingsResult } from "./bridge.js";
+import { SETTINGS_CHANNELS, type SettingsResult } from "./bridge.js";
 import { readSettings, setLibrary, setSetting, type SettingsReading } from "./settings.js";
 
 /** Keep errors as data: Electron's thrown-error wrapper would change the CLI's refusal text. */
@@ -27,3 +27,11 @@ export function settingsActions(home?: string) {
 }
 
 export { SETTINGS_CHANNELS } from "./bridge.js";
+
+/** What a host offers the settings panel's page part: the app's home, whose settings file it reads and writes. */
+export interface SettingsPageFrame {
+  readonly home: string;
+}
+
+/** The main process's side, named in its manifest (`pageAnswers`, ADR-1021): the desktop answers the panel's reads and saves with it. */
+export const settingsPageAnswers = [(frame: SettingsPageFrame) => ({ channels: SETTINGS_CHANNELS, answers: settingsActions(frame.home) })];

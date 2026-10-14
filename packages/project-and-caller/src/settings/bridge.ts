@@ -24,3 +24,6 @@ export const SETTINGS_CHANNELS = {
   readSettings: "storytree:read-settings",
   saveSetting: "storytree:save-setting",
 } as const;
+
+/** The page's side of the settings panel's operations, named in its manifest (`pageChannels`, ADR-1021): the desktop's preload offers them. */
+export const settingsPageChannels = [SETTINGS_CHANNELS];

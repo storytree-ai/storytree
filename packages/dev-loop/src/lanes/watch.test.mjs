@@ -114,7 +114,7 @@ test("13.8 · a pull request that conflicts with main is red with every check gr
   assert.equal(conflicting.state, "red");
   assert.match(conflicting.why, /conflicts with main/);
   assert.equal(readPull(pull({ checks: [passed], mergeable: "UNKNOWN" }), options).state, "pending", "not yet computed");
-  assert.equal(readPull(pull({ checks: [passed, failed], mergeable: "CONFLICTING" }), options).why, "verify on Windows failed", "a failed check still says which");
+  assert.match(readPull(pull({ checks: [passed, failed], mergeable: "CONFLICTING" }), options).why, /verify on Windows failed/, "a failed check still says which");
 
   const b = await box(t);
   await handOff(b);
@@ -138,7 +138,7 @@ test("13.3 · after its fix limit the watcher writes an owner wait with the PR a
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is forgotten once the owner has it");
 });
 
-test("13.12 · a pull request that conflicts with main past the fix limit gets one more fix session before the owner wait", async (t) => {
+test("13.12 · a pull request that conflicts with main past the fix limit gets one more fix session, and no owner wait", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = red;
@@ -154,7 +154,7 @@ test("13.12 · a pull request that conflicts with main past the fix limit gets o
   b.live.clear();
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 3, "and only one more");
-  assert.deepEqual(b.calls.at(-1).slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "owner"]);
+  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "a merge never waits on the owner (13.18)");
 });
 
 test("13.4 · a hand-off on disk survives a watcher restart, and handing back keeps its fix count", async (t) => {
@@ -381,4 +381,96 @@ test("13.13 · a pull request handed over after its increment closed on an earli
 
   await assert.rejects(hand({ ...b.options, storytree: async () => { throw new Error("increment_nope is not a live increment"); },
     pr: 43, increment: "increment_nope", session: SESSION, startWatcher: async () => {} }), /not a live increment/, "any other refusal still stops the hand-off");
+});
+
+const conflictOn = (head, checks = [passed]) => readPull(pull({ head, checks, mergeable: "CONFLICTING" }), { since: minutes(-60), now: at, graceMs: 0 });
+
+test("13.16 · a pull request that conflicts with main reads as a conflict even when a check failed too, so its merges run one at a time", async (t) => {
+  const both = conflictOn("h1", [passed, failed]);
+  assert.equal(both.state, "red");
+  assert.equal(both.conflict, true, "the conflict is not hidden by the failed check");
+  assert.match(both.why, /conflicts with main/);
+  assert.match(both.why, /verify on Windows failed/);
+
+  const b = await box(t);
+  for (const pr of [41, 42]) { await handOff(b, pr, `increment_${pr}`); b.looks[pr] = both; }
+  await watchOnce(b.options);
+  assert.deepEqual(b.fixes.map((fix) => fix.pr), [41], "the second conflict waits for the first merge session");
+});
+
+test("13.17 · a fix session that pushed is not counted when a newer main conflicts its branch again, and a cap on all sessions stops a loop", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  let head = 0;
+  // Each fix session merges main and pushes; the next sibling's landing conflicts the branch again.
+  for (let round = 0; round < 4; round++) { b.looks[41] = conflictOn(`h${++head}`); await watchOnce(b.options); b.live.clear(); }
+  assert.equal(b.fixes.length, 4, "every fix that moved the branch is free");
+  assert.match(b.fixes[3].brief, /Fix session 1 of 3/);
+  b.looks[41] = conflictOn(`h${head}`);
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 5, "a fix that did not push counts");
+  assert.match(b.fixes[4].brief, /Fix session 2 of 3/);
+
+  const capped = await box(t);
+  capped.options.cap = 3;
+  await handOff(capped);
+  for (let round = 0; round < 5; round++) { capped.looks[41] = conflictOn(`h${round}`); await watchOnce(capped.options); capped.live.clear(); }
+  assert.equal(capped.fixes.length, 3, "no fourth session past the cap");
+  assert.deepEqual(await readdir(capped.dir), [], "the hand-off is dropped");
+
+  const plain = await box(t);
+  await handOff(plain);
+  for (let round = 0; round < 3; round++) { plain.looks[41] = { ...red, head: `h${round}` }; await watchOnce(plain.options); plain.live.clear(); }
+  assert.equal(plain.fixes.length, 2, "a red that is no conflict counts every fix");
+});
+
+test("13.18 · a conflict past the limit goes back on its arc as ready work, naming its pull request and branch, never to the owner", async (t) => {
+  const b = await box(t);
+  b.options.storytree = async (args) => {
+    b.calls.push(args);
+    if (args[0] === "library" && args[1] === "read") return "The increment's own breakdown.";
+    if (args[2] === "edit") b.calls.at(-1).push(await readFile(args.at(-1).slice(1), "utf8"));
+    return "";
+  };
+  await handOff(b);
+  b.looks[41] = { ...conflictOn("h1"), branch: "claude/increment-one" };
+  for (let round = 0; round < 4; round++) { await watchOnce(b.options); b.live.clear(); }
+  assert.equal(b.fixes.length, 3, "the limit and the conflict's one more");
+  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "no owner wait");
+  const edit = b.calls.find(([, , verb]) => verb === "edit");
+  assert.deepEqual(edit.slice(0, 5), ["arc", "increment", "edit", "increment_one", "--body"]);
+  const body = edit.at(-1);
+  assert.match(body, /^The increment's own breakdown\./, "the body keeps what it said");
+  assert.match(body, /PR #41/); assert.match(body, /claude\/increment-one/); assert.match(body, /merge origin\/main/);
+  assert.deepEqual(b.calls.at(-1), ["arc", "increment", "unwait", "increment_one", "--for", "event"], "the pool may take it again");
+  assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
+  assert.match(b.lines.at(-1), /PR #41.*back on its arc/);
+});
+
+test("13.19 · the watcher's status says when its look loop runs code other than the checkout's", async (t) => {
+  const b = await box(t);
+  const procs = { 7: "node /repo/packages/dev-loop/src/lanes/watch.mjs run", 8: "node /repo/packages/dev-loop/src/lanes/watch.mjs watch" };
+  let checkout = "tree-a";
+  const status = async (extra = {}) => {
+    const outs = [];
+    await main(["status"], { ...b.options, out: (line) => outs.push(line), pidFile: join(b.dir, "watch.pid"), loopPidFile: join(b.dir, "watch-loop.pid"),
+      argsOf: async (pid) => procs[pid] ?? "", codeVersion: async () => checkout, ...extra });
+    return outs.join("\n");
+  };
+  await writeFile(join(b.dir, "watch.pid"), "7\n");
+  await writeFile(join(b.dir, "watch-loop.pid"), "8\n");
+  assert.match(await status(), /look loop: running \(pid 8\).*unknown/, "a loop that recorded no version predates the check");
+
+  // A look loop records the version it started on.
+  const looping = { ...b.options, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 8, argsOf: async (pid) => procs[pid] ?? "",
+    codeVersion: async () => checkout, sleep: async () => { checkout = "tree-b"; } };
+  b.looks = {};
+  assert.equal(await main(["watch"], looping), RESTART);
+  await writeFile(join(b.dir, "watch-loop.pid"), "8\n");
+  checkout = "tree-a";
+  assert.match(await status(), /look loop: running \(pid 8\) on the checkout's code \(tree-a\)/);
+  checkout = "tree-b";
+  assert.match(await status(), /look loop: running \(pid 8\) on stale code: tree-a, while the checkout has tree-b/);
+  delete procs[8];
+  assert.match(await status(), /look loop: not running/);
 });

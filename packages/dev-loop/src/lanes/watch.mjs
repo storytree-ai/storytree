@@ -39,7 +39,8 @@ export const RESTART = 3;
 /**
  * A pull request, as GitHub's GraphQL returns it, read as merged, closed, red or pending. Red is a failed check on
  * its head, a conflict with main (no check fails on one, so it would otherwise wait out its check-back), or a removal
- * from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`.
+ * from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`. A conflict is marked as
+ * one whatever else failed: a conflict often fails the landing check too, and it still needs a merge (13.16).
  */
 export function readPull(pull, { since, now, graceMs }) {
   const head = pull.headRefOid;
@@ -47,13 +48,13 @@ export function readPull(pull, { since, now, graceMs }) {
   if (pull.state === "CLOSED") return { state: "closed", head };
   const checks = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
   const failed = checks.filter((check) => RED.has(check.conclusion ?? check.state));
-  if (failed.length) {
-    return { state: "red", head, why: failed.map((check) => `${check.name ?? check.context} failed`).join("; "),
-      logs: failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean) };
-  }
+  const why = failed.map((check) => `${check.name ?? check.context} failed`).join("; ");
+  const logs = failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean);
   if (pull.mergeable === "CONFLICTING") {
-    return { state: "red", head, why: "it conflicts with main: merge origin/main and resolve the conflicts", logs: [], conflict: true };
+    return { state: "red", head, why: `it conflicts with main: merge origin/main and resolve the conflicts${why ? `; also ${why}` : ""}`, logs,
+      conflict: true, branch: pull.headRefName };
   }
+  if (failed.length) return { state: "red", head, why, logs };
   const removal = pull.timelineItems?.nodes?.at(-1);
   const removedAt = Date.parse(removal?.createdAt);
   if (!pull.mergeQueueEntry && EJECTED.has(removal?.reason?.toUpperCase()) && removedAt > Date.parse(since) && now - removedAt > graceMs) {
@@ -63,7 +64,7 @@ export function readPull(pull, { since, now, graceMs }) {
 }
 
 const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
-  state headRefOid mergeable mergeQueueEntry { state }
+  state headRefOid headRefName mergeable mergeQueueEntry { state }
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
     __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 1) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } }
@@ -77,6 +78,8 @@ export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 
 }
 
 const recordPath = (dir, pr) => join(dir, `${pr}.json`);
+/** The look loop's pid and the code version it started on, for `status` (13.19). */
+const versionPath = (dir) => join(dir, "watch-loop.version");
 const save = (dir, record) => writeFile(recordPath(dir, record.pr), `${JSON.stringify(record, null, 2)}\n`);
 
 async function records(dir) {
@@ -172,13 +175,17 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * One look at every hand-off. MERGED: clear the wait, close the increment landed (unless it was handed over to stay
  * open), release what its session still holds and forget it. CLOSED: clear the wait and forget it. Red: with no fix session running and an engine slot
  * free, clear the wait and start one; once `limit` have run, put the increment on an owner wait instead. A conflict
- * with main needs a session, not the owner's call, so it gets one more fix session before that wait (13.12). A fix
+ * with main needs a session, not the owner's call, so it gets one more fix session (13.12), and past that it is never
+ * an owner wait: the hand-off is dropped and the increment goes back on its arc as ready work, its body naming the
+ * pull request and its branch (13.18). A fix session whose branch moved while it ran made progress, so it counts for
+ * nothing when the next red is a conflict, since a newer main made that one (13.17); `cap` sessions on one pull
+ * request, counted or not, end it as the limit does. A fix
  * session refused by another's claim counts for nothing, and its retry waits until no other fix session runs (13.14).
  * Conflicts are merged one at a time, lowest pull request first: siblings that conflict on one file would refuse
  * each other's claims if their merge sessions ran together (13.15). A hand-off on an increment that had already
  * closed has no wait to clear and nothing to close, and past its limit is only said (13.13).
  */
-export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, cap = 6, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -212,13 +219,33 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
     if (record.fixing) { record.fixing = null; await save(dir, record); }
     if (pull.state !== "red") continue;
     const allowed = pull.conflict ? limit + 1 : limit;
-    const counted = record.fixes.filter((fix) => !fix.refused).length;
-    if (counted >= allowed && record.closed) {
+    const last = record.fixes.at(-1);
+    if (pull.conflict && last && !last.refused && !last.moved && last.head && last.head !== pull.head) {
+      last.moved = true;
+      await save(dir, record);
+    }
+    const counted = record.fixes.filter((fix) => !fix.refused && !fix.moved).length;
+    const spent = counted >= allowed || record.fixes.length >= cap;
+    if (spent && record.closed) {
       await rm(recordPath(dir, pr), { force: true });
-      dated(`PR #${pr} still red after ${counted} fix sessions, and ${increment} had already closed, so nothing can wait on the owner: ${pull.why}`);
+      dated(`PR #${pr} still red after ${record.fixes.length} fix sessions, and ${increment} had already closed, so nothing can wait on the owner: ${pull.why}`);
       continue;
     }
-    if (counted >= allowed) {
+    if (spent && pull.conflict) {
+      const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
+      const residue = join(dir, `${pr}-residue.md`);
+      await writeFile(residue, `${body ? `${body}\n\n` : ""}**Back from the watcher, ${new Date(now()).toISOString().slice(0, 10)}.** PR #${pr}`
+        + ` (branch \`${pull.branch ?? "unknown"}\`) still conflicts with main after ${record.fixes.length} fix sessions`
+        + ` (logs: ${record.fixes.map((fix) => fix.log).join(", ")}). Take that branch, merge origin/main, resolve the conflicts,`
+        + ` see \`pnpm gate\` green, push, and hand PR #${pr} to the watcher again.\n`);
+      await tell(["arc", "increment", "edit", increment, "--body", `@${residue}`]);
+      await rm(residue, { force: true });
+      await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+      await rm(recordPath(dir, pr), { force: true });
+      dated(`PR #${pr} still conflicts with main after ${record.fixes.length} fix sessions: ${increment} is back on its arc as ready work`);
+      continue;
+    }
+    if (spent) {
       await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
       await storytree(["arc", "increment", "wait", increment, "--for", "owner", "--note",
         `PR #${pr} is still red after ${counted} fix sessions: ${pull.why}.${pull.logs.length ? ` Failing runs: ${pull.logs.join(", ")}.` : ""}`
@@ -271,7 +298,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   };
   return {
     lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), status: join(lanesDir, "watch.status"), argsOf,
-    limit: Number(env.WATCH_FIX_LIMIT) || 2, intervalMs: Number(env.WATCH_INTERVAL_S ?? 60) * 1000, now: Date.now,
+    limit: Number(env.WATCH_FIX_LIMIT) || 2, cap: Number(env.WATCH_FIX_CAP) || 6, intervalMs: Number(env.WATCH_INTERVAL_S ?? 60) * 1000, now: Date.now,
     session: env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim() || "",
     storytree: async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout,
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt }),
@@ -329,6 +356,14 @@ export async function main(args, box = {}) {
     const pid = (await readFile(b.pidFile, "utf8").catch(() => "")).trim();
     const live = pid && MARKS[0].test(await b.argsOf(pid));
     out(`watcher: ${live ? `running (pid ${pid})` : "not running"}`);
+    // 13.19: a look loop on code other than the checkout's shows, even one older than the version it records.
+    const loopPid = (await readFile(b.loopPidFile, "utf8").catch(() => "")).trim();
+    if (loopPid && LOOP_MARKS[0].test(await b.argsOf(loopPid))) {
+      const [by, began] = (await readFile(versionPath(b.dir), "utf8").catch(() => "")).trim().split(" ");
+      const current = await Promise.resolve().then(b.codeVersion).catch(() => undefined);
+      out(`look loop: running (pid ${loopPid}) ${by !== loopPid || !began ? "on code of unknown version (it records none): restart the watcher"
+        : began === current ? `on the checkout's code (${began})` : `on stale code: ${began}, while the checkout has ${current ?? "an unreadable version"}`}`);
+    } else out("look loop: not running");
     for (const record of found) out(`PR #${record.pr} ${record.increment}: handed ${record.handedAt}, ${record.fixes.length} fix sessions${record.fixing ? `, one running (pid ${record.fixing.pid})` : ""}`);
     if (!found.length) out("no hand-offs");
     return 0;
@@ -352,6 +387,7 @@ export async function main(args, box = {}) {
   if (!loop.held) { say(`watcher look loop ${loop.by} is running: not starting`); return 1; }
   const version = () => Promise.resolve().then(b.codeVersion).catch(() => undefined);
   const began = await version();
+  if (began) await writeFile(versionPath(b.dir), `${b.pid ?? process.pid} ${began}\n`);
   for (;;) {
     // Between looks, never in one: a fix session it started runs on, and its hand-off on disk keeps the count.
     const current = began && await version();

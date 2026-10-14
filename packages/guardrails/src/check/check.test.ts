@@ -123,3 +123,25 @@ test("3.6 · a checkout's sanctioned edges, declared in its storytree.check.json
   const sanctioned = await check(plant(t, { ...leaning, "storytree.check.json": JSON.stringify({ frames, edges }) }));
   assert.equal(sanctioned.passed, true, sanctioned.text);
 });
+
+test("3.8 · a change whose test asserts an expression equal to itself fails the check, by file and line; without origin/main the check says it did not run", async (t: TestContext) => {
+  const at = plant(t, KEPT);
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: at, stdio: "ignore" });
+  git("init", "-q");
+  git("add", "-A");
+  git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "base");
+  const loose = await check(at);
+  assert.equal(loose.passed, true, loose.text);
+  assert.match(loose.text, /self-equal assertion check: not run \(origin\/main is not in this checkout/);
+
+  git("update-ref", "refs/remotes/origin/main", "HEAD");
+  const kept = await check(at);
+  assert.equal(kept.passed, true, kept.text);
+  assert.match(kept.text, /self-equal assertion check: kept/);
+
+  writeFileSync(path.join(at, "packages/cart/test/cart.test.js"), 'import assert from "node:assert/strict";\nimport { test } from "node:test";\nimport { add } from "../src/cart.js";\nconst SUM = add(1, 2);\ntest("1.1 adds", () => assert.equal(SUM, SUM));\n');
+  const tripped = await check(at);
+  assert.equal(tripped.passed, false, tripped.text);
+  assert.match(tripped.text, /self-equal assertion check: 1 problem\.\n {2}- packages\/cart\/test\/cart\.test\.js:5 /);
+  assert.match(tripped.text, /storytree check failed/);
+});

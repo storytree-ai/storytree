@@ -9,7 +9,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { checkCommands } from "./pipeline.js";
+import { checkCommands, workflowFor } from "./pipeline.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
@@ -36,4 +36,10 @@ test("11.4 the storytree check step installs only what the check runs on, and ru
 
   for (const needed of ["@storytree/map", "@babel/parser", "tsx"]) assert.ok(taken.has(needed), `the check runs on ${needed}`);
   for (const unused of ["onnxruntime-node", "@storytree/library"]) assert.equal(taken.has(unused), false, `the check never uses ${unused}`);
+});
+
+test("11.8 the storytree check job checks out the history with origin/main, so the self-equal assertion check compares the change with it", () => {
+  const workflow = workflowFor({ test: "npm test", systems: ["linux"], ref: "main" });
+  const job = workflow.slice(workflow.indexOf("  storytree-check:"));
+  assert.match(job, /- uses: actions\/checkout@v4\n {8}with:\n {10}fetch-depth: 0\b/, job);
 });

@@ -3,7 +3,8 @@
  * read from the verb's inputs, its words and flags become the verb's input, a step it offers next is named as a
  * command, and the verb's own refusal is the door's, with the usage when the input was wrong. A word or flag the verb does
  * not take is refused with its usage. A callerless verb is handed only its place, so it runs where no library opens. A
- * verb that writes is handed the writer, named below its answer; a raw answer is printed as it is. A declared family is
+ * verb that writes is handed the writer, named below its answer once its work asks for it, so one that wrote nothing names
+ * none; a raw answer is printed as it is. A declared family is
  * mounted with the families within it, its bare verb, its guesses and its retired words.
  */
 import { commandInput, commandUsage, mounted, VerbRefusal, type DoorWords, type Verb, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/project-and-caller/verbs";
@@ -48,7 +49,7 @@ export function command(declared: Verb<VerbInputs, SessionVerbContext & CommandP
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
         const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey() };
         const caller = declared.callerless ? place as SessionVerbContext & CommandPlace : { ...place, ...await context.activityContext() };
-        const answer = await declared.act(input, declared.writes ? { ...caller, writer: context.writer() } : caller, WORDS);
+        const answer = await declared.act(input, declared.writes ? writing(caller, context) : caller, WORDS);
         if (answer.raw) return { text: answer.text, raw: true };
         const next: Next[] = (answer.next ?? []).map((step) => ({ command: WORDS.say(step), why: step.why }));
         return { text: answer.text, ...(next.length === 0 ? {} : { next }) };
@@ -57,6 +58,12 @@ export function command(declared: Verb<VerbInputs, SessionVerbContext & CommandP
       }
     },
   };
+}
+
+/** `caller` with the writer, asked of the door only when the work first reads it: the door names a writer it was asked for. */
+function writing<C extends object>(caller: C, context: Pick<Context, "writer">): C & { readonly writer: ReturnType<Context["writer"]> } {
+  let writer: ReturnType<Context["writer"]> | undefined;
+  return Object.defineProperty({ ...caller }, "writer", { enumerable: true, get: () => (writer ??= context.writer()) }) as C & { readonly writer: ReturnType<Context["writer"]> };
 }
 
 /** The family for `declared`, with the families within it, each verb mounted as a command. */

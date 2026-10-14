@@ -36,11 +36,21 @@ const look = verb({
   },
 });
 
+const water = verb({
+  command: { family: "garden", name: "water", summary: "water the garden, unless it rained" },
+  tool: { absent: "a test verb" },
+  inputs: { rained: { kind: "switch", describe: "it rained" } },
+  writes: true,
+  async act({ rained }, context: SessionVerbContext) {
+    return { text: rained ? "No change: it rained." : `watered by ${context.writer!.actor} and ${context.writer!.actor}` };
+  },
+});
+
 const garden: VerbFamily<SessionVerbContext> = {
   name: "garden",
   summary: "the garden",
   order: 1,
-  verbs: [look],
+  verbs: [look, water],
   families: [{ name: "bed", summary: "one bed", verbs: [gather] }],
   guesses: { dig: "garden bed gather <beds>" },
   retired: { mow: { why: "the lawn is gone", instead: "garden look" } },
@@ -58,7 +68,7 @@ function contextOf(): { context: Context; writers: number[] } {
   return { context, writers };
 }
 
-test("1.23 · the command line mounts a declared family with the families within it, its guesses and its retired words; a verb's many words and repeated flags, and every flag as a field, reach its work; a verb that writes is handed the writer the answer names, and a raw answer is printed as it is", async () => {
+test("1.23 · the command line mounts a declared family with the families within it, its guesses and its retired words; a verb's many words and repeated flags, and every flag as a field, reach its work; a verb that writes is handed the writer the answer names once its work asks for it, and a raw answer is printed as it is", async () => {
   const mounted = family(garden);
   assert.deepEqual(mounted.guesses, garden.guesses);
   assert.deepEqual(mounted.retired, garden.retired);
@@ -75,6 +85,13 @@ test("1.23 · the command line mounts a declared family with the families within
   const looked = await mounted.verbs[0]!.act(parseArgs([], [], "/work"), reading.context);
   assert.deepEqual(looked, { text: "looked by nobody", next: [{ command: "storytree garden bed gather <beds>", why: "gather" }] });
   assert.equal(reading.writers.length, 0, "a verb that does not write names no writer");
+
+  const dry = contextOf();
+  assert.deepEqual(await mounted.verbs[1]!.act(parseArgs(["--rained"], ["rained"], "/work"), dry.context), { text: "No change: it rained." });
+  assert.equal(dry.writers.length, 0, "a writing verb whose work wrote nothing names no writer");
+  const wet = contextOf();
+  assert.deepEqual(await mounted.verbs[1]!.act(parseArgs([], ["rained"], "/work"), wet.context), { text: "watered by session:claude-1 and session:claude-1" });
+  assert.equal(wet.writers.length, 1, "the writer is asked for once, however often the work reads it");
 });
 
 const runtime = { record: () => {} };

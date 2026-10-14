@@ -19,7 +19,7 @@
  * - Exit codes: 0 answered; 1 refused (by the library, which is printed in its own words, or by
  *   the door, which says what to do); 2 a command used wrongly, with its usage.
  */
-import type { ActivityLog, Claim } from "@storytree/session-management";
+import type { ActivityLog } from "@storytree/session-management";
 import { openNamedProject, ProjectFolderError, requireApproval, route } from "@storytree/project-and-caller/routing";
 import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
@@ -41,6 +41,21 @@ export type ClaimContext = {
   readonly session: string;
   readonly harness?: string;
   readonly folder: string;
+};
+
+/**
+ * A claim as the commands read it, from Session management's reading of its activity log: the door's own copy
+ * of the fields they read (ADR-1017 D2).
+ */
+export type Claim = {
+  readonly session: string;
+  readonly label: string;
+  readonly reason: string;
+  readonly since: string;
+  readonly branch?: string | undefined;
+  readonly holder: "live" | "idle";
+  readonly increment?: string | undefined;
+  readonly capability?: string | undefined;
 };
 
 type JourneyRuntime = ReturnType<typeof import("@storytree/journey-events/runtime").createJourneyRuntime>;

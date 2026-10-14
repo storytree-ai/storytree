@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,7 +10,7 @@ import { test } from "node:test";
 // The release workflow's completeness check, kept with the packaging it describes (apps/desktop's
 // release-assets.mjs). Each platform's runner uploads its own set into one draft; publishing waits for all.
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
-import { hostPlatform, missingAssets, platformUploads } from "../release-assets.mjs";
+import { hostPlatform, missingAssets, platformUploads, PLATFORMS } from "../release-assets.mjs";
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
 import { linuxDeliveryAssets, macDeliveryAssets, mergeDelivery } from "../delivery-assets.mjs";
 
@@ -102,5 +102,38 @@ test("4.6 the release workflow's script loads under plain Node, so a source it i
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
   const run = spawnSync(process.execPath, [fileURLToPath(new URL("../release.mjs", import.meta.url))], { encoding: "utf8", env });
-  assert.match(run.stderr, /Use source, draft, upload or publish/);
+  assert.match(run.stderr, /Use source, draft, upload, publish or rehearse/);
+});
+
+test("4.22 a release rehearsal never drafts, uploads or publishes, and checks only that this runner built its platform's complete set", () => {
+  const script = fileURLToPath(new URL("../release.mjs", import.meta.url));
+  const version = "0.3.700";
+  const cwd = mkdtempSync(path.join(tmpdir(), "storytree-rehearsal-"));
+  try {
+    // No GitHub event, release identity or token is given: a step that got past the refusal would fail differently.
+    const env: NodeJS.ProcessEnv = { ...process.env, STORYTREE_REHEARSAL: "true", STORYTREE_RELEASE_VERSION: version, GH_TOKEN: "" };
+    delete env.NODE_OPTIONS;
+    delete env.GITHUB_EVENT_PATH;
+    delete env.RELEASE_SHA;
+    const run = (step: string) => spawnSync(process.execPath, [script, step], { cwd, encoding: "utf8", env });
+    for (const step of ["source", "draft", "upload", "publish"]) {
+      const refused = run(step);
+      assert.notEqual(refused.status, 0, step);
+      assert.match(refused.stderr, new RegExp(`A rehearsal never runs ${step}`), step);
+    }
+    const release = path.join(cwd, "apps", "desktop", "release");
+    mkdirSync(release, { recursive: true });
+    const [first, ...rest]: string[] = PLATFORMS[hostPlatform()].required(version);
+    assert.ok(first);
+    for (const name of rest) writeFileSync(path.join(release, name), "");
+    const incomplete = run("rehearse");
+    assert.notEqual(incomplete.status, 0);
+    assert.match(incomplete.stderr, new RegExp(first.replaceAll(".", "\\.")));
+    writeFileSync(path.join(release, first), "");
+    const complete = run("rehearse");
+    assert.equal(complete.status, 0, complete.stderr);
+    assert.match(complete.stdout, /nothing was drafted, uploaded or published/);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });

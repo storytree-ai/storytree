@@ -1,0 +1,39 @@
+name: Release rehearsal
+
+# The release's build, Developer ID signing, notarisation and install check on all three systems, run on a branch and
+# publishing nothing (ADR-1032 D3, contract 4.22): no draft, no release, no tag. Run it by hand on any branch, for
+# example after setting a secret in the `rehearsal` environment; it runs by itself for a pull request that changes the
+# release machinery, and a failure is that pull request's red check. A pull request from a fork never runs it: it
+# would carry the signing secrets.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - .github/workflows/release-package.yml
+      - .github/workflows/release-rehearsal.yml
+      - apps/desktop/release.mjs
+      - apps/desktop/release-assets.mjs
+      - apps/desktop/dist.mjs
+      - apps/desktop/mac-signing.mjs
+      - apps/desktop/delivery-assets.mjs
+      - apps/desktop/check-install.mjs
+      - apps/desktop/check-install-mac.mjs
+      - apps/desktop/check-install-linux.mjs
+      - apps/desktop/package.json
+
+concurrency:
+  group: release-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read only: even a mistaken step could not write a release with this token.
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    uses: ./.github/workflows/release-package.yml
+    with:
+      rehearsal: true
+    secrets: inherit

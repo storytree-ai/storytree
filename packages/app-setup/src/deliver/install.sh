@@ -212,11 +212,16 @@ st_appimage_version() {
   st_desktop_version "$st_look/squashfs-root/storytree-0.3.desktop"
 }
 
+# st_userns_blocked: the kernel blocks the unprivileged user namespaces Chromium's sandbox needs (stock Ubuntu 24.04
+# and later); the setting is world-readable, and a kernel without it allows them (ADR-1034).
+st_userns_blocked() { [ "$(cat "${ST_USERNS:-/proc/sys/kernel/apparmor_restrict_unprivileged_userns}" 2>/dev/null)" = 1 ]; }
+
 # st_desktop_entry ENTRY APP ICON: the AppImage's own entry, started from the installed AppImage with the installed icon.
-# Exec keeps the arguments the release packaged after its AppRun.
+# Exec keeps the arguments the release packaged after its AppRun, and turns the sandbox off only where the kernel blocks it.
 st_desktop_entry() {
-  ST_ENTRY_EXEC=$(printf '%s' "$2" | sed 's/[\\"`$]/\\&/g; s/\\/\\\\/g') ST_ENTRY_ICON=$3 awk '
-    /^Exec=/ { rest = substr($0, 6); n = index(rest, " "); print "Exec=\"" ENVIRON["ST_ENTRY_EXEC"] "\"" (n ? substr(rest, n) : ""); next }
+  if st_userns_blocked; then st_sandbox=' --no-sandbox'; else st_sandbox=; fi
+  ST_ENTRY_EXEC=$(printf '%s' "$2" | sed 's/[\\"`$]/\\&/g; s/\\/\\\\/g') ST_ENTRY_ICON=$3 ST_ENTRY_ARGS=$st_sandbox awk '
+    /^Exec=/ { rest = substr($0, 6); n = index(rest, " "); print "Exec=\"" ENVIRON["ST_ENTRY_EXEC"] "\"" ENVIRON["ST_ENTRY_ARGS"] (n ? substr(rest, n) : ""); next }
     /^Icon=/ { print "Icon=" ENVIRON["ST_ENTRY_ICON"]; next }
     { print }' "$1"
 }

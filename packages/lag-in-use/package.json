@@ -6,7 +6,8 @@
     ".": "./src/index.ts",
     "./bridge": "./src/bridge.ts",
     "./runtime": "./src/runtime.ts",
-    "./view": "./src/view.ts"
+    "./view": "./src/view.ts",
+    "./verbs": "./src/verbs.ts"
   },
   "storytree": {
     "pageChannels": [
@@ -20,13 +21,20 @@
         "from": "./runtime",
         "export": "lagPageAnswers"
       }
+    ],
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "LAG_FAMILIES"
+      }
     ]
   },
   "scripts": {
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@storytree/forest": "workspace:*"
+    "@storytree/forest": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

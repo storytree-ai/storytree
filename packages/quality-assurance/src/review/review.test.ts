@@ -262,6 +262,21 @@ test("2.8 · the change is read from the worktree on the increment's claimed bra
   }
 });
 
+test("2.8 · a brief run from a worktree on another of the increment's branches reads that worktree, and one on another increment's branch is still refused", () => {
+  const dir = branchCheckout();
+  const worktree = join(mkdtempSync(join(tmpdir(), "qa-second-")), "wt");
+  try {
+    const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd });
+    git(dir, "worktree", "add", "-q", "-b", "claude/increment-6fe6450f6609-arcs", worktree, "origin/main");
+
+    assert.equal(realpathSync.native(changeFolder(worktree, "claude/increment-6fe6450f6609-23254a")), realpathSync.native(worktree));
+    assert.throws(() => changeFolder(worktree, "claude/increment-0123456789ab-23254a"), /branch claude\/increment-0123456789ab-23254a/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(join(worktree, ".."), { recursive: true, force: true });
+  }
+});
+
 test("2.3 · the brief's tool issues the brief given the diff, or reads it from the worktree given, and refuses neither; the take tool takes the same return the loop takes", async () => {
   await withLibrary(async (library, storytree) => {
     const { increment, contracts, checks } = await plan(library);

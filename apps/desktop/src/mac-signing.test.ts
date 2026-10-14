@@ -38,6 +38,12 @@ test("4.20 a Developer ID Mac build hands electron-builder the identity prepare 
   assert.throws(() => builderEnv({ CSC_LINK: "base64p12", CSC_KEY_PASSWORD: "pw", ...apple }), /STORYTREE_MAC_IDENTITY/);
 });
 
+test("4.20 electron-builder signs a pull request's Mac build in both modes, rather than skipping signing as it does by default", () => {
+  // A same-repository pull request's rehearsal carries the Developer ID secrets; unsigned, it failed codesign (PR #1378's run 38638385107).
+  assert.equal(builderEnv({ CSC_LINK: "", PATH: "/usr/bin" }).CSC_FOR_PULL_REQUEST, "true");
+  assert.equal(builderEnv({ CSC_LINK: "base64p12", CSC_KEY_PASSWORD: "pw", ...apple, STORYTREE_MAC_IDENTITY: "FEDCBA98" }).CSC_FOR_PULL_REQUEST, "true");
+});
+
 test("4.20 with the certificate and Apple's key the Mac build imports a keychain, signs as the Developer ID find-identity lists, and notarises", () => {
   assert.deepEqual(macSigning({ CSC_LINK: "base64p12", CSC_KEY_PASSWORD: "pw", ...apple }), { mode: "developer-id", keychain: true, notarize: true });
   assert.equal(identityFrom(listed), "FEDCBA9876543210FEDCBA9876543210FEDCBA98");

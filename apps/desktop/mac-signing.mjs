@@ -29,12 +29,15 @@ export function macSigning(env) {
 /** The environment electron-builder builds in, never with CSC_LINK or CSC_KEY_PASSWORD. Ad-hoc: the release passes
  * an absent secret as "" and electron-builder would read an empty CSC_LINK as a certificate path. Developer ID:
  * given the certificate, electron-builder imports it into a keychain of its own and unlocks that with the
- * certificate's password, which macOS refuses; so it gets CSC_NAME, the identity prepare put in our keychain. */
+ * certificate's password, which macOS refuses; so it gets CSC_NAME, the identity prepare put in our keychain.
+ * Both set CSC_FOR_PULL_REQUEST: electron-builder skips signing a pull request's build by default, and Apple Silicon
+ * runs no unsigned code. A fork's pull request gets no secrets, so it is ad-hoc and holds none to leak. */
 export function builderEnv(env) {
   const { CSC_LINK, CSC_KEY_PASSWORD, ...rest } = env;
-  if (macSigning(env).mode === "ad-hoc") return rest;
+  const signed = { ...rest, CSC_FOR_PULL_REQUEST: "true" };
+  if (macSigning(env).mode === "ad-hoc") return signed;
   if (!env.STORYTREE_MAC_IDENTITY) throw new Error("STORYTREE_MAC_IDENTITY is not set: run `node apps/desktop/mac-signing.mjs prepare` before a Developer ID build");
-  return { ...rest, CSC_NAME: env.STORYTREE_MAC_IDENTITY };
+  return { ...signed, CSC_NAME: env.STORYTREE_MAC_IDENTITY };
 }
 
 /** electron-builder's Mac signing settings: it never notarises, because its notarytool wait has no bound and held

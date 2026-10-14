@@ -95,3 +95,19 @@ test("3.4 · a project whose package imports an existing app from outside it, by
   assert.equal(broken.passed, false);
   assert.deepEqual(broken.allocationRule.length, 1, broken.text);
 });
+
+test("3.5 · a checkout's frames, declared in its storytree.check.json, are read: a declared frame passes, an undeclared one fails", async (t: TestContext) => {
+  const shell = {
+    ...KEPT,
+    "package.json": JSON.stringify({ name: "shop", workspaces: ["packages/cart", "packages/checkout", "apps/shell"] }),
+    "apps/shell/package.json": JSON.stringify({ name: "shell", dependencies: { cart: "*" } }),
+    "apps/shell/src/main.js": "export const start = () => 0;\n",
+    "apps/shell/test/main.test.js": 'import { test } from "node:test";\nimport { start } from "../src/main.js";\ntest("1.2 starts", () => start());\n',
+  };
+  const undeclared = await check(plant(t, shell));
+  assert.equal(undeclared.passed, false);
+  assert.match(undeclared.text, /apps\/shell is neither a story's package nor the frame/);
+
+  const declared = await check(plant(t, { ...shell, "storytree.check.json": JSON.stringify({ frames: [{ story: "cart", dirs: ["apps/shell"] }] }) }));
+  assert.equal(declared.passed, true, declared.text);
+});

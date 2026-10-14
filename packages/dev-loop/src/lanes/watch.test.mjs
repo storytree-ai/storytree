@@ -154,7 +154,7 @@ test("13.12 · a pull request that conflicts with main past the fix limit gets o
   b.live.clear();
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 3, "and only one more");
-  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "a merge never waits on the owner (13.18)");
+  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "a merge never waits on the owner (13.20)");
 });
 
 test("13.4 · a hand-off on disk survives a watcher restart, and handing back keeps its fix count", async (t) => {
@@ -385,7 +385,7 @@ test("13.13 · a pull request handed over after its increment closed on an earli
 
 const conflictOn = (head, checks = [passed]) => readPull(pull({ head, checks, mergeable: "CONFLICTING" }), { since: minutes(-60), now: at, graceMs: 0 });
 
-test("13.16 · a pull request that conflicts with main reads as a conflict even when a check failed too, so its merges run one at a time", async (t) => {
+test("13.18 · a pull request that conflicts with main reads as a conflict even when a check failed too, so its merges run one at a time", async (t) => {
   const both = conflictOn("h1", [passed, failed]);
   assert.equal(both.state, "red");
   assert.equal(both.conflict, true, "the conflict is not hidden by the failed check");
@@ -398,7 +398,7 @@ test("13.16 · a pull request that conflicts with main reads as a conflict even 
   assert.deepEqual(b.fixes.map((fix) => fix.pr), [41], "the second conflict waits for the first merge session");
 });
 
-test("13.17 · a fix session that pushed is not counted when a newer main conflicts its branch again, and a cap on all sessions stops a loop", async (t) => {
+test("13.19 · a fix session that pushed is not counted when a newer main conflicts its branch again, and a cap on all sessions stops a loop", async (t) => {
   const b = await box(t);
   await handOff(b);
   let head = 0;
@@ -424,7 +424,7 @@ test("13.17 · a fix session that pushed is not counted when a newer main confli
   assert.equal(plain.fixes.length, 2, "a red that is no conflict counts every fix");
 });
 
-test("13.18 · a conflict past the limit goes back on its arc as ready work, naming its pull request and branch, never to the owner", async (t) => {
+test("13.20 · a conflict past the limit goes back on its arc as ready work, naming its pull request and branch, never to the owner", async (t) => {
   const b = await box(t);
   b.options.storytree = async (args) => {
     b.calls.push(args);
@@ -447,7 +447,7 @@ test("13.18 · a conflict past the limit goes back on its arc as ready work, nam
   assert.match(b.lines.at(-1), /PR #41.*back on its arc/);
 });
 
-test("13.19 · the watcher's status says when its look loop runs code other than the checkout's", async (t) => {
+test("13.21 · the watcher's status says when its look loop runs code other than the checkout's", async (t) => {
   const b = await box(t);
   const procs = { 7: "node /repo/packages/dev-loop/src/lanes/watch.mjs run", 8: "node /repo/packages/dev-loop/src/lanes/watch.mjs watch" };
   let checkout = "tree-a";

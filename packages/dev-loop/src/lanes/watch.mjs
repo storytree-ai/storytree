@@ -40,7 +40,7 @@ export const RESTART = 3;
  * A pull request, as GitHub's GraphQL returns it, read as merged, closed, red or pending. Red is a failed check on
  * its head, a conflict with main (no check fails on one, so it would otherwise wait out its check-back), or a removal
  * from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`. A conflict is marked as
- * one whatever else failed: a conflict often fails the landing check too, and it still needs a merge (13.16).
+ * one whatever else failed: a conflict often fails the landing check too, and it still needs a merge (13.18).
  */
 export function readPull(pull, { since, now, graceMs }) {
   const head = pull.headRefOid;
@@ -78,7 +78,7 @@ export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 
 }
 
 const recordPath = (dir, pr) => join(dir, `${pr}.json`);
-/** The look loop's pid and the code version it started on, for `status` (13.19). */
+/** The look loop's pid and the code version it started on, for `status` (13.21). */
 const versionPath = (dir) => join(dir, "watch-loop.version");
 const save = (dir, record) => writeFile(recordPath(dir, record.pr), `${JSON.stringify(record, null, 2)}\n`);
 
@@ -177,8 +177,8 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * free, clear the wait and start one; once `limit` have run, put the increment on an owner wait instead. A conflict
  * with main needs a session, not the owner's call, so it gets one more fix session (13.12), and past that it is never
  * an owner wait: the hand-off is dropped and the increment goes back on its arc as ready work, its body naming the
- * pull request and its branch (13.18). A fix session whose branch moved while it ran made progress, so it counts for
- * nothing when the next red is a conflict, since a newer main made that one (13.17); `cap` sessions on one pull
+ * pull request and its branch (13.20). A fix session whose branch moved while it ran made progress, so it counts for
+ * nothing when the next red is a conflict, since a newer main made that one (13.19); `cap` sessions on one pull
  * request, counted or not, end it as the limit does. A fix
  * session refused by another's claim counts for nothing, and its retry waits until no other fix session runs (13.14).
  * Conflicts are merged one at a time, lowest pull request first: siblings that conflict on one file would refuse
@@ -356,7 +356,7 @@ export async function main(args, box = {}) {
     const pid = (await readFile(b.pidFile, "utf8").catch(() => "")).trim();
     const live = pid && MARKS[0].test(await b.argsOf(pid));
     out(`watcher: ${live ? `running (pid ${pid})` : "not running"}`);
-    // 13.19: a look loop on code other than the checkout's shows, even one older than the version it records.
+    // 13.21: a look loop on code other than the checkout's shows, even one older than the version it records.
     const loopPid = (await readFile(b.loopPidFile, "utf8").catch(() => "")).trim();
     if (loopPid && LOOP_MARKS[0].test(await b.argsOf(loopPid))) {
       const [by, began] = (await readFile(versionPath(b.dir), "utf8").catch(() => "")).trim().split(" ");

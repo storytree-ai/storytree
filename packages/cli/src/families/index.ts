@@ -13,7 +13,6 @@ import { auth } from "./auth.js";
 import { arcs } from "./arc.js";
 import { capabilities } from "./capability.js";
 import { friction, resteer } from "./capture.js";
-import { contextFamily } from "./context.js";
 import { doctorFamily, setupFamily } from "./doctor.js";
 import { doors } from "./doors.js";
 import { accountStatus, signIn, signOut } from "./identity.js";
@@ -21,7 +20,6 @@ import { library } from "./library.js";
 import { journeyFamily } from "./journey.js";
 import { lag } from "./lag.js";
 import { questions } from "./question.js";
-import { noticeboard } from "./noticeboard.js";
 import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
 import { processes } from "./processes.js";
@@ -44,7 +42,6 @@ const KEPT: readonly Family[] = [
   arcs,
   questions,
   decisions,
-  noticeboard,
   doors,
   lag,
   doctorFamily,
@@ -68,7 +65,6 @@ const KEPT: readonly Family[] = [
   signIn,
   accountStatus,
   signOut,
-  contextFamily,
 ];
 
 export const FAMILIES: readonly Family[] = [...declared].sort((a, b) => a.order - b.order).reduce(

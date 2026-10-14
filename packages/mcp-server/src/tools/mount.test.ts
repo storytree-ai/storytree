@@ -8,7 +8,7 @@ import { test } from "node:test";
 
 import type { z } from "zod";
 
-import type { Verb } from "@storytree/project-and-caller/verbs";
+import { verb, type Verb } from "@storytree/project-and-caller/verbs";
 
 import { mountTools } from "./mount.js";
 import type { Answer, Call, Define } from "./server.js";
@@ -61,7 +61,7 @@ test("6.76 a mounted verb's optional text input may be left out of its tool call
 });
 
 test("6.77 a mounted verb's many text input is a list of non-empty strings in its tool call, left out only when optional, and its fields input an optional object of strings", async () => {
-  const plants: Verb = {
+  const plants = verb({
     command: { family: "bed", name: "plant", summary: "plant a bed" },
     tool: { name: "plant_bed", description: "Plant a bed." },
     inputs: {
@@ -72,7 +72,7 @@ test("6.77 a mounted verb's many text input is a list of non-empty strings in it
     async act({ trees, bulbs, labels }) {
       return { text: `Planted ${trees.join(", ")}; bulbs ${bulbs.join(", ") || "none"}; labels ${JSON.stringify(labels)}.` };
     },
-  };
+  });
   const served = new Map<string, { input: z.ZodObject; act: (args: Record<string, unknown>, call: Call) => Promise<Answer> }>();
   const define = ((name, _description, input, act) => served.set(name, { input, act: act as never })) as Define;
   mountTools(define, [plants]);

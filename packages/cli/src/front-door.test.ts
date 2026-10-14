@@ -283,7 +283,7 @@ test("1.19 storytree lag prints Lag in real use's report over the lag readings k
   });
 });
 
-test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the librarian's adr 4th and friction and resteer 13th and 14th with adr's guesses, Processes' processes 24th, Session management's workspace among the rest, its bare name making a workspace, and its session and machine last", async () => {
+test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the librarian's adr 4th and friction and resteer 13th and 14th with adr's guesses, the app setup's doctor 8th and setup, project and import 20th to 22nd, Processes' processes 24th, Session management's workspace among the rest, its bare name making a workspace, and its session and machine last", async () => {
   await inWorld(command, async (world) => {
     const listed = await world.run([]);
     assert.equal(listed.code, 0, listed.stderr);

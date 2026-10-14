@@ -26,7 +26,7 @@ export interface SetupVerbContext extends VerbPlace {
 }
 
 /** What `import` is handed: the caller's library and the whole library server, where imports are recorded. */
-export interface ImportVerbContext extends VerbContext, SetupVerbContext {
+export interface ImportVerbContext extends VerbContext, Pick<SetupVerbContext, "script" | "journey"> {
   readonly library: Library;
   readonly server: Storytree;
 }

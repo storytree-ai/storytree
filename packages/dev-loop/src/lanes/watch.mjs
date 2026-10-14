@@ -38,6 +38,9 @@ const MARKS = [/watch\.mjs run( |$)/];
 const LOOP_MARKS = [/watch\.mjs watch( |$)/];
 /** The look loop's exit when the dev loop's code in the shared checkout changed: `run` starts it again, on the new code. */
 export const RESTART = 3;
+/** How long a handed-over pull request holds its claims while open: then it is given up and its increment is back on its arc (ADR-1037 D3, 13.23). Its event wait checks back then too. */
+const HELD_DAYS = 3;
+const HELD_MS = HELD_DAYS * 86_400_000;
 
 /**
  * A pull request, as GitHub's GraphQL returns it, read as merged, closed, red or pending. Red is a failed check on
@@ -142,20 +145,26 @@ export async function handedOff(dir) {
  * refused, so it does not count against the limit, with the `holder` its refusal named, if any, and when (13.14).
  * An increment that already closed (on an earlier pull request of a stack) waits for nothing, so its refusal of the
  * wait is no refusal of the hand-off: the record is marked `closed`, and the watcher still watches and fixes it (13.13).
+ * The handing session's claims are held for the pull request, on its `branch`, until it merges or closes (ADR-1037 D1,
+ * 13.22): its close-out then releases nothing. With no session or branch to hold them by, `held` says why none are.
  */
-export async function hand({ dir, pr, increment, session, keepOpen = false, refused = false, holder, storytree, startWatcher, now = Date.now }) {
+export async function hand({ dir, pr, increment, session, branch, keepOpen = false, refused = false, holder, storytree, startWatcher, now = Date.now }) {
   await mkdir(dir, { recursive: true });
   const old = (await records(dir)).find((record) => record.pr === pr);
   let closed = false;
   await storytree(["arc", "increment", "wait", increment, "--for", "event", "--note",
     `PR #${pr} is open and green and handed to the Mint box's watcher, which ${keepOpen ? "leaves this open (more pull requests are to come) on its merge" : "closes this on its merge"} or starts a fix session on a red.`,
-    "--check-back", new Date(now() + 3 * 86_400_000).toISOString().slice(0, 10)])
+    "--check-back", new Date(now() + HELD_MS).toISOString().slice(0, 10)])
     .catch((error) => { if (/ is closed, and waits for nothing/.test(error.message)) closed = true; else throw error; });
   const last = old?.fixes?.at(-1);
   if (refused && last) Object.assign(last, { refused: true, refusedAt: new Date(now()).toISOString() }, holder ? { holder } : {});
+  const held = !session ? "no session id, so no claims are held for it"
+    : !branch ? "its branch could not be read, so no claims are held for it"
+    : (await storytree(["workspace", "hold", String(pr), "--holder", session, "--branch", branch])
+      .catch((error) => `its claims could not be held (${error.message.split("\n")[0]}), so its close-out releases them`)).trim();
   await save(dir, { fixes: [], fixing: null, ...old, pr, increment, session, keepOpen, closed, handedAt: new Date(now()).toISOString() });
   await startWatcher();
-  return { closed };
+  return { closed, held };
 }
 
 /**
@@ -188,6 +197,7 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
   under .claude/worktrees, and ${closed
     ? `work there without claiming the increment: ${increment} already closed on an earlier pull request, so claim only the capabilities you edit.`
     : `claim the increment there: \`pnpm storytree workspace attach ${increment} --folder <worktree> --reason "fix PR #${pr}"\`.`}
+  The claims are held for PR #${pr} until it merges; working on its branch, you take them over (ADR-1037 D2).
 - Read the failing log (\`gh run view <run> --log-failed\`, or \`gh pr checks ${pr}\`). Suspect a stale branch first: merge
   origin/main, run \`pnpm install\`, and \`pnpm gate\`. Then fix what is really broken, see \`pnpm gate\` green and push.
   Never force-push, squash or \`gh pr merge\`.
@@ -207,7 +217,9 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
 
 /**
  * One look at every hand-off. MERGED: clear the wait, close the increment landed (unless it was handed over to stay
- * open), release what its session still holds and forget it. CLOSED: clear the wait and forget it. Red: with no fix session running and an engine slot
+ * open), let go of the claims held for it and forget it. CLOSED: clear the wait, let go of its claims and forget it.
+ * Open past HELD_DAYS since it was handed over, it is given up: back on its arc as ready work, as a conflict past its
+ * limit is, its claims let go (13.23). Every end of a watch lets go of its claims (ADR-1037 D3). Red: with no fix session running and an engine slot
  * free, clear the wait and start one; once `limit` have run, put the increment on an owner wait instead. A conflict
  * with main needs a session, not the owner's call, so it gets one more fix session (13.12), and past that it is never
  * an owner wait: the hand-off is dropped and the increment goes back on its arc as ready work, its body naming the
@@ -224,6 +236,25 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
+  // The claims held for a pull request end with its watch (ADR-1037 D1, D3).
+  const letGo = (pr, reason) => tell(["workspace", "let-go", String(pr), "--reason", reason]);
+  // A pull request given up goes back on its arc as ready work, its body naming the pull request and its branch, never to the owner (13.20, 13.23).
+  const backOnArc = async (record, pull, why) => {
+    const { pr, increment } = record;
+    if (!record.closed) {
+      const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
+      const residue = join(dir, `${pr}-residue.md`);
+      await writeFile(residue, `${body ? `${body}\n\n` : ""}**Back from the watcher, ${new Date(now()).toISOString().slice(0, 10)}.** PR #${pr}`
+        + ` (branch \`${pull.branch ?? "unknown"}\`) ${why}${record.fixes.length ? ` (fix sessions' logs: ${record.fixes.map((fix) => fix.log).join(", ")})` : ""}.`
+        + ` Take that branch, merge origin/main, resolve what is in the way,`
+        + ` see \`pnpm gate\` green, push, and hand PR #${pr} to the watcher again.\n`);
+      await tell(["arc", "increment", "edit", increment, "--body", `@${residue}`]);
+      await rm(residue, { force: true });
+      await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+    }
+    await letGo(pr, `PR #${pr} ${why}; released by the watcher`);
+    await rm(recordPath(dir, pr), { force: true });
+  };
   const all = await records(dir);
   // The fix sessions running at this look, by pull request, and whether each is merging a conflict with main.
   const running = new Map();
@@ -240,21 +271,23 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
       if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
       if (pull.state === "merged") {
         if (!record.keepOpen && !record.closed) await tell(["arc", "increment", "close", increment, "--disposition", "landed", "--pr", String(pr)]);
-        const board = await tell(["noticeboard"]);
-        for (const line of board.split("\n")) {
-          const held = /^\s*- (?:increment|capability) (\S+)\s/.exec(line);
-          if (held && record.session && line.includes(` ${record.session} `)) {
-            await tell(["workspace", "release", held[1], "--holder", record.session, "--reason", `PR #${pr} merged; released by the watcher`]);
-          }
-        }
+        await letGo(pr, `PR #${pr} merged; released by the watcher`);
         dated(record.closed ? `PR #${pr} merged: ${increment} had already closed`
           : record.keepOpen ? `PR #${pr} merged: ${increment} stays open for its next pull request` : `PR #${pr} merged: closed ${increment}`);
-      } else dated(`PR #${pr} closed without merging: ${increment} no longer waits on it`);
+      } else {
+        await letGo(pr, `PR #${pr} closed without merging; released by the watcher`);
+        dated(`PR #${pr} closed without merging: ${increment} no longer waits on it`);
+      }
       await rm(recordPath(dir, pr), { force: true });
       continue;
     }
     if (running.has(pr)) continue;
     if (record.fixing) { record.fixing = null; await save(dir, record); }
+    if (now() - Date.parse(record.handedAt) > HELD_MS) {
+      await backOnArc(record, pull, `has been open for ${HELD_DAYS} days since it was handed over`);
+      dated(`PR #${pr} open past ${HELD_DAYS} days: its claims are released and ${increment} is back on its arc as ready work`);
+      continue;
+    }
     if (pull.state !== "red") continue;
     const allowed = pull.conflict ? limit + 1 : limit;
     const last = record.fixes.at(-1);
@@ -265,26 +298,19 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
     const counted = record.fixes.filter((fix) => !fix.refused && !fix.moved).length;
     const spent = counted >= allowed || record.fixes.length >= cap;
     if (spent && record.closed) {
+      await letGo(pr, `PR #${pr} still red after ${record.fixes.length} fix sessions; released by the watcher`);
       await rm(recordPath(dir, pr), { force: true });
       dated(`PR #${pr} still red after ${record.fixes.length} fix sessions, and ${increment} had already closed, so nothing can wait on the owner: ${pull.why}`);
       continue;
     }
     if (spent && pull.conflict) {
-      const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
-      const residue = join(dir, `${pr}-residue.md`);
-      await writeFile(residue, `${body ? `${body}\n\n` : ""}**Back from the watcher, ${new Date(now()).toISOString().slice(0, 10)}.** PR #${pr}`
-        + ` (branch \`${pull.branch ?? "unknown"}\`) still conflicts with main after ${record.fixes.length} fix sessions`
-        + ` (logs: ${record.fixes.map((fix) => fix.log).join(", ")}). Take that branch, merge origin/main, resolve the conflicts,`
-        + ` see \`pnpm gate\` green, push, and hand PR #${pr} to the watcher again.\n`);
-      await tell(["arc", "increment", "edit", increment, "--body", `@${residue}`]);
-      await rm(residue, { force: true });
-      await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
-      await rm(recordPath(dir, pr), { force: true });
+      await backOnArc(record, pull, `still conflicts with main after ${record.fixes.length} fix sessions`);
       dated(`PR #${pr} still conflicts with main after ${record.fixes.length} fix sessions: ${increment} is back on its arc as ready work`);
       continue;
     }
     if (spent) {
       await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+      await letGo(pr, `PR #${pr} still red after ${counted} fix sessions; released by the watcher`);
       await storytree(["arc", "increment", "wait", increment, "--for", "owner", "--note",
         `PR #${pr} is still red after ${counted} fix sessions: ${pull.why}.${pull.logs.length ? ` Failing runs: ${pull.logs.join(", ")}.` : ""}`
         + ` Fix sessions' logs: ${record.fixes.map((fix) => fix.log).join(", ")}.`]);
@@ -342,6 +368,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     session: env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim() || "",
     storytree: async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout,
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt }),
+    branchOf: async (pr) => (await run("gh", ["pr", "view", String(pr), "--json", "headRefName", "-q", ".headRefName"], { cwd: repo })).stdout.trim(),
     alive: async (pid) => /lanes\/runner\.mjs run /.test(await argsOf(pid)),
     room: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout)
       < (Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || 5),
@@ -404,11 +431,13 @@ export async function main(args, box = {}) {
     const at = args.indexOf("--session");
     const session = at > 0 ? args[at + 1] ?? "" : b.session;
     const holder = args.includes("--holder") ? args[args.indexOf("--holder") + 1] : undefined;
-    const { closed } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, keepOpen, refused, holder, storytree: b.storytree, now: b.now,
+    const branch = await b.branchOf(Number(args[1])).catch(() => "");
+    const { closed, held } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, branch, keepOpen, refused, holder, storytree: b.storytree, now: b.now,
       startWatcher: () => ensureWatcher({ pidFile: b.pidFile, argsOf: b.argsOf, spawn: b.startWatcher }) });
     out(`PR #${args[1]} handed to the watcher (${join(b.dir, `${args[1]}.json`)}); `
       + (closed ? `${args[2]} had already closed, so the watcher watches and fixes it to its merge and closes nothing.`
         : `${args[2]} waits on it until it merges${keepOpen ? ", then stays open for its next pull request." : "."}`));
+    if (held) out(held);
     out(`Close out with: pnpm storytree session close-out --safe yes --why "PR #${args[1]} open and green, handed to the watcher"`);
     return 0;
   }

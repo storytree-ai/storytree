@@ -14,7 +14,6 @@ import { after, before, test } from "node:test";
 import { claim, openActivityLog, readClaims, type ActivityLog } from "@storytree/session-management";
 import type { Line } from "@storytree/library";
 
-import { workspaceRefusalText } from "./families/workspace.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
@@ -142,32 +141,6 @@ test("11.8 work with an open pull request is refused naming it and --despite-ope
       await log.close();
     }
   });
-});
-
-test("5.35 the CLI's refusal of a held claim names the increments its holder holds the work for", () => {
-  const holder = { capability: "capability_form", session: "s1", label: "Codex", reason: "build form", since: "2026-10-10T00:00:00.000Z", holder: "live" } as const;
-  const refused = workspaceRefusalText("capability_form", { ok: false, refused: "held", holder, heldFor: ["increment_form", "increment_mail"] });
-  assert.ok(refused.includes("Codex session s1 for increment_form, increment_mail: build form"), refused);
-  assert.ok(refused.includes("once increment_form closes"), refused);
-  assert.doesNotMatch(workspaceRefusalText("capability_form", { ok: false, refused: "held", holder, heldFor: [] }), / for |closes/);
-});
-
-test("11.8 the CLI offers --despite-open-pulls from the refusal's pull data regardless of its wording", () => {
-  const increment = "increment_email";
-  const why = "Finish pull request #41 on claude/email first";
-  const refused = workspaceRefusalText(increment, {
-    ok: false,
-    refused: "no-workspace",
-    why,
-    openPulls: [{ number: 41, branch: "claude/email" }],
-  });
-  assert.ok(refused.includes(why), refused);
-  assert.ok(refused.includes(`storytree workspace ${increment} --reason <text> --despite-open-pulls`), refused);
-  assert.doesNotMatch(workspaceRefusalText(increment, {
-    ok: false,
-    refused: "no-workspace",
-    why: "Cannot check whether this work already has open pull requests",
-  }), /--despite-open-pulls/);
 });
 
 test("11.4 Codex prepares app creation then attaches its returned folder; an invalid directory and a person-only shell are refused", async () => {

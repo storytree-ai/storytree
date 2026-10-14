@@ -8,6 +8,7 @@
     "./claim-mark": "./src/claims/claim-mark.ts",
     "./machines": "./src/machines/machines.ts",
     "./verbs": "./src/sessions/verbs.ts",
+    "./workspace-verbs": "./src/claims/verbs.ts",
     "./hook-command": "./src/bins/storytree-hook.ts"
   },
   "scripts": {
@@ -34,6 +35,10 @@
       {
         "from": "./verbs",
         "export": "SESSION_FAMILIES"
+      },
+      {
+        "from": "./workspace-verbs",
+        "export": "WORKSPACE_FAMILIES"
       }
     ]
   }

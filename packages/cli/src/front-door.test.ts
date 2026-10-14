@@ -10,6 +10,7 @@ import { after, before, test } from "node:test";
 import pg from "pg";
 import { openActivityLog } from "@storytree/session-management";
 import { SESSION_FAMILIES } from "@storytree/session-management/verbs";
+import { WORKSPACE_FAMILIES } from "@storytree/session-management/workspace-verbs";
 import type { Reading } from "@storytree/reading-the-front-doors";
 
 import { FAMILIES } from "./families/index.js";
@@ -268,18 +269,24 @@ test("1.19 storytree lag prints Lag in real use's report over the lag readings k
   });
 });
 
-test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: Session management's session and machine, last", async () => {
+test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: Session management's workspace among the rest, its bare name making a workspace, and its session and machine last", async () => {
   await inWorld(command, async (world) => {
     const listed = await world.run([]);
     assert.equal(listed.code, 0, listed.stderr);
     const names = [...listed.stdout.split("Families:")[1]!.split("next:")[0]!.matchAll(/^  ([\w-]+) /gm)].map((line) => line[1]);
     assert.deepEqual(names, FAMILIES.map((family) => family.name), "the bundle lists the families in the order run unbundled");
-    for (const family of SESSION_FAMILIES) assert.equal(names.indexOf(family.name) + 1, family.order, `${family.name} at its place`);
+    for (const family of [...SESSION_FAMILIES, ...WORKSPACE_FAMILIES]) assert.equal(names.indexOf(family.name) + 1, family.order, `${family.name} at its place`);
     assert.deepEqual(names.slice(-2), ["session", "machine"]);
 
     const verbs = await world.run(["machine"]);
     assert.match(verbs.stdout, /^  storytree machine this$/m, verbs.stdout + verbs.stderr);
+    const workspace = await world.run(["workspace", "--help"]);
+    assert.match(workspace.stdout, /^storytree workspace: prepare or attach a workspace.*\n\n  storytree workspace <increment\|capability> --reason <text> \[--despite-open-pulls\]\n/, workspace.stdout + workspace.stderr);
+    assert.match(workspace.stdout, /^  storytree workspace attach <increment\|capability> \[--folder <directory>\] \[--ref <commit> --name <name>\] --reason <text>$/m);
+    const bare = await world.run(["workspace", "increment_none"]);
+    assert.equal(bare.code, 2, bare.stderr);
+    assert.match(bare.stderr, /^this needs --reason.*\nusage: storytree workspace <increment\|capability> --reason <text>/, "its bare name runs the declared verb");
   });
   assert.equal(import.meta.resolve("#parts/verbs"), new URL("./parts/verbs.ts", import.meta.url).href, "the command line's #parts/verbs is its composing module");
-  assert.deepEqual(unbundled, SESSION_FAMILIES);
+  assert.deepEqual(unbundled, [...SESSION_FAMILIES, ...WORKSPACE_FAMILIES]);
 });

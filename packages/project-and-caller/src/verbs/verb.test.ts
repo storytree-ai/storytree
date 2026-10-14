@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import type { Library } from "@storytree/library";
 
-import { commandInput, commandUsage, mounted, toolInput, verb, VerbRefusal, type DoorWords, type VerbContext } from "./verb.js";
+import { commandInput, commandUsage, mounted, toolInput, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "./verb.js";
 
 const DOORS: Record<"command" | "tool", DoorWords> = {
   command: { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` },
@@ -89,4 +89,35 @@ test("4.1 · a verb declared once reads a command's words and flags and a tool's
   for (const door of [DOORS.command, DOORS.tool]) {
     await assert.rejects(plant.act({ tree: "weed", water: false, label: "x", quiet: false }, context, door), (error: unknown) => error instanceof VerbRefusal && !error.misuse && error.message === "a weed is not planted");
   }
+});
+
+const prune = verb({
+  command: { family: "garden", name: "prune", summary: "prune a tree", usage: "garden prune <tree|hedge> [--to <height> --by <tool>]" },
+  tool: { name: "prune_tree", description: "Prune a tree." },
+  inputs: {
+    tree: { kind: "text", word: 0, describe: "which tree or hedge" },
+    to: { kind: "text", optional: true, describe: "the height to prune it to" },
+    by: { kind: "text", optional: true, describe: "the tool to prune it with" },
+  },
+  async act({ tree, to }) {
+    return { text: to === undefined ? `Pruned ${tree}.` : `Pruned ${tree} to ${to}.` };
+  },
+});
+
+test("4.2 · a text input marked optional may be left out on either door and reads as nothing; a verb's command may give the usage its inputs cannot spell, and a family may declare the verb its bare name runs", async () => {
+  assert.equal(commandUsage(prune), "garden prune <tree|hedge> [--to <height> --by <tool>]");
+  assert.equal(commandUsage(sweep), "garden sweep", "a verb that gives none has the usage its inputs spell");
+  const left = commandInput(prune, given(["oak"], {}));
+  assert.deepEqual(left, toolInput(prune, { tree: "oak" }));
+  assert.deepEqual(left, { tree: "oak", to: undefined, by: undefined });
+  assert.deepEqual(commandInput(prune, given(["oak"], { to: " 2m " })), toolInput(prune, { tree: "oak", to: "2m" }));
+  // Given, it is still refused when it says nothing, on both doors.
+  for (const refused of [() => commandInput(prune, given(["oak"], { to: " " })), () => toolInput(prune, { tree: "oak", to: " " })]) {
+    assert.throws(refused, (error: unknown) => error instanceof VerbRefusal && error.misuse);
+  }
+  const context: VerbContext = { library: {} as Library, project: "p", session: "claude-1", folder: "/work" };
+  assert.equal((await prune.act(left, context, DOORS.command)).text, "Pruned oak.");
+
+  const garden: VerbFamily = { name: "garden", summary: "the garden", order: 1, verbs: [sweep], bare: prune };
+  assert.equal(commandUsage(garden.bare!), "garden prune <tree|hedge> [--to <height> --by <tool>]");
 });

@@ -31,6 +31,8 @@ try {
   assert.ok(entry, "the AppImage carries no desktop entry");
   const desktop = readFileSync(path.join(app, entry), "utf8");
   assert.match(desktop, new RegExp(`^MimeType=.*x-scheme-handler/${AUTH_SCHEME};`, "m"), `the desktop entry does not declare ${AUTH_SCHEME}:\n${desktop}`);
+  // The release keeps Chromium's sandbox on; the installer turns it off only where the kernel blocks it (ADR-1034).
+  assert.match(desktop, /^Exec=AppRun %U$/m, `the desktop entry does not start the app with its sandbox on:\n${desktop}`);
   assert.deepEqual(readFileSync(path.join(resources, "LICENSE")), readFileSync("LICENSE"), "the app carries the repository license unchanged");
   const update = readFileSync(path.join(resources, "app-update.yml"), "utf8");
   assert.match(update, /provider: github/);

@@ -17,7 +17,7 @@ export { NumberTakenError } from "./transactions/index.js";
 export { CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, NEW_LINE, SchemaError, UnknownTypeError } from "./schema/index.js";
 
-export type { Agent, FieldsOf, KnowledgeKind, Line, LineKind, LinesSince, NewLine, RecordType, SchemaRecord, WriteOptions } from "./schema/index.js";
+export type { Agent, CodeEdge, EdgeFile, FieldsOf, FileImport, KnowledgeKind, Line, LineKind, LinesSince, NewLine, RecordType, SchemaRecord, StorySurvey, SurveyedFile, SurveyedTest, WriteOptions } from "./schema/index.js";
 export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./transactions/index.js";
 export type {
   ArcEdit,

@@ -47,6 +47,9 @@ export const HARNESS_IDS: readonly Harness[] = WATCHED_HARNESSES.map((harness) =
  */
 export const SESSION_ENV = "STORYTREE_SESSION_ID";
 
+/** How a shell names its session to storytree, for a refusal that needs one. */
+export const NAME_A_SESSION = `run it from the agent's shell, or set ${SESSION_ENV} to the session id check_setup names`;
+
 /** Watched: storytree's hooks report the session. Connected: it reaches storytree only through tools and commands. */
 export type Tier = "watched" | "connected";
 

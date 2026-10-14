@@ -7,24 +7,13 @@ import declared from "#parts/verbs";
 
 import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
-import { appFamily } from "./app.js";
 import { auth } from "./auth.js";
-import { arcs } from "./arc.js";
 import { capabilities } from "./capability.js";
 import { doors } from "./doors.js";
-import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
-import { journeyFamily } from "./journey.js";
-import { lag } from "./lag.js";
-import { questions } from "./question.js";
 import { plan } from "./tree.js";
-import { processes } from "./processes.js";
-import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
-import { releaseFamily } from "./release.js";
-import { checkFamily } from "./guardrails.js";
-import { quality } from "./quality.js";
 
 /** Words agents try for a family storytree does not have, each with the command for that job. */
 export const GUESSES: Readonly<Record<string, string>> = {
@@ -35,25 +24,12 @@ export const GUESSES: Readonly<Record<string, string>> = {
 /** The families still kept here, in their order once the declared ones take their places. */
 const KEPT: readonly Family[] = [
   library,
-  arcs,
-  questions,
   doors,
-  lag,
-  checkFamily,
-  quality,
-  appFamily,
-  releaseFamily,
   plan,
   mapFamily,
   affectedFamily,
   capabilities,
-  processes,
-  settings,
-  journeyFamily,
   auth,
-  signIn,
-  accountStatus,
-  signOut,
 ];
 
 export const FAMILIES: readonly Family[] = [...declared].sort((a, b) => a.order - b.order).reduce(

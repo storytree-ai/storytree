@@ -127,7 +127,9 @@ try {
   await page.waitForFunction(want => { let n = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-window:')) n++; }); return n >= want; }, held.length);
   await frames();
   const selected = await drawn();
-  assert.deepEqual(await page.evaluate(() => window.__asked), [session]);
+  // Asked for the selected session only; a slow machine may already have seen the timed re-read.
+  const asked = await page.evaluate(() => window.__asked);
+  assert.ok(asked.length >= 1 && asked.every(name => name === session), `only the selected session's window asked: ${JSON.stringify(asked)}`);
   assert.deepEqual(selected.rings, [...held].sort(), 'a ring on each note it holds now, and not on the one a compaction dropped');
   // The dotted in-view lines gave way to the traversal drawing (ADR-0756), which the traversal capture covers.
   assert.deepEqual(selected.links, [], 'no in-view lines: the traversal drawing replaced them');

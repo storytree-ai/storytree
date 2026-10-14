@@ -230,6 +230,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -506,6 +509,9 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
     devDependencies:
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -515,6 +521,9 @@ importers:
 
   packages/identity:
     dependencies:
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       jose:
         specifier: 6.2.12
         version: 6.2.12
@@ -537,6 +546,9 @@ importers:
 
   packages/journey-events:
     dependencies:
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       posthog-node:
         specifier: 5.55.0
         version: 5.55.0
@@ -608,6 +620,9 @@ importers:
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
     devDependencies:
       '@types/node':
         specifier: ^24.13.6
@@ -840,6 +855,9 @@ importers:
 
   packages/processes:
     dependencies:
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       koffi:
         specifier: ^3.3.2
         version: 3.3.2
@@ -899,6 +917,12 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
+      '@storytree/session-management':
+        specifier: workspace:*
+        version: link:../session-management
       zod:
         specifier: ^4.6.5
         version: 4.6.5

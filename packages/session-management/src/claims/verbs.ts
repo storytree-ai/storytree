@@ -176,12 +176,56 @@ const allow = verb({
   },
 });
 
+const pr = { kind: "text", word: 0, describe: "the pull request's number" } as const;
+
+/** A pull request's number, as typed. */
+function prNumber(typed: string): number {
+  if (!/^\d+$/.test(typed)) throw new VerbRefusal(`${typed} is not a pull request's number`, { misuse: true });
+  return Number(typed);
+}
+
+const holdForPr = verb({
+  command: {
+    family: "workspace",
+    name: "hold",
+    summary: "the watcher's: keep every claim a session holds for its handed-over pull request until it merges or closes (ADR-1037 D1)",
+    usage: "workspace hold <pr> --holder <session> --branch <branch>",
+  },
+  tool: { absent: "the Mint box's watcher runs it when a session hands a pull request over" },
+  inputs: {
+    pr,
+    holder: { kind: "text", describe: "the session that handed the pull request over" },
+    branch: { kind: "text", describe: "the pull request's branch: its merge ends the claims" },
+  },
+  async act({ pr: typed, holder, branch }, context: SessionVerbContext) {
+    const { holdForPull } = await import("./claims.js");
+    const held = await holdForPull(context, holder, prNumber(typed), branch);
+    return { text: held.length === 0 ? `${holder} holds nothing, so nothing is held for PR #${typed}.` : `Held for PR #${typed} until it merges or closes: ${held.join(", ")}.` };
+  },
+});
+
+const letGoOfPr = verb({
+  command: {
+    family: "workspace",
+    name: "let-go",
+    summary: "the watcher's: end every claim held for a pull request, on its merge or closing or when it is given up (ADR-1037 D1, D3)",
+    usage: "workspace let-go <pr> --reason <why>",
+  },
+  tool: { absent: "the Mint box's watcher runs it when a handed-over pull request merges, closes or is given up" },
+  inputs: { pr, reason: { kind: "text", describe: "why its claims end" } },
+  async act({ pr: typed, reason: why }, context: SessionVerbContext) {
+    const { letGo } = await import("./claims.js");
+    const released = await letGo(context, prNumber(typed), why);
+    return { text: released.length === 0 ? `Nothing is held for PR #${typed}.` : `Released what PR #${typed} held: ${released.join(", ")}.` };
+  },
+});
+
 /** The command line's `workspace` family, which the package's manifest names under `verbs` (ADR-1033): its bare name makes a workspace. */
 export const WORKSPACE_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [{
   name: "workspace",
   summary: "prepare or attach a workspace, claim or release work for this agent session, list stale claims, or allow an increment's changes to imported code",
   order: 23,
-  verbs: [attach, claimOnly, releaseClaim, stale, allow],
+  verbs: [attach, claimOnly, releaseClaim, stale, allow, holdForPr, letGoOfPr],
   bare: make,
 }];
 

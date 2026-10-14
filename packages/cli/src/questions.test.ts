@@ -9,10 +9,12 @@ import { claim, openActivityLog, readClaims } from "@storytree/session-managemen
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
-import { questions } from "./families/question.js";
+import { ARC_FAMILIES } from "@storytree/arc-surface/verbs";
+import { family } from "./mount.js";
 import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
+const questions = family(ARC_FAMILIES.find((declared) => declared.name === "question")!);
 
 before(() => command.build());
 after(() => command.remove());
@@ -99,7 +101,7 @@ test("5.8 `question list` across arcs reads every arc in one ask to find the par
       },
     });
     const list = questions.verbs.find((verb) => verb.name === "list")!;
-    const answer = await list.act(parseArgs([], [], world.folder), { library: async () => counted } as unknown as Context);
+    const answer = await list.act(parseArgs([], [], world.folder), { cwd: world.folder, activityContext: async () => ({ library: counted }) } as unknown as Context);
     assert.match(answer.text, /^2 open across arcs:/);
     assert.match(answer.text, /1 more waits on a parked arc/);
     assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
@@ -241,7 +243,7 @@ test("5.10 unsupported question new flags are refused before any write, naming -
       const ran = await world.run(["question", "new", ...questionFlags(arc), ...extra]);
 
       assert.equal(ran.code, 2, ran.stdout);
-      assert.match(ran.stderr, /unsupported.*--(?:holds|unknown)/i);
+      assert.match(ran.stderr, /--(?:holds|unknown) is not a flag this takes/);
       assert.match(ran.stderr, /--hold\b/);
       assert.deepEqual((await library.changesSince(before)).changes, [], "neither a question nor a hold was written");
     }

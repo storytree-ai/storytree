@@ -76,7 +76,6 @@ import {
 } from "@storytree/app";
 import { projectsOnThisComputer, setupHelpActions } from "@storytree/app-setup";
 import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANNELS } from "@storytree/app-setup/bridge";
-import { settingsActions, SETTINGS_CHANNELS } from "@storytree/project-and-caller/settings";
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
@@ -232,8 +231,6 @@ async function run(): Promise<void> {
     surveyWorker: path.join(__dirname, "survey-worker.cjs"),
   });
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
-  const settings = settingsActions(home.dir);
-  answerPage(ipcMain, SETTINGS_CHANNELS, settings);
   const surfaces = surfacesActions(SURFACES, home.dir);
   answerPage(ipcMain, SURFACES_CHANNELS, surfaces);
   // Setup help stays in the frame (ADR-1030 D4): its actions need Electron's dialog, shell and clipboard, the license

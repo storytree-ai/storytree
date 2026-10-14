@@ -8,3 +8,4 @@ export type { FieldsOf, FrictionState, KnowledgeKind, LibrarySchema, RecordType,
 export { LIBRARY_SCHEMA, UPGRADES } from "./upgrades.js";
 export { NEW_LINE } from "./activity-line.js";
 export type { Agent, Line, LineKind, LinesSince, NewLine } from "./activity-line.js";
+export type { CodeEdge, EdgeFile, FileImport, StorySurvey, SurveyedFile, SurveyedTest } from "./story-survey.js";

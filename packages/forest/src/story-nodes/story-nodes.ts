@@ -23,9 +23,8 @@
  * Everything here is a pure function of what the library hands the forest, so it is tested
  * without a database.
  */
-import type { AnnotatedTree, Change, HealthState } from "@storytree/library";
+import type { AnnotatedTree, Change, HealthState, StorySurvey } from "@storytree/library";
 
-import type { StorySurvey } from "@storytree/map";
 import { placeInRow } from "../planet-places/planet-places.js";
 
 /** A point on the forest's ground, in place-widths from its centre. */

@@ -7,7 +7,7 @@
 import { ASK_EVERY_MS, pageReading, type LiveReading, type LiveReads, type News, type PageReading, type Timers } from "@storytree/arc-surface";
 import type { AnnotatedTree } from "@storytree/library";
 
-import type { StorySurvey } from "@storytree/map";
+import type { StorySurvey } from "@storytree/library";
 
 import type { ForestBridge } from "./page.js";
 

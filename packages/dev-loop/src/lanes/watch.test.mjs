@@ -352,3 +352,33 @@ test("13.15 · pull requests that conflict with main are merged one at a time, l
   assert.deepEqual(b.fixes.map((fix) => fix.pr), [41, 42, 43, 44], "a red that is no conflict does not wait for the merge");
   assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"));
 });
+
+test("13.13 · a pull request handed over after its increment closed on an earlier one is watched, fixed and released, with no wait or close", async (t) => {
+  const b = await box(t, { board: `  - capability capability_left  Claude Code ${SESSION} (live, on claude/x), since 2026-10-10T11:00:00Z: work` });
+  const storytree = b.options.storytree;
+  b.options.storytree = async (args) => {
+    if (args[2] === "wait" || args[2] === "unwait" || args[2] === "close") throw new Error(`increment "increment_one" is closed, and waits for nothing`);
+    return storytree(args);
+  };
+  await hand({ ...b.options, pr: 42, increment: "increment_one", session: SESSION, startWatcher: async () => {} });
+  assert.equal((await saved(b, 42)).closed, true, "the hand-off stands, marked as on a closed increment");
+  b.looks[42] = { ...red, head: "h1" };
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 1, "its red gets a fix session");
+  assert.match(b.fixes[0].brief, /already closed/, "told not to claim the closed increment");
+  assert.match(b.fixes[0].brief, /watch\.mjs hand 42 increment_one/);
+  b.live.clear();
+  b.calls.length = 0;
+  b.looks[42] = { state: "merged", head: "h2" };
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls, [
+    ["noticeboard"],
+    ["workspace", "release", "capability_left", "--holder", SESSION, "--reason", "PR #42 merged; released by the watcher"],
+  ], "no wait cleared and no close tried");
+  assert.match(b.lines.at(-1), /PR #42 merged: increment_one had already closed/);
+  assert.ok(!b.lines.some((line) => line.includes("refused")), "nothing refused along the way");
+  assert.deepEqual(await readdir(b.dir), []);
+
+  await assert.rejects(hand({ ...b.options, storytree: async () => { throw new Error("increment_nope is not a live increment"); },
+    pr: 43, increment: "increment_nope", session: SESSION, startWatcher: async () => {} }), /not a live increment/, "any other refusal still stops the hand-off");
+});

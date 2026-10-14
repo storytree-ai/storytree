@@ -3,14 +3,18 @@
  * behaviour): when the user sends a prompt, the hook adds the project library's definitions for the
  * terms it names, so the agent reads the project's meaning of a word before it acts on it.
  *
- * - A definition answers to its term, and to each `/`-separated part of it. A name shorter than
- *   three letters is never looked for.
+ * - A definition answers to its term, and to each `/`-separated part of it, but only by a name
+ *   that points at it alone: its term unless another definition has the same term, and a part only
+ *   when no other definition answers to it. So the story-text mirrors, which all share the part
+ *   "Story text: stories" and repeat one heading's term for each of its paragraphs, are not all
+ *   brought in by a prompt that quotes one (0.2 split on `/` too, but its 52 definitions shared no
+ *   part). A name shorter than three letters is never looked for.
  * - A name is found as whole words, ignoring case, with `-`, `_` and runs of spaces read as one
  *   space, and its last word may be plural (`claims` finds "Claim", `policies` finds "Policy").
  * - Every match is added, the longest name first (a tie keeps the library's order), and each only
  *   once a session: the ones already given are left out.
- * - A harness's own notice, sent to the agent as if it were a prompt, gets none: 0.2's markers, in
- *   the first 400 characters.
+ * - A harness's own notice, sent to the agent as if it were a prompt, gets none: 0.2's markers, and
+ *   an agent's message (a subagent's report, another session's message), in the first 400 characters.
  */
 import { notYetGivenIds } from "./given-once.js";
 
@@ -27,8 +31,11 @@ const MEANING_CHARS = 200;
 const SHORTEST_NAME = 3;
 /** How far into a prompt a harness's notice marker is looked for. */
 const NOTICE_HEAD = 400;
-/** What a harness puts at the head of its own notices to the agent. */
-const NOTICE_MARKERS = ["[SYSTEM NOTIFICATION - NOT USER INPUT]", "<task-notification>", "<system-reminder>"];
+/**
+ * What a harness puts at the head of its own notices to the agent: 0.2's three, and the wrapping of
+ * an agent's message (a subagent's report handed back, or another session's message).
+ */
+const NOTICE_MARKERS = ["[SYSTEM NOTIFICATION - NOT USER INPUT]", "<task-notification>", "<system-reminder>", "<agent-message", "[Subagent hand-back]"];
 
 /** Whether `prompt` is a harness's own notice rather than something a person wrote. */
 export function isHarnessNotice(prompt: string): boolean {
@@ -39,9 +46,19 @@ export function isHarnessNotice(prompt: string): boolean {
 /** All definitions `prompt` names, longest name first. */
 export function definitionsNamedIn(prompt: string, definitions: readonly Definition[]): Definition[] {
   const text = normalised(prompt);
+  const termsAndParts = definitions.map(({ term }) => {
+    const whole = normalised(term);
+    return { whole, parts: new Set(term.split("/").map(normalised).filter((part) => part !== whole)) };
+  });
+  const termHolders = tally(termsAndParts.map(({ whole }) => [whole]));
+  const nameHolders = tally(termsAndParts.map(({ whole, parts }) => new Set([whole, ...parts])));
   const found: { definition: Definition; length: number; order: number }[] = [];
   definitions.forEach((definition, order) => {
-    const names = [definition.term, ...definition.term.split("/")].map(normalised).filter((name) => name.length >= SHORTEST_NAME);
+    const { whole, parts } = termsAndParts[order]!;
+    const names = [
+      ...(termHolders.get(whole) === 1 ? [whole] : []),
+      ...[...parts].filter((part) => nameHolders.get(part) === 1),
+    ].filter((name) => name.length >= SHORTEST_NAME);
     const length = Math.max(0, ...names.filter((name) => pattern(name).test(text)).map((name) => name.length));
     if (length > 0) found.push({ definition, length, order });
   });
@@ -66,6 +83,13 @@ export function definitionsContext(definitions: readonly Definition[]): string {
 export function notYetGiven(session: string, definitions: readonly Definition[]): Definition[] {
   const fresh = new Set(notYetGivenIds(session, definitions.map(({ id }) => id), "definitions"));
   return definitions.filter(({ id }) => fresh.has(id));
+}
+
+/** How many of `groups` hold each name. */
+function tally(groups: Iterable<string>[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const group of groups) for (const name of group) counts.set(name, (counts.get(name) ?? 0) + 1);
+  return counts;
 }
 
 /** Lower case, with `-`, `_` and every run of spaces read as one space. */

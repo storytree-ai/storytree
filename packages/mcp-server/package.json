@@ -6,7 +6,8 @@
     ".": "./src/index.ts"
   },
   "imports": {
-    "#parts/tools": "./src/parts/tools.ts"
+    "#parts/tools": "./src/parts/tools.ts",
+    "#parts/guidance": "./src/parts/guidance.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

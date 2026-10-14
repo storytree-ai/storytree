@@ -13,6 +13,13 @@
         "export": "qualityToolParts",
         "order": 2
       }
+    ],
+    "guidance": [
+      {
+        "from": ".",
+        "export": "qualityGuidance",
+        "order": 70
+      }
     ]
   },
   "scripts": {

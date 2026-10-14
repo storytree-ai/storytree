@@ -9,11 +9,12 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import { CONTRACT_DEFINITION } from "@storytree/library";
+import { LIBRARY_FAMILIES } from "@storytree/library/commands";
 import { claim, openActivityLog } from "@storytree/session-management";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
-import { library as libraryFamily } from "./families/library.js";
+import { family } from "./mount.js";
 import { BuiltCommand, inWorld, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
@@ -352,8 +353,9 @@ test("3.9 `search` keeps the library's best-first order and scores, passing on t
       return { by: "meaning", hits: [{ note: best, score: 0.987 }, { note: lesser, score: 0.123 }] };
     });
 
-    const search = libraryFamily.verbs.find((verb) => verb.name === "search")!;
-    const answer = await search.act(parseArgs(["verified", "sender", "--limit", "2"], [], world.folder), { library: async () => library } as Context);
+    const search = family(LIBRARY_FAMILIES[0]!).verbs.find((verb) => verb.name === "search")!;
+    const caller = async () => ({ library, project: world.project, session: "person:test", folder: world.folder });
+    const answer = await search.act(parseArgs(["verified", "sender", "--limit", "2"], [], world.folder), { cwd: world.folder, activityContext: caller } as unknown as Context);
 
     assert.equal(answer.text, `closest in meaning to "verified sender":\n  0.99  ${best.id}  [definition]  Mailer 2\n  0.12  ${lesser.id}  [definition]  Mailer 1`);
   });

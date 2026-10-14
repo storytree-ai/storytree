@@ -23,9 +23,12 @@ export function toolInput(declared: Verb<VerbInputs, never>, args: Readonly<Reco
   return input;
 }
 
-/** A text input, trimmed: one that says nothing is refused, unless it is marked blank, as the command line refuses it. */
+/**
+ * A text input, trimmed unless it is marked verbatim: one that says nothing is refused, unless it is marked blank, as
+ * the command line refuses it.
+ */
 function said(name: string, input: VerbInput, value: string): string {
   const text = value.trim();
   if (text === "" && !(input.kind === "text" && input.blank)) throw new VerbRefusal(`${name} is empty: ${input.describe}`, { misuse: true });
-  return text;
+  return input.kind === "text" && input.verbatim ? value : text;
 }

@@ -8,11 +8,12 @@
  * none; a raw answer is printed as it is. A declared family is
  * mounted with the families within it, its bare verb, its guesses and its retired words.
  */
+import type { Library } from "@storytree/library";
 import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
 
 import { Refusal, type Next } from "./answer.js";
 import { commandInput, commandUsage } from "./command-input.js";
-import type { ClaimContext, Context, Verb as Command, Family } from "./door.js";
+import type { Claim, ClaimContext, Context, Verb as Command, Family } from "./door.js";
 import { commandSession, soleSession } from "./writer.js";
 
 const WORDS: DoorWords = {
@@ -29,13 +30,18 @@ export type CommandCaller = VerbContext & Pick<ClaimContext, "log">;
 /**
  * What this door hands every verb besides its caller: the command's own script, when known (storytree's other commands
  * sit beside an installed one), the per-process journey runtime, which the door finishes after the answer, where a line
- * is printed before the answer (sign-in's code while it waits), and the app's surfaces this host's story packages declare.
+ * is printed before the answer (sign-in's code while it waits), the app's surfaces this host's story packages declare, and what the
+ * library's verbs read from above the library: the project's claims and the contract numbers a story package's tests carry.
  */
 export interface CommandPlace extends VerbPlace {
   readonly script?: string;
   journey: Context["journey"];
   out(text: string): void;
   surfaces(): Promise<readonly SurfaceDeclaration[]>;
+  /** The project's claims, which the library's `edit` and `retire` read for the increment the caller holds (ADR-0966). */
+  claims(): Promise<readonly Claim[]>;
+  /** The contract numbers `capability`'s story package's numbered tests carry in this checkout, and its planned contracts none carries. */
+  testedNumbers(capability: string): Promise<{ tested: string[]; untested: string[] }>;
 }
 
 /** A surface a story's manifest declares: the door hands the list on and reads none of its fields (ADR-1017 D2). */
@@ -44,6 +50,17 @@ export type SurfaceDeclaration = object;
 /** The app's surfaces, as each story's manifest declares them (ADR-0750, ADR-1021), in the order the Surfaces menu lists them. */
 async function surfaces(): Promise<readonly SurfaceDeclaration[]> {
   return (await import("#parts/surfaces")).default;
+}
+
+/**
+ * The contract numbers `capability`'s story package's numbered tests carry in the checkout `cwd` is in, and the
+ * titles of its planned contracts none of them carries yet.
+ */
+async function testedNumbersOf(cwd: string, library: Library, capability: string): Promise<{ tested: string[]; untested: string[] }> {
+  const [{ checkoutOf }, { testedNumbers, untestedContracts }] = await Promise.all([import("@storytree/guardrails"), import("@storytree/map/code-survey")]);
+  const tree = await library.projectTree();
+  const tested = await testedNumbers(checkoutOf(cwd), tree, capability);
+  return { tested, untested: untestedContracts(tree, capability, tested) };
 }
 
 /**
@@ -69,7 +86,7 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
       try {
         const input = commandInput(declared, { word: (index) => args.words[index], flag: (name) => args.text(name), flags: (name) => args.texts(name), has: (name) => args.has(name), names: () => args.names });
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
-        const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces };
+        const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces, claims: () => context.claims(), testedNumbers: async (capability) => testedNumbersOf(context.cwd, await context.library(), capability) };
         const caller = declared.callerless ? { ...place, ...soleSession() } as CommandCaller & CommandPlace : { ...place, ...await context.activityContext() };
         const answer = await declared.act(input, declared.writes ? writing(caller, context) : caller, WORDS);
         if (answer.raw) return { text: answer.text, raw: true };

@@ -16,13 +16,13 @@ import type { WriteOptions } from "../schema/index.js";
 /**
  * One input. `text` is a non-empty string, a command's word at `word` when given, else its `--flag <value>`, and
  * left out it reads as nothing when `optional`, and given as only whitespace it is refused unless `blank`, which reads it as
- * empty; with `many`, it is every such string, each word from `word` on or each
+ * empty, and kept as given, its leading and trailing whitespace included, when `verbatim`; with `many`, it is every such string, each word from `word` on or each
  * `--flag` given, and left out it reads as none when `optional`. `yes-no` is a boolean, a command's `--flag yes|no`;
  * `switch` is a boolean that is false unless given, a command's bare `--flag`. `fields` is an open set: each of a
  * command's `--<field> <value>` its other inputs do not name, by field, its values as given.
  */
 export type VerbInput =
-  | { readonly kind: "text"; readonly describe: string; readonly word?: number; readonly optional?: true; readonly many?: true; readonly blank?: true }
+  | { readonly kind: "text"; readonly describe: string; readonly word?: number; readonly optional?: true; readonly many?: true; readonly blank?: true; readonly verbatim?: true }
   | { readonly kind: "yes-no"; readonly describe: string }
   | { readonly kind: "switch"; readonly describe: string }
   | { readonly kind: "fields"; readonly describe: string };

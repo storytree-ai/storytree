@@ -6,7 +6,8 @@
     ".": "./src/index.ts"
   },
   "imports": {
-    "#parts/surfaces": "./src/parts/surfaces.ts"
+    "#parts/surfaces": "./src/parts/surfaces.ts",
+    "#parts/verbs": "./src/parts/verbs.ts"
   },
   "bin": {
     "storytree": "./dist/storytree.mjs"

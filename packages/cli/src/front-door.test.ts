@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17, 1.18 and 1.19 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19 and 1.21 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
@@ -9,8 +9,11 @@ import { after, before, test } from "node:test";
 
 import pg from "pg";
 import { openActivityLog } from "@storytree/session-management";
+import { SESSION_FAMILIES } from "@storytree/session-management/verbs";
 import type { Reading } from "@storytree/reading-the-front-doors";
 
+import { FAMILIES } from "./families/index.js";
+import unbundled from "./parts/verbs.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
@@ -263,4 +266,20 @@ test("1.19 storytree lag prints Lag in real use's report over the lag readings k
     assert.match(printed.stdout, /^open-island\s+2\s+48 \/ 48 \/ 48\s+212 \/ 212 \/ 212\s+240 \/ 1800 \/ 1800\s+100 \/ 50 \/ 1000\s+frame, settled$/m);
     assert.match(printed.stdout, /open-island has fewer than 10 readings/);
   });
+});
+
+test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: Session management's session and machine, last", async () => {
+  await inWorld(command, async (world) => {
+    const listed = await world.run([]);
+    assert.equal(listed.code, 0, listed.stderr);
+    const names = [...listed.stdout.split("Families:")[1]!.split("next:")[0]!.matchAll(/^  ([\w-]+) /gm)].map((line) => line[1]);
+    assert.deepEqual(names, FAMILIES.map((family) => family.name), "the bundle lists the families in the order run unbundled");
+    for (const family of SESSION_FAMILIES) assert.equal(names.indexOf(family.name) + 1, family.order, `${family.name} at its place`);
+    assert.deepEqual(names.slice(-2), ["session", "machine"]);
+
+    const verbs = await world.run(["machine"]);
+    assert.match(verbs.stdout, /^  storytree machine this$/m, verbs.stdout + verbs.stderr);
+  });
+  assert.equal(import.meta.resolve("#parts/verbs"), new URL("./parts/verbs.ts", import.meta.url).href, "the command line's #parts/verbs is its composing module");
+  assert.deepEqual(unbundled, SESSION_FAMILIES);
 });

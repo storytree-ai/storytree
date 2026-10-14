@@ -1,8 +1,12 @@
 /**
  * Capability 1 · Front door. The families `storytree` answers, in the order `storytree` alone lists them: the capabilities of
- * the command line story, each a front door onto its owning story.
+ * the command line story, each a front door onto its owning story. A family its owning story declares in its manifest
+ * (`#parts/verbs`, ADR-1033) is mounted from there, at the place it declares among those still kept here.
  */
+import declared from "#parts/verbs";
+
 import type { Family } from "../door.js";
+import { command } from "../mount.js";
 import { decisions } from "./adr.js";
 import { appFamily } from "./app.js";
 import { auth } from "./auth.js";
@@ -22,8 +26,6 @@ import { importFamily, projectFamily } from "./project.js";
 import { health, plan } from "./tree.js";
 import { workspace } from "./workspace.js";
 import { processes } from "./processes.js";
-import { session } from "./session.js";
-import { machine } from "./machine.js";
 import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
@@ -37,7 +39,8 @@ export const GUESSES: Readonly<Record<string, string>> = {
   board: "noticeboard",
 };
 
-export const FAMILIES: readonly Family[] = [
+/** The families still kept here, in their order once the declared ones take their places. */
+const KEPT: readonly Family[] = [
   library,
   arcs,
   questions,
@@ -69,6 +72,9 @@ export const FAMILIES: readonly Family[] = [
   accountStatus,
   signOut,
   contextFamily,
-  session,
-  machine,
 ];
+
+export const FAMILIES: readonly Family[] = [...declared].sort((a, b) => a.order - b.order).reduce(
+  (families, family) => families.toSpliced(family.order - 1, 0, { name: family.name, summary: family.summary, verbs: family.verbs.map(command) }),
+  KEPT,
+);

@@ -1,13 +1,15 @@
 /**
  * Capability 1 · Front door. A verb its owning story declared once (ADR-0969 D2), mounted as a command: its usage is
  * read from the verb's inputs, its words and flags become the verb's input, a step it offers next is named as a
- * command, and the verb's own refusal is the door's, with the usage when the input was wrong.
+ * command, and the verb's own refusal is the door's, with the usage when the input was wrong. A verb that writes is
+ * handed the writer, named below its answer; a raw answer is printed as it is. A declared family is mounted with the
+ * families within it, its bare verb, its guesses and its retired words.
  */
-import { commandInput, commandUsage, mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { commandInput, commandUsage, mounted, VerbRefusal, type DoorWords, type Verb, type VerbFamilies, type VerbInputs } from "@storytree/project-and-caller/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 import { Refusal, type Next } from "./answer.js";
-import type { Verb as Command } from "./door.js";
+import type { Verb as Command, Family } from "./door.js";
 import { commandSession } from "./writer.js";
 
 const WORDS: DoorWords = {
@@ -29,15 +31,29 @@ export function command(declared: Verb<VerbInputs, SessionVerbContext>): Command
     switches,
     async act(args, context) {
       try {
-        const input = commandInput(declared, { word: (index) => args.words[index], flag: (name) => args.text(name), has: (name) => args.has(name) });
+        const input = commandInput(declared, { word: (index) => args.words[index], flag: (name) => args.text(name), flags: (name) => args.texts(name), has: (name) => args.has(name), names: () => args.names });
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
         const caller = await context.activityContext();
-        const answer = await declared.act(input, caller, WORDS);
+        const answer = await declared.act(input, declared.writes ? { ...caller, writer: context.writer() } : caller, WORDS);
+        if (answer.raw) return { text: answer.text, raw: true };
         const next: Next[] = (answer.next ?? []).map((step) => ({ command: WORDS.say(step), why: step.why }));
         return { text: answer.text, ...(next.length === 0 ? {} : { next }) };
       } catch (error) {
         throw error instanceof VerbRefusal ? misused(error) : error;
       }
     },
+  };
+}
+
+/** The family for `declared`, with the families within it, each verb mounted as a command. */
+export function family(declared: VerbFamilies<SessionVerbContext>): Family {
+  return {
+    name: declared.name,
+    summary: declared.summary,
+    verbs: declared.verbs.map(command),
+    ...(declared.bare === undefined ? {} : { bare: command(declared.bare) }),
+    ...(declared.families === undefined ? {} : { families: declared.families.map(family) }),
+    ...(declared.guesses === undefined ? {} : { guesses: declared.guesses }),
+    ...(declared.retired === undefined ? {} : { retired: declared.retired }),
   };
 }

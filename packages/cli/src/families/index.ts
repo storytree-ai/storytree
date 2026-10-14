@@ -9,10 +9,8 @@ import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
 import { auth } from "./auth.js";
 import { capabilities } from "./capability.js";
-import { doctorFamily, setupFamily } from "./doctor.js";
 import { doors } from "./doors.js";
 import { library } from "./library.js";
-import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
@@ -27,14 +25,10 @@ export const GUESSES: Readonly<Record<string, string>> = {
 const KEPT: readonly Family[] = [
   library,
   doors,
-  doctorFamily,
   plan,
   mapFamily,
   affectedFamily,
   capabilities,
-  setupFamily,
-  projectFamily,
-  importFamily,
   auth,
 ];
 

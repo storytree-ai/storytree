@@ -21,6 +21,7 @@ import { LAG_FAMILIES } from "@storytree/lag-in-use/verbs";
 import { SESSION_FAMILIES } from "@storytree/session-management/verbs";
 import { WORKSPACE_FAMILIES } from "@storytree/session-management/workspace-verbs";
 import { LIBRARIAN_FAMILIES } from "@storytree/librarian/verbs";
+import { SETUP_FAMILIES } from "@storytree/app-setup/verbs";
 import { PROCESSES_FAMILIES } from "@storytree/processes/verbs";
 import { ARC_FAMILIES } from "@storytree/arc-surface/verbs";
 import type { Reading } from "@storytree/reading-the-front-doors";
@@ -30,7 +31,7 @@ import unbundled from "./parts/verbs.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-const DECLARED = [...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...QUALITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...LIBRARIAN_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES];
+const DECLARED = [...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...QUALITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...LIBRARIAN_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());
@@ -282,7 +283,7 @@ test("1.19 storytree lag prints Lag in real use's report over the lag readings k
   });
 });
 
-test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the librarian's adr 4th and friction and resteer 13th and 14th with adr's guesses, Processes' processes 24th, Session management's workspace among the rest, its bare name making a workspace, and its session and machine last", async () => {
+test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the librarian's adr 4th and friction and resteer 13th and 14th with adr's guesses, the app setup's doctor 8th and setup, project and import 20th to 22nd, Processes' processes 24th, Session management's workspace among the rest, its bare name making a workspace, and its session and machine last", async () => {
   await inWorld(command, async (world) => {
     const listed = await world.run([]);
     assert.equal(listed.code, 0, listed.stderr);

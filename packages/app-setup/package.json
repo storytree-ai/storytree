@@ -12,7 +12,8 @@
     "./project": "./src/project/index.ts",
     "./setup": "./src/setup/index.ts",
     "./pipeline": "./src/pipeline/pipeline.ts",
-    "./bins": "./src/bins/build.ts"
+    "./bins": "./src/bins/build.ts",
+    "./verbs": "./src/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",
@@ -40,6 +41,12 @@
     "@storytree/plugin-loader": "workspace:*"
   },
   "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "SETUP_FAMILIES"
+      }
+    ],
     "guidance": [
       {
         "from": "./setup",

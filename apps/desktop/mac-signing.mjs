@@ -76,6 +76,11 @@ export function historyLines(json) {
   return history.map((entry) => `${entry.id}  ${entry.createdDate}  ${entry.status}`);
 }
 
+/** The line `history` prints for a submission Apple has not yet answered, whose log notarytool cannot give yet; null once it has. */
+export function pendingLine(id, status) {
+  return status === "In Progress" ? `Submission ${id} is still In Progress: Apple's log for it comes once Apple answers.` : null;
+}
+
 /** The Developer ID Application identity `security find-identity -v -p codesigning` lists, by its SHA-1. */
 export function identityFrom(listing) {
   const match = /^\s*\d+\)\s+([0-9A-F]{40})\s+"Developer ID Application: [^"]+"/m.exec(listing);
@@ -154,13 +159,16 @@ function writeAppleKey(env) {
   return appleKey;
 }
 
-/** Apple's answers to past submissions; with a submission id, also that submission's status and what Apple objected to. */
+/** Apple's answers to past submissions; with a submission id, also that submission's status and what Apple objected to,
+ * or that it is still pending. */
 function history(env, submission) {
   if (submission && !/^[0-9a-f-]{36}$/i.test(submission)) throw new Error("A submission id is a UUID");
   const keyed = { ...env, APPLE_API_KEY: writeAppleKey(env) };
   try {
     for (const line of historyLines(notarytool(keyed, "history"))) console.log(line);
-    if (submission) {
+    const pending = submission && pendingLine(submission, JSON.parse(notarytool(keyed, "info", submission)).status);
+    if (pending) console.log(pending);
+    else if (submission) {
       const { status, statusSummary, issues } = JSON.parse(notarytool(keyed, "log", submission));
       console.log(JSON.stringify({ status, statusSummary, issues: issues ?? [] }, null, 2));
     }

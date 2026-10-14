@@ -40,6 +40,7 @@ test("17.1 · The library declares the library family first among storytree's fa
   const story = await library.addStory({ title: "Sign up" });
   const form = await library.addCapability({ story: story.id, title: "Form" });
   const increment = await library.addIncrement({ arc: arc.id, title: "Address form", objective: "Rename it", body: "Red then green" });
+  await library.advanceIncrement(increment.id, "active"); // as claiming it does
   const claims: HeldClaim[] = [{ session: "lane", increment: increment.id, since: "2026-10-15T00:00:00.000Z" }];
   const contextOf = (session: string): LibraryVerbContext => ({
     library, project, session, folder, writer: { actor: `session:${session}` },

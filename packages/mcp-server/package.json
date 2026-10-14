@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./tool-input": "./src/tools/tool-input.ts"
   },
   "imports": {
     "#parts/tools": "./src/parts/tools.ts",

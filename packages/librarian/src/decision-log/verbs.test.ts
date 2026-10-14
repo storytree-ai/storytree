@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import type { DoorWords, VerbContext } from "@storytree/project-and-caller/verbs";
+import type { DoorWords, VerbContext } from "@storytree/library/verbs";
 
 import { withLibrary } from "../testing/pg.js";
 import { LIBRARIAN_FAMILIES } from "../verbs.js";

@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@storytree/forest": "workspace:*",
-    "@storytree/project-and-caller": "workspace:*"
+    "@storytree/library": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

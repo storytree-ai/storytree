@@ -1,0 +1,98 @@
+/**
+ * Capability 13 · Reading a command (ADR-1035 D2): the command line's own mounting code, reading a command's words and
+ * flags into a declared verb's input and spelling its usage. The schema it reads is the library's.
+ */
+import { mounted, VerbRefusal, type InputOf, type Verb, type VerbInput, type VerbInputs, type VerbValue } from "@storytree/library/verbs";
+
+/**
+ * A command's usage, after `storytree `, from the verb's inputs: `session close-out --safe yes|no --why <why>`. A family's
+ * bare verb, named as its family, is used as `<family> …`.
+ */
+export function commandUsage(declared: Verb<VerbInputs, never>): string {
+  if (!mounted(declared.command)) throw new Error(`${mounted(declared.tool) ? declared.tool.name : "this verb"} has no command: ${declared.command.absent}`);
+  if (declared.command.usage !== undefined) return declared.command.usage;
+  const entries = Object.entries(declared.inputs);
+  const words = entries.flatMap(([name, input]) => input.kind === "text" && input.word !== undefined ? [[input.word, spelt(input, `<${name}>`)] as const] : []).sort(([a], [b]) => a - b).map(([, word]) => word);
+  const flags = entries.flatMap(([name, input]) => {
+    if (input.kind === "switch") return [`[--${name}]`];
+    if (input.kind === "yes-no") return [`--${name} yes|no`];
+    if (input.kind === "fields") return ["--<field> <value> …"];
+    return input.word !== undefined ? [] : [spelt(input, `--${name} <${name}>`)];
+  });
+  const { family, name } = declared.command;
+  return [family, ...(name === family ? [] : [name]), ...words, ...flags].join(" ");
+}
+
+/** A text input's place in a usage: `[…]` when it may be left out, `…` after it when it may come again. */
+function spelt(input: VerbInput & { kind: "text" }, place: string): string {
+  const many = input.many ? `${place} …` : place;
+  return input.optional ? `[${many}]` : many;
+}
+
+/** A command's words and flags, as `commandInput` reads them. */
+export interface CommandGiven {
+  word(index: number): string | undefined;
+  /** The flag's value, the last given. */
+  flag(name: string): string | undefined;
+  /** Every value given for the flag, in order. */
+  flags(name: string): readonly string[];
+  has(name: string): boolean;
+  /** The flags given, by name. */
+  names(): readonly string[];
+}
+
+/**
+ * A command's words and flags read as the verb's input, or a refusal saying what is wrong. A word past the ones it
+ * takes, or a flag it does not take, is refused as a misuse; the flag is named, but a word never is, since a stray word
+ * may be a secret (`auth set <name> <key>`). A verb with `fields` takes every flag, and one with `many` words every word.
+ */
+export function commandInput(declared: Verb<VerbInputs, never>, given: CommandGiven): InputOf<VerbInputs> {
+  const inputs = Object.entries(declared.inputs);
+  if (!inputs.some(([, one]) => one.kind === "fields")) {
+    const stray = given.names().find((name) => !inputs.some(([declaredName, one]) => declaredName === name && (one.kind !== "text" || one.word === undefined)));
+    if (stray !== undefined) throw new VerbRefusal(`--${stray} is not a flag this takes`, { misuse: true });
+  }
+  if (!inputs.some(([, one]) => one.kind === "text" && one.many && one.word !== undefined)) {
+    const words = Math.max(0, ...inputs.map(([, one]) => one.kind === "text" && one.word !== undefined ? one.word + 1 : 0));
+    const count = wordsFrom(given, 0).length;
+    if (count > words) throw new VerbRefusal(words === 0 ? "this takes no words" : `this takes ${words === 1 ? "one word" : `${words} words`}, and was given ${count}`, { misuse: true });
+  }
+  const input: Record<string, VerbValue> = {};
+  for (const [name, one] of inputs) {
+    if (one.kind === "fields") {
+      const named = new Set(Object.keys(declared.inputs));
+      input[name] = Object.fromEntries(given.names().filter((field) => !named.has(field)).map((field) => [field, given.flag(field)!]));
+    } else if (one.kind === "text" && one.many) {
+      const values = one.word === undefined ? given.flags(name) : wordsFrom(given, one.word);
+      if (values.length === 0 && !one.optional) throw new VerbRefusal(`this needs ${one.word === undefined ? `--${name}` : `<${name}>`}: ${one.describe}`, { misuse: true });
+      input[name] = values.map((value) => said(name, one, value));
+    } else if (one.kind === "switch") {
+      input[name] = given.has(name);
+    } else if (one.kind === "yes-no") {
+      const value = given.flag(name);
+      if (value === undefined) throw new VerbRefusal(`this needs --${name} yes|no`, { misuse: true });
+      if (value !== "yes" && value !== "no") throw new VerbRefusal(`--${name} is yes or no, not ${JSON.stringify(value)}`, { misuse: true });
+      input[name] = value === "yes";
+    } else {
+      const value = one.word === undefined ? given.flag(name) : given.word(one.word);
+      if (value === undefined && one.optional) input[name] = undefined;
+      else if (value === undefined) throw new VerbRefusal(`this needs ${one.word === undefined ? `--${name}` : `<${name}>`}: ${one.describe}`, { misuse: true });
+      else input[name] = said(name, one, value);
+    }
+  }
+  return input;
+}
+
+/** Each word from `index` on. */
+function wordsFrom(given: CommandGiven, index: number): string[] {
+  const words: string[] = [];
+  for (let at = index; given.word(at) !== undefined; at++) words.push(given.word(at)!);
+  return words;
+}
+
+/** A text input, trimmed: one that says nothing is refused, unless it is marked blank, as the MCP server refuses it. */
+function said(name: string, input: VerbInput, value: string): string {
+  const text = value.trim();
+  if (text === "" && !(input.kind === "text" && input.blank)) throw new VerbRefusal(`${name} is empty: ${input.describe}`, { misuse: true });
+  return text;
+}

@@ -4,7 +4,7 @@
  * sharing choice, or stop sharing and prepare a deletion request. Each needs no caller; the door hands the per-process
  * runtime, which it finishes after the answer. None is a tool: the desktop app's settings carry the same controls.
  */
-import { verb, type Verb, type VerbFamily, type VerbInputs, type VerbPlace } from "@storytree/project-and-caller/verbs";
+import { verb, type Verb, type VerbFamily, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
 
 import type { JourneyBridge } from "./bridge.js";
 

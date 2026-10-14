@@ -7,7 +7,7 @@
  */
 import path from "node:path";
 
-import { verb, VerbRefusal, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "@storytree/library/verbs";
 
 import type { ActivityLog } from "../activity/index.js";
 import { SESSION_NAME_LIMIT } from "./name.js";

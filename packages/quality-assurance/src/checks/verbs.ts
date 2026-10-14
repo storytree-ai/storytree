@@ -5,7 +5,7 @@
  * needs the library server, and is refused where the door hands none. They are no tools: this package's tool parts serve
  * the same work on the MCP server, with the inputs a tool takes.
  */
-import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "@storytree/library/verbs";
 
 /**
  * What the quality verbs read off the door beyond the caller: the activity log a review's claims are read from, in this

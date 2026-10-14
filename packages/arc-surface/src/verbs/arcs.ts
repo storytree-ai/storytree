@@ -17,7 +17,7 @@
  * `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand close
  * or re-open of an arc (the owner's R1). `arc list` reads each arc's view.
  */
-import { verb, VerbRefusal, type VerbFamilies } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type VerbFamilies } from "@storytree/library/verbs";
 import type { ArcView, Holds, NoteWait, PendingChange, WaitFor } from "@storytree/library";
 
 import { questionsBehind } from "../work-states/board-states.js";

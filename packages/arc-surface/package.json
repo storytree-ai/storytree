@@ -30,7 +30,6 @@
   },
   "dependencies": {
     "@storytree/library": "workspace:*",
-    "@storytree/project-and-caller": "workspace:*",
     "@storytree/session-management": "workspace:*"
   },
   "devDependencies": {

@@ -1,12 +1,18 @@
-// Capability 4 · The verb contract: a verb declared once reads either door's input the same, refuses the same wrong
-// input on both, and does the same work and answers in the same sentence for either door. The verbs are this test's
-// own, one of them on a context its declaring story extends.
+// Capability 13 · Reading a command (ADR-1035 D2): the command line reads a declared verb's words and flags to the same
+// input the MCP server reads its tool's arguments to, refuses the same wrong input, and the verb does the same work and
+// answers in the same sentence for either door. The verbs are this test's own, one of them on a context its declaring
+// story extends, besides the declared `release pin` and the session verbs.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { RELEASE_FAMILIES } from "@storytree/app/updates/verbs";
 import type { Library } from "@storytree/library";
 
-import { commandInput, commandUsage, mounted, toolInput, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily, type VerbPlace } from "./verb.js";
+import { mounted, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
+import { toolInput } from "@storytree/mcp-server/tool-input";
+import { SESSION_VERBS } from "@storytree/session-management/verbs";
+
+import { commandInput, commandUsage } from "./command-input.js";
 
 const DOORS: Record<"command" | "tool", DoorWords> = {
   command: { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` },
@@ -52,7 +58,7 @@ const sweep = verb({
   },
 });
 
-test("4.1 · a verb declared once reads a command's words and flags and a tool's arguments to the same input, refuses the same wrong input on both, and does the same work and answers in the same sentence for either door", async () => {
+test("13.1 · a verb declared once reads a command's words and flags and a tool's arguments to the same input, refuses the same wrong input on both, and does the same work and answers in the same sentence for either door", async () => {
   assert.equal(commandUsage(plant), "garden plant <tree> --water yes|no --label <label> [--quiet]");
   const fromCommand = commandInput(plant, given(["oak"], { water: "yes", label: " by the gate " }));
   const fromTool = toolInput(plant, { tree: "oak", water: true, label: "by the gate" });
@@ -90,6 +96,21 @@ test("4.1 · a verb declared once reads a command's words and flags and a tool's
   for (const door of [DOORS.command, DOORS.tool]) {
     await assert.rejects(plant.act({ tree: "weed", water: false, label: "x", quiet: false }, context, door), (error: unknown) => error instanceof VerbRefusal && !error.misuse && error.message === "a weed is not planted");
   }
+
+  // Session management's declared verbs read the same on both doors.
+  const tool = (name: string) => SESSION_VERBS.find((one) => mounted(one.tool) && one.tool.name === name)!;
+  const close = tool("close_out");
+  assert.equal(commandUsage(close), "session close-out --safe yes|no --why <why>");
+  assert.deepEqual(commandInput(close, given([], { safe: "no", why: " handoff " })), toolInput(close, { safe: false, why: "handoff" }));
+  for (const refused of [() => commandInput(close, given([], { safe: "maybe", why: "x" })), () => commandInput(close, given([], { safe: "yes", why: "  " })), () => toolInput(close, { safe: true, why: "  " })]) {
+    assert.throws(refused, (error: unknown) => error instanceof VerbRefusal && error.misuse);
+  }
+  const name = tool("name_session");
+  assert.equal(commandUsage(name), "session name <title>");
+  assert.deepEqual(commandInput(name, given(["Building signup"], {})), toolInput(name, { title: "Building signup" }));
+  const list = SESSION_VERBS.find((one) => mounted(one.command) && one.command.name === "list")!;
+  assert.equal(commandUsage(list), "session list [--all] [--json]");
+  assert.deepEqual(toolInput(list, {}), { all: false, json: false });
 });
 
 const prune = verb({
@@ -105,7 +126,7 @@ const prune = verb({
   },
 });
 
-test("4.2 · a text input marked optional may be left out on either door and reads as nothing; a verb's command may give the usage its inputs cannot spell, and a family may declare the verb its bare name runs", async () => {
+test("13.2 · a text input marked optional may be left out on either door and reads as nothing; a verb's command may give the usage its inputs cannot spell, and a family may declare the verb its bare name runs", async () => {
   assert.equal(commandUsage(prune), "garden prune <tree|hedge> [--to <height> --by <tool>]");
   assert.equal(commandUsage(sweep), "garden sweep", "a verb that gives none has the usage its inputs spell");
   const left = commandInput(prune, given(["oak"], {}));
@@ -137,7 +158,7 @@ const gather = verb({
   },
 });
 
-test("4.4 · a text input may be many, each word from its place on or each repetition of its flag, and none when optional; an open set of fields takes every flag the other inputs do not name; a verb may declare that it writes and answer raw", async () => {
+test("13.4 · a text input may be many, each word from its place on or each repetition of its flag, and none when optional; an open set of fields takes every flag the other inputs do not name; a verb may declare that it writes and answer raw", async () => {
   assert.equal(commandUsage(gather), "garden gather <beds> … [--basket <basket> …] --<field> <value> …");
   const fromCommand = commandInput(gather, given(["north", "south"], { basket: ["wicker", " tin "], colour: "red", size: " big " }));
   const fromTool = toolInput(gather, { beds: ["north", "south"], basket: ["wicker", "tin"], tags: { colour: "red", size: " big " } });
@@ -165,7 +186,7 @@ const keep = verb({
   },
 });
 
-test("4.5 · a word past the ones a verb takes, or a flag it does not take, is refused as a misuse naming the flag and never the word; a verb may be callerless, its work handed only its place, and a family's bare verb named as the family is used as the family", async () => {
+test("13.5 · a word past the ones a verb takes, or a flag it does not take, is refused as a misuse naming the flag and never the word; a verb may be callerless, its work handed only its place, and a family's bare verb named as the family is used as the family", async () => {
   assert.deepEqual(commandInput(keep, given(["openai"], { quiet: "true" })), { name: "openai", quiet: true });
   const refusal = (words: readonly string[], flags: Readonly<Record<string, string>>): VerbRefusal => {
     try {
@@ -190,6 +211,13 @@ test("4.5 · a word past the ones a verb takes, or a flag it does not take, is r
 
   const lag = verb({ command: { family: "lag", name: "lag", summary: "the lag readings" }, tool: { absent: "the desktop's own" }, inputs: { days: { kind: "text", optional: true, describe: "how many days" } }, callerless: true, async act() { return { text: "" }; } });
   assert.equal(commandUsage(lag), "lag [--days <days>]");
+
+  // The app's declared `release pin` refuses a missing version and a stray word before its act could publish anything.
+  const pin = RELEASE_FAMILIES[0]!.verbs.find((each) => mounted(each.command) && each.command.name === "pin")!;
+  assert.equal(commandUsage(pin), "release pin <0.3.n> [--preview]");
+  assert.throws(() => commandInput(pin, given([], {})), (error) => error instanceof VerbRefusal && error.misuse && error.message === "this needs <version>: the owner's chosen release");
+  assert.throws(() => commandInput(pin, given(["0.3.9", "0.3.10"], {})), (error) => error instanceof VerbRefusal && error.misuse && error.message === "this takes one word, and was given 2");
+  assert.deepEqual(commandInput(pin, given(["0.3.9"], { preview: "" })), { version: "0.3.9", preview: true });
 });
 
 const hold = verb({
@@ -205,7 +233,7 @@ const hold = verb({
   },
 });
 
-test("4.6 · a text input marked blank keeps a value that says nothing, read as empty, on either door; a refusal may name the steps that do the job instead", async () => {
+test("13.6 · a text input marked blank keeps a value that says nothing, read as empty, on either door; a refusal may name the steps that do the job instead", async () => {
   const context: VerbContext = { library: {} as Library, project: "p", session: "claude-1", folder: "/work" };
   const blank = commandInput(hold, given(["north"], { for: " " }));
   assert.deepEqual(blank, toolInput(hold, { bed: "north", for: "" }));

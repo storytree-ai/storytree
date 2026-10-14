@@ -15,7 +15,7 @@ import { connect, type Storytree } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import { machineOf, registerTrunk } from "@storytree/project-and-caller";
-import { VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/library/verbs";
 import { MACHINE_VERBS, SESSION_VERBS, type SessionVerbContext } from "../sessions/verbs.js";
 import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";

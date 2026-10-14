@@ -4,7 +4,7 @@
  * families: `doctor` 8th, `setup` 20th, `project` 21st and `import` 22nd.
  */
 import type { Library, Storytree } from "@storytree/library";
-import type { VerbContext, VerbFamily, VerbPlace } from "@storytree/project-and-caller/verbs";
+import type { VerbContext, VerbFamily, VerbPlace } from "@storytree/library/verbs";
 
 import { CONNECTION_VERBS } from "./connect/verbs.js";
 import { IMPORT, PROJECT_VERBS } from "./project/verbs.js";

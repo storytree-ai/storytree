@@ -8,7 +8,7 @@ import { test } from "node:test";
 
 import type { z } from "zod";
 
-import { verb, type Verb } from "@storytree/project-and-caller/verbs";
+import { verb, type Verb } from "@storytree/library/verbs";
 
 import { mountTools } from "./mount.js";
 import type { Answer, Call, Define } from "./server.js";

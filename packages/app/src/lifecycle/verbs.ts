@@ -4,7 +4,7 @@
  * running app to quit, as its tray's Quit does, and answers once its database has stopped; a stopped app is left stopped
  * (1.7). It needs no caller. The command line mounts it as its `app` family (APP_FAMILIES); it has no tool.
  */
-import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
 const quit = verb({
   command: { family: "app", name: "quit", summary: "quit the running storytree app, as its tray's Quit does" },

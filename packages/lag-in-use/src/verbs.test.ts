@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import type { DoorWords } from "@storytree/project-and-caller/verbs";
+import type { DoorWords } from "@storytree/library/verbs";
 
 import { LAG_FAMILIES } from "./verbs.js";
 

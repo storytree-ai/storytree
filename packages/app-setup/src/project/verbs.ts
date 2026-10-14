@@ -4,7 +4,7 @@
  * `storytree project delete <project> --confirm <project>`: delete its records (ADR-0831).
  * `storytree import <folder>`: import an existing JavaScript or TypeScript project into this one, as mapped stories (ADR-0993).
  */
-import { verb, VerbRefusal, type Verb, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type Verb, type VerbInputs } from "@storytree/library/verbs";
 
 import type { ImportVerbContext, SetupVerbContext } from "../verbs.js";
 

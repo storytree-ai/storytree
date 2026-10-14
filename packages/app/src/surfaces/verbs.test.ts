@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 
-import { VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/library/verbs";
 
 import type { SurfaceDeclaration } from "./switches.js";
 import { SETTINGS_FAMILIES, type SettingsPlace } from "./verbs.js";

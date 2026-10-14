@@ -3,7 +3,7 @@
  * (ADR-1033), each at its place among `storytree`'s families: `arc` 2nd, with `arc increment` within it, and `question`
  * 3rd.
  */
-import type { VerbFamily } from "@storytree/project-and-caller/verbs";
+import type { VerbFamily } from "@storytree/library/verbs";
 
 import { ARC_GUESSES, ARC_INNER, ARC_VERBS } from "./arcs.js";
 import type { ArcVerbContext } from "./context.js";

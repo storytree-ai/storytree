@@ -2,7 +2,7 @@
  * Capability 3 · Arc surface. What the `arc` and `question` verbs share: the context the doors hand them, and how a
  * given value and a record are read and named.
  */
-import { VerbRefusal } from "@storytree/project-and-caller/verbs";
+import { VerbRefusal } from "@storytree/library/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 /** The caller with its activity log, and the journey runtime when the door has one, told when an increment closes. */

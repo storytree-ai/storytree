@@ -3,7 +3,7 @@
  * builds already published as stable, or previews its landed-increment notes; nothing else promotes (4.16). The command
  * line mounts it as its `release` family (RELEASE_FAMILIES); it has no tool.
  */
-import { verb, type VerbFamily } from "@storytree/project-and-caller/verbs";
+import { verb, type VerbFamily } from "@storytree/library/verbs";
 
 const pin = verb({
   command: { family: "release", name: "pin", summary: "pin the owner's chosen published build as stable, or preview its landed-increment notes", usage: "release pin <0.3.n> [--preview]" },

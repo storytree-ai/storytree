@@ -4,7 +4,7 @@
  * surfaces are the host's, composed from its story packages' manifests (ADR-0750, ADR-1021), so the door hands them on its
  * place. The command line mounts them as its `settings` family (SETTINGS_FAMILIES); they have no tool.
  */
-import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
 import type { SurfaceDeclaration, SurfaceReading } from "./switches.js";
 

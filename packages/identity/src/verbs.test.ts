@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { DoorWords } from "@storytree/project-and-caller/verbs";
+import type { DoorWords } from "@storytree/library/verbs";
 
 import { IDENTITY_FAMILIES } from "./verbs.js";
 

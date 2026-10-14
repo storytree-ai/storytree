@@ -2,7 +2,7 @@
  * Capability 2 · Connect an agent. `storytree setup connect | disconnect | uninstall`: each runs the installed delivery
  * helper beside the command, which owns delivery paths and connection results.
  */
-import { verb, VerbRefusal, type Verb, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type Verb, type VerbInputs } from "@storytree/library/verbs";
 
 import type { SetupVerbContext } from "../verbs.js";
 

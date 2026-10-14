@@ -4,7 +4,7 @@
  * folder not approved, opening nothing. The command line mounts it as its `context` family (SESSION_FAMILIES); the MCP
  * server answers the same through its own read_context tool.
  */
-import { verb, type Verb, type VerbInputs, type VerbPlace } from "@storytree/project-and-caller/verbs";
+import { verb, type Verb, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
 
 /** `storytree context [--json]`, the bare verb of the command line's `context` family. */
 export const CONTEXT_READING: Verb<VerbInputs, VerbPlace> = verb({

@@ -14,6 +14,7 @@ import { SETTINGS_FAMILIES } from "@storytree/app/surfaces/verbs";
 import { HEALTH_FAMILIES } from "@storytree/ci-health/verbs";
 import { IDENTITY_FAMILIES } from "@storytree/identity/verbs";
 import { CHECK_FAMILIES } from "@storytree/guardrails/verbs";
+import { QUALITY_FAMILIES } from "@storytree/quality-assurance/verbs";
 import { JOURNEY_FAMILIES } from "@storytree/journey-events/verbs";
 import { LAG_FAMILIES } from "@storytree/lag-in-use/verbs";
 import { SESSION_FAMILIES } from "@storytree/session-management/verbs";
@@ -28,7 +29,7 @@ import unbundled from "./parts/verbs.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-const DECLARED = [...APP_FAMILIES, ...SETTINGS_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...LIBRARIAN_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES];
+const DECLARED = [...APP_FAMILIES, ...SETTINGS_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...QUALITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...LIBRARIAN_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());

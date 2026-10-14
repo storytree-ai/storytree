@@ -13,18 +13,30 @@ import type { Library, Storytree, WriteOptions } from "@storytree/library";
 
 /**
  * One input. `text` is a non-empty string, a command's word at `word` when given, else its `--flag <value>`, and
- * left out it reads as nothing when `optional`; `yes-no` is a boolean, a command's `--flag yes|no`; `switch` is a
- * boolean that is false unless given, a command's bare `--flag`.
+ * left out it reads as nothing when `optional`; with `many`, it is every such string, each word from `word` on or each
+ * `--flag` given, and left out it reads as none when `optional`. `yes-no` is a boolean, a command's `--flag yes|no`;
+ * `switch` is a boolean that is false unless given, a command's bare `--flag`. `fields` is an open set: each of a
+ * command's `--<field> <value>` its other inputs do not name, by field, its values as given.
  */
 export type VerbInput =
-  | { readonly kind: "text"; readonly describe: string; readonly word?: number; readonly optional?: true }
+  | { readonly kind: "text"; readonly describe: string; readonly word?: number; readonly optional?: true; readonly many?: true }
   | { readonly kind: "yes-no"; readonly describe: string }
-  | { readonly kind: "switch"; readonly describe: string };
+  | { readonly kind: "switch"; readonly describe: string }
+  | { readonly kind: "fields"; readonly describe: string };
 
 export type VerbInputs = Readonly<Record<string, VerbInput>>;
 
 /** What the inputs come to when the work runs. */
-export type InputOf<I extends VerbInputs> = { readonly [K in keyof I]: I[K] extends { kind: "text"; optional: true } ? string | undefined : I[K] extends { kind: "text" } ? string : I[K] extends { kind: "yes-no" | "switch" } ? boolean : string | boolean | undefined };
+export type InputOf<I extends VerbInputs> = { readonly [K in keyof I]:
+  I[K] extends { kind: "text"; many: true } ? readonly string[]
+  : I[K] extends { kind: "text"; optional: true } ? string | undefined
+  : I[K] extends { kind: "text" } ? string
+  : I[K] extends { kind: "yes-no" | "switch" } ? boolean
+  : I[K] extends { kind: "fields" } ? Readonly<Record<string, string>>
+  : VerbValue };
+
+/** Any one input's value. */
+export type VerbValue = string | boolean | undefined | readonly string[] | Readonly<Record<string, string>>;
 
 /** How a door names a step: the tool, the command (after `storytree `), or both. */
 export interface Step {
@@ -60,9 +72,13 @@ export interface VerbContext extends VerbPlace {
   readonly server?: Pick<Storytree, "ownDatabase">;
 }
 
-/** A verb's answer: one sentence (or a few lines), what it made or found, and the steps that open what it named. */
+/**
+ * A verb's answer: one sentence (or a few lines), what it made or found, and the steps that open what it named; or,
+ * `raw`, a value to pipe or save, which the command line prints exactly as it is, with no next steps.
+ */
 export interface VerbAnswer {
   readonly text: string;
+  readonly raw?: true;
   readonly data?: Record<string, unknown>;
   readonly next?: readonly (Step & { readonly why: string })[];
 }
@@ -92,20 +108,33 @@ export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbPlace = V
   readonly agentOnly?: string;
   /** Its work needs no caller, project or library (it reads a file, or runs offline): a door hands it only the place. */
   readonly callerless?: true;
+  /** Its work writes to the library: each door hands it the writer (the context's `writer`), and the command line names that writer below its answer. */
+  readonly writes?: true;
   act(input: InputOf<I>, context: C, words: DoorWords): Promise<VerbAnswer>;
 }
 
 /**
- * A command family a story declares in its manifest's `verbs` (ADR-1033): `storytree <name> <verb>` for each of its
- * verbs, listed `order`th among `storytree`'s families, counted from 1, so a family keeps its place in the help as it moves.
- * `bare` runs for `storytree <name> …` when the next word names none of its verbs.
+ * A command family: `storytree <name> <verb>` for each of its verbs, and `storytree <name> <inner> <verb>` for each family
+ * within it. `bare` runs for `storytree <name> …` when the next word names none of its verbs. `guesses` are words agents
+ * try for a job another command does, each with that command (after `storytree `); `retired` are words for a step
+ * storytree has retired, each with why and the command for the job now: the command line names them rather than run them.
  */
-export interface VerbFamily<C extends VerbPlace = VerbContext> {
+export interface VerbFamilies<C extends VerbPlace = VerbContext> {
   readonly name: string;
   readonly summary: string;
-  readonly order: number;
   readonly verbs: readonly Verb<VerbInputs, C>[];
   readonly bare?: Verb<VerbInputs, C>;
+  readonly families?: readonly VerbFamilies<C>[];
+  readonly guesses?: Readonly<Record<string, string>>;
+  readonly retired?: Readonly<Record<string, { readonly why: string; readonly instead: string }>>;
+}
+
+/**
+ * A command family a story declares in its manifest's `verbs` (ADR-1033), listed `order`th among `storytree`'s
+ * families, counted from 1, so a family keeps its place in the help as it moves.
+ */
+export interface VerbFamily<C extends VerbPlace = VerbContext> extends VerbFamilies<C> {
+  readonly order: number;
 }
 
 /** Declare a verb, keeping its inputs' and its context's types for its act. */
@@ -125,26 +154,61 @@ export function commandUsage(declared: Verb<VerbInputs, never>): string {
   if (!mounted(declared.command)) throw new Error(`${mounted(declared.tool) ? declared.tool.name : "this verb"} has no command: ${declared.command.absent}`);
   if (declared.command.usage !== undefined) return declared.command.usage;
   const entries = Object.entries(declared.inputs);
-  const words = entries.flatMap(([name, input]) => input.kind === "text" && input.word !== undefined ? [[input.word, `<${name}>`] as const] : []).sort(([a], [b]) => a - b).map(([, word]) => word);
-  const flags = entries.flatMap(([name, input]) => input.kind === "switch" ? [`[--${name}]`] : input.kind === "yes-no" ? [`--${name} yes|no`] : input.word !== undefined ? [] : input.optional ? [`[--${name} <${name}>]`] : [`--${name} <${name}>`]);
+  const words = entries.flatMap(([name, input]) => input.kind === "text" && input.word !== undefined ? [[input.word, spelt(input, `<${name}>`)] as const] : []).sort(([a], [b]) => a - b).map(([, word]) => word);
+  const flags = entries.flatMap(([name, input]) => {
+    if (input.kind === "switch") return [`[--${name}]`];
+    if (input.kind === "yes-no") return [`--${name} yes|no`];
+    if (input.kind === "fields") return ["--<field> <value> …"];
+    return input.word !== undefined ? [] : [spelt(input, `--${name} <${name}>`)];
+  });
   const { family, name } = declared.command;
   return [family, ...(name === family ? [] : [name]), ...words, ...flags].join(" ");
 }
 
+/** A text input's place in a usage: `[…]` when it may be left out, `…` after it when it may come again. */
+function spelt(input: VerbInput & { kind: "text" }, place: string): string {
+  const many = input.many ? `${place} …` : place;
+  return input.optional ? `[${many}]` : many;
+}
+
+/** A command's words and flags, as `commandInput` reads them. */
+export interface CommandGiven {
+  word(index: number): string | undefined;
+  /** The flag's value, the last given. */
+  flag(name: string): string | undefined;
+  /** Every value given for the flag, in order. */
+  flags(name: string): readonly string[];
+  has(name: string): boolean;
+  /** The flags given, by name. */
+  names(): readonly string[];
+}
+
 /**
- * A command's words and flags read as the verb's input, or a refusal saying what is wrong: `count` words were given and
- * the flags `names`. A word past the ones it takes, or a flag it does not take, is refused as a misuse; the flag is
- * named, but a word never is, since a stray word may be a secret (`auth set <name> <key>`).
+ * A command's words and flags read as the verb's input, or a refusal saying what is wrong. A word past the ones it
+ * takes, or a flag it does not take, is refused as a misuse; the flag is named, but a word never is, since a stray word
+ * may be a secret (`auth set <name> <key>`). A verb with `fields` takes every flag, and one with `many` words every word.
  */
-export function commandInput(declared: Verb<VerbInputs, never>, given: { word(index: number): string | undefined; count: number; flag(name: string): string | undefined; has(name: string): boolean; names: readonly string[] }): InputOf<VerbInputs> {
+export function commandInput(declared: Verb<VerbInputs, never>, given: CommandGiven): InputOf<VerbInputs> {
   const inputs = Object.entries(declared.inputs);
-  const stray = given.names.find((name) => !inputs.some(([declaredName, one]) => declaredName === name && (one.kind !== "text" || one.word === undefined)));
-  if (stray !== undefined) throw new VerbRefusal(`--${stray} is not a flag this takes`, { misuse: true });
-  const words = Math.max(0, ...inputs.map(([, one]) => one.kind === "text" && one.word !== undefined ? one.word + 1 : 0));
-  if (given.count > words) throw new VerbRefusal(words === 0 ? "this takes no words" : `this takes ${words === 1 ? "one word" : `${words} words`}, and was given ${given.count}`, { misuse: true });
-  const input: Record<string, string | boolean | undefined> = {};
+  if (!inputs.some(([, one]) => one.kind === "fields")) {
+    const stray = given.names().find((name) => !inputs.some(([declaredName, one]) => declaredName === name && (one.kind !== "text" || one.word === undefined)));
+    if (stray !== undefined) throw new VerbRefusal(`--${stray} is not a flag this takes`, { misuse: true });
+  }
+  if (!inputs.some(([, one]) => one.kind === "text" && one.many && one.word !== undefined)) {
+    const words = Math.max(0, ...inputs.map(([, one]) => one.kind === "text" && one.word !== undefined ? one.word + 1 : 0));
+    const count = wordsFrom(given, 0).length;
+    if (count > words) throw new VerbRefusal(words === 0 ? "this takes no words" : `this takes ${words === 1 ? "one word" : `${words} words`}, and was given ${count}`, { misuse: true });
+  }
+  const input: Record<string, VerbValue> = {};
   for (const [name, one] of inputs) {
-    if (one.kind === "switch") {
+    if (one.kind === "fields") {
+      const named = new Set(Object.keys(declared.inputs));
+      input[name] = Object.fromEntries(given.names().filter((field) => !named.has(field)).map((field) => [field, given.flag(field)!]));
+    } else if (one.kind === "text" && one.many) {
+      const values = one.word === undefined ? given.flags(name) : wordsFrom(given, one.word);
+      if (values.length === 0 && !one.optional) throw new VerbRefusal(`this needs ${one.word === undefined ? `--${name}` : `<${name}>`}: ${one.describe}`, { misuse: true });
+      input[name] = values.map((value) => said(name, one, value));
+    } else if (one.kind === "switch") {
       input[name] = given.has(name);
     } else if (one.kind === "yes-no") {
       const value = given.flag(name);
@@ -161,11 +225,28 @@ export function commandInput(declared: Verb<VerbInputs, never>, given: { word(in
   return input;
 }
 
-/** A tool's arguments, as its schema checked them, read as the verb's input: a switch not given is false. */
+/** Each word from `index` on. */
+function wordsFrom(given: CommandGiven, index: number): string[] {
+  const words: string[] = [];
+  for (let at = index; given.word(at) !== undefined; at++) words.push(given.word(at)!);
+  return words;
+}
+
+/**
+ * A tool's arguments, as its schema checked them, read as the verb's input: a switch not given is false, a `many`
+ * input is a list, and `fields` an object of strings.
+ */
 export function toolInput(declared: Verb<VerbInputs, never>, args: Readonly<Record<string, unknown>>): InputOf<VerbInputs> {
-  const input: Record<string, string | boolean | undefined> = {};
+  const input: Record<string, VerbValue> = {};
   for (const [name, one] of Object.entries(declared.inputs)) {
-    input[name] = one.kind !== "text" ? args[name] === true : args[name] === undefined && one.optional ? undefined : said(name, one, String(args[name]));
+    const value = args[name];
+    if (one.kind === "fields") input[name] = Object.fromEntries(Object.entries((value ?? {}) as Record<string, unknown>).map(([field, given]) => [field, String(given)]));
+    else if (one.kind !== "text") input[name] = value === true;
+    else if (one.many) {
+      const values = value === undefined ? [] : (value as readonly unknown[]).map(String);
+      if (values.length === 0 && !one.optional) throw new VerbRefusal(`this needs ${name}: ${one.describe}`, { misuse: true });
+      input[name] = values.map((given) => said(name, one, given));
+    } else input[name] = value === undefined && one.optional ? undefined : said(name, one, String(value));
   }
   return input;
 }

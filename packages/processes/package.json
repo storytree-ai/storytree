@@ -19,5 +19,14 @@
     "@types/node": "^24.13.6",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "guidance": [
+      {
+        "from": "./listing",
+        "export": "runsGuidance",
+        "order": 90
+      }
+    ]
   }
 }

@@ -40,6 +40,13 @@
         "from": "./workspace-verbs",
         "export": "WORKSPACE_FAMILIES"
       }
+    ],
+    "guidance": [
+      {
+        "from": ".",
+        "export": "claimsGuidance",
+        "order": 40
+      }
     ]
   }
 }

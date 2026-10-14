@@ -13,8 +13,9 @@ const DOORS: Record<"command" | "tool", DoorWords> = {
   tool: { door: "tool", say: (step) => step.tool ?? `storytree ${step.command!}` },
 };
 
-function given(words: readonly string[], flags: Readonly<Record<string, string>>) {
-  return { word: (index: number) => words[index], count: words.length, flag: (name: string) => flags[name], has: (name: string) => name in flags, names: Object.keys(flags) };
+function given(words: readonly string[], flags: Readonly<Record<string, string | readonly string[]>>) {
+  const all = (name: string): readonly string[] => { const value = flags[name]; return value === undefined ? [] : typeof value === "string" ? [value] : value; };
+  return { word: (index: number) => words[index], flag: (name: string) => all(name).at(-1), flags: all, has: (name: string) => name in flags, names: () => Object.keys(flags) };
 }
 
 /** The declaring story's own context: what its verbs need beyond the caller, here a tally the work writes to. */
@@ -120,6 +121,38 @@ test("4.2 · a text input marked optional may be left out on either door and rea
 
   const garden: VerbFamily = { name: "garden", summary: "the garden", order: 1, verbs: [sweep], bare: prune };
   assert.equal(commandUsage(garden.bare!), "garden prune <tree|hedge> [--to <height> --by <tool>]");
+});
+
+const gather = verb({
+  command: { family: "garden", name: "gather", summary: "gather what grew" },
+  tool: { name: "gather", description: "Gather what grew." },
+  inputs: {
+    beds: { kind: "text", word: 0, many: true, describe: "the beds to gather from" },
+    basket: { kind: "text", many: true, optional: true, describe: "a basket to fill" },
+    tags: { kind: "fields", describe: "a tag to put on what is gathered" },
+  },
+  writes: true,
+  async act({ beds, basket, tags }, context) {
+    return { text: `${beds.join("+")} into ${basket.length === 0 ? "nothing" : basket.join("+")} ${JSON.stringify(tags)} by ${context.writer?.actor ?? "nobody"}`, raw: true };
+  },
+});
+
+test("4.4 · a text input may be many, each word from its place on or each repetition of its flag, and none when optional; an open set of fields takes every flag the other inputs do not name; a verb may declare that it writes and answer raw", async () => {
+  assert.equal(commandUsage(gather), "garden gather <beds> … [--basket <basket> …] --<field> <value> …");
+  const fromCommand = commandInput(gather, given(["north", "south"], { basket: ["wicker", " tin "], colour: "red", size: " big " }));
+  const fromTool = toolInput(gather, { beds: ["north", "south"], basket: ["wicker", "tin"], tags: { colour: "red", size: " big " } });
+  assert.deepEqual(fromCommand, fromTool);
+  assert.deepEqual(fromCommand, { beds: ["north", "south"], basket: ["wicker", "tin"], tags: { colour: "red", size: " big " } }, "each of many is trimmed; a field is as given");
+  assert.deepEqual(commandInput(gather, given(["north"], {})), toolInput(gather, { beds: ["north"] }));
+  assert.deepEqual(commandInput(gather, given(["north"], {})), { beds: ["north"], basket: [], tags: {} });
+  for (const refused of [() => commandInput(gather, given([], {})), () => toolInput(gather, { beds: [] }), () => commandInput(gather, given(["north", " "], {}))]) {
+    assert.throws(refused, (error: unknown) => error instanceof VerbRefusal && error.misuse);
+  }
+  assert.equal(gather.writes, true);
+  const context: VerbContext = { library: {} as Library, project: "p", session: "claude-1", folder: "/work", writer: { actor: "session:claude-1" } };
+  const answer = await gather.act(fromCommand, context, DOORS.command);
+  assert.equal(answer.text, `north+south into wicker+tin {"colour":"red","size":" big "} by session:claude-1`);
+  assert.equal(answer.raw, true);
 });
 
 const keep = verb({

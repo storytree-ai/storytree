@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5, 7.8 and 7.9 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.10 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is the app setup's setup check.
@@ -14,6 +14,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools } from "../index.js";
+import { storyParts } from "@storytree/plugin-loader";
 import { decisionRights } from "@storytree/project-and-caller";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
@@ -112,6 +113,30 @@ test("7.9 the card handed at session start says how to build beside mapped code"
     ]) assert.ok(served.includes(said), `the served card lacks: ${said}`);
     // ADR-1015: bringing in what serves the UI is one answer the user can give, not the agent's first move.
     assert.ok(!served.includes("bring in whatever serves its UI"), "the card still sends the agent to bring in the UI first");
+  } finally {
+    await session.close();
+  }
+});
+
+test("7.10 the card handed at session start is composed from the guidance each story package the server mounts declares in its manifest, in the manifests' order, between the server's own opening and closing lines", async () => {
+  const parts = storyParts(path.resolve(import.meta.dirname, "../.."), "guidance");
+  for (const story of ["@storytree/app-setup", "@storytree/library", "@storytree/map", "@storytree/processes", "@storytree/project-and-caller", "@storytree/quality-assurance", "@storytree/session-management"]) {
+    assert.ok(parts.some((part) => part.package === story), `${story} declares no guidance`);
+  }
+  const session = await sessionStart();
+  try {
+    const served = session.client.getInstructions() ?? "";
+    assert.ok(served.startsWith("storytree keeps the plan of this project"), "the server's own opening is not first");
+    assert.ok(served.endsWith("If storytree says it isn't running, carry on without it."), "the server's own closing is not last");
+    let after = 0;
+    for (const part of parts) {
+      const declared = ((await import(part.module)) as Record<string, readonly string[]>)[part.export]!;
+      for (const section of declared) {
+        const at = served.indexOf(section, after);
+        assert.ok(at >= after, `the served card lacks ${part.module}'s ${part.export}, in its place: ${section.slice(0, 60)}`);
+        after = at + section.length;
+      }
+    }
   } finally {
     await session.close();
   }

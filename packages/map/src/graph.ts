@@ -1,6 +1,7 @@
 /** Capability 1 · Joined graph: dependencies point from the dependent to its prerequisite. */
-import type { AnnotatedTree, NodeHealth } from "@storytree/library";
-import { packageOf, type SurveyedTest } from "./code-survey/code-survey.js";
+import type { AnnotatedTree, NodeHealth, SurveyedTest } from "@storytree/library";
+
+import { packageOf } from "./code-survey/code-survey.js";
 import type { ProjectSurvey } from "./code-survey/read-survey.js";
 
 export type SnapshotOrigin = "base" | "target" | "both";

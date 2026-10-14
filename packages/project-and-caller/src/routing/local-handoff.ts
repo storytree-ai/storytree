@@ -1,8 +1,9 @@
 /** Capability 1 · Project routing. Read the local-postgres producer's private connection handoff (contract 1.16). */
 import { execFileSync } from "node:child_process";
-import { closeSync, constants, fstatSync, lstatSync, mkdtempSync, openSync, readSync, rmSync, writeFileSync, type Stats } from "node:fs";
-import { tmpdir } from "node:os";
+import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, type Stats } from "node:fs";
 import path from "node:path";
+
+import { windowsSecurity } from "./windows-security.js";
 
 export interface LocalOwner {
   pid: number;
@@ -14,7 +15,7 @@ export interface LocalOwner {
 /** A connection failure only: callers must not confuse this with app liveness. No material is echoed. */
 export const HANDOFF_UNAVAILABLE = "storytree's local database credentials are unavailable or invalid; restart the storytree app to repair its connection handoff";
 
-type WindowsRefusal = "windows-acl-timeout" | "windows-acl-process" | "windows-acl-owner" |
+type WindowsRefusal = "windows-acl-process" | "windows-acl-owner" |
   "windows-acl-inheritance" | "windows-acl-exposed" | "windows-acl-no-owner-grant" | "windows-acl-output";
 
 /** Only fixed reason codes cross discovery's error boundary; never attach the original cause. */
@@ -73,99 +74,63 @@ function posixPrivate(stat: Stats, directory: boolean): void {
   if (stat.uid !== process.getuid!() || (stat.mode & 0o777) !== required) throw new Error(HANDOFF_UNAVAILABLE);
 }
 
-// Windows' ADSI security utility returns each path's self-relative security descriptor as hex
-// (ADS_PATH_FILE, ADS_SD_FORMAT_HEXSTRING; owner, group and DACL). Windows Script Host starts in
-// tens of milliseconds, where a cold Windows PowerShell start once exceeded the deadline.
-const DESCRIPTOR_SCRIPT = `
-  try {
-    var utility = new ActiveXObject("ADsSecurityUtility");
-    utility.SecurityMask = 7;
-    var env = new ActiveXObject("WScript.Shell").Environment("PROCESS");
-    WScript.StdOut.WriteLine(utility.GetSecurityDescriptor(env("STORYTREE_HANDOFF_DIRECTORY"), 1, 3));
-    WScript.StdOut.WriteLine(utility.GetSecurityDescriptor(env("STORYTREE_HANDOFF_FILE"), 1, 3));
-  } catch (error) { WScript.Quit(1); }
-`;
 const SYSTEM = "S-1-5-18";
 const ADMINISTRATORS = "S-1-5-32-544";
 
-// A process's user never changes, so whoami runs at most once per process.
-let processSid: string | undefined;
 // The identity of each handoff last proven private, by its directory. Changing a file's content or
 // access list moves its change time, and replacing it moves its file id, so an equal identity is the
 // same private pair and is not checked again. Only passes are kept: every refusal is re-checked.
 const provenPrivate = new Map<string, string>();
 const identity = (...stats: Stats[]) => stats.map((s) => `${s.dev}:${s.ino}:${s.size}:${s.mtimeMs}:${s.ctimeMs}:${s.birthtimeMs}`).join("|");
 
-/** Check actual SIDs in the binary descriptors, not translated/localized icacls text or Windows' synthetic Unix mode. */
+/**
+ * Check actual SIDs in the binary descriptors, not translated/localized icacls text or Windows' synthetic Unix mode.
+ * Windows' own security calls answer in this process: a check that started programs (whoami, a script host)
+ * waited on their cold start, which a loaded machine stretched past any deadline (CI, 2026-10-09 and 2026-10-14).
+ */
 function windowsPrivate(directory: string, file: string, dirStat: Stats, fileStat: Stats): void {
   const proven = identity(dirStat, fileStat);
   if (provenPrivate.get(directory) === proven) return;
   provenPrivate.delete(directory);
-  const system32 = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32");
-  let scratch: string | undefined;
-  let currentSid = processSid;
-  // One ten-second deadline bounds both native children of the check.
-  const check = () => {
-    const started = performance.now();
-    const run = (command: string, args: string[], env?: NodeJS.ProcessEnv) => {
-      const timeout = Math.floor(10_000 - (performance.now() - started));
-      if (timeout <= 0) throw Object.assign(new Error("deadline"), { code: "ETIMEDOUT" });
-      return execFileSync(path.join(system32, command), args, { env, encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"], timeout, maxBuffer: 65_536, windowsHide: true });
-    };
-    // Parse only the numeric SID, never localized account names.
-    currentSid ??= run("whoami.exe", ["/user", "/fo", "csv", "/nh"]).match(/,"(S-1-\d+(?:-\d+)+)"\s*$/)?.[1];
-    if (currentSid === undefined) throw new HandoffPrivacyError("windows-acl-output");
-    processSid = currentSid;
-    return run("cscript.exe", ["//Nologo", "//B", "//E:JScript", path.join(scratch!, "descriptor.js")],
-      { ...process.env, STORYTREE_HANDOFF_DIRECTORY: directory, STORYTREE_HANDOFF_FILE: file });
-  };
-  let output: string;
+  let user: string;
+  let descriptors: Buffer[];
   try {
-    // cscript runs only a script file; it lives in the user's private temp folder for this call.
-    scratch = mkdtempSync(path.join(tmpdir(), "storytree-handoff-"));
-    writeFileSync(path.join(scratch, "descriptor.js"), DESCRIPTOR_SCRIPT, { mode: 0o600 });
-    // A loaded machine slows the children's cold start, it does not wedge them: a check killed
-    // at five seconds and started again paid that start twice and refused (merge queue,
-    // 2026-10-09). So one check is waited on for the whole ten seconds the two attempts had.
-    output = check();
+    user = sidAt(windowsSecurity.user(), 0).sid;
+    descriptors = [windowsSecurity.descriptor(directory), windowsSecurity.descriptor(file)];
   } catch (error) {
-    if (error instanceof HandoffPrivacyError) throw error;
-    throw new HandoffPrivacyError((error as { code?: unknown } | null)?.code === "ETIMEDOUT" ? "windows-acl-timeout" : "windows-acl-process");
-  } finally {
-    // The script holds no secret; a leftover copy never decides a later check.
-    if (scratch) try { rmSync(scratch, { recursive: true, force: true }); } catch { /* left for the OS to clean */ }
+    if (error instanceof RangeError) throw new HandoffPrivacyError("windows-acl-output");
+    throw new HandoffPrivacyError("windows-acl-process");
   }
-  const descriptors = output.trim().split(/\r?\n/);
-  if (descriptors.length !== 2) throw new HandoffPrivacyError("windows-acl-output");
-  for (const hex of descriptors) {
-    const refusal = descriptorRefusal(hex.trim(), currentSid!);
+  for (const descriptor of descriptors) {
+    const refusal = descriptorRefusal(descriptor, user);
     if (refusal) throw new HandoffPrivacyError(refusal);
   }
   provenPrivate.set(directory, proven);
 }
 
+/** The SID at `offset` in `bytes`, in its S-1-… form, and its length; a RangeError where it runs past the end. */
+function sidAt(bytes: Buffer, offset: number): { sid: string; length: number } {
+  if (offset < 0 || offset + 8 > bytes.length) throw new RangeError("sid");
+  const count = bytes[offset + 1]!;
+  if (offset + 8 + 4 * count > bytes.length) throw new RangeError("sid");
+  const authority = bytes.readUIntBE(offset + 2, 6);
+  const subs = Array.from({ length: count }, (_, i) => bytes.readUInt32LE(offset + 8 + 4 * i));
+  return { sid: `S-${bytes[offset]}-${authority}${subs.map((sub) => `-${sub}`).join("")}`, length: 8 + 4 * count };
+}
+
 /** Owner, protected DACL, no foreign allow, and a non-inherit-only grant to the owner, in that order. */
-function descriptorRefusal(hex: string, sid: string): WindowsRefusal | undefined {
-  if (!/^(?:[0-9a-fA-F]{2}){20,}$/.test(hex)) return "windows-acl-output";
-  const sd = Buffer.from(hex, "hex");
+function descriptorRefusal(sd: Buffer, sid: string): WindowsRefusal | undefined {
+  if (sd.length < 20) return "windows-acl-output";
   const at = (offset: number, length: number) => {
     if (offset < 0 || offset + length > sd.length) throw new RangeError("descriptor");
     return offset;
-  };
-  const sidAt = (offset: number) => {
-    const count = sd[at(offset, 8) + 1]!;
-    at(offset, 8 + 4 * count);
-    const authority = sd.readUIntBE(offset + 2, 6);
-    const subs = Array.from({ length: count }, (_, i) => sd.readUInt32LE(offset + 8 + 4 * i));
-    return { sid: `S-${sd[offset]}-${authority}${subs.map((sub) => `-${sub}`).join("")}`, length: 8 + 4 * count };
   };
   try {
     const control = sd.readUInt16LE(2);
     const ownerOffset = sd.readUInt32LE(4);
     const daclOffset = sd.readUInt32LE(16);
     if (sd[0] !== 1 || !(control & 0x8000)) return "windows-acl-output";
-    if (ownerOffset === 0 || sidAt(ownerOffset).sid !== sid) return "windows-acl-owner";
+    if (ownerOffset === 0 || sidAt(sd, ownerOffset).sid !== sid) return "windows-acl-owner";
     if (!(control & 0x1000)) return "windows-acl-inheritance";
     // An absent or null DACL grants everyone everything.
     if (!(control & 0x0004) || daclOffset === 0) return "windows-acl-exposed";
@@ -180,7 +145,7 @@ function descriptorRefusal(hex: string, sid: string): WindowsRefusal | undefined
       // or unknown) is refused rather than interpreted.
       if (type === 0) {
         if (size < 16) return "windows-acl-output";
-        const trustee = sidAt(offset + 8);
+        const trustee = sidAt(sd, offset + 8);
         if (8 + trustee.length > size) return "windows-acl-output";
         if (trustee.sid !== sid && trustee.sid !== SYSTEM && trustee.sid !== ADMINISTRATORS) return "windows-acl-exposed";
         if (trustee.sid === sid && !(flags & 0x08)) own = true;

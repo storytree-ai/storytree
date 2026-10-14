@@ -2,7 +2,8 @@
  * Capability 4 · Sessions. The session verbs, declared once (ADR-0969 D2): name a session, close it out, and list the
  * sessions. The command line and the MCP server each mount them; listing the sessions has no tool, and says why.
  * Machines' verbs are mounted from here too (MACHINE_VERBS), as this is the verbs' one entry. SESSION_FAMILIES, which the
- * package's manifest names under `verbs` (ADR-1033), gives the command line both as its `session` and `machine` families.
+ * package's manifest names under `verbs` (ADR-1033), gives the command line them as its `session` and `machine` families,
+ * with the noticeboard's (NOTICEBOARD_VERBS) and the context reading (CONTEXT_READING) as its `noticeboard` and `context`.
  */
 import path from "node:path";
 
@@ -11,6 +12,8 @@ import { verb, VerbRefusal, type Verb, type VerbContext, type VerbFamily, type V
 import type { ActivityLog } from "../activity/index.js";
 import { SESSION_NAME_LIMIT } from "./name.js";
 
+import { NOTICEBOARD_BOARD, NOTICEBOARD_VERBS } from "../claims/board-verbs.js";
+import { CONTEXT_READING } from "../context/verbs.js";
 import { MACHINE_VERBS } from "../machines/verbs.js";
 
 export { MACHINE_VERBS };
@@ -84,8 +87,10 @@ const list = verb({
 /** The session verbs, in the order the command line lists them. */
 export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, name, closeOut];
 
-/** The command line's families of these verbs, last among `storytree`'s families. */
+/** The command line's families of these verbs, each at its place among `storytree`'s families. */
 export const SESSION_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [
+  { name: "noticeboard", summary: "who is on what right now (read only)", order: 5, verbs: NOTICEBOARD_VERBS, bare: NOTICEBOARD_BOARD },
+  { name: "context", summary: "how full this session's context is (Session management's)", order: 31, verbs: [], bare: CONTEXT_READING },
   { name: "session", summary: "list the running sessions, name this one, or close it out (Session management's)", order: 32, verbs: SESSION_VERBS },
   { name: "machine", summary: "the computers that work on this project, and this one's short name (Session management's)", order: 33, verbs: MACHINE_VERBS },
 ];

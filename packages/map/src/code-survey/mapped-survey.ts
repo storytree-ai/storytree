@@ -20,9 +20,8 @@
  */
 import path from "node:path";
 
-import type { AnnotatedTree } from "@storytree/library";
+import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import type { StorySurvey } from "./code-survey.js";
 import { importedSource, manifestFrom, SKIPPED, type SurveySource } from "./survey-source.js";
 
 /** A folder this machine imports, as Session management records it: its path, and its repository's address when it has one. */

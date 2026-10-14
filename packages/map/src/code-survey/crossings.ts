@@ -17,9 +17,9 @@
  */
 import path from "node:path";
 
-import type { AnnotatedTree } from "@storytree/library";
+import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { packageOf, specifiersOf, type StorySurvey } from "./code-survey.js";
+import { packageOf, specifiersOf } from "./code-survey.js";
 import { manifestFrom } from "./survey-source.js";
 
 export type CrossingOptions = {

@@ -35,9 +35,9 @@ import { Worker } from "node:worker_threads";
 import { manifestFrom, SKIPPED, surveySourceReader, type SurveySource } from "./survey-source.js";
 import { mappedSurveyReader, type ImportedFolder } from "./mapped-survey.js";
 
-import type { AnnotatedTree } from "@storytree/library";
+import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { declaredNumberOf, declaresTitle, dependenciesOf, packageOf, storyEdges, surveyStory, type CoverageMap, type SourceFile, type StorySurvey, type SurveyPackage } from "./code-survey.js";
+import { declaredNumberOf, declaresTitle, dependenciesOf, packageOf, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;

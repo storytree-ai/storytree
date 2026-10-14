@@ -5,6 +5,8 @@
  * buildBins (packages/app-setup/src/bins/build.ts, ADR-0969 D3), which this package may not import; the options
  * that shape how fast a hook starts (split chunks, pg's require banner) are kept the same here.
  */
+import { mkdirSync, realpathSync, symlinkSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -34,5 +36,9 @@ export async function buildHook(outdir: string): Promise<string> {
     banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
     external: ["pg-native", "pg-cloudflare", "cloudflare:sockets"],
   });
+  // Koffi (the Windows handoff check's) is resolved from beside the command, as the release build stages it there.
+  const koffi = path.dirname(createRequire(createRequire(import.meta.url).resolve("@storytree/project-and-caller/routing")).resolve("koffi"));
+  mkdirSync(path.join(outdir, "node_modules"), { recursive: true });
+  symlinkSync(realpathSync(koffi), path.join(outdir, "node_modules", "koffi"), "junction");
   return path.join(outdir, "storytree-hook.mjs");
 }

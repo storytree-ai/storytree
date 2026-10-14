@@ -20,7 +20,6 @@ import { lag } from "./lag.js";
 import { questions } from "./question.js";
 import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
-import { processes } from "./processes.js";
 import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
@@ -53,7 +52,6 @@ const KEPT: readonly Family[] = [
   setupFamily,
   projectFamily,
   importFamily,
-  processes,
   settings,
   journeyFamily,
   auth,

@@ -840,6 +840,9 @@ importers:
 
   packages/processes:
     dependencies:
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       koffi:
         specifier: ^3.3.2
         version: 3.3.2

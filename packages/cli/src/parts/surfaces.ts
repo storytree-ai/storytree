@@ -3,7 +3,7 @@
  * manifests of this package's dependencies by the plugin loader (ADR-1021). The command line's bundle gets the same list
  * from the loader's build plugin instead (src/bins/build.ts), which answers `#parts/surfaces` before this module is reached.
  */
-import type { SurfaceDeclaration } from "@storytree/app";
+import type { SurfaceDeclaration } from "../mount.js";
 import { composeParts } from "@storytree/plugin-loader";
 
 export default await composeParts<SurfaceDeclaration>(import.meta.url, "surfaces");

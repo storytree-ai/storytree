@@ -25,6 +25,9 @@
  * - A holder that reads gone, crashed or abandoned with no end line, keeps its claim until the session
  *   manager releases it from its stale-claim worklist (stale-claims.ts, ADR-0953 D4); its unclosed
  *   increment, like any released one, is a proposal again (5.29).
+ * - A session that hands its pull request to the watcher has its claims moved to that pull request's holder, which
+ *   reads live until the watcher lets them go on its merge or closing, or gives it up; only a session on its branch,
+ *   its fix session, takes them over (holdForPull, letGo, ADR-1037).
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
  *   The edit tools are refused before an edit to work the session may not do (edit-gate.ts, ADR-0949 D3);
  *   nothing claims after the edit (ADR-0953 D5).
@@ -34,7 +37,7 @@ import { uptime } from "node:os";
 import type { Hold, Holds, IncrementStatus, Library, Line, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { thisMachine, type ActivityLog } from "../activity/index.js";
-import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, LogFold, LONGEST_COMMAND_MS, partOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
+import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, LogFold, LONGEST_COMMAND_MS, partOf, pullHolder, pullOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "@storytree/project-and-caller";
 import { endClaim } from "./endings.js";
 
@@ -148,7 +151,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
     const current = standing.get(id);
     const mine = current?.session === context.session;
     if (mine && current.holder === "live" && !(options.moveBranch && context.branch !== undefined && context.branch !== current.branch)) return { ok: true, claim: current, alreadyHeld: true };
-    if (!mine && current?.holder === "live") {
+    if (!mine && current?.holder === "live" && !takesOver(current, context)) {
       await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...file, ...underOf(standing, context.session, found.part) });
       return held(standing.values(), current);
     }
@@ -185,13 +188,18 @@ export async function claimRefusal(context: ClaimContext, id: string, reason?: s
     ...(context.restarted === undefined ? {} : { restarted: context.restarted }),
   });
   const current = standing.find((claim) => (claim.increment ?? claim.capability) === id);
-  if (current === undefined || current.session === context.session || current.holder !== "live") return undefined;
+  if (current === undefined || current.session === context.session || current.holder !== "live" || takesOver(current, context)) return undefined;
   // A caller giving the reason it would claim with is turned away now, so the refusal is recorded.
   if (reason !== undefined) {
     const under = underOf(new Map(standing.map((claim) => [claim.increment ?? claim.capability!, claim])), context.session, found.part);
     await context.log.append(context.project, { ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...under });
   }
   return held(standing, current);
+}
+
+/** Whether the context's session takes over `current`, a pull request's held claim: it works on that pull request's branch, as its fix session does (ADR-1037 D2). */
+function takesOver(current: Claim, context: ClaimContext): boolean {
+  return pullOf(current.session) !== undefined && context.branch !== undefined && context.branch === current.branch;
 }
 
 /** The refusal of a claim `holder` holds, naming the increments it holds the work for among `standing` claims. */
@@ -218,6 +226,40 @@ export async function release(context: ClaimContext, id: string): Promise<Releas
     if (current?.session !== context.session) return current === undefined ? { ok: false, refused: "not-held" } : { ok: false, refused: "not-held", holder: current };
     const { returned } = await endClaim(log, who(context), partOf(current), { by: "holder" }, context);
     return returned ? { ok: true, returned } : { ok: true };
+  });
+}
+
+/**
+ * A hand-over keeps its claims (ADR-1037 D1): every claim `session` holds moves to pull request `pr`'s holder
+ * (pullHolder), on the pull request's `branch`, so that its merge ends them, each capability still under its increment.
+ * Nothing is released, so no increment returns to proposal, and the session's close-out or end leaves them standing.
+ * The ids moved.
+ */
+export async function holdForPull(context: ClaimContext, session: string, pr: number, branch: string): Promise<string[]> {
+  return context.log.locked(context.project, async (log) => {
+    const moved: string[] = [];
+    for (const claim of (await heldNow(log, context)).values()) {
+      if (claim.session !== session) continue;
+      await log.append({ session: pullHolder(pr), harness: "watcher", source: context.source ?? "tool", kind: "claimed", ...partOf(claim),
+        reason: claim.reason, takenOverFrom: session, branch, ...(claim.under === undefined ? {} : { under: claim.under }) });
+      moved.push(claim.increment ?? claim.capability!);
+    }
+    return moved;
+  });
+}
+
+/**
+ * Pull request `pr`'s held claims end (ADR-1037 D1, D3): on its merge or its closing, or when the watcher gives it up,
+ * red past its fix limit or open past its time-out. Each is a release naming the holder and `reason`, capabilities
+ * first, so an unclosed increment is a proposal again (5.29) and back on its arc as work. The ids released.
+ */
+export async function letGo(context: ClaimContext, pr: number, reason: string): Promise<string[]> {
+  const holder = pullHolder(pr);
+  return context.log.locked(context.project, async (log) => {
+    const held = [...(await heldNow(log, context)).values()].filter((claim) => claim.session === holder)
+      .sort((a, b) => Number(a.capability === undefined) - Number(b.capability === undefined));
+    for (const claim of held) await endClaim(log, who(context), partOf(claim), { by: "manager", holder, reason }, context);
+    return held.map((claim) => claim.increment ?? claim.capability!);
   });
 }
 

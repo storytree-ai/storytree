@@ -21,7 +21,7 @@ import { countingStore } from "@storytree/project-and-caller/testing/egress";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions } from "../sessions/index.js";
-import { claim, claimRefusal, closed, land, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { claim, claimRefusal, closed, holdForPull, land, letGo, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { boardClaims, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
 import { staleClaims } from "./stale-claims.js";
 
@@ -906,5 +906,83 @@ test("5.33 the session manager's worklist lists claimed increments whose holder 
     const unread = await staleClaims({ log, project, folder: "." }, { quietMs, allOpenPulls: async () => undefined });
     assert.equal(unread.pullsUnread, true, "a GitHub that cannot be asked is said, never read as no pull request");
     assert.deepEqual(unread.claims.map(({ increment }) => increment), [waiting, reviewed]);
+  });
+});
+
+test("5.44 a hand-over moves the session's claims to its pull request's holder, which reads live until it merges or closes: the session's close-out releases nothing and still reads safe, its end ends nothing, a quiet holder is never taken over, and another session is refused naming the increment it is held for (ADR-1037 D1, D4)", async () => {
+  await withWorld(async ({ log, library, project, emailForm, as }) => {
+    const { arc, park } = await arcOf(library);
+    const work = await park("email form", [emailForm]);
+    const a = as("A", { branch: "feature/signup" });
+    assert.equal((await claim(a, work, "driving the email form")).ok, true);
+    assert.equal((await claim(a, emailForm, "building the email form")).ok, true);
+
+    assert.deepEqual(await holdForPull(as("C"), "A", 12, "feature/signup"), [work, emailForm]);
+    await withTempDir(async (home) => {
+      const { line, released } = await closeOut(a, { safe: true, why: "PR #12 open and green, handed to the watcher" }, { home });
+      assert.deepEqual(released, [], "the close-out after the hand-over releases nothing");
+      assert.equal(line.kind === "closed-out" && line.safe, true);
+    });
+    await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "session-ended" });
+    await sleep(20);
+
+    const held = await readClaims(log, project, { quietMs: 1 });
+    assert.deepEqual(held.map(({ increment, capability, session, holder, branch, under }) => ({ id: increment ?? capability, session, holder, branch, under })), [
+      { id: work, session: "pull-request-12", holder: "live", branch: "feature/signup", under: undefined },
+      { id: emailForm, session: "pull-request-12", holder: "live", branch: "feature/signup", under: work },
+    ], "held for the pull request, live however quiet, on its branch");
+    assert.match(held[0]!.binds ?? "", /PR #12/);
+    assert.equal(await statusOf(library, arc, work), "active", "nothing was released, so the increment is still in progress");
+
+    const other = await park("welcome email");
+    assert.equal((await claim(as("B", { branch: "feature/welcome" }), other, "driving the welcome email")).ok, true);
+    const refused = await claim(as("B", { quietMs: 1, branch: "feature/welcome" }), emailForm, "I need the email form");
+    assert.ok(!refused.ok && refused.refused === "held");
+    assert.deepEqual([refused.holder.session, refused.heldFor], ["pull-request-12", [work]], "refused, waiting on the increment the pull request holds it for");
+    const refusals = (await log.since(project, 0)).lines.filter((line) => line.kind === "claim-refused");
+    assert.deepEqual(refusals.map((line) => line.kind === "claim-refused" && [line.holder, line.under]), [["pull-request-12", other]], "the pool leaves B's increment out while the pull request holds the capability");
+    assert.deepEqual((await readSessions(log, project)).map((session) => session.session).filter((session) => session.startsWith("pull-request-")), [], "a pull request's holder is no session");
+  });
+});
+
+test("5.45 a session on a handed-over pull request's branch, its fix session, takes over the claims held for it and is never refused by them; on any other branch it is refused (ADR-1037 D2)", async () => {
+  await withWorld(async ({ log, library, project, emailForm, as }) => {
+    const { park } = await arcOf(library);
+    const work = await park("email form", [emailForm]);
+    assert.equal((await claim(as("A", { branch: "feature/signup" }), work, "driving the email form")).ok, true);
+    assert.equal((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok, true);
+    await holdForPull(as("C"), "A", 12, "feature/signup");
+
+    const fixer = as("D", { branch: "feature/signup" });
+    assert.equal(await claimRefusal(fixer, work), undefined, "its workspace is not refused");
+    const increment = await claim(fixer, work, "fix PR #12");
+    assert.ok(increment.ok && increment.takenOverFrom?.session === "pull-request-12");
+    assert.ok((await claim(fixer, emailForm, "fix PR #12")).ok);
+    assert.deepEqual((await readClaims(log, project)).map(({ session }) => session), ["D", "D"]);
+
+    assert.deepEqual(await holdForPull(as("C"), "D", 12, "feature/signup"), [work, emailForm], "handing back holds them for the pull request again");
+    const elsewhere = await claim(as("B", { branch: "feature/other" }), emailForm, "I need the email form");
+    assert.ok(!elsewhere.ok && elsewhere.refused === "held" && elsewhere.holder.session === "pull-request-12");
+  });
+});
+
+test("5.46 letting go of a pull request ends every claim held for it, capabilities first, each a release naming its holder and why, so its unclosed increment is a proposal again; another pull request's held claims stand (ADR-1037 D1, D3)", async () => {
+  await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
+    const { arc, park } = await arcOf(library);
+    const work = await park("email form", [emailForm]);
+    const reset = await park("password reset", [passwordReset]);
+    assert.equal((await claim(as("A", { branch: "feature/signup" }), work, "driving the email form")).ok, true);
+    assert.equal((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok, true);
+    assert.equal((await claim(as("B", { branch: "feature/reset" }), reset, "driving the reset")).ok, true);
+    await holdForPull(as("C"), "A", 12, "feature/signup");
+    await holdForPull(as("C"), "B", 13, "feature/reset");
+
+    assert.deepEqual(await letGo(as("C"), 12, "PR #12 still red after 2 fix sessions"), [emailForm, work]);
+    assert.deepEqual((await readClaims(log, project)).map(({ increment, session }) => [increment, session]), [[reset, "pull-request-13"]]);
+    assert.equal(await statusOf(library, arc, work), "proposal", "back on its arc as work");
+    const released = (await log.since(project, 0)).lines.filter((line) => line.kind === "released");
+    assert.deepEqual(released.map((line) => line.kind === "released" && [line.holder, line.reason]), [
+      ["pull-request-12", "PR #12 still red after 2 fix sessions"], ["pull-request-12", "PR #12 still red after 2 fix sessions"]]);
+    assert.deepEqual(await letGo(as("C"), 12, "again"), [], "nothing is left to let go");
   });
 });

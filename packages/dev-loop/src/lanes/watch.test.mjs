@@ -13,7 +13,7 @@ const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
 const SESSION = "aaaa-session";
 
-async function box(t, { looks = {}, board = "" } = {}) {
+async function box(t, { looks = {} } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "lane-watch-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const calls = [], fixes = [], lines = [], live = new Set();
@@ -21,7 +21,8 @@ async function box(t, { looks = {}, board = "" } = {}) {
   const options = {
     dir, limit: 2, say: (line) => lines.push(line), now: () => clock,
     look: async (pr) => looks[pr],
-    storytree: async (args) => { calls.push(args); return args[0] === "noticeboard" ? board : ""; },
+    storytree: async (args) => { calls.push(args); return ""; },
+    branchOf: async (pr) => `claude/pr-${pr}`,
     alive: async (pid) => live.has(pid),
     room: async () => room,
     startFix: async (fix) => { fixes.push(fix); const pid = 1000 + fixes.length; live.add(pid); return { pid, log: `/lanes/fix-${fix.pr}-${fix.n}.log` }; },
@@ -41,11 +42,7 @@ const handOff = (b, pr = 41, increment = "increment_one") => hand({ ...b.options
 const saved = async (b, pr = 41) => JSON.parse(await readFile(join(b.dir, `${pr}.json`), "utf8"));
 
 test("13.1 · a handed-over pull request that merges closes its increment, releases its session's claims and is forgotten", async (t) => {
-  const b = await box(t, { board: [
-    "3 claims now:",
-    `  - capability capability_left  Claude Code ${SESSION} (live, on claude/x), since 2026-10-10T11:00:00Z: work`,
-    "  - capability capability_theirs  Claude Code bbbb-other (live, on claude/y), since 2026-10-10T11:00:00Z: other",
-  ].join("\n") });
+  const b = await box(t);
   await handOff(b);
   b.calls.length = 0;
   b.looks[41] = { state: "merged", head: "h1" };
@@ -53,8 +50,7 @@ test("13.1 · a handed-over pull request that merges closes its increment, relea
   assert.deepEqual(b.calls, [
     ["arc", "increment", "unwait", "increment_one", "--for", "event"],
     ["arc", "increment", "close", "increment_one", "--disposition", "landed", "--pr", "41"],
-    ["noticeboard"],
-    ["workspace", "release", "capability_left", "--holder", SESSION, "--reason", "PR #41 merged; released by the watcher"],
+    ["workspace", "let-go", "41", "--reason", "PR #41 merged; released by the watcher"],
   ]);
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is forgotten");
   assert.equal(b.fixes.length, 0);
@@ -271,7 +267,7 @@ test("13.10 · a watcher whose code changes between two looks ends with the rest
 });
 
 test("13.11 · a pull request handed over to keep its increment open is watched and fixed, and on MERGED leaves the increment open", async (t) => {
-  const b = await box(t, { board: `  - capability capability_left  Claude Code ${SESSION} (live, on claude/x), since 2026-10-10T11:00:00Z: work` });
+  const b = await box(t);
   await hand({ ...b.options, pr: 41, increment: "increment_one", session: SESSION, keepOpen: true, startWatcher: async () => {} });
   assert.doesNotMatch(b.calls[0][7], /closes this/, "its wait does not promise to close the increment");
   b.looks[41] = red;
@@ -283,8 +279,7 @@ test("13.11 · a pull request handed over to keep its increment open is watched 
   await watchOnce(b.options);
   assert.deepEqual(b.calls, [
     ["arc", "increment", "unwait", "increment_one", "--for", "event"],
-    ["noticeboard"],
-    ["workspace", "release", "capability_left", "--holder", SESSION, "--reason", "PR #41 merged; released by the watcher"],
+    ["workspace", "let-go", "41", "--reason", "PR #41 merged; released by the watcher"],
   ], "no close");
   assert.match(b.lines.at(-1), /PR #41 merged: increment_one stays open/);
   assert.deepEqual(await readdir(b.dir), []);
@@ -354,7 +349,7 @@ test("13.15 · pull requests that conflict with main are merged one at a time, l
 });
 
 test("13.13 · a pull request handed over after its increment closed on an earlier one is watched, fixed and released, with no wait or close", async (t) => {
-  const b = await box(t, { board: `  - capability capability_left  Claude Code ${SESSION} (live, on claude/x), since 2026-10-10T11:00:00Z: work` });
+  const b = await box(t);
   const storytree = b.options.storytree;
   b.options.storytree = async (args) => {
     if (args[2] === "wait" || args[2] === "unwait" || args[2] === "close") throw new Error(`increment "increment_one" is closed, and waits for nothing`);
@@ -372,8 +367,7 @@ test("13.13 · a pull request handed over after its increment closed on an earli
   b.looks[42] = { state: "merged", head: "h2" };
   await watchOnce(b.options);
   assert.deepEqual(b.calls, [
-    ["noticeboard"],
-    ["workspace", "release", "capability_left", "--holder", SESSION, "--reason", "PR #42 merged; released by the watcher"],
+    ["workspace", "let-go", "42", "--reason", "PR #42 merged; released by the watcher"],
   ], "no wait cleared and no close tried");
   assert.match(b.lines.at(-1), /PR #42 merged: increment_one had already closed/);
   assert.ok(!b.lines.some((line) => line.includes("refused")), "nothing refused along the way");
@@ -442,9 +436,56 @@ test("13.20 · a conflict past the limit goes back on its arc as ready work, nam
   const body = edit.at(-1);
   assert.match(body, /^The increment's own breakdown\./, "the body keeps what it said");
   assert.match(body, /PR #41/); assert.match(body, /claude\/increment-one/); assert.match(body, /merge origin\/main/);
-  assert.deepEqual(b.calls.at(-1), ["arc", "increment", "unwait", "increment_one", "--for", "event"], "the pool may take it again");
+  assert.deepEqual(b.calls.slice(-2), [["arc", "increment", "unwait", "increment_one", "--for", "event"],
+    ["workspace", "let-go", "41", "--reason", "PR #41 still conflicts with main after 3 fix sessions; released by the watcher"]], "the pool may take it again");
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
   assert.match(b.lines.at(-1), /PR #41.*back on its arc/);
+});
+
+test("13.22 · a hand-over holds the session's claims for its pull request on its branch until it merges or closes, says when it could not, and a pull request closed unmerged lets them go", async (t) => {
+  const b = await box(t);
+  const outs = [];
+  await main(["hand", "41", "increment_one", "--session", SESSION], { ...b.options, dir: b.dir, out: (line) => outs.push(line),
+    pidFile: join(b.dir, "watch.pid"), argsOf: async () => "", startWatcher: async () => 1 });
+  assert.deepEqual(b.calls.at(-1), ["workspace", "hold", "41", "--holder", SESSION, "--branch", "claude/pr-41"], "held on the pull request's own branch");
+
+  const said = await hand({ ...b.options, pr: 42, increment: "increment_two", session: "", branch: "claude/pr-42", startWatcher: async () => {} });
+  assert.match(said.held, /no session id/);
+  const unread = await hand({ ...b.options, pr: 43, increment: "increment_three", session: SESSION, branch: "", startWatcher: async () => {} });
+  assert.match(unread.held, /branch could not be read/);
+  assert.ok(!b.calls.some(([family, verb, pr]) => family === "workspace" && verb === "hold" && pr !== "41"), "nothing to hold them by, none held");
+  const failing = { ...b.options, storytree: async (args) => { if (args[1] === "hold") throw new Error("the library is out of reach"); return ""; } };
+  const refused = await hand({ ...failing, pr: 44, increment: "increment_four", session: SESSION, branch: "claude/pr-44", startWatcher: async () => {} });
+  assert.match(refused.held, /could not be held \(the library is out of reach\)/);
+  assert.equal((await saved(b, 44)).pr, 44, "the hand-off stands, and the close-out releases the claims as before");
+
+  b.calls.length = 0;
+  b.looks[41] = { state: "closed", head: "h1" };
+  for (const pr of [42, 43, 44]) b.looks[pr] = { state: "pending", head: "h1" };
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter(([, verb]) => verb === "let-go"), [["workspace", "let-go", "41", "--reason", "PR #41 closed without merging; released by the watcher"]]);
+});
+
+test("13.23 · a pull request open past three days since it was handed over gives its claims up and goes back on its arc as ready work; a red past its limit lets them go too", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = { state: "pending", head: "h1", branch: "claude/increment-one" };
+  b.tick(3 * 86_400_000 - 60_000);
+  await watchOnce(b.options);
+  assert.ok(!b.calls.some(([, verb]) => verb === "let-go"), "within three days it holds them");
+  b.tick(120_000);
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.slice(-3).map((call) => call.slice(0, 3)), [["arc", "increment", "edit"], ["arc", "increment", "unwait"], ["workspace", "let-go", "41"]]);
+  assert.match(b.calls.at(-1)[4], /open for 3 days/);
+  assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
+  assert.match(b.lines.at(-1), /PR #41 open past 3 days.*back on its arc/);
+
+  const spent = await box(t);
+  await handOff(spent);
+  spent.looks[41] = red;
+  for (let round = 0; round < 3; round++) { await watchOnce(spent.options); spent.live.clear(); }
+  assert.deepEqual(spent.calls.at(-2), ["workspace", "let-go", "41", "--reason", "PR #41 still red after 2 fix sessions; released by the watcher"], "released before its owner wait");
+  assert.deepEqual(spent.calls.at(-1).slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "owner"]);
 });
 
 test("13.21 · the watcher's status says when its look loop runs code other than the checkout's", async (t) => {

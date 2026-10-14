@@ -258,6 +258,21 @@ function diedIn(restarted: Restart | undefined, machine: string | undefined, las
   return restarted !== undefined && machine === restarted.machine && Date.parse(lastSeen) < restarted.at.getTime();
 }
 
+/**
+ * The holder that keeps a handed-over pull request's claims until it merges or closes (ADR-1037 D1): no session of
+ * its own, so the claims outlast the session that handed over, its close-out and its end. It reads live, and only a
+ * session on the pull request's branch takes its claims over (its fix session, D2).
+ */
+export function pullHolder(pr: number): string {
+  return `pull-request-${pr}`;
+}
+
+/** The pull request `session` holds claims for, when it is a pull request's holder. */
+export function pullOf(session: string): number | undefined {
+  const pr = /^pull-request-(\d+)$/.exec(session)?.[1];
+  return pr === undefined ? undefined : Number(pr);
+}
+
 /** The kinds of line that decide who holds what. */
 export const CLAIM_KINDS = ["claimed", ...ENDING_KINDS] as const;
 
@@ -482,7 +497,8 @@ export class LogFold {
     for (const line of [...lines].sort((a, b) => a.seq - b.seq)) {
       this.#lastSeen.set(line.session, line.at);
       if (line.machine !== undefined) this.#machines.set(line.session, line.machine);
-      if (!ABOUT_OTHERS.has(line.kind)) this.#own(line);
+      // A pull request's holder is no session: it has no row of its own (ADR-1037).
+      if (!ABOUT_OTHERS.has(line.kind) && pullOf(line.session) === undefined) this.#own(line);
       if (line.kind === "branch-state") this.#branchStates.set(line.of, line);
       else if (line.kind === "merged") this.#branchStates.set(line.branch, { open: false, at: line.at });
       else if (line.kind === "main-state") this.#mainStates.set(placeKey(line.machine, line.of), { dirty: line.dirty, unborn: line.unborn, at: line.at });
@@ -620,6 +636,8 @@ export class LogFold {
     // Keep the claim standing: a prompt or admitted claim can put its holder back to work.
     const sessions = new Map(this.sessions({ now: new Date(now) }).map((session) => [session.session, session]));
     return [...this.#holders.values()].map((holder) => {
+      const pull = pullOf(holder.session);
+      if (pull !== undefined) return { ...holder, holder: "live", binds: `held for PR #${pull} until it merges or closes (ADR-1037)` } as Claim;
       const seen = this.#lastSeen.get(holder.session) ?? holder.since;
       const running = [...(this.#sessions.get(holder.session)?.running.values() ?? [])].some(({ until }) => now <= until);
       const closeOut = sessions.get(holder.session)?.closeOut;

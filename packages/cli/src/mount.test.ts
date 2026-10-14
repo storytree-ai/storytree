@@ -7,12 +7,11 @@ import { test } from "node:test";
 
 import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "@storytree/project-and-caller/caller";
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/project-and-caller/verbs";
-import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 import { Refusal } from "./answer.js";
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
-import { command, family, type CommandPlace } from "./mount.js";
+import { command, family, type CommandCaller, type CommandPlace } from "./mount.js";
 
 const gather = verb({
   command: { family: "garden bed", name: "gather", summary: "gather what grew" },
@@ -23,7 +22,7 @@ const gather = verb({
     tags: { kind: "fields", describe: "a tag to put on what is gathered" },
   },
   writes: true,
-  async act({ beds, basket, tags }, context: SessionVerbContext) {
+  async act({ beds, basket, tags }, context: CommandCaller) {
     return { text: `${beds.join("+")} into ${basket.join("+")} ${JSON.stringify(tags)} by ${context.writer?.actor ?? "nobody"}`, raw: true, next: [{ command: "garden", why: "unprinted" }] };
   },
 });
@@ -32,7 +31,7 @@ const look = verb({
   command: { family: "garden", name: "look", summary: "look at the garden" },
   tool: { absent: "a test verb" },
   inputs: {},
-  async act(_input, context: SessionVerbContext) {
+  async act(_input, context: CommandCaller) {
     return { text: `looked by ${context.writer?.actor ?? "nobody"}`, next: [{ command: "garden bed gather <beds>", why: "gather" }] };
   },
 });
@@ -42,7 +41,7 @@ const water = verb({
   tool: { absent: "a test verb" },
   inputs: { rained: { kind: "switch", describe: "it rained" } },
   writes: true,
-  async act({ rained }, context: SessionVerbContext) {
+  async act({ rained }, context: CommandCaller) {
     return { text: rained ? "No change: it rained." : `watered by ${context.writer!.actor} and ${context.writer!.actor}` };
   },
 });
@@ -56,7 +55,7 @@ const weed = verb({
   },
 });
 
-const garden: VerbFamily<SessionVerbContext> = {
+const garden: VerbFamily<CommandCaller> = {
   name: "garden",
   aliases: ["yard"],
   summary: "the garden",

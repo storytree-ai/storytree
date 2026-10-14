@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -19,11 +19,14 @@ test("3.1 · Lag in real use declares the `lag` family the command line mounts, 
     rmSync(home, { recursive: true, force: true });
   });
 
+  const reading = { at: new Date().toISOString(), version: "0.3.42", name: "open-island", response: 40, longFrames: 0, longestFrame: 0, settled: 180, progress: false };
+  writeFileSync(path.join(home, "lag-readings.jsonl"), `${JSON.stringify(reading)}\n`);
+
   const [lag] = LAG_FAMILIES;
   assert.equal(lag!.order, 7);
   assert.deepEqual(lag!.verbs, []);
   assert.equal(lag!.bare!.callerless, true);
   const answer = await lag!.bare!.act({}, { folder: home }, WORDS);
   assert.match(answer.text, /^Lag in real use, the last 7 days/);
-  assert.ok(answer.text.includes(path.join(home, "lag-readings.jsonl")), answer.text);
+  assert.match(answer.text, /^open-island +1 /m, "the reading kept in the home is counted");
 });

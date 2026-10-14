@@ -9,7 +9,6 @@ import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
 import { appFamily } from "./app.js";
 import { auth } from "./auth.js";
-import { arcs } from "./arc.js";
 import { capabilities } from "./capability.js";
 import { contextFamily } from "./context.js";
 import { doctorFamily, setupFamily } from "./doctor.js";
@@ -18,7 +17,6 @@ import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
 import { journeyFamily } from "./journey.js";
 import { lag } from "./lag.js";
-import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
 import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
@@ -39,8 +37,6 @@ export const GUESSES: Readonly<Record<string, string>> = {
 /** The families still kept here, in their order once the declared ones take their places. */
 const KEPT: readonly Family[] = [
   library,
-  arcs,
-  questions,
   noticeboard,
   doors,
   lag,

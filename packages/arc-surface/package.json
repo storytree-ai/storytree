@@ -7,7 +7,8 @@
     "./board-states": "./src/work-states/board-states.ts",
     "./surfaces": "./src/surfaces/surfaces.ts",
     "./view": "./src/view/index.ts",
-    "./view/styles.css": "./src/view/styles.css"
+    "./view/styles.css": "./src/view/styles.css",
+    "./verbs": "./src/verbs/index.ts"
   },
   "storytree": {
     "surfaces": [
@@ -16,14 +17,21 @@
         "export": "arcSurfaces",
         "order": 2
       }
+    ],
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "ARC_FAMILIES"
+      }
     ]
   },
   "scripts": {
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@storytree/session-management": "workspace:*",
-    "@storytree/library": "workspace:*"
+    "@storytree/library": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/session-management": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

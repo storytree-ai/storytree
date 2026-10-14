@@ -25,7 +25,7 @@ const DOORS: Record<"command" | "tool", DoorWords> = {
 };
 
 function given(words: readonly string[], flags: Readonly<Record<string, string>>) {
-  return { word: (index: number) => words[index], flag: (name: string) => flags[name], has: (name: string) => name in flags };
+  return { word: (index: number) => words[index], count: words.length, flag: (name: string) => flags[name], has: (name: string) => name in flags, names: Object.keys(flags) };
 }
 
 function find(tool: string): Verb<VerbInputs, SessionVerbContext> {

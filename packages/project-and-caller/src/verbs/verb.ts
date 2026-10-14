@@ -38,16 +38,20 @@ export interface DoorWords {
   say(step: Step): string;
 }
 
+/** Where a verb was called: all a callerless verb's work is handed, with what its declaring story types beside it. */
+export interface VerbPlace {
+  readonly folder: string;
+}
+
 /**
  * Who called, and where: the calling session and its project's library. A story whose verbs need more (Session
  * management's need its activity log) extends this, and the doors that mount those verbs hand it.
  */
-export interface VerbContext {
+export interface VerbContext extends VerbPlace {
   readonly library: Library;
   readonly project: string;
   readonly session: string;
   readonly harness?: string;
-  readonly folder: string;
   readonly branch?: string;
   readonly writer?: WriteOptions;
   /** The storytree home the caller's process ledger and claims are kept under, when not the usual one. */
@@ -79,13 +83,15 @@ export interface Absent {
   readonly absent: string;
 }
 
-export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbContext = VerbContext> {
+export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbPlace = VerbContext> {
   /** `storytree <family> <name>`, with its usage (after `storytree `) when its inputs cannot spell it, as grouped flags. */
   readonly command: { readonly family: string; readonly name: string; readonly summary: string; readonly usage?: string } | Absent;
   readonly tool: { readonly name: string; readonly description: string } | Absent;
   readonly inputs: I;
   /** Only an agent session may call it: why, as "it closes out the agent session that runs it". */
   readonly agentOnly?: string;
+  /** Its work needs no caller, project or library (it reads a file, or runs offline): a door hands it only the place. */
+  readonly callerless?: true;
   act(input: InputOf<I>, context: C, words: DoorWords): Promise<VerbAnswer>;
 }
 
@@ -94,7 +100,7 @@ export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbContext =
  * verbs, listed `order`th among `storytree`'s families, counted from 1, so a family keeps its place in the help as it moves.
  * `bare` runs for `storytree <name> …` when the next word names none of its verbs.
  */
-export interface VerbFamily<C extends VerbContext = VerbContext> {
+export interface VerbFamily<C extends VerbPlace = VerbContext> {
   readonly name: string;
   readonly summary: string;
   readonly order: number;
@@ -103,7 +109,7 @@ export interface VerbFamily<C extends VerbContext = VerbContext> {
 }
 
 /** Declare a verb, keeping its inputs' and its context's types for its act. */
-export function verb<I extends VerbInputs, C extends VerbContext = VerbContext>(declared: Verb<I, C>): Verb<VerbInputs, C> {
+export function verb<I extends VerbInputs, C extends VerbPlace = VerbContext>(declared: Verb<I, C>): Verb<VerbInputs, C> {
   return declared as unknown as Verb<VerbInputs, C>;
 }
 
@@ -111,20 +117,33 @@ export function mounted<T extends object>(face: T | Absent): face is T {
   return !("absent" in face);
 }
 
-/** A command's usage, after `storytree `, from the verb's inputs: `session close-out --safe yes|no --why <why>`. */
+/**
+ * A command's usage, after `storytree `, from the verb's inputs: `session close-out --safe yes|no --why <why>`. A family's
+ * bare verb, named as its family, is used as `<family> …`.
+ */
 export function commandUsage(declared: Verb<VerbInputs, never>): string {
   if (!mounted(declared.command)) throw new Error(`${mounted(declared.tool) ? declared.tool.name : "this verb"} has no command: ${declared.command.absent}`);
   if (declared.command.usage !== undefined) return declared.command.usage;
   const entries = Object.entries(declared.inputs);
   const words = entries.flatMap(([name, input]) => input.kind === "text" && input.word !== undefined ? [[input.word, `<${name}>`] as const] : []).sort(([a], [b]) => a - b).map(([, word]) => word);
   const flags = entries.flatMap(([name, input]) => input.kind === "switch" ? [`[--${name}]`] : input.kind === "yes-no" ? [`--${name} yes|no`] : input.word !== undefined ? [] : input.optional ? [`[--${name} <${name}>]`] : [`--${name} <${name}>`]);
-  return [declared.command.family, declared.command.name, ...words, ...flags].join(" ");
+  const { family, name } = declared.command;
+  return [family, ...(name === family ? [] : [name]), ...words, ...flags].join(" ");
 }
 
-/** A command's words and flags read as the verb's input, or a refusal saying what is wrong. */
-export function commandInput(declared: Verb<VerbInputs, never>, given: { word(index: number): string | undefined; flag(name: string): string | undefined; has(name: string): boolean }): InputOf<VerbInputs> {
+/**
+ * A command's words and flags read as the verb's input, or a refusal saying what is wrong: `count` words were given and
+ * the flags `names`. A word past the ones it takes, or a flag it does not take, is refused as a misuse; the flag is
+ * named, but a word never is, since a stray word may be a secret (`auth set <name> <key>`).
+ */
+export function commandInput(declared: Verb<VerbInputs, never>, given: { word(index: number): string | undefined; count: number; flag(name: string): string | undefined; has(name: string): boolean; names: readonly string[] }): InputOf<VerbInputs> {
+  const inputs = Object.entries(declared.inputs);
+  const stray = given.names.find((name) => !inputs.some(([declaredName, one]) => declaredName === name && (one.kind !== "text" || one.word === undefined)));
+  if (stray !== undefined) throw new VerbRefusal(`--${stray} is not a flag this takes`, { misuse: true });
+  const words = Math.max(0, ...inputs.map(([, one]) => one.kind === "text" && one.word !== undefined ? one.word + 1 : 0));
+  if (given.count > words) throw new VerbRefusal(words === 0 ? "this takes no words" : `this takes ${words === 1 ? "one word" : `${words} words`}, and was given ${given.count}`, { misuse: true });
   const input: Record<string, string | boolean | undefined> = {};
-  for (const [name, one] of Object.entries(declared.inputs)) {
+  for (const [name, one] of inputs) {
     if (one.kind === "switch") {
       input[name] = given.has(name);
     } else if (one.kind === "yes-no") {

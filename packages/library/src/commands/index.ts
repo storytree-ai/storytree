@@ -31,7 +31,7 @@ import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/v
 /** A claim as the door reads it: the session holding it, the increment it is for when it is one, and since when. */
 export interface HeldClaim {
   readonly session: string;
-  readonly increment?: string;
+  readonly increment?: string | undefined;
   readonly since: string;
 }
 

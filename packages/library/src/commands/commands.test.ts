@@ -57,9 +57,9 @@ test("17.1 · The library declares the library family first among storytree's fa
 
   const pended = await verbOf("edit").act({ "<id>": form.id, "<fields>": { description: "Where they type it" } }, contextOf("lane"), WORDS);
   assert.match(pended.text, new RegExp(`pending on increment ${increment.id}`));
-  assert.equal((await library.get(form.id))?.fields.description, undefined, "the live record is left alone");
+  assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, undefined, "the live record is left alone");
 
   const live = await verbOf("edit").act({ "<id>": form.id, "<fields>": { description: "Typed here" } }, contextOf("person:owner"), WORDS);
   assert.equal(live.text, `Edited capability ${form.id}: description.`, "a session holding no increment edits the live record");
-  assert.equal((await library.get(form.id))?.fields.description, "Typed here");
+  assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed here");
 });

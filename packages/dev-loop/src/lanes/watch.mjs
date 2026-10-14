@@ -51,7 +51,7 @@ export function readPull(pull, { since, now, graceMs }) {
       logs: failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean) };
   }
   if (pull.mergeable === "CONFLICTING") {
-    return { state: "red", head, why: "it conflicts with main: merge origin/main and resolve the conflicts", logs: [] };
+    return { state: "red", head, why: "it conflicts with main: merge origin/main and resolve the conflicts", logs: [], conflict: true };
   }
   const removal = pull.timelineItems?.nodes?.at(-1);
   const removedAt = Date.parse(removal?.createdAt);
@@ -156,7 +156,8 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
 /**
  * One look at every hand-off. MERGED: clear the wait, close the increment landed (unless it was handed over to stay
  * open), release what its session still holds and forget it. CLOSED: clear the wait and forget it. Red: with no fix session running and an engine slot
- * free, clear the wait and start one; once `limit` have run, put the increment on an owner wait instead.
+ * free, clear the wait and start one; once `limit` have run, put the increment on an owner wait instead. A conflict
+ * with main needs a session, not the owner's call, so it gets one more fix session before that wait (13.12).
  */
 export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
@@ -186,7 +187,8 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
     if (record.fixing && await alive(record.fixing.pid)) continue;
     if (record.fixing) { record.fixing = null; await save(dir, record); }
     if (pull.state !== "red") continue;
-    if (record.fixes.length >= limit) {
+    const allowed = pull.conflict ? limit + 1 : limit;
+    if (record.fixes.length >= allowed) {
       await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
       await storytree(["arc", "increment", "wait", increment, "--for", "owner", "--note",
         `PR #${pr} is still red after ${record.fixes.length} fix sessions: ${pull.why}.${pull.logs.length ? ` Failing runs: ${pull.logs.join(", ")}.` : ""}`
@@ -198,11 +200,11 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
     if (!(await room())) continue;
     await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
     const n = record.fixes.length + 1;
-    const fix = await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n, limit, keepOpen: record.keepOpen }) });
+    const fix = await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n, limit: allowed, keepOpen: record.keepOpen }) });
     record.fixing = { pid: fix.pid };
     record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: fix.pid, log: fix.log });
     await save(dir, record);
-    dated(`PR #${pr} red (${pull.why}): fix session ${n} of ${limit} started, log ${fix.log}`);
+    dated(`PR #${pr} red (${pull.why}): fix session ${n} of ${allowed} started, log ${fix.log}`);
   }
 }
 

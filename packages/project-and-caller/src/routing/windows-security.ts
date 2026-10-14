@@ -1,6 +1,4 @@
 /** Capability 1 · Project routing. Windows' own security calls, made in this process for the handoff's privacy check (contract 1.16). */
-import { createRequire } from "node:module";
-
 interface Reads {
   /** The SID this process runs as, from its own token. */
   user(): Buffer;
@@ -10,10 +8,11 @@ interface Reads {
 let native: Reads | undefined;
 
 // Koffi is resolved from where this code runs (a release bundle stages it beside itself), only
-// when a Windows check first needs it, so no other platform loads it and no bundler inlines it.
+// when a Windows check first needs it, so no other platform loads it and no bundler inlines it. Node's
+// module helper is fetched, not imported: a bundle's banner may already declare createRequire.
 function load(): Reads {
   if (native) return native;
-  const require = createRequire(typeof __filename === "string" ? __filename : import.meta.url);
+  const require = process.getBuiltinModule("node:module").createRequire(typeof __filename === "string" ? __filename : import.meta.url);
   const koffi = require("koffi") as typeof import("koffi");
   const kernel = koffi.load("kernel32.dll");
   const advapi = koffi.load("advapi32.dll");

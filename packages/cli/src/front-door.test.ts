@@ -10,6 +10,7 @@ import { after, before, test } from "node:test";
 import pg from "pg";
 import { openActivityLog } from "@storytree/session-management";
 import { HEALTH_FAMILIES } from "@storytree/ci-health/verbs";
+import { CHECK_FAMILIES } from "@storytree/guardrails/verbs";
 import { JOURNEY_FAMILIES } from "@storytree/journey-events/verbs";
 import { LAG_FAMILIES } from "@storytree/lag-in-use/verbs";
 import { SESSION_FAMILIES } from "@storytree/session-management/verbs";
@@ -281,7 +282,7 @@ test("1.21 · `storytree` mounts the families its story packages' manifests decl
     assert.equal(listed.code, 0, listed.stderr);
     const names = [...listed.stdout.split("Families:")[1]!.split("next:")[0]!.matchAll(/^  ([\w-]+) /gm)].map((line) => line[1]);
     assert.deepEqual(names, FAMILIES.map((family) => family.name), "the bundle lists the families in the order run unbundled");
-    for (const family of [...HEALTH_FAMILIES, ...ARC_FAMILIES, ...LIBRARIAN_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES]) assert.equal(names.indexOf(family.name) + 1, family.order, `${family.name} at its place`);
+    for (const family of [...CHECK_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...LIBRARIAN_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES]) assert.equal(names.indexOf(family.name) + 1, family.order, `${family.name} at its place`);
     assert.deepEqual(names.slice(-2), ["session", "machine"]);
 
     const verbs = await world.run(["machine"]);
@@ -298,5 +299,5 @@ test("1.21 · `storytree` mounts the families its story packages' manifests decl
     assert.match(bare.stderr, /^this needs --reason.*\nusage: storytree workspace <increment\|capability> --reason <text>/, "its bare name runs the declared verb");
   });
   assert.equal(import.meta.resolve("#parts/verbs"), new URL("./parts/verbs.ts", import.meta.url).href, "the command line's #parts/verbs is its composing module");
-  assert.deepEqual(new Set(unbundled), new Set([...HEALTH_FAMILIES, ...ARC_FAMILIES, ...LIBRARIAN_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES]));
+  assert.deepEqual(new Set(unbundled), new Set([...CHECK_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...LIBRARIAN_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES]));
 });

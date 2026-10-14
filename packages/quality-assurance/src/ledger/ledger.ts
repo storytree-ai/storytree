@@ -147,12 +147,12 @@ export interface Ledger {
 }
 
 /** Open the ledger on `server`'s connection: its own database, set up with the ledger's tables, closed with the connection. */
-export async function openLedger(server: Storytree): Promise<Ledger> {
+export async function openLedger(server: Pick<Storytree, "ownDatabase">): Promise<Ledger> {
   return new PgLedger(await ledgerDatabase(server));
 }
 
 /** The ledger's own database on `server`'s connection, set up with its tables; for this package's own modules. */
-export function ledgerDatabase(server: Storytree): Promise<Pool> {
+export function ledgerDatabase(server: Pick<Storytree, "ownDatabase">): Promise<Pool> {
   return server.ownDatabase(LEDGER_DATABASE, { tables: SCHEMA });
 }
 

@@ -31,9 +31,11 @@ function answerOf(answer: VerbAnswer): Answer {
 
 function schemaOf(input: VerbInput): z.ZodType {
   if (input.kind === "text") {
-    const text = z.string().min(1).describe(input.describe);
+    const one = z.string().min(1);
+    const text = (input.many ? z.array(one) : one).describe(input.describe);
     return input.optional ? text.optional() : text;
   }
+  if (input.kind === "fields") return z.record(z.string(), z.string()).optional().describe(input.describe);
   const yes = z.boolean().describe(input.describe);
   return input.kind === "switch" ? yes.optional() : yes;
 }

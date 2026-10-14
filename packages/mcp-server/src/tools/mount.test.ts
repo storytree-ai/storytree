@@ -59,3 +59,33 @@ test("6.76 a mounted verb's optional text input may be left out of its tool call
   assert.equal((await tool.act(tool.input.parse({ id: "t1", to: "2m" }), call)).text, "Pruned t1 to 2m.");
   assert.equal(tool.input.safeParse({ to: "2m" }).success, false);
 });
+
+test("6.77 a mounted verb's many text input is a list of non-empty strings in its tool call, left out only when optional, and its fields input an optional object of strings", async () => {
+  const plants: Verb = {
+    command: { family: "bed", name: "plant", summary: "plant a bed" },
+    tool: { name: "plant_bed", description: "Plant a bed." },
+    inputs: {
+      trees: { kind: "text", many: true, describe: "the trees" },
+      bulbs: { kind: "text", many: true, optional: true, describe: "the bulbs" },
+      labels: { kind: "fields", describe: "a label for each tree" },
+    },
+    async act({ trees, bulbs, labels }) {
+      return { text: `Planted ${trees.join(", ")}; bulbs ${bulbs.join(", ") || "none"}; labels ${JSON.stringify(labels)}.` };
+    },
+  };
+  const served = new Map<string, { input: z.ZodObject; act: (args: Record<string, unknown>, call: Call) => Promise<Answer> }>();
+  const define = ((name, _description, input, act) => served.set(name, { input, act: act as never })) as Define;
+  mountTools(define, [plants]);
+  const call = { caller: { session: "s1" }, folder: process.cwd() } as unknown as Call;
+  const tool = served.get("plant_bed")!;
+
+  const bare = tool.input.safeParse({ trees: ["oak"] });
+  assert.equal(bare.success, true);
+  assert.equal((await tool.act(bare.data!, call)).text, "Planted oak; bulbs none; labels {}.");
+  const full = tool.input.parse({ trees: ["oak", "ash"], bulbs: ["tulip"], labels: { oak: "by the gate" } });
+  assert.equal((await tool.act(full, call)).text, `Planted oak, ash; bulbs tulip; labels {"oak":"by the gate"}.`);
+  assert.equal(tool.input.safeParse({}).success, false);
+  assert.equal(tool.input.safeParse({ trees: "oak" }).success, false);
+  assert.equal(tool.input.safeParse({ trees: ["oak", ""] }).success, false);
+  assert.equal(tool.input.safeParse({ trees: ["oak"], labels: { oak: true } }).success, false);
+});

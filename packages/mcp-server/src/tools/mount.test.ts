@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Verb } from "@storytree/session-management/verbs";
+import type { Verb } from "@storytree/project-and-caller/verbs";
 
 import { mountTools } from "./mount.js";
 import type { Answer, Call, Define } from "./server.js";

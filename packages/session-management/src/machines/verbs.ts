@@ -3,7 +3,8 @@
  * project's machines, and say which one this computer is. They are the command line's: a computer is named by the
  * person at it, and an agent has no use for the list until an increment names a machine.
  */
-import { verb, VerbRefusal, type Verb, type VerbContext } from "../sessions/verb.js";
+import { verb, VerbRefusal, type Verb, type VerbContext } from "@storytree/project-and-caller/verbs";
+
 import type { MachineRecord } from "./machines.js";
 
 const NO_TOOL = { absent: "a computer is named, and its machines read, by the person at it on the command line" };

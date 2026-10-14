@@ -5,12 +5,17 @@
  */
 import path from "node:path";
 
+import { verb, VerbRefusal, type Verb, type VerbContext, type VerbInputs } from "@storytree/project-and-caller/verbs";
+
+import type { ActivityLog } from "../activity/index.js";
 import { SESSION_NAME_LIMIT } from "./name.js";
-import { verb, VerbRefusal, type Verb } from "./verb.js";
 
 export { MACHINE_VERBS } from "../machines/verbs.js";
-export { commandInput, commandUsage, mounted, toolInput, VerbRefusal } from "./verb.js";
-export type { DoorWords, InputOf, Step, Verb, VerbAnswer, VerbContext, VerbInput, VerbInputs } from "./verb.js";
+
+/** What a session verb's work needs beyond the caller: the activity log it reads and writes, which the doors hand. */
+export interface SessionVerbContext extends VerbContext {
+  readonly log: ActivityLog;
+}
 
 const name = verb({
   command: { family: "session", name: "name", summary: `name this session's row in the sessions list, in ${SESSION_NAME_LIMIT} characters or fewer; again when the work shifts` },
@@ -20,7 +25,7 @@ const name = verb({
   },
   inputs: { title: { kind: "text", word: 0, describe: `what you are doing, in ${SESSION_NAME_LIMIT} characters or fewer` } },
   agentOnly: "it names the agent session that runs it",
-  async act({ title }, context) {
+  async act({ title }, context: SessionVerbContext) {
     const { nameRefusal, nameSession } = await import("./name.js");
     const answer = await nameSession(context, title);
     if (!answer.ok) throw new VerbRefusal(nameRefusal(answer), { misuse: true });
@@ -39,7 +44,7 @@ const closeOut = verb({
     why: { kind: "text", describe: "why, in a few words" },
   },
   agentOnly: "it closes out the agent session that runs it",
-  async act({ safe, why }, context, words) {
+  async act({ safe, why }, context: SessionVerbContext, words) {
     const { closeOut: close } = await import("./close-out.js");
     const { running, released } = await close(context, { safe, why }, { look: {}, ...(context.home === undefined ? {} : { home: path.join(context.home, "own") }) });
     const stop = words.say({ tool: "stop_own_run", command: "processes stop" });
@@ -61,7 +66,7 @@ const list = verb({
     all: { kind: "switch", describe: "the hidden sessions too" },
     json: { kind: "switch", describe: "as JSON" },
   },
-  async act({ all, json }, { log, server, project, folder, session, harness }) {
+  async act({ all, json }, { log, server, project, folder, session, harness }: SessionVerbContext) {
     // Merges are asked about now, as the board asks about claims: the list never waits on a hook's look.
     const look = { context: { log, project, folder, session, ...(harness === undefined ? {} : { harness }), source: "tool" } } as const;
     const { sessionsListing } = await import("./listing.js");
@@ -74,4 +79,4 @@ const list = verb({
 });
 
 /** The session verbs, in the order the command line lists them. */
-export const SESSION_VERBS: readonly Verb[] = [list, name, closeOut];
+export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, name, closeOut];

@@ -1,0 +1,123 @@
+name: Package the installed app
+
+# Each platform's build, signing, notarisation and install check (ADR-1032 D3). release.yml calls it for a real
+# release, which uploads each platform's assets into the draft; release-rehearsal.yml calls it with rehearsal: true on
+# a branch, which stops before anything reaches a release (release.mjs refuses it, 4.22) and keeps the installers and
+# Apple's answer as this run's artifacts. A workflow_run always reads its file from main, so this split is what lets a
+# pull request's change to the packaging steps run before a real release does.
+#
+# Secrets come from the job's environment, `release` or `rehearsal`, and fall back to the repository's secret of the
+# same name while one is not set there (the caller passes `secrets: inherit`). A new or changed secret goes into
+# `rehearsal` first; a rehearsal proves it; then the same value goes into `release` ("Changing a release secret").
+# Permissions are the caller's: a real release grants contents: write, a rehearsal only contents: read.
+on:
+  workflow_call:
+    inputs:
+      sha:
+        description: The verified commit a real release builds; empty in a rehearsal, which builds its own checkout
+        type: string
+        default: ""
+      version:
+        description: The real release's version; empty in a rehearsal, which builds apps/desktop/package.json's
+        type: string
+        default: ""
+      rehearsal:
+        description: Build, sign and check, but never draft, upload or publish
+        type: boolean
+        default: false
+
+jobs:
+  # Each platform builds on its own runner, proves its build installs and starts, and uploads only
+  # its own assets (apps/desktop/release-assets.mjs) into the draft.
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: Windows
+            runner: windows-latest
+            check: node apps/desktop/check-install.mjs
+          - system: macOS
+            runner: macos-latest
+            check: node --import tsx apps/desktop/check-install-mac.mjs
+          - system: Linux
+            runner: ubuntu-latest
+            check: node --import tsx apps/desktop/check-install-linux.mjs
+    runs-on: ${{ matrix.runner }}
+    environment: ${{ inputs.rehearsal && 'rehearsal' || 'release' }}
+    timeout-minutes: 25
+    env:
+      RELEASE_SHA: ${{ inputs.sha }}
+      STORYTREE_REHEARSAL: ${{ inputs.rehearsal }}
+      # PostHog's public project token (a repository variable, not a secret: it is public by design).
+      # The private personal key never enters a build; it stays in Secret Manager for deletions.
+      STORYTREE_JOURNEY_KEY: ${{ vars.POSTHOG_PROJECT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+      # Set only when given: an empty version would be refused by dist.mjs, and without one the build and its
+      # checks use apps/desktop/package.json's.
+      - name: Name the release version
+        if: inputs.version != ''
+        shell: bash
+        run: echo "STORYTREE_RELEASE_VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # With the Developer ID secrets set, the Mac build is signed and submitted to Apple, whose answer it waits
+      # for only ten minutes, so the job never reaches its limit on Apple's queue (contract 4.20): this puts the
+      # certificate in a temporary keychain, Apple's key in a file and the identity in STORYTREE_MAC_IDENTITY.
+      # Without them it does nothing and the build stays ad-hoc. Windows never receives them: electron-builder
+      # would read CSC_LINK as a Windows certificate.
+      - name: Prepare the Mac signing keychain
+        if: matrix.system == 'macOS'
+        run: node apps/desktop/mac-signing.mjs prepare
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      # desktop:dist also stages each platform's bootstrap, one-liners and checksum manifest (on macOS and Linux its
+      # entry, merged on publish) beside the installers; they upload with them, so first-run delivery
+      # never meets a partial release.
+      # APPLE_API_KEY is not set here: prepare exported it as the key file's path, which notarisation reads.
+      # A build Apple has not accepted within the wait ships signed but not notarised, and the upload's note says so.
+      # CSC_LINK here only tells dist.mjs the build is Developer ID: electron-builder never sees it, and signs as
+      # STORYTREE_MAC_IDENTITY, which prepare exported, from prepare's keychain.
+      - run: pnpm desktop:dist
+        env:
+          CSC_LINK: ${{ matrix.system == 'macOS' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.system == 'macOS' && secrets.CSC_KEY_PASSWORD || '' }}
+          APPLE_API_KEY_ID: ${{ matrix.system == 'macOS' && secrets.APPLE_API_KEY_ID || '' }}
+          APPLE_API_ISSUER: ${{ matrix.system == 'macOS' && secrets.APPLE_API_ISSUER || '' }}
+      - run: ${{ matrix.check }}
+      - name: Upload this platform's assets to the draft
+        if: ${{ !inputs.rehearsal }}
+        run: node apps/desktop/release.mjs upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Check this platform's assets are complete, publishing nothing
+        if: inputs.rehearsal
+        run: node apps/desktop/release.mjs rehearse
+      - name: Keep the rehearsal's installers and Apple's answer
+        if: always() && inputs.rehearsal
+        uses: actions/upload-artifact@v7
+        with:
+          name: rehearsal-${{ matrix.system }}
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/mac-notarisation.json
+          if-no-files-found: ignore
+          retention-days: 5
+      - name: Delete the Mac signing keychain and Apple's key file
+        if: always() && matrix.system == 'macOS'
+        run: node apps/desktop/mac-signing.mjs cleanup

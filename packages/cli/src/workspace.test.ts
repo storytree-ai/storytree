@@ -483,6 +483,46 @@ test("11.14 `workspace claim` from the main checkout, then `workspace <increment
   });
 });
 
+test("11.17 `workspace claim` and `workspace attach` from a worktree on a handed-over pull request's branch take over the claim held for it; from the main checkout or another branch they are refused (ADR-1037 D2)", async () => {
+  await inWorld(command, async (world) => {
+    const increment = await withRepository(world);
+    const branch = "claude/email-form-a1b2c3";
+    const fixing = path.join(path.dirname(world.folder), "fix worktree");
+    const other = path.join(path.dirname(world.folder), "other worktree");
+    git(world.folder, "worktree", "add", "-b", branch, fixing, "main");
+    git(world.folder, "worktree", "add", "-b", "claude/other-work", other, "main");
+    const run = (args: string[], cwd: string, session: string) => storytree(command.script, args, { cwd, home: world.home, env: { CLAUDE_CODE_SESSION_ID: session } });
+    const holdFor = async (holder: string) => {
+      const held = await world.run(["workspace", "hold", "12", "--holder", holder, "--branch", branch]);
+      assert.equal(held.code, 0, held.stderr);
+    };
+    const log = await openActivityLog(testServerUrl());
+    try {
+      assert.equal((await run(["workspace", "claim", increment, "--reason", "build form"], fixing, "claude-lane")).code, 0);
+      await holdFor("claude-lane");
+      const holders = async () => (await readClaims(log, world.project)).map(({ session }) => session);
+      assert.deepEqual(await holders(), ["pull-request-12"]);
+
+      const fromMain = await run(["workspace", "claim", increment, "--reason", "I need it"], world.folder, "claude-main");
+      assert.equal(fromMain.code, 1, fromMain.stdout);
+      const fromOther = await run(["workspace", "attach", increment, "--reason", "I need it"], other, "claude-other");
+      assert.equal(fromOther.code, 1, fromOther.stdout);
+      assert.deepEqual(await holders(), ["pull-request-12"], "refused elsewhere");
+
+      const claimed = await run(["workspace", "claim", increment, "--reason", "fix PR #12"], fixing, "claude-fix");
+      assert.equal(claimed.code, 0, claimed.stderr);
+      assert.deepEqual(await holders(), ["claude-fix"]);
+
+      await holdFor("claude-fix");
+      const attached = await run(["workspace", "attach", increment, "--reason", "fix PR #12 again"], fixing, "claude-fix-2");
+      assert.equal(attached.code, 0, attached.stderr);
+      assert.deepEqual((await readClaims(log, world.project)).map(({ session, branch: on }) => [session, on]), [["claude-fix-2", branch]]);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 /** The project's log as its claims and closes wrote it: without the door's own record of each command's answer (ADR-0983 D1). */
 async function logged(log: ActivityLog, project: string): Promise<{ lines: Line[] }> {
   return { lines: (await log.since(project, 0)).lines.filter((line) => line.kind !== "door-answered") };

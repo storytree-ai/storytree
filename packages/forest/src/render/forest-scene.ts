@@ -14,10 +14,10 @@
  *   islands it touched, without a reload.
  */
 import { PLACE_WIDTH, type CapabilityWord, type ForestScene, type Island, type PlacedTree, type TreeForm } from "@storytree/forest-world/scene";
-import type { AnnotatedTree, Change } from "@storytree/library";
+import type { AnnotatedTree, Change, StorySurvey } from "@storytree/library";
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";
-import { packageOf, type StorySurvey } from "@storytree/map";
+import { packageOf } from "@storytree/map";
 import { islandArea, mappedArea, MIN_ISLAND_AREA, unsurveyedArea } from "../planet-places/island-growth.js";
 import { storyNodes } from "../story-nodes/story-nodes.js";
 import { landForCircles } from "../territories/territories.js";

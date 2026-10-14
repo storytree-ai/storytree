@@ -51,9 +51,14 @@ export interface DoorWords {
   say(step: Step): string;
 }
 
-/** Where a verb was called: all a callerless verb's work is handed, with what its declaring story types beside it. */
+/**
+ * Where a verb was called: all a callerless verb's work is handed, with what its declaring story types beside it, and
+ * the calling session and its harness when the door knows them without a library (a shell that names one session).
+ */
 export interface VerbPlace {
   readonly folder: string;
+  readonly session?: string;
+  readonly harness?: string;
 }
 
 /**
@@ -112,7 +117,7 @@ export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbPlace = V
   readonly inputs: I;
   /** Only an agent session may call it: why, as "it closes out the agent session that runs it". */
   readonly agentOnly?: string;
-  /** Its work needs no caller, project or library (it reads a file, or runs offline): a door hands it only the place. */
+  /** Its work needs no project or library (it reads a file, or runs offline): a door hands it only the place, with the caller's session when it knows one. */
   readonly callerless?: true;
   /** Its work writes to the library: each door hands it the writer (the context's `writer`), and the command line names that writer below its answer. */
   readonly writes?: true;
@@ -127,6 +132,8 @@ export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbPlace = V
  */
 export interface VerbFamilies<C extends VerbPlace = VerbContext> {
   readonly name: string;
+  /** Other names the family answers to, which the families list does not show: a story's old name. */
+  readonly aliases?: readonly string[];
   readonly summary: string;
   readonly verbs: readonly Verb<VerbInputs, C>[];
   readonly bare?: Verb<VerbInputs, C>;

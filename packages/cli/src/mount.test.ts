@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "@storytree/project-and-caller/caller";
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/project-and-caller/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
@@ -57,6 +58,7 @@ const weed = verb({
 
 const garden: VerbFamily<SessionVerbContext> = {
   name: "garden",
+  aliases: ["yard"],
   summary: "the garden",
   order: 1,
   verbs: [look, water, weed],
@@ -77,8 +79,9 @@ function contextOf(): { context: Context; writers: number[] } {
   return { context, writers };
 }
 
-test("1.23 · the command line mounts a declared family with the families within it, its guesses and its retired words; a verb's many words and repeated flags, and every flag as a field, reach its work; a verb that writes is handed the writer the answer names once its work asks for it, a refusal names its next steps as commands, and a raw answer is printed as it is", async () => {
+test("1.23 · the command line mounts a declared family with the families within it, its aliases, its guesses and its retired words; a verb's many words and repeated flags, and every flag as a field, reach its work; a verb that writes is handed the writer the answer names once its work asks for it, a refusal names its next steps as commands, and a raw answer is printed as it is", async () => {
   const mounted = family(garden);
+  assert.deepEqual(mounted.aliases, ["yard"]);
   assert.deepEqual(mounted.guesses, garden.guesses);
   assert.deepEqual(mounted.retired, garden.retired);
   assert.equal(mounted.families?.[0]?.name, "bed");
@@ -128,13 +131,35 @@ const status = verb({
   callerless: true,
   async act(_input, place: VerbPlace & Partial<CommandPlace>) {
     const journey = await place.journey!();
-    return { text: `${place.folder} ${place.script} ${(journey as unknown) === runtime ? "runtime" : "another"}` };
+    return { text: `${place.folder} ${place.script} ${(journey as unknown) === runtime ? "runtime" : "another"} ${place.session ?? "nobody"}${place.harness === undefined ? "" : ` on ${place.harness}`}` };
   },
 });
 
-test("1.24 · the command line mounts a callerless verb without opening the library, handing it the folder, script and journey runtime; a word or flag a verb does not take is refused with code 2 and its usage", async () => {
+/** Runs `work` with only `shell`'s session variables set, restoring the shell's own after. */
+async function inShell<T>(shell: Readonly<Record<string, string>>, work: () => Promise<T>): Promise<T> {
+  const names = [...(WATCHED_HARNESSES as readonly WatchedHarness[]).flatMap((harness) => harness.shellSession === undefined ? [] : [harness.shellSession]), SESSION_ENV];
+  const saved = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  for (const name of names) {
+    if (shell[name] === undefined) delete process.env[name];
+    else process.env[name] = shell[name];
+  }
+  try {
+    return await work();
+  } finally {
+    for (const name of names) {
+      if (saved[name] === undefined) delete process.env[name];
+      else process.env[name] = saved[name];
+    }
+  }
+}
+
+test("1.24 · the command line mounts a callerless verb without opening the library, handing it the folder, script and journey runtime, and the shell's session when the shell names one alone; a word or flag a verb does not take is refused with code 2 and its usage", async () => {
   const mounted = command(status);
-  assert.equal((await mounted.act(parseArgs([], [], context.cwd), context)).text, "/not-a-project /opt/storytree/storytree.mjs runtime");
+  const answered = (shell: Readonly<Record<string, string>>) => inShell(shell, async () => (await mounted.act(parseArgs([], [], context.cwd), context)).text);
+  assert.equal(await answered({}), "/not-a-project /opt/storytree/storytree.mjs runtime nobody");
+  assert.equal(await answered({ CODEX_THREAD_ID: "codex-1" }), "/not-a-project /opt/storytree/storytree.mjs runtime codex-1 on codex");
+  assert.equal(await answered({ STORYTREE_SESSION_ID: "named-1" }), "/not-a-project /opt/storytree/storytree.mjs runtime named-1");
+  assert.equal(await answered({ CODEX_THREAD_ID: "codex-1", CLAUDE_CODE_SESSION_ID: "claude-1" }), "/not-a-project /opt/storytree/storytree.mjs runtime nobody", "two harnesses naming a session hand neither");
 
   for (const stray of [["extra"], ["--key", "x"]]) {
     await assert.rejects(mounted.act(parseArgs(stray, [], context.cwd), context), (error: unknown) => error instanceof Refusal && error.code === 2 && error.message.endsWith("\nusage: storytree journey status") && !error.message.includes("extra"));

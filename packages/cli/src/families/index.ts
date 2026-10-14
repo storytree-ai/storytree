@@ -16,7 +16,6 @@ import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
 import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
-import { processes } from "./processes.js";
 import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
@@ -46,7 +45,6 @@ const KEPT: readonly Family[] = [
   setupFamily,
   projectFamily,
   importFamily,
-  processes,
   settings,
   auth,
   signIn,

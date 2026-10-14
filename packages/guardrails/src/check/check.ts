@@ -3,14 +3,15 @@
  * allocation rule run over a checkout together, reported plainly, as `storytree check` prints it. It
  * reads the checkout alone: no plan, no library and no running app, so a user's CI can run it. A checkout
  * that mounts its stories in a frame outside packages/ declares the frame in its storytree.check.json,
- * `{ "frames": [{ "story": …, "dirs": [...] }] }`, as storytree's own does for apps/desktop.
+ * `{ "frames": [{ "story": …, "dirs": [...] }] }`, as storytree's own does for apps/desktop, and beside
+ * it the owner's sanctioned story-to-frame edges, `"edges": [{ "from", "to", "said", "on" }]` (ADR-0847 D2).
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { allocationProblems } from "../allocation-rule/allocation-rule.js";
-import { packageProblems, type Declarations } from "../package-rule/package-rule.js";
+import { packageProblems, type Declarations, type Edge } from "../package-rule/package-rule.js";
 
 /** What the check found: each rule's problems, whether both were kept, and the report as printed. */
 export interface CheckReport {
@@ -29,12 +30,12 @@ export function checkoutOf(folder: string): string {
   }
 }
 
-/** What the checkout at `root` declares in its storytree.check.json: its frames, or nothing when it has none. */
+/** What the checkout at `root` declares in its storytree.check.json: its frames and sanctioned edges, or nothing when it has none. */
 export function declarationsOf(root: string): Declarations {
   const file = path.join(root, "storytree.check.json");
   if (!existsSync(file)) return {};
-  const { frames } = JSON.parse(readFileSync(file, "utf8")) as Pick<Declarations, "frames">;
-  return frames === undefined ? {} : { frames };
+  const { frames, edges } = JSON.parse(readFileSync(file, "utf8")) as { frames?: Declarations["frames"]; edges?: readonly Edge[] };
+  return { ...(frames === undefined ? {} : { frames }), ...(edges === undefined ? {} : { edges: { edges } }) };
 }
 
 /** Run both rules over the checkout at `root`, with what it declares; a user's project usually declares nothing. */

@@ -3,5 +3,6 @@
     { "story": "app", "dirs": ["packages/app", "apps/desktop"] },
     { "story": "cli", "dirs": ["packages/cli"], "frontDoor": true },
     { "story": "mcp-server", "dirs": ["packages/mcp-server"], "frontDoor": true }
-  ]
+  ],
+  "edges": []
 }

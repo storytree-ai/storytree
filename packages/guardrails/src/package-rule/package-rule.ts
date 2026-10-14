@@ -135,12 +135,12 @@ export function packageProblems(root: string, declared: Declarations = {}): stri
     if (frameNames.has(from)) continue;
     for (const to of tos) {
       if (frameNames.has(to) && !sanctioned.has(`${from} ${to}`)) {
-        problems.push(`${from} → ${to} is a story depending on the frame or the front door, which the owner has not sanctioned in package-edges.json: move the seam, or raise a question on the arc rather than adding it yourself (ADR-0847)`);
+        problems.push(`${from} → ${to} is a story depending on the frame or the front door, which the owner has not sanctioned in storytree.check.json's edges: move the seam, or raise a question on the arc rather than adding it yourself (ADR-0847)`);
       }
     }
   }
   for (const { from, to } of edges) {
-    if (!deps.get(from)?.includes(to)) problems.push(`${from} → ${to} is in package-edges.json but no package.json uses it any more: take it off the list`);
+    if (!deps.get(from)?.includes(to)) problems.push(`${from} → ${to} is in storytree.check.json's edges but no package.json uses it any more: take it off the list`);
   }
   for (const cycle of dependencyCycles(deps)) {
     problems.push(`these packages depend on each other in a cycle: ${cycle.join(" → ")}; a workspace links it into a folder loop that git clean never leaves, so drop one of its edges`);

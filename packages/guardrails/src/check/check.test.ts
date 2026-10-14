@@ -111,3 +111,15 @@ test("3.5 · a checkout's frames, declared in its storytree.check.json, are read
   const declared = await check(plant(t, { ...shell, "storytree.check.json": JSON.stringify({ frames: [{ story: "cart", dirs: ["apps/shell"] }] }) }));
   assert.equal(declared.passed, true, declared.text);
 });
+
+test("3.6 · a checkout's sanctioned edges, declared in its storytree.check.json, are read: a sanctioned story-to-frame edge passes, an unsanctioned one fails", async (t: TestContext) => {
+  const frames = [{ story: "checkout", dirs: ["packages/checkout"] }];
+  const leaning = { ...KEPT, "packages/cart/package.json": JSON.stringify({ name: "cart", dependencies: { checkout: "*" } }), "packages/checkout/package.json": JSON.stringify({ name: "checkout" }) };
+  const unsanctioned = await check(plant(t, { ...leaning, "storytree.check.json": JSON.stringify({ frames }) }));
+  assert.equal(unsanctioned.passed, false);
+  assert.match(unsanctioned.text, /cart → checkout is a story depending on the frame or the front door/);
+
+  const edges = [{ from: "cart", to: "checkout", said: "cart may lean on checkout", on: "2026-10-14" }];
+  const sanctioned = await check(plant(t, { ...leaning, "storytree.check.json": JSON.stringify({ frames, edges }) }));
+  assert.equal(sanctioned.passed, true, sanctioned.text);
+});

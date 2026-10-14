@@ -8,7 +8,7 @@
 //   that call the story package owning the work), and the MCP server story's `packages/mcp-server` is the
 //   second front door (ADR-0969 D1). None holds another story's code.
 // - No story leans on the frame or the front door (ADR-0847 D1) unless the owner sanctioned that edge
-//   in package-edges.json beside this file, with his own words and the date (D2). The list holds only
+//   in the repo's storytree.check.json, with his own words and the date (D2), where `storytree check` reads it too. The list holds only
 //   his exceptions; a lane never adds one.
 //
 // The stories live only in the library (ADR-0641), which CI cannot read, so their ids are declared
@@ -49,10 +49,11 @@ export const NOT_YET_MOVED = [];
  * command line, and the MCP server an agent's harness starts (ADR-0969 D1), on which no story may depend either.
  * They are declared in the repo's storytree.check.json, which `storytree check` reads too, so the two agree.
  */
-export const FRAMES = JSON.parse(readFileSync(new URL("../../../storytree.check.json", import.meta.url), "utf8")).frames;
+const DECLARED = JSON.parse(readFileSync(new URL("../../../storytree.check.json", import.meta.url), "utf8"));
+export const FRAMES = DECLARED.frames;
 
 /** The owner's exceptions to the frame rule: { edges: [{ from, to, said, on }] }, each in his own words, with the date. */
-export const EDGES = JSON.parse(readFileSync(new URL("./package-edges.json", import.meta.url), "utf8"));
+export const EDGES = { edges: DECLARED.edges };
 
 /** What in the repo at `root` breaks the boundaries, one sentence each; empty when nothing does. */
 export function boundaryProblems(root) {

@@ -16,6 +16,7 @@ import { build } from "esbuild";
 import type { AnnotatedTree } from "@storytree/library";
 
 import { readReadings } from "@storytree/lag-in-use";
+import { readSettings } from "@storytree/project-and-caller";
 import { partsPlugin } from "@storytree/plugin-loader";
 
 import pageAnswers from "./main/parts/page-answers.js";
@@ -50,6 +51,25 @@ test("1.18 a story's page operations its package's manifest names are answered i
   await build({ stdin: { contents: `export { default } from "#parts/pageChannels";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsPlugin()] });
   const { default: bundled } = await import(pathToFileURL(outfile).href) as { default: unknown };
   assert.deepEqual(bundled, pageChannels);
+});
+
+test("1.18 the settings panel's page operations its manifest names are answered from the frame's home: a setting the page saves reaches the settings file there, and the page reads it back", async (t) => {
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-page-settings-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+  answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, {
+    home,
+    appVersion: "0.3.99",
+    library: () => { throw new Error("the library is not open"); },
+    treeRead: () => undefined,
+    surveyWorker: path.join(home, "survey-worker.cjs"),
+  });
+
+  const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args));
+  assert.equal((await page.saveSetting("context-guidance", ["420000"])).ok, true);
+  assert.equal(readSettings(home)["context-guidance"]?.value, 420000);
+  const read = await page.readSettings();
+  assert.equal(read.ok && read.value["context-guidance"]?.value, 420000);
 });
 
 test("1.18 the forest's code survey its manifest names is answered from what the frame offers: the open library's project folder and imports, the tree the page last read, and the bundled survey worker", async (t) => {

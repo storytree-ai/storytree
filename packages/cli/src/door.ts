@@ -41,6 +41,7 @@ export type ClaimContext = {
   readonly session: string;
   readonly harness?: string;
   readonly folder: string;
+  readonly branch?: string;
 };
 
 /**
@@ -430,7 +431,10 @@ class Opened {
     const caller = commandSession() ?? { session: `person:${person()}` };
     const where = this.#routed();
     const library = await this.library();
-    return { log: await this.#activityLog(), library, server: await this.#server(), project: where.project, folder: this.#cwd, ...caller };
+    // The folder's branch, as the MCP door's claim context carries it: a fix session on a handed-over pull request's branch takes over its held claims (ADR-1037 D2).
+    const { currentBranch } = await import("@storytree/session-management");
+    const branch = currentBranch(this.#cwd);
+    return { log: await this.#activityLog(), library, server: await this.#server(), project: where.project, folder: this.#cwd, ...caller, ...(branch === undefined ? {} : { branch }) };
   }
 
   /** The project's activity log, opened once with no library. */

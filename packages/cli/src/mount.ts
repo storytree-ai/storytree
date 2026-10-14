@@ -2,8 +2,8 @@
  * Capability 1 · Front door. A verb its owning story declared once (ADR-0969 D2), mounted as a command: its usage is
  * read from the verb's inputs, its words and flags become the verb's input, a step it offers next is named as a
  * command, and the verb's own refusal is the door's, with the usage when the input was wrong. A word or flag the verb does
- * not take is refused with its usage. A callerless verb is handed only its place, with the shell's session when it names
- * one alone, so it runs where no library opens. A
+ * not take is refused with its usage, and a refusal's next steps are named as commands. A callerless verb is handed only
+ * its place, with the shell's session when it names one alone, so it runs where no library opens. A
  * verb that writes is handed the writer, named below its answer once its work asks for it, so one that wrote nothing names
  * none; a raw answer is printed as it is. A declared family is
  * mounted with the families within it, its bare verb, its guesses and its retired words.
@@ -39,7 +39,10 @@ export function command(declared: Verb<VerbInputs, SessionVerbContext & CommandP
   const face = declared.command;
   const usage = commandUsage(declared);
   const switches = Object.entries(declared.inputs).flatMap(([name, input]) => input.kind === "switch" ? [name] : []);
-  const misused = (error: VerbRefusal): Refusal => new Refusal(error.misuse ? `${error.message}\nusage: storytree ${usage}` : error.message, { code: error.misuse ? 2 : 1 });
+  const misused = (error: VerbRefusal): Refusal => new Refusal(error.misuse ? `${error.message}\nusage: storytree ${usage}` : error.message, {
+    code: error.misuse ? 2 : 1,
+    next: error.next.map((step) => ({ command: WORDS.say(step), why: step.why })),
+  });
   return {
     name: face.name,
     usage,

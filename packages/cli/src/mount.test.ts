@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "@storytree/project-and-caller/caller";
-import { verb, type VerbFamily, type VerbPlace } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/project-and-caller/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 import { Refusal } from "./answer.js";
@@ -47,12 +47,21 @@ const water = verb({
   },
 });
 
+const weed = verb({
+  command: { family: "garden", name: "weed", summary: "weed the garden" },
+  tool: { absent: "a test verb" },
+  inputs: {},
+  async act() {
+    throw new VerbRefusal("no weeds grow here", { next: [{ command: "garden look", why: "look again" }] });
+  },
+});
+
 const garden: VerbFamily<SessionVerbContext> = {
   name: "garden",
   aliases: ["yard"],
   summary: "the garden",
   order: 1,
-  verbs: [look, water],
+  verbs: [look, water, weed],
   families: [{ name: "bed", summary: "one bed", verbs: [gather] }],
   guesses: { dig: "garden bed gather <beds>" },
   retired: { mow: { why: "the lawn is gone", instead: "garden look" } },
@@ -70,7 +79,7 @@ function contextOf(): { context: Context; writers: number[] } {
   return { context, writers };
 }
 
-test("1.23 · the command line mounts a declared family with the families within it, its aliases, its guesses and its retired words; a verb's many words and repeated flags, and every flag as a field, reach its work; a verb that writes is handed the writer the answer names once its work asks for it, and a raw answer is printed as it is", async () => {
+test("1.23 · the command line mounts a declared family with the families within it, its aliases, its guesses and its retired words; a verb's many words and repeated flags, and every flag as a field, reach its work; a verb that writes is handed the writer the answer names once its work asks for it, a refusal names its next steps as commands, and a raw answer is printed as it is", async () => {
   const mounted = family(garden);
   assert.deepEqual(mounted.aliases, ["yard"]);
   assert.deepEqual(mounted.guesses, garden.guesses);
@@ -95,6 +104,9 @@ test("1.23 · the command line mounts a declared family with the families within
   const wet = contextOf();
   assert.deepEqual(await mounted.verbs[1]!.act(parseArgs([], ["rained"], "/work"), wet.context), { text: "watered by session:claude-1 and session:claude-1" });
   assert.equal(wet.writers.length, 1, "the writer is asked for once, however often the work reads it");
+
+  await assert.rejects(mounted.verbs[2]!.act(parseArgs([], [], "/work"), contextOf().context), (error: unknown) =>
+    error instanceof Refusal && error.code === 1 && error.message === "no weeds grow here" && JSON.stringify(error.next) === JSON.stringify([{ command: "storytree garden look", why: "look again" }]));
 });
 
 const runtime = { record: () => {} };

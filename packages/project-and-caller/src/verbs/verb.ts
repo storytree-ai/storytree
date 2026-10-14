@@ -13,13 +13,14 @@ import type { Library, Storytree, WriteOptions } from "@storytree/library";
 
 /**
  * One input. `text` is a non-empty string, a command's word at `word` when given, else its `--flag <value>`, and
- * left out it reads as nothing when `optional`; with `many`, it is every such string, each word from `word` on or each
+ * left out it reads as nothing when `optional`, and given as only whitespace it is refused unless `blank`, which reads it as
+ * empty; with `many`, it is every such string, each word from `word` on or each
  * `--flag` given, and left out it reads as none when `optional`. `yes-no` is a boolean, a command's `--flag yes|no`;
  * `switch` is a boolean that is false unless given, a command's bare `--flag`. `fields` is an open set: each of a
  * command's `--<field> <value>` its other inputs do not name, by field, its values as given.
  */
 export type VerbInput =
-  | { readonly kind: "text"; readonly describe: string; readonly word?: number; readonly optional?: true; readonly many?: true }
+  | { readonly kind: "text"; readonly describe: string; readonly word?: number; readonly optional?: true; readonly many?: true; readonly blank?: true }
   | { readonly kind: "yes-no"; readonly describe: string }
   | { readonly kind: "switch"; readonly describe: string }
   | { readonly kind: "fields"; readonly describe: string };
@@ -88,14 +89,19 @@ export interface VerbAnswer {
   readonly next?: readonly (Step & { readonly why: string })[];
 }
 
-/** The verb's own "no": `misuse` when the inputs were wrong, so the command line shows its usage. */
+/**
+ * The verb's own "no": `misuse` when the inputs were wrong, so the command line shows its usage; `next`, the steps that
+ * do the job instead, each door naming them in its own terms.
+ */
 export class VerbRefusal extends Error {
   readonly misuse: boolean;
+  readonly next: readonly (Step & { readonly why: string })[];
 
-  constructor(message: string, options: { misuse?: boolean } = {}) {
+  constructor(message: string, options: { misuse?: boolean; next?: readonly (Step & { readonly why: string })[] } = {}) {
     super(message);
     this.name = "VerbRefusal";
     this.misuse = options.misuse ?? false;
+    this.next = options.next ?? [];
   }
 }
 
@@ -258,9 +264,9 @@ export function toolInput(declared: Verb<VerbInputs, never>, args: Readonly<Reco
   return input;
 }
 
-/** A text input, trimmed: one that says nothing is refused on either door. */
+/** A text input, trimmed: one that says nothing is refused on either door, unless it is marked blank. */
 function said(name: string, input: VerbInput, value: string): string {
   const text = value.trim();
-  if (text === "") throw new VerbRefusal(`${name} is empty: ${input.describe}`, { misuse: true });
+  if (text === "" && !(input.kind === "text" && input.blank)) throw new VerbRefusal(`${name} is empty: ${input.describe}`, { misuse: true });
   return text;
 }

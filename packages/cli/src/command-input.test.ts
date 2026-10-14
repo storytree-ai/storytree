@@ -262,3 +262,30 @@ test("13.7 · a text input marked verbatim keeps its value as given, its leading
   assert.deepEqual(toolInput(label, { text: "  Rose bed  ", bed: "  north  " }), read);
   assert.throws(() => commandInput(label, given(["   "], {})), (error: unknown) => error instanceof VerbRefusal && error.misuse, "one that says nothing is still refused");
 });
+
+const count = verb({
+  command: { family: "garden", name: "count", summary: "count the beds" },
+  tool: { name: "count_beds", description: "Count the beds." },
+  inputs: {
+    limit: { kind: "count", optional: true, describe: "how many beds to count" },
+    rows: { kind: "count", describe: "how many rows" },
+    notes: { kind: "fields", json: true, describe: "a note on each bed" },
+  },
+  async act({ rows, limit, notes }) {
+    return { text: `Counted ${rows} rows, ${limit ?? "every"} bed, notes ${JSON.stringify(notes)}.` };
+  },
+});
+
+test("13.8 · a count input is a whole number above 0, left out only when optional, and a fields input marked json takes any JSON value, a command's read as JSON where it parses, on either door", () => {
+  assert.equal(commandUsage(count), "garden count [--limit <n>] --rows <n> --<field> <value> …");
+  const read = commandInput(count, given([], { rows: "3", limit: "2", oak: "[\"by the gate\"]", ash: "tall", elm: "{\"height\":4}" }));
+  assert.deepEqual(read, { limit: 2, rows: 3, notes: { oak: ["by the gate"], ash: "tall", elm: { height: 4 } } });
+  assert.deepEqual(toolInput(count, { rows: 3, limit: 2, notes: { oak: ["by the gate"], ash: "tall", elm: { height: 4 } } }), read);
+  assert.deepEqual(commandInput(count, given([], { rows: "3" })), { limit: undefined, rows: 3, notes: {} });
+  assert.deepEqual(toolInput(count, { rows: 3 }), { limit: undefined, rows: 3, notes: {} });
+  for (const rows of ["0", "2.5", "three", "-1"]) {
+    assert.throws(() => commandInput(count, given([], { rows })), (error: unknown) => error instanceof VerbRefusal && error.misuse && error.message.includes("--rows"), `rows ${rows} is refused`);
+  }
+  assert.throws(() => commandInput(count, given([], {})), (error: unknown) => error instanceof VerbRefusal && error.misuse, "a required count left out is refused");
+  assert.throws(() => toolInput(count, {}), (error: unknown) => error instanceof VerbRefusal && error.misuse, "a required count left out is refused");
+});

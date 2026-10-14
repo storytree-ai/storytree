@@ -2,7 +2,7 @@
  * Capability 13 · Reading a command (ADR-1035 D2): the command line's own mounting code, reading a command's words and
  * flags into a declared verb's input and spelling its usage. The schema it reads is the library's.
  */
-import { mounted, VerbRefusal, type InputOf, type Verb, type VerbInput, type VerbInputs, type VerbValue } from "@storytree/library/verbs";
+import { fieldValue, mounted, VerbRefusal, type InputOf, type Verb, type VerbInput, type VerbInputs, type VerbValue } from "@storytree/library/verbs";
 
 /**
  * A command's usage, after `storytree `, from the verb's inputs: `session close-out --safe yes|no --why <why>`. A family's
@@ -17,6 +17,7 @@ export function commandUsage(declared: Verb<VerbInputs, never>): string {
     if (input.kind === "switch") return [`[--${name}]`];
     if (input.kind === "yes-no") return [`--${name} yes|no`];
     if (input.kind === "fields") return ["--<field> <value> …"];
+    if (input.kind === "count") return [input.optional ? `[--${name} <n>]` : `--${name} <n>`];
     return input.word !== undefined ? [] : [spelt(input, `--${name} <${name}>`)];
   });
   const { family, name } = declared.command;
@@ -61,7 +62,7 @@ export function commandInput(declared: Verb<VerbInputs, never>, given: CommandGi
   for (const [name, one] of inputs) {
     if (one.kind === "fields") {
       const named = new Set(Object.keys(declared.inputs));
-      input[name] = Object.fromEntries(given.names().filter((field) => !named.has(field)).map((field) => [field, given.flag(field)!]));
+      input[name] = Object.fromEntries(given.names().filter((field) => !named.has(field)).map((field) => [field, one.json ? fieldValue(given.flag(field)!) : given.flag(field)!]));
     } else if (one.kind === "text" && one.many) {
       const values = one.word === undefined ? given.flags(name) : wordsFrom(given, one.word);
       if (values.length === 0 && !one.optional) throw new VerbRefusal(`this needs ${one.word === undefined ? `--${name}` : `<${name}>`}: ${one.describe}`, { misuse: true });
@@ -73,6 +74,12 @@ export function commandInput(declared: Verb<VerbInputs, never>, given: CommandGi
       if (value === undefined) throw new VerbRefusal(`this needs --${name} yes|no`, { misuse: true });
       if (value !== "yes" && value !== "no") throw new VerbRefusal(`--${name} is yes or no, not ${JSON.stringify(value)}`, { misuse: true });
       input[name] = value === "yes";
+    } else if (one.kind === "count") {
+      const value = given.flag(name)?.trim();
+      if (value === undefined && one.optional) input[name] = undefined;
+      else if (value === undefined) throw new VerbRefusal(`this needs --${name}: ${one.describe}`, { misuse: true });
+      else if (!/^[1-9]\d*$/.test(value)) throw new VerbRefusal(`--${name} is a whole number above 0, not ${JSON.stringify(value)}`, { misuse: true });
+      else input[name] = Number(value);
     } else {
       const value = one.word === undefined ? given.flag(name) : given.word(one.word);
       if (value === undefined && one.optional) input[name] = undefined;

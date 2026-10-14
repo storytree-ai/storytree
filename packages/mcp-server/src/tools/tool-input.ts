@@ -6,14 +6,18 @@ import { VerbRefusal, type InputOf, type VerbInput, type VerbInputs, type Verb, 
 
 /**
  * A tool's arguments, as its schema checked them, read as the verb's input: a switch not given is false, a `many`
- * input is a list, and `fields` an object of strings.
+ * input is a list, a count the whole number given, and `fields` an object of strings, or of its values as given when
+ * marked json.
  */
 export function toolInput(declared: Verb<VerbInputs, never>, args: Readonly<Record<string, unknown>>): InputOf<VerbInputs> {
   const input: Record<string, VerbValue> = {};
   for (const [name, one] of Object.entries(declared.inputs)) {
     const value = args[name];
-    if (one.kind === "fields") input[name] = Object.fromEntries(Object.entries((value ?? {}) as Record<string, unknown>).map(([field, given]) => [field, String(given)]));
-    else if (one.kind !== "text") input[name] = value === true;
+    if (one.kind === "fields") input[name] = Object.fromEntries(Object.entries((value ?? {}) as Record<string, unknown>).map(([field, given]) => [field, one.json ? given : String(given)]));
+    else if (one.kind === "count") {
+      if (value === undefined && !one.optional) throw new VerbRefusal(`this needs ${name}: ${one.describe}`, { misuse: true });
+      input[name] = value as number | undefined;
+    } else if (one.kind !== "text") input[name] = value === true;
     else if (one.many) {
       const values = value === undefined ? [] : (value as readonly unknown[]).map(String);
       if (values.length === 0 && !one.optional) throw new VerbRefusal(`this needs ${name}: ${one.describe}`, { misuse: true });

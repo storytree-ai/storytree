@@ -7,19 +7,29 @@
     "./client": "./src/client.ts",
     "./session-store": "./src/session-store.ts",
     "./command": "./src/command.ts",
-    "./desktop": "./src/desktop.ts"
+    "./desktop": "./src/desktop.ts",
+    "./verbs": "./src/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
   },
   "dependencies": {
     "jose": "6.2.12",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "@storytree/project-and-caller": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "IDENTITY_FAMILIES"
+      }
+    ]
   }
 }

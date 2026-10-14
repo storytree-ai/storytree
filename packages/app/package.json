@@ -5,9 +5,11 @@
   "exports": {
     ".": "./src/index.ts",
     "./lifecycle/bridge": "./src/lifecycle/bridge.ts",
+    "./lifecycle/verbs": "./src/lifecycle/verbs.ts",
     "./projects": "./src/projects/follow.ts",
     "./projects/bridge": "./src/projects/bridge.ts",
     "./surfaces": "./src/surfaces/bridge.ts",
+    "./surfaces/verbs": "./src/surfaces/verbs.ts",
     "./updates/bridge": "./src/updates/bridge.ts",
     "./updates/verbs": "./src/updates/verbs.ts",
     "./version": "./src/updates/version.ts",
@@ -36,6 +38,14 @@
   },
   "storytree": {
     "verbs": [
+      {
+        "from": "./lifecycle/verbs",
+        "export": "APP_FAMILIES"
+      },
+      {
+        "from": "./surfaces/verbs",
+        "export": "SETTINGS_FAMILIES"
+      },
       {
         "from": "./updates/verbs",
         "export": "RELEASE_FAMILIES"

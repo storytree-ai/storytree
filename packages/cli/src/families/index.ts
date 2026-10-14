@@ -7,16 +7,13 @@ import declared from "#parts/verbs";
 
 import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
-import { appFamily } from "./app.js";
 import { auth } from "./auth.js";
 import { capabilities } from "./capability.js";
 import { doctorFamily, setupFamily } from "./doctor.js";
 import { doors } from "./doors.js";
-import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
 import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
-import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
 
@@ -31,7 +28,6 @@ const KEPT: readonly Family[] = [
   library,
   doors,
   doctorFamily,
-  appFamily,
   plan,
   mapFamily,
   affectedFamily,
@@ -39,11 +35,7 @@ const KEPT: readonly Family[] = [
   setupFamily,
   projectFamily,
   importFamily,
-  settings,
   auth,
-  signIn,
-  accountStatus,
-  signOut,
 ];
 
 export const FAMILIES: readonly Family[] = [...declared].sort((a, b) => a.order - b.order).reduce(

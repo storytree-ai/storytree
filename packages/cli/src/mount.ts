@@ -9,6 +9,7 @@
  * mounted with the families within it, its bare verb, its guesses and its retired words.
  */
 import { commandInput, commandUsage, mounted, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/project-and-caller/verbs";
+import type { SurfaceDeclaration } from "@storytree/app";
 
 import { Refusal, type Next } from "./answer.js";
 import type { ClaimContext, Context, Verb as Command, Family } from "./door.js";
@@ -27,11 +28,19 @@ export type CommandCaller = VerbContext & Pick<ClaimContext, "log">;
 
 /**
  * What this door hands every verb besides its caller: the command's own script, when known (storytree's other commands
- * sit beside an installed one), and the per-process journey runtime, which the door finishes after the answer.
+ * sit beside an installed one), the per-process journey runtime, which the door finishes after the answer, where a line
+ * is printed before the answer (sign-in's code while it waits), and the app's surfaces this host's story packages declare.
  */
 export interface CommandPlace extends VerbPlace {
   readonly script?: string;
   journey: Context["journey"];
+  out(text: string): void;
+  surfaces(): Promise<readonly SurfaceDeclaration[]>;
+}
+
+/** The app's surfaces, as each story's manifest declares them (ADR-0750, ADR-1021), in the order the Surfaces menu lists them. */
+async function surfaces(): Promise<readonly SurfaceDeclaration[]> {
+  return (await import("#parts/surfaces")).default;
 }
 
 /**
@@ -57,7 +66,7 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
       try {
         const input = commandInput(declared, { word: (index) => args.words[index], flag: (name) => args.text(name), flags: (name) => args.texts(name), has: (name) => args.has(name), names: () => args.names });
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
-        const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey() };
+        const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces };
         const caller = declared.callerless ? { ...place, ...soleSession() } as CommandCaller & CommandPlace : { ...place, ...await context.activityContext() };
         const answer = await declared.act(input, declared.writes ? writing(caller, context) : caller, WORDS);
         if (answer.raw) return { text: answer.text, raw: true };

@@ -10,10 +10,11 @@
 import { z } from "zod";
 
 import { currentBranch } from "@storytree/session-management";
-import { mounted, toolInput, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbInput, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbInput, type VerbInputs } from "@storytree/library/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 import { lineOf, type Answer, type Define } from "./server.js";
+import { toolInput } from "./tool-input.js";
 
 const WORDS: DoorWords = {
   door: "tool",

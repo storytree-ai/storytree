@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { DoorWords } from "@storytree/project-and-caller/verbs";
+import type { DoorWords } from "@storytree/library/verbs";
 
 import type { JourneyBridge, JourneyState } from "./bridge.js";
 import { JOURNEY_FAMILIES, type JourneyPlace } from "./verbs.js";

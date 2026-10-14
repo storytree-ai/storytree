@@ -5,7 +5,7 @@
  * dates), imported in the act; the drain and the route are this capability's. None is a tool: the MCP server's own
  * record_friction, reinforce, worklist, route and record_resteer tools do these jobs.
  */
-import { verb, type VerbContext } from "@storytree/project-and-caller/verbs";
+import { verb, type VerbContext } from "@storytree/library/verbs";
 import type { FieldsOf } from "@storytree/library";
 
 /** A field's value as given: JSON for a list, else the text. */

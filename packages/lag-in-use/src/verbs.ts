@@ -3,7 +3,7 @@
  * (ADR-1033), so the command line mounts it as its `lag` family: what the desktop app's own recorder kept of each named
  * action's lag on this computer, read back against the budgets. It reads a file in the storytree home and needs no caller.
  */
-import { verb, type VerbFamily, type VerbPlace } from "@storytree/project-and-caller/verbs";
+import { verb, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
 const read = verb({
   command: { family: "lag", name: "lag", summary: "each named action's response, longest frame and settled time over the last 7 days, against its budget, worst first" },

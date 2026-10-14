@@ -8,7 +8,7 @@ import { test } from "node:test";
 
 import { connect } from "@storytree/library";
 import { openActivityLog } from "@storytree/session-management";
-import { VerbRefusal, type DoorWords, type Verb, type VerbFamilies, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { VerbRefusal, type DoorWords, type Verb, type VerbFamilies, type VerbInputs } from "@storytree/library/verbs";
 
 import { ARC_FAMILIES, type ArcVerbContext } from "./index.js";
 

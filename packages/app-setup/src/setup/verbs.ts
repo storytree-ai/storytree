@@ -16,7 +16,7 @@
  *
  * `storytree setup install | remove` runs the installed `storytree-setup.mjs` beside the command.
  */
-import { verb, VerbRefusal } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal } from "@storytree/library/verbs";
 import type { ConnectOptions } from "@storytree/library";
 
 import type { SetupVerbContext } from "../verbs.js";

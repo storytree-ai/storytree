@@ -35,7 +35,6 @@
   "dependencies": {
     "@storytree/guardrails": "workspace:*",
     "@storytree/library": "workspace:*",
-    "@storytree/project-and-caller": "workspace:*",
     "@storytree/session-management": "workspace:*",
     "zod": "^4.6.5"
   },

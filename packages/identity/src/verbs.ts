@@ -7,7 +7,7 @@
  */
 import path from "node:path";
 
-import { verb, type Verb, type VerbFamily, type VerbInputs, type VerbPlace } from "@storytree/project-and-caller/verbs";
+import { verb, type Verb, type VerbFamily, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
 
 /** Where an identity verb was called: the place, and where the door prints a line before the answer. */
 export interface IdentityPlace extends VerbPlace {

@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { VerbRefusal, type Verb } from "@storytree/project-and-caller/verbs";
+import { VerbRefusal, type Verb } from "@storytree/library/verbs";
 import { z } from "zod";
 
 import { claudeCode, withAgent } from "../testing/agent.js";

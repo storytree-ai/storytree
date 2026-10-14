@@ -5,7 +5,7 @@
  * map's health worklist (ADR-0825 D4), for the librarian pass to route, and how many a test run in progress holds back.
  * Neither is a tool: the MCP server's own `health_worklist` gives the worklist, and reading CI is a terminal step.
  */
-import { verb, type VerbFamily } from "@storytree/project-and-caller/verbs";
+import { verb, type VerbFamily } from "@storytree/library/verbs";
 
 const worklist = verb({
   command: { family: "health", name: "worklist", summary: "the oldest three capabilities that are not healthy, with why, who moves each and since when" },

@@ -15,8 +15,8 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@storytree/project-and-caller": "workspace:*",
-    "posthog-node": "5.55.0"
+    "posthog-node": "5.55.0",
+    "@storytree/library": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

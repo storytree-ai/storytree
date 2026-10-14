@@ -20,10 +20,10 @@
   },
   "dependencies": {
     "@storytree/map": "workspace:*",
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "@storytree/library": "workspace:*"
   },
   "devDependencies": {
-    "@storytree/project-and-caller": "workspace:*",
     "@types/node": "^24.13.6",
     "typescript": "~7.0.2"
   }

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import type { DoorWords } from "@storytree/project-and-caller/verbs";
+import type { DoorWords } from "@storytree/library/verbs";
 
 import { APP_FAMILIES } from "./verbs.js";
 

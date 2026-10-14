@@ -13,7 +13,7 @@
  * - A decision is named by its id or number. Listing uses list(kind), then decision(id) so the library owns
  *   supersession and the status shown or filtered.
  */
-import { verb, VerbRefusal, type VerbContext } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type VerbContext } from "@storytree/library/verbs";
 import type { DecisionView, Library } from "@storytree/library";
 
 /** The fields a pushed file may change, in the order the file shows them. */

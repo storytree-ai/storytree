@@ -3,7 +3,7 @@
  * names under `verbs` (ADR-1033), each at its place among `storytree`'s families: `adr` 4th, `friction` 13th and
  * `resteer` 14th.
  */
-import type { VerbFamily } from "@storytree/project-and-caller/verbs";
+import type { VerbFamily } from "@storytree/library/verbs";
 
 import { ADR_GUESSES, ADR_VERBS } from "./decision-log/verbs.js";
 import { FRICTION_VERBS, RESTEER_VERBS } from "./queues/verbs.js";

@@ -5,7 +5,7 @@
  * recorded" (ADR-0746 D2). Both read only. The command line mounts them as its `noticeboard` family (SESSION_FAMILIES);
  * the MCP server has no tool for either.
  */
-import { verb, VerbRefusal, type Verb, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type Verb, type VerbInputs } from "@storytree/library/verbs";
 
 import type { SessionVerbContext } from "../sessions/verbs.js";
 import type { Claim } from "./claims.js";

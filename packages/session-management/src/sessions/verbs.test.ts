@@ -1,8 +1,8 @@
 /**
- * Capability 4 · Sessions. The session verbs, declared once under Project and caller's verb contract (ADR-0969 D2,
- * ADR-1025): naming a session, closing it out and listing the sessions read the same from either door and answer the
- * same. Lines go to the real agent activity log on the Postgres `pnpm test` provides; the process ledger is a
- * throwaway home.
+ * Capability 4 · Sessions. The session verbs, declared once under the library's command schema (ADR-0969 D2,
+ * ADR-1035): naming a session, closing it out and listing the sessions answer the same from either door; how each door
+ * reads their words is the door's own (the command line's 13.1). Lines go to the real agent activity log on the Postgres
+ * `pnpm test` provides; the process ledger is a throwaway home.
  */
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
@@ -15,7 +15,7 @@ import type { Library } from "@storytree/library";
 import { openActivityLog } from "../activity/index.js";
 import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
-import { commandInput, commandUsage, toolInput, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/library/verbs";
 
 import { SESSION_VERBS, type SessionVerbContext } from "./verbs.js";
 
@@ -34,25 +34,12 @@ function find(tool: string): Verb<VerbInputs, SessionVerbContext> {
   return found;
 }
 
-test("4.34 · naming a session, closing it out and listing the sessions are verbs declared once: each door reads them to the same input and refuses the same wrong input, and closing out or naming answers in the same sentence for either door, writing to the calling session's log", async () => {
+test("4.34 · naming a session, closing it out and listing the sessions are verbs declared once: closing out or naming answers in the same sentence for either door, writing to the calling session's log", async () => {
   const close = find("close_out");
-  assert.equal(commandUsage(close), "session close-out --safe yes|no --why <why>");
-  const fromCommand = commandInput(close, given([], { safe: "no", why: " handoff " }));
-  const fromTool = toolInput(close, { safe: false, why: "handoff" });
-  assert.deepEqual(fromCommand, fromTool);
-  assert.deepEqual(fromTool, { safe: false, why: "handoff" });
-  // Wrong input is refused on both doors, as a misuse the command line shows its usage for.
-  for (const refused of [() => commandInput(close, given([], { safe: "maybe", why: "x" })), () => commandInput(close, given([], { safe: "yes", why: "  " })), () => toolInput(close, { safe: true, why: "  " })]) {
-    assert.throws(refused, (error: unknown) => error instanceof VerbRefusal && error.misuse);
-  }
-
   const name = find("name_session");
-  assert.equal(commandUsage(name), "session name <title>");
-  assert.deepEqual(commandInput(name, given(["Building signup"], {})), toolInput(name, { title: "Building signup" }));
   const list = SESSION_VERBS.find((one) => "name" in one.command && one.command.name === "list")!;
   assert.ok("absent" in list.tool, "listing the sessions has no tool, and says why");
-  assert.equal(commandUsage(list), "session list [--all] [--json]");
-  assert.deepEqual(toolInput(list, {}), { all: false, json: false });
+  const input = { safe: false, why: "handoff" };
 
   const log = await openActivityLog(testServerUrl());
   const home = await mkdtemp(path.join(tmpdir(), "verbs-"));
@@ -60,8 +47,8 @@ test("4.34 · naming a session, closing it out and listing the sessions are verb
     const project = uniqueProjectName();
     const context = { log, library: {} as Library, project, session: "claude-1", harness: "claude-code", folder: home, home };
     await log.append(project, { session: "claude-1", harness: "claude-code", source: "tool", kind: "claimed", capability: "form", reason: "building it" });
-    const byCommand = await close.act(fromCommand, context, DOORS.command);
-    const byTool = await close.act(fromTool, context, DOORS.tool);
+    const byCommand = await close.act(input, context, DOORS.command);
+    const byTool = await close.act(input, context, DOORS.tool);
     assert.equal(byCommand.text, "Closed out: not safe to close (handoff). Nothing of yours is running here. Released claims: form.");
     assert.equal(byTool.text, "Closed out: not safe to close (handoff). Nothing of yours is running here. No claims to release.");
     assert.deepEqual(byTool.data, { safe: false, released: [], running: 0 });

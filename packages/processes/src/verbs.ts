@@ -5,7 +5,7 @@
  * alone; with none, only `processes --all` reads. None is a tool: the MCP server has its own list_own_runs,
  * list_all_runs, stop_own_run and clear_own_runs.
  */
-import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
 /** The session the door handed, if any: whose runs are this caller's. */
 function callerOf(place: VerbPlace): { session: string; harness?: string } | undefined {

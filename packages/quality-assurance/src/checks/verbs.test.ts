@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { VerbRefusal, type DoorWords } from "@storytree/project-and-caller/verbs";
+import { VerbRefusal, type DoorWords } from "@storytree/library/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 import { withLibrary } from "../testing/pg.js";

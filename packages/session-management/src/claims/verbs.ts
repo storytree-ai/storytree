@@ -4,7 +4,7 @@
  * changing imported code. The command line mounts them as its `workspace` family (WORKSPACE_FAMILIES); the MCP server still answers the
  * same work through its own tools, so none is mounted as a tool here.
  */
-import { verb, VerbRefusal, type VerbFamily } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 
 import type { SessionVerbContext } from "../sessions/verbs.js";
 import type { Waiting } from "./claims.js";

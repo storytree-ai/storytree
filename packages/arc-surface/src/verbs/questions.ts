@@ -17,7 +17,7 @@
  * presentQuestion, which refuses it while another live session is (its 5.36), and `--done` clears the mark; `list`
  * flags each question a live session is presenting.
  */
-import { verb, VerbRefusal } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal } from "@storytree/library/verbs";
 import type { SchemaRecord } from "@storytree/library";
 
 import { labelOf, releasedAsking, valueOf, type ArcVerbContext } from "./context.js";

@@ -8,9 +8,10 @@
  * none; a raw answer is printed as it is. A declared family is
  * mounted with the families within it, its bare verb, its guesses and its retired words.
  */
-import { commandInput, commandUsage, mounted, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/project-and-caller/verbs";
+import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
 
 import { Refusal, type Next } from "./answer.js";
+import { commandInput, commandUsage } from "./command-input.js";
 import type { ClaimContext, Context, Verb as Command, Family } from "./door.js";
 import { commandSession, soleSession } from "./writer.js";
 

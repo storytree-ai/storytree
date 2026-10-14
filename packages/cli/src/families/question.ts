@@ -23,7 +23,6 @@ import type { SchemaRecord } from "@storytree/library";
 import { labelOf, Refusal } from "../answer.js";
 import type { Context, Family, Verb } from "../door.js";
 import { valueOf } from "./library.js";
-import { releasedAsking } from "./workspace.js";
 
 const QUESTION_FIELDS = ["arc", "title", "stakes", "statement", "context", "options", "analogy", "diagram", "recommendation"] as const;
 
@@ -236,3 +235,14 @@ export const questions: Family = {
   verbs: [raise, show, present, settle, retire, list, check, renew],
   guesses: { read: "question show <id>", get: "question show <id>", open: "question show <id>" },
 };
+
+/**
+ * Asking the owner about an increment releases the work the caller holds for it, through the agent
+ * link's releaseAsked (ADR-0944 D4): the question's `--hold` and an owner wait both say so here. A
+ * caller holding none of it, a person's shell included, releases nothing and is told nothing.
+ */
+export async function releasedAsking(context: Context, increment: string): Promise<string> {
+  const { releaseAsked } = await import("@storytree/session-management");
+  const released = await releaseAsked(await context.activityContext(), increment);
+  return released.length === 0 ? "" : ` Released your claims on ${released.join(", ")}.`;
+}

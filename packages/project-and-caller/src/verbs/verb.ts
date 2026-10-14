@@ -12,19 +12,19 @@
 import type { Library, Storytree, WriteOptions } from "@storytree/library";
 
 /**
- * One input. `text` is a non-empty string, a command's word at `word` when given, else its `--flag <value>`;
- * `yes-no` is a boolean, a command's `--flag yes|no`; `switch` is a boolean that is false unless given, a
- * command's bare `--flag`.
+ * One input. `text` is a non-empty string, a command's word at `word` when given, else its `--flag <value>`, and
+ * left out it reads as nothing when `optional`; `yes-no` is a boolean, a command's `--flag yes|no`; `switch` is a
+ * boolean that is false unless given, a command's bare `--flag`.
  */
 export type VerbInput =
-  | { readonly kind: "text"; readonly describe: string; readonly word?: number }
+  | { readonly kind: "text"; readonly describe: string; readonly word?: number; readonly optional?: true }
   | { readonly kind: "yes-no"; readonly describe: string }
   | { readonly kind: "switch"; readonly describe: string };
 
 export type VerbInputs = Readonly<Record<string, VerbInput>>;
 
 /** What the inputs come to when the work runs. */
-export type InputOf<I extends VerbInputs> = { readonly [K in keyof I]: I[K] extends { kind: "text" } ? string : I[K] extends { kind: "yes-no" | "switch" } ? boolean : string | boolean };
+export type InputOf<I extends VerbInputs> = { readonly [K in keyof I]: I[K] extends { kind: "text"; optional: true } ? string | undefined : I[K] extends { kind: "text" } ? string : I[K] extends { kind: "yes-no" | "switch" } ? boolean : string | boolean | undefined };
 
 /** How a door names a step: the tool, the command (after `storytree `), or both. */
 export interface Step {
@@ -80,8 +80,8 @@ export interface Absent {
 }
 
 export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbContext = VerbContext> {
-  /** `storytree <family> <name>`. */
-  readonly command: { readonly family: string; readonly name: string; readonly summary: string } | Absent;
+  /** `storytree <family> <name>`, with its usage (after `storytree `) when its inputs cannot spell it, as grouped flags. */
+  readonly command: { readonly family: string; readonly name: string; readonly summary: string; readonly usage?: string } | Absent;
   readonly tool: { readonly name: string; readonly description: string } | Absent;
   readonly inputs: I;
   /** Only an agent session may call it: why, as "it closes out the agent session that runs it". */
@@ -92,12 +92,14 @@ export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbContext =
 /**
  * A command family a story declares in its manifest's `verbs` (ADR-1033): `storytree <name> <verb>` for each of its
  * verbs, listed `order`th among `storytree`'s families, counted from 1, so a family keeps its place in the help as it moves.
+ * `bare` runs for `storytree <name> …` when the next word names none of its verbs.
  */
 export interface VerbFamily<C extends VerbContext = VerbContext> {
   readonly name: string;
   readonly summary: string;
   readonly order: number;
   readonly verbs: readonly Verb<VerbInputs, C>[];
+  readonly bare?: Verb<VerbInputs, C>;
 }
 
 /** Declare a verb, keeping its inputs' and its context's types for its act. */
@@ -112,15 +114,16 @@ export function mounted<T extends object>(face: T | Absent): face is T {
 /** A command's usage, after `storytree `, from the verb's inputs: `session close-out --safe yes|no --why <why>`. */
 export function commandUsage(declared: Verb<VerbInputs, never>): string {
   if (!mounted(declared.command)) throw new Error(`${mounted(declared.tool) ? declared.tool.name : "this verb"} has no command: ${declared.command.absent}`);
+  if (declared.command.usage !== undefined) return declared.command.usage;
   const entries = Object.entries(declared.inputs);
   const words = entries.flatMap(([name, input]) => input.kind === "text" && input.word !== undefined ? [[input.word, `<${name}>`] as const] : []).sort(([a], [b]) => a - b).map(([, word]) => word);
-  const flags = entries.flatMap(([name, input]) => input.kind === "switch" ? [`[--${name}]`] : input.kind === "yes-no" ? [`--${name} yes|no`] : input.word === undefined ? [`--${name} <${name}>`] : []);
+  const flags = entries.flatMap(([name, input]) => input.kind === "switch" ? [`[--${name}]`] : input.kind === "yes-no" ? [`--${name} yes|no`] : input.word !== undefined ? [] : input.optional ? [`[--${name} <${name}>]`] : [`--${name} <${name}>`]);
   return [declared.command.family, declared.command.name, ...words, ...flags].join(" ");
 }
 
 /** A command's words and flags read as the verb's input, or a refusal saying what is wrong. */
 export function commandInput(declared: Verb<VerbInputs, never>, given: { word(index: number): string | undefined; flag(name: string): string | undefined; has(name: string): boolean }): InputOf<VerbInputs> {
-  const input: Record<string, string | boolean> = {};
+  const input: Record<string, string | boolean | undefined> = {};
   for (const [name, one] of Object.entries(declared.inputs)) {
     if (one.kind === "switch") {
       input[name] = given.has(name);
@@ -131,8 +134,9 @@ export function commandInput(declared: Verb<VerbInputs, never>, given: { word(in
       input[name] = value === "yes";
     } else {
       const value = one.word === undefined ? given.flag(name) : given.word(one.word);
-      if (value === undefined) throw new VerbRefusal(`this needs ${one.word === undefined ? `--${name}` : `<${name}>`}: ${one.describe}`, { misuse: true });
-      input[name] = said(name, one, value);
+      if (value === undefined && one.optional) input[name] = undefined;
+      else if (value === undefined) throw new VerbRefusal(`this needs ${one.word === undefined ? `--${name}` : `<${name}>`}: ${one.describe}`, { misuse: true });
+      else input[name] = said(name, one, value);
     }
   }
   return input;
@@ -140,8 +144,10 @@ export function commandInput(declared: Verb<VerbInputs, never>, given: { word(in
 
 /** A tool's arguments, as its schema checked them, read as the verb's input: a switch not given is false. */
 export function toolInput(declared: Verb<VerbInputs, never>, args: Readonly<Record<string, unknown>>): InputOf<VerbInputs> {
-  const input: Record<string, string | boolean> = {};
-  for (const [name, one] of Object.entries(declared.inputs)) input[name] = one.kind === "switch" ? args[name] === true : one.kind === "text" ? said(name, one, String(args[name])) : args[name] === true;
+  const input: Record<string, string | boolean | undefined> = {};
+  for (const [name, one] of Object.entries(declared.inputs)) {
+    input[name] = one.kind !== "text" ? args[name] === true : args[name] === undefined && one.optional ? undefined : said(name, one, String(args[name]));
+  }
   return input;
 }
 

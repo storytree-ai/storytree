@@ -263,7 +263,7 @@ test("12.11 · with free slots and nothing ready, one planning session starts fo
 
 test("12.14 · an arc it planned in a state it remembers is not planned again after a restart, and is once that state changes", async (t) => {
   const arc = { id: "arc_owner", state: "active", title: "Owner", created: "2026-10-01T00:00:00Z", openQuestions: 0 };
-  const waiting = (ids) => ({ ...poolWork(ids), increments: poolWork(ids).increments.map((one) => ({ ...one, arc: arc.id })), arcs: [arc], holds: { waits: {}, heldOn: {}, waitsFor: Object.fromEntries(ids.map((id) => [id, [{ releaser: "owner", note: "the owner runs reissue-cert.sh prepare", holds: true }]])) } });
+  const waiting = (ids) => ({ ...poolWork(ids), increments: poolWork(ids).increments.map((one) => ({ ...one, arc: arc.id })), arcs: [arc], holds: { waits: {}, heldOn: {}, waitsFor: Object.fromEntries(ids.map((id) => [id, [{ releaser: "event", note: "Apple renews the certificate", holds: true }]])) } });
   const restart = async (b, work) => {
     const started = [];
     b.survey = async () => work;

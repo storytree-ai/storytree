@@ -72,7 +72,7 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
  * that refused a session is said once, and its increment waits until that claim clears. With free slots and nothing
  * ready, it launches one planning session (`{ plan: true }`) for the arc feed.mjs's pickPlan offers, never two at
  * once, and an arc again only once its state differs from the one it was last planned in (`plans` keeps those across restarts,
- * so an arc waiting on the owner costs one planning lane, not one per restart). Ends on the stop file, 75 (an engine failing at once), or RESTART once `codeVersion` (the code
+ * so an arc whose work waits on an event costs one planning lane, not one per restart). Ends on the stop file, 75 (an engine failing at once), or RESTART once `codeVersion` (the code
  * it runs in the shared checkout, queue.mjs's POOL_CODE) differs from its start, each after its running sessions end; when a survey fails or
  * finds nothing and no session is starting, it first brings the checkout up to date (`refresh`) to see that change.
  */

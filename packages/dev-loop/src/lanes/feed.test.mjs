@@ -122,25 +122,25 @@ test("11.10 · the pool takes ready work by its arc's priority, then by when it 
   assert.deepEqual(read.increments.map((one) => one.priority), [3, undefined], "the survey carries each increment's arc priority");
 });
 
-test("11.9 · an active arc whose open work all waits, with no open question, is offered for planning, oldest first, and not again in the state it was planned in", () => {
+test("11.9 · an active arc whose open work all waits on an event, or has none, with no open question, is offered for planning, oldest first, and not again in the state it was planned in", () => {
   const arc = (id, created, extra = {}) => ({ id, state: "active", title: id, created, openQuestions: 0, ...extra });
   const work = survey([
     increment("waiting", "x", { arc: "arc_waits" }), increment("done", "x", { arc: "arc_waits", status: "closed" }),
-    increment("held", "x", { arc: "arc_held" }), increment("ready", "x", { arc: "arc_ready" }),
+    increment("ready", "x", { arc: "arc_ready" }),
     increment("claimed", "x", { arc: "arc_claimed" }), increment("event", "x", { arc: "arc_event" }),
   ], {
-    arcs: [arc("arc_waits", "2026-10-03T00:00:00Z"), arc("arc_empty", "2026-10-02T00:00:00Z"), arc("arc_held", "2026-10-04T00:00:00Z"),
+    arcs: [arc("arc_waits", "2026-10-03T00:00:00Z"), arc("arc_empty", "2026-10-02T00:00:00Z"),
       arc("arc_ready", "2026-09-01T00:00:00Z"), arc("arc_claimed", "2026-09-01T00:00:00Z"), arc("arc_asked", "2026-09-01T00:00:00Z", { openQuestions: 1 }),
       arc("arc_parked", "2026-09-01T00:00:00Z", { state: "parked" }), arc("arc_event", "2026-10-05T00:00:00Z")],
-    holds: { waits: { waiting: [{ on: "x" }] }, heldOn: { held: ["question_1"] }, waitsFor: { event: [{ releaser: "event", note: "PR", holds: true }] } },
+    holds: { waits: {}, heldOn: {}, waitsFor: { waiting: [{ releaser: "event", note: "the vendor ships 2.0", holds: true }], event: [{ releaser: "event", note: "PR", holds: true }] } },
     claims: [{ increment: "claimed", session: "s1", holder: "live", since: "2026-10-07T00:00:00Z" }],
   });
   const plan = (planned) => pickPlan(work, { planned });
   const after = (...ids) => new Map(ids.map((id) => [id, planState(work, id)]));
   assert.equal(plan(new Map())?.id, "arc_empty", "an arc with no open work qualifies, oldest first");
   assert.equal(plan(after("arc_empty"))?.id, "arc_waits", "closed work does not count; an arc planned in its present state is not offered again");
-  assert.deepEqual(["arc_empty", "arc_waits", "arc_held", "arc_event"].map((id, at, all) => plan(after(...all.slice(0, at)))?.id), ["arc_empty", "arc_waits", "arc_held", "arc_event"]);
-  assert.equal(plan(after("arc_empty", "arc_waits", "arc_held", "arc_event")), undefined,
+  assert.deepEqual(["arc_empty", "arc_waits", "arc_event"].map((id, at, all) => plan(after(...all.slice(0, at)))?.id), ["arc_empty", "arc_waits", "arc_event"]);
+  assert.equal(plan(after("arc_empty", "arc_waits", "arc_event")), undefined,
     "ready or claimed work, an open question and a parked arc never qualify");
   assert.equal(pickPlan(survey([], { arcs: [arc("arc_e42da2528db8", "2026-09-01T00:00:00Z")] }))?.id, "arc_e42da2528db8", "the website arc is planned like any other");
   assert.equal(pickPlan(survey([])), undefined, "a survey without arcs offers none");
@@ -163,9 +163,9 @@ test("11.13 · an arc whose open work waits on its own handed-over pull requests
   assert.equal(pickPlan(work)?.id, "arc_stalled", "a hand-over wait, its watcher record, and a wait on an increment holding one are in flight");
 });
 
-test("11.20 · an arc planned while its open work waits on the owner is offered again only once that work changes", () => {
+test("11.20 · an arc planned while its open work waits on an event is offered again only once that work changes", () => {
   const arcs = [{ id: "arc_owner", state: "active", title: "Owner", created: "2026-10-01T00:00:00Z", openQuestions: 0 }];
-  const owner = { releaser: "owner", note: "the owner runs reissue-cert.sh prepare", holds: true };
+  const owner = { releaser: "event", note: "Apple renews the certificate", holds: true };
   const work = (increments, waitsFor) => survey(increments, { arcs, holds: { waits: {}, heldOn: {}, waitsFor } });
   const waiting = work([increment("cert", "x", { arc: "arc_owner" })], { cert: [owner] });
   const first = pickPlan(waiting);
@@ -175,10 +175,32 @@ test("11.20 · an arc planned while its open work waits on the owner is offered 
     "the same open work, read again (as a restarted dispatcher reads it), is not planned again");
   assert.equal(pickPlan(work([increment("cert", "x", { arc: "arc_owner" }), increment("next", "x", { arc: "arc_owner" })], { cert: [owner], next: [owner] }), { planned })?.id, "arc_owner",
     "a newly parked increment is a change");
-  assert.equal(pickPlan(work([increment("cert", "x", { arc: "arc_owner" })], { cert: [{ ...owner, note: "the owner signs in" }] }), { planned })?.id, "arc_owner",
+  assert.equal(pickPlan(work([increment("cert", "x", { arc: "arc_owner" })], { cert: [{ ...owner, note: "the vendor ships 2.0" }] }), { planned })?.id, "arc_owner",
     "a different wait is a change");
   assert.equal(pickPlan(work([increment("cert", "x", { arc: "arc_owner", status: "closed" })], {}), { planned })?.id, "arc_owner",
     "its work closing is a change");
+});
+
+test("11.21 · an arc whose open work all waits on the owner, a question or other live work is not offered for planning; one with an event wait or a dead blocker still is", () => {
+  const arc = (id, created) => ({ id, state: "active", title: id, created, openQuestions: 0 });
+  const owner = { releaser: "owner", note: "the owner sets CSC_LINK", holds: true };
+  const work = survey([
+    increment("cert", "x", { arc: "arc_mac" }), increment("reply", "x", { arc: "arc_mac" }), increment("after", "x", { arc: "arc_mac" }),
+    increment("asked", "x", { arc: "arc_asked" }),
+    increment("vendor", "x", { arc: "arc_event" }),
+    increment("orphan", "x", { arc: "arc_dead" }),
+  ], {
+    arcs: [arc("arc_mac", "2026-09-01T00:00:00Z"), arc("arc_asked", "2026-09-02T00:00:00Z"), arc("arc_event", "2026-09-03T00:00:00Z"), arc("arc_dead", "2026-09-04T00:00:00Z")],
+    holds: {
+      waits: { after: [{ on: "cert", reason: "needs a signed release", forGood: false }], orphan: [{ on: "gone", reason: "x", forGood: true }] },
+      heldOn: { asked: ["question_1"] },
+      waitsFor: { cert: [owner], reply: [{ ...owner, note: "Don replies" }], vendor: [{ releaser: "event", note: "the vendor ships 2.0", holds: true }] },
+    },
+  });
+  const plan = (...planned) => pickPlan(work, { planned: new Map(planned.map((id) => [id, planState(work, id)]))})?.id;
+  assert.equal(plan(), "arc_event", "owner waits, a wait on live work and a held-on question leave planning nothing to add");
+  assert.equal(plan("arc_event"), "arc_dead", "a wait on a blocker that can never land is stale, for planning to clear");
+  assert.equal(plan("arc_event", "arc_dead"), undefined);
 });
 
 test("11.11 · work whose session ended without a hand-off is offered again after a back-off, and not before", () => {

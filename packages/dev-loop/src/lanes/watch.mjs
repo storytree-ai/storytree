@@ -1,10 +1,11 @@
 // Capability 13 · A watcher lands a handed-over pull request (ADR-0955 D3). A Mint session ends once its pull request
 // is open and its gate is green, and hands the pull request here; this script, not a model, watches CI and the merge
 // queue: on MERGED it closes the increment and releases the session's claims, on a red it starts one fix session.
-// node packages/dev-loop/src/lanes/watch.mjs hand <pr> <increment> [--session <id>] [--keep-open] [--refused]   (records it and starts the watcher)
+// node packages/dev-loop/src/lanes/watch.mjs hand <pr> <increment> [--session <id>] [--keep-open] [--refused [--holder <session>]]   (records it and starts the watcher)
 // node packages/dev-loop/src/lanes/watch.mjs handover <pr> <increment> [--keep-open]               (from any machine: `hand` on the box, else over ssh)
 // --keep-open: one of several pull requests for its increment, so on MERGED the watcher leaves the increment open (13.11).
-// --refused: a fix session hands back untouched because a claim refused it, so it does not count against the limit (13.14).
+// --refused: a fix session hands back untouched because a claim refused it, so it does not count against the limit (13.14);
+// --holder names the session the refusal said holds the work, and the retry waits until that session holds no claim (13.22).
 // node packages/dev-loop/src/lanes/watch.mjs run                                     (the watcher: one per box; keeps `watch` running)
 // node packages/dev-loop/src/lanes/watch.mjs watch                                   (its look loop, which `run` starts; exits 3 on its own code change)
 // node packages/dev-loop/src/lanes/watch.mjs status
@@ -138,11 +139,11 @@ export async function handedOff(dir) {
  * (checking back in three days, after which the pool may take it again: an event wait needs that day), record the hand-off (one per pull request; handing back keeps its fix sessions), and start the watcher.
  * `keepOpen` marks one of several pull requests for the increment: its merge releases the session's claims but closes nothing.
  * `refused` is a fix session handing back untouched because another session's claim refused it: its fix is marked
- * refused, so it does not count against the limit (13.14).
+ * refused, so it does not count against the limit (13.14), with the `holder` its refusal named, if any, and when (13.22).
  * An increment that already closed (on an earlier pull request of a stack) waits for nothing, so its refusal of the
  * wait is no refusal of the hand-off: the record is marked `closed`, and the watcher still watches and fixes it (13.13).
  */
-export async function hand({ dir, pr, increment, session, keepOpen = false, refused = false, storytree, startWatcher, now = Date.now }) {
+export async function hand({ dir, pr, increment, session, keepOpen = false, refused = false, holder, storytree, startWatcher, now = Date.now }) {
   await mkdir(dir, { recursive: true });
   const old = (await records(dir)).find((record) => record.pr === pr);
   let closed = false;
@@ -151,7 +152,7 @@ export async function hand({ dir, pr, increment, session, keepOpen = false, refu
     "--check-back", new Date(now() + 3 * 86_400_000).toISOString().slice(0, 10)])
     .catch((error) => { if (/ is closed, and waits for nothing/.test(error.message)) closed = true; else throw error; });
   const last = old?.fixes?.at(-1);
-  if (refused && last) last.refused = true;
+  if (refused && last) Object.assign(last, { refused: true, refusedAt: new Date(now()).toISOString() }, holder ? { holder } : {});
   await save(dir, { fixes: [], fixing: null, ...old, pr, increment, session, keepOpen, closed, handedAt: new Date(now()).toISOString() });
   await startWatcher();
   return { closed };
@@ -197,8 +198,9 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
 - Hand it back: \`node packages/dev-loop/src/lanes/watch.mjs hand ${handBack}\`, then
   \`pnpm storytree session close-out --safe yes --why "PR #${pr} fixed and handed back to the watcher"\`, and end.
 - If a claim you need is refused (another session holds the increment or a capability), leave the branch alone: hand it back
-  with \`node packages/dev-loop/src/lanes/watch.mjs hand ${handBack} --refused\`, close out and end. A refused session does
-  not count against the limit, and the watcher starts the next one once no other fix session runs.
+  with \`node packages/dev-loop/src/lanes/watch.mjs hand ${handBack} --refused --holder <session>\`, where <session> is the
+  session id the refusal names ("held by … session <id>"), close out and end. A refused session does not count against
+  the limit, and the watcher starts the next one once that session holds no claim.
 - If it needs the owner (a decision, a sign-in, a spend), raise the question on the increment's arc${closed ? "" : " holding the increment"}, then close out and end.
 `;
 }
@@ -212,12 +214,13 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * pull request and its branch (13.20). A fix session whose branch moved while it ran made progress, so it counts for
  * nothing when the next red is a conflict, since a newer main made that one (13.19); `cap` sessions on one pull
  * request, counted or not, end it as the limit does. A fix
- * session refused by another's claim counts for nothing, and its retry waits until no other fix session runs (13.14).
+ * session refused by another's claim counts for nothing (13.14). Its retry waits until the session its refusal named
+ * holds no claim on the noticeboard; a refusal that named none waits `backoff` after it and for no other fix session to run (13.22).
  * Conflicts are merged one at a time, lowest pull request first: siblings that conflict on one file would refuse
  * each other's claims if their merge sessions ran together (13.15). A hand-off on an increment that had already
  * closed has no wait to clear and nothing to close, and past its limit is only said (13.13).
  */
-export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, cap = 6, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -225,6 +228,9 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
   // The fix sessions running at this look, by pull request, and whether each is merging a conflict with main.
   const running = new Map();
   for (const record of all) if (record.fixing && await alive(record.fixing.pid)) running.set(record.pr, record.fixes.at(-1)?.conflict ?? false);
+  // The noticeboard, read once a look and only when a refusal named its holder.
+  let board;
+  const holds = async (session) => (board ??= await tell(["noticeboard"])).split("\n").some((line) => /^\s*- (?:increment|capability) /.test(line) && line.includes(` ${session} `));
   for (const record of all) {
     const { pr, increment } = record;
     let pull;
@@ -286,7 +292,8 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
       dated(`PR #${pr} still red after ${counted} fix sessions: ${increment} waits on the owner`);
       continue;
     }
-    if (record.fixes.at(-1)?.refused && running.size) continue;
+    if (last?.refused && (last.holder ? await holds(last.holder)
+      : running.size || now() < Date.parse(last.refusedAt ?? last.at) + backoff)) continue;
     if (pull.conflict && [...running.values()].some(Boolean)) continue;
     if (!(await room())) continue;
     if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
@@ -396,7 +403,8 @@ export async function main(args, box = {}) {
   if (args[0] === "hand" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {
     const at = args.indexOf("--session");
     const session = at > 0 ? args[at + 1] ?? "" : b.session;
-    const { closed } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, keepOpen, refused, storytree: b.storytree, now: b.now,
+    const holder = args.includes("--holder") ? args[args.indexOf("--holder") + 1] : undefined;
+    const { closed } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, keepOpen, refused, holder, storytree: b.storytree, now: b.now,
       startWatcher: () => ensureWatcher({ pidFile: b.pidFile, argsOf: b.argsOf, spawn: b.startWatcher }) });
     out(`PR #${args[1]} handed to the watcher (${join(b.dir, `${args[1]}.json`)}); `
       + (closed ? `${args[2]} had already closed, so the watcher watches and fixes it to its merge and closes nothing.`
@@ -427,7 +435,7 @@ export async function main(args, box = {}) {
     if (!found.length) out("no hand-offs");
     return 0;
   }
-  if (args[0] !== "run" && args[0] !== "watch") { out("usage: watch.mjs handover <pr> <increment> [--keep-open] | hand <pr> <increment> [--session <id>] [--keep-open] [--refused] | release-fix --pr <n> | --question <id> | run | status"); return 2; }
+  if (args[0] !== "run" && args[0] !== "watch") { out("usage: watch.mjs handover <pr> <increment> [--keep-open] | hand <pr> <increment> [--session <id>] [--keep-open] [--refused [--holder <session>]] | release-fix --pr <n> | --question <id> | run | status"); return 2; }
   const say = b.say ?? ((line) => out(line));
   const dated = (message) => say(`${new Date(b.now()).toISOString()} ${message}`);
   if (args[0] === "run") {

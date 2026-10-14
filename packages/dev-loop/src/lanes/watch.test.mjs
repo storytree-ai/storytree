@@ -319,8 +319,9 @@ test("13.14 · a fix session refused by another session's claim hands back witho
   await watchOnce(b.options);
   assert.deepEqual(b.fixes.map((fix) => fix.pr), [41, 42, 41], "#41's next session starts; #42 waits while it runs");
   b.live.clear();
+  b.tick(15 * 60_000);
   await watchOnce(b.options);
-  assert.deepEqual(b.fixes.map((fix) => fix.pr), [41, 42, 41, 42], "retried once no other fix session runs");
+  assert.deepEqual(b.fixes.map((fix) => fix.pr), [41, 42, 41, 42], "retried once no other fix session runs and the back-off has passed");
   assert.match(b.fixes[3].brief, /Fix session 1 of 2/, "the refusal is not counted");
   b.live.clear();
   await watchOnce(b.options);
@@ -328,6 +329,39 @@ test("13.14 · a fix session refused by another session's claim hands back witho
   assert.ok(!b.calls.some(([, , verb, inc, , waitFor]) => verb === "wait" && inc === "increment_two" && waitFor === "owner"),
     "#42's refusal leaves it one more");
   assert.equal(b.fixes.filter((fix) => fix.pr === 42).length, 3);
+});
+
+test("13.22 · a refused fix session is not started again while the session its refusal names still holds a claim, and is once that claim clears", async (t) => {
+  const holding = `  - capability capability_shared  Claude Code bbbb-other (live, on claude/y), since 2026-10-10T11:00:00Z: other`;
+  const b = await box(t, { board: `1 claim now:\n${holding}` });
+  await handOff(b, 42, "increment_two");
+  b.looks[42] = red;
+  await watchOnce(b.options);
+  assert.match(b.fixes[0].brief, /--refused --holder <session>/, "the brief says how to name the holder");
+  await main(["hand", "42", "increment_two", "--refused", "--holder", "bbbb-other"], { dir: b.dir, now: b.options.now, out: () => {},
+    storytree: b.options.storytree, pidFile: join(b.dir, "pid"), argsOf: async () => "", startWatcher: async () => 1 });
+  assert.equal((await saved(b, 42)).fixes.at(-1).holder, "bbbb-other");
+  b.live.clear();
+  for (let round = 0; round < 3; round++) { b.tick(60 * 60_000); await watchOnce(b.options); }
+  assert.equal(b.fixes.length, 1, "no other fix session runs, but the holder still holds its claim");
+  b.options.storytree = async (args) => { b.calls.push(args); return args[0] === "noticeboard" ? "No claims now." : ""; };
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 2, "retried once the holder's claim clears");
+  assert.match(b.fixes[1].brief, /Fix session 1 of 2/, "the refusal is not counted");
+});
+
+test("13.22 · a refusal that names no holder is retried only after a back-off, not at the next look", async (t) => {
+  const b = await box(t);
+  await handOff(b, 42, "increment_two");
+  b.looks[42] = red;
+  await watchOnce(b.options);
+  await hand({ ...b.options, pr: 42, increment: "increment_two", session: SESSION, refused: true, startWatcher: async () => {} });
+  b.live.clear();
+  for (let round = 0; round < 5; round++) { b.tick(60_000); await watchOnce(b.options); }
+  assert.equal(b.fixes.length, 1, "five looks a minute apart start nothing");
+  b.tick(15 * 60_000);
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 2, "retried once the back-off has passed");
 });
 
 test("13.15 · pull requests that conflict with main are merged one at a time, lowest first, and none waits on the owner for it", async (t) => {

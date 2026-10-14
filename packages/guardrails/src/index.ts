@@ -4,5 +4,5 @@
  */
 export { packageProblems, storiesOf, type Declarations, type Edge, type Frame, type NotYetMoved } from "./package-rule/package-rule.js";
 export { allocationProblems, misdeclaredCode, unallocatedCode, undeclaredCode, type AllocationOptions, type Misdeclared, type Unallocated, type Undeclared } from "./allocation-rule/allocation-rule.js";
-export { check, checkoutOf, type CheckReport } from "./check/check.js";
+export { check, checkoutOf, declarationsOf, type CheckReport } from "./check/check.js";
 export { GRADUATED_CHECKS, graduatedChecks, selfEqualAssertions, type GraduatedCheck, type GraduatedReport, type Trip } from "./graduated/graduated.js";

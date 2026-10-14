@@ -47,8 +47,9 @@ export const NOT_YET_MOVED = [];
 /**
  * The frame and the two front doors, which mount and front the stories and hold none of their code: the
  * command line, and the MCP server an agent's harness starts (ADR-0969 D1), on which no story may depend either.
+ * They are declared in the repo's storytree.check.json, which `storytree check` reads too, so the two agree.
  */
-export const FRAMES = [{ story: "app", dirs: ["packages/app", "apps/desktop"] }, { story: "cli", dirs: ["packages/cli"], frontDoor: true }, { story: "mcp-server", dirs: ["packages/mcp-server"], frontDoor: true }];
+export const FRAMES = JSON.parse(readFileSync(new URL("../../../storytree.check.json", import.meta.url), "utf8")).frames;
 
 /** The owner's exceptions to the frame rule: { edges: [{ from, to, said, on }] }, each in his own words, with the date. */
 export const EDGES = JSON.parse(readFileSync(new URL("./package-edges.json", import.meta.url), "utf8"));

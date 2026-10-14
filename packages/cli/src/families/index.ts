@@ -11,14 +11,12 @@ import { appFamily } from "./app.js";
 import { auth } from "./auth.js";
 import { arcs } from "./arc.js";
 import { capabilities } from "./capability.js";
-import { doctorFamily, setupFamily } from "./doctor.js";
 import { doors } from "./doors.js";
 import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
 import { journeyFamily } from "./journey.js";
 import { lag } from "./lag.js";
 import { questions } from "./question.js";
-import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
 import { processes } from "./processes.js";
 import { settings } from "./settings.js";
@@ -41,7 +39,6 @@ const KEPT: readonly Family[] = [
   questions,
   doors,
   lag,
-  doctorFamily,
   checkFamily,
   quality,
   appFamily,
@@ -50,9 +47,6 @@ const KEPT: readonly Family[] = [
   mapFamily,
   affectedFamily,
   capabilities,
-  setupFamily,
-  projectFamily,
-  importFamily,
   processes,
   settings,
   journeyFamily,

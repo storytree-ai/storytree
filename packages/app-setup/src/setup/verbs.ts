@@ -1,42 +1,35 @@
 /**
- * Capability 8 · Doctor (the command line story): run storytree's setup check from a terminal, the same one
- * every agent session start runs: is storytree running, are the hooks registered and last seen
- * firing, does Codex have storytree's tool server, is this folder a project, is `storytree` on the path, is `gh` signed in, is Claude Code or
- * Codex signed in, and are git and a usable Node there (ADR-0716). It fixes what the
- * check fixes by itself and names the fix for the rest, and it sets a folder up as a project only
- * when you tell it to.
+ * Capability 8 · Setup check. `storytree doctor`: run storytree's setup check from a terminal, the same one every agent
+ * session start runs: is storytree running, are the hooks registered and last seen firing, does Codex have storytree's
+ * tool server, is this folder a project, is `storytree` on the path, is `gh` signed in, is Claude Code or Codex signed in,
+ * and are git and a usable Node there (ADR-0716). It fixes what the check fixes by itself and names the fix for the rest,
+ * and it sets a folder up as a project only when you tell it to.
  *
- * - The check is the app setup's `runSetupCheck` (its capability 8), which opens storytree when it
- *   is closed, registers the hooks, and puts the `storytree` command on the path. Those last two
- *   need storytree's hook script, which an installed storytree keeps beside this command; run from
- *   anywhere else, the doctor says so rather than registering something else.
- * - Setting a folder up is the app setup story's `setUpProject`, called only for `--set-up <name>`, or
- *   `--join <name>` to add this machine's checkout to a project that already exists (ADR-0757 D4).
- * - A folder whose marker names a project is read only once it is approved as that project's
- *   checkout on this machine (ADR-0942 D1); until then the doctor says so, and `--join <name>` run
- *   there approves it on purpose.
+ * - The check is `runSetupCheck`, which opens storytree when it is closed, registers the hooks, and puts the `storytree`
+ *   command on the path. Those last two need storytree's hook script, which an installed storytree keeps beside the
+ *   command; run from anywhere else, the doctor says so rather than registering something else.
+ * - Setting a folder up is capability 6's `setUpProject`, called only for `--set-up <name>`, or `--join <name>` to add
+ *   this machine's checkout to a project that already exists (ADR-0757 D4).
+ * - A folder whose marker names a project is read only once it is approved as that project's checkout on this machine
+ *   (ADR-0942 D1); until then the doctor says so, and `--join <name>` run there approves it on purpose.
  * - The hooks last seen firing is the latest hook line in the project's activity log.
- * - `storytree setup install | remove` stays Session management's own command, run from beside this one.
+ *
+ * `storytree setup install | remove` runs the installed `storytree-setup.mjs` beside the command.
  */
-import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import path from "node:path";
-
-import type { SetupReport } from "@storytree/app-setup/setup";
-import { findProject, ProjectFolderError, requireApproval } from "@storytree/project-and-caller/routing";
-import { setUpProject, suggestProjectName } from "@storytree/app-setup/project";
+import { verb, VerbRefusal } from "@storytree/project-and-caller/verbs";
 import type { ConnectOptions } from "@storytree/library";
 
-import { Refusal, type Answer } from "../answer.js";
-import type { Family, Verb } from "../door.js";
-import { setupConnectionVerbs } from "./setup.js";
+import type { SetupVerbContext } from "../verbs.js";
+import type { SetupReport } from "./setup.js";
 
+const NO_TOOL = { absent: "an agent session's setup check is the check_setup tool; this is the person at the terminal's" };
 const HARNESSES = { "claude-code": "Claude Code", codex: "Codex", cursor: "Cursor", pi: "Pi", antigravity: "Antigravity CLI" } as const;
 
-/** storytree's hook script, when this command sits beside it as an installed storytree's does. */
-function hookBeside(script: string | undefined): string | undefined {
+/** storytree's hook script, when the command sits beside it as an installed storytree's does. */
+async function hookBeside(script: string | undefined): Promise<string | undefined> {
   if (script === undefined) return undefined;
+  const { existsSync } = await import("node:fs");
+  const path = await import("node:path");
   const hook = path.join(path.dirname(script), "storytree-hook.mjs");
   return existsSync(hook) ? hook : undefined;
 }
@@ -106,16 +99,24 @@ async function lastHook(library: ConnectOptions, project: string): Promise<strin
   }
 }
 
+/** `setUpProject`, its refusal of the folder said as the verb's. */
+async function setUp(options: { folder: string; project: string; storytree: import("@storytree/library").Storytree; join: boolean }): Promise<void> {
+  const { ProjectFolderError } = await import("@storytree/project-and-caller/routing");
+  const { setUpProject } = await import("../project/making.js");
+  await setUpProject(options).catch((error: unknown) => {
+    throw error instanceof ProjectFolderError ? new VerbRefusal(error.message) : error;
+  });
+}
+
 /** Join `project` from `folder`, the folder its marker already names: how a recorded checkout is approved (ADR-0942 D1). */
 async function joinHere(folder: string, project: string, library: ConnectOptions): Promise<void> {
   const { connect } = await import("@storytree/library");
+  const { findProject } = await import("@storytree/project-and-caller/routing");
   const storytree = await connect(library);
   try {
     // Joining approves the checkout from its own top folder, where the marker is.
     const at = findProject(folder);
-    await setUpProject({ folder: at.project === undefined ? folder : at.folder, project, storytree, join: true }).catch((error: unknown) => {
-      throw error instanceof ProjectFolderError ? new Refusal(error.message) : error;
-    });
+    await setUp({ folder: at.project === undefined ? folder : at.folder, project, storytree, join: true });
   } finally {
     await storytree.close();
   }
@@ -124,6 +125,7 @@ async function joinHere(folder: string, project: string, library: ConnectOptions
 /** Whether `folder` is approved as `project`'s checkout on this machine. */
 async function approvedHere(folder: string, project: string, library: ConnectOptions): Promise<boolean> {
   const { connect } = await import("@storytree/library");
+  const { ProjectFolderError, requireApproval } = await import("@storytree/project-and-caller/routing");
   const storytree = await connect(library);
   try {
     return await requireApproval(storytree, project, folder).then(() => true, (error: unknown) => {
@@ -135,18 +137,23 @@ async function approvedHere(folder: string, project: string, library: ConnectOpt
   }
 }
 
-const doctor: Verb = {
-  name: "doctor",
-  usage: "doctor [--set-up <project> | --join <project>]",
-  summary: "check storytree's setup, fix what it can, and name the fix for the rest",
-  async act(args, context): Promise<Answer> {
-    const hook = hookBeside(context.script);
-    const { runSetupCheck } = await import("@storytree/app-setup/setup");
+export const DOCTOR = verb({
+  command: { family: "doctor", name: "doctor", summary: "check storytree's setup, fix what it can, and name the fix for the rest", usage: "doctor [--set-up <project> | --join <project>]" },
+  tool: NO_TOOL,
+  callerless: true,
+  inputs: {
+    "set-up": { kind: "text", optional: true, describe: "set this folder up as a new project with this name" },
+    join: { kind: "text", optional: true, describe: "approve this folder as this existing project's checkout on this machine" },
+  },
+  async act(input, context: SetupVerbContext) {
+    const hook = await hookBeside(context.script);
+    const { homedir } = await import("node:os");
+    const { runSetupCheck } = await import("./setup.js");
     const report = await runSetupCheck({
-      folder: context.cwd,
+      folder: context.folder,
       ...(hook === undefined ? {} : { hook: { node: process.execPath, script: hook }, command: { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() } }),
     });
-    if (report.storytree.state === "not running") throw new Refusal(report.storytree.message);
+    if (report.storytree.state === "not running") throw new VerbRefusal(report.storytree.message);
     const { library } = report.storytree;
     const said = [
       library.cloudSql !== undefined
@@ -155,32 +162,30 @@ const doctor: Verb = {
     ];
     said.push(...hooksSaid(report));
     const next = [];
-    const setUp = args.text("set-up");
-    const join = args.text("join");
+    const join = input.join;
     if (report.project.status === "set up") {
       const project = report.project.name;
-      if (join === project) await joinHere(context.cwd, project, library);
-      if (await approvedHere(context.cwd, project, library)) {
+      if (join === project) await joinHere(context.folder, project, library);
+      if (await approvedHere(context.folder, project, library)) {
         said.push(join === project ? `This folder is storytree project "${project}"'s checkout on this machine now.` : `This folder is storytree project "${project}".`);
         said.push(await lastHook(library, project));
       } else {
         said.push(`This folder names storytree project "${project}", but it is not approved as "${project}"'s checkout on this machine, so storytree opens nothing and records nothing here.`);
-        next.push({ command: `storytree doctor --join ${project}`, why: `approve this folder as "${project}"'s checkout, if it is yours` });
+        next.push({ command: `doctor --join ${project}`, why: `approve this folder as "${project}"'s checkout, if it is yours` });
       }
     } else {
       const { connect } = await import("@storytree/library");
       const storytree = await connect(library);
       try {
-        const project = join ?? setUp;
+        const project = join ?? input["set-up"];
         if (project !== undefined) {
-          await setUpProject({ folder: context.cwd, project, storytree, join: join !== undefined }).catch((error: unknown) => {
-            throw error instanceof ProjectFolderError ? new Refusal(error.message) : error;
-          });
+          await setUp({ folder: context.folder, project, storytree, join: join !== undefined });
           if (join === undefined) await context.journey?.().then((journey) => journey.projectCreated()).catch(() => {});
           said.push(join === undefined ? `This folder is set up as storytree project "${project}" now.` : `This folder is storytree project "${project}"'s checkout on this machine now.`);
         } else {
+          const { suggestProjectName } = await import("../project/making.js");
           said.push(`This folder is not a storytree project. Nothing was set up: storytree sets a folder up only when you tell it to.`);
-          next.push({ command: `storytree doctor --set-up ${await suggestProjectName(context.cwd, storytree)}`, why: "make it a new project, or name it as you like" });
+          next.push({ command: `doctor --set-up ${await suggestProjectName(context.folder, storytree)}`, why: "make it a new project, or name it as you like" });
         }
       } finally {
         await storytree.close();
@@ -189,33 +194,24 @@ const doctor: Verb = {
     said.push(...commandSaid(report), ...ghSaid(report), ...machineSaid(report));
     return { text: said.join("\n"), next };
   },
-};
+});
 
-const setup: Verb = {
-  name: "setup",
-  usage: "setup install | remove",
-  summary: "register storytree's hooks now, or take out exactly what storytree added",
-  async act(args, context) {
+export const SETUP = verb({
+  command: { family: "setup", name: "setup", summary: "register storytree's hooks now, or take out exactly what storytree added", usage: "setup install | remove" },
+  tool: NO_TOOL,
+  callerless: true,
+  inputs: { action: { kind: "text", word: 0, optional: true, describe: "install, or remove" } },
+  async act({ action }, context: SetupVerbContext) {
+    if (action !== "install" && action !== "remove") throw new VerbRefusal("say install or remove", { misuse: true });
+    const { existsSync } = await import("node:fs");
+    const path = await import("node:path");
     const script = context.script === undefined ? undefined : path.join(path.dirname(context.script), "storytree-setup.mjs");
     if (script === undefined || !existsSync(script)) {
-      throw new Refusal("storytree setup is the app setup's, and runs from an installed storytree: this command is not beside it");
+      throw new VerbRefusal("storytree setup is the app setup's, and runs from an installed storytree: this command is not beside it");
     }
-    const ran = spawnSync(process.execPath, [script, ...args.words], { encoding: "utf8" });
-    if (ran.status !== 0) throw new Refusal(`${ran.stderr}${ran.stdout}`.trim() || "storytree setup failed", { code: ran.status ?? 1 });
+    const { spawnSync } = await import("node:child_process");
+    const ran = spawnSync(process.execPath, [script, action], { encoding: "utf8" });
+    if (ran.status !== 0) throw new VerbRefusal(`${ran.stderr}${ran.stdout}`.trim() || "storytree setup failed");
     return { text: ran.stdout };
   },
-};
-
-export const doctorFamily: Family = {
-  name: "doctor",
-  summary: "storytree's setup check, from a terminal",
-  verbs: [],
-  bare: doctor,
-};
-
-export const setupFamily: Family = {
-  name: "setup",
-  summary: "connect or disconnect agents; install or remove storytree's hooks",
-  verbs: setupConnectionVerbs,
-  bare: setup,
-};
+});

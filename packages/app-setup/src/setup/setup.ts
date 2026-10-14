@@ -243,3 +243,8 @@ function readText(file: string): string {
 }
 export { builtFromMain } from "./built-from-main.js";
 export type { FollowMainOptions } from "./built-from-main.js";
+
+/** Its section of the habits card (ADR-1021, the guidance kind): the session start's check, and what a project's setup asks of the agent. */
+export const setupGuidance: readonly string[] = [
+  "Start every session with `check_setup`, and do what it says. When it offers a newer starter pack, call `take_starter_pack` only if the user says yes: it never overwrites what they edited. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call `set_up_project` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only when they ask to add this computer's copy of a project they already have elsewhere. Once the project is set up, or when it adopts a pipeline, call `wire_pipeline` with its test command: it adds the tests and storytree's check to the project's CI, the checks storytree owns, so never write your own. Branch protection is a repository setting: propose it as `wire_pipeline` words it, and turn it on only if the user approves. To build on an existing JavaScript or TypeScript project, call `import_project` with its folder when the user asks: each package it declares becomes a mapped story, and nothing is written into it.",
+];

@@ -7,6 +7,6 @@ export type { ImportedFolder, LocateOptions, Machine, ProjectLookup, Route, Stor
 export { keepOnThisComputer, readProjectChoice, recordProjectChoice, recordRemovedProjects, removedProjects, type HiddenProject } from "./routing/project-choice.js";
 export { idleAfterMs, leaveAfterMs, readLibrary, readSettings, readSurfaceChoices, setLibrary, setSetting, setSurfaceChoice } from "./settings/settings.js";
 export type { LibraryLocation, LibraryReading, SettingGroup, SettingReading, SettingsReading, SurfaceChoices } from "./settings/settings.js";
-export { decisionRights } from "./settings/decision-rights.js";
+export { decisionRights, decisionRightsGuidance } from "./settings/decision-rights.js";
 export type { DecisionRights } from "./settings/decision-rights.js";
 export { STANDING_DELEGATION, standingDelegations } from "./settings/delegations.js";

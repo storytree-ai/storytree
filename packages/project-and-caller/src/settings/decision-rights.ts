@@ -45,3 +45,15 @@ const DECISION_RIGHTS: DecisionRights = {
 export function decisionRights(): DecisionRights {
   return DECISION_RIGHTS;
 }
+
+/** Its section of the habits card (ADR-1021, the guidance kind): who decides what, built from the lines above. */
+export const decisionRightsGuidance: readonly string[] = [
+  [
+    "Who decides what.",
+    `- Decide yourself, and record what you chose: ${DECISION_RIGHTS.decides.join("; ")}.`,
+    `- Ask the owner before: ${DECISION_RIGHTS.asks.join("; ")}.`,
+    `- ${DECISION_RIGHTS.delegations}`,
+    `- ${DECISION_RIGHTS.override}`,
+    `- No file moves these: ${DECISION_RIGHTS.honesty.join("; ")}.`,
+  ].join("\n"),
+];

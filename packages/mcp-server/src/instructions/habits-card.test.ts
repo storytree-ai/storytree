@@ -118,7 +118,7 @@ test("7.9 the card handed at session start says how to build beside mapped code"
   }
 });
 
-test("7.10 the card handed at session start is composed from the guidance each story package the server mounts declares in its manifest, in the manifests' order, between the server's own first and last lines", async () => {
+test("7.10 the card handed at session start is composed from the guidance each story package the server mounts declares in its manifest, in the manifests' order, between the server's own opening and closing lines", async () => {
   const parts = storyParts(path.resolve(import.meta.dirname, "../.."), "guidance");
   for (const story of ["@storytree/app-setup", "@storytree/library", "@storytree/map", "@storytree/processes", "@storytree/project-and-caller", "@storytree/quality-assurance", "@storytree/session-management"]) {
     assert.ok(parts.some((part) => part.package === story), `${story} declares no guidance`);

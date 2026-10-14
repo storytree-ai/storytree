@@ -1,5 +1,5 @@
 /**
- * Capability 2 · the activity log as a person reads it (contract 7.4's board shows it): one line of
+ * Capability 2 · Agent activity log, as a person reads it (contract 7.4's board shows it): one line of
  * text per line, with its number, time, session, what happened, and the line that caused it, or
  * "cause not recorded" when its writer named none (ADR-0746 D2). Never "no cause": an absent stamp
  * says only that nothing recorded one.

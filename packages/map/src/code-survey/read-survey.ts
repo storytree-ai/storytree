@@ -37,7 +37,7 @@ import { mappedSurveyReader, type ImportedFolder } from "./mapped-survey.js";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { declaredNumberOf, dependenciesOf, packageOf, storyEdges, surveyStory, type CoverageMap, type SourceFile, type StorySurvey, type SurveyPackage } from "./code-survey.js";
+import { declaredNumberOf, declaresTitle, dependenciesOf, packageOf, storyEdges, surveyStory, type CoverageMap, type SourceFile, type StorySurvey, type SurveyPackage } from "./code-survey.js";
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
@@ -58,7 +58,8 @@ export interface FileOwner {
 /**
  * ADR-0925 D4's lookup, shared by edit claims and the gate's capability-list check so they never place a
  * file differently: each of `files` (repo-relative to `root`) is placed by its own declaration, else by
- * the code survey's inference of `root`'s current checkout. A file in no story's package, or one
+ * the code survey's inference of `root`'s current checkout. A source file's header declares only when it names
+ * the title of the capability its number does in the file's story (8.29). A file in no story's package, or one
  * `readText` cannot read (undefined or a throw), is placed nowhere. Keys use forward slashes.
  */
 export async function capabilitiesOfFiles(root: string, files: readonly string[], tree: AnnotatedTree, {
@@ -77,7 +78,9 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
     } catch {}
     if (text === undefined) continue;
     const number = declaredNumberOf({ path: file, text }, packageOf(story.title));
-    const declared = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
+    const numbered = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
+    // A source file's header must name the capability its number does here; a test file's numbers carry no title.
+    const declared = numbered !== undefined && (TEST_FILE.test(file) || declaresTitle(text, numbered.title)) ? numbered : undefined;
     if (declared === undefined) undeclared.push(file);
     else owners.set(file, { capability: declared.id, inferred: false });
   }

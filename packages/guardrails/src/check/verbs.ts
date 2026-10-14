@@ -9,7 +9,7 @@
 import type { Verb, VerbFamily, VerbPlace } from "@storytree/library/verbs";
 
 const check: Verb<{}, VerbPlace> = {
-  command: { family: "check", name: "check", summary: "run storytree's package and allocation rules over this checkout; exits 1 when either is broken", usage: "check" },
+  command: { family: "check", name: "check", summary: "run storytree's package and allocation rules and the self-equal assertion check over this checkout; exits 1 when any is broken", usage: "check" },
   tool: { absent: "a user's CI runs the check from a terminal" },
   inputs: {},
   callerless: true,
@@ -24,5 +24,5 @@ const check: Verb<{}, VerbPlace> = {
 
 /** The command line's `check` family, 9th among `storytree`'s families. */
 export const CHECK_FAMILIES: readonly VerbFamily<VerbPlace>[] = [
-  { name: "check", summary: "storytree's package and allocation rules, run over this checkout", order: 9, verbs: [], bare: check },
+  { name: "check", summary: "storytree's package and allocation rules and the self-equal assertion check, run over this checkout", order: 9, verbs: [], bare: check },
 ];

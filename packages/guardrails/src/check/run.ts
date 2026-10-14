@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { check, checkoutOf } from "./check.js";
 
-/** Check the checkout `folder` is in, write the report, and return the exit code: 1 when either rule is broken. */
+/** Check the checkout `folder` is in, write the report, and return the exit code: 1 when a rule is broken or a graduated check trips. */
 export async function main(folder: string, write: (text: string) => void): Promise<number> {
   const report = await check(checkoutOf(folder));
   write(`${report.text}\n`);

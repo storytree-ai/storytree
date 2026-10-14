@@ -1,6 +1,6 @@
 /**
- * Capability 3 · The check command (the Guardrails story, ADR-0911 D2): the package rule and the
- * allocation rule run over a checkout together, reported plainly, as `storytree check` prints it. It
+ * Capability 3 · The check command (the Guardrails story, ADR-0911 D2): the package rule, the allocation
+ * rule and the graduated checks (capability 4) run over a checkout together, reported plainly, as `storytree check` prints it. It
  * reads the checkout alone: no plan, no library and no running app, so a user's CI can run it. A checkout
  * that mounts its stories in a frame outside packages/ declares the frame in its storytree.check.json,
  * `{ "frames": [{ "story": …, "dirs": [...] }] }`, as storytree's own does for apps/desktop, and beside
@@ -11,13 +11,15 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { allocationProblems } from "../allocation-rule/allocation-rule.js";
+import { graduatedChecks, type GraduatedReport } from "../graduated/graduated.js";
 import { packageProblems, type Declarations, type Edge } from "../package-rule/package-rule.js";
 
-/** What the check found: each rule's problems, whether both were kept, and the report as printed. */
+/** What the check found: each rule's problems, what the graduated checks found or why they did not run, whether all were kept, and the report as printed. */
 export interface CheckReport {
   readonly passed: boolean;
   readonly packageRule: readonly string[];
   readonly allocationRule: readonly string[];
+  readonly graduated: GraduatedReport;
   readonly text: string;
 }
 
@@ -38,17 +40,24 @@ export function declarationsOf(root: string): Declarations {
   return { ...(frames === undefined ? {} : { frames }), ...(edges === undefined ? {} : { edges: { edges } }) };
 }
 
-/** Run both rules over the checkout at `root`, with what it declares; a user's project usually declares nothing. */
+/**
+ * Run both rules over the checkout at `root`, with what it declares (a user's project usually declares nothing),
+ * and the graduated checks on what its branch changes against origin/main. A trip fails the check; without
+ * origin/main to compare with, the graduated checks are reported as not run, which never reads as kept.
+ */
 export async function check(root: string, declared: Declarations = declarationsOf(root)): Promise<CheckReport> {
   const packageRule = packageProblems(root, declared);
   const allocationRule = await allocationProblems(root, declared.stories);
-  const passed = packageRule.length === 0 && allocationRule.length === 0;
+  const graduated = graduatedChecks(root);
+  const trips = graduated.ran ? graduated.trips.map(({ file, line }) => `${file}:${line} asserts an expression equal to itself, so it can never fail.`) : [];
+  const passed = packageRule.length === 0 && allocationRule.length === 0 && trips.length === 0;
   const said = (name: string, kept: string, problems: readonly string[]) =>
     problems.length === 0 ? [`${name}: kept (${kept}).`] : [`${name}: ${problems.length} ${problems.length === 1 ? "problem" : "problems"}.`, ...problems.map((problem) => `  - ${problem}`)];
   const text = [
     ...said("The package rule", "one package per story, roads one way", packageRule),
     ...said("The allocation rule", "every source file is reached by a numbered test", allocationRule),
+    ...(graduated.ran ? said("The self-equal assertion check", "no changed file asserts an expression equal to itself", trips) : [`The self-equal assertion check: not run (${graduated.reason})`]),
     passed ? "storytree check passed." : "storytree check failed: fix each problem above, then run it again.",
   ].join("\n");
-  return { passed, packageRule, allocationRule, text };
+  return { passed, packageRule, allocationRule, graduated, text };
 }

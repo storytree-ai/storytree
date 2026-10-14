@@ -139,6 +139,8 @@ export function workflowFor({ install, test, systems, ref, fetches = [] }: { ins
     "    runs-on: ubuntu-latest",
     "    steps:",
     "      - uses: actions/checkout@v4",
+    "        with:",
+    "          fetch-depth: 0 # the self-equal assertion check compares the change with origin/main",
     "      - uses: actions/setup-node@v4",
     "        with:",
     "          node-version: 24",

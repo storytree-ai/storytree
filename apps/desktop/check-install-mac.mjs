@@ -12,6 +12,7 @@ import path from "node:path";
 import { toolPaths, verifyPayload } from "@storytree/app-setup/deliver";
 import { AUTH_SCHEME } from "@storytree/identity/desktop";
 import { checkTools } from "./check-tools.mjs";
+import { gatekeeperSkip } from "./mac-signing.mjs";
 import { startsCleanly } from "./src/main/start-check.ts";
 
 assert.equal(`${process.platform}-${process.arch}`, "darwin-arm64", "Run this proof on Apple Silicon macOS");
@@ -31,7 +32,9 @@ try {
     execFileSync("codesign", ["--verify", "--strict", binary], { stdio: "inherit" });
   }
   // Gatekeeper accepts only a Developer ID signature that Apple has notarised (increment_9d05fb8a164b).
-  if (adHoc) console.log("Gatekeeper assessment NOT RUN: the app is ad-hoc signed, so not notarised");
+  const answerFile = path.join(release, "mac-notarisation.json");
+  const skip = gatekeeperSkip({ adHoc, answer: existsSync(answerFile) ? JSON.parse(readFileSync(answerFile, "utf8")) : undefined });
+  if (skip) console.log(`Gatekeeper assessment NOT RUN: ${skip}`);
   else execFileSync("spctl", ["--assess", "--type", "execute", "--verbose=2", app], { stdio: "inherit" });
 
   const resources = path.join(app, "Contents", "Resources");

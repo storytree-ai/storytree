@@ -4,7 +4,7 @@ import { test } from "node:test";
 // The release's macOS signing mode, chosen from the repository's signing secrets (apps/desktop's
 // mac-signing.mjs): the release workflow and dist.mjs both follow it.
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
-import { builderEnv, historyLines, identityFrom, macBuilderConfig, macReleaseNote, macSigning, notarise, withMacNote } from "../mac-signing.mjs";
+import { builderEnv, gatekeeperSkip, historyLines, identityFrom, macBuilderConfig, macReleaseNote, macSigning, notarise, withMacNote } from "../mac-signing.mjs";
 
 const apple = { APPLE_API_KEY: "-----BEGIN PRIVATE KEY-----", APPLE_API_KEY_ID: "KEY123", APPLE_API_ISSUER: "issuer-uuid" };
 const listed = [
@@ -36,6 +36,12 @@ test("4.20 a Developer ID Mac build hands electron-builder the identity prepare 
   assert.equal(signed.CSC_NAME, identity);
   assert.deepEqual([signed.APPLE_API_KEY, signed.APPLE_API_KEY_ID, signed.APPLE_API_ISSUER], [apple.APPLE_API_KEY, apple.APPLE_API_KEY_ID, apple.APPLE_API_ISSUER]);
   assert.throws(() => builderEnv({ CSC_LINK: "base64p12", CSC_KEY_PASSWORD: "pw", ...apple }), /STORYTREE_MAC_IDENTITY/);
+});
+
+test("4.20 electron-builder signs a pull request's Mac build in both modes, rather than skipping signing as it does by default", () => {
+  // A same-repository pull request's rehearsal carries the Developer ID secrets; unsigned, it failed codesign (PR #1378's run 38638385107).
+  assert.equal(builderEnv({ CSC_LINK: "", PATH: "/usr/bin" }).CSC_FOR_PULL_REQUEST, "true");
+  assert.equal(builderEnv({ CSC_LINK: "base64p12", CSC_KEY_PASSWORD: "pw", ...apple, STORYTREE_MAC_IDENTITY: "FEDCBA98" }).CSC_FOR_PULL_REQUEST, "true");
 });
 
 test("4.20 with the certificate and Apple's key the Mac build imports a keychain, signs as the Developer ID find-identity lists, and notarises", () => {
@@ -88,6 +94,13 @@ test("4.20 Apple's answer is waited for only until the bound: accepted is notari
   assert.deepEqual(await notarise(waiting.run), { id: "sub-1", status: "In Progress", notarised: false });
   assert.equal(waiting.asked.length, 11);
   assert.deepEqual(await notarise(answering(["Invalid"]).run), { id: "sub-1", status: "Invalid", notarised: false });
+});
+
+test("4.20 the install check asks Gatekeeper only of a build Apple notarised: an ad-hoc build or one Apple had not accepted by the bound skips it, saying why", () => {
+  assert.equal(gatekeeperSkip({ adHoc: false, answer: { id: "sub-1", status: "Accepted", notarised: true } }), undefined);
+  assert.match(gatekeeperSkip({ adHoc: true, answer: undefined }) ?? "", /ad-hoc/);
+  assert.match(gatekeeperSkip({ adHoc: false, answer: { id: "sub-1", status: "In Progress", notarised: false } }) ?? "", /sub-1.*"In Progress"/);
+  assert.equal(gatekeeperSkip({ adHoc: false, answer: undefined }), undefined);
 });
 
 test("4.20 reading Apple's history prints each submission's id, date and status, and nothing else it returned", () => {

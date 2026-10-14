@@ -51,8 +51,9 @@ export function judgeReleases({ release, attempts, main, now, limitMs = RELEASE_
   if (head?.status === "completed" && MAIN_RED.has(head.conclusion)) {
     return { reruns, alarm: { why: `main's CI is still red on ${head.sha.slice(0, 8)} after its rerun`, run: named(head) } };
   }
-  if (done.length >= 2 && RED.has(done[0].conclusion) && RED.has(done[1].conclusion)) {
-    return { reruns, alarm: { why: "the last two release attempts both ended failed or cancelled", run: named(done[0]) } };
+  // The last two attempts, so a fresh one still running holds this alarm until it ends.
+  if (since.length >= 2 && since.slice(0, 2).every((run) => run.status === "completed" && RED.has(run.conclusion))) {
+    return { reruns, alarm: { why: "the last two release attempts both ended failed or cancelled", run: named(since[0]) } };
   }
   const released = main.find((run) => run.sha === release.sha)?.created ?? release.at;
   const waiting = main.filter((run) => run.conclusion === "success" && Date.parse(run.created) > Date.parse(released)).at(-1);

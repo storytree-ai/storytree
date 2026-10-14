@@ -37,6 +37,8 @@ test("13.16 · a stopped release is rerun once, then judged an alarm; a quiet ma
   assert.equal(twice.alarm.run.id, 50);
   assert.equal(twice.alarm.run.job, "package (macOS)");
   assert.match(twice.alarm.why, /two release attempts/);
+  const fresh = attempt({ id: 60, created: 55, status: "in_progress", conclusion: null });
+  assert.equal(judge({ attempts: [fresh, attempt({ id: 50, created: 25, attempt: 2 }), attempt({ id: 40, created: 10, attempt: 2 })], main, now: 60 }).alarm, null);
 
   // An attempt made before the latest release published is not this stop's, and is never rerun.
   assert.deepEqual(judge({ attempts: [attempt({ id: 30, created: -5 })], main: [mainRun({ id: 1, sha: "c0", created: -20 })] }).reruns, []);

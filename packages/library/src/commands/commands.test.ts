@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { connect } from "../project/index.js";
+import { connect } from "../index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { mounted, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
 import { LIBRARY_FAMILIES, type HeldClaim, type LibraryVerbContext } from "./index.js";

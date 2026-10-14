@@ -3,15 +3,22 @@
  * narrowed on the server by kind and time (Session management 2.7), with the prompts of the sessions
  * in it; each window is then counted from those lines.
  */
-import type { ActivityLog } from "@storytree/session-management";
-import type { Line } from "@storytree/library";
+import type { Line, LineKind } from "@storytree/library";
 
 import { countDoors, type Declared, type DoorLine, type Reading } from "./reading.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * The activity log as the reading asks it for lines, narrowed on the server (Session management 2.7): its own copy
+ * of the one call and the filter fields it uses (ADR-1017 D2).
+ */
+export interface DoorsLog {
+  lines(project: string, filter: { readonly kinds: readonly LineKind[]; readonly since?: string; readonly sessions?: readonly string[]; readonly omit?: readonly string[] }): Promise<Line[]>;
+}
+
 /** One reading for each of `days`, each the window of that many days ending at `until`. */
-export async function readDoors(log: ActivityLog, project: string, declared: Declared, until: Date, days: readonly number[]): Promise<Reading[]> {
+export async function readDoors(log: DoorsLog, project: string, declared: Declared, until: Date, days: readonly number[]): Promise<Reading[]> {
   const end = until.toISOString();
   const earliest = new Date(until.getTime() - Math.max(...days) * DAY_MS).toISOString();
   const lines = (await log.lines(project, { kinds: ["door-answered"], since: earliest })).flatMap((line) => {

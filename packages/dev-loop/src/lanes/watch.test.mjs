@@ -138,6 +138,25 @@ test("13.3 · after its fix limit the watcher writes an owner wait with the PR a
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is forgotten once the owner has it");
 });
 
+test("13.12 · a pull request that conflicts with main past the fix limit gets one more fix session before the owner wait", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = red;
+  for (let round = 0; round < 2; round++) { await watchOnce(b.options); b.live.clear(); }
+  assert.equal(b.fixes.length, 2);
+  const conflict = readPull(pull({ checks: [passed], mergeable: "CONFLICTING" }), { since: minutes(-60), now: at, graceMs: 0 });
+  b.looks[41] = conflict;
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 3, "a merge needs a session, not the owner");
+  assert.match(b.fixes[2].brief, /conflicts with main/);
+  assert.deepEqual(b.calls.at(-1), ["arc", "increment", "unwait", "increment_one", "--for", "event"], "the merge session may claim it");
+  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"));
+  b.live.clear();
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 3, "and only one more");
+  assert.deepEqual(b.calls.at(-1).slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "owner"]);
+});
+
 test("13.4 · a hand-off on disk survives a watcher restart, and handing back keeps its fix count", async (t) => {
   const b = await box(t);
   await handOff(b);

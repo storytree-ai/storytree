@@ -924,9 +924,8 @@ test("5.44 a hand-over moves the session's claims to its pull request's holder, 
       assert.equal(line.kind === "closed-out" && line.safe, true);
     });
     await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "session-ended" });
-    await sleep(20);
 
-    const held = await readClaims(log, project, { quietMs: 1 });
+    const held = await readClaims(log, project, { quietMs: 1_000, now: new Date(Date.now() + 60_000) });
     assert.deepEqual(held.map(({ increment, capability, session, holder, branch, under }) => ({ id: increment ?? capability, session, holder, branch, under })), [
       { id: work, session: "pull-request-12", holder: "live", branch: "feature/signup", under: undefined },
       { id: emailForm, session: "pull-request-12", holder: "live", branch: "feature/signup", under: work },

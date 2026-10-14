@@ -4,7 +4,7 @@ import { test } from "node:test";
 // The release's macOS signing mode, chosen from the repository's signing secrets (apps/desktop's
 // mac-signing.mjs): the release workflow and dist.mjs both follow it.
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
-import { builderEnv, gatekeeperSkip, historyLines, identityFrom, macBuilderConfig, macReleaseNote, macSigning, notarise, withMacNote } from "../mac-signing.mjs";
+import { builderEnv, gatekeeperSkip, historyLines, identityFrom, macBuilderConfig, macReleaseNote, macSigning, notarise, pendingLine, withMacNote } from "../mac-signing.mjs";
 
 const apple = { APPLE_API_KEY: "-----BEGIN PRIVATE KEY-----", APPLE_API_KEY_ID: "KEY123", APPLE_API_ISSUER: "issuer-uuid" };
 const listed = [
@@ -116,4 +116,10 @@ test("4.20 reading Apple's history prints each submission's id, date and status,
     "2f1c0e4a-0000-4000-8000-000000000002  2026-10-13T16:35:40.000Z  Accepted",
   ]);
   assert.deepEqual(historyLines(JSON.stringify({ history: [] })), ["No submissions."]);
+});
+
+test("4.20 a submission Apple has not yet answered is read as pending, with no log asked for; once Apple answers, its log is read", () => {
+  const id = "f191f6cd-09d7-4364-8698-6f864f68d439";
+  assert.equal(pendingLine(id, "In Progress"), `Submission ${id} is still In Progress: Apple's log for it comes once Apple answers.`);
+  for (const status of ["Accepted", "Invalid", "Rejected"]) assert.equal(pendingLine(id, status), null);
 });

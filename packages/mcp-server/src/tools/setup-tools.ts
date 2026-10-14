@@ -17,7 +17,8 @@ import { IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPack
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
-import { callLines, labelOf, lineOf, seenCaller, SESSION_ENV, tierOf, type Caller } from "@storytree/session-management";
+import { callLines, labelOf } from "@storytree/session-management";
+import { lineOf, seenCaller, SESSION_ENV, tierOf, type Caller } from "@storytree/project-and-caller/caller";
 import { metaOf, type Define, type JourneyMilestones } from "./server.js";
 import { quoted } from "./text.js";
 

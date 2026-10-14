@@ -2,7 +2,8 @@
 import { NODE_FLOOR, type AgentCliState, type MachineState, type ToolState } from "./machine.js";
 import { CODEX_TRUST_STEP } from "./verify.js";
 import type { ServerEntry, SetupReport } from "./setup.js";
-import { HARNESS_IDS, watchedHarness, type AppReading, type Harness } from "@storytree/session-management";
+import type { AppReading } from "@storytree/session-management";
+import { HARNESS_IDS, watchedHarness, type Harness } from "@storytree/project-and-caller/caller";
 import { MARKER_FILE } from "@storytree/project-and-caller";
 import { compareVersions } from "./hooks-release.js";
 import { IDENTITY_FIX } from "../project/making.js";

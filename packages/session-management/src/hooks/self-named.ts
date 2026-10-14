@@ -12,7 +12,7 @@
  * self-named harness's session has no context reading.
  */
 import type { NewLine } from "@storytree/library";
-import { HARNESS_IDS } from "../harnesses.js";
+import { HARNESS_IDS } from "@storytree/project-and-caller/caller";
 import type { HookLines } from "./hooks.js";
 import { toolRequestedLine } from "./requests.js";
 

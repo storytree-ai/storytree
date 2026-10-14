@@ -2,7 +2,8 @@
 import { mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { ANTIGRAVITY_HOOKS, codexHookTrust, HARNESS_IDS, PI_EXTENSION, watchedHarness } from "@storytree/session-management";
+import { ANTIGRAVITY_HOOKS, codexHookTrust, PI_EXTENSION } from "@storytree/session-management";
+import { HARNESS_IDS, watchedHarness } from "@storytree/project-and-caller/caller";
 
 import { CODEX_TRUST_STEP, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeHooks, removeLauncher, runsElevated } from "../setup/index.js";
 import { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";

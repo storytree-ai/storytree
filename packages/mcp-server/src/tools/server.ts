@@ -35,7 +35,8 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
-import { agentOf, callLines, endMergedClaims, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type ActivityLog, type Caller, type MergeWatch } from "@storytree/session-management";
+import { callLines, endMergedClaims, type ActivityLog, type MergeWatch } from "@storytree/session-management";
+import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
 import { findProject, idleAfterMs, locateStorytree, route, storytreeHome } from "@storytree/project-and-caller";
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
 import { type SetupOptions } from "@storytree/app-setup/setup";

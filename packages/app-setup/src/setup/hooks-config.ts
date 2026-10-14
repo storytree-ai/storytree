@@ -42,7 +42,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, EVENT, HARNESS_IDS, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, SHELL_GUARD, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
+import { ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, EVENT, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, SHELL_GUARD, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
+import { HARNESS_IDS } from "@storytree/project-and-caller/caller";
 
 import { piExtension } from "./pi-extension.js";
 
@@ -61,7 +62,7 @@ export interface HookCommand {
 export type HookRegistration = "registered" | "already registered" | "not here" | "disconnected";
 
 /** A harness storytree connects to: one Session management describes (decision_057bc7ad0a8c D1). */
-import type { Harness } from "@storytree/session-management";
+import type { Harness } from "@storytree/project-and-caller/caller";
 export type { Harness };
 
 /**

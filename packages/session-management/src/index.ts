@@ -3,13 +3,11 @@
 // what it exports to name a call's session, record the call and end merged claims (ADR-0969 D1).
 export { ACTIVITY_DATABASE, cachedLines, currentBranch, forgetProjectActivity, fullLineText, lineText, openActivityLog, thisMachine } from "./activity/index.js";
 export type { ActivityLog, LinesCache, LockedLog, OpenOptions } from "./activity/index.js";
-export { harnessOfClient, HARNESS_IDS, SESSION_ENV, tierOf, watchedHarness, WATCHED_HARNESSES, type Harness, type Tier, type WatchedHarness } from "./harnesses.js";
 export { closeOut, labelOf, nameRefusal, nameSession, SESSION_NAME_LIMIT, lookAsApp, projectFolder, QUIET_MS, readSessions, sessionsFrom, sessionsListing } from "./sessions/index.js";
 export type { CloseOut, CloseOutContext, Session, SessionOptions, SessionState } from "./sessions/index.js";
 export { allowCommand, allowIncrement, attachWorkspace, attributeFrom, boardClaims, claim, claimFrom, claimsFrom, closed, land, makeWorkspace, presentersOf, presentQuestion, readAttribution, readClaim, readClaims, release, releaseAsked, releaseFor, staleClaims, stopPresenting, CLAIM_REASON_LIMIT, claimRefusal, endMergedClaims, increments } from "./claims/index.js";
 export type { AllowAnswer, Attributed, Claim, ClaimAnswer, ClaimContext, ClaimsOptions, LandAnswer, PresentAnswer, Presenter, ReleaseAnswer, ReleaseForAnswer, StaleClaim, StaleWorklist, MergeWatch, ClaimedWorkspace, OpenPullForWork, WorkspaceAnswer, WorkspaceAttachment, WorkspaceRefusal } from "./claims/index.js";
-export { agentOf, callLines, lineOf, requestOf, seenCaller } from "./sessions/caller.js";
-export type { Caller, CallMeta } from "./sessions/caller.js";
+export { callLines } from "./activity/index.js";
 export { ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, codexHookTrust, EDIT_GATE, EVENT, noteCodexHookRan, SHELL_GUARD, STORYTREE_TOOLS } from "./hooks/index.js";
 export { ANTIGRAVITY_HOOKS, defaultHomes, PI_EXTENSION, PI_EXTENSION_SCRIPT, piExtensionScript, registeredHookScripts, scriptsIn } from "./hooks/registered.js";
 export type { Homes } from "./hooks/registered.js";

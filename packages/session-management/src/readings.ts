@@ -3,7 +3,7 @@
 // the 30-minute default until its bridge supplies the setting.
 import type { Line } from "@storytree/library";
 import { ENDING_KINDS, ends } from "./claims/endings.js";
-import { tierOf, WATCHED_HARNESSES, type Tier } from "./harnesses.js";
+import { tierOf, WATCHED_HARNESSES, type Tier } from "@storytree/project-and-caller/caller";
 
 /**
  * The quiet time after which a session whose lines have stopped reads as waiting, when its hooks
@@ -710,4 +710,3 @@ function holding(holders: Map<string, Omit<Claim, "holder">>, line: Line): void 
   }
   for (const [id, holder] of holders) if (ends(line, id, holder)) holders.delete(id);
 }
-export { harnessOfClient, HARNESS_IDS, SESSION_ENV, tierOf, watchedHarness, WATCHED_HARNESSES, type Harness, type Tier, type WatchedHarness } from "./harnesses.js";

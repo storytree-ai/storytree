@@ -93,6 +93,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      # A type-only import ends only at the library (ADR-1017 D2); it reads only the code, in about 5 s.
+      - run: pnpm check:type-imports
       # packages/dev-loop/src/test.mjs starts a throwaway Postgres from this machine's @embedded-postgres package
       # (linux-x64, darwin-arm64 or windows-x64). The live Cloud SQL proof (contract 8.1) is
       # skipped, visibly: CI holds no Google identity. Its first line is the `scope:` decision

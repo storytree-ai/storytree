@@ -24,7 +24,6 @@ import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
 import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
-import { workspace } from "./workspace.js";
 import { processes } from "./processes.js";
 import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
@@ -62,7 +61,6 @@ const KEPT: readonly Family[] = [
   setupFamily,
   projectFamily,
   importFamily,
-  workspace,
   processes,
   settings,
   journeyFamily,
@@ -74,6 +72,6 @@ const KEPT: readonly Family[] = [
 ];
 
 export const FAMILIES: readonly Family[] = [...declared].sort((a, b) => a.order - b.order).reduce(
-  (families, family) => families.toSpliced(family.order - 1, 0, { name: family.name, summary: family.summary, verbs: family.verbs.map(command) }),
+  (families, family) => families.toSpliced(family.order - 1, 0, { name: family.name, summary: family.summary, verbs: family.verbs.map(command), ...(family.bare === undefined ? {} : { bare: command(family.bare) }) }),
   KEPT,
 );

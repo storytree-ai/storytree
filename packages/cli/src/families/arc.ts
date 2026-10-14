@@ -22,7 +22,7 @@ import { commaSeparatedIds, type Args } from "../args.js";
 import type { Context, Family, Verb } from "../door.js";
 import { pendingSaid, valueOf } from "./library.js";
 import { commandSession } from "../writer.js";
-import { releasedAsking } from "./workspace.js";
+import { releasedAsking } from "./question.js";
 
 /** The given flags among `names`, each as the library field it names (`--end-state` is `endState`), kept as the text given (`--pr 132` is "132", not a number). */
 function given(args: Args, names: readonly string[]): Record<string, string> {

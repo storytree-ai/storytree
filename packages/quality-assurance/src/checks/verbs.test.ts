@@ -9,7 +9,6 @@ import { VerbRefusal, type DoorWords } from "@storytree/project-and-caller/verbs
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 import { withLibrary } from "../testing/pg.js";
-import { checks, checksText } from "../index.js";
 import { QUALITY_FAMILIES } from "./verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
@@ -23,13 +22,17 @@ test("1.3 · Quality assurance declares the `quality` verbs the command line mou
 
   await withLibrary(async (library) => {
     const principle = await library.writeKnowledge("principle", { title: "Test creation principles", description: "How a test earns its place.", statement: "A test fails if its behaviour is removed.", why: "A test that cannot fail protects nothing.", howToApply: "Delete the behaviour and watch the test fail." });
-    await library.writeKnowledge("check", { title: "Tautological expected value", description: "Expected values computed as the code computes them.", question: "Is any expected value computed the way the code computes it?", enforces: [principle.id] });
+    const check = await library.writeKnowledge("check", { title: "Tautological expected value", description: "Expected values computed as the code computes them.", question: "Is any expected value computed the way the code computes it?", enforces: [principle.id] });
     // No server and no activity log: the door hands the caller without them.
     const context = { folder: process.cwd(), library, project: library.name, session: "person:test" } as unknown as SessionVerbContext;
 
     const answered = await verbs.get("checks")!.act({}, context, WORDS);
-    assert.equal(answered.text, checksText(await checks(library)));
-    assert.match(answered.text, /Tautological expected value/);
+    assert.equal(answered.text, [
+      "1 quality control check:",
+      `  ${check.id}  Tautological expected value`,
+      "    Is any expected value computed the way the code computes it?",
+      `    enforces ${principle.id}  [principle]  Test creation principles`,
+    ].join("\n"));
 
     await assert.rejects(
       verbs.get("ledger")!.act({}, context, WORDS),

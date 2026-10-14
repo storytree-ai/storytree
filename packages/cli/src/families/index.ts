@@ -7,12 +7,10 @@ import declared from "#parts/verbs";
 
 import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
-import { decisions } from "./adr.js";
 import { appFamily } from "./app.js";
 import { auth } from "./auth.js";
 import { arcs } from "./arc.js";
 import { capabilities } from "./capability.js";
-import { friction, resteer } from "./capture.js";
 import { doctorFamily, setupFamily } from "./doctor.js";
 import { doors } from "./doors.js";
 import { accountStatus, signIn, signOut } from "./identity.js";
@@ -41,7 +39,6 @@ const KEPT: readonly Family[] = [
   library,
   arcs,
   questions,
-  decisions,
   doors,
   lag,
   doctorFamily,
@@ -49,8 +46,6 @@ const KEPT: readonly Family[] = [
   quality,
   appFamily,
   releaseFamily,
-  friction,
-  resteer,
   plan,
   mapFamily,
   affectedFamily,

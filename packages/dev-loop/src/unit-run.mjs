@@ -70,11 +70,22 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
   // A unit is a run of its own even when a test runs it: under node:test, NODE_TEST_CONTEXT would
   // make it report into the outer run instead.
   const { NODE_TEST_CONTEXT: _, STORYTREE_TEST_EVIDENCE: _evidence, ...own } = env;
+  // A temp folder of the unit's own, named by each platform's variable and removed with whatever its
+  // tests left in it when it ends: a run leaves nothing of its own in the system temp folder
+  // (increment_74ca830203db). A run killed with its harness may leave this one folder.
+  const temp = mkdtempSync(path.join(tmpdir(), "st-unit-"));
+  const removeTemp = () => {
+    try {
+      rmSync(temp, { recursive: true, force: true, maxRetries: 5 });
+    } catch (error) {
+      console.error(`test harness: could not remove the unit's temp folder ${temp}: ${error.message}`);
+    }
+  };
   const started = Date.now();
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--import", tsx, "--test", ...guard, ...args, ...files], {
       cwd: root,
-      env: { ...own, STORYTREE_TEST_RUNNING: runningFile },
+      env: { ...own, STORYTREE_TEST_RUNNING: runningFile, TMPDIR: temp, TMP: temp, TEMP: temp },
       stdio,
     });
     onSpawn(child);
@@ -101,11 +112,13 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     child.on("error", (error) => {
       stop();
       rmSync(runningFile, { force: true });
+      removeTemp();
       reject(error);
     });
     child.on("exit", (code) => {
       stop();
       rmSync(runningFile, { force: true });
+      removeTemp();
       const result = { code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs };
       if (report !== undefined) {
         try {

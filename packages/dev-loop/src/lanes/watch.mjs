@@ -139,7 +139,7 @@ export async function handedOff(dir) {
  * (checking back in three days, after which the pool may take it again: an event wait needs that day), record the hand-off (one per pull request; handing back keeps its fix sessions), and start the watcher.
  * `keepOpen` marks one of several pull requests for the increment: its merge releases the session's claims but closes nothing.
  * `refused` is a fix session handing back untouched because another session's claim refused it: its fix is marked
- * refused, so it does not count against the limit (13.14), with the `holder` its refusal named, if any, and when (13.14).
+ * refused, so it does not count against the limit, with the `holder` its refusal named, if any, and when (13.14).
  * An increment that already closed (on an earlier pull request of a stack) waits for nothing, so its refusal of the
  * wait is no refusal of the hand-off: the record is marked `closed`, and the watcher still watches and fixes it (13.13).
  */

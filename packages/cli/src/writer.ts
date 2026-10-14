@@ -25,8 +25,11 @@ export function commandSession(): { session: string; harness?: string } | undefi
   return named ? { session: named } : undefined;
 }
 
-/** How a shell names its session to storytree, for a refusal that needs one. */
-export const NAME_A_SESSION = `run it from the agent's shell, or set ${SESSION_ENV} to the session id check_setup names`;
+/** The shell's session for a verb that opens no library: none when two watched harnesses each name one, so neither is picked. */
+export function soleSession(): { session: string; harness?: string } | undefined {
+  const naming = (WATCHED_HARNESSES as readonly WatchedHarness[]).filter((harness) => harness.shellSession !== undefined && process.env[harness.shellSession]?.trim());
+  return naming.length > 1 ? undefined : commandSession();
+}
 
 export function commandWriter(): WriteOptions {
   const caller = commandSession();

@@ -35,7 +35,7 @@ test("7.1 the gate runs typecheck and scoped tests, and explains guidance NOT RU
   const calls = [];
   const output = [];
   const code = await runGate({ root, run: async (step) => { calls.push(step); return 0; }, log: (line) => output.push(line) });
-  assert.deepEqual(calls, ["typecheck", "test", "check:plan-edges"]);
+  assert.deepEqual(calls, ["typecheck", "test", "check:plan-edges", "check:type-imports"]);
   assert.equal(code, 0);
   const table = output.at(-1);
   assert.match(table, /PASS\s+typecheck/);
@@ -49,7 +49,7 @@ test("7.5 the gate installs an uninstalled worktree before its first check, and 
   const { root } = checkout(t);
   const calls = [];
   const code = await runGate({ root, provision: () => (calls.push("install"), 0), run: async (step) => (calls.push(step), 0), log: () => {} });
-  assert.deepEqual(calls, ["install", "typecheck", "test", "check:plan-edges"]);
+  assert.deepEqual(calls, ["install", "typecheck", "test", "check:plan-edges", "check:type-imports"]);
   assert.equal(code, 0);
 
   const ran = [];
@@ -63,7 +63,7 @@ test("7.5 the gate installs an uninstalled worktree before its first check, and 
 
 test("library-only guidance edits can request every check, plan edges included (3.7), continuing past failure or launch error", async (t) => {
   const { root } = checkout(t);
-  for (const broken of ["typecheck", "test", "check:guidance", "check:plan-edges"]) {
+  for (const broken of ["typecheck", "test", "check:guidance", "check:plan-edges", "check:type-imports"]) {
     const calls = [];
     const output = [];
     const code = await runGate({ root, guidance: true, log: (line) => output.push(line), run: async (step) => {
@@ -71,7 +71,7 @@ test("library-only guidance edits can request every check, plan edges included (
       if (step === broken && step === "typecheck") throw new Error("cannot start typechecker");
       return step === broken ? 2 : 0;
     } });
-    assert.deepEqual(calls, ["typecheck", "test", "check:guidance", "check:plan-edges"]);
+    assert.deepEqual(calls, ["typecheck", "test", "check:guidance", "check:plan-edges", "check:type-imports"]);
     assert.equal(code, 1);
     assert.ok(output.at(-1).includes(`FAIL    ${broken}`));
     assert.match(output.at(-1), /rerun: pnpm run gate --guidance/);

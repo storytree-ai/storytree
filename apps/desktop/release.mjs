@@ -32,6 +32,13 @@ function newerThanPublished(version) {
   return version.localeCompare(latest.slice(1), "en", { numeric: true }) > 0;
 }
 
+// A rehearsal (release-package.yml called with rehearsal: true, ADR-1032 D3) runs the same build, signing and install
+// check on a branch, so a changed workflow, script or secret is proven before a real release reads it. It must never
+// touch a release, whatever its workflow says: these steps are refused before they read anything or call GitHub (4.22).
+if (process.env.STORYTREE_REHEARSAL === "true" && ["source", "draft", "upload", "publish"].includes(process.argv[2])) {
+  throw new Error(`A rehearsal never runs ${process.argv[2]}: it builds and checks, and publishes nothing`);
+}
+
 if (process.argv[2] === "source") {
   const run = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8")).workflow_run;
   let sha = releaseSource(run);
@@ -98,7 +105,15 @@ if (process.argv[2] === "source") {
       gh("release", "edit", tag, "--repo", repository, "--draft=false", "--latest");
     }
   }
-} else throw new Error("Use source, draft, upload or publish");
+} else if (process.argv[2] === "rehearse") {
+  // Where a real release uploads, a rehearsal only checks this runner built its platform's whole set.
+  const version = process.env.STORYTREE_RELEASE_VERSION || JSON.parse(readFileSync("apps/desktop/package.json", "utf8")).version;
+  const platform = hostPlatform();
+  const files = platformUploads(platform, readdirSync("apps/desktop/release"));
+  const missing = PLATFORMS[platform].required(version).filter((name) => !files.includes(name));
+  if (missing.length > 0) throw new Error(`Missing ${platform} release assets: ${missing.join(", ")}`);
+  console.log(`Rehearsal: ${platform} built its complete set for ${version}; nothing was drafted, uploaded or published.`);
+} else throw new Error("Use source, draft, upload, publish or rehearse");
 
 /** The release page's text: how to install first, since a first user may arrive here from anywhere. */
 function notes(command, macCommand, sha) {

@@ -191,3 +191,27 @@ test("4.5 · a word past the ones a verb takes, or a flag it does not take, is r
   const lag = verb({ command: { family: "lag", name: "lag", summary: "the lag readings" }, tool: { absent: "the desktop's own" }, inputs: { days: { kind: "text", optional: true, describe: "how many days" } }, callerless: true, async act() { return { text: "" }; } });
   assert.equal(commandUsage(lag), "lag [--days <days>]");
 });
+
+const hold = verb({
+  command: { family: "garden", name: "hold", summary: "hold a bed for someone, or for no one" },
+  tool: { name: "hold_bed", description: "Hold a bed." },
+  inputs: {
+    bed: { kind: "text", word: 0, describe: "which bed" },
+    for: { kind: "text", optional: true, blank: true, describe: "who for: empty holds it for no one" },
+  },
+  async act({ bed, for: holder }) {
+    if (bed === "pond") throw new VerbRefusal("a pond is no bed", { next: [{ tool: "show_garden", command: "garden show", why: "find a bed" }] });
+    return { text: holder === "" ? `${bed} is held for no one.` : `${bed} is held for ${holder ?? "you"}.` };
+  },
+});
+
+test("4.6 · a text input marked blank keeps a value that says nothing, read as empty, on either door; a refusal may name the steps that do the job instead", async () => {
+  const context: VerbContext = { library: {} as Library, project: "p", session: "claude-1", folder: "/work" };
+  const blank = commandInput(hold, given(["north"], { for: " " }));
+  assert.deepEqual(blank, toolInput(hold, { bed: "north", for: "" }));
+  assert.equal((await hold.act(blank, context, DOORS.command)).text, "north is held for no one.");
+  assert.throws(() => commandInput(hold, given([" "], { for: "" })), (error: unknown) => error instanceof VerbRefusal && error.misuse, "an input not marked blank still refuses one");
+
+  await assert.rejects(hold.act(commandInput(hold, given(["pond"], {})), context, DOORS.command), (error: unknown) =>
+    error instanceof VerbRefusal && !error.misuse && error.next.length === 1 && DOORS.tool.say(error.next[0]!) === "show_garden" && DOORS.command.say(error.next[0]!) === "storytree garden show");
+});

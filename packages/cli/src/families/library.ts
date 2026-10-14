@@ -38,7 +38,7 @@ export function fieldsOf(args: Args, except: readonly string[] = []): Record<str
 }
 
 /** A field's value: text, or JSON for `true`, `false`, a whole number, a list or an object. */
-export function valueOf(text: string): unknown {
+function valueOf(text: string): unknown {
   const trimmed = text.trim();
   if (trimmed === "true" || trimmed === "false" || /^-?\d+$/.test(trimmed) || trimmed.startsWith("[") || trimmed.startsWith("{")) {
     try {
@@ -283,7 +283,7 @@ async function heldOnIncrement(context: Context, library: Library, change: PlanC
 }
 
 /** An increment's pending changes (ADR-0966 D3): each record, then each field as before -> after, or its retirement. */
-export function pendingSaid(pending: readonly PendingChange[]): string[] {
+function pendingSaid(pending: readonly PendingChange[]): string[] {
   const said = (value: unknown): string => (value === null || value === undefined ? "(none)" : typeof value === "string" ? value : JSON.stringify(value));
   return [
     `Pending changes (${pending.length}), applied when its branch merges:`,

@@ -7,8 +7,7 @@
  * unchanged project lays the globe out once.
  */
 import { pageKept, type Kept, type PageStorage } from "@storytree/arc-surface";
-import type { AnnotatedTree, Change } from "@storytree/library";
-import type { StorySurvey } from "@storytree/map";
+import type { AnnotatedTree, Change, StorySurvey } from "@storytree/library";
 
 import type { PartState, PartStates } from "../capability-tree/capability-tree.js";
 import { KEPT_DRAWING_KEY, KEPT_TREE_KEY } from "./kept-keys.js";

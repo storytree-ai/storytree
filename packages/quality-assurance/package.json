@@ -4,7 +4,8 @@
   "type": "module",
   "description": "Quality assurance (ADR-0956): the quality control checks a change-reviewer applies, read as one list from the library, and later the QA ledger of what each check finds.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./verbs": "./src/checks/verbs.ts"
   },
   "storytree": {
     "tools": [
@@ -12,6 +13,12 @@
         "from": ".",
         "export": "qualityToolParts",
         "order": 2
+      }
+    ],
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "QUALITY_FAMILIES"
       }
     ],
     "guidance": [
@@ -28,6 +35,8 @@
   "dependencies": {
     "@storytree/guardrails": "workspace:*",
     "@storytree/library": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

@@ -16,10 +16,12 @@ import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 
 import { parseArgs } from "./args.js";
 import type { Context } from "./door.js";
-import { arcs } from "./families/arc.js";
+import { ARC_FAMILIES } from "@storytree/arc-surface/verbs";
+import { family } from "./mount.js";
 import { BuiltCommand, inWorld, testServerUrl, type World } from "./testing/cli.js";
 
 const command = new BuiltCommand();
+const arcs = family(ARC_FAMILIES.find((declared) => declared.name === "arc")!);
 
 before(() => command.build());
 after(() => command.remove());
@@ -59,7 +61,7 @@ test("4.5 `arc list` reads every arc in one ask, however many arcs the project h
       },
     });
     const list = arcs.verbs.find((verb) => verb.name === "list")!;
-    const answer = await list.act(parseArgs([], [], world.folder), { library: async () => counted } as unknown as Context);
+    const answer = await list.act(parseArgs([], [], world.folder), { cwd: world.folder, activityContext: async () => ({ library: counted }) } as unknown as Context);
     assert.match(answer.text, /^3 arcs:/);
     assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
   });
@@ -83,7 +85,7 @@ test("4.8 `arc show` reads the arc's view once and every hold in one ask, howeve
       },
     });
     const show = arcs.verbs.find((verb) => verb.name === "show")!;
-    const answer = await show.act(parseArgs([arc], [], world.folder), { library: async () => counted } as unknown as Context);
+    const answer = await show.act(parseArgs([arc], [], world.folder), { cwd: world.folder, activityContext: async () => ({ library: counted }) } as unknown as Context);
     assert.equal(answer.text.split("\n").filter((line) => line.includes(`waits on ${first.id}: needs the tables`)).length, 3, answer.text);
     assert.deepEqual(asked, { arcView: 1, holds: 1, waitHolds: 0, heldOnQuestion: 0 });
   });
@@ -175,7 +177,7 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
   await inWorld(command, async (world) => {
     const library = await world.library();
     const verb = arcs.verbs.find((one) => one.name === "waits")!;
-    const none = await verb.act(parseArgs([], [], world.folder), { library: async () => library } as unknown as Context);
+    const none = await verb.act(parseArgs([], [], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
     assert.equal(none.text, "No waits for you or an outside event.");
 
     const launch = await anArc(world);
@@ -198,7 +200,7 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
       },
     });
 
-    const answer = await verb.act(parseArgs([], [], world.folder), { library: async () => counted } as unknown as Context);
+    const answer = await verb.act(parseArgs([], [], world.folder), { cwd: world.folder, activityContext: async () => ({ library: counted }) } as unknown as Context);
 
     assert.deepEqual(answer.text.split("\n"), [
       "3 waits for you or an outside event:",

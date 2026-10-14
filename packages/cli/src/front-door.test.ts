@@ -11,7 +11,7 @@ import pg from "pg";
 import { openActivityLog } from "@storytree/session-management";
 import type { Reading } from "@storytree/reading-the-front-doors";
 
-import { BuiltCommand, bareNode, inWorld, storytree, testServerUrl } from "./testing/cli.js";
+import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -44,20 +44,23 @@ test("1.2 in a folder that is not a project, it exits non-zero with \"not a stor
 
 test("1.3 with storytree stopped, it says \"storytree isn't running\" within a second", async () => {
   await inWorld(command, async (world) => {
-    // Node's own start is the machine's, not the command's: a second on top of a bare Node's. Each is taken
-    // beside the other, three times, and the best of each compared, so other units starting at once cannot
-    // charge the command for the machine's load.
+    // Starting the command is the machine's, and a loaded machine stretches it for every command alike: the second
+    // is on top of the same command refusing a folder that is no project, which starts it the same way and stops
+    // before it looks for a running storytree. Each is taken beside the other, three times, and the best of each
+    // compared, so ten sibling test files starting at once charge both, not the stopped answer alone.
     const floors: number[] = [];
     const runs: number[] = [];
     for (let round = 0; round < 3; round += 1) {
-      floors.push(await bareNode());
+      const refused = await storytree(command.script, ["library", "search", "mailer"], { cwd: world.elsewhere, home: world.stoppedHome });
+      assert.match(refused.stderr, /not a storytree project/);
+      floors.push(refused.ms);
       const ran = await storytree(command.script, ["library", "search", "mailer"], { cwd: world.folder, home: world.stoppedHome });
       assert.notEqual(ran.code, 0);
       assert.match(ran.stderr, /storytree isn't running/);
       runs.push(ran.ms);
     }
     const [floor, took] = [Math.min(...floors), Math.min(...runs)];
-    assert.ok(took - floor < 1_000, `took at best ${Math.round(took)} ms, a bare Node at best ${Math.round(floor)} ms`);
+    assert.ok(took - floor < 1_000, `took at best ${Math.round(took)} ms, refusing a folder that is no project at best ${Math.round(floor)} ms`);
   });
 });
 

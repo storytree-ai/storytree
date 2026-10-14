@@ -8,14 +8,12 @@ import declared from "#parts/verbs";
 import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
 import { decisions } from "./adr.js";
-import { appFamily } from "./app.js";
 import { auth } from "./auth.js";
 import { arcs } from "./arc.js";
 import { capabilities } from "./capability.js";
 import { friction, resteer } from "./capture.js";
 import { doctorFamily, setupFamily } from "./doctor.js";
 import { doors } from "./doors.js";
-import { accountStatus, signIn, signOut } from "./identity.js";
 import { library } from "./library.js";
 import { journeyFamily } from "./journey.js";
 import { lag } from "./lag.js";
@@ -23,7 +21,6 @@ import { questions } from "./question.js";
 import { importFamily, projectFamily } from "./project.js";
 import { plan } from "./tree.js";
 import { processes } from "./processes.js";
-import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
 import { releaseFamily } from "./release.js";
@@ -47,7 +44,6 @@ const KEPT: readonly Family[] = [
   doctorFamily,
   checkFamily,
   quality,
-  appFamily,
   releaseFamily,
   friction,
   resteer,
@@ -59,12 +55,8 @@ const KEPT: readonly Family[] = [
   projectFamily,
   importFamily,
   processes,
-  settings,
   journeyFamily,
   auth,
-  signIn,
-  accountStatus,
-  signOut,
 ];
 
 export const FAMILIES: readonly Family[] = [...declared].sort((a, b) => a.order - b.order).reduce(

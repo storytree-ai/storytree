@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./verbs": "./src/verbs.ts"
   },
   "storytree": {
     "tools": [
@@ -12,6 +13,12 @@
         "export": "librarianToolParts",
         "order": 1
       }
+    ],
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "LIBRARIAN_FAMILIES"
+      }
     ]
   },
   "scripts": {
@@ -19,6 +26,8 @@
   },
   "dependencies": {
     "@storytree/library": "workspace:*",
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/session-management": "workspace:*",
     "zod": "^4.6.5"
   },
   "devDependencies": {

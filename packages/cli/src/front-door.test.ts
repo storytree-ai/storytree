@@ -15,6 +15,7 @@ import { HEALTH_FAMILIES } from "@storytree/ci-health/verbs";
 import { IDENTITY_FAMILIES } from "@storytree/identity/verbs";
 import { SESSION_FAMILIES } from "@storytree/session-management/verbs";
 import { WORKSPACE_FAMILIES } from "@storytree/session-management/workspace-verbs";
+import { LIBRARIAN_FAMILIES } from "@storytree/librarian/verbs";
 import type { Reading } from "@storytree/reading-the-front-doors";
 
 import { FAMILIES } from "./families/index.js";
@@ -22,7 +23,7 @@ import unbundled from "./parts/verbs.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-const DECLARED = [...APP_FAMILIES, ...SETTINGS_FAMILIES, ...IDENTITY_FAMILIES, ...HEALTH_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES];
+const DECLARED = [...APP_FAMILIES, ...SETTINGS_FAMILIES, ...IDENTITY_FAMILIES, ...HEALTH_FAMILIES, ...LIBRARIAN_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());
@@ -274,7 +275,7 @@ test("1.19 storytree lag prints Lag in real use's report over the lag readings k
   });
 });
 
-test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: CI health's health 18th, Session management's workspace among the rest, its bare name making a workspace, and its session and machine last", async () => {
+test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: CI health's health 18th, the librarian's adr 4th and friction and resteer 13th and 14th with adr's guesses, Session management's workspace among the rest, its bare name making a workspace, and its session and machine last", async () => {
   await inWorld(command, async (world) => {
     const listed = await world.run([]);
     assert.equal(listed.code, 0, listed.stderr);
@@ -290,6 +291,8 @@ test("1.21 · `storytree` mounts the families its story packages' manifests decl
     assert.match(signIn.stdout, /^  storytree sign-in$/m, signIn.stdout + signIn.stderr);
     const verbs = await world.run(["machine"]);
     assert.match(verbs.stdout, /^  storytree machine this$/m, verbs.stdout + verbs.stderr);
+    const guessed = await world.run(["adr", "show", "ADR-0001"]);
+    assert.match(guessed.stderr, /storytree adr pull <decision>/, guessed.stdout + guessed.stderr);
     const health = await world.run(["health"]);
     assert.match(health.stdout, /^  storytree health worklist$/m, health.stdout + health.stderr);
     const workspace = await world.run(["workspace", "--help"]);

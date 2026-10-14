@@ -5,9 +5,11 @@
   "exports": {
     ".": "./src/index.ts",
     "./lifecycle/bridge": "./src/lifecycle/bridge.ts",
+    "./lifecycle/verbs": "./src/lifecycle/verbs.ts",
     "./projects": "./src/projects/follow.ts",
     "./projects/bridge": "./src/projects/bridge.ts",
     "./surfaces": "./src/surfaces/bridge.ts",
+    "./surfaces/verbs": "./src/surfaces/verbs.ts",
     "./updates/bridge": "./src/updates/bridge.ts",
     "./version": "./src/updates/version.ts",
     "./view": "./src/view/index.ts"
@@ -32,5 +34,17 @@
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
     "@storytree/app-setup": "workspace:*"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./lifecycle/verbs",
+        "export": "APP_FAMILIES"
+      },
+      {
+        "from": "./surfaces/verbs",
+        "export": "SETTINGS_FAMILIES"
+      }
+    ]
   }
 }

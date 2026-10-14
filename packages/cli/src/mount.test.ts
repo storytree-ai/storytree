@@ -33,7 +33,7 @@ const status = verb({
   callerless: true,
   async act(_input, place: VerbPlace & Partial<CommandPlace>) {
     const journey = await place.journey!();
-    return { text: `${place.folder} ${place.script} ${journey === runtime ? "runtime" : "another"}` };
+    return { text: `${place.folder} ${place.script} ${(journey as unknown) === runtime ? "runtime" : "another"}` };
   },
 });
 

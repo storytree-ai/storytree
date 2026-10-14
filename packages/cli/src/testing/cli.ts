@@ -170,16 +170,6 @@ export function storytree(script: string, args: readonly string[], options: RunO
   });
 }
 
-/** How long a bare Node that does nothing takes to start and exit: the machine's floor. */
-export function bareNode(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const started = performance.now();
-    const child = spawn(process.execPath, ["-e", "0"], { stdio: "ignore", shell: false });
-    child.on("error", reject);
-    child.on("exit", () => resolve(performance.now() - started));
-  });
-}
-
 /** One test's world: a project folder, a folder that is none, and a storytree home, all thrown away after. */
 export interface World {
   /** The project's name. */

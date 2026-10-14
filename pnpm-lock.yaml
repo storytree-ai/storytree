@@ -255,6 +255,9 @@ importers:
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
     devDependencies:
       '@types/node':
         specifier: ^24.13.6

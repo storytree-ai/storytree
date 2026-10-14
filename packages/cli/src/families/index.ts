@@ -23,7 +23,7 @@ import { lag } from "./lag.js";
 import { questions } from "./question.js";
 import { noticeboard } from "./noticeboard.js";
 import { importFamily, projectFamily } from "./project.js";
-import { health, plan } from "./tree.js";
+import { plan } from "./tree.js";
 import { workspace } from "./workspace.js";
 import { processes } from "./processes.js";
 import { settings } from "./settings.js";
@@ -58,7 +58,6 @@ const KEPT: readonly Family[] = [
   plan,
   mapFamily,
   affectedFamily,
-  health,
   capabilities,
   setupFamily,
   projectFamily,

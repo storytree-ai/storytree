@@ -176,12 +176,23 @@ function proofTitles(titles: readonly string[]): SurveyedTest["titles"] {
 }
 
 /** The opening comment's "Capability N · …", after a shebang: a comment that begins with it, before any code. */
-const DECLARED = /^(?:#![^\n]*\n)?\s*(?:\/\*+|\/\/)[\s*]*Capability\s+(\d+)\s*·/;
+const DECLARED = /^(?:#![^\n]*\n)?\s*(?:\/\*+|\/\/)[\s*]*Capability\s+(\d+)\s*·[ \t]*([^\n]*)/;
 
 /** The capability number a source file declares in its opening comment (ADR-0925 D1), if any. */
 export const declarationOf = (text: string): number | undefined => {
   const match = DECLARED.exec(text);
   return match === null ? undefined : Number(match[1]);
+};
+
+/**
+ * Whether a source file's opening "Capability N · …" names `title` (a capability's "N · <title>"): its words after
+ * the dot begin with the title's, in any case. A file moved from another story keeps the header naming that story's
+ * capability, whose number here names another (8.29).
+ */
+export const declaresTitle = (text: string, title: string): boolean => {
+  const named = DECLARED.exec(text)?.[2]?.toLowerCase();
+  const own = title.replace(/^\s*\d+\s*·\s*/, "").toLowerCase();
+  return named !== undefined && named.startsWith(own);
 };
 
 /**

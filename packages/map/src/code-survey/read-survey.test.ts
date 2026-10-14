@@ -755,3 +755,19 @@ test("8.17 a changed file is placed by its own declaration, else by the survey's
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test("8.29 a source file whose header's title is not its number's capability in its story, as a file moved from another story keeps, declares nothing: it is placed by inference, or nowhere", async () => {
+  const plan = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-settings", title: "2 · Settings" }, { id: "cap-caller", title: "3 · The caller" }] }] } as unknown as AnnotatedTree;
+  const texts: Record<string, string> = {
+    "packages/shop/src/caller.ts": "/**\n * Capability 2 · Agent activity log: who called.\n */\nexport const caller = 1;\n",
+    "packages/shop/src/settings.ts": "// Capability 2 · settings, read and written.\nexport const settings = 1;\n",
+  };
+  const readText = (file: string) => texts[file];
+  const unsurveyed = await capabilitiesOfFiles("/nowhere", Object.keys(texts), plan, { readText, survey: async () => ({}) });
+  assert.deepEqual([...unsurveyed], [["packages/shop/src/settings.ts", { capability: "cap-settings", inferred: false }]]);
+  const surveyed = await capabilitiesOfFiles("/nowhere", ["packages/shop/src/caller.ts"], plan, {
+    readText,
+    survey: async () => ({ "story-shop": { files: [{ path: "src/caller.ts", lines: 1, capability: "cap-caller" }] } }) as never,
+  });
+  assert.deepEqual([...surveyed], [["packages/shop/src/caller.ts", { capability: "cap-caller", inferred: true }]]);
+});

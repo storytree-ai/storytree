@@ -2,7 +2,7 @@
 // real `node --test` unit over a fixture file, with the limits cut to seconds.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -64,6 +64,24 @@ test("1.12 words", { skip: "platform:win32: needs Windows" }, () => {});`,
     assert.equal(report.results[0].file, report.unit === "cli" ? "second.test.mjs" : "first.test.mjs");
     assert.equal(report.results[0].status, report.unit === "cli" ? "skipped" : "passed");
   }
+});
+
+// increment_74ca830203db: a full run left thousands of files and folders in a laptop's temp folder.
+test("6.14 · a unit's tests get a temp folder of their own, removed with what they left in it when the unit ends", async (t) => {
+  const root = fixture(t, {
+    "litters.test.mjs": `import { mkdtempSync, writeFileSync } from "node:fs"; import { tmpdir } from "node:os"; import path from "node:path"; import { test } from "node:test";
+test("leaves files behind", () => {
+  writeFileSync(path.join(tmpdir(), "stamp"), "");
+  mkdtempSync(path.join(tmpdir(), "folder-"));
+  writeFileSync("RECORD", JSON.stringify({ tmpdir: tmpdir(), TMPDIR: process.env.TMPDIR, TMP: process.env.TMP, TEMP: process.env.TEMP }));
+});`,
+  });
+  const run = await runUnit({ root, files: ["litters.test.mjs"], env: process.env, stdio: "ignore" });
+  assert.equal(run.code, 0);
+  const seen = JSON.parse(readFileSync(path.join(root, "RECORD"), "utf8"));
+  assert.equal(path.dirname(seen.tmpdir), tmpdir(), "a folder inside the system temp folder");
+  assert.deepEqual([seen.TMPDIR, seen.TMP, seen.TEMP], [seen.tmpdir, seen.tmpdir, seen.tmpdir], "every platform's temp variable names it");
+  assert.equal(existsSync(seen.tmpdir), false, "removed with the stamp and the folder the test left in it");
 });
 
 // increment_655d99c13fc3: a file dying before it reports any test must explain its failure.

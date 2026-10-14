@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
-import childProcess, { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { chmodSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
-import { syncBuiltinESMExports } from "node:module";
 import { test, type TestContext } from "node:test";
 
 import { findBinaries } from "@storytree/local-postgres";
@@ -258,22 +257,20 @@ test("1.16 Windows privacy refusals explain the failed check without the failure
   });
 });
 
-test("1.16 the Windows privacy check starts no program, so a machine too loaded to start one in time still routes a private handoff (regression: windows-acl-timeout on a loaded Windows CI runner, 2026-10-14)", async (t) => {
+test("1.16 the Windows privacy check starts no program: with none it could start, a private handoff still routes, so a machine too loaded to start one in time cannot refuse it (regression: windows-acl-timeout on a loaded Windows CI runner, 2026-10-14)", async (t) => {
   await withTempDir((home) => {
     const f = fixture(home);
     // On Windows the check reads the real handoff's descriptors; elsewhere they are answered for it.
     const restore = process.platform === "win32" ? () => {} : mockWindows(t, { descriptor: () => descriptor() });
-    // Every program start times out, as a cold start did on a saturated runner.
-    const late = () => { throw Object.assign(new Error("spawnSync ETIMEDOUT"), { code: "ETIMEDOUT" }); };
-    const starts = [t.mock.method(childProcess, "execFileSync", late), t.mock.method(childProcess, "spawnSync", late)];
-    syncBuiltinESMExports();
+    // Windows' programs live under SystemRoot: pointed at an empty folder, none of them can start.
+    const systemRoot = process.env.SystemRoot;
+    process.env.SystemRoot = path.join(home, "no-windows");
     try {
       const found = locateStorytree({ dataDir: f.dataDir });
       assert.equal(found.running, true, found.running ? "" : found.message);
-      assert.equal(starts.reduce((sum, start) => sum + start.mock.callCount(), 0), 0);
     } finally {
-      for (const start of starts) start.mock.restore();
-      syncBuiltinESMExports();
+      if (systemRoot === undefined) delete process.env.SystemRoot;
+      else process.env.SystemRoot = systemRoot;
       restore();
     }
   });

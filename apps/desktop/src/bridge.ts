@@ -10,6 +10,7 @@ import { UPDATES_CHANNELS, type UpdatesBridge } from "@storytree/app/updates/bri
 import type { SurfacesBridge } from "@storytree/app";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS, type FeedbackIdentityBridge, type SetupHelpBridge } from "@storytree/app-setup/bridge";
 import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/journey-events/bridge";
+import type { StorySurvey } from "@storytree/library";
 
 import PAGE_CHANNELS from "#parts/pageChannels";
 
@@ -17,11 +18,11 @@ import { pageMethods } from "./page-operations.js";
 
 /**
  * The page operations the forest and Lag in real use name in their manifests (ADR-1030), as the frame hands them on:
- * its own copy of what it reads of them (ADR-1017 D2), which is a surveyed file's path, for a capture's seed.
+ * its own copy (ADR-1017 D2), with the code survey's shape taken from the library, where it is defined (D1).
  */
 export interface StoryPageBridge {
   /** The forest's: each story's code survey, by story id (map 8). */
-  codeSurvey(project: string): Promise<Readonly<Record<string, { readonly files: readonly { readonly path: string }[] }>>>;
+  codeSurvey(project: string): Promise<Readonly<Record<string, StorySurvey>>>;
   /** Lag in real use's: the page's readings of how long it took to answer. */
   recordLag(readings: readonly object[]): Promise<void>;
 }

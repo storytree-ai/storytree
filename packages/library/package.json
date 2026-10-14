@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./verbs": "./src/verbs/verb.ts"
+    "./verbs": "./src/verbs/verb.ts",
+    "./commands": "./src/commands/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -36,6 +37,12 @@
         "from": ".",
         "export": "knowledgeGuidance",
         "order": 80
+      }
+    ],
+    "verbs": [
+      {
+        "from": "./commands",
+        "export": "LIBRARY_FAMILIES"
       }
     ]
   }

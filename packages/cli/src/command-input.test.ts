@@ -243,3 +243,22 @@ test("13.6 · a text input marked blank keeps a value that says nothing, read as
   await assert.rejects(hold.act(commandInput(hold, given(["pond"], {})), context, DOORS.command), (error: unknown) =>
     error instanceof VerbRefusal && !error.misuse && error.next.length === 1 && DOORS.tool.say(error.next[0]!) === "show_garden" && DOORS.command.say(error.next[0]!) === "storytree garden show");
 });
+
+const label = verb({
+  command: { family: "garden", name: "label", summary: "find a label as it was written" },
+  tool: { name: "find_label", description: "Find a label." },
+  inputs: {
+    text: { kind: "text", word: 0, verbatim: true, describe: "the label, its spaces included" },
+    bed: { kind: "text", optional: true, describe: "which bed" },
+  },
+  async act({ text }) {
+    return { text: JSON.stringify(text) };
+  },
+});
+
+test("13.7 · a text input marked verbatim keeps its value as given, its leading and trailing whitespace included, on either door", () => {
+  const read = commandInput(label, given(["  Rose bed  "], { bed: "  north  " }));
+  assert.deepEqual(read, { text: "  Rose bed  ", bed: "north" }, "only the verbatim input keeps its spaces");
+  assert.deepEqual(toolInput(label, { text: "  Rose bed  ", bed: "  north  " }), read);
+  assert.throws(() => commandInput(label, given(["   "], {})), (error: unknown) => error instanceof VerbRefusal && error.misuse, "one that says nothing is still refused");
+});

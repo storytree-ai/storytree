@@ -10,7 +10,6 @@ import { family as mounted } from "../mount.js";
 import { auth } from "./auth.js";
 import { capabilities } from "./capability.js";
 import { doors } from "./doors.js";
-import { library } from "./library.js";
 import { plan } from "./tree.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
@@ -23,7 +22,6 @@ export const GUESSES: Readonly<Record<string, string>> = {
 
 /** The families still kept here, in their order once the declared ones take their places. */
 const KEPT: readonly Family[] = [
-  library,
   doors,
   plan,
   mapFamily,

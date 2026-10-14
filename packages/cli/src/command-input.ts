@@ -90,9 +90,12 @@ function wordsFrom(given: CommandGiven, index: number): string[] {
   return words;
 }
 
-/** A text input, trimmed: one that says nothing is refused, unless it is marked blank, as the MCP server refuses it. */
+/**
+ * A text input, trimmed unless it is marked verbatim: one that says nothing is refused, unless it is marked blank, as
+ * the MCP server refuses it.
+ */
 function said(name: string, input: VerbInput, value: string): string {
   const text = value.trim();
   if (text === "" && !(input.kind === "text" && input.blank)) throw new VerbRefusal(`${name} is empty: ${input.describe}`, { misuse: true });
-  return text;
+  return input.kind === "text" && input.verbatim ? value : text;
 }

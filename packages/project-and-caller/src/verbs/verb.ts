@@ -50,16 +50,20 @@ export interface DoorWords {
   say(step: Step): string;
 }
 
+/** Where a verb was called: all a callerless verb's work is handed, with what its declaring story types beside it. */
+export interface VerbPlace {
+  readonly folder: string;
+}
+
 /**
  * Who called, and where: the calling session and its project's library. A story whose verbs need more (Session
  * management's need its activity log) extends this, and the doors that mount those verbs hand it.
  */
-export interface VerbContext {
+export interface VerbContext extends VerbPlace {
   readonly library: Library;
   readonly project: string;
   readonly session: string;
   readonly harness?: string;
-  readonly folder: string;
   readonly branch?: string;
   readonly writer?: WriteOptions;
   /** The storytree home the caller's process ledger and claims are kept under, when not the usual one. */
@@ -95,13 +99,15 @@ export interface Absent {
   readonly absent: string;
 }
 
-export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbContext = VerbContext> {
+export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbPlace = VerbContext> {
   /** `storytree <family> <name>`, with its usage (after `storytree `) when its inputs cannot spell it, as grouped flags. */
   readonly command: { readonly family: string; readonly name: string; readonly summary: string; readonly usage?: string } | Absent;
   readonly tool: { readonly name: string; readonly description: string } | Absent;
   readonly inputs: I;
   /** Only an agent session may call it: why, as "it closes out the agent session that runs it". */
   readonly agentOnly?: string;
+  /** Its work needs no caller, project or library (it reads a file, or runs offline): a door hands it only the place. */
+  readonly callerless?: true;
   /** Its work writes to the library: each door hands it the writer (the context's `writer`), and the command line names that writer below its answer. */
   readonly writes?: true;
   act(input: InputOf<I>, context: C, words: DoorWords): Promise<VerbAnswer>;
@@ -113,7 +119,7 @@ export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbContext =
  * try for a job another command does, each with that command (after `storytree `); `retired` are words for a step
  * storytree has retired, each with why and the command for the job now: the command line names them rather than run them.
  */
-export interface VerbFamilies<C extends VerbContext = VerbContext> {
+export interface VerbFamilies<C extends VerbPlace = VerbContext> {
   readonly name: string;
   readonly summary: string;
   readonly verbs: readonly Verb<VerbInputs, C>[];
@@ -127,12 +133,12 @@ export interface VerbFamilies<C extends VerbContext = VerbContext> {
  * A command family a story declares in its manifest's `verbs` (ADR-1033), listed `order`th among `storytree`'s
  * families, counted from 1, so a family keeps its place in the help as it moves.
  */
-export interface VerbFamily<C extends VerbContext = VerbContext> extends VerbFamilies<C> {
+export interface VerbFamily<C extends VerbPlace = VerbContext> extends VerbFamilies<C> {
   readonly order: number;
 }
 
 /** Declare a verb, keeping its inputs' and its context's types for its act. */
-export function verb<I extends VerbInputs, C extends VerbContext = VerbContext>(declared: Verb<I, C>): Verb<VerbInputs, C> {
+export function verb<I extends VerbInputs, C extends VerbPlace = VerbContext>(declared: Verb<I, C>): Verb<VerbInputs, C> {
   return declared as unknown as Verb<VerbInputs, C>;
 }
 
@@ -140,7 +146,10 @@ export function mounted<T extends object>(face: T | Absent): face is T {
   return !("absent" in face);
 }
 
-/** A command's usage, after `storytree `, from the verb's inputs: `session close-out --safe yes|no --why <why>`. */
+/**
+ * A command's usage, after `storytree `, from the verb's inputs: `session close-out --safe yes|no --why <why>`. A family's
+ * bare verb, named as its family, is used as `<family> …`.
+ */
 export function commandUsage(declared: Verb<VerbInputs, never>): string {
   if (!mounted(declared.command)) throw new Error(`${mounted(declared.tool) ? declared.tool.name : "this verb"} has no command: ${declared.command.absent}`);
   if (declared.command.usage !== undefined) return declared.command.usage;
@@ -152,7 +161,8 @@ export function commandUsage(declared: Verb<VerbInputs, never>): string {
     if (input.kind === "fields") return ["--<field> <value> …"];
     return input.word !== undefined ? [] : [spelt(input, `--${name} <${name}>`)];
   });
-  return [declared.command.family, declared.command.name, ...words, ...flags].join(" ");
+  const { family, name } = declared.command;
+  return [family, ...(name === family ? [] : [name]), ...words, ...flags].join(" ");
 }
 
 /** A text input's place in a usage: `[…]` when it may be left out, `…` after it when it may come again. */
@@ -173,10 +183,24 @@ export interface CommandGiven {
   names(): readonly string[];
 }
 
-/** A command's words and flags read as the verb's input, or a refusal saying what is wrong. */
+/**
+ * A command's words and flags read as the verb's input, or a refusal saying what is wrong. A word past the ones it
+ * takes, or a flag it does not take, is refused as a misuse; the flag is named, but a word never is, since a stray word
+ * may be a secret (`auth set <name> <key>`). A verb with `fields` takes every flag, and one with `many` words every word.
+ */
 export function commandInput(declared: Verb<VerbInputs, never>, given: CommandGiven): InputOf<VerbInputs> {
+  const inputs = Object.entries(declared.inputs);
+  if (!inputs.some(([, one]) => one.kind === "fields")) {
+    const stray = given.names().find((name) => !inputs.some(([declaredName, one]) => declaredName === name && (one.kind !== "text" || one.word === undefined)));
+    if (stray !== undefined) throw new VerbRefusal(`--${stray} is not a flag this takes`, { misuse: true });
+  }
+  if (!inputs.some(([, one]) => one.kind === "text" && one.many && one.word !== undefined)) {
+    const words = Math.max(0, ...inputs.map(([, one]) => one.kind === "text" && one.word !== undefined ? one.word + 1 : 0));
+    const count = wordsFrom(given, 0).length;
+    if (count > words) throw new VerbRefusal(words === 0 ? "this takes no words" : `this takes ${words === 1 ? "one word" : `${words} words`}, and was given ${count}`, { misuse: true });
+  }
   const input: Record<string, VerbValue> = {};
-  for (const [name, one] of Object.entries(declared.inputs)) {
+  for (const [name, one] of inputs) {
     if (one.kind === "fields") {
       const named = new Set(Object.keys(declared.inputs));
       input[name] = Object.fromEntries(given.names().filter((field) => !named.has(field)).map((field) => [field, given.flag(field)!]));

@@ -7,4 +7,6 @@ import type { VerbFamily } from "@storytree/project-and-caller/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 import { composeParts } from "@storytree/plugin-loader";
 
-export default await composeParts<VerbFamily<SessionVerbContext>>(import.meta.url, "verbs");
+import type { CommandPlace } from "../mount.js";
+
+export default await composeParts<VerbFamily<SessionVerbContext & CommandPlace>>(import.meta.url, "verbs");

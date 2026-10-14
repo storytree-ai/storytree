@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import type { Library } from "@storytree/library";
 
-import { commandInput, commandUsage, mounted, toolInput, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily } from "./verb.js";
+import { commandInput, commandUsage, mounted, toolInput, verb, VerbRefusal, type DoorWords, type VerbContext, type VerbFamily, type VerbPlace } from "./verb.js";
 
 const DOORS: Record<"command" | "tool", DoorWords> = {
   command: { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` },
@@ -153,4 +153,41 @@ test("4.4 · a text input may be many, each word from its place on or each repet
   const answer = await gather.act(fromCommand, context, DOORS.command);
   assert.equal(answer.text, `north+south into wicker+tin {"colour":"red","size":" big "} by session:claude-1`);
   assert.equal(answer.raw, true);
+});
+
+const keep = verb({
+  command: { family: "keys", name: "set", summary: "keep a key", usage: "keys set <name> (its key on standard input)" },
+  tool: { absent: "a key is not handed to an agent" },
+  inputs: { name: { kind: "text", word: 0, describe: "whose key" }, quiet: { kind: "switch", describe: "say less" } },
+  callerless: true,
+  async act({ name }, context: VerbPlace) {
+    return { text: `Kept ${name}'s key from ${context.folder}.` };
+  },
+});
+
+test("4.5 · a word past the ones a verb takes, or a flag it does not take, is refused as a misuse naming the flag and never the word; a verb may be callerless, its work handed only its place, and a family's bare verb named as the family is used as the family", async () => {
+  assert.deepEqual(commandInput(keep, given(["openai"], { quiet: "true" })), { name: "openai", quiet: true });
+  const refusal = (words: readonly string[], flags: Readonly<Record<string, string>>): VerbRefusal => {
+    try {
+      commandInput(keep, given(words, flags));
+    } catch (error) {
+      if (error instanceof VerbRefusal && error.misuse) return error;
+      throw error;
+    }
+    assert.fail("not refused");
+  };
+  const stray = refusal(["openai", "sk-secret"], {});
+  assert.doesNotMatch(stray.message, /sk-secret/, "a stray word is never echoed: it may be the key");
+  assert.match(refusal(["openai"], { key: "sk-secret" }).message, /^--key is not a flag this takes$/);
+  // A word input is not also a flag, and a verb that takes nothing takes no word.
+  assert.match(refusal(["openai"], { name: "x" }).message, /--name/);
+  assert.throws(() => commandInput(sweep, given(["extra"], {})), (error: unknown) => error instanceof VerbRefusal && error.misuse && !error.message.includes("extra"));
+  // A verb words its own refusal through its usage: auth set's standard input.
+  assert.equal(commandUsage(keep), "keys set <name> (its key on standard input)");
+
+  assert.equal(keep.callerless, true);
+  assert.equal((await keep.act({ name: "openai", quiet: false }, { folder: "/nowhere" }, DOORS.command)).text, "Kept openai's key from /nowhere.");
+
+  const lag = verb({ command: { family: "lag", name: "lag", summary: "the lag readings" }, tool: { absent: "the desktop's own" }, inputs: { days: { kind: "text", optional: true, describe: "how many days" } }, callerless: true, async act() { return { text: "" }; } });
+  assert.equal(commandUsage(lag), "lag [--days <days>]");
 });

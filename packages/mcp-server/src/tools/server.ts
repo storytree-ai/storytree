@@ -39,6 +39,7 @@ import { callLines, endMergedClaims, type ActivityLog, type MergeWatch } from "@
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
 import { findProject, idleAfterMs, locateStorytree, route, storytreeHome } from "@storytree/project-and-caller";
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
+import { NOTE_TOOLS } from "@storytree/library/commands";
 import { type SetupOptions } from "@storytree/app-setup/setup";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
 import { appDatabaseWork } from "@storytree/processes/listing";
@@ -53,7 +54,7 @@ import { failureOf, isUnreachable, libraryDown, NOT_RUNNING_ANSWER, outcomeOf, r
 import { registerClaimTools } from "./claim-tools.js";
 import { registerContextTools } from "./context-tools.js";
 import { Connections } from "./connections.js";
-import { registerNoteTools } from "./note-tools.js";
+import { mountTools } from "./mount.js";
 import { registerPlanTools } from "./plan-tools.js";
 import { registerMapTools } from "./map-tools.js";
 import { registerSetupTools, registerStarterPackTool } from "./setup-tools.js";
@@ -266,7 +267,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   });
   registerClaimTools(define, extensions, options.merges);
   registerWorkTools(define);
-  registerNoteTools(define);
+  // The library's artifact tools, declared in The library (ADR-1035 D3).
+  mountTools(define, NOTE_TOOLS);
   registerPipelineTools(define, options.protection);
   registerContextTools(define, options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir)));
   for (const extension of extensions) extension.registerTools?.(define);

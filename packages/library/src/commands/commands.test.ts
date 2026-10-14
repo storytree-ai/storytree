@@ -1,6 +1,7 @@
 /**
  * Capability 17 · The library's commands: contract 17.1, the `library` family the library declares for the command
- * line, run with a caller on a fresh project's library on the real Postgres `pnpm test` provides.
+ * line, and 17.2, the artifact tools it declares for the MCP server, run with a caller on a fresh project's library on
+ * the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -10,8 +11,8 @@ import { test } from "node:test";
 
 import { connect } from "../index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { mounted, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
-import { LIBRARY_FAMILIES, type HeldClaim, type LibraryVerbContext } from "./index.js";
+import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "../verbs/verb.js";
+import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, type NoteRead, type NoteToolContext } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
@@ -62,4 +63,50 @@ test("17.1 · The library declares the library family first among storytree's fa
   const live = await verbOf("edit").act({ "<id>": form.id, "<fields>": { description: "Typed here" } }, contextOf("person:owner"), WORDS);
   assert.equal(live.text, `Edited capability ${form.id}: description.`, "a session holding no increment edits the live record");
   assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed here");
+});
+
+test("17.2 · The library declares search_notes, open, write_note and correct_note as tools and none as a command; each artifact they show is handed to the door as a read, found as the session last saw it, and an artifact written with no place goes onto the shelf of the capability the session claimed last, inside the cover it opened last", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+
+  const tools = NOTE_TOOLS.map((one) => mounted(one.tool) ? one.tool.name : undefined);
+  assert.deepEqual(tools, ["search_notes", "open", "write_note", "correct_note"]);
+  assert.ok(NOTE_TOOLS.every((one) => !mounted(one.command)), "no tool is a command");
+  const toolOf = (name: string): Verb<VerbInputs, NoteToolContext> => NOTE_TOOLS[tools.indexOf(name)]!;
+
+  const story = await library.addStory({ title: "Sign up" });
+  const form = await library.addCapability({ story: story.id, title: "Form" });
+  const cover = await library.recordDecision({ status: "accepted", title: "Ask for the address once", text: "One field.", frontCoverOf: form.id });
+  const reads: NoteRead[] = [];
+  const claims: HeldClaim[] = [{ session: "lane", capability: form.id, since: "2026-10-15T00:00:00.000Z" }];
+  const context: NoteToolContext = {
+    library, project, session: "lane", folder: process.cwd(), writer: { actor: "session:lane" },
+    claims: async () => claims,
+    notesRead: async () => reads,
+    recordReads: async (more) => void reads.push(...more),
+    presenterOf: async () => undefined,
+  };
+  const WORDS: DoorWords = { door: "tool", say: (step) => step.tool ?? `storytree ${step.command}` };
+
+  await toolOf("open").act({ id: form.id }, context, WORDS);
+  assert.deepEqual(reads, [{ note: cover.id, found: "shelf", read: "peek" }], "a shelf's covers are peeks");
+  const opened = await toolOf("open").act({ id: cover.id }, context, WORDS);
+  assert.match(opened.text, /^Decision "Ask for the address once"/);
+  assert.deepEqual(reads.at(-1), { note: cover.id, found: "shelf", read: "whole" }, "opened whole, found where it was last shown");
+
+  const decided = await toolOf("write_note").act({ kind: "decision", fields: {}, title: "Check the postcode", text: "Before sending.", links: [], term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS);
+  assert.match(decided.text, new RegExp(`as a front cover of ${form.id}, the capability you hold`));
+  const defined = await toolOf("write_note").act({ kind: "definition", fields: {}, term: "Postcode", meaning: "Where the post goes.", links: [], title: undefined, text: undefined, front_cover_of: undefined }, context, WORDS);
+  const term = (defined.data as { id: string }).id;
+  assert.deepEqual((await library.get(term))?.fields.links, [cover.id], "a definition links inside the cover opened last");
+
+  await assert.rejects(toolOf("write_note").act({ kind: "memory", fields: {}, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS), VerbRefusal);
 });

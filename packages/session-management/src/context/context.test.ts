@@ -16,6 +16,7 @@ import { setSetting } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { claudeCodeTokens, codexTokens, contextCommand, contextReading, readContext } from "./index.js";
+import { CONTEXT_READING } from "./verbs.js";
 
 /** One Claude Code assistant line: a request's usage, as the harness records it. */
 function claudeLine(requestId: string, usage: { input: number; read: number; created: number }, extra: Record<string, unknown> = {}): string {
@@ -164,6 +165,16 @@ test("9.6 `storytree context` prints this session's tokens used, worked out at t
     const noSession = await contextCommand({ folder, env: {}, locate });
     assert.equal(noSession.code, 0);
     assert.doesNotMatch(noSession.text, /\d/);
+  });
+});
+
+test("9.6 · `storytree context` is a verb that needs no caller: a door hands it only its folder, and outside a project it says there is no reading, with no number, opening nothing", async () => {
+  assert.equal(CONTEXT_READING.callerless, true);
+  await withTempDir(async (folder) => {
+    const words = { door: "command", say: (step: { command?: string }) => `storytree ${step.command}` } as const;
+    const { text } = await CONTEXT_READING.act({ json: false }, { folder }, words);
+    assert.match(text, /^(No context reading|This shell names no agent session)/);
+    assert.doesNotMatch(text, /\d/);
   });
 });
 

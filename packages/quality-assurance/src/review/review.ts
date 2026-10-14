@@ -104,7 +104,7 @@ export interface Reviews {
 }
 
 /** Open the review loop on `server`'s connection. */
-export async function openReviews(server: Storytree): Promise<Reviews> {
+export async function openReviews(server: Pick<Storytree, "ownDatabase">): Promise<Reviews> {
   return new PgReviews(await ledgerDatabase(server));
 }
 

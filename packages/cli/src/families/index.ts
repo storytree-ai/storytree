@@ -20,7 +20,6 @@ import { settings } from "./settings.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
 import { releaseFamily } from "./release.js";
-import { checkFamily } from "./guardrails.js";
 import { quality } from "./quality.js";
 
 /** Words agents try for a family storytree does not have, each with the command for that job. */
@@ -34,7 +33,6 @@ const KEPT: readonly Family[] = [
   library,
   doors,
   doctorFamily,
-  checkFamily,
   quality,
   appFamily,
   releaseFamily,

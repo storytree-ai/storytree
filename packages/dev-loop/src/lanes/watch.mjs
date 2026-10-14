@@ -5,7 +5,7 @@
 // node packages/dev-loop/src/lanes/watch.mjs handover <pr> <increment> [--keep-open]               (from any machine: `hand` on the box, else over ssh)
 // --keep-open: one of several pull requests for its increment, so on MERGED the watcher leaves the increment open (13.11).
 // --refused: a fix session hands back untouched because a claim refused it, so it does not count against the limit (13.14);
-// --holder names the session the refusal said holds the work, and the retry waits until that session holds no claim (13.22).
+// --holder names the session the refusal said holds the work, and the retry waits until that session holds no claim (13.14).
 // node packages/dev-loop/src/lanes/watch.mjs run                                     (the watcher: one per box; keeps `watch` running)
 // node packages/dev-loop/src/lanes/watch.mjs watch                                   (its look loop, which `run` starts; exits 3 on its own code change)
 // node packages/dev-loop/src/lanes/watch.mjs status
@@ -139,7 +139,7 @@ export async function handedOff(dir) {
  * (checking back in three days, after which the pool may take it again: an event wait needs that day), record the hand-off (one per pull request; handing back keeps its fix sessions), and start the watcher.
  * `keepOpen` marks one of several pull requests for the increment: its merge releases the session's claims but closes nothing.
  * `refused` is a fix session handing back untouched because another session's claim refused it: its fix is marked
- * refused, so it does not count against the limit (13.14), with the `holder` its refusal named, if any, and when (13.22).
+ * refused, so it does not count against the limit (13.14), with the `holder` its refusal named, if any, and when (13.14).
  * An increment that already closed (on an earlier pull request of a stack) waits for nothing, so its refusal of the
  * wait is no refusal of the hand-off: the record is marked `closed`, and the watcher still watches and fixes it (13.13).
  */
@@ -215,7 +215,7 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * nothing when the next red is a conflict, since a newer main made that one (13.19); `cap` sessions on one pull
  * request, counted or not, end it as the limit does. A fix
  * session refused by another's claim counts for nothing (13.14). Its retry waits until the session its refusal named
- * holds no claim on the noticeboard; a refusal that named none waits `backoff` after it and for no other fix session to run (13.22).
+ * holds no claim on the noticeboard; a refusal that named none waits `backoff` after it and for no other fix session to run (13.14).
  * Conflicts are merged one at a time, lowest pull request first: siblings that conflict on one file would refuse
  * each other's claims if their merge sessions ran together (13.15). A hand-off on an increment that had already
  * closed has no wait to clear and nothing to close, and past its limit is only said (13.13).

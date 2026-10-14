@@ -331,7 +331,7 @@ test("13.14 · a fix session refused by another session's claim hands back witho
   assert.equal(b.fixes.filter((fix) => fix.pr === 42).length, 3);
 });
 
-test("13.22 · a refused fix session is not started again while the session its refusal names still holds a claim, and is once that claim clears", async (t) => {
+test("13.14 · a refused fix session is not started again while the session its refusal names still holds a claim, and is once that claim clears", async (t) => {
   const holding = `  - capability capability_shared  Claude Code bbbb-other (live, on claude/y), since 2026-10-10T11:00:00Z: other`;
   const b = await box(t, { board: `1 claim now:\n${holding}` });
   await handOff(b, 42, "increment_two");
@@ -350,7 +350,7 @@ test("13.22 · a refused fix session is not started again while the session its 
   assert.match(b.fixes[1].brief, /Fix session 1 of 2/, "the refusal is not counted");
 });
 
-test("13.22 · a refusal that names no holder is retried only after a back-off, not at the next look", async (t) => {
+test("13.14 · a refusal that names no holder is retried only after a back-off, not at the next look", async (t) => {
   const b = await box(t);
   await handOff(b, 42, "increment_two");
   b.looks[42] = red;

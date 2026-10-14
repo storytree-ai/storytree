@@ -58,9 +58,8 @@ test("5.6 a capability a session has claimed carries one flag in that session's 
   assert.ok(((land.getObjectByName("territory:cap-a") as Mesh).material as MeshBasicMaterial).color.equals(new Color("#F2D16B")), "the fill still says its word");
 });
 
-test("5.6 a flag keeps its size on screen and stands upright, and on a small island is a dot", () => {
+test("5.6 a flag keeps its size on screen and stands upright, and is a pennant however far out", () => {
   assert.deepEqual([90, 200, 480].map(px => Math.round(flagScale(px).k * 100) / 100), [0.6, 0.9, 1.3], "the three drawn sizes");
-  assert.ok(flagScale(40).dot && !flagScale(90).dot, "a dot where an island is about 45 px wide or less");
   const map = territories([share("cap-a")], 20);
   const marks = marked(map, new Map([["cap-a", { colour: "#56b4e9", faded: false }]]));
   const flag = marks.root.getObjectByName("claim-flag")!;
@@ -76,8 +75,11 @@ test("5.6 a flag keeps its size on screen and stands upright, and on a small isl
   const rest = tall(90 / 44), close = tall(480 / 44);
   assert.ok(Math.abs(rest.px - (0.6 * 26 + 1.5)) < 0.5 && Math.abs(close.px - (1.3 * 26 + 1.3 * 2.2)) < 0.5, `${rest.px} and ${close.px} px`);
   assert.ok(rest.upright && close.upright, "the pole is vertical on screen");
-  marks.frame(0, { zoom: 30 / 44, eye, reduced: false });
-  assert.ok(marks.root.getObjectByName("flag-dot")!.visible && !marks.root.getObjectByName("flag-pole")!.visible, "the far-out flag is a dot");
+  // Far out, where islands are a few pixels wide, the flag is still a pennant on its pole at its smallest size.
+  const far = tall(10 / 44);
+  assert.ok(far.upright && Math.abs(far.px - (0.4 * 26 + 1.5)) < 0.5, `${far.px} px far out`);
+  for (const name of ["flag-pennant", "flag-pole"]) assert.ok(marks.root.getObjectByName(name)!.visible, `${name} shows far out`);
+  marks.root.traverse(o => assert.ok(!o.name.startsWith("flag-dot"), `${o.name} is no dot`));
 });
 
 test("5.6 a claim on an island with no code stands in its share, marked as a lot; with code there is no lot, and a capability with no lines draws nothing", () => {

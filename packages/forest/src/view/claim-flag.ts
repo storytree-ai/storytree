@@ -1,7 +1,7 @@
 /**
  * Capability 5 · Agent capability claims: the world's claim mark is a flag (ADR-0968). Each capability a running session
  * claims carries one pennant in that session's colour on a dark pole, standing at a point inside its territory, its size
- * constant on screen and its pole upright; where an island is too small to carry a pennant it is a dot. It drops in with
+ * constant on screen and its pole upright, and a pennant however far out the globe is zoomed (never a dot). It drops in with
  * one ring at its foot, stands still while held, furls and greys when its holder goes quiet, and lifts away when the claim
  * goes. On an island with no code yet the claimed share is marked as a lot, a dashed white line inside its border.
  * Each claim is a group named `territory-claim:<capability>` carrying `userData { claim, capability, colour, faded }`,
@@ -32,12 +32,12 @@ const LOT_LIFT = 0.06;
 /** Drawn after the land, the borders and the file circles, and never hidden by the ground it stands on. */
 const FLAG_ORDER = 6;
 
-/** The flag's scale `k` for islands `islandPx` wide on screen, fitted to the three drawn sizes (90, 200 and 480 px wide: 0.6, 0.9, 1.3), and a dot at about 45 px or less. */
-export function flagScale(islandPx: number): { k: number; dot: boolean } {
+/** The flag's scale `k` for islands `islandPx` wide on screen, fitted to the three drawn sizes (90, 200 and 480 px wide: 0.6, 0.9, 1.3), and never below 0.4. */
+export function flagScale(islandPx: number): { k: number } {
   const anchors = [[90, 0.6], [200, 0.9], [480, 1.3]] as const;
   const [[x0, y0], [x1, y1]] = islandPx <= 200 ? [anchors[0], anchors[1]] : [anchors[1], anchors[2]];
   const k = y0 + (y1 - y0) * (Math.log(Math.max(islandPx, 1)) - Math.log(x0)) / (Math.log(x1) - Math.log(x0));
-  return { k: Math.min(1.6, Math.max(0.4, k)), dot: islandPx <= 45 };
+  return { k: Math.min(1.6, Math.max(0.4, k)) };
 }
 
 /** A claim's quiet turning: from `from` to `to` (0 held, 1 quiet), starting at `at` seconds. */
@@ -97,7 +97,7 @@ function stroke(points: readonly (readonly [number, number])[], width: number, c
     return [[ax + nx, ay + ny], [bx + nx, by + ny], [bx - nx, by - ny], [ax + nx, ay + ny], [bx - nx, by - ny], [ax - nx, ay - ny]];
   }), ...points.flatMap(([x, y]) => disc(x, y, h, h, 8))];
 }
-/** The flag's own marks at scale `k`, furled by `q`, replacing what `drawing` held: a pennant on a pole over a shadow, or a dot. */
+/** The flag's own marks at scale `k`, furled by `q`, replacing what `drawing` held: a pennant on a pole over a shadow. */
 function drawFlag(drawing: Group, colour: string, k: number, q: number): void {
   for (const child of [...drawing.children]) { child.removeFromParent(); disposeMark(child); }
   const fill = greyed(colour, q);
@@ -115,22 +115,6 @@ function drawFlag(drawing: Group, colour: string, k: number, q: number): void {
   mark("flag-pennant", triangles(outline.slice(1).flatMap((p, i) => [outline[0]!, outline[i]!, p])), flatMaterial(fill), 0.1);
   mark("flag-outline", triangles(stroke(outline, Math.max(1, 1.1 * k), true)), flatMaterial(INK), 0.2);
   mark("flag-pole", triangles(stroke([[0, 0], [0, 26 * k]], pole)), flatMaterial(INK), 0.3);
-  // Too small for a pennant: a dot in the session's colour inside a dark ring, its middle dark once quiet.
-  const dot = new Group();
-  dot.name = "flag-dot";
-  dot.visible = false;
-  for (const [name, geometry, material] of [
-    ["flag-dot-ring", triangles(disc(0, 0, 2.4 + 1.1, 2.4 + 1.1, 20)), flatMaterial(INK)],
-    ["flag-dot-fill", triangles(disc(0, 0, 2.4, 2.4, 20)), flatMaterial(fill)],
-    ["flag-dot-quiet", triangles(disc(0, 0, 1.2, 1.2, 12)), flatMaterial(INK, q)],
-  ] as const) {
-    const mesh = new Mesh(geometry, material);
-    mesh.name = name;
-    mesh.raycast = () => {};
-    mesh.renderOrder = FLAG_ORDER + 0.4;
-    dot.add(mesh);
-  }
-  drawing.add(dot);
 }
 
 function disposeMark(root: Object3D): void {
@@ -195,7 +179,7 @@ export class ClaimMarks {
 
   /** Poses every mark at `now` for an eye at `zoom` (CSS px per world unit) turned by `eye`; true while a transition still wants frames. */
   frame(now: number, { zoom, eye, reduced }: { zoom: number; eye: Quaternion; reduced: boolean }): boolean {
-    const { k, dot } = flagScale(zoom * ISLAND_WIDTH);
+    const { k } = flagScale(zoom * ISLAND_WIDTH);
     let live = false;
     for (const [capability, life] of [...this.lives]) {
       const moment = claimMoment({ arrived: life.arrived, left: life.left, quiet: life.quiet, now, reduced });
@@ -220,14 +204,13 @@ export class ClaimMarks {
       flag.visible = facing(this.turned, eye) > 0;
       flag.quaternion.copy(this.turned.invert().multiply(eye));
       const plateScale = new Vector3().setFromMatrixScale(flag.parent!.matrixWorld).x || 1;
-      flag.scale.setScalar(dot ? 1 / zoom / plateScale : k / drawnK / zoom / plateScale);
-      drawing.position.y = dot ? 0 : moment.lift * drawnK;
-      for (const child of drawing.children) child.visible = (child.name === "flag-dot") === dot;
+      flag.scale.setScalar(k / drawnK / zoom / plateScale);
+      drawing.position.y = moment.lift * drawnK;
       drawing.traverse((object) => {
         const material = (object as Mesh).material as MeshBasicMaterial | undefined;
         if (material === undefined) return;
         material.userData.full ??= material.opacity;
-        material.opacity = (object.name === "flag-dot-quiet" ? moment.quiet : material.userData.full) * moment.opacity;
+        material.opacity = material.userData.full * moment.opacity;
       });
       const ring = mark.getObjectByName("claim-ring") as Mesh;
       ring.visible = moment.ring !== undefined;

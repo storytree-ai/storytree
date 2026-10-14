@@ -10,7 +10,8 @@
 import { z } from "zod";
 
 import { currentBranch } from "@storytree/session-management";
-import { mounted, toolInput, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbInput } from "@storytree/session-management/verbs";
+import { mounted, toolInput, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbInput, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 import { lineOf, type Answer, type Define } from "./server.js";
 
@@ -34,8 +35,11 @@ function schemaOf(input: VerbInput): z.ZodType {
   return input.kind === "switch" ? yes.optional() : yes;
 }
 
-/** Serve each of `verbs` that has a tool. `home` is the storytree home its ledger and claims are kept under, when not the usual one. */
-export function mountTools(define: Define, verbs: readonly Verb[], home?: string): void {
+/**
+ * Serve each of `verbs` that has a tool, handing it the caller's context with the activity log. `home` is the storytree
+ * home its ledger and claims are kept under, when not the usual one.
+ */
+export function mountTools(define: Define, verbs: readonly Verb<VerbInputs, SessionVerbContext>[], home?: string): void {
   for (const declared of verbs) {
     if (!mounted(declared.tool)) continue;
     const input = z.object(Object.fromEntries(Object.entries(declared.inputs).map(([name, one]) => [name, schemaOf(one)])));

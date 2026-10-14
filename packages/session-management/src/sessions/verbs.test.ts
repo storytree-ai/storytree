@@ -1,7 +1,8 @@
 /**
- * Capability 4 · Sessions. The verb contract (ADR-0969 D2): a session verb is declared once, and what either door
- * reads from its caller reaches the same work and the same answer. Lines go to the real agent activity log on the
- * Postgres `pnpm test` provides; the process ledger is a throwaway home.
+ * Capability 4 · Sessions. The session verbs, declared once under Project and caller's verb contract (ADR-0969 D2,
+ * ADR-1025): naming a session, closing it out and listing the sessions read the same from either door and answer the
+ * same. Lines go to the real agent activity log on the Postgres `pnpm test` provides; the process ledger is a
+ * throwaway home.
  */
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
@@ -14,7 +15,9 @@ import type { Library } from "@storytree/library";
 import { openActivityLog } from "../activity/index.js";
 import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
-import { commandInput, commandUsage, SESSION_VERBS, toolInput, VerbRefusal, type DoorWords, type Verb } from "./verbs.js";
+import { commandInput, commandUsage, toolInput, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/project-and-caller/verbs";
+
+import { SESSION_VERBS, type SessionVerbContext } from "./verbs.js";
 
 const DOORS: Record<"command" | "tool", DoorWords> = {
   command: { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` },
@@ -25,13 +28,13 @@ function given(words: readonly string[], flags: Readonly<Record<string, string>>
   return { word: (index: number) => words[index], flag: (name: string) => flags[name], has: (name: string) => name in flags };
 }
 
-function find(tool: string): Verb {
+function find(tool: string): Verb<VerbInputs, SessionVerbContext> {
   const found = SESSION_VERBS.find((one) => "name" in one.tool && one.tool.name === tool);
   assert.ok(found, tool);
   return found;
 }
 
-test("4.31 a verb declared once reads a command's words and flags and a tool's arguments to the same input, refuses the same wrong input on both, and does the same work and answers in the same sentence for either door", async () => {
+test("4.34 · naming a session, closing it out and listing the sessions are verbs declared once: each door reads them to the same input and refuses the same wrong input, and closing out or naming answers in the same sentence for either door, writing to the calling session's log", async () => {
   const close = find("close_out");
   assert.equal(commandUsage(close), "session close-out --safe yes|no --why <why>");
   const fromCommand = commandInput(close, given([], { safe: "no", why: " handoff " }));

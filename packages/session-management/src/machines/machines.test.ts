@@ -15,7 +15,8 @@ import { connect, type Storytree } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import { machineOf, registerTrunk } from "@storytree/project-and-caller";
-import { MACHINE_VERBS, SESSION_VERBS, VerbRefusal, type DoorWords, type Verb, type VerbContext } from "../sessions/verbs.js";
+import { VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { MACHINE_VERBS, SESSION_VERBS, type SessionVerbContext } from "../sessions/verbs.js";
 import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { incrementMachine, MachineNameError, machineNames, nameThisMachine, NO_MACHINE } from "./machines.js";
@@ -55,7 +56,7 @@ async function withMachines(body: (machines: Machines) => Promise<void>): Promis
 }
 
 /** The verb context a session at `home` brings: the project's library, the activity log, the library server and the storytree home. */
-async function caller({ storytree, log }: Machines, home: string, project = uniqueProjectName()): Promise<VerbContext> {
+async function caller({ storytree, log }: Machines, home: string, project = uniqueProjectName()): Promise<SessionVerbContext> {
   const library = await storytree.openProject(project);
   return { log, library, server: storytree, project, session: "claude-1", harness: "claude-code", folder: home, home };
 }

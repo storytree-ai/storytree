@@ -3,10 +3,11 @@
  * read from the verb's inputs, its words and flags become the verb's input, a step it offers next is named as a
  * command, and the verb's own refusal is the door's, with the usage when the input was wrong.
  */
-import { commandInput, commandUsage, mounted, VerbRefusal, type DoorWords, type Verb as Declared } from "@storytree/session-management/verbs";
+import { commandInput, commandUsage, mounted, VerbRefusal, type DoorWords, type Verb, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 import { Refusal, type Next } from "./answer.js";
-import type { Verb } from "./door.js";
+import type { Verb as Command } from "./door.js";
 import { commandSession } from "./writer.js";
 
 const WORDS: DoorWords = {
@@ -14,8 +15,8 @@ const WORDS: DoorWords = {
   say: (step) => step.command === undefined ? `the ${step.tool!} tool` : `storytree ${step.command}`,
 };
 
-/** The command for `declared`, which must have one. */
-export function command(declared: Declared): Verb {
+/** The command for `declared`, which must have one; its context is the caller's, with the activity log. */
+export function command(declared: Verb<VerbInputs, SessionVerbContext>): Command {
   if (!mounted(declared.command)) throw new Error(`no command to mount: ${declared.command.absent}`);
   const face = declared.command;
   const usage = commandUsage(declared);

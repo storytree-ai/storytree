@@ -8,6 +8,7 @@
     "./bridge": "./src/settings/bridge.ts",
     "./routing": "./src/routing/index.ts",
     "./caller": "./src/caller/index.ts",
+    "./verbs": "./src/verbs/verb.ts",
     "./settings": "./src/settings/panel.ts",
     "./view": "./src/view/index.ts",
     "./testing/pg": "./src/testing/pg.ts",

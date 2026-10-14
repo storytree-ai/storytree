@@ -1,16 +1,15 @@
 /**
- * Capability 4 · Sessions. The verb contract (ADR-0969 D2): a verb is declared once, by the story that owns its work, and
+ * Capability 4 · The verb contract (ADR-0969 D2, ADR-1025): a verb is declared once, by the story that owns its work, and
  * both front doors mount it: the command line (`storytree <family> <verb>`) and the MCP server (a tool). A
  * declaration is its name on each door (or why a door does not mount it), one description of its inputs, one
  * piece of work done for the calling session, and one answer: a sentence, data, and next steps each door words
- * in its own terms. It lives here because every verb acts for a calling session and writes to its log.
+ * in its own terms. It lives in the core because every verb acts for a calling session (ADR-1025 D2); what else a
+ * verb's work needs, such as Session management's activity log, its declaring story adds to the context it types.
  *
  * Nothing here loads anything: a door's menus read declarations at start, and the work a verb does is imported
  * inside its act.
  */
 import type { Library, Storytree, WriteOptions } from "@storytree/library";
-
-import type { ActivityLog } from "../activity/index.js";
 
 /**
  * One input. `text` is a non-empty string, a command's word at `word` when given, else its `--flag <value>`;
@@ -39,9 +38,11 @@ export interface DoorWords {
   say(step: Step): string;
 }
 
-/** Who called, and where: the calling session, its log and its project's library. */
+/**
+ * Who called, and where: the calling session and its project's library. A story whose verbs need more (Session
+ * management's need its activity log) extends this, and the doors that mount those verbs hand it.
+ */
 export interface VerbContext {
-  readonly log: ActivityLog;
   readonly library: Library;
   readonly project: string;
   readonly session: string;
@@ -78,19 +79,19 @@ export interface Absent {
   readonly absent: string;
 }
 
-export interface Verb<I extends VerbInputs = VerbInputs> {
+export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbContext = VerbContext> {
   /** `storytree <family> <name>`. */
   readonly command: { readonly family: string; readonly name: string; readonly summary: string } | Absent;
   readonly tool: { readonly name: string; readonly description: string } | Absent;
   readonly inputs: I;
   /** Only an agent session may call it: why, as "it closes out the agent session that runs it". */
   readonly agentOnly?: string;
-  act(input: InputOf<I>, context: VerbContext, words: DoorWords): Promise<VerbAnswer>;
+  act(input: InputOf<I>, context: C, words: DoorWords): Promise<VerbAnswer>;
 }
 
-/** Declare a verb, keeping its inputs' types for its act. */
-export function verb<I extends VerbInputs>(declared: Verb<I>): Verb {
-  return declared as unknown as Verb;
+/** Declare a verb, keeping its inputs' and its context's types for its act. */
+export function verb<I extends VerbInputs, C extends VerbContext = VerbContext>(declared: Verb<I, C>): Verb<VerbInputs, C> {
+  return declared as unknown as Verb<VerbInputs, C>;
 }
 
 export function mounted<T extends object>(face: T | Absent): face is T {
@@ -98,7 +99,7 @@ export function mounted<T extends object>(face: T | Absent): face is T {
 }
 
 /** A command's usage, after `storytree `, from the verb's inputs: `session close-out --safe yes|no --why <why>`. */
-export function commandUsage(declared: Verb): string {
+export function commandUsage(declared: Verb<VerbInputs, never>): string {
   if (!mounted(declared.command)) throw new Error(`${mounted(declared.tool) ? declared.tool.name : "this verb"} has no command: ${declared.command.absent}`);
   const entries = Object.entries(declared.inputs);
   const words = entries.flatMap(([name, input]) => input.kind === "text" && input.word !== undefined ? [[input.word, `<${name}>`] as const] : []).sort(([a], [b]) => a - b).map(([, word]) => word);
@@ -107,7 +108,7 @@ export function commandUsage(declared: Verb): string {
 }
 
 /** A command's words and flags read as the verb's input, or a refusal saying what is wrong. */
-export function commandInput(declared: Verb, given: { word(index: number): string | undefined; flag(name: string): string | undefined; has(name: string): boolean }): InputOf<VerbInputs> {
+export function commandInput(declared: Verb<VerbInputs, never>, given: { word(index: number): string | undefined; flag(name: string): string | undefined; has(name: string): boolean }): InputOf<VerbInputs> {
   const input: Record<string, string | boolean> = {};
   for (const [name, one] of Object.entries(declared.inputs)) {
     if (one.kind === "switch") {
@@ -127,7 +128,7 @@ export function commandInput(declared: Verb, given: { word(index: number): strin
 }
 
 /** A tool's arguments, as its schema checked them, read as the verb's input: a switch not given is false. */
-export function toolInput(declared: Verb, args: Readonly<Record<string, unknown>>): InputOf<VerbInputs> {
+export function toolInput(declared: Verb<VerbInputs, never>, args: Readonly<Record<string, unknown>>): InputOf<VerbInputs> {
   const input: Record<string, string | boolean> = {};
   for (const [name, one] of Object.entries(declared.inputs)) input[name] = one.kind === "switch" ? args[name] === true : one.kind === "text" ? said(name, one, String(args[name])) : args[name] === true;
   return input;

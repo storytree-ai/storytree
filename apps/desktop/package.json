@@ -159,6 +159,7 @@
         }
       ],
       "executableName": "storytree-0.3",
+      "executableArgs": [],
       "icon": "../../packages/mark/icons/day/512.png",
       "category": "Development",
       "extraResources": [

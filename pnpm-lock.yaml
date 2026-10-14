@@ -537,6 +537,9 @@ importers:
 
   packages/journey-events:
     dependencies:
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
       posthog-node:
         specifier: 5.55.0
         version: 5.55.0
@@ -608,6 +611,9 @@ importers:
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
     devDependencies:
       '@types/node':
         specifier: ^24.13.6

@@ -230,9 +230,6 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -258,9 +255,6 @@ importers:
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
     devDependencies:
       '@types/node':
         specifier: ^24.13.6
@@ -502,6 +496,9 @@ importers:
 
   packages/guardrails:
     dependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
@@ -509,9 +506,6 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
     devDependencies:
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -521,6 +515,9 @@ importers:
 
   packages/identity:
     dependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
@@ -546,9 +543,9 @@ importers:
 
   packages/journey-events:
     dependencies:
-      '@storytree/project-and-caller':
+      '@storytree/library':
         specifier: workspace:*
-        version: link:../project-and-caller
+        version: link:../library
       posthog-node:
         specifier: 5.55.0
         version: 5.55.0
@@ -620,9 +617,9 @@ importers:
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
-      '@storytree/project-and-caller':
+      '@storytree/library':
         specifier: workspace:*
-        version: link:../project-and-caller
+        version: link:../library
     devDependencies:
       '@types/node':
         specifier: ^24.13.6
@@ -642,9 +639,6 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -855,6 +849,9 @@ importers:
 
   packages/processes:
     dependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
@@ -917,9 +914,6 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management

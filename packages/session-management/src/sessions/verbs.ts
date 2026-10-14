@@ -1,16 +1,19 @@
 /**
  * Capability 4 · Sessions. The session verbs, declared once (ADR-0969 D2): name a session, close it out, and list the
  * sessions. The command line and the MCP server each mount them; listing the sessions has no tool, and says why.
- * Machines' verbs are mounted from here too (MACHINE_VERBS), as this is the verbs' one entry.
+ * Machines' verbs are mounted from here too (MACHINE_VERBS), as this is the verbs' one entry. SESSION_FAMILIES, which the
+ * package's manifest names under `verbs` (ADR-1033), gives the command line both as its `session` and `machine` families.
  */
 import path from "node:path";
 
-import { verb, VerbRefusal, type Verb, type VerbContext, type VerbInputs } from "@storytree/project-and-caller/verbs";
+import { verb, VerbRefusal, type Verb, type VerbContext, type VerbFamily, type VerbInputs } from "@storytree/project-and-caller/verbs";
 
 import type { ActivityLog } from "../activity/index.js";
 import { SESSION_NAME_LIMIT } from "./name.js";
 
-export { MACHINE_VERBS } from "../machines/verbs.js";
+import { MACHINE_VERBS } from "../machines/verbs.js";
+
+export { MACHINE_VERBS };
 
 /** What a session verb's work needs beyond the caller: the activity log it reads and writes, which the doors hand. */
 export interface SessionVerbContext extends VerbContext {
@@ -80,3 +83,9 @@ const list = verb({
 
 /** The session verbs, in the order the command line lists them. */
 export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, name, closeOut];
+
+/** The command line's families of these verbs, last among `storytree`'s families. */
+export const SESSION_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [
+  { name: "session", summary: "list the running sessions, name this one, or close it out (Session management's)", order: 32, verbs: SESSION_VERBS },
+  { name: "machine", summary: "the computers that work on this project, and this one's short name (Session management's)", order: 33, verbs: MACHINE_VERBS },
+];

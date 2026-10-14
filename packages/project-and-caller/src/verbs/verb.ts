@@ -89,6 +89,17 @@ export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbContext =
   act(input: InputOf<I>, context: C, words: DoorWords): Promise<VerbAnswer>;
 }
 
+/**
+ * A command family a story declares in its manifest's `verbs` (ADR-1033): `storytree <name> <verb>` for each of its
+ * verbs, listed `order`th among `storytree`'s families, counted from 1, so a family keeps its place in the help as it moves.
+ */
+export interface VerbFamily<C extends VerbContext = VerbContext> {
+  readonly name: string;
+  readonly summary: string;
+  readonly order: number;
+  readonly verbs: readonly Verb<VerbInputs, C>[];
+}
+
 /** Declare a verb, keeping its inputs' and its context's types for its act. */
 export function verb<I extends VerbInputs, C extends VerbContext = VerbContext>(declared: Verb<I, C>): Verb<VerbInputs, C> {
   return declared as unknown as Verb<VerbInputs, C>;

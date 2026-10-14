@@ -153,7 +153,4 @@ test("4.4 · a text input may be many, each word from its place on or each repet
   const answer = await gather.act(fromCommand, context, DOORS.command);
   assert.equal(answer.text, `north+south into wicker+tin {"colour":"red","size":" big "} by session:claude-1`);
   assert.equal(answer.raw, true);
-
-  const plot: VerbFamily = { name: "garden", summary: "the garden", order: 1, verbs: [sweep], families: [{ name: "bed", summary: "one bed", verbs: [gather] }], guesses: { dig: "garden plant <tree>" }, retired: { mow: { why: "the lawn is gone", instead: "garden sweep" } } };
-  assert.equal(plot.families?.[0]?.verbs[0], gather);
 });

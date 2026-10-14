@@ -6,7 +6,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
-export type { Harness } from "@storytree/session-management";
+export type { Harness } from "@storytree/project-and-caller/caller";
 export interface InstalledToolServerCommand {
   readonly command: string;
   readonly args: readonly [string];

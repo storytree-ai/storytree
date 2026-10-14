@@ -1,11 +1,11 @@
 /**
- * Capability 2 · Agent activity log: who made a tool call, read from what the harness sent with it and the line
- * the hook run just before it left. The MCP server's wrapper calls these on every call (ADR-0969 D1);
- * they read only the activity log, and nothing of the server.
+ * Capability 3 · The caller: who made a tool call, read from what the harness sent with it and the line the hook
+ * run just before it left (ADR-1025 D2). The MCP server's wrapper calls these on every call (ADR-0969 D1), with
+ * the lines Session management's activity log gives it for the call (its callLines); they read only those lines.
+ * Browser-safe: nothing here reads a file, the environment or the log.
  */
-import type { ActivityLog } from "../activity/index.js";
 import type { Agent, Line } from "@storytree/library";
-import { watchedHarness } from "../harnesses.js";
+import { watchedHarness } from "./harnesses.js";
 
 /** The session calling, as the harness names it. */
 export interface Caller {
@@ -42,19 +42,6 @@ export function agentOf(lines: readonly Line[], meta: CallMeta): Agent {
 }
 
 /**
- * The lines a call is read from (contract 2.7): the line the hook before it left, found by the call's
- * id, and the start of the subagent that line or the call names. Nothing else of the log is sent.
- */
-export async function callLines(log: ActivityLog, project: string, meta: CallMeta, called?: { readonly harness?: string | undefined; readonly tool: string }): Promise<Line[]> {
-  const call = callOf(meta);
-  const requested = call === undefined ? await announcedRequest(log, project, called) : await log.lines(project, { kinds: ["tool-requested"], where: { call }, newest: 1, omit: ["transcript"] });
-  const agent = requestOf(requested, meta)?.agent ?? threadAgent(meta);
-  if (typeof agent !== "object") return requested;
-  const started = await log.lines(project, { kinds: ["subagent-started"], where: { subagent: agent.subagent }, newest: 1, omit: ["transcript"] });
-  return [...started, ...requested].sort((a, b) => a.seq - b.seq);
-}
-
-/**
  * The calling session as the hook before the call named it, when one did. After Claude Code's
  * /clear the window is a new session that only its hooks see, while the server keeps the id it was
  * started with; a call no hook saw keeps the id the harness gave the server.
@@ -66,33 +53,16 @@ export function seenCaller(lines: readonly Line[], caller: Caller, meta: CallMet
 
 /**
  * The line the hook before a call left, found by the call's id: Claude Code's `_meta["claudecode/toolUseId"]`,
- * Codex's `_meta.callId`. A call with no id is from a harness that sends none (Cursor, Pi), whose line callLines
- * found by its harness and tool (announcedRequest).
+ * Codex's `_meta.callId`. A call with no id is from a harness that sends none (Cursor, Pi, Antigravity CLI): its
+ * line is the newest that harness left among the lines given, which the activity log found by its harness, tool and time.
  */
 export function requestOf(lines: readonly Line[], meta: CallMeta): Extract<Line, { kind: "tool-requested" }> | undefined {
   const call = callOf(meta);
   return lines.findLast((line): line is Extract<Line, { kind: "tool-requested" }> => line.kind === "tool-requested" && (call === undefined ? watchedHarness(line.harness)?.callIds === false : line.call === call));
 }
 
-/** How long before a call a hook of a harness that sends no call id may have announced it. */
-const ANNOUNCED_WITHIN_MS = 30_000;
-
-/**
- * The line the hook of a harness that sends the tool server no session and no call id left just before a
- * call to `called.tool`: Cursor (read from its installed code, 2026-10-12, 6.66) and Pi (measured in Pi
- * 1.1.0, 6.68). Its line is found by its harness, its tool and its time: the newest that harness announced
- * for that tool in the last half minute. Two sessions of one such harness calling the same tool in the
- * same moment may be taken for each other; every other harness is joined by the call's id, never by time.
- */
-async function announcedRequest(log: ActivityLog, project: string, called: { readonly harness?: string | undefined; readonly tool: string } | undefined): Promise<Line[]> {
-  const harness = called?.harness;
-  if (harness === undefined || watchedHarness(harness)?.callIds !== false) return [];
-  const since = new Date(Date.now() - ANNOUNCED_WITHIN_MS).toISOString();
-  return log.lines(project, { kinds: ["tool-requested"], where: { harness, tool: called!.tool }, since, newest: 1, omit: ["transcript"] });
-}
-
 /** The call's id, as the harness gave it. */
-function callOf(meta: CallMeta): string | undefined {
+export function callOf(meta: CallMeta): string | undefined {
   return text(meta["claudecode/toolUseId"]) ?? text(meta.callId);
 }
 

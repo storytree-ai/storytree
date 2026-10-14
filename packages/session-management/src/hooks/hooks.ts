@@ -45,7 +45,7 @@
  * inside one try: a failure anywhere means nothing is written, never an error the agent sees, and
  * a trace of why left on this machine (failures.ts, contract 3.23).
  */
-import type { Harness } from "../harnesses.js";
+import type { Harness } from "@storytree/project-and-caller/caller";
 import { homedir } from "node:os";
 import path from "node:path";
 

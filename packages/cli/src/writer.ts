@@ -1,7 +1,7 @@
 /** Capability 2 · The shell's harness session, or the person at the computer (ADR-0645 A1/W1). */
 import { userInfo } from "node:os";
 import type { WriteOptions } from "@storytree/library";
-import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "@storytree/session-management/readings";
+import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "@storytree/project-and-caller/caller";
 
 export function person(): string {
   try {

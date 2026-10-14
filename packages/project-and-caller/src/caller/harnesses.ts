@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Sessions. The one place a harness storytree watches is described (decision_057bc7ad0a8c D1):
+ * Capability 3 · The caller. The one place a harness storytree watches is described (decision_057bc7ad0a8c D1):
  * its id, the name people call it, the name its MCP client gives itself, where it names the session in
  * its shells, and which transcript reader reads it. A harness with hooks storytree knows is watched; any
  * other MCP client is connected: storytree serves its tools and commands, and sees nothing else of it.

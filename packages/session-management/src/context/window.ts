@@ -15,7 +15,7 @@
  */
 
 import type { Line } from "@storytree/library";
-import { watchedHarness } from "../harnesses.js";
+import { watchedHarness } from "@storytree/project-and-caller/caller";
 import { labelOf } from "../readings.js";
 import { NOTHING_STORED, readTranscriptFile, transcriptOf, type TranscriptReader } from "./context.js";
 import { isRecord, jsonLines, type JsonRecord } from "./transcript.js";

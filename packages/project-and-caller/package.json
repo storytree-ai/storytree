@@ -2,10 +2,11 @@
   "name": "@storytree/project-and-caller",
   "private": true,
   "type": "module",
-  "description": "The Project and caller story (story_6def59292b78, ADR-1025): which project a folder is, and what the user set on this computer.",
+  "description": "The Project and caller story (story_6def59292b78, ADR-1025): which project a folder is, what the user set on this computer, and which session is calling.",
   "exports": {
     ".": "./src/index.ts",
     "./routing": "./src/routing/index.ts",
+    "./caller": "./src/caller/index.ts",
     "./settings": "./src/settings/panel.ts",
     "./view": "./src/view/index.ts",
     "./testing/pg": "./src/testing/pg.ts",

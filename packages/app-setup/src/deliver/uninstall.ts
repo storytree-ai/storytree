@@ -11,7 +11,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { installedToolServerCommand, removeConnections, type RunHarness } from "../connect/index.js";
 import { locateApp, storytreeHome } from "@storytree/project-and-caller";
-import { watchedHarness } from "@storytree/session-management";
+import { watchedHarness } from "@storytree/project-and-caller/caller";
 import { toolPaths } from "./payload.js";
 
 export type LibraryChoice = "keep" | "remove";

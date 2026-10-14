@@ -8,7 +8,7 @@
 import path from "node:path";
 
 import { ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "@storytree/project-and-caller";
-import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "../harnesses.js";
+import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "@storytree/project-and-caller/caller";
 import { readContext, type ContextReading } from "./context.js";
 import { guidanceSentence } from "./guidance.js";
 

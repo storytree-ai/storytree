@@ -7,7 +7,7 @@
  */
 import path from "node:path";
 
-import { watchedHarness } from "@storytree/session-management";
+import { watchedHarness } from "@storytree/project-and-caller/caller";
 import type { Line } from "@storytree/library";
 
 /** The four hooks a session's setup is verified by, in the order they fire. */

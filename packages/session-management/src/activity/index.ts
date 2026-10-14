@@ -1,6 +1,7 @@
 /** Capability 2 · Agent activity log. */
 export { ACTIVITY_DATABASE, forgetProjectActivity, openActivityLog, thisMachine } from "./activity-log.js";
 export { currentBranch } from "./branch.js";
+export { callLines } from "./call-lines.js";
 export { cachedLines } from "./lines-cache.js";
 export type { LinesCache } from "./lines-cache.js";
 export type { ActivityLog, AppendOptions, BranchFacts, LockedLog, OpenOptions } from "./activity-log.js";

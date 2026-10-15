@@ -18,6 +18,10 @@ test('a restore accepts only a complete manifest with safe dump names and hashes
   const lag = { ...good.databases[0], name: 'storytree-lag', file: 'storytree-lag.dump' };
   assert.doesNotThrow(() => checkedManifest({ ...good, databases: [...good.databases, lag] }));
   assert.throws(() => checkedManifest({ ...good, databases: [...good.databases.slice(1), lag] }), /manifest/);
+  // So is the QA ledger (storytree-quality), whose review history cannot be re-run.
+  const quality = { ...good.databases[0], name: 'storytree-quality', file: 'storytree-quality.dump' };
+  assert.doesNotThrow(() => checkedManifest({ ...good, databases: [...good.databases, lag, quality] }));
+  assert.throws(() => checkedManifest({ ...good, databases: [...good.databases, quality] }), /manifest/);
   assert.throws(() => checkedManifest({ ...good, databases: good.databases.slice(1) }), /manifest/);
   // 0.2's frozen store stays on Cloud SQL and is archived there, never backed up from Mint.
   assert.throws(() => checkedManifest({ ...good, databases: [...good.databases, { ...good.databases[0], name: 'storytree', file: 'storytree.dump' }] }), /manifest/);

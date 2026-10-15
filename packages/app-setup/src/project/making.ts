@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { Storytree } from "@storytree/library";
+import { ProjectGoneError, type Storytree } from "@storytree/library";
 import { forgetProjectActivity } from "@storytree/session-management";
 import { approveTrunk, findProject, forgetTrunk, inMainCheckout, keepOnThisComputer, machineOf, MARKER_FILE, ProjectFolderError, recordProjectChoice, registerTrunk, rememberApproval, storytreeHome, trunksOn, type Trunk } from "@storytree/project-and-caller";
 
@@ -31,7 +31,12 @@ export interface SetUpOptions {
   readonly storytreeHome?: string;
   /** Add this machine's checkout to project `project`, which already exists (ADR-0757 D4). */
   readonly join?: boolean;
+  /** The name the user's factory is found or made under (ADR-1040); by default FACTORY_NAME. */
+  readonly factory?: string;
 }
+
+/** The name the user's factory is made under, unless a product project already has it (ADR-1040). */
+export const FACTORY_NAME = "factory";
 
 /**
  * Set `folder` up as project `project`, after the user said yes: the one check (ADR-0757) first,
@@ -41,9 +46,10 @@ export interface SetUpOptions {
  * A refused folder (ProjectFolderError) or name (ProjectNameError, judged by the library before
  * anything touches the server) leaves nothing behind. `join` adds this machine's checkout to a
  * project that already exists; without it, an existing project's name is refused. Either approves
- * the trunk (ADR-0942 D1), and joining from a project's own recorded trunk approves it in place.
+ * the trunk (ADR-0942 D1), and joining from a project's own recorded trunk approves it in place. A new project
+ * names the user's factory (6.11), made the first time; a join makes none.
  */
-export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false }: SetUpOptions): Promise<{ project: string; marker: string }> {
+export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false, factory = FACTORY_NAME }: SetUpOptions): Promise<{ project: string; marker: string }> {
   const at = canonical(path.resolve(folder));
   const existing = findProject(at);
   // Joining on purpose from the folder its marker already names is how an unapproved trunk is approved (ADR-0942 D1).
@@ -63,8 +69,11 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
     const registered = own === undefined ? await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }, by) : own.approvedBy !== undefined || (await approveTrunk(storytree, own, by));
     if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
     rememberApproval(home, machine.id, own ?? { project, folder: at });
-    // A new project's library starts with the starter pack; one joined was seeded where it was set up.
-    if (!join) await seedStarterPack(library);
+    // A new project's library starts with the starter pack and names the user's factory; one joined was set up where it was made.
+    if (!join) {
+      await library.recordFactory(await userFactory(storytree, factory, [...projects, project]));
+      await seedStarterPack(library);
+    }
   } finally {
     await library.close();
   }
@@ -83,6 +92,38 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
     throw error;
   }
   return { project, marker };
+}
+
+/**
+ * The user's factory (ADR-1040, 6.11): a project with no folder of its own, only a library, holding the system their
+ * product projects build with. Found as the first project named `name`, `name-2`, `name-3`… that is a factory; else
+ * made under the first of those names `taken` lacks, marked a factory and seeded with the starter pack. Of two setups
+ * making it at once, only the one whose mark made it seeds it.
+ */
+async function userFactory(storytree: Storytree, name: string, taken: readonly string[]): Promise<string> {
+  const candidate = new RegExp(`^${name}(-[0-9]+)?$`);
+  const named = taken.filter((each) => candidate.test(each)).sort((a, b) => a.length - b.length || a.localeCompare(b));
+  for (const each of named) {
+    // A project deleted since the list was read is no factory.
+    const library = await storytree.openProject(each, { create: false }).catch((error: unknown) => {
+      if (error instanceof ProjectGoneError) return undefined;
+      throw error;
+    });
+    if (library === undefined) continue;
+    try {
+      if ((await library.factory()).kind === "factory") return each;
+    } finally {
+      await library.close();
+    }
+  }
+  const made = unusedName(name, taken);
+  const library = await storytree.openProject(made);
+  try {
+    if (await library.markFactory()) await seedStarterPack(library);
+  } finally {
+    await library.close();
+  }
+  return made;
 }
 
 /**

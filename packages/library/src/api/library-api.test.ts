@@ -37,6 +37,9 @@ import { dropTestDatabases, testServerUrl, uniqueProjectName, withTestClient } f
 const LIBRARY_API = [
   "name",
   "identity",
+  "factory",
+  "markFactory",
+  "recordFactory",
   "get",
   "list",
   "history",

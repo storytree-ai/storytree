@@ -330,3 +330,40 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
     assert.equal(existsSync(path.join(gitless, ".git")), false);
   });
 });
+
+test("6.11 setting the first project up makes the user's factory, a project with no folder holding the starter pack, and every new project names it; a later project finds it, a join makes none, and a product project already holding its name leaves it the next free one (ADR-1040)", async () => {
+  const [factory, first, second, before] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const { laptop, box } = machines(dir);
+    const folders = [path.join(dir, "first"), path.join(dir, "second"), path.join(dir, "box-first"), path.join(dir, "before")];
+    for (const folder of folders) mkdirSync(folder);
+    await withStorytree([factory, first, second, before, `${factory}-2`, `${second}-2`], async (storytree) => {
+      const linkOf = async (project: string) => {
+        const library = await storytree.openProject(project, { create: false });
+        try {
+          return { link: await library.factory(), roles: (await library.list("agent")).length };
+        } finally {
+          await library.close();
+        }
+      };
+
+      await setUpProject({ folder: folders[0]!, project: first, storytree, storytreeHome: laptop, factory });
+      const made = await linkOf(factory);
+      assert.deepEqual(made, { link: { kind: "factory" }, roles: STARTER_ROLE_TITLES.length }, "the factory holds the starter pack");
+      assert.equal(findProject(dir).project, undefined, "the factory has no folder of its own");
+      assert.deepEqual((await linkOf(first)).link, { kind: "product", factory });
+
+      await setUpProject({ folder: folders[1]!, project: second, storytree, storytreeHome: laptop, factory });
+      assert.deepEqual((await linkOf(second)).link, { kind: "product", factory }, "a later project finds the same factory");
+      await setUpProject({ folder: folders[2]!, project: first, storytree, storytreeHome: box, join: true, factory });
+      assert.deepEqual(await linkOf(factory), made, "neither seeds the factory again");
+      assert.equal((await storytree.listProjects()).includes(`${factory}-2`), false, "no second factory is made");
+
+      // A product project holding the name the factory would take leaves it the next free one.
+      await setUpProject({ folder: folders[3]!, project: before, storytree, storytreeHome: laptop, factory: second });
+      assert.deepEqual((await linkOf(before)).link, { kind: "product", factory: `${second}-2` });
+      assert.deepEqual(await linkOf(`${second}-2`), made);
+      assert.deepEqual((await linkOf(second)).link, { kind: "product", factory }, "the product project keeps its own factory");
+    });
+  });
+});

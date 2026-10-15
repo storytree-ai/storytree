@@ -1,6 +1,7 @@
 /**
- * Capability 3 · Story node render. The forest's globe-only page (the forest story, capability 3; ADR-0655).
- * PlanetView reuses the ported island drawing, with story names, selection and claims.
+ * Capability 3 · Story node render. The forest's page (the forest story, capability 3): its stories on the glass sheet, depth
+ * running west to east (ADR-1043, which supersedes ADR-0655 D1's globe-only page), and the Library on the globe until the
+ * sheet's underside carries it. PlanetView reuses the ported island drawing, with story names, selection and claims.
  * Unchanged islands retain their objects, and a live update that changed nothing on show is not drawn again.
  * The page mounts only the globe, and loads none of 0.2's pine kit: no island carries a tree (ADR-0804 D1).
  */
@@ -66,9 +67,12 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     container.dataset.globeShown = String(layers.shown);
     // Both off hides the globe without unmounting it, so its canvas, camera, turn and zoom come back as left (3.10);
     // the mini globe and failure markers sit inside it and go with it, and nothing hidden can be picked.
+    // The stories lie on the glass sheet (ADR-1043); the Library's notes are still drawn inside the globe, so the Library
+    // switched on shows the globe, until the sheet's underside carries them.
+    const sheet = !layers.library;
     root.render(<>
       <div className="forest-globe" hidden={!layers.shown}>
-        <PlanetView core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
+        <PlanetView key={sheet ? "sheet" : "globe"} sheet={sheet} core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
           selected={drawn.selected} highlighted={drawn.highlighted}
           onPick={pick} onNote={pickNote} onControls={onControls} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library} liveRoads />
       </div>

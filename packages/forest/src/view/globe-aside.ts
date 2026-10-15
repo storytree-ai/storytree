@@ -12,12 +12,14 @@ const FIT_MARGIN = 12;
 /** Less free width than this, or than a quarter of the window, is no room to move into: the globe stays put. */
 const USEFUL_FREE = 160;
 
-/** Where the globe sits, from `rest` (its place with no panel), with `aside` CSS pixels of the window's right covered. */
-export function besidePanel(viewport: Viewport, aside: number, rest: AsidePose): AsidePose {
+/** Where the globe sits, from `rest` (its place with no panel), with `aside` CSS pixels of the window's right covered. A glass
+ * sheet (`fit` false, ADR-1043) is not zoomed out to fit: it runs on past the free width, to pan to. */
+export function besidePanel(viewport: Viewport, aside: number, rest: AsidePose, fit = true): AsidePose {
   const free = viewport.width - aside;
   if (aside <= 0 || free < Math.max(USEFUL_FREE, viewport.width / 4)) return rest;
-  const fit = Math.min(viewport.width, viewport.height) / (free - 2 * FIT_MARGIN);
-  return { sideOffset: rest.sideOffset - aside / 2, framing: Math.max(rest.framing, fit) };
+  if (!fit) return { sideOffset: rest.sideOffset - aside / 2, framing: rest.framing };
+  const whole = Math.min(viewport.width, viewport.height) / (free - 2 * FIT_MARGIN);
+  return { sideOffset: rest.sideOffset - aside / 2, framing: Math.max(rest.framing, whole) };
 }
 
 /** How many CSS pixels of `page`'s right the panel covers, its gutter included: none while it draws no box. */
@@ -31,11 +33,11 @@ export function panelAside(page: { right: number }, boxes: readonly { left: numb
  * the panel opened, closed or changed width; at once on a resize), or undefined when nothing moves. A zoom it applied
  * to fit is undone when the panel closes, unless the wheel has moved the zoom since.
  */
-export function createGlobeAside(opening: () => AsidePose) {
+export function createGlobeAside(opening: () => AsidePose, { fit = true }: { fit?: boolean } = {}) {
   let covered = 0, seen: Viewport | undefined;
   let fitted: { from: number; to: number } | undefined;
   const settle = (viewport: Viewport, rest: AsidePose): AsidePose => {
-    const to = besidePanel(viewport, covered, rest);
+    const to = besidePanel(viewport, covered, rest, fit);
     fitted = to.framing > rest.framing ? { from: rest.framing, to: to.framing } : undefined;
     return to;
   };

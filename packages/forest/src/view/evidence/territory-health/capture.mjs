@@ -228,6 +228,14 @@ function measure(page) {
     await picture(page, `close-up-${name}.png`);
     await unzoom();
   }
+  // The forest lies on the glass sheet (ADR-1043), where nothing is behind; the Library switched on still shows the globe.
+  phase('switch the Library on, to the globe');
+  await page.locator('[data-globe-switch="library"]').click();
+  await page.waitForFunction(ids => {
+    const state = window.__globe;
+    return !!state && !state.scene.getObjectByName('sheet:glass') && ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
+  }, seed.tree.stories.map(s => s.id), { timeout: 60000, polling: 100 }).catch(error => failedWait('the globe', error));
+  await settleView(page);
   // Turn the globe half round about its up axis from the library facing: the failures go behind, and their rim markers show.
   phase('turn failures behind the globe');
   await faceIt(LIBRARY);

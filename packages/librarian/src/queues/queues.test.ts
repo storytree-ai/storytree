@@ -9,7 +9,7 @@ import type { Library } from "@storytree/library";
 
 import { worklist } from "../rounds/index.js";
 import { withLibrary } from "../testing/pg.js";
-import { frictionDrain, LEASE_MINUTES, openQuestions, route } from "./index.js";
+import { frictionDrain, LEASE_MINUTES, openFriction, openQuestions, route } from "./index.js";
 
 function question(library: Library, arc: string, title: string, leaseDays?: number) {
   return library.raiseQuestion({ arc, title, stakes: "It blocks work.", statement: `${title}?`, context: "Two ways.", options: "A or B.", ...(leaseDays === undefined ? {} : { leaseDays }) });
@@ -157,9 +157,9 @@ test("5.6 every route but nothing needs an open increment remedying the report o
 
 test("5.8 the friction drain leases what it lists to the session that asked: a second session draining meanwhile gets the next unleased reports, a route ends the lease, and a lapsed lease frees the report", async () => {
   await withLibrary(async (library) => {
-    const reports = [];
-    for (const name of ["A", "B", "C", "D", "E"]) reports.push(await friction(library, `Report ${name}`, "claude/other"));
-    const [a, b, c, d, e] = reports;
+    for (const name of ["A", "B", "C", "D", "E"]) await friction(library, `Report ${name}`, "claude/other");
+    // Reports written in one millisecond can tie on creation order, so take the order the drain lists.
+    const [a, b, c, d, e] = await openFriction(library, { branch: "claude/me" });
     const one = { actor: "session:one" };
     const two = { actor: "session:two" };
     const ids = async (writer: { actor: string }, now?: Date) =>

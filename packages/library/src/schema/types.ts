@@ -31,8 +31,8 @@ export type RecordType =
 
 /**
  * Capability 6's kinds beyond decisions and definitions: ADR-0640's eight, each with 0.2's fields
- * (`packages/library/src/knowledge.ts` in storytree 0.2), and ADR-0956 D3's quality control check,
- * each with a title and a one-line description.
+ * (`packages/library/src/knowledge.ts` in storytree 0.2), ADR-0956 D3's quality control check and
+ * ADR-1058's research, each with a title and a one-line description.
  */
 export type KnowledgeKind =
   | "principle"
@@ -43,7 +43,8 @@ export type KnowledgeKind =
   | "friction"
   | "resteer"
   | "techstack"
-  | "check";
+  | "check"
+  | "research";
 
 /**
  * An increment's lifecycle, in the only order it moves (capability 10). Its ready step, between
@@ -423,6 +424,11 @@ export const RECORD_SCHEMAS = {
     })
     .strict(),
   /**
+   * Research (ADR-1058 D1): what was looked at and found, with the day it was `researched` and its
+   * `findings` as the body. It records no choice; a decision it informs links it.
+   */
+  research: z.object({ ...knowledgeHead, researched: day, findings: nonEmpty }).strict(),
+  /**
    * One increment of an arc's work (capability 10), from the moment it is decided until it closes;
    * closed, it is the arc's log entry. It names the `capabilities` it changes, the lock list a claim
    * on it lights (ADR-0949 D2), parked empty and filled by the session that claims it; it cites
@@ -560,6 +566,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   resteer: 1,
   techstack: 1,
   check: 1,
+  research: 1,
   increment: 3,
   question: 1,
 };

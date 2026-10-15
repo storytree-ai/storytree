@@ -26,8 +26,8 @@ export interface Knowledge {
   linksIn: ReadonlyMap<string, number>;
 }
 
-/** The library's note kinds (its NoteType): memory notes, decisions, definitions, the eight kinds and quality control checks. */
-const NOTE_TYPES = new Set(["memory", "decision", "definition", "principle", "guardrail", "pattern", "process", "agent", "friction", "resteer", "techstack", "check"]);
+/** The library's note kinds (its NoteType): memory notes, decisions, definitions, the eight kinds, quality control checks and research. */
+const NOTE_TYPES = new Set(["memory", "decision", "definition", "principle", "guardrail", "pattern", "process", "agent", "friction", "resteer", "techstack", "check", "research"]);
 
 /** The friction states the Library leaves out: its remedy landed, or it was judged as needing nothing. */
 const SETTLED: ReadonlySet<string> = new Set(["resolved", "dismissed"]);

@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Knowledge and memory, grown by ADR-0640 and ADR-0956: contracts 6.6, 6.7, 6.12, 6.13 and 6.14
+ * Capability 6 · Knowledge and memory, grown by ADR-0640 and ADR-0956: contracts 6.6, 6.7, 6.12, 6.13, 6.14, 6.15 and 6.16
  * in the library story, each run on BOTH backends, as 6.1-6.5 are (knowledge-memory.test.ts):
  *
  * - memory: a Knowledge over SchemaRecords over a fresh MemoryTransactions;
@@ -274,5 +274,65 @@ for (const backend of [memory, postgres]) {
       "a check enforcing a definition, not a principle or guardrail, is refused",
     );
     assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
+
+  contract("6.15", "a research note is saved with its title, description, the day the research was done and its findings, and refused without its findings or day, or with a day that is not one", async ({ knowledge, transactions }) => {
+    const research = {
+      title: "Product-analytics services",
+      description: "Hosted analytics services compared",
+      researched: "2026-10-02",
+      findings: "PostHog self-hosts; Plausible counts pages without cookies",
+    };
+
+    const saved = await knowledge.writeKnowledge("research", research);
+    assert.equal(saved.type, "research");
+    assert.deepEqual((await transactions.get(saved.id))?.fields, research, "a research note reads back as given");
+    assert.deepEqual((await knowledge.search("cookies")).map(({ id }) => id), [saved.id], "a research note is found by a word of its findings");
+
+    const before = await transactions.history();
+    for (const field of ["title", "description", "researched", "findings"] as const) {
+      const { [field]: _left, ...without } = research;
+      await assert.rejects(
+        knowledge.writeKnowledge("research", without as never),
+        (error: unknown) => error instanceof SchemaError && error.fields.includes(field),
+        `a research note without ${field} is refused, naming it`,
+      );
+    }
+    await assert.rejects(
+      knowledge.writeKnowledge("research", { ...research, researched: "2 October" }),
+      (error: unknown) => error instanceof SchemaError && error.fields.includes("researched"),
+      "the day the research was done is a real day",
+    );
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+  });
+
+  contract("6.16", "an artifact refiled as another kind keeps its id, creation date and links, reads as the new kind, and its history keeps what it was; fields that do not fit the new kind, a friction or re-steer, or an id that is no live artifact are refused with nothing written", async ({ knowledge, transactions }) => {
+    const cited = await knowledge.defineTerm({ term: "Standing delegation", meaning: "A lane acts without asking" });
+    const term = await knowledge.defineTerm({ term: "OpenSpec: dated research (2026-10-10)", meaning: "OpenSpec keeps specs beside code", links: [cited.id] });
+    const research = { title: "OpenSpec", description: "OpenSpec looked at", researched: "2026-10-10", findings: "OpenSpec keeps specs beside code", links: [cited.id] };
+
+    const before = await transactions.history();
+    await assert.rejects(
+      knowledge.refile(term.id, "research", { ...research, researched: "someday" }),
+      (error: unknown) => error instanceof SchemaError && error.fields.includes("researched"),
+      "fields that do not fit the new kind are refused",
+    );
+    for (const kind of ["friction", "resteer"] as const) {
+      await assert.rejects(knowledge.refile(term.id, kind, {} as never), RangeError, `nothing is refiled as a ${kind}, which has its own capture rules`);
+    }
+    await assert.rejects(knowledge.refile(term.id, "research", { ...research, links: ["definition_000000000000"] }), MissingReferenceError, "its links name live artifacts");
+    assert.equal(await knowledge.refile("definition_000000000000", "research", research), null, "an id that is no live artifact refiles nothing");
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+
+    const refiled = await knowledge.refile(term.id, "research", research);
+    assert.equal(refiled?.id, term.id);
+    assert.equal(refiled?.type, "research");
+    assert.equal(refiled?.createdAt, term.createdAt, "it keeps its creation date");
+    const stored = await transactions.get(term.id);
+    assert.deepEqual([stored?.type, stored?.fields], ["research", research], "it reads as the new kind, with only the new kind's fields");
+    assert.deepEqual((await knowledge.definitions()).map(({ id }) => id), [cited.id], "it is no longer a definition");
+    assert.deepEqual((await knowledge.relatedNotes(cited.id)).map(({ id }) => id), [term.id], "it still links where it did");
+    const written = (await transactions.history({ id: term.id })).map(({ record }) => record.type);
+    assert.deepEqual(written, ["definition", "research"], "its history keeps what it was");
   });
 }

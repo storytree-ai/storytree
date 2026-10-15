@@ -14,6 +14,7 @@ const KINDS: readonly { kind: string; label: string; colour: string }[] = [
   { kind: "agent", label: "Agent roles", colour: "#e0a3cf" },
   { kind: "check", label: "Checks", colour: "#d9a273" },
   { kind: "techstack", label: "Tech stack", colour: "#b6c98a" },
+  { kind: "research", label: "Research", colour: "#9f9fe6" },
   { kind: "memory", label: "Memory", colour: "#c9c1a0" },
   { kind: "resteer", label: "Re-steers", colour: "#c7a98a" },
   { kind: "friction", label: "Friction", colour: "#9aa3ad" },

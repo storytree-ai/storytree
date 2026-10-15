@@ -88,7 +88,7 @@ const FROM_HEALTH = ["reportHealth", "recordVerified", "markVerifiedPending", "h
 const FROM_KNOWLEDGE = [
   "recordDecision", "numberDecision", "decisionNumberPlan", "numberDecisionsFromFullRecord", "setDecisionNumberFloor", "numberFoundingDecisions",
   "writeKnowledge", "defineTerm", "editNote", "search", "searchEach", "rank", "rankAll", "findPhrase",
-  "relatedNotes", "related", "relatedEach", "definitions", "frontCovers", "decision", "decisions", "composeStatement",
+  "relatedNotes", "related", "relatedEach", "definitions", "frontCovers", "decision", "decisions", "composeStatement", "refile",
 ] as const satisfies readonly (keyof Project["knowledge"])[];
 const FROM_LINEAGE = ["factory", "markFactory", "recordFactory"] as const satisfies readonly (keyof Project["lineage"])[];
 

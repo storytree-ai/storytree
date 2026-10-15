@@ -9,7 +9,7 @@
  *
  * ADR-0640 grows it by eight kinds, written with writeKnowledge: principles, guardrails, patterns,
  * processes, agent roles, friction, re-steers and tech stack; ADR-0956 D3 adds a ninth, the quality control
- * check, which enforces at least one principle or guardrail. They are artifacts like decisions and definitions:
+ * check, which enforces at least one principle or guardrail, and ADR-1058 D1 a tenth, research. They are artifacts like decisions and definitions:
  * searched, linked only to artifacts, and edited with editNote. An agent role's required reading, rules,
  * anti-patterns and step reading, and a process's branch edges, are links to artifacts too (6-a).
  *
@@ -37,7 +37,7 @@ import { holdsName, normalisedWords } from "./whole-words.js";
  */
 const LINK_FIELDS = ["links", "context", "rules", "antiPatterns", "stepRefs", "branchEdges", "enforces"] as const;
 
-/** The kinds of artifact: decisions, definitions, the eight kinds of ADR-0640 and ADR-0956's check. */
+/** The kinds of artifact: decisions, definitions, the eight kinds of ADR-0640, ADR-0956's check and ADR-1058's research. */
 export type NoteType = "decision" | "definition" | KnowledgeKind;
 /** A new artifact of one of the knowledge kinds: its fields. Every reference in it must name a live artifact. */
 export type NewKnowledge<K extends KnowledgeKind = KnowledgeKind> = K extends "friction" ? Omit<FieldsOf<K>, "state"> : FieldsOf<K>;
@@ -105,6 +105,7 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
   "resteer",
   "techstack",
   "check",
+  "research",
 ];
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
@@ -256,6 +257,22 @@ export class Knowledge {
   async defineTerm(definition: NewDefinition, options?: WriteOptions): Promise<SchemaRecord<"definition">> {
     await this.#checkLinks(definition.links);
     return this.#records.create("definition", definition, options);
+  }
+
+  /**
+   * Refile a live artifact as another knowledge kind (ADR-1058 D2): `fields` are the new kind's whole set, checked as
+   * writeKnowledge checks them, and written under the same id, so it keeps its creation date, what links to it, and its
+   * history, which keeps what it was. Friction and re-steers are filed only by their own capture rules, so are refused.
+   * Returns null, and writes nothing, if `id` is not a live artifact.
+   */
+  async refile<K extends KnowledgeKind>(id: string, kind: K, fields: NewKnowledge<K>, options?: WriteOptions): Promise<SchemaRecord<K> | null> {
+    if (!KNOWLEDGE_KINDS.includes(kind) || kind === "friction" || kind === "resteer") {
+      throw new RangeError(`refile writes ${KNOWLEDGE_KINDS.filter((one) => one !== "friction" && one !== "resteer").join(", ")}, not ${JSON.stringify(kind)}`);
+    }
+    if ((await liveRecord(this.#records, id, NOTE_TYPES)) === null) return null;
+    await this.#checkNoteReferences(fields);
+    await this.#refuseLinkLoop(id, fields);
+    return this.#records.create(kind, fields as FieldsOf<K>, { ...options, id });
   }
 
   /**

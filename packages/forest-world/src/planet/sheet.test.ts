@@ -4,7 +4,7 @@ import { OrthographicCamera, Quaternion, Vector3, type Mesh } from 'three';
 import { PLATE_CLEARANCE, plateTransform } from './planet.js';
 import { islandSurface } from './island-surface.js';
 import { applyPlanetFraming } from './camera.js';
-import { applySheetEye, SHEET_GLASS_BELOW, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, sheetPoint, sheetSpot } from './sheet.js';
+import { applySheetEye, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, sheetGlass, sheetPoint, sheetSpot } from './sheet.js';
 
 test('6.22 on the glass sheet each island stands where it is placed and faces the eye square-on, within a degree, and the eye keeps a tight depth range round the sheet', () => {
   // The globe turned to face the eye, as the page does: its own +z toward the eye, which looks straight down at the sheet.
@@ -45,8 +45,15 @@ test('6.23 on the glass sheet every island is a raised plate of one shared thick
     assert.deepEqual([...drops].sort((a, b) => a - b), [0, SHEET_LAND_THICKNESS], `the ${story} island's sides run from its land down by the shared thickness`);
     assert.equal(islandSurface(coast, SHEET_RADIUS, story).getObjectByName('island-side'), undefined, 'and an island on the globe has none');
   }
-  // Raised on the sheet, an island's land stands that thickness above the glass.
-  const { position } = plateTransform(sheetSpot({ x: 300, y: -120 }), SHEET_RADIUS, SHEET_LAND_LIFT);
-  assert.ok(Math.abs(new Vector3(...position).length() - (sphere - SHEET_GLASS_BELOW) - SHEET_LAND_THICKNESS) < 1e-6, 'the land stands the thickness above the glass');
+  // Raised on the sheet, an island's land stands that thickness above the glass as drawn, wherever it is placed.
+  const glass = sheetGlass({ width: 1200, height: 600 });
+  glass.updateMatrixWorld(true);
+  const pane = glass.getObjectByName('sheet:pane') as Mesh, corners = pane.geometry.getAttribute('position');
+  for (const index of [0, corners.count - 1]) {
+    const under = new Vector3().fromBufferAttribute(corners, index).applyMatrix4(pane.matrixWorld);
+    const { position } = plateTransform(sheetSpot(sheetPoint(under)), SHEET_RADIUS, SHEET_LAND_LIFT);
+    const land = new Vector3(...position).length(), drawn = under.length();
+    assert.ok(Math.abs(land - drawn - SHEET_LAND_THICKNESS) < 1e-3, `the land stands ${(land - drawn).toFixed(3)} units above the glass at its corner`);
+  }
   assert.ok(SHEET_LAND_THICKNESS >= 6, `thick enough to be seen at the tilt (${SHEET_LAND_THICKNESS} units)`);
 });

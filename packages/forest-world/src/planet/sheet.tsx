@@ -96,37 +96,40 @@ export function UnderTheGlass({ children }: { children: ReactNode }) {
   return <group ref={group} name="sheet:under">{children}</group>;
 }
 
-/** The glass under the islands: a pane bent to the big sphere's sag, faint, with a bright rim, at the pole. */
+/** The glass under the islands: a pane bent to the big sphere's sag, faint, with a bright rim, at the pole, `extent` across. */
+export function sheetGlass(extent: SheetExtent): Group {
+  const group = new Group();
+  group.name = 'sheet:glass';
+  group.position.set(0, 0, SHEET_RADIUS + PLATE_CLEARANCE);
+  const plane = new PlaneGeometry(extent.width, extent.height, 48, 32);
+  const position = plane.getAttribute('position');
+  // The pane lies just under the islands' resting plates, following the sphere they stand on.
+  for (let i = 0; i < position.count; i++) position.setZ(i, sag(position.getX(i), position.getY(i)) - SHEET_GLASS_BELOW);
+  // Smoked glass over the page.
+  const pane = new Mesh(plane, new MeshBasicMaterial({ color: '#1a2832', transparent: true, opacity: 0.72, depthWrite: false, side: DoubleSide }));
+  pane.name = 'sheet:pane';
+  pane.raycast = () => {};
+  // The rim, bent with the pane: each side sampled every 20 units.
+  const w = extent.width / 2, h = extent.height / 2, loop: Vector3[] = [];
+  const corners = [[-w, -h], [w, -h], [w, h], [-w, h]] as const;
+  corners.forEach(([x0, y0], i) => {
+    const [x1, y1] = corners[(i + 1) % 4]!, steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 20));
+    for (let s = 0; s < steps; s++) {
+      const x = x0 + (x1 - x0) * s / steps, y = y0 + (y1 - y0) * s / steps;
+      loop.push(new Vector3(x, y, sag(x, y) - SHEET_GLASS_BELOW));
+    }
+  });
+  const rim = new LineSegments(new BufferGeometry().setFromPoints(loop.flatMap((p, i) => [p, loop[(i + 1) % loop.length]!])),
+    new LineBasicMaterial({ color: '#cfe6f2', transparent: true, opacity: 0.55 }));
+  rim.name = 'sheet:rim';
+  rim.raycast = () => {};
+  group.add(pane, rim);
+  return group;
+}
+
+/** The glass under the islands, drawn (`sheetGlass`). */
 export function SheetGlass({ extent }: { extent: SheetExtent }) {
-  const glass = useMemo(() => {
-    const group = new Group();
-    group.name = 'sheet:glass';
-    group.position.set(0, 0, SHEET_RADIUS + PLATE_CLEARANCE);
-    const plane = new PlaneGeometry(extent.width, extent.height, 48, 32);
-    const position = plane.getAttribute('position');
-    // The pane lies just under the islands' plates, following the sphere they stand on.
-    for (let i = 0; i < position.count; i++) position.setZ(i, sag(position.getX(i), position.getY(i)) - SHEET_GLASS_BELOW);
-    // Smoked glass over the page.
-    const pane = new Mesh(plane, new MeshBasicMaterial({ color: '#1a2832', transparent: true, opacity: 0.72, depthWrite: false, side: DoubleSide }));
-    pane.name = 'sheet:pane';
-    pane.raycast = () => {};
-    // The rim, bent with the pane: each side sampled every 20 units.
-    const w = extent.width / 2, h = extent.height / 2, loop: Vector3[] = [];
-    const corners = [[-w, -h], [w, -h], [w, h], [-w, h]] as const;
-    corners.forEach(([x0, y0], i) => {
-      const [x1, y1] = corners[(i + 1) % 4]!, steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 20));
-      for (let s = 0; s < steps; s++) {
-        const x = x0 + (x1 - x0) * s / steps, y = y0 + (y1 - y0) * s / steps;
-        loop.push(new Vector3(x, y, sag(x, y) - SHEET_GLASS_BELOW));
-      }
-    });
-    const rim = new LineSegments(new BufferGeometry().setFromPoints(loop.flatMap((p, i) => [p, loop[(i + 1) % loop.length]!])),
-      new LineBasicMaterial({ color: '#cfe6f2', transparent: true, opacity: 0.55 }));
-    rim.name = 'sheet:rim';
-    rim.raycast = () => {};
-    group.add(pane, rim);
-    return group;
-  }, [extent.width, extent.height]);
+  const glass = useMemo(() => sheetGlass(extent), [extent.width, extent.height]);
   useEffect(() => () => glass.traverse(object => {
     const mesh = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
     mesh.geometry?.dispose();

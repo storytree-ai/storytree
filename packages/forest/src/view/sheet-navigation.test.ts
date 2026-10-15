@@ -112,11 +112,12 @@ test("3.53 on the glass sheet, Home eases the view back to the one it opened on,
 
 test("3.54 the glass sheet turns over north to south about its west-east axis: on the underside depth still runs west to east, the north edge lies at the bottom, and a drag still pans it the way the pointer moves", () => {
   const { extent } = sheet(12), opening = sheetOpening(extent, size);
-  const top = eye(opening, extent), under = eye(opening, extent, Math.PI), edgeOn = eye(opening, extent, Math.PI / 2);
+  // Turned from the top face's rest at the tilt, the sheet stands edge-on to the eye a tilt past a quarter of the way over.
+  const top = eye(opening, extent), under = eye(opening, extent, Math.PI), edgeOn = eye(opening, extent, Math.PI / 2 + SHEET_TILT);
   const held = sheetCentre(opening.turn);
   const west = { x: held.x - 200, y: held.y }, east = { x: held.x + 200, y: held.y }, north = { x: held.x, y: held.y + 100 }, south = { x: held.x, y: held.y - 100 };
   assert.ok(Math.abs(top.facing(held) - SHEET_TILT) < 1e-6 && Math.abs(under.facing(held) - (Math.PI - SHEET_TILT)) < 1e-6, "the top face looks at the eye, then the underside does, each at the tilt");
-  assert.ok(Math.abs(edgeOn.facing(held) - Math.abs(Math.PI / 2 - SHEET_TILT)) < 1e-6, "half way, the sheet has turned a quarter from the top face");
+  assert.ok(Math.abs(edgeOn.facing(held) - Math.PI / 2) < 1e-6, "on its way over, the sheet passes edge-on");
   for (const face of [top, under]) assert.ok(face.screen(west).x < face.screen(east).x - 300, "depth runs west to east on both faces");
   assert.ok(top.screen(north).y < top.screen(south).y && under.screen(north).y > under.screen(south).y + 100, "turned over north to south: the north edge comes to the bottom");
   for (const face of [under, edgeOn]) {

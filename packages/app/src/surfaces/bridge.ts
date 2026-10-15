@@ -33,6 +33,8 @@ export interface PageReadsBridge {
   changesSince(name: string, cursor: number): Promise<Changes>;
   /** The agent activity log's lines for a project after `cursor` (start from 0), oldest first, and the cursor to pass next time. */
   linesSince(name: string, cursor: number): Promise<LinesSince>;
+  /** The system records a product project reads from its factory and holds none of its own for (library 1.19), in id order; none for a project with no factory. */
+  inherited(name: string): Promise<SchemaRecord[]>;
   /** A story's or capability's shelf of front covers, founding book first. */
   frontCovers(name: string, nodeId: string): Promise<SchemaRecord<"decision">[]>;
   /** The notes that link to a note. */
@@ -57,6 +59,7 @@ export const PAGE_READS_CHANNELS = {
   projectTree: "storytree:project-tree",
   changesSince: "storytree:changes-since",
   linesSince: "storytree:lines-since",
+  inherited: "storytree:inherited",
   frontCovers: "storytree:front-covers",
   relatedNotes: "storytree:related-notes",
   standingDelegations: "storytree:standing-delegations",

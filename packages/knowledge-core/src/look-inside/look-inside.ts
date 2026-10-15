@@ -30,6 +30,8 @@ export interface Card {
   /** The description or the artifact kind's summary field; absent means show its whole text. */
   summary: string | undefined;
   text: string;
+  /** The note is one the project reads from its factory, holding none of its own (ADR-1040). */
+  fromFactory?: true;
 }
 
 export interface LegendEntry {
@@ -45,8 +47,8 @@ const SUBAGENTS = ["#E69F00", "#009E73", "#CC79A7", "#F0E442", "#56B4E9", "#D55E
 const UNKNOWN = "#9AA0AA";
 /** Lightnesses a listed session's subagents take, skipping the session's own. */
 const SHADES = [46, 84, 36, 76, 56, 90, 28];
-/** A pinned note's summary card: its kind, title, and description or another summary field, else its whole text. */
-export function noteCard(id: string, knowledge: Knowledge): Card | undefined {
+/** A pinned note's summary card: its kind, title, and description or another summary field, else its whole text; marked when it is one of `fromFactory`, the notes the project reads from its factory. */
+export function noteCard(id: string, knowledge: Knowledge, fromFactory: ReadonlySet<string> = new Set()): Card | undefined {
   const note = knowledge.notes.get(id);
   if (note === undefined) return undefined;
   const text = firstWords(note.fields.text, note.fields.meaning, note.fields.statement, note.fields.role, note.fields.description);
@@ -56,6 +58,7 @@ export function noteCard(id: string, knowledge: Knowledge): Card | undefined {
     title: titleOf(knowledge, id),
     summary: firstWords(note.fields.description, note.fields.summary, note.fields.oneLine, note.fields.statement, note.fields.meaning),
     text: text ?? "",
+    ...(fromFactory.has(id) ? { fromFactory: true as const } : {}),
   };
 }
 

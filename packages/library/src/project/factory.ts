@@ -187,6 +187,24 @@ export class InheritedRecords extends SchemaRecords {
     const mine = await own(kinds);
     const inheritable = kinds.filter(isSystem);
     if (inheritable.length === 0) return mine;
+    const merged = [...mine, ...(await this.#shown(inheritable, read))].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    return filter?.limit === undefined ? merged : merged.slice(0, filter.limit);
+  }
+
+  /**
+   * The factory's system records the product reads as its own (1.19): those whose kind and title it holds no record of,
+   * and whose id it never retired a copy under, in id order. Its own copies and shadows are its own records, not these;
+   * a product's globe draws these beside its history.
+   */
+  async inherited(): Promise<SchemaRecord[]> {
+    return (await this.#shown(SYSTEM_KINDS, (kinds, from) => from.list(kinds))).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+
+  /** The factory's records of the system kinds `inheritable` read by `read` that the product holds no record of that kind and title for, nor retired. */
+  async #shown<T extends RecordType, R extends { readonly id: string; readonly type: RecordType; readonly fields: object }>(
+    inheritable: readonly T[],
+    read: (kinds: readonly T[], from: SchemaRecords) => Promise<R[]>,
+  ): Promise<R[]> {
     const held = new Set<string>();
     const last = new Map<string, string>();
     for (const entry of await super.history({ types: inheritable })) last.set(entry.recordId, entry.action);
@@ -194,9 +212,7 @@ export class InheritedRecords extends SchemaRecords {
       for (const record of await super.select(kind, ["title" as never])) held.add(`${kind}\0${(record.fields as { title: string }).title}`);
     }
     const inherited = (await Promise.all(inheritable.map((kind) => read([kind], this.#factory)))).flat();
-    const shown = inherited.filter((record) => !held.has(`${record.type}\0${(record.fields as { title?: string }).title}`) && last.get(record.id) !== "retired");
-    const merged = [...mine, ...shown].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-    return filter?.limit === undefined ? merged : merged.slice(0, filter.limit);
+    return inherited.filter((record) => !held.has(`${record.type}\0${(record.fields as { title?: string }).title}`) && last.get(record.id) !== "retired");
   }
 }
 

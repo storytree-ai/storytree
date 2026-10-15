@@ -28,5 +28,6 @@ export function NoteCard({ card, onClose }: { card: Card; onClose: () => void })
       <button type="button" className="panel-close" aria-label="Close the library panel" onClick={onClose}>×</button>
     </header>
     <p className="core-card-text">{card.summary ?? card.text}</p>
+    {card.fromFactory === true ? <p className="core-card-from">From this project's factory</p> : null}
   </section>;
 }

@@ -92,6 +92,21 @@ test("3.8 the page can ask the app for the project's standing delegations, and a
   });
 });
 
+test("3.13 the page can ask the app for the system notes the project on show reads from its factory; a project with none answers with none", async () => {
+  const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
+  await withApp([factory, product], async ({ storytree, reads }) => {
+    const made = await storytree.openProject(factory);
+    await made.markFactory();
+    const note = await made.writeKnowledge("principle", { title: "Keep it small", description: "Keep it small.", statement: "Small steps.", why: "It helps.", howToApply: "Do it." });
+    await made.recordDecision({ status: "accepted", title: "The factory's own decision", text: "Kept." });
+    await (await storytree.openProject(product)).recordFactory(factory);
+
+    assert.deepEqual((await reads.inherited(product)).map(({ id }) => id), [note.id], "the factory's system, and not its memory");
+    assert.deepEqual(await reads.inherited(factory), []);
+    await assert.rejects(reads.inherited(uniqueProjectName()), /there is no project called/);
+  });
+});
+
 /** A session that ran on another machine:its transcript streamed into the shared log there, and its file out of this app's reach. */
 async function ranElsewhere(log: ActivityLog, project: string, session: string, records: readonly unknown[]): Promise<string> {
   const folder = mkdtempSync(path.join(tmpdir(), "reads-"));

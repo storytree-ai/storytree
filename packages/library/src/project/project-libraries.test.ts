@@ -10,6 +10,7 @@ import { test } from "node:test";
 
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 import { ConnectionError, ProjectGoneError, connect, type Project, type Storytree } from "./index.js";
+import type { InheritedRecords } from "./factory.js";
 
 /** The spec's naming, restated here rather than taken from the code: project `x` is database `storytree_x`. */
 function databaseOf(project: string): string {
@@ -621,5 +622,37 @@ test("1.18 an edit through a product of a system record it reads from its factor
     assert.equal(await again.records.get(shadowed.id), null);
     assert.equal(await again.records.get(own.id), null);
     assert.deepEqual((await again.records.list("principle")).map((each) => each.id), [edited.id]);
+  });
+});
+
+test("1.19 a product's inherited records are the factory's system records it reads and holds no record of its own for: its copies, shadows, retirements and the factory's memory left out (ADR-1040)", async () => {
+  const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
+  await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
+    const made = await storytree.openProject(factory);
+    await made.lineage.markFactory();
+    const principle = (title: string, statement: string) => ({ title, description: `${title}.`, statement, why: "It helps.", howToApply: "Do it." });
+    const read = await made.knowledge.writeKnowledge("principle", principle("Keep it small", "The factory's wording."));
+    const shadowed = await made.knowledge.writeKnowledge("principle", principle("Name things plainly", "The factory's wording."));
+    const edited = await made.knowledge.writeKnowledge("principle", principle("Test first", "The factory's wording."));
+    const retired = await made.knowledge.writeKnowledge("principle", principle("Ship daily", "The factory's wording."));
+    const check = await made.knowledge.writeKnowledge("check", { title: "Proxy assertion", description: "Proxies pass.", question: "Is any assertion a proxy?", enforces: [read.id] });
+    await made.knowledge.recordDecision({ title: "The factory's decision", text: "Kept.", status: "accepted" });
+
+    const before = await storytree.openProject(product);
+    await before.lineage.recordFactory(factory);
+    await before.knowledge.writeKnowledge("principle", principle("Name things plainly", "The product's own wording."));
+    await before.close();
+    const built = await storytree.openProject(product);
+    await built.knowledge.editNote(edited.id, { statement: "The product's edit." });
+    await built.records.retire(retired.id, "not part of this product");
+
+    const inherited = async () => (await (built.records as InheritedRecords).inherited()).map((each) => each.id);
+    assert.deepEqual(await inherited(), [read.id, check.id].sort());
+    assert.ok(!(await inherited()).includes(shadowed.id), "the factory's record a product's own of that title shadows is not inherited");
+
+    // It reads the factory as it is now.
+    await made.knowledge.editNote(read.id, { statement: "The factory's new wording." });
+    const [now] = (await (built.records as InheritedRecords).inherited()).filter((each) => each.id === read.id);
+    assert.equal((now?.fields as { statement?: string } | undefined)?.statement, "The factory's new wording.");
   });
 });

@@ -1,5 +1,6 @@
 /** Capability 6 · Pixel-art shorts. Renders the shorts from Node with Remotion: one bundle of the compositions, then
  * stills and videos from it, and the pixels of a still read back through Remotion's own bundled ffmpeg. */
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
@@ -11,7 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 /** Bundles the compositions once for any number of renders; the workspace's TypeScript names its imports `.js`. */
 export function bundleShorts(): Promise<string> {
   return bundle({
-    entryPoint: path.join(here, "index.ts"),
+    entryPoint: path.join(here, "root.tsx"),
     publicDir: path.join(here, "public"),
     webpackOverride: config => ({ ...config, resolve: { ...config.resolve, extensionAlias: { ".js": [".ts", ".tsx", ".js"] } } }),
   });
@@ -24,7 +25,7 @@ const chromiumOptions = { gl: "swangle" } as const;
 export async function renderPng(serveUrl: string, id: string, frame: number, output?: string): Promise<Buffer> {
   const composition = await selectComposition({ serveUrl, id, chromiumOptions, logLevel: "error" });
   const { buffer } = await renderStill({ serveUrl, composition, frame, imageFormat: "png", output: output ?? null, chromiumOptions, logLevel: "error", overwrite: true });
-  return buffer ?? Buffer.from(await (await import("node:fs/promises")).readFile(output!));
+  return buffer ?? readFile(output!);
 }
 
 /** The whole composition as a video: H.264 MP4 or VP9 WebM. */

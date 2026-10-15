@@ -124,18 +124,24 @@ st_download() {
 }
 
 # st_release CHANNEL ARCH FILE: reads the channel's delivery manifest into FILE and sets ST_PAYLOAD_URL, _SHA and _NAME
-# for this system's app: the Mac's zip, or Linux's AppImage.
+# for this system's app: the Mac's zip, or Linux's AppImage. An acceptance run names the build to install as stable,
+# before the pin moves to it, in STORYTREE_ACCEPTANCE_VERSION; the published one-liner never sets it.
 st_release() {
   st_pinned=
-  if [ "$1" = stable ]; then
+  if [ -n "${STORYTREE_ACCEPTANCE_VERSION:-}" ]; then
+    [ "$1" = stable ] || { st_fail 'An acceptance version installs as stable; this installation uses development'; return; }
+    st_pinned=$STORYTREE_ACCEPTANCE_VERSION
+    st_bad='STORYTREE_ACCEPTANCE_VERSION must name a 0.3.<n> release'
+  elif [ "$1" = stable ]; then
     st_fetch "https://raw.githubusercontent.com/$ST_REPO/release-channel-stable/latest.yml" "$3" || { st_fail 'the stable release pin could not be read'; return; }
     st_pinned=$(st_json version < "$3")
-    case "$(st_json schema < "$3")/$(st_json channel < "$3")/$st_pinned" in
-      1/stable/0.3.*) ;;
-      *) st_fail 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired'; return ;;
-    esac
-    case "${st_pinned#0.3.}" in 0 | [1-9] | [1-9]*[0-9]) ;; *) st_fail 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired'; return ;; esac
-    case "${st_pinned#0.3.}" in *[!0-9]*) st_fail 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired'; return ;; esac
+    st_bad='The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired'
+    case "$(st_json schema < "$3")/$(st_json channel < "$3")" in 1/stable) ;; *) st_fail "$st_bad"; return ;; esac
+  fi
+  if [ "$1" = stable ]; then
+    case "$st_pinned" in 0.3.*) ;; *) st_fail "$st_bad"; return ;; esac
+    case "${st_pinned#0.3.}" in 0 | [1-9] | [1-9]*[0-9]) ;; *) st_fail "$st_bad"; return ;; esac
+    case "${st_pinned#0.3.}" in *[!0-9]*) st_fail "$st_bad"; return ;; esac
     st_manifest="https://github.com/$ST_REPO/releases/download/v$st_pinned/storytree-delivery.json"
   else
     st_manifest="https://github.com/$ST_REPO/releases/latest/download/storytree-delivery.json"

@@ -81,6 +81,21 @@ refused "does not match" "a release that is not the pinned one" st_release stabl
 manifest='{"schema":1,"channelSchema":1,"version":"0.3.123","installer":{"name":"storytree-0.3-0.3.123-setup.exe"}}'
 refused "no Mac app" "a release without the Mac app" st_release development arm64 "$root/manifest.json"
 
+# An acceptance run installs a named build as a stable user would get it, before the pin moves to it.
+pin='{"schema":1,"channel":"stable","version":"0.3.100"}'
+manifest=$(printf '%s' "$json" | sed 's/"schema": 1,/"schema": 1, "channelSchema": 1,/')
+rm -f "$root/fetched"
+STORYTREE_ACCEPTANCE_VERSION=0.3.123
+st_release stable arm64 "$root/manifest.json"
+check "$ST_PAYLOAD_URL" "https://github.com/storytree-ai/storytree/releases/download/v0.3.123/storytree-0.3-0.3.123-mac-arm64.zip" "an acceptance version takes that release's Mac app"
+check "$(cat "$root/fetched")" "https://github.com/storytree-ai/storytree/releases/download/v0.3.123/storytree-delivery.json" "an acceptance version reads that release, not the pin"
+refused "installs as stable" "an acceptance version on development" st_release development arm64 "$root/manifest.json"
+STORYTREE_ACCEPTANCE_VERSION=latest
+refused "0.3.<n>" "an acceptance version that names no release" st_release stable arm64 "$root/manifest.json"
+STORYTREE_ACCEPTANCE_VERSION=0.3.124
+refused "does not match" "an acceptance version whose release is another build" st_release stable arm64 "$root/manifest.json"
+unset STORYTREE_ACCEPTANCE_VERSION
+
 # Checksum: a mismatch is refused and nothing is unpacked.
 printf 'the app' > "$root/app.zip"
 sum=$(st_sha256 "$root/app.zip")

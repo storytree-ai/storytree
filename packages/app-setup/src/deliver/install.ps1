@@ -34,14 +34,23 @@ function Save-StorytreeChannel([string]$HomeDir, [string]$Selected) {
   [IO.File]::WriteAllBytes($file, [Text.Encoding]::UTF8.GetBytes((@{ schema = 1; channel = $Selected } | ConvertTo-Json -Compress)))
 }
 
-function Get-StorytreeRelease([string]$SelectedChannel, [scriptblock]$Fetch) {
+# An acceptance run names the build to install as stable, before the pin moves to it, in STORYTREE_ACCEPTANCE_VERSION;
+# the published one-liner never sets it.
+function Get-StorytreeRelease([string]$SelectedChannel, [scriptblock]$Fetch, [string]$AcceptanceVersion) {
   $api = 'https://api.github.com/repos/storytree-ai/storytree/releases'
-  if ($SelectedChannel -ceq 'development') { return (& $Fetch "$api/latest") }
-  if ($SelectedChannel -cne 'stable') { throw 'Unknown release channel.' }
-  $pin = & $Fetch 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/latest.yml'
-  if ($pin.schema -ne 1 -or $pin.channel -cne 'stable' -or $pin.version -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired.' }
-  $release = & $Fetch "$api/tags/v$($pin.version)"
-  if ($release.tag_name -cne "v$($pin.version)") { throw 'The stable release does not match its pin.' }
+  if ($AcceptanceVersion) {
+    if ($SelectedChannel -cne 'stable') { throw 'An acceptance version installs as stable; this installation uses development.' }
+    if ($AcceptanceVersion -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'STORYTREE_ACCEPTANCE_VERSION must name a 0.3.<n> release.' }
+    $version = $AcceptanceVersion
+  } else {
+    if ($SelectedChannel -ceq 'development') { return (& $Fetch "$api/latest") }
+    if ($SelectedChannel -cne 'stable') { throw 'Unknown release channel.' }
+    $pin = & $Fetch 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/latest.yml'
+    if ($pin.schema -ne 1 -or $pin.channel -cne 'stable' -or $pin.version -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired.' }
+    $version = $pin.version
+  }
+  $release = & $Fetch "$api/tags/v$version"
+  if ($release.tag_name -cne "v$version") { throw "The stable release does not match $version." }
   return $release
 }
 
@@ -250,7 +259,7 @@ try {
       param($Arch)
       [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
       $headers = @{ 'User-Agent' = 'storytree-delivery'; 'Accept' = 'application/vnd.github+json' }
-      $release = Get-StorytreeRelease $selectedChannel { param($Url) Invoke-RestMethod $Url -Headers $headers }
+      $release = Get-StorytreeRelease $selectedChannel { param($Url) Invoke-RestMethod $Url -Headers $headers } $env:STORYTREE_ACCEPTANCE_VERSION
       $manifestUrl = Get-StorytreeAsset $release 'storytree-delivery.json'
       $manifest = Invoke-RestMethod $manifestUrl
       $asset = Select-StorytreeInstaller $release $manifest $Arch $selectedChannel

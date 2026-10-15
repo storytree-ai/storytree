@@ -214,10 +214,10 @@ test("13.5 · a word past the ones a verb takes, or a flag it does not take, is 
 
   // The app's declared `release pin` refuses a missing version and a stray word before its act could publish anything.
   const pin = RELEASE_FAMILIES[0]!.verbs.find((each) => mounted(each.command) && each.command.name === "pin")!;
-  assert.equal(commandUsage(pin), "release pin <0.3.n> [--preview]");
+  assert.equal(commandUsage(pin), "release pin <0.3.n> [--preview] [--back | --expedited <why>]");
   assert.throws(() => commandInput(pin, given([], {})), (error) => error instanceof VerbRefusal && error.misuse && error.message === "this needs <version>: the owner's chosen release");
   assert.throws(() => commandInput(pin, given(["0.3.9", "0.3.10"], {})), (error) => error instanceof VerbRefusal && error.misuse && error.message === "this takes one word, and was given 2");
-  assert.deepEqual(commandInput(pin, given(["0.3.9"], { preview: "" })), { version: "0.3.9", preview: true });
+  assert.deepEqual(commandInput(pin, given(["0.3.9"], { preview: "" })), { version: "0.3.9", preview: true, back: false, expedited: undefined });
 });
 
 const hold = verb({

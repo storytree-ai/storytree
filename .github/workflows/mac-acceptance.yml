@@ -25,6 +25,9 @@ on:
       channel:
         description: Release channel to install (stable or development)
         default: development
+      version:
+        description: On stable, a 0.3.<n> build to install as a stable user would get it, before the pin moves to it; empty takes the pin
+        default: ""
       hold:
         description: Hold the runner open afterwards for a remote session only the dispatcher's GitHub keys can open
         type: boolean
@@ -45,7 +48,10 @@ jobs:
         with:
           sparse-checkout: packages/app-setup/evidence/mac-acceptance/harness
       - name: Install with the one-liner and record what a first user sees
-        run: bash packages/app-setup/evidence/mac-acceptance/harness/run.sh "$RUNNER_TEMP/mac-acceptance" "${{ inputs.channel || 'development' }}"
+        # On development the version is only judged (the release just published is latest); on stable it is installed.
+        env:
+          VERSION: ${{ inputs.version }}
+        run: bash packages/app-setup/evidence/mac-acceptance/harness/run.sh "$RUNNER_TEMP/mac-acceptance" "${{ inputs.channel || 'development' }}" "$VERSION"
       - name: Fail unless the app, its database and the setup check came up
         run: bash packages/app-setup/evidence/mac-acceptance/harness/judge.sh "$RUNNER_TEMP/mac-acceptance" "${{ inputs.version }}"
       - uses: actions/upload-artifact@v7

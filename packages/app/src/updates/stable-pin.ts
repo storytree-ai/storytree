@@ -24,6 +24,10 @@ export interface StableManifest {
     commit: string;
     at: string;
     previous?: string;
+    /** Set when this pin moved stable back to a build pinned before, to stop the named bad build spreading. */
+    movedBackFrom?: string;
+    /** The owner's reason for pinning this build without the 24-hour soak, as an urgent fix. */
+    expedited?: string;
     /** The platforms this pin moved to its version. */
     covers?: ("windows" | FeedPlatform)[];
     increments: { id: string; title: string; pr: string; note?: string }[];
@@ -46,6 +50,8 @@ export interface PinCandidate {
 export interface Bootstraps { ps1: string; sh?: string }
 export interface PinPorts {
   previous(): Promise<{ ref: string; manifest: StableManifest } | undefined>;
+  /** The manifest the latest earlier pin of this version published, read from the stable branch's history. */
+  formerPin(version: string): Promise<StableManifest | undefined>;
   /** The adapter checks the release tag is on main and its version matches that commit. */
   candidate(version: string): Promise<PinCandidate>;
   pullRequests(commit: string): Promise<ReadonlySet<string>>;
@@ -106,12 +112,41 @@ export function pinCoverage(manifest: StableManifest): string {
   })].join(" ");
 }
 
-export async function pinStable(version: string, ports: PinPorts, preview = false): Promise<StableManifest> {
+/**
+ * Stops a bad pin spreading: stable goes back to a build it was pinned to before, with that pin's installer, feeds and
+ * recorded increments, so the next pin lists again what only the bad build carried. Installs that already took the bad
+ * build keep it (the updater never downgrades: their database may have been migrated forward).
+ */
+export async function moveStableBack(version: string, ports: PinPorts, preview = false): Promise<StableManifest> {
+  const build = buildNumber(version);
+  const current = await ports.previous();
+  if (!current) throw new Error("Nothing is pinned as stable, so there is nothing to move back");
+  readStableManifest(current.manifest);
+  const from = current.manifest.version;
+  if (build >= buildNumber(from)) throw new Error(`--back moves stable to an older build than ${from}; pin a newer build without --back`);
+  const former = await ports.formerPin(version);
+  if (!former) throw new Error(`Stable was never pinned to ${version}; --back moves only to a build pinned before`);
+  readStableManifest(former);
+  const candidate = await ports.candidate(version);
+  if (candidate.version !== version || candidate.commit !== former.pin.commit) throw new Error("The formerly pinned release identity changed");
+  const manifest: StableManifest = {
+    ...former,
+    releaseNotes: `${former.releaseNotes}\n\nStable moved back from ${from} to ${version} to stop ${from} spreading; installs that already took ${from} keep it.`,
+    pin: { ...former.pin, at: ports.now(), previous: from, movedBackFrom: from },
+  };
+  if (!preview) await ports.publish(manifest, candidate.bootstrap, current.ref);
+  return manifest;
+}
+
+/** `expedited` is the owner's reason for pinning an urgent fix without the 24-hour soak; the notes say it first. */
+export async function pinStable(version: string, ports: PinPorts, preview = false, expedited?: string): Promise<StableManifest> {
   const build = buildNumber(version);
   const previous = await ports.previous();
   if (previous) {
     readStableManifest(previous.manifest);
-    if (build < buildNumber(previous.manifest.version)) throw new Error("An older release cannot replace the stable pin");
+    if (build < buildNumber(previous.manifest.version)) {
+      throw new Error("An older release cannot replace the stable pin; to stop a bad pin spreading, move it back with --back to a build pinned before");
+    }
   }
   const candidate = await ports.candidate(version);
   const installer = candidate.installer;
@@ -138,7 +173,7 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
     included.add(id);
     return [{ id, title: fields.title, pr, ...(outcome.note ? { note: outcome.note } : {}) }];
   });
-  const releaseNotes = [`# storytree ${version}`, "", ...increments.flatMap(i => [
+  const releaseNotes = [`# storytree ${version}`, "", ...(expedited ? [`Expedited without the 24-hour soak: ${expedited}`, ""] : []), ...increments.flatMap(i => [
     `- ${i.title} ([#${i.pr}](https://github.com/storytree-ai/storytree/pull/${i.pr}))${i.note ? ` — ${i.note}` : ""}`,
   ]), ...(increments.length ? [] : ["No newly recorded landed increments in this build."])].join("\n");
   const feeds: PlatformFeeds = {};
@@ -149,7 +184,7 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
   const manifest: StableManifest = {
     schema: 1, channel: "stable", version,
     files: [{ url: installer.url, sha512: installer.sha512, size: installer.size }], releaseNotes, feeds,
-    pin: { commit: candidate.commit, at: ports.now(), ...(previous ? { previous: previous.manifest.version } : {}), covers: ["windows", ...platforms],
+    pin: { commit: candidate.commit, at: ports.now(), ...(previous ? { previous: previous.manifest.version } : {}), ...(expedited ? { expedited } : {}), covers: ["windows", ...platforms],
       increments, includedIncrements: [...included] },
   };
   if (!preview) await ports.publish(manifest, candidate.bootstrap, previous?.ref);

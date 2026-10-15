@@ -5,7 +5,9 @@
 //   --test-timeout      a test that never ends fails at TEST_LIMIT_MS, and node names it;
 //   the exit watch      a file whose tests have all ended but whose process has not exited for
 //                       EXIT_GRACE_MS (a Node exit deadlock seen on CI, increment_67a3090c077c)
-//                       fails the unit at once, named, instead of waiting out its deadline;
+//                       fails the unit at once, named, instead of waiting out its deadline; a test
+//                       blocked in a synchronous call whose start never reached the reporter looks
+//                       the same, so the reason names both causes;
 //   the unit deadline   past UNIT_LIMIT_MS the unit's whole process tree is killed, and the tests
 //                       still running are named (test-running-reporter.mjs records them).
 // TEST_LIMIT_MS is about three times the slowest test seen anywhere on 2026-09-28 (117 CI jobs on
@@ -330,7 +332,10 @@ export function unitReason({ ms, timedOut, running = [], exitHung = [], unitLimi
   const took = `${(ms / 1000).toFixed(1)} s`;
   const limit = `limit ${unitLimitMs / 1000} s${limitSource ? `, ${limitSource}` : ""}`;
   const shown = (file) => path.relative(root, file).replaceAll("\\", "/");
-  if (exitHung.length > 0) return `failed after ${took} (${limit}), killed; ${exitHung.map((file) => `${shown(file)}: its tests ended, but its process did not exit`).join("; ")}`;
+  // Where a child's stdout is an async pipe (Windows), a test blocking its process in a synchronous call
+  // (spawnSync, execSync) never reports its start, so it looks the same to the exit watch (friction_e50f26922ba5).
+  const exitCauses = "a handle left open or an exit that hangs, or a test blocking its process in a synchronous call (spawnSync, execSync) whose start never reached the reporter";
+  if (exitHung.length > 0) return `failed after ${took} (${limit}), killed; ${exitHung.map((file) => `${shown(file)}: its last reported test ended, but its process did not exit`).join("; ")} (${exitCauses})`;
   if (!timedOut) return limitSource ? `${took} (${limit})` : took;
   const named = running.map(({ file, name }) => {
     const shown = file ? path.relative(root, file).replaceAll("\\", "/") : "(unknown file)";

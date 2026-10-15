@@ -568,7 +568,7 @@ test("1.16 a change to the factory's system after a product was set up is in the
 
     // The product's next session works with the changed system, and its own note still wins.
     const built = await storytree.openProject(product);
-    assert.equal((await built.records.get(role.id))?.fields.workflow, "Build it test-first.");
+    assert.equal(((await built.records.get(role.id))?.fields as { workflow?: string } | undefined)?.workflow, "Build it test-first.");
     assert.deepEqual((await built.records.list("agent")).map((each) => each.fields.workflow), ["Build it test-first."]);
     assert.deepEqual((await built.records.list("check")).map((each) => each.id), [check.id]);
     assert.deepEqual((await built.records.list("principle")).map((each) => [each.id, each.fields.statement]), [[own.id, "The product's own wording."]]);

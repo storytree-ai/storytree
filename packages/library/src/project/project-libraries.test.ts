@@ -576,3 +576,44 @@ test("1.16 a change to the factory's system after a product was set up is in the
     assert.equal((await built.records.get(shadowed.id))?.id, own.id);
   });
 });
+
+test("1.18 an edit through a product of a system record it reads from its factory writes the product's own copy, which wins, and retiring one hides it from the product; the factory is unchanged (ADR-1040)", async () => {
+  const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
+  await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
+    const made = await storytree.openProject(factory);
+    await made.lineage.markFactory();
+    const principle = (title: string, statement: string) => ({ title, description: `${title}.`, statement, why: "It helps.", howToApply: "Do it." });
+    const edited = await made.knowledge.writeKnowledge("principle", principle("Keep it small", "The factory's wording."));
+    const retired = await made.knowledge.writeKnowledge("principle", principle("Test first", "The factory's wording."));
+    const shadowed = await made.knowledge.writeKnowledge("principle", principle("Name things plainly", "The factory's wording."));
+    const before = await storytree.openProject(product);
+    await before.lineage.recordFactory(factory);
+    const own = await before.knowledge.writeKnowledge("principle", principle("Name things plainly", "The product's own wording."));
+    await before.close();
+
+    const built = await storytree.openProject(product);
+    const copy = await built.knowledge.editNote(edited.id, { statement: "The product's edit." });
+    assert.equal(copy?.id, edited.id, "the copy keeps the factory's id, so links to it read the edit");
+    assert.equal((copy?.fields as { why?: string } | undefined)?.why, "It helps.", "fields the edit leaves are the factory's");
+    assert.equal(((await built.records.get(edited.id))?.fields as { statement?: string } | undefined)?.statement, "The product's edit.");
+    await built.knowledge.editNote(edited.id, { statement: "The product's second edit." });
+
+    // An edit through the factory's id of a record the product shadows edits the product's own.
+    assert.equal((await built.knowledge.editNote(shadowed.id, { statement: "The product's edited wording." }))?.id, own.id);
+
+    await built.records.retire(retired.id, "not part of this product");
+    assert.equal(await built.records.get(retired.id), null, "a retired inherited record reads as gone");
+    assert.deepEqual((await built.records.list("principle")).map((each) => [each.id, each.fields.statement]).sort(), [
+      [edited.id, "The product's second edit."],
+      [own.id, "The product's edited wording."],
+    ].sort());
+
+    // The factory is unchanged, and the product's next session reads the same.
+    assert.deepEqual((await made.records.list("principle")).map((each) => each.fields.statement), ["The factory's wording.", "The factory's wording.", "The factory's wording."]);
+    await made.knowledge.editNote(retired.id, { statement: "The factory's later wording." });
+    await built.close();
+    const again = await storytree.openProject(product);
+    assert.equal(await again.records.get(retired.id), null, "a factory edit does not bring back what the product retired");
+    assert.deepEqual((await again.records.list("principle")).map((each) => each.id).sort(), [edited.id, own.id].sort());
+  });
+});

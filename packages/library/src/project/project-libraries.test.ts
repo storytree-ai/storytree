@@ -538,3 +538,41 @@ test("1.17 a product's link to a system record it retired, as moving onto its fa
     assert.equal(await built.records.get(decision.id), null);
   });
 });
+
+test("1.18 a change to the factory's system after a product was set up is in the factory's history and reaches the product's next session, the product's own edits still winning (ADR-1040)", async () => {
+  const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
+  await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
+    const made = await storytree.openProject(factory);
+    await made.lineage.markFactory();
+    const principle = (title: string, statement: string) => ({ title, description: `${title}.`, statement, why: "It helps.", howToApply: "Do it." });
+    const dropped = await made.knowledge.writeKnowledge("principle", principle("Keep it small", "The factory's wording."));
+    const shadowed = await made.knowledge.writeKnowledge("principle", principle("Test first", "The factory's wording."));
+    const role = await made.knowledge.writeKnowledge("agent", {
+      title: "builder", description: "Builds.", oneLine: "Builds.", role: "Build.", outcome: "Built.", context: [shadowed.id], tools: "All", workflow: "Build it.",
+    });
+    const before = await storytree.openProject(product);
+    await before.lineage.recordFactory(factory);
+    const own = await before.knowledge.writeKnowledge("principle", principle("Test first", "The product's own wording."));
+    await before.close();
+    const since = Math.max(0, ...(await made.records.history()).map((entry) => entry.seq));
+
+    // The user's agents change the factory's system: a role edited, a check added, a note retired, a shadowed note edited.
+    await made.knowledge.editNote(role.id, { workflow: "Build it test-first." });
+    const check = await made.knowledge.writeKnowledge("check", { title: "Proxy assertion", description: "Proxies pass.", question: "Is any assertion a proxy?", enforces: [shadowed.id] });
+    await made.records.retire(dropped.id, "no longer part of the system");
+    await made.knowledge.editNote(shadowed.id, { statement: "The factory's new wording." });
+
+    // The factory's globe draws from its history, which holds each change.
+    const changes = (await made.records.history({ since })).map((entry) => [entry.recordId, entry.action]);
+    assert.deepEqual(changes, [[role.id, "updated"], [check.id, "created"], [dropped.id, "retired"], [shadowed.id, "updated"]]);
+
+    // The product's next session works with the changed system, and its own note still wins.
+    const built = await storytree.openProject(product);
+    assert.equal((await built.records.get(role.id))?.fields.workflow, "Build it test-first.");
+    assert.deepEqual((await built.records.list("agent")).map((each) => each.fields.workflow), ["Build it test-first."]);
+    assert.deepEqual((await built.records.list("check")).map((each) => each.id), [check.id]);
+    assert.deepEqual((await built.records.list("principle")).map((each) => [each.id, each.fields.statement]), [[own.id, "The product's own wording."]]);
+    assert.equal(await built.records.get(dropped.id), null, "a retired factory note is gone from the product too");
+    assert.equal((await built.records.get(shadowed.id))?.id, own.id);
+  });
+});

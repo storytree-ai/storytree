@@ -61,6 +61,22 @@ test("1.6 a larger library keeps 2,000 loose dots separately clickable inside th
   assertLooseSpacing(points, []);
 });
 
+test("1.6 a project of notes and no stories draws each note as a loose dot, following its edits, retirements and additions", () => {
+  const history = new History()
+    .create("builder", "agent", { title: "builder", workflow: "Build it." })
+    .create("small", "principle", { title: "Keep it small" })
+    .create("first", "principle", { title: "Test first" });
+  const drawn = () => globePoints(underShelves(history.changes, knowledge(history.changes)), new Map(), radius);
+  const before = drawn();
+  assert.deepEqual(before.map(point => point.id).sort(), ["builder", "first", "small"]);
+  assert.ok(before.every(point => point.depth === undefined && length(point.at) <= radius * 0.55));
+
+  history.update("builder", { workflow: "Build it test-first." });
+  assert.deepEqual(drawn(), before, "an edited note keeps its dot");
+  history.retire("small").create("proxy", "check", { title: "Proxy assertion" });
+  assert.deepEqual(drawn().map(point => point.id).sort(), ["builder", "first", "proxy"]);
+});
+
 test("1.8 the drawn points exclude loose and shelved story-text definitions, retaining other knowledge", () => {
   const history = new History().story("front")
     .create("shelved-story-text", "definition", { term: "Story text: stories/forest.md", frontCoverOf: "front" })

@@ -14,8 +14,8 @@ const FOREST: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplate
 const NO_ISLANDS = { grounds: false, roads: false, nameplates: false, territories: false, fileCircles: false, sessionTints: false } as const;
 
 /** The glass sheet's Library face: the islands as outlines with their names over the knowledge, their territories as borders
- * with no fill, nothing else on them (ADR-1061 D2). */
-const OUTLINES = { roads: false, fileCircles: false, sessionTints: false } as const;
+ * with no fill, no file circles and no roads; a session's tints still light them (ADR-1061 D2). */
+const OUTLINES = { roads: false, fileCircles: false } as const;
 
 /** What the globe shows: a host's switches over the Forest view, with the islands hidden in the Library or once
  * zoomed past them, while the glass and the core inside it stay (ADR-0919 D3, D4); on the glass sheet's Library face

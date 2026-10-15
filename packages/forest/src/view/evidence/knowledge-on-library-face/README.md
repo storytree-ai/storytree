@@ -9,7 +9,7 @@ is selected, and when library is selected hollow the islands to just an outline 
   passes edge-on.
 - **On the Library face the islands are hollow outlines** (D2): each island's coast line alone, with its territories'
   borders and no fill, and its nameplate. Its ground, the depth layer under it and its sides are not drawn, so no note
-  beneath it is hidden. Roads, file circles and session tints go: on this face they competed with the notes.
+  beneath it is hidden. Roads and file circles go: on this face they competed with the notes. A session's tints still light the islands it works on.
 - **Links show only for the selected story** (D3): none at rest; with a story selected, exactly the links touching its notes,
   lit. Its other notes stay quieter, as built.
 - **The pool** of notes no shelf reaches stays along the south edge (D4).

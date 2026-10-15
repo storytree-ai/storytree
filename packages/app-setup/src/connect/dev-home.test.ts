@@ -139,6 +139,7 @@ for (const crashed of [false, true]) {
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     const exited = once(child, "exit");
     let postgresPid: number | undefined;
+    let postgresStart: string | undefined;
     let client: pg.Client | undefined;
     t.after(async () => {
       await client?.end();
@@ -147,7 +148,7 @@ for (const crashed of [false, true]) {
       if (pgCtl("status").status === 0) pgCtl("-m", "immediate", "-w", "stop");
       // The old removal can partially delete a live cluster. Cleanup must still stop that
       // test-only server even when pg_ctl has lost its postmaster.pid.
-      if (postgresPid !== undefined && alive(postgresPid)) {
+      if (postgresPid !== undefined && postgresStart !== undefined && started(postgresPid) === postgresStart) {
         if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(postgresPid), "/T", "/F"], { stdio: "ignore" });
         else process.kill(postgresPid, "SIGQUIT");
       }
@@ -174,7 +175,8 @@ for (const crashed of [false, true]) {
     }
     assert.ok(client, `database became ready: ${stderr}`);
     postgresPid = Number(readFileSync(path.join(dataDir, "postmaster.pid"), "utf8").split("\n")[0]);
-    assert.ok(alive(postgresPid));
+    postgresStart = started(postgresPid);
+    assert.ok(postgresStart);
     let shutdown: string | undefined;
     client.on("error", (error) => { shutdown ??= (error as pg.DatabaseError).code; });
     const disconnected = new Promise<void>((resolve) => client!.once("end", resolve));
@@ -186,7 +188,7 @@ for (const crashed of [false, true]) {
 
     await removeDevHome(dir);
 
-    assert.equal(alive(postgresPid), false, "the real Postgres process stopped before its home was deleted");
+    assert.notEqual(started(postgresPid), postgresStart, "the real Postgres process stopped before its home was deleted");
     await exited;
     await disconnected;
     // On Windows the backend's close can reset the socket before its 57P01 is read; the same
@@ -198,6 +200,20 @@ for (const crashed of [false, true]) {
   });
 }
 
-function alive(pid: number): boolean {
-  try { process.kill(pid, 0); return true; } catch { return false; }
+/** Names the live process holding `pid`, or undefined when none does. Windows hands a freed pid
+ * straight to the next process, so there it is the process's start time: a newcomer reusing the
+ * number reads as a different process, not as the one that stopped. */
+function started(pid: number): string | undefined {
+  if (process.platform !== "win32") {
+    try { process.kill(pid, 0); return "alive"; } catch { return undefined; }
+  }
+  const env = { ...process.env };
+  // A parent PowerShell 7's module path can break Windows PowerShell 5's Get-Process.
+  for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
+  const found = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+    // A pid taken by another user's process cannot show its start time: that, too, is not ours.
+    `$ErrorActionPreference = 'Stop'; try { (Get-Process -Id ${pid}).StartTime.ToFileTimeUtc() } catch {}`],
+  { encoding: "utf8", env, windowsHide: true, timeout: 30_000 });
+  assert.equal(found.status, 0, found.stderr);
+  return found.stdout.trim() || undefined;
 }

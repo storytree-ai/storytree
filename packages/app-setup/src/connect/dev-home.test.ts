@@ -110,7 +110,7 @@ for (const legacy of [false, true]) {
 }
 
 for (const crashed of [false, true]) {
-  test(`2.2 removing a dev home stops its real database and owner (${crashed ? "crashed" : "running"} owner)`, { timeout: 60_000 }, async (t) => {
+  test(`2.2 removing a dev home stops its real database and owner (${crashed ? "crashed" : "running"} owner)`, { timeout: 150_000 }, async (t) => {
     const root = mkdtempSync(path.join(tmpdir(), "storytree remove dev home "));
     const dir = path.join(root, "dev home");
     const made = await makeDevHome({
@@ -154,7 +154,10 @@ for (const crashed of [false, true]) {
       }
       rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     });
-    for (let attempt = 0; attempt < 300; attempt++) {
+    // A loaded Windows runner can take well over 30 s to make and start the home's Postgres
+    // (release run 38758914357), so wait by time, not by a count of polls.
+    const readyBy = Date.now() + 90_000;
+    while (Date.now() < readyBy) {
       assert.equal(child.exitCode, null, stderr);
       if (existsSync(ownerFile) && existsSync(handoffFile)) {
         const owner = JSON.parse(readFileSync(ownerFile, "utf8")) as { pid: number; port: number };

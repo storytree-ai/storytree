@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, writeFile, stat, readdir, copyFile, symlink, unlink } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, stat, copyFile, symlink, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,20 +15,18 @@ const ROOT = path.join(homedir(), '.storytree/library-host');
 const LOGS = path.join(homedir(), 'storytree-lanes/library-backups');
 const ADC = path.join(homedir(), '.config/gcloud/application_default_credentials.json');
 const GCLOUD = path.join(homedir(), 'google-cloud-sdk/bin/gcloud');
-const PROXY = path.join(homedir(), 'google-cloud-sdk/bin/cloud-sql-proxy');
 const BUCKET = 'gs://storytree-498613-library-backups';
 const ACCOUNT = 'storytree-mint@storytree-498613.iam.gserviceaccount.com';
-const CLOUD = { host: '127.0.0.1', port: 55432, user: 'storytree-mint@storytree-498613.iam' };
 const LOCAL = { host: '/var/run/postgresql', port: 5432, user: 'mickh' };
 const OWNER = 'storytree_library';
-// Same name as Cloud SQL so the dump's RLS policies restore unchanged. Local SCRAM, not IAM.
+// The name CI's role had before the library moved here, so grants.sql's row policies name it unchanged. Local SCRAM, not IAM.
 const CI = 'storytree-ci-health@storytree-498613.iam';
-// The three 0.3 databases. 0.2's frozen `storytree` stays on Cloud SQL and is archived there by
-// `gcloud sql export` before the instance is deleted (owner, 2026-10-07: "we dont need backups for 0.2").
+// The three 0.3 databases. 0.2's frozen `storytree` was never moved here (owner, 2026-10-07: "we dont need backups
+// for 0.2"); its final export sits under the bucket's archive/.
 const DBS = ['storytree_storytree', 'storytree-activity', 'storytree-trunks'];
 // Backed up beside them: the lag runner's history (packages/dev-loop/src/lag-box.mjs), whose baselines and
 // recorded reasons cannot be measured again, and the QA ledger (packages/quality-assurance), whose review history
-// ADR-0956 D7's ten-review refusal counts. Neither lived on Cloud SQL, so the copy and transition leave them out.
+// ADR-0956 D7's ten-review refusal counts.
 const BACKED = [...DBS, 'storytree-lag', 'storytree-quality'];
 const MARK = 'storytree library-host increment_b3ccd17ff113';
 const PASSWORD = path.join(ROOT, 'postgres-password');
@@ -37,19 +35,6 @@ const ISOLATED = path.join(ROOT, 'smoke-home');
 const q = value => '"' + value.replaceAll('"', '""') + '"';
 const lit = value => "'" + value.replaceAll("'", "''") + "'";
 const stamp = () => new Date().toISOString().replaceAll(/[-:.]/g, '') + '-' + randomBytes(4).toString('hex');
-const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-// A full Cloud SQL refuses at connect (SQLSTATE 53300), before any data moves, so waiting costs no egress.
-const FULL = /remaining connection slots|too many clients/;
-async function patiently(work, minutes = 20) {
-  for (let waited = 0; ; waited += 30) {
-    try { return await work(); }
-    catch (error) {
-      if (!FULL.test(error.message) || waited >= minutes * 60) throw error;
-      console.log('Cloud SQL has no free connection slot; retrying in 30 s');
-      await pause(30000);
-    }
-  }
-}
 
 export function checkedCounts(source, restored) {
   const sorted = rows => JSON.stringify(Object.entries(rows).sort(([a], [b]) => a.localeCompare(b)));
@@ -66,14 +51,6 @@ export function checkedManifest(manifest) {
     throw new Error('Invalid or incomplete backup manifest');
   }
   return manifest;
-}
-
-export function checkFreeze(freeze, direction, now = Date.now()) {
-  const age = now - Date.parse(freeze?.at);
-  if (freeze?.direction !== direction || freeze.owner !== 'mickh' || !Number.isFinite(age) || age < 0 || age > 30 * 60000 ||
-      ['laptopPaused', 'mintPaused', 'ciPaused', 'backupTimerPaused'].some(key => freeze[key] !== true)) {
-    throw new Error('A current owner freeze attestation for this direction is required (at most 30 minutes old).');
-  }
 }
 
 async function exclusive(file, content) {
@@ -131,30 +108,6 @@ async function storage(args) {
     env: { CLOUDSDK_CONFIG: path.join(ROOT, 'gcloud'), CLOUDSDK_CORE_DISABLE_PROMPTS: '1' }, quiet: true,
   });
 }
-async function withProxy(work) {
-  await cloudIdentity();
-  const child = spawn(PROXY, ['--auto-iam-authn', `--credentials-file=${ADC}`, '--address=127.0.0.1', '--port=55432',
-    'storytree-498613:australia-southeast1:storytree-pg'], { env: environment(), stdio: ['ignore', 'pipe', 'pipe'] });
-  let exited = false, error;
-  child.on('error', e => { error = e; });
-  const ended = new Promise(resolve => child.on('close', () => { exited = true; resolve(); }));
-  // Drain output without disclosing credential-related diagnostic text.
-  child.stdout.resume(); child.stderr.resume();
-  try {
-    let ready = false;
-    for (let i = 0; i < 30; i++) {
-      await pause(1000);
-      if (error || exited) throw new Error('The dedicated Cloud SQL proxy did not start; check port 55432 and IAM access.');
-      // A full instance still proves the proxy is up; callers wait for a slot themselves.
-      try { await query(CLOUD, 'postgres', 'SELECT 1'); ready = true; break; } catch (e) { if (FULL.test(e.message)) { ready = true; break; } }
-    }
-    if (!ready) throw new Error('Cloud SQL proxy connection timed out');
-    return await work();
-  } finally {
-    if (!exited) { child.kill('SIGTERM'); await ended; }
-  }
-}
-
 async function counts(client) {
   const tables = (await client.query(`SELECT schemaname, tablename FROM pg_tables
     WHERE schemaname NOT IN ('pg_catalog', 'information_schema') ORDER BY schemaname, tablename`)).rows;
@@ -168,7 +121,7 @@ async function dump(server, database, directory) {
   const client = await connect(server, database);
   const file = `${database}.dump`;
   try {
-    // Cloud's IAM member must act as the table owner to bypass CI-only RLS, just like contract 8.3.
+    // Act as the table owner to bypass CI-only RLS, just like contract 8.3.
     const ownership = (await client.query(`SELECT pg_get_userbyid(datdba) AS name,
       pg_has_role(session_user, datdba, 'SET') AS may FROM pg_database WHERE datname=current_database()`)).rows[0];
     const owner = ownership.name;
@@ -186,16 +139,17 @@ async function dump(server, database, directory) {
   } finally { await client.end(); }
 }
 async function newDatabase(server, name, owner) {
-  await patiently(() => query(server, 'postgres', `CREATE DATABASE ${q(name)} OWNER ${q(owner)} TEMPLATE template0`));
-  await patiently(() => query(server, 'postgres', `COMMENT ON DATABASE ${q(name)} IS ${lit(MARK)}`));
+  await query(server, 'postgres', `CREATE DATABASE ${q(name)} OWNER ${q(owner)} TEMPLATE template0`);
+  await query(server, 'postgres', `COMMENT ON DATABASE ${q(name)} IS ${lit(MARK)}`);
 }
 async function ownedDatabase(server, name) {
   const rows = await query(server, 'postgres', `SELECT shobj_description(oid, 'pg_database') AS mark FROM pg_database WHERE datname=$1`, [name]);
   if (rows[0]?.mark !== MARK) throw new Error(`Refusing to alter unowned database ${name}`);
 }
 async function dropCreated(server, name) {
-  // No FORCE: never terminate another lane's connections. The mark is rechecked on every try.
-  await patiently(async () => { await ownedDatabase(server, name); await query(server, 'postgres', `DROP DATABASE ${q(name)}`); });
+  // No FORCE: never terminate another lane's connections. The mark is checked first.
+  await ownedDatabase(server, name);
+  await query(server, 'postgres', `DROP DATABASE ${q(name)}`);
 }
 async function restore(server, name, owner, directory, entry) {
   if (await sha256(path.join(directory, entry.file)) !== entry.sha256) throw new Error('Dump checksum mismatch');
@@ -234,42 +188,6 @@ async function provision() {
   await run('pnpm', ['storytree', 'settings', 'set', 'library', 'postgres', `postgres://${OWNER}@127.0.0.1:5432/postgres`], { env: { STORYTREE_HOME: ISOLATED } });
   console.log('Created client and CI roles, 0600 password files, and isolated Storytree settings. Real settings unchanged.');
 }
-async function grants() {
-  await ownedDatabase(LOCAL, 'storytree_storytree');
-  await run('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-f', path.join(HERE, 'grants.sql')], { env: pgEnv(LOCAL, 'storytree_storytree') });
-}
-async function rehearsal() {
-  const directory = path.join(LOGS, 'rehearsal-' + stamp());
-  await mkdir(directory, { mode: 0o700 });
-  // The two earlier `cloud-dump-*` markers were retired by the owner's 2026-10-07 answer and stay as
-  // evidence. This budget allows one fresh copy and, only if it fails a check, one more.
-  const present = await query(LOCAL, 'postgres', 'SELECT datname FROM pg_database WHERE datname = ANY($1)', [DBS]);
-  if (present.length) throw new Error(`Local database(s) already exist: ${present.map(r => r.datname).join(', ')}; refused before any Cloud copy`);
-  const prior = (await readdir(LOGS)).filter(name => name.startsWith('cloud-copy-'));
-  if (prior.length >= 2) throw new Error('Both permitted Cloud SQL copies have been used; no third dump');
-  const manifest = { format: 1, at: new Date().toISOString(), source: 'storytree-pg', databases: [] };
-  await withProxy(async () => {
-    const actual = (await patiently(() => query(CLOUD, 'postgres', 'SELECT datname FROM pg_database WHERE datname = ANY($1)', [DBS]))).map(r => r.datname);
-    if (actual.length !== DBS.length) throw new Error('A 0.3 database is missing on Cloud SQL; refused before dumping');
-    // Count the attempt before the first dump, including one that fails later, to bound egress.
-    await exclusive(path.join(LOGS, `cloud-copy-${stamp()}`), directory + '\n');
-    for (const name of DBS) {
-      console.log(`Dumping ${name}`);
-      const entry = await patiently(() => dump(CLOUD, name, directory));
-      manifest.databases.push(entry);
-      await exclusive(path.join(directory, `${name}.manifest.json`), JSON.stringify(entry, null, 2));
-    }
-  });
-  await exclusive(path.join(directory, 'manifest.json'), JSON.stringify(manifest, null, 2));
-  for (const entry of manifest.databases) {
-    await newDatabase(LOCAL, entry.name, OWNER);
-    await restore(LOCAL, entry.name, OWNER, directory, entry);
-    console.log(`Restored and checked ${entry.name}`);
-  }
-  await grants();
-  console.log(`Rehearsal evidence: ${directory}`);
-}
-
 async function backup() {
   const directory = path.join(LOGS, stamp());
   await mkdir(directory, { mode: 0o700 });
@@ -307,21 +225,10 @@ async function download(prefix) {
   }
   return { directory, manifest };
 }
-async function bucketRestore(prefix, cloud) {
+async function bucketRestore(prefix) {
   const { directory, manifest } = await download(prefix);
-  if (cloud) await withProxy(async () => {
-    // Only this scratch database may be created/dropped on Cloud SQL by this increment.
-    // Prefer the role that owns the project database, so the rehearsal mirrors the real rollback.
-    const roles = await patiently(() => query(CLOUD, 'postgres', `SELECT rolname FROM pg_roles WHERE rolcreatedb AND pg_has_role(session_user, oid, 'SET')
-      ORDER BY (rolname = (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'storytree_storytree')) DESC, rolname`));
-    if (!roles.length) throw new Error('Mint IAM cannot create Cloud SQL databases; laptop must do the rollback rehearsal');
-    const role = roles[0].rolname;
-    const server = { ...CLOUD, options: `-c role=${role}` };
-    await scratchRestore(server, directory, manifest.databases.find(entry => entry.name === 'storytree_storytree'), 'storytree_rollback_rehearsal', role);
-    console.log('Cloud SQL rollback rehearsal restored, checked and dropped only storytree_rollback_rehearsal.');
-  });
-  else for (const entry of manifest.databases) await scratchRestore(LOCAL, directory, entry);
-  await exclusive(path.join(directory, cloud ? 'cloud-restore-passed' : 'local-restore-passed'), new Date().toISOString());
+  for (const entry of manifest.databases) await scratchRestore(LOCAL, directory, entry);
+  await exclusive(path.join(directory, 'local-restore-passed'), new Date().toISOString());
   console.log(`Bucket restore proof: ${directory}`);
 }
 
@@ -335,7 +242,7 @@ async function installTimer() {
   const permanent = path.join(homedir(), 'code/storytree03');
   const runtime = path.join(ROOT, 'runtime-' + stamp());
   await mkdir(runtime, { mode: 0o700 });
-  for (const file of ['host.mjs', 'grants.sql']) await copyFile(path.join(HERE, file), path.join(runtime, file), 1);
+  await copyFile(path.join(HERE, 'host.mjs'), path.join(runtime, 'host.mjs'), 1);
   await symlink(path.join(permanent, 'node_modules'), path.join(runtime, 'node_modules'), 'dir');
   const service = `[Unit]\nDescription=Verified Storytree library backups\n\n[Service]\nType=oneshot\nWorkingDirectory=${permanent}\nEnvironment=PATH=${process.env.PATH}\nEnvironment=LIBRARY_HOST_REPO=${permanent}\nExecStart=${process.execPath} ${runtime}/host.mjs backup\nUMask=0077\nStandardOutput=append:${LOGS}/timer.log\nStandardError=append:${LOGS}/timer.log\n`;
   const timer = '[Unit]\nDescription=Back up Storytree every six hours\n\n[Timer]\nOnCalendar=*-*-* 00,06,12,18:00:00 UTC\nPersistent=true\nRandomizedDelaySec=60\n\n[Install]\nWantedBy=timers.target\n';
@@ -346,16 +253,16 @@ async function installTimer() {
   console.log(await run('systemctl', ['--user', 'list-timers', 'storytree-library-backup.timer', '--no-pager']));
 }
 
-const actions = ['provision', 'rehearsal', 'backup', 'restore-backup', 'rollback-rehearsal', 'install-timer'];
+const actions = ['provision', 'backup', 'restore-backup', 'install-timer'];
 export async function main(args) {
   const [action, ...rest] = args;
   const dry = rest.includes('--dry-run');
   const positional = rest.filter(arg => arg !== '--dry-run');
-  if (!actions.includes(action) || positional.length > (['restore-backup', 'rollback-rehearsal'].includes(action) ? 1 : 0)) throw new Error(`Usage: host.mjs ${actions.join('|')} [backup-prefix] [--dry-run]`);
+  if (!actions.includes(action) || positional.length > (action === 'restore-backup' ? 1 : 0)) throw new Error(`Usage: host.mjs ${actions.join('|')} [backup-prefix] [--dry-run]`);
   if (dry) {
-    console.log(`DRY RUN ${action}: databases ${(['backup', 'restore-backup'].includes(action) ? BACKED : DBS).join(', ')}; local socket ${LOCAL.host}:${LOCAL.port}; bucket ${BUCKET}.`);
+    console.log(`DRY RUN ${action}: databases ${BACKED.join(', ')}; local socket ${LOCAL.host}:${LOCAL.port}; bucket ${BUCKET}.`);
     console.log('Create-only local files/roles/databases; marked scratch databases only may be dropped; uploads require all restored row counts to match.');
-    console.log('Cloud SQL is never stopped/reconfigured. Real Storytree settings are untouched. No subprocess, connection or write was made.');
+    console.log('Real Storytree settings are untouched. No subprocess, connection or write was made.');
     return;
   }
   process.umask(0o077);
@@ -364,10 +271,8 @@ export async function main(args) {
   const lock = await operationLock();
   try {
     if (action === 'provision') await provision();
-    else if (action === 'rehearsal') await rehearsal();
     else if (action === 'backup') await backup();
-    else if (action === 'restore-backup') await bucketRestore(positional[0], false);
-    else if (action === 'rollback-rehearsal') await bucketRestore(positional[0], true);
+    else if (action === 'restore-backup') await bucketRestore(positional[0]);
     else if (action === 'install-timer') await installTimer();
   } finally { await lock.end(); }
 }
@@ -386,6 +291,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   main(process.argv.slice(2)).catch(error => { console.error(error.message); process.exitCode = 1; });
 }
 
-// Shared only with the separately reviewed cutover/rollback operator script.
-export const operator = { ROOT, LOGS, REPO, HERE, LOCAL, CLOUD, OWNER, DBS, PASSWORD, ISOLATED, MARK,
-  stamp, q, lit, exclusive, json, run, query, withProxy, dump, newDatabase, ownedDatabase, restore, grants, operationLock, dropCreated };
+// Shared only with the separately reviewed smoke and local fixture scripts.
+export const operator = { LOGS, LOCAL, OWNER, ISOLATED, stamp, q, exclusive, run, query, dump, newDatabase, restore, operationLock, dropCreated };

@@ -1,0 +1,10 @@
+Thanks. Two last things, please, and change nothing else.
+
+First, I'd like to send storytree's makers a short note about how this went: anything that was confusing, broken or slow in storytree itself (not in my app), or that it went smoothly. Write it as a title and a few sentences.
+
+Second, tell me the exact command that runs the app's tests, as I would type it in a terminal in this folder.
+
+Finish your reply with exactly these lines, filled in:
+FEEDBACK TITLE: <one line>
+FEEDBACK: <a few sentences on one line>
+TEST COMMAND: <the command>

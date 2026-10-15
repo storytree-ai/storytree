@@ -33,7 +33,11 @@ function axisOf(meaning: string): number {
   return axis;
 }
 
-/** A fake embedder: each meaning is one axis of its own; it counts the texts it is asked to embed. */
+/**
+ * A fake embedder: each meaning is one axis of its own; it counts the texts it is asked to embed.
+ * An artifact's id (`definition_46a366a7b35f`) is one word, never its letters: split, a run of `a`s
+ * landed on the word "a" and outweighed a note's real words, so which note ranked first was random.
+ */
 function fakeEmbedder(): Embedder & { embedded: string[] } {
   const embedded: string[] = [];
   return {
@@ -43,7 +47,7 @@ function fakeEmbedder(): Embedder & { embedded: string[] } {
       embedded.push(...texts);
       return texts.map((text) => {
         const vector = new Float32Array(WIDTH);
-        for (const word of text.toLowerCase().match(/[a-z]+/g) ?? []) {
+        for (const word of text.toLowerCase().match(/[a-z]+(?:_[0-9a-f]+)?/g) ?? []) {
           vector[axisOf(MEANINGS[word] ?? word)]! += 1;
         }
         const length = Math.hypot(...vector) || 1;

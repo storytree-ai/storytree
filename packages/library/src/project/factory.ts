@@ -5,11 +5,12 @@
  * name of the project it builds with. A project that says neither (one made before factories, or by a join) has none.
  *
  * A product reads its system from its factory (InheritedRecords): its roles, notes and checks are the factory's, except
- * where it holds its own record of the same kind and title, which wins. Its memory, and everything it writes, stay its own.
+ * where it holds its own record of the same kind and title, which wins, or retired the factory's. Its memory, and
+ * everything it writes, stay its own: an edit of an inherited record writes the product's own copy of it.
  */
 import type { Pool } from "pg";
 
-import { SchemaRecords, type SchemaRecord } from "../schema/records.js";
+import { SchemaRecords, type FieldEdit, type SchemaRecord, type WriteOptions } from "../schema/records.js";
 import type { RecordType } from "../schema/types.js";
 import type { ListFilter, Transactions } from "../transactions/types.js";
 import { assertProjectName } from "./names.js";
@@ -87,7 +88,9 @@ export class ProjectLineage {
  * order, and `get` of a factory record's id gives the product's own record of that kind and title when it holds one,
  * so a role's links, written as the factory's ids, read the product's edits; `get` of a system record the product
  * retired gives its own live record of that kind and title, else the factory's, so links to a copy it dropped still
- * read (1.17). Every other kind, every write and the history are the product's own.
+ * read (1.17). An edit of a factory record the product holds no copy of writes its own copy under the factory's id,
+ * which then wins, and retiring one retires that copy, which hides the factory's from the product (1.18). Every other
+ * kind, every write and the history are the product's own.
  */
 export class InheritedRecords extends SchemaRecords {
   readonly #factory: SchemaRecords;
@@ -104,7 +107,8 @@ export class InheritedRecords extends SchemaRecords {
     if (inherited !== null) {
       if (!isSystem(inherited.type)) return null;
       const [shadow] = await super.list(inherited.type, { where: { title: (inherited.fields as { title: string }).title } });
-      return shadow ?? inherited;
+      if (shadow !== undefined) return shadow;
+      return (await this.#retiredHere(id)) ? null : inherited;
     }
     // A system record the product retired (moving onto its factory drops an unedited copy) reads as its kind and title.
     const last = (await super.history({ id })).at(-1);
@@ -113,7 +117,50 @@ export class InheritedRecords extends SchemaRecords {
     if (!isSystem(retired.type)) return null;
     const where = { where: { title: (retired.fields as { title: string }).title } };
     const [shadow] = await super.list(retired.type, where);
-    return shadow ?? (await this.#factory.list(retired.type, where))[0] ?? null;
+    if (shadow !== undefined) return shadow;
+    const [theirs] = await this.#factory.list(retired.type, where);
+    return theirs === undefined || (await this.#retiredHere(theirs.id)) ? null : theirs;
+  }
+
+  /**
+   * Edit what `id` reads as. A factory record the product holds no copy of is copied into the product under its id,
+   * with the edit applied, and the factory's is left as it was.
+   */
+  override async edit(id: string, fields: FieldEdit, options: Parameters<SchemaRecords["edit"]>[2] = {}): Promise<SchemaRecord | null> {
+    if ((await super.get(id)) !== null) return super.edit(id, fields, options);
+    const target = await this.get(id);
+    if (target === null || (await super.get(target.id)) !== null) return super.edit(target?.id ?? id, fields, options);
+    options.checkCurrent?.(target);
+    const copy = Object.fromEntries(Object.entries({ ...target.fields, ...fields }).filter(([, value]) => value !== undefined));
+    try {
+      return await this.create(target.type, copy as never, { id: target.id, onlyIfNew: true, ...writerOf(options) });
+    } catch (error) {
+      // A racing write made the copy first: edit that.
+      if ((await super.get(target.id)) === null) throw error;
+      return super.edit(target.id, fields, options);
+    }
+  }
+
+  /**
+   * Retire what `id` reads as. Retiring a factory record retires the product's own record of its kind and title, if it
+   * holds one, and a copy of the factory's under its id, so the product reads it no more; the factory's is unchanged.
+   */
+  override async retire(id: string, reason: string, options: WriteOptions = {}): Promise<void> {
+    const inherited = (await super.get(id)) === null && (await super.history({ id })).length === 0 ? await this.#factory.get(id) : null;
+    if (inherited === null || !isSystem(inherited.type)) return super.retire(id, reason, options);
+    const [shadow] = await super.list(inherited.type, { where: { title: (inherited.fields as { title: string }).title } });
+    if (shadow !== undefined) await super.retire(shadow.id, reason, options);
+    try {
+      await this.create(inherited.type, inherited.fields as never, { id, onlyIfNew: true, ...writerOf(options) });
+    } catch (error) {
+      if ((await super.history({ id })).length === 0) throw error;
+    }
+    await super.retire(id, reason, options);
+  }
+
+  /** Whether the product retired its copy of the record `id`, which hides the factory's of that id. */
+  async #retiredHere(id: string): Promise<boolean> {
+    return (await super.history({ id })).at(-1)?.action === "retired";
   }
 
   override async list<T extends RecordType>(type: T | readonly T[], filter?: Omit<ListFilter, "projection">): Promise<SchemaRecord<T>[]> {
@@ -141,12 +188,19 @@ export class InheritedRecords extends SchemaRecords {
     const inheritable = kinds.filter(isSystem);
     if (inheritable.length === 0) return mine;
     const held = new Set<string>();
+    const last = new Map<string, string>();
+    for (const entry of await super.history({ types: inheritable })) last.set(entry.recordId, entry.action);
     for (const kind of inheritable) {
       for (const record of await super.select(kind, ["title" as never])) held.add(`${kind}\0${(record.fields as { title: string }).title}`);
     }
     const inherited = (await Promise.all(inheritable.map((kind) => read([kind], this.#factory)))).flat();
-    const shown = inherited.filter((record) => !held.has(`${record.type}\0${(record.fields as { title?: string }).title}`));
+    const shown = inherited.filter((record) => !held.has(`${record.type}\0${(record.fields as { title?: string }).title}`) && last.get(record.id) !== "retired");
     const merged = [...mine, ...shown].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     return filter?.limit === undefined ? merged : merged.slice(0, filter.limit);
   }
+}
+
+/** Who is writing and the abort signal, from an edit's options, for a write that is not an edit. */
+function writerOf(options: WriteOptions): WriteOptions {
+  return { ...(options.actor === undefined ? {} : { actor: options.actor }), ...(options.signal === undefined ? {} : { signal: options.signal }) };
 }

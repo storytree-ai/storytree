@@ -112,6 +112,7 @@ test("3.14 the app reads where a project sits among factories, for the app bar's
   await withApp([factory, product, loose], async ({ storytree, reads }) => {
     await (await storytree.openProject(factory)).markFactory();
     await (await storytree.openProject(product)).recordFactory(factory);
+    await storytree.openProject(loose);
 
     assert.deepEqual(await reads.projectLineage(factory), { kind: "factory" });
     assert.deepEqual(await reads.projectLineage(product), { kind: "product", factory });

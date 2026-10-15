@@ -212,7 +212,8 @@ function started(pid: number): string | undefined {
   for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
   const found = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
     // A pid taken by another user's process cannot show its start time: that, too, is not ours.
-    `$ErrorActionPreference = 'Stop'; try { (Get-Process -Id ${pid}).StartTime.ToFileTimeUtc() } catch {}`],
+    // A caught error still leaves $? false, which -Command turns into exit 1, so say 0 outright.
+    `$ErrorActionPreference = 'Stop'; try { (Get-Process -Id ${pid}).StartTime.ToFileTimeUtc() } catch {}; exit 0`],
   { encoding: "utf8", env, windowsHide: true, timeout: 30_000 });
   assert.equal(found.status, 0, found.stderr);
   return found.stdout.trim() || undefined;

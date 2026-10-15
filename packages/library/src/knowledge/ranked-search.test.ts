@@ -53,6 +53,18 @@ function fakeEmbedder(): Embedder & { embedded: string[] } {
   };
 }
 
+/**
+ * The fake embedder reading only the first 512 tokens of each text, as bge-small does (transformers.js
+ * drops the rest without warning). A token here is a word or a punctuation mark, with [CLS] and [SEP]
+ * taking two: fewer than the real tokenizer counts, never more.
+ */
+function reads512Tokens(embedder: ReturnType<typeof fakeEmbedder>): Embedder {
+  return {
+    model: embedder.model,
+    embed: (texts) => embedder.embed(texts.map((text) => (text.match(/\w+|[^\s\w]/g) ?? []).slice(0, 510).join(" "))),
+  };
+}
+
 interface Opened {
   readonly knowledge: Knowledge;
   /** The records under it, to write the plan's stories, capabilities and contracts. */
@@ -138,7 +150,7 @@ for (const backend of [memory, postgres]) {
 
   contract("14.2", "an artifact scores by its best chunk, and at most `limit` come back", async (_, { knowledge }) => {
     // Each filler is one paragraph too long to share a chunk, so the release line is a chunk of its own.
-    const filler = "The forest and its islands and their trees. ".repeat(67);
+    const filler = "The forest and its islands and their trees. ".repeat(36);
     const long = await knowledge.defineTerm({ term: "Handbook", meaning: `${filler}\n\nRelease: we ship on Fridays, and we ship again on Mondays.\n\n${filler}` });
     await knowledge.defineTerm({ term: "Pricing", meaning: "Plans cost ten a month." });
     await knowledge.defineTerm({ term: "Forest", meaning: "The forest shows the plan." });
@@ -195,6 +207,19 @@ for (const backend of [memory, postgres]) {
 
     assert.equal((await knowledge.rankAll("7.17 sessions caret", { limit: 1 })).hits[0]!.note.id, strip.id, "named by its number");
     assert.equal((await knowledge.rankAll("how do I send an email", { limit: 1 })).hits[0]!.note.id, near.id, "a search by meaning ranks as before");
+  });
+
+  contract("14.12", "a long note's late paragraph is embedded, so a search finds the note by what that paragraph says", async (embedder, { reopen }) => {
+    const knowledge = await reopen(async () => reads512Tokens(embedder));
+    await knowledge.defineTerm({ term: "Pricing", meaning: "Plans cost ten a month." });
+    // About 2,900 characters and 590 tokens in all: one chunk of 3,000 would hold the release line past what the model reads.
+    const sentence = "The forest and its islands and their trees. ";
+    const long = await knowledge.defineTerm({ term: "Handbook", meaning: `${sentence.repeat(35)}\n\n${sentence.repeat(30)}\n\nRelease: we ship on Fridays.` });
+
+    const ranked = await knowledge.rank("when do we deploy", { limit: 1 });
+
+    assert.equal(ranked.hits[0]!.note.id, long.id);
+    assert.ok(ranked.hits[0]!.score! > 0, "the release line was embedded");
   });
 
   test(`14.4 [${backend.label}] with no embedding model, rank gives the word matches and says why`, async () => {

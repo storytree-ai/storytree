@@ -6,8 +6,9 @@
  */
 import { Euler, Quaternion, Vector3 } from "three";
 import { sheetPlaces, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
-import { islandCoastReach } from "@storytree/forest-world/geometry";
-import { SHEET_RADIUS, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from "@storytree/forest-world/planet";
+import { islandCoast, islandCoastReach } from "@storytree/forest-world/geometry";
+import { islandTerritories } from "../territories/territories.js";
+import { PLATE_CLEARANCE, SHEET_RADIUS, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from "@storytree/forest-world/planet";
 import type { GlobePose } from "./globe-guide.js";
 
 /** Glass round the land on every side, in ground units. */
@@ -15,7 +16,14 @@ const MARGIN = 24;
 /** CSS pixels of the window's height kept clear at the opening: the Sessions strip docked over the bottom, as much again at the top. */
 const CLEAR_HEIGHT = 170;
 
-/** The islands at their places on the sheet (`sheetPlaces`), centred on the pole, and the glass they stand on. */
+/** The depth of the pool along the sheet's south edge, where notes on no shelf lie (ADR-1043 D5), in ground units. */
+const POOL_HEIGHT = 90;
+
+/**
+ * The islands at their places on the sheet (`sheetPlaces`), centred on the pole, and the glass they stand on, which runs on
+ * south past the islands for the pool of notes no shelf reaches. `under` says where the knowledge graph hangs: each
+ * story's shelf under its island's middle, each capability's under its territory's, and the pool along the south edge.
+ */
 export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>) {
   const placed = sheetPlaces(scene.islands.map(island => {
     const place = places.get(island.story);
@@ -23,14 +31,44 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
     return { story: island.story, place, reach: islandCoastReach(island) };
   }));
   const { west, east, south, north } = placed.bounds;
-  const centre = { x: (west + east) / 2, y: (south + north) / 2 };
-  const extent: SheetExtent = { width: east - west + 2 * MARGIN, height: north - south + 2 * MARGIN };
-  const islands: FacingIsland[] = scene.islands.map(island => {
-    const at = placed.at.get(island.story)!;
-    return { story: island.story, trees: island.trees, spot: sheetSpot({ x: at.x - centre.x, y: at.y - centre.y }) };
-  });
-  return { scene, islands, spots: new Map(islands.map(island => [island.story, island.spot])), radius: SHEET_RADIUS, extent };
+  const pool = { x: west, y: south - MARGIN - POOL_HEIGHT, width: east - west, height: POOL_HEIGHT };
+  const centre = { x: (west + east) / 2, y: (pool.y + north) / 2 };
+  const extent: SheetExtent = { width: east - west + 2 * MARGIN, height: north - pool.y + 2 * MARGIN };
+  const at = new Map([...placed.at].map(([story, p]) => [story, { x: p.x - centre.x, y: p.y - centre.y }]));
+  const islands: FacingIsland[] = scene.islands.map(island => ({ story: island.story, trees: island.trees, spot: sheetSpot(at.get(island.story)!) }));
+  const shelves = new Map<string, SheetPoint>(), stories = new Map<string, string>();
+  for (const island of scene.islands) {
+    const middle = at.get(island.story)!;
+    shelves.set(island.story, middle);
+    stories.set(island.story, island.story);
+    for (const tree of island.trees) if (tree.capability !== undefined) { stories.set(tree.capability, island.story); shelves.set(tree.capability, middle); }
+    if (island.land === undefined) continue;
+    // A capability's shelf hangs under its territory's middle: on the plate x runs east and z south.
+    const map = islandTerritories(island.land.territories, islandCoast(island));
+    map.territories.forEach((territory, index) => {
+      if (territory.capability === undefined) return;
+      const cells = map.cells.filter(cell => cell.territory === index);
+      if (cells.length === 0) return;
+      const x = cells.reduce((sum, cell) => sum + cell.site.x, 0) / cells.length, z = cells.reduce((sum, cell) => sum + cell.site.z, 0) / cells.length;
+      shelves.set(territory.capability, { x: middle.x + x, y: middle.y - z });
+    });
+  }
+  const under = {
+    shelfAt: (node: string) => shelves.get(node),
+    storyOf: (node: string) => stories.get(node),
+    pool: { x: pool.x - centre.x, y: pool.y - centre.y, width: pool.width, height: pool.height },
+    depthStep: DEPTH_STEP,
+    // A place in the sheet's own frame, drawn on the big sphere: z up from the glass.
+    place: ({ x, y, z }: { x: number; y: number; z: number }) => {
+      const spot = sheetSpot({ x, y }), out = SHEET_RADIUS + PLATE_CLEARANCE + z;
+      return { x: spot.x * out, y: spot.y * out, z: spot.z * out };
+    },
+  };
+  return { scene, islands, spots: new Map(islands.map(island => [island.story, island.spot])), radius: SHEET_RADIUS, extent, under };
 }
+
+/** How much deeper under the glass each depth of the knowledge graph hangs than the one above it, in ground units. */
+const DEPTH_STEP = 7;
 
 /**
  * The view the sheet opens on, and Home returns to (D4): its whole height framed, clear of the Sessions strip, from its
@@ -52,10 +90,23 @@ export function sheetCentre(turn: GlobeTurn): SheetPoint {
 /**
  * The turn after a drag of `drag` CSS pixels at `zoom` (CSS pixels per ground unit): the sheet follows the pointer, and
  * stops with an edge of the glass in the middle of the view, so it is never dragged out of reach. A sideways scroll is a
- * drag the other way.
+ * drag the other way. `under` is the sheet turned over to its underside.
  */
-export function sheetPan(turn: GlobeTurn, drag: { x: number; y: number }, zoom: number, extent: SheetExtent): GlobeTurn {
+export function sheetPan(turn: GlobeTurn, drag: { x: number; y: number }, zoom: number, extent: SheetExtent, under = false): GlobeTurn {
   const centre = sheetCentre(turn);
+  // Turned over north to south, the sheet's north lies down the window (ADR-1043 D3).
+  if (under) drag = { x: drag.x, y: -drag.y };
   const clamp = (value: number, half: number) => Math.max(-half, Math.min(half, value));
   return turnToIsland(sheetSpot({ x: clamp(centre.x - drag.x / zoom, extent.width / 2), y: clamp(centre.y + drag.y / zoom, extent.height / 2) }));
+}
+
+/**
+ * The globe group's pose with the sheet turned `over` radians (0 its top face, π its underside) north to south, about the
+ * window's horizontal line through the middle of the view (ADR-1043 D3): `rotation` turned about that line, which crosses the
+ * sheet where the eye looks, so the place in the middle stays there and depth still runs west to east.
+ */
+export function sheetTurnedOver(rotation: Quaternion, eye: Quaternion, over: number): { quaternion: Quaternion; position: Vector3 } {
+  const pivot = new Vector3(0, 0, 1).applyQuaternion(eye).multiplyScalar(SHEET_RADIUS + PLATE_CLEARANCE);
+  const turn = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0).applyQuaternion(eye), over);
+  return { quaternion: turn.clone().multiply(rotation), position: pivot.clone().sub(pivot.clone().applyQuaternion(turn)) };
 }

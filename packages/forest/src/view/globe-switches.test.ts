@@ -1,7 +1,7 @@
 /** Forest capability 3: the globe's Stories and Library switches (ADR-1002 D1, D2). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { flipSwitch, globeLayers, LAUNCH_SWITCHES } from "./globe-switches.js";
+import { flipSwitch, globeLayers, LAUNCH_FACE, LAUNCH_SWITCHES, sheetFaces } from "./globe-switches.js";
 
 test("3.10 a launch opens with Stories on and Library off, and a press flips only its own switch", () => {
   assert.deepEqual(LAUNCH_SWITCHES, { stories: true, library: false });
@@ -21,4 +21,11 @@ test("3.9 each pair of switches draws its own globe: both on the islands over th
 test("3.9 with the Surfaces menu's Library off, only Stories is offered and the globe is solid", () => {
   assert.deepEqual(globeLayers(LAUNCH_SWITCHES, false), { mode: "forest", library: false, shown: true, offered: ["stories"] });
   assert.equal(globeLayers({ stories: false, library: true }, false).shown, false, "Stories off leaves nothing to draw");
+});
+
+test("3.55 the glass sheet's Stories and Library buttons are its two faces, one pressed at a time: a launch opens on Stories, the Library face draws the notes beneath, and with the Surfaces menu's Library off only Stories is offered", () => {
+  assert.equal(LAUNCH_FACE, "stories");
+  assert.deepEqual(sheetFaces("stories", true), { mode: "forest", library: true, pressed: { stories: true, library: false }, offered: ["stories", "library"] });
+  assert.deepEqual(sheetFaces("library", true), { mode: "library", library: true, pressed: { stories: false, library: true }, offered: ["stories", "library"] });
+  assert.deepEqual(sheetFaces("library", false), { mode: "forest", library: false, pressed: { stories: true, library: false }, offered: ["stories"] });
 });

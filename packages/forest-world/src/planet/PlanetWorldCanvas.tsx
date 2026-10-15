@@ -32,7 +32,7 @@ export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetG
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
 export type { PlanetSurfaceVisibility } from './exterior.js';
-export { applySheetEye, SHEET_RADIUS, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from './sheet.js';
+export { applySheetEye, seenFromBelow, SHEET_RADIUS, sheetPoint, sheetSpot, UnderTheGlass, type SheetExtent, type SheetPoint } from './sheet.js';
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;
@@ -42,6 +42,8 @@ export interface PlanetWorldCanvasProps {
   radius: number;
   /** A host can turn the globe toward a failing story without rebuilding the plates. */
   rotation?: [number, number, number, number];
+  /** Where the globe's centre stands, at the origin by default: the glass sheet turning over moves it (ADR-1043 D3). */
+  offset?: [number, number, number] | undefined;
   /** Names, selection and claim markers mount in each plate's local ground coordinates. */
   plateChildren?: (island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => ReactNode;
   /** R3F children can use the default orbit controls for host-driven focus. */
@@ -74,6 +76,7 @@ export interface PlanetWorldCanvasProps {
 }
 
 const NO_LANES: readonly LitLink[] = [];
+const ORIGIN: [number, number, number] = [0, 0, 0];
 
 /** How far below its resting place an island starts, in ground units: it rises out of the glass. */
 const RISE_DEPTH = 6;
@@ -174,7 +177,7 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
 /** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
  * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, laneWays, growth, liveRoads = false, sheet }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, laneWays, growth, liveRoads = false, sheet }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
     const way = laneWays(dock.story, capability, dock.local), spot = spots.get(dock.story);
@@ -196,7 +199,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     <color attach="background" args={['#101418']} />
     <Framing radius={radius} framing={framing} sideOffset={sideOffset} sheet={sheet} />
     <GrowthProvider growth={growth}>
-    <group name="globe" quaternion={rotation}>
+    <group name="globe" quaternion={rotation} position={offset ?? ORIGIN}>
       {sheet === undefined ? <Surface radius={radius} visible={exterior.sea} /> : <SheetGlass extent={sheet} />}
       {scene.islands.map(island => {
         const spot = spots.get(island.story);

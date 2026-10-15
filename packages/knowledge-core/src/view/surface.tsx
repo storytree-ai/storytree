@@ -14,8 +14,9 @@ import { HIDDEN_AT_START, drawnPoints, kindRows } from "../kinds/kinds.js";
 import { ORCHESTRATOR, dotSizes, lighting, noteCard, trails as readingPaths, traversalTrails, windowView, fileStop, type CodePlaces, type WindowState, type Point, type RosterEntry, type SessionWindow } from "../look-inside/look-inside.js";
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
-import { globePoints } from "../shelves/positions.js";
-import { GlobePoints, type CoreGrowth } from "./globe-points.js";
+import { globePoints, type Point as ShelfPoint } from "../shelves/positions.js";
+import { sheetPoints, type SheetHanging } from "../shelves/sheet.js";
+import { GlobePoints, NoteLinks, type CoreGrowth } from "./globe-points.js";
 import { KindList, NoteCard } from "./drawing.js";
 
 /** How often the selected session's window is read again, as often as the sessions list's bars. */
@@ -158,9 +159,24 @@ export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onCl
   return card === undefined ? null : <NoteCard card={card} onClose={onClose} />;
 }
 
-/** Knowledge under the globe's islands, without story text or ghosts: faint, or lit by a selected session's reads and window (ADR-0738 D5, ADR-0746 D1); with none selected, unlit (ADR-0921). */
-export function KnowledgeGlobePoints({ core, spots, radius, places, growth }: {
+/** Under the glass sheet (ADR-1043 D5): where each shelf stands, the pool, and where a place under the sheet is drawn. */
+export interface CoreUnderSheet extends SheetHanging {
+  /** Where a place in the sheet's own frame (x east, y north, z up from the glass) is drawn, in the host's frame. */
+  place(at: ShelfPoint): Point;
+  /** The story a shelf belongs to. */
+  storyOf(node: string): string | undefined;
+  /** The selected story: its notes, and the links that touch them, are lit; the rest are quieter (ADR-1043 D3). */
+  selected: string | undefined;
+}
+
+/** A note's dot under the sheet is sized as on a globe of this radius: about two ground units at the floor. */
+const SHEET_DOT_SCALE = 360;
+
+/** Knowledge under the globe's islands, or hung under the glass sheet with its links, without story text or ghosts: faint, or lit by a selected session's reads and window (ADR-0738 D5, ADR-0746 D1); with none selected, unlit (ADR-0921). */
+export function KnowledgeGlobePoints({ core, spots, radius, places, growth, sheet }: {
   core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
+  /** Hang the notes under the glass sheet instead of inside the globe. */
+  sheet?: CoreUnderSheet | undefined;
   /** A replay to grow with (capability 1.9): the globe's growth reader, read inside the globe. */
   growth?: CoreGrowth | undefined;
   /** The code's surface, as the forest lays it on the globe (ADR-0804 D5): a selected session's file opens are stops on it, and a step to or from one crosses it. */
@@ -169,7 +185,12 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth }: {
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
   const known = useMemo(() => knowledge(state.history), [state.history]);
-  const placed = useMemo(() => globePoints(underShelves(state.history, known), spots, radius, known.notes), [state.history, known, spots, radius]);
+  const hung = useMemo(() => {
+    if (sheet === undefined) return undefined;
+    const { points, links } = sheetPoints(underShelves(state.history, known), sheet, known.notes);
+    return { points: points.map(point => ({ ...point, at: sheet.place(point.at) })), links };
+  }, [state.history, known, sheet?.shelfAt, sheet?.pool, sheet?.depthStep, sheet?.place]);
+  const placed = useMemo(() => hung?.points ?? globePoints(underShelves(state.history, known), spots, radius, known.notes), [hung, state.history, known, spots, radius]);
   // With none selected, no session's traversal shows (ADR-0921): nothing lights and no path draws.
   const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     // The record is kept in place, so its version stands in for its reads.
@@ -195,7 +216,18 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth }: {
   const traversal = useMemo(() => window === undefined ? undefined : traversalTrails(window.steps, colour, state.session!), [window, colour, state.session]);
   const drawnPaths = window?.status !== undefined ? paths : traversal ?? [];
   // A new selection starts its own history, so lines already taken when it opens do not grow (ADR-0742 D4).
-  return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} sizes={sizes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} stops={stops} growth={growth} />;
+  // On the sheet a selected story's notes are lit and the rest quieter, so whose notes are whose reads at a glance.
+  const selected = sheet?.selected, storyOf = sheet?.storyOf;
+  const [bright, quiet] = useMemo(() => {
+    if (selected === undefined || storyOf === undefined) return [undefined, undefined];
+    const own = (point: { home: string | undefined }) => point.home !== undefined && storyOf(point.home) === selected;
+    return [new Set(points.filter(own).map(({ id }) => id)), new Set(points.filter(point => !own(point)).map(({ id }) => id))];
+  }, [points, selected, storyOf]);
+  const at = useMemo(() => new Map(points.map(point => [point.id, point.at])), [points]);
+  const drawn = <GlobePoints key={state.session ?? ""} points={points} radius={sheet === undefined ? radius : SHEET_DOT_SCALE} notes={known.notes} sizes={sizes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} stops={stops} growth={growth} quiet={quiet} />;
+  // A switched-off kind's links go with its dots.
+  const links = useMemo(() => hung?.links.filter(([a, b]) => at.has(a) && at.has(b)), [hung, at]);
+  return links === undefined ? drawn : <>{drawn}<NoteLinks links={links} at={at} bright={bright} /></>;
 }
 
 /** The kind list (capability 5, D1): each kind with a dot, its colour and its count, switched on or off by a press. */

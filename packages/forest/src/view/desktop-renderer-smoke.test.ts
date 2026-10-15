@@ -21,7 +21,7 @@ const run = (file: string, args: string[], options: ExecFileOptions) => {
   return result;
 };
 
-test("3.20 · 3.11 · in a real browser, each territory is filled by its word, grey only when parked, claims plant their flags, and failing islands behind the globe get rim markers", { timeout: 200_000 }, async () => {
+test("3.20 · in a real browser, each territory is filled by its word, grey only when parked, and claims plant their flags", { timeout: 200_000 }, async () => {
   await run(process.execPath, [path.join(territoryFolder, "build.mjs"), "smoke"], { cwd: checkout, timeout: 60_000 });
   // Chrome is installed on CI's three runner images, so the smoke downloads no browser.
   const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(territoryFolder, "capture.mjs"), "--smoke"],
@@ -36,10 +36,6 @@ test("3.20 · 3.11 · in a real browser, each territory is filled by its word, g
     ["story_05e45963ca9f", "capability_4da153322012", false, true],
     ["story_be32e99ed54f", "capability_9f02379a2e1a", true, true],
     ["story_eb7d623fb9c8", "capability_75abfdd699c0", false, true],
-  ]);
-  assert.deepEqual(summary.markers.map((marker: { story: string; title: string }) => [marker.story, marker.title]), [
-    ["story_05e45963ca9f", "The agent link · unhealthy (storytree verified)"],
-    ["story_eb7d623fb9c8", "The library · unhealthy (storytree verified)"],
   ]);
 });
 

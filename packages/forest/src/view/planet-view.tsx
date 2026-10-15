@@ -4,9 +4,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Group, Quaternion, Vector3 } from "three";
 import { claimTints, openingTurn, replayWisps, selectionLanes, type ClaimTint, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
+import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, UnderTheGlass, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
-import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type KnowledgeCore } from "@storytree/knowledge-core/view";
+import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
@@ -19,7 +19,7 @@ import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
 import { asksForHome, miniGlobe } from "./mini-globe.js";
-import { sheetLayout, sheetOpening, sheetPan } from "./sheet-navigation.js";
+import { sheetLayout, sheetOpening, sheetPan, sheetTurnedOver } from "./sheet-navigation.js";
 import { growLand, pastIslands, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
@@ -56,7 +56,8 @@ export type PlanetViewProps = {
   /** Hears a click on an island, or undefined for empty space. */
   onPick: (story: string | undefined, capability?: string) => void;
   onNote: (note: string) => void;
-  /** Draw the forest on the glass sheet, depth running west to east and moved only by pan and zoom, not on the globe (ADR-1043). */
+  /** Draw the forest on the glass sheet, depth running west to east and moved only by pan, zoom and the turn, not on the globe
+   * (ADR-1043): `mode` "library" turns it over to its underside, where the knowledge graph hangs. */
   sheet?: boolean | undefined;
 };
 
@@ -82,12 +83,15 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const setPose = useCallback((pose: GlobePose) => { setFraming(pose.framing); setOffset(pose.sideOffset); }, []);
   // A live update that moved no island keeps the spots on show, so only a changed island's plate draws again (ADR-0836 D1).
   const shown = useRef<ReturnType<typeof planetLayout>>(undefined);
-  const layout: ReturnType<typeof planetLayout> & { extent?: SheetExtent } = useMemo(() => sheet ? sheetLayout(scene, places) : planetLayout(scene, places, shown.current, frame), [scene, places, frame, sheet]);
+  const layout: ReturnType<typeof planetLayout> & Partial<Pick<ReturnType<typeof sheetLayout>, "extent" | "under">> = useMemo(() => sheet ? sheetLayout(scene, places) : planetLayout(scene, places, shown.current, frame), [scene, places, frame, sheet]);
   shown.current = layout;
   // 3.28: while a change of layout plays, only the plates travel, with no roads; the rest is drawn once, at the new layout.
   const moving = useMovingSpots(layout.spots, easeMoves), travelling = moving !== layout.spots;
   const roadless = useMemo(() => ({ ...layout.scene, links: [] }), [layout.scene]);
   const [rotation, setRotation] = useState(() => new Quaternion());
+  // The globe's centre stands off the origin only while the glass sheet is turned (ADR-1043 D3).
+  const [centre, setCentre] = useState<[number, number, number]>();
+  const onRotate = useCallback((next: Quaternion, at?: [number, number, number]) => { setRotation(next); setCentre(at); }, []);
   // 5.7: replaying a growth with its recorded sessions, the wisps are the replay's, swapped as it passes each stage.
   const [replayed, setReplayed] = useState<readonly SessionWisp[]>();
   const wisps = growth !== undefined && recordedSessions !== undefined ? replayed ?? [] : live;
@@ -111,8 +115,13 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     capabilities: new Set(code.capabilities),
   }), [stopsByStory, code]);
   const lighting = useCodeLighting(core, codePlaces);
-  // Contract 3.26: the selected story's links to other stories light as lanes; the Library shows none.
-  const lanes = useKept(useMemo(() => mode === "forest" ? selectionLanes(scene, selected) : [], [scene, selected, mode]), JSON.stringify);
+  // Contract 3.26: the selected story's links to other stories light as lanes; the globe's Library shows none, while the
+  // glass sheet keeps a selection lit on both its faces (ADR-1043 D3).
+  const onShow = sheet || mode === "forest";
+  const lanes = useKept(useMemo(() => onShow ? selectionLanes(scene, selected) : [], [scene, selected, onShow]), JSON.stringify);
+  // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
+  const under = layout.under;
+  const underSheet = useMemo((): CoreUnderSheet | undefined => under && { ...under, selected }, [under, selected]);
   // ADR-0991 D4: a lit lane runs on from its dock along the territories' borders to its capability.
   const ways = useMemo(() => laneWays(layout.scene.islands), [layout.scene]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => {
@@ -122,18 +131,19 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} claimed={claimed} radius={layout.radius}
         spot={layout.spots.get(island.story)!} lighting={lighting} surfaces={shownSurfaces} onStops={reportStops} />}
-      {mode === "forest" && <SessionIslandEmphasis emphasis={emphasis} />}
+      {onShow && <SessionIslandEmphasis emphasis={emphasis} />}
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
-      {mode === "forest" && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
+      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} sheet={sheet} />}
+      {onShow && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
     </>;
-  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, mode]);
+  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, onShow, sheet]);
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false} sheet={layout.extent}
-    inside={layout.extent !== undefined ? undefined : <group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
+    offset={centre}
+    inside={underSheet !== undefined ? library && <UnderTheGlass><KnowledgeGlobePoints core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} /></UnderTheGlass> : <group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
     rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
-      rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast} sheet={layout.extent}
+      rotation={rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast} sheet={layout.extent}
       opening={{ framing: framing ?? 1.18, sideOffset: sideOffset ?? 0 }} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
@@ -296,7 +306,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   islands: readonly FacingIsland[];
   titles: ReadonlyMap<string, string>;
   rotation: Quaternion;
-  onRotate: (rotation: Quaternion) => void;
+  /** The globe's turn, and where its centre stands when the glass sheet is turned over. */
+  onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void;
   onPick: (story: string | undefined, capability?: string) => void;
   onNote: (note: string) => void;
 }) {
@@ -308,10 +319,34 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const [markers, setMarkers] = useState<ScreenMarker[]>([]);
   // The globe turns only by spin and tilt, and the eye never moves, so north stays up (arc north-up).
   const turn = useRef<GlobeTurn>({ yaw: 0, pitch: 0 });
+  // How far the glass sheet is turned over north to south: 0 its top face, π its underside (ADR-1043 D3).
+  const over = useRef(sheet !== undefined && mode === "library" ? Math.PI : 0);
   const turnTo = useCallback((next: GlobeTurn) => {
     turn.current = next;
-    onRotate(focusRotation(next, camera.quaternion));
-  }, [camera, onRotate]);
+    const rotation = focusRotation(next, camera.quaternion);
+    if (sheet === undefined || over.current === 0) { onRotate(rotation); return; }
+    const turned = sheetTurnedOver(rotation, camera.quaternion, over.current);
+    onRotate(turned.quaternion, turned.position.toArray());
+  }, [camera, onRotate, sheet !== undefined]);
+  // The Stories and Library faces turn the sheet over, passing edge-on, the nearer way round; the turn, pan and zoom hold.
+  useEffect(() => {
+    if (sheet === undefined) return;
+    const from = over.current, to = mode === "library" ? Math.PI : 0;
+    if (from === to) return;
+    if (reducedMotion()) { over.current = to; turnTo(turn.current); return; }
+    let frame = 0;
+    const start = performance.now(), seconds = 0.9;
+    const step = (): void => {
+      const t = Math.min(1, (performance.now() - start) / (seconds * 1000)), eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+      over.current = from + (to - from) * eased;
+      turnTo(turn.current);
+      invalidate();
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    // A press mid-turn turns on from where the sheet is.
+    return () => cancelAnimationFrame(frame);
+  }, [mode, turnTo]);
   // The handle remains stable while its host reads the latest scene, camera and callbacks.
   const host = useRef({ camera, scene, size, radius, onPose, turnTo, invalidate, opening });
   host.current = { camera, scene, size, radius, onPose, turnTo, invalidate, opening };
@@ -445,7 +480,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
         guide.current!.cancel();
         const drag = { x: event.clientX - down.last.x, y: event.clientY - down.last.y };
         // The sheet only pans under a drag; it never spins or tilts (ADR-1043 D4).
-        turn.current = sheet === undefined ? dragTurn(turn.current, drag, element.clientHeight || 1) : sheetPan(turn.current, drag, camera.zoom, sheet);
+        turn.current = sheet === undefined ? dragTurn(turn.current, drag, element.clientHeight || 1) : sheetPan(turn.current, drag, camera.zoom, sheet, over.current > Math.PI / 2);
         dragTo(turn.current);
         down.last = { x: event.clientX, y: event.clientY };
         clearHover();
@@ -466,7 +501,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       guide.current!.cancel(); clearHover();
       touched.current = true;
       // On the sheet a sideways scroll pans east and west; the wheel's zoom is the canvas's own.
-      if (sheet !== undefined && event.deltaX !== 0) dragTo(turn.current = sheetPan(turn.current, { x: -event.deltaX, y: 0 }, camera.zoom, sheet));
+      if (sheet !== undefined && event.deltaX !== 0) dragTo(turn.current = sheetPan(turn.current, { x: -event.deltaX, y: 0 }, camera.zoom, sheet, over.current > Math.PI / 2));
     };
     element.addEventListener("pointerdown", onDown);
     element.addEventListener("pointerup", onUp);

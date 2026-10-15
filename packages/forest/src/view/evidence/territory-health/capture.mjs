@@ -2,7 +2,7 @@
 // snapshot with each capability given a word (below), the session-tints agent log at the fixed clock NOW, the same
 // 1440 x 960 viewport and the same programmatic turns; nothing is hand-panned. Run `node build.mjs`, then this, under
 // `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`. Measures what can be counted before anyone looks, and writes measurements.json.
-// --smoke uses the same scene and measures its fills, claims and turned-away failure markers.
+// --smoke uses the same scene and measures its fills and claims.
 // Only full captures tour the four close-up pictures; smoke waits for the marks it actually asserts.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -228,28 +228,8 @@ function measure(page) {
     await picture(page, `close-up-${name}.png`);
     await unzoom();
   }
-  // The forest lies on the glass sheet (ADR-1043), where nothing is behind; the Library switched on still shows the globe.
-  phase('switch the Library on, to the globe');
-  await page.locator('[data-globe-switch="library"]').click();
-  await page.waitForFunction(ids => {
-    const state = window.__globe;
-    return !!state && !state.scene.getObjectByName('sheet:glass') && ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
-  }, seed.tree.stories.map(s => s.id), { timeout: 60000, polling: 100 }).catch(error => failedWait('the globe', error));
-  await settleView(page);
-  // Turn the globe half round about its up axis from the library facing: the failures go behind, and their rim markers show.
-  phase('turn failures behind the globe');
-  await faceIt(LIBRARY);
-  await page.evaluate(() => {
-    const { camera } = window.__globe, { rotation, onRotate } = window.__nav;
-    const Q = camera.quaternion.constructor, V = camera.position.constructor;
-    onRotate(new Q().setFromAxisAngle(new V(0, 1, 0).applyQuaternion(camera.quaternion), Math.PI).multiply(rotation));
-  });
-  await settleView(page);
-  await page.waitForFunction(() => document.querySelectorAll('.planet-edge-marker').length === 2, undefined, { timeout: 10000, polling: 100 });
-  if (!smoke) await settleView(page);
-  results.turnedAway = await measure(page);
-  await picture(page, 'rim-markers.png');
-  if (!smoke) { await page.mouse.move(2, 2); await settleView(page); }
+  // The forest lies on the glass sheet (ADR-1043), where no island is behind another: a failing island past the window's
+  // edge gets its marker on the sheet with increment_4c9d90ab6f5d; the globe's rim markers are proved by planet-view's 3.11 tests.
 
   phase('read completed observation');
   results.browser = await browser.version(); results.errors = errors; results.warnings = [...new Set(warnings)];
@@ -259,7 +239,7 @@ function measure(page) {
   // the like), which throw on the missing answer. The land's own marks are asserted from the scene below.
   assert.equal(results.front.greyFills, 0);
   console.log(JSON.stringify({ browser: results.browser, fills: results.front.fills, greyFills: results.front.greyFills, parked: results.front.parked,
-    flags: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.faded, o.triangles])), markers: results.turnedAway.markers, errors }));
+    flags: results.front.islands.flatMap(i => i.claimOutlines.map(o => [i.story, o.capability, o.colour, o.faded, o.triangles])), errors }));
   // Observation is complete. Stop redraws, then let page closure release the WebGL context.
   // Explicit dispose/forceContextLoss can itself stall the macOS software-GL driver.
   phase('stop redraws after observation');

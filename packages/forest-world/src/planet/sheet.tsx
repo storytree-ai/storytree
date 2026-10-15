@@ -5,8 +5,9 @@
  * radius is SHEET_RADIUS; a sheet 3000 units wide then sags 5.6 units at its corners and turns an edge island from an eye over
  * its middle by under half a degree. Turning the big sphere by a hair moves the sheet under the eye, so the globe's turn is the
  * sheet's pan. */
-import { useEffect, useMemo } from 'react';
-import { BufferGeometry, DoubleSide, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, PlaneGeometry, Vector3, type OrthographicCamera } from 'three';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { BufferGeometry, DoubleSide, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3, type Camera, type Object3D, type OrthographicCamera } from 'three';
 import { PLATE_CLEARANCE, type PlanetSpot } from './planet.js';
 
 /** The radius of the sphere whose near pole is the sheet, in ground units. */
@@ -46,6 +47,38 @@ export function applySheetEye(camera: OrthographicCamera, reach: number): void {
   camera.updateProjectionMatrix();
 }
 
+/**
+ * Whether the eye looks at the sheet's underside: the top face's normal at the pole, turned with `sheet`, points away from it.
+ * The islands' marks draw in orders 0 to 8, so the glass draws before them from above and after them from below (20), and
+ * what hangs under the glass draws before it from above and after it from below (`UnderTheGlass`): whichever lies beyond
+ * the glass is seen through it, faintly.
+ */
+export function seenFromBelow(sheet: Object3D, camera: Camera): boolean {
+  const up = new Vector3(0, 0, 1).applyQuaternion(sheet.getWorldQuaternion(new Quaternion()));
+  return up.dot(new Vector3(0, 0, 1).applyQuaternion(camera.quaternion)) < 0;
+}
+
+/** Each object's own draw order, before the side the eye is on moved it (kept apart from userData, which a host may replace). */
+const ownOrders = new WeakMap<Object3D, number>();
+
+/** Sets each object's draw order under `group` for the side the eye is on, keeping their own orders' sequence. */
+function drawOrderBySide(group: Object3D | null, camera: Camera, above: number, below: number): void {
+  if (group === null) return;
+  const offset = seenFromBelow(group, camera) ? below : above;
+  group.traverse(object => {
+    if (object === group) return;
+    if (!ownOrders.has(object)) ownOrders.set(object, object.renderOrder);
+    object.renderOrder = ownOrders.get(object)! + offset;
+  });
+}
+
+/** What hangs beneath the glass (the knowledge graph, ADR-1043 D5): drawn under the glass from above, over it from below. */
+export function UnderTheGlass({ children }: { children: ReactNode }) {
+  const group = useRef<Group>(null);
+  useFrame(({ camera }) => drawOrderBySide(group.current, camera, -30, 21));
+  return <group ref={group} name="sheet:under">{children}</group>;
+}
+
 /** The glass under the islands: a pane bent to the big sphere's sag, faint, with a bright rim, at the pole. */
 export function SheetGlass({ extent }: { extent: SheetExtent }) {
   const glass = useMemo(() => {
@@ -59,7 +92,6 @@ export function SheetGlass({ extent }: { extent: SheetExtent }) {
     // Smoked glass over the page.
     const pane = new Mesh(plane, new MeshBasicMaterial({ color: '#1a2832', transparent: true, opacity: 0.72, depthWrite: false, side: DoubleSide }));
     pane.name = 'sheet:pane';
-    pane.renderOrder = -1;
     pane.raycast = () => {};
     // The rim, bent with the pane: each side sampled every 20 units.
     const w = extent.width / 2, h = extent.height / 2, loop: Vector3[] = [];
@@ -74,7 +106,6 @@ export function SheetGlass({ extent }: { extent: SheetExtent }) {
     const rim = new LineSegments(new BufferGeometry().setFromPoints(loop.flatMap((p, i) => [p, loop[(i + 1) % loop.length]!])),
       new LineBasicMaterial({ color: '#cfe6f2', transparent: true, opacity: 0.55 }));
     rim.name = 'sheet:rim';
-    rim.renderOrder = -1;
     rim.raycast = () => {};
     group.add(pane, rim);
     return group;
@@ -84,5 +115,6 @@ export function SheetGlass({ extent }: { extent: SheetExtent }) {
     mesh.geometry?.dispose();
     mesh.material?.dispose();
   }), [glass]);
+  useFrame(({ camera }) => drawOrderBySide(glass, camera, -1, 20));
   return <primitive object={glass} />;
 }

@@ -97,9 +97,8 @@ const OPENING_THE_APP: Owner = { capability: "capability_8ffc78a4bad2", contract
 /** The world's 5 · The canvas, 5.8: a globe left alone. */
 const THE_CANVAS: Owner = { capability: "capability_cd7ea3b6ca01", contract: "contract_c58268454e54" };
 
-/** Nothing selected, the panel closed and both globe switches on (the islands on show), still. */
+/** Nothing selected, the panel closed and the glass sheet on its Stories face (the islands on show), still. */
 const RESET: Step[] = [{ kind: "key", key: "Escape" }, { kind: "click", selector: "[data-globe-switch=stories][aria-pressed=false]", optional: true },
-  { kind: "click", selector: "[data-globe-switch=library][aria-pressed=false]", optional: true },
   { kind: "wait", until: { mode: "forest", panel: "closed", still: true } }];
 const openIsland = (name: string, island: IslandChoice): LagAction => ({ name, setup: RESET, perform: [{ kind: "island", island }],
   settled: { selected: "island", panel: "open", still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "open-island", owner: DRILL_DOWN });
@@ -119,9 +118,9 @@ export const CATALOGUE: readonly LagAction[] = [
   { name: "close-panel", setup: [...RESET, { kind: "island", island: "most" }, { kind: "wait", until: { selected: "island", panel: "open", still: true } }],
     perform: [{ kind: "click", selector: ".story-panel .panel-close" }], settled: { selected: "none", panel: "closed" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "close-panel", owner: DRILL_DOWN },
   { name: "library-and-back", setup: RESET,
-    perform: [{ kind: "click", selector: "[data-globe-switch=stories]" }, { kind: "wait", until: { mode: "library" } }, { kind: "click", selector: "[data-globe-switch=stories]" }],
+    perform: [{ kind: "click", selector: "[data-globe-switch=library]" }, { kind: "wait", until: { mode: "library" } }, { kind: "click", selector: "[data-globe-switch=stories]" }],
     settled: { mode: "forest", still: true }, budget: DEFAULT_BUDGET, limitMs: 10_000, owner: STORY_NODE_RENDER },
-  { name: "open-library-note", setup: [...RESET, { kind: "click", selector: "[data-globe-switch=stories]" }, { kind: "wait", until: { mode: "library", still: true } }],
+  { name: "open-library-note", setup: [...RESET, { kind: "click", selector: "[data-globe-switch=library]" }, { kind: "wait", until: { mode: "library", still: true } }],
     perform: [{ kind: "note" }], settled: { note: "any", panel: "open" }, budget: DEFAULT_BUDGET, limitMs: 10_000, field: "open-library-note", owner: INSPECT_ARTIFACT },
   { name: "open-session-row", setup: [...RESET, { kind: "click", selector: ".sessions-handle[aria-expanded=false]", optional: true },
     { kind: "click", selector: ".session-row[data-selected]", optional: true }],

@@ -1,3 +1,3 @@
 /** Capability 5 · Queues. */
-export { DRAIN, frictionDrain, openQuestions, route, openFriction } from "./queues.js";
-export type { Route, RouteOptions } from "./queues.js";
+export { DRAIN, frictionDrain, LEASE_MINUTES, leaseFriction, openQuestions, route, openFriction } from "./queues.js";
+export type { DrainOptions, Route, RouteOptions } from "./queues.js";

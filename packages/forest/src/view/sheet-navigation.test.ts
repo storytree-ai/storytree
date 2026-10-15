@@ -8,7 +8,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import { applyPlanetFraming, applySheetEye, plateTransform, SHEET_RADIUS, SHEET_TILT, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
 import { focusRotation, markerSpot } from "./planet-navigation.js";
-import { sheetCentre, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetTurnedOver } from "./sheet-navigation.js";
+import { compassNorth, headingHome, sheetCentre, sheetDrag, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetTurnedOver, sheetTwist } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -26,8 +26,8 @@ function sheet(depth: number) {
   return sheetLayout(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
 }
 
-/** The page's eye and its globe group, posed as the canvas poses them, the sheet turned `over` radians. */
-function eye(pose: GlobePose, extent: { width: number; height: number }, over = 0) {
+/** The page's eye and its globe group, posed as the canvas poses them, the sheet turned `over` radians and spun to `heading`. */
+function eye(pose: GlobePose, extent: { width: number; height: number }, over = 0, heading = 0) {
   const camera = new OrthographicCamera(-size.width / 2, size.width / 2, size.height / 2, -size.height / 2, 0.1, 1000);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   camera.position.set(0, Math.sin(elevation), Math.cos(elevation));
@@ -36,7 +36,7 @@ function eye(pose: GlobePose, extent: { width: number; height: number }, over = 
   applySheetEye(camera, Math.hypot(extent.width, extent.height));
   camera.updateMatrixWorld();
   const globe = new Group();
-  const turned = sheetTurnedOver(focusRotation(pose.turn, camera.quaternion), camera.quaternion, over);
+  const turned = sheetTurnedOver(focusRotation(pose.turn, camera.quaternion), camera.quaternion, over, heading);
   globe.quaternion.copy(turned.quaternion);
   globe.position.copy(turned.position);
   globe.updateMatrixWorld();
@@ -168,4 +168,121 @@ test("3.11 on the glass sheet a failing island past the window's edge gets a mar
   const centred = sheetCentre(marker!.turn), at = where("s11");
   assert.ok(Math.abs(centred.x - at.x) < 1e-6 && Math.abs(centred.y - at.y) < 1e-6, "the island comes to the middle of the view");
   assert.deepEqual(sheetMarkers(failing("s11"), marker!.turn, zoom, size), []);
+});
+
+/** Headings the key, spin and compass tests read the sheet at: none, a quarter, odd ones, a half and past it backwards. */
+const headings = [0, Math.PI / 2, 1.1, Math.PI, -2.3];
+const keyed = (key: string, target?: unknown, extra: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean } = {}) => sheetKey({ type: "keydown", key, target, ...extra });
+
+test("3.57 on the glass sheet WASD and the arrow keys pan it the way they point on the window, whatever its heading and on either face, at a speed that keeps pace with the zoom", () => {
+  const { extent } = sheet(12), opening = sheetOpening(extent, size), zoom = eye(opening, extent).camera.zoom;
+  const ways: Record<string, { x: number; y: number }> = { w: { x: 0, y: 1 }, arrowup: { x: 0, y: 1 }, s: { x: 0, y: -1 }, arrowdown: { x: 0, y: -1 }, a: { x: 1, y: 0 }, arrowleft: { x: 1, y: 0 }, d: { x: -1, y: 0 }, arrowright: { x: -1, y: 0 } };
+  // From the middle of the sheet, so no edge stops the pan.
+  const turn = sheetPan(opening.turn, { x: -extent.width / 2 * zoom + size.width / 2, y: 0 }, zoom, extent);
+  for (const [key, way] of Object.entries(ways)) {
+    const pressed = keyed(key === "w" || key === "a" || key === "s" || key === "d" ? key.toUpperCase() : key.replace("arrow", "Arrow").replace(/(Arrow)(\w)/, (_, a, b) => a + b.toUpperCase()));
+    assert.deepEqual(pressed, { kind: "pan", key }, `${key} pans`);
+    const drag = sheetKeyPan(new Set([key]), 0.25);
+    for (const under of [false, true]) for (const heading of headings) {
+      const over = under ? Math.PI : 0, held = sheetCentre(turn), at = { x: held.x + 30, y: held.y - 20 };
+      const before = eye({ ...opening, turn }, extent, over, heading).screen(at);
+      const moved = sheetPan(turn, drag, zoom, extent, under, heading);
+      const after = eye({ ...opening, turn: moved }, extent, over, heading).screen(at);
+      const dx = after.x - before.x, dy = after.y - before.y;
+      // W is away from you: the view goes up the window, so what is under it slides down; A goes left, so it slides right.
+      assert.ok(Math.abs(dx - drag.x) < 0.5 && Math.abs(dy - drag.y) < 0.5 && Math.sign(Math.round(dx)) === way.x && Math.sign(Math.round(dy)) === way.y,
+        `${key} at heading ${heading.toFixed(2)}${under ? " underneath" : ""} slides the sheet (${dx.toFixed(1)}, ${dy.toFixed(1)})`);
+    }
+  }
+  // The same key held as long crosses the same distance on the window at any zoom, so half the ground at twice the zoom.
+  const near = sheetCentre(sheetPan(turn, sheetKeyPan(new Set(["d"]), 0.25), zoom * 2, extent)).x - sheetCentre(turn).x;
+  const far = sheetCentre(sheetPan(turn, sheetKeyPan(new Set(["d"]), 0.25), zoom, extent)).x - sheetCentre(turn).x;
+  assert.ok(far > 0 && Math.abs(near - far / 2) < 1e-6, `twice the zoom, half the ground (${near.toFixed(2)} of ${far.toFixed(2)})`);
+  assert.deepEqual(sheetKeyPan(new Set(["w", "s"]), 0.25), { x: 0, y: 0 }, "opposite keys cancel");
+});
+
+test("3.58 Q and E spin the glass sheet a quarter turn about its upright axis, the same way on the window on either face, and change nothing else: the tilt, the zoom and the place in the middle of the view hold", () => {
+  const { extent } = sheet(12), opening = sheetOpening(extent, size);
+  assert.deepEqual(keyed("q"), { kind: "spin", by: -1 });
+  assert.deepEqual(keyed("E"), { kind: "spin", by: 1 });
+  for (const under of [false, true]) for (const heading of headings) {
+    const over = under ? Math.PI : 0, before = eye(opening, extent, over, heading), held = sheetCentre(opening.turn);
+    for (const by of [-1, 1] as const) {
+      const next = sheetSpin(heading, by * Math.PI / 2, under);
+      assert.ok(Math.abs(Math.abs(next - heading) - Math.PI / 2) < 1e-12, "exactly a quarter turn");
+      const after = eye(opening, extent, over, next);
+      assert.equal(after.camera.zoom, before.camera.zoom, "the zoom holds");
+      const angle = after.facing(held);
+      assert.ok(Math.abs((under ? Math.PI - angle : angle) - SHEET_TILT) < 1e-6, "the tilt holds");
+      const middle = before.screen(held), still = after.screen(held);
+      assert.ok(Math.hypot(still.x - middle.x, still.y - middle.y) < 1e-3, "it pivots on the middle of the view");
+      // A road running east from the middle turns a quarter of the way round on the window, clockwise for E on either face.
+      const east = (face: ReturnType<typeof eye>) => { const a = face.screen(held), b = face.screen({ x: held.x + 50, y: held.y }); return Math.atan2(b.y - a.y, b.x - a.x); };
+      const turned = Math.atan2(Math.sin(east(after) - east(before)), Math.cos(east(after) - east(before)));
+      // Clockwise on the window is a growing angle with y down; the tilt squashes the quarter turn, so read its sense, not its size.
+      assert.ok(Math.sign(turned) === by && Math.abs(turned) > 0.5, `${by > 0 ? "E" : "Q"} at ${heading.toFixed(2)}${under ? " underneath" : ""} turns it ${(turned * 180 / Math.PI).toFixed(0)}° on the window`);
+    }
+  }
+});
+
+test("3.59 a plain drag pans the glass sheet; a right-drag or a Ctrl+drag spins it smoothly about its upright axis, and so does a two-finger twist, never changing the tilt", () => {
+  assert.equal(sheetDrag({ button: 0, ctrlKey: false, isPrimary: true }), "pan", "a plain drag pans");
+  assert.equal(sheetDrag({ button: 2, ctrlKey: false, isPrimary: true }), "spin", "a right-drag spins");
+  assert.equal(sheetDrag({ button: 0, ctrlKey: true, isPrimary: true }), "spin", "a Ctrl+drag spins");
+  assert.equal(sheetDrag({ button: 1, ctrlKey: false, isPrimary: true }), undefined, "the middle button does nothing");
+  const { extent } = sheet(12), opening = sheetOpening(extent, size), held = sheetCentre(opening.turn);
+  for (const under of [false, true]) {
+    const over = under ? Math.PI : 0;
+    let heading = 0.3;
+    for (const step of [12, 40, -7, 95]) {
+      const next = sheetSpin(heading, step * Math.PI / 600, under);
+      assert.ok(Math.abs(Math.abs(next - heading) - Math.abs(step) * Math.PI / 600) < 1e-12, "a small drag, a small spin");
+      const angle = eye(opening, extent, over, next).facing(held);
+      assert.ok(Math.abs((under ? Math.PI - angle : angle) - SHEET_TILT) < 1e-6, "the tilt holds");
+      heading = next;
+    }
+  }
+  // Two fingers turned a tenth of a turn clockwise on the window spin it a tenth of a turn that way.
+  const twist = sheetTwist([{ x: 100, y: 100 }, { x: 300, y: 100 }], [{ x: 100, y: 100 }, { x: 100 + 200 * Math.cos(Math.PI / 5), y: 100 + 200 * Math.sin(Math.PI / 5) }]);
+  assert.ok(Math.abs(twist - Math.PI / 5) < 1e-12, `clockwise on the window (${twist.toFixed(3)})`);
+  assert.ok(Math.abs(sheetTwist([{ x: 0, y: 0 }, { x: -1, y: 0.01 }], [{ x: 0, y: 0 }, { x: -1, y: -0.01 }]) - 0.02) < 1e-3, "and across the half-turn without a jump");
+});
+
+test("3.60 the compass points to the glass sheet's starting north on the window, and a click on it or the Home key spins it back and returns to the opening view", () => {
+  const { extent } = sheet(12), opening = sheetOpening(extent, size), held = sheetCentre(opening.turn);
+  assert.deepEqual(keyed("Home"), { kind: "home" });
+  for (const under of [false, true]) for (const heading of headings) {
+    const face = eye(opening, extent, under ? Math.PI : 0, heading);
+    const a = face.screen(held), b = face.screen({ x: held.x, y: held.y + 50 });
+    const drawn = Math.atan2(-(b.y - a.y), b.x - a.x), north = compassNorth(heading, under);
+    // The tilt squashes the window's up and down, so the drawn north is the compass's needle squashed the same way.
+    const squashed = Math.atan2(Math.sin(north) * Math.cos(SHEET_TILT), Math.cos(north));
+    assert.ok(Math.abs(Math.atan2(Math.sin(drawn - squashed), Math.cos(drawn - squashed))) < 0.02, `the needle at ${heading.toFixed(2)}${under ? " underneath" : ""} points north`);
+  }
+  assert.ok(Math.abs(compassNorth(0, false) - Math.PI / 2) < 1e-12, "facing its starting heading, north is up");
+  // Spun three and a half turns and panned and zoomed, Home brings it back by the short way round, to the opening view.
+  let pose: GlobePose = opening;
+  const guide = createGlobeGuide({ world: () => new Group(), camera: () => new OrthographicCamera(), size: () => size, read: () => pose, write: next => { pose = next; }, invalidate() {} });
+  pose = { ...pose, turn: sheetPan(pose.turn, { x: -600, y: 90 }, 1, extent), framing: pose.framing / 2 };
+  const spun = 7 * Math.PI + 0.4, home = headingHome(spun);
+  assert.ok(Math.abs(home - 8 * Math.PI) < 1e-12, "the nearest starting heading, not seven half-turns back");
+  assert.equal(guide.home(sheetOpening(extent, size), 600), true);
+  guide.frame(300);
+  guide.frame(300);
+  const opened = eye(opening, extent), back = eye(pose, extent, 0, home);
+  for (const p of [held, { x: held.x + 200, y: held.y - 60 }]) {
+    const was = opened.screen(p), is = back.screen(p);
+    assert.ok(Math.hypot(was.x - is.x, was.y - is.y) < 1e-3, "back to the opening view");
+  }
+});
+
+test("3.61 the sheet's keys are WASD, the arrows, Q, E, Home and T to turn it over, and none of them acts while you type in a text field or hold Ctrl, Alt or the command key", () => {
+  assert.deepEqual(keyed("t"), { kind: "turn" });
+  assert.deepEqual(keyed("x"), undefined);
+  for (const key of ["w", "ArrowUp", "q", "E", "Home", "t"]) {
+    for (const target of [{ tagName: "INPUT" }, { tagName: "TEXTAREA" }, { tagName: "SELECT" }, { tagName: "DIV", isContentEditable: true }]) assert.equal(keyed(key, target), undefined, `${key} in a ${target.tagName}`);
+    for (const extra of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }]) assert.equal(keyed(key, { tagName: "BODY" }, extra), undefined, `${key} with ${Object.keys(extra)[0]}`);
+    assert.notEqual(keyed(key, { tagName: "BODY" }), undefined, `${key} on the page`);
+  }
+  assert.equal(sheetKey({ type: "keyup", key: "w" }), undefined, "only a press");
 });

@@ -14,6 +14,7 @@ import { PanelSelection, type Selection } from "./panel-selection.js";
 import { panelAside } from "./globe-aside.js";
 import { globeFraming } from "./planet-navigation.js";
 import { LAUNCH_FACE, sheetFaces, type SheetFace } from "./globe-switches.js";
+import { sheetKey } from "./sheet-navigation.js";
 import type { PlacedGlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
@@ -75,7 +76,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       </div>
       <div className="forest-views" role="group" aria-label="Sheet faces">
         {layers.offered.map(which => <button key={which} type="button"
-          data-globe-switch={which} aria-pressed={layers.pressed[which]} onClick={() => turn(which)}>
+          data-globe-switch={which} aria-pressed={layers.pressed[which]} title={layers.offered.length > 1 ? "Turn the sheet over (T)" : undefined} onClick={() => turn(which)}>
           {which === "stories" ? "Stories" : "Library"}
         </button>)}
       </div>
@@ -95,7 +96,11 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   };
   const pick = (story: string | undefined, capability?: string): void => selection.story(story, capability);
   const pickNote = (note: string): void => selection.note(note);
-  const onKey = (event: KeyboardEvent): void => selection.key(event.key);
+  // T turns the sheet over, as the Stories and Library buttons do (ADR-1060 D4).
+  const onKey = (event: KeyboardEvent): void => {
+    selection.key(event.key);
+    if (library && sheetKey(event)?.kind === "turn") turn(drawn.face === "stories" ? "library" : "stories");
+  };
   let controls: PlacedGlobeControls | undefined;
   const onControls = (next: PlacedGlobeControls | undefined): void => { controls = next; };
   const page = window as { storytreeGlobe?: GlobeLocator };

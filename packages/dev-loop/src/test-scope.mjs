@@ -16,12 +16,16 @@
 // origin/main that cannot be read. Running a suite a change could not reach costs minutes; skipping
 // one it could reach merges untested code, so every doubt resolves to the full run. A root path is
 // narrowed only once its test-time readers have been measured, never by guessing (0.2's ADR-0394).
+//
+// A folder under infra/ that holds tests (the library host's backup checks) is a unit too, though no
+// package: a change there runs everything, so the full run carries it (increment_e557d7df8a07).
 
 import { execFileSync } from "node:child_process";
 import { existsSync, globSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const WORKSPACE_ROOTS = ["packages", "apps"];
+const INFRA = "infra";
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
 const RELATIVE_PATH = /["'`]((?:\.\.\/)+[^"'`$\r\n]*)["'`]/g;
 
@@ -179,7 +183,7 @@ export const TEST_USAGE = `pnpm test: run the tests this branch's changes can re
   pnpm test                        run what the branch's changes can reach (the first line, scope:, says what)
   pnpm run test --scope            print the decision and the units, and run nothing
   pnpm run test --full             run everything, whatever changed
-  pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name)
+  pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name) or infra folders (dir)
   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
   pnpm run test --jobs=<n>         test n units at once (else STORYTREE_TEST_JOBS, else 2, a core left free, or 1 on Windows arm64); 1 runs them one by one
   pnpm run test <files>            run just those files, as one unit
@@ -239,12 +243,14 @@ function withAlone(root, units, alone) {
 }
 
 export function planRun({ root, workspace, decision, flags = {}, record, alone = ALONE }) {
-  const all = workspace.filter((p) => hasTests(root, p.dir)).map((p) => p.dir);
+  const infra = infraUnits(root);
+  const all = [...workspace.filter((p) => hasTests(root, p.dir)).map((p) => p.dir), ...infra];
   if (flags.full) decision = full("--full asked for everything");
   if (flags.only?.length) {
     const units = flags.only.map((wanted) => {
+      if (infra.includes(wanted)) return wanted;
       const pkg = workspace.find((p) => wanted === p.dir || wanted === p.name || wanted === path.posix.basename(p.dir));
-      if (pkg === undefined) throw new Error(`--only ${wanted}: no workspace package by that dir or name`);
+      if (pkg === undefined) throw new Error(`--only ${wanted}: no workspace package or infra folder by that dir or name`);
       return pkg.dir;
     });
     const dirs = [...new Set(units)].sort();
@@ -272,11 +278,25 @@ export function planRun({ root, workspace, decision, flags = {}, record, alone =
  */
 export function unitGlobs(unit, { root, alone = ALONE } = {}) {
   if (/\.test\.m?[jt]s$/.test(unit)) return [unit];
+  if (unit.startsWith(`${INFRA}/`)) return [`${unit}/**/*.test.ts`, `${unit}/**/*.test.mjs`];
   const globs = [`${unit}/src/**/*.test.ts`, `${unit}/src/**/*.test.mjs`];
   if (root === undefined || !alone.some((file) => file.startsWith(`${unit}/`))) return globs;
   return globSync(globs, { cwd: root, exclude: (name) => path.basename(String(name)) === "node_modules" })
     .map((file) => file.replaceAll("\\", "/"))
     .filter((file) => !alone.includes(file))
+    .sort();
+}
+
+/** The folders under infra/ holding test files, each a unit: infra code has no src/ of its own. */
+function infraUnits(root) {
+  let entries = [];
+  try {
+    entries = readdirSync(path.join(root, INFRA), { withFileTypes: true });
+  } catch {}
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => `${INFRA}/${entry.name}`)
+    .filter((dir) => globSync(`${dir}/**/*.test.{ts,mjs}`, { cwd: root, exclude: (name) => path.basename(String(name)) === "node_modules" }).length > 0)
     .sort();
 }
 

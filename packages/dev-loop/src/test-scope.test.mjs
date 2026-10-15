@@ -232,6 +232,23 @@ test("the package-boundary check runs in every scoped run, since a change inside
   assert.ok(all.includes("packages/dev-loop") && !all.includes("packages/dev-loop/src/package-boundaries.test.mjs"), "a full run has it in its package already");
 });
 
+test("1.6 a folder under infra/ that holds tests is a unit: a full run runs it, and --only names it", (t) => {
+  const root = fixture(t);
+  write(root, "infra/host/host.mjs", "");
+  write(root, "infra/host/host.test.mjs", "");
+  write(root, "infra/notes/README.md", "");
+  const ws = readWorkspace(root);
+
+  const decision = classify(["infra/host/host.mjs"], ws);
+  assert.equal(decision.mode, "full", "an infra change still runs everything: package tests may read its files");
+  const units = planRun({ root, workspace: ws, decision }).units;
+  assert.ok(units.includes("infra/host"), units.join(", "));
+  assert.ok(!units.includes("infra/notes"), "a folder with no tests is no unit");
+  assert.deepEqual(unitGlobs("infra/host"), ["infra/host/**/*.test.ts", "infra/host/**/*.test.mjs"]);
+  assert.deepEqual(planRun({ root, workspace: ws, decision, flags: { only: ["infra/host"] } }).units, ["infra/host"]);
+  assert.ok(!planRun({ root, workspace: ws, decision: classify(["packages/agent-link/src/x.ts"], ws) }).units.includes("infra/host"), "a package-only change does not run it");
+});
+
 test("1.3 --full forces everything, --only names units, and --rerun-failed runs what the last run failed or never reached", (t) => {
   const root = fixture(t);
   const ws = readWorkspace(root);

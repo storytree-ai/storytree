@@ -28,6 +28,7 @@ import { DecisionLog, type DecisionNumberPlan, type DecisionView, type NewDecisi
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
 import { artifactsOnly, checkFrontCover, frontCovers } from "./front-covers.js";
 import { relatedEach, relatedTo, type Related, type RelatedOptions, type SimilarityDoc } from "./similarity.js";
+import { holdsName, normalisedWords } from "./whole-words.js";
 
 /**
  * The fields that link an artifact to other artifacts (6-a), which the loop check follows: its links,
@@ -473,19 +474,25 @@ function textsOf(note: SchemaRecord): string[] {
 
 /**
  * A meaning ranking with the records the search names by their title put first, each group keeping
- * its meaning order: those whose contract number (a title's leading `7.17`) is one of its words, then
- * those whose title (a definition's term) holds every word, ignoring case. A long title's later
- * words weigh little in its meaning, so without this a search in its own words can miss it.
+ * its meaning order: those whose title (a definition's term) is the search, ignoring case, spacing
+ * and a leading contract number (`14.7 · `); then those whose contract number (a title's leading
+ * `7.17`) is one of its words; then those whose title holds every word of it as a whole word, a
+ * plural finding its singular (holdsName, ADR-1044 D3). A long title's later words weigh little in
+ * its meaning, so without this a search in its own words can miss it.
  */
 function liftByTitle<T extends SchemaRecord>(ranked: readonly { item: T; score: number }[], query: string): { item: T; score: number }[] {
   const words = query.toLowerCase().split(/\s+/).filter((word) => word !== "");
+  const search = normalisedWords(query);
   const tier = ({ item }: { item: T }): number => {
     const fields = item.fields as Record<string, unknown>;
     const heading = (typeof fields.title === "string" ? fields.title : typeof fields.term === "string" ? fields.term : "").toLowerCase();
+    if (heading === "") return 3;
+    if (normalisedWords(heading.replace(/^\d+(?:\.\d+)*\s*·\s*/, "")) === search) return 0;
     const number = /^(\d+(?:\.\d+)+)(?![\d.])/.exec(heading)?.[1];
-    if (number !== undefined && words.includes(number)) return 0;
-    if (heading !== "" && words.every((word) => heading.includes(word))) return 1;
-    return 2;
+    if (number !== undefined && words.includes(number)) return 1;
+    const titleWords = heading.split(/[^\p{L}\p{N}]+/u).filter((word) => word !== "");
+    if (search.split(" ").every((word) => titleWords.some((titleWord) => holdsName(word, titleWord)))) return 2;
+    return 3;
   };
   return ranked.map((hit) => ({ hit, tier: tier(hit) })).sort((a, b) => a.tier - b.tier).map(({ hit }) => hit);
 }

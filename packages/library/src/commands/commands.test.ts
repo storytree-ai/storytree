@@ -16,7 +16,7 @@ import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, 
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("17.1 · The library declares the library family first among storytree's families, its ten verbs as commands and none as a tool; a verb reads a phrase from @file in the caller's folder, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
+test("17.1 · The library declares the library family first among storytree's families, its eleven verbs as commands and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-library-verbs-"));
@@ -33,7 +33,7 @@ test("17.1 · The library declares the library family first among storytree's fa
   const [family] = LIBRARY_FAMILIES;
   assert.deepEqual([LIBRARY_FAMILIES.length, family!.name, family!.order], [1, "library", 1]);
   const names = family!.verbs.map((one) => mounted(one.command) ? one.command.name : undefined);
-  assert.deepEqual(names, ["search", "phrase", "links", "related", "new", "read", "edit", "retire", "list", "history"]);
+  assert.deepEqual(names, ["search", "phrase", "links", "related", "new", "read", "edit", "refile", "retire", "list", "history"]);
   assert.ok(family!.verbs.every((one) => !mounted(one.tool)), "no verb is a tool");
   const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family!.verbs[names.indexOf(name)]!;
 
@@ -55,6 +55,11 @@ test("17.1 · The library declares the library family first among storytree's fa
   writeFileSync(path.join(folder, "phrase.txt"), `﻿${phrase}`);
   const page = await verbOf("phrase").act({ phrase: ["@phrase.txt"], kind: [], field: ["meaning"], limit: undefined, after: undefined }, contextOf("lane"), WORDS);
   assert.deepEqual(JSON.parse(page.text).records.map((record: { id: string }) => record.id), [held.id], "the file's phrase, its spaces kept, is the one searched for");
+
+  const refiled = await verbOf("refile").act({ "<id>": held.id, "<kind>": "research", "<fields>": { title: "Analytics", description: "Services compared", researched: "2026-10-02", findings: "Plausible counts pages without cookies" } }, contextOf("person:owner"), WORDS);
+  assert.equal(refiled.text, `Refiled ${held.id} as research.`);
+  assert.deepEqual(await library.get(held.id).then((record) => [record?.type, (record?.fields as { findings?: string } | undefined)?.findings]), ["research", "Plausible counts pages without cookies"], "it reads as research under the same id");
+  await assert.rejects(verbOf("refile").act({ "<id>": held.id, "<kind>": "friction", "<fields>": {} }, contextOf("person:owner"), WORDS), VerbRefusal, "a friction report is not refiled into");
 
   const pended = await verbOf("edit").act({ "<id>": form.id, "<fields>": { description: "Where they type it" } }, contextOf("lane"), WORDS);
   assert.match(pended.text, new RegExp(`pending on increment ${increment.id}`));

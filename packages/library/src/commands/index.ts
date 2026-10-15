@@ -2,7 +2,8 @@
  * Capability 17 · The library's commands (ADR-1035 D3): the `storytree library` family the library declares in its
  * manifest's `verbs`, first among `storytree`'s families: read any record whole (several, and the records they link to,
  * in one start), list a kind, search the artifacts, see what links to an artifact and a record's history, all through
- * the library's own reads; write a new record of any kind, edit named fields of one, or retire one with its reason and
+ * the library's own reads; write a new record of any kind, edit named fields of one, refile an artifact as another
+ * kind under its id (ADR-1058 D2), or retire one with its reason and
  * writer. Long text can come from a file; refusals are the library's own messages. No verb is a tool: an agent searches,
  * opens, writes and corrects artifacts with the tools the library declares beside them (notes.ts), which record its reads.
  *
@@ -129,7 +130,7 @@ const WRITERS: Readonly<Record<string, Writer>> = {
   decision: (library, fields, options) => library.recordDecision(fields as never, options),
   definition: (library, fields, options) => library.defineTerm(fields as never, options),
   ...Object.fromEntries(
-    (["principle", "guardrail", "pattern", "process", "agent", "techstack", "check"] as const satisfies readonly KnowledgeKind[]).map((kind) => [
+    (["principle", "guardrail", "pattern", "process", "agent", "techstack", "check", "research"] as const satisfies readonly KnowledgeKind[]).map((kind) => [
       kind,
       ((library, fields, options) => library.writeKnowledge(kind, fields as never, options)) satisfies Writer,
     ]),
@@ -379,6 +380,30 @@ const edit = verb({
   },
 });
 
+const refile = verb({
+  command: { family: "library", name: "refile", summary: "rewrite an artifact as another kind under the same id, its links and history kept (ADR-1058 D2)", usage: "library refile <id> <kind> --<field> <value|@file> …" },
+  tool: NOT_A_TOOL,
+  writes: true,
+  inputs: {
+    "<id>": { kind: "text", word: 0, optional: true, describe: "the artifact's id" },
+    "<kind>": { kind: "text", word: 1, optional: true, describe: "the kind it becomes" },
+    "<fields>": { kind: "fields", describe: "the new kind's whole set of fields" },
+  },
+  async act({ "<id>": given, "<kind>": kind, "<fields>": values }, context: LibraryVerbContext) {
+    const id = needed(given, "the artifact's id");
+    const to = needed(kind, "the kind it becomes");
+    let refiled;
+    try {
+      refiled = await withIdLists(fieldsOf(values), (fields) => context.library.refile(id, to as KnowledgeKind, fields as never, context.writer!));
+    } catch (error) {
+      if (error instanceof RangeError) throw new VerbRefusal(error.message, { misuse: true });
+      throw error;
+    }
+    if (refiled === null) throw new VerbRefusal(`no live artifact "${id}" in this project`);
+    return { text: `Refiled ${id} as ${to}.`, next: [{ command: `library read ${id}`, why: "read it back" }] };
+  },
+});
+
 const retire = verb({
   command: { family: "library", name: "retire", summary: "retire a record, keeping its reason and writer in history", usage: "library retire <id> --reason <why>" },
   tool: NOT_A_TOOL,
@@ -459,5 +484,5 @@ export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{
   summary: "read, search and write the project's records",
   order: 1,
   guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", view: "library read <id>", pull: "library read <id>", artifact: "library read <id>" },
-  verbs: [search, phrase, links, related, create, read, edit, retire, list, history],
+  verbs: [search, phrase, links, related, create, read, edit, refile, retire, list, history],
 }];

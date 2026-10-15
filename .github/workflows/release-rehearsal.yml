@@ -21,6 +21,7 @@ on:
       - apps/desktop/check-install-mac.mjs
       - apps/desktop/check-install-linux.mjs
       - apps/desktop/package.json
+      - packages/app/src/updates/release-carry.ts
 
 concurrency:
   group: release-rehearsal-${{ github.ref }}
@@ -37,3 +38,25 @@ jobs:
     with:
       rehearsal: true
     secrets: inherit
+
+  # What a real release would publish from the platforms that built, carrying the newest real release's build for any
+  # that did not (contract 4.6), read from GitHub and published nowhere. It runs when a platform failed too: that is
+  # the case it shows.
+  publication:
+    needs: rehearse
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: rehearsal-set-*
+          merge-multiple: true
+          path: rehearsal-sets
+      - run: node apps/desktop/release.mjs rehearse-publish rehearsal-sets
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -155,8 +155,13 @@ st_release() {
   if [ "$1" = stable ] && [ "$(st_json channelSchema < "$3")" != 1 ]; then
     st_fail 'The pinned release cannot preserve the stable release channel'; return
   fi
-  if [ "$ST_SYSTEM" = linux ]; then st_key=linux; st_expected="storytree-0.3-$st_version-linux-x86_64.AppImage"; st_label='Linux app'
-  else st_key=macos; st_expected="storytree-0.3-$st_version-mac-$2.zip"; st_label='Mac app'; fi
+  if [ "$ST_SYSTEM" = linux ]; then st_key=linux; st_label='Linux app'; else st_key=macos; st_label='Mac app'; fi
+  # A release without this system's new build names the last good one, with that build's version and release (4.6).
+  st_build=$(st_json "$st_key.$2.version" < "$3") || st_build=$st_version
+  case "$st_build" in 0.3.0 | 0.3.[1-9] | 0.3.[1-9]*[0-9]) ;; *) st_fail "the release manifest names no valid $st_label build"; return ;; esac
+  case "${st_build#0.3.}" in *[!0-9]*) st_fail "the release manifest names no valid $st_label build"; return ;; esac
+  if [ "$ST_SYSTEM" = linux ]; then st_expected="storytree-0.3-$st_build-linux-x86_64.AppImage"
+  else st_expected="storytree-0.3-$st_build-mac-$2.zip"; fi
   ST_PAYLOAD_NAME=$(st_json "$st_key.$2.name" < "$3")
   ST_PAYLOAD_SHA=$(st_json "$st_key.$2.sha256" < "$3")
   if [ "$ST_PAYLOAD_NAME" != "$st_expected" ]; then
@@ -166,7 +171,7 @@ st_release() {
     *[!0-9a-fA-F]*) st_fail "the release manifest has no valid checksum for the $st_label"; return ;;
   esac
   [ "${#ST_PAYLOAD_SHA}" -eq 64 ] || { st_fail "the release manifest has no valid checksum for the $st_label"; return; }
-  ST_PAYLOAD_URL="https://github.com/$ST_REPO/releases/download/v$st_version/$ST_PAYLOAD_NAME"
+  ST_PAYLOAD_URL="https://github.com/$ST_REPO/releases/download/v$st_build/$ST_PAYLOAD_NAME"
 }
 
 # st_profile_add FILE ENTRY: one marked PATH line for a login shell, written once; an older line of ours is replaced.

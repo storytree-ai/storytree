@@ -80,6 +80,14 @@ pin='{"schema":1,"channel":"stable","version":"0.3.124"}'
 refused "does not match" "a release that is not the pinned one" st_release stable arm64 "$root/manifest.json"
 manifest='{"schema":1,"channelSchema":1,"version":"0.3.123","installer":{"name":"storytree-0.3-0.3.123-setup.exe"}}'
 refused "no Mac app" "a release without the Mac app" st_release development arm64 "$root/manifest.json"
+# A release whose Mac build failed names the last good one, which is taken from its own release (4.6).
+manifest='{"schema":1,"channelSchema":1,"version":"0.3.124","macos":{"arm64":{"name":"storytree-0.3-0.3.122-mac-arm64.zip","version":"0.3.122","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}}'
+st_release development arm64 "$root/manifest.json"
+check "$ST_PAYLOAD_URL" "https://github.com/storytree-ai/storytree/releases/download/v0.3.122/storytree-0.3-0.3.122-mac-arm64.zip" "a carried Mac build comes from its own release"
+manifest='{"schema":1,"channelSchema":1,"version":"0.3.124","macos":{"arm64":{"name":"storytree-0.3-0.3.124-mac-arm64.zip","version":"0.3.123","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}}'
+refused "no Mac app" "a carried entry whose app is not that build's" st_release development arm64 "$root/manifest.json"
+manifest='{"schema":1,"channelSchema":1,"version":"0.3.124","macos":{"arm64":{"name":"storytree-0.3-latest-mac-arm64.zip","version":"latest","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}}'
+refused "no valid Mac app build" "a carried entry that names no build" st_release development arm64 "$root/manifest.json"
 
 # An acceptance run installs a named build as a stable user would get it, before the pin moves to it.
 pin='{"schema":1,"channel":"stable","version":"0.3.100"}'

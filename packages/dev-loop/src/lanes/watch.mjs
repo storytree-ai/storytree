@@ -104,7 +104,8 @@ export async function releasesOnGitHub({ repo, now = Date.now }) {
   const release = { tag: latest.tag_name, sha: latest.target_commitish, at: latest.published_at };
   const attempts = [];
   for (const run of (await ghJson(repo, `${REPO}/actions/workflows/release.yml/runs?per_page=30`)).workflow_runs) {
-    if (Date.parse(run.created_at) <= Date.parse(release.at)) break;
+    // The run that published the latest release is read too: it may have published it without a platform (4.6).
+    if (Date.parse(run.created_at) <= Date.parse(release.at) && run.head_sha !== release.sha) break;
     const jobs = await jobsOf(repo, run);
     if (attempted(jobs)) attempts.push(asRun(run, jobs));
   }

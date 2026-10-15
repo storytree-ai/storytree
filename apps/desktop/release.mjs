@@ -6,11 +6,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { releaseSource, versionAt } from "../../packages/app/src/updates/release-source.ts";
-import { INSTALL_COMMAND, MAC_INSTALL_COMMAND, mergeDelivery } from "./delivery-assets.mjs";
-import { hostPlatform, missingAssets, platformUploads, PLATFORMS } from "./release-assets.mjs";
+import { carriedFeed, feedVersion, PLATFORM_FEED, PLATFORM_NAME, platformsNote, releaseDelivery } from "../../packages/app/src/updates/release-carry.ts";
+import { INSTALL_COMMAND, MAC_INSTALL_COMMAND, macBootstraps, windowsBootstraps } from "./delivery-assets.mjs";
+import { freshPlatforms, hostPlatform, PLATFORMS, platformUploads } from "./release-assets.mjs";
 import { macReleaseNote, withMacNote } from "./mac-signing.mjs";
 
 const repository = "storytree-ai/storytree";
+/** Each platform's own delivery file: Windows' manifest, and the Mac's and Linux's entries merged into it on publish. */
+const OWN_DELIVERY = { windows: "storytree-delivery.json", mac: "storytree-delivery-mac.json", linux: "storytree-delivery-linux.json" };
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const gh = (...args) => execFileSync("gh", args, { encoding: "utf8" }).trim();
 const output = (key, value) => appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
@@ -20,15 +23,17 @@ function onMain(sha) {
   git("merge-base", "--is-ancestor", sha, "origin/main");
 }
 
-function newerThanPublished(version) {
+/** Where `version` stands against GitHub's latest published release: "newer", "latest" (it is that release) or "older". */
+function againstPublished(version) {
   const result = spawnSync("gh", ["api", `repos/${repository}/releases/latest`], { encoding: "utf8" });
   if (result.status !== 0) {
-    if (result.stderr.includes("HTTP 404")) return true;
+    if (result.stderr.includes("HTTP 404")) return "newer";
     throw new Error(result.stderr || "Could not read the latest release");
   }
   const latest = JSON.parse(result.stdout).tag_name;
   if (!/^v\d+\.\d+\.\d+$/.test(latest)) throw new Error(`Unrecognised release version: ${latest}`);
-  return version.localeCompare(latest.slice(1), "en", { numeric: true }) > 0;
+  const order = version.localeCompare(latest.slice(1), "en", { numeric: true });
+  return order > 0 ? "newer" : order === 0 ? "latest" : "older";
 }
 
 // A rehearsal (release-package.yml called with rehearsal: true, ADR-1032 D3) runs the same build, signing and install
@@ -46,7 +51,7 @@ if (process.argv[2] === "source") {
   } else {
     onMain(sha);
     const version = versionAt(git, sha);
-    if (newerThanPublished(version)) {
+    if (againstPublished(version) === "newer") {
       output("sha", sha);
       output("version", version);
     } else console.log(`${version} was already published or superseded.`);
@@ -56,13 +61,16 @@ if (process.argv[2] === "source") {
   const version = process.env.STORYTREE_RELEASE_VERSION;
   if (!/^[a-f0-9]{40}$/.test(sha) || !/^\d+\.\d+\.\d+$/.test(version)) throw new Error("Missing verified release identity");
   onMain(sha);
-  if (newerThanPublished(version)) {
+  const standing = againstPublished(version);
+  // A published release is still completed by a later run of a platform that was missing from it (4.6), but only
+  // while it is the latest: a newer release carries every platform's newest build itself.
+  if (standing === "newer" || (standing === "latest" && process.argv[2] !== "draft")) {
     const tag = `v${version}`;
     // A draft keeps partially uploaded releases invisible to installed clients. Reruns can finish it.
     // One job makes it before the platforms upload: two drafts can share a tag, so never race to create.
     const existing = spawnSync("gh", ["release", "view", tag, "--repo", repository, "--json", "isDraft,targetCommitish,assets"], { encoding: "utf8" });
     const release = existing.status === 0 ? JSON.parse(existing.stdout) : undefined;
-    if (release !== undefined && (!release.isDraft || release.targetCommitish !== sha)) throw new Error("Release identity already belongs to another publication");
+    if (release !== undefined && ((!release.isDraft && standing !== "latest") || release.targetCommitish !== sha)) throw new Error("Release identity already belongs to another publication");
     if (process.argv[2] === "draft") {
       if (release === undefined) gh("release", "create", tag, "--repo", repository, "--target", sha, "--draft", "--title", `storytree ${version}`, "--notes", notes(INSTALL_COMMAND.trim(), MAC_INSTALL_COMMAND.trim(), sha));
     } else if (release === undefined) {
@@ -78,24 +86,10 @@ if (process.argv[2] === "source") {
       if (platform === "mac") {
         const answer = path.join(dir, "mac-notarisation.json");
         const mode = !existsSync(answer) ? "ad-hoc" : JSON.parse(readFileSync(answer, "utf8")).notarised ? "notarised" : "pending";
-        const body = gh("release", "view", tag, "--repo", repository, "--json", "body", "--jq", ".body");
-        const notesFile = path.join(mkdtempSync(path.join(tmpdir(), "storytree-notes-")), "notes.md");
-        writeFileSync(notesFile, withMacNote(body, mode));
-        gh("release", "edit", tag, "--repo", repository, "--notes-file", notesFile);
+        editNotes(tag, (body) => withMacNote(body, mode));
       }
-    } else {
-      const missing = missingAssets(release.assets.map((asset) => asset.name), version);
-      if (Object.keys(missing).length > 0) throw new Error(`Release ${tag} is incomplete: ${JSON.stringify(missing)}`);
-      // Only the Mac and Linux runners have their apps, so their manifest entries join Windows' manifest here, before anyone can read it.
-      const dir = mkdtempSync(path.join(tmpdir(), "storytree-delivery-"));
-      gh("release", "download", tag, "--repo", repository, "--dir", dir, "--pattern", "storytree-delivery.json", "--pattern", "storytree-delivery-mac.json", "--pattern", "storytree-delivery-linux.json");
-      const read = (name) => JSON.parse(readFileSync(path.join(dir, name), "utf8"));
-      const merged = ["storytree-delivery-mac.json", "storytree-delivery-linux.json"].reduce((manifest, entry) => mergeDelivery(manifest, read(entry)), read("storytree-delivery.json"));
-      writeFileSync(path.join(dir, "storytree-delivery.json"), JSON.stringify(merged, null, 2) + "\n");
-      gh("release", "upload", tag, path.join(dir, "storytree-delivery.json"), "--repo", repository, "--clobber");
-      gh("release", "edit", tag, "--repo", repository, "--draft=false", "--latest");
-    }
-  }
+    } else publish(tag, version, release);
+  } else console.log(`${version} was already published or superseded.`);
 } else if (process.argv[2] === "rehearse") {
   // Where a real release uploads, a rehearsal only checks this runner built its platform's whole set.
   const version = process.env.STORYTREE_RELEASE_VERSION || JSON.parse(readFileSync("apps/desktop/package.json", "utf8")).version;
@@ -103,8 +97,77 @@ if (process.argv[2] === "source") {
   const files = platformUploads(platform, readdirSync("apps/desktop/release"));
   const missing = PLATFORMS[platform].required(version).filter((name) => !files.includes(name));
   if (missing.length > 0) throw new Error(`Missing ${platform} release assets: ${missing.join(", ")}`);
+  // The set's names, for rehearse-publish to read with this platform's delivery file.
+  writeFileSync(path.join("apps/desktop/release", `${platform}.names`), files.join("\n") + "\n");
   console.log(`Rehearsal: ${platform} built its complete set for ${version}; nothing was drafted, uploaded or published.`);
-} else throw new Error("Use source, draft, upload, publish or rehearse");
+} else if (process.argv[2] === "rehearse-publish") {
+  // After a rehearsal's platforms ran, what publishing would do with the ones that built (4.22): each built platform's
+  // set names and delivery file are in the folder given; the newest real release supplies any carried build. Read only.
+  const dir = path.resolve(process.argv[3] ?? "");
+  const version = process.env.STORYTREE_RELEASE_VERSION || JSON.parse(readFileSync("apps/desktop/package.json", "utf8")).version;
+  const names = readdirSync(dir).filter((name) => name.endsWith(".names")).flatMap((name) => readFileSync(path.join(dir, name), "utf8").split("\n").filter(Boolean));
+  const { manifest, summary } = publication(`v${version}`, version, names, dir);
+  console.log(`Rehearsal: ${summary} Nothing was published.`);
+  console.log(JSON.stringify(manifest, null, 2));
+} else throw new Error("Use source, draft, upload, publish, rehearse or rehearse-publish");
+
+/**
+ * What publishing writes (4.6), into `dir`, which holds each fresh platform's own delivery file. Every platform whose
+ * build is in the release (`names`) publishes it. A platform whose build is not keeps its last good build: its feed and
+ * delivery entry are carried from the newest earlier published release, and its bootstraps, which name no build, are
+ * written from this checkout. It reads GitHub and changes nothing there.
+ */
+function publication(tag, version, names, dir) {
+  const fresh = freshPlatforms(names, version);
+  if (fresh.length === 0) throw new Error(`Release ${tag} has no platform's complete build`);
+  const absent = Object.keys(PLATFORMS).filter((platform) => !fresh.includes(platform));
+  const mine = Object.fromEntries(fresh.map((platform) => [platform, JSON.parse(readFileSync(path.join(dir, OWN_DELIVERY[platform]), "utf8"))]));
+  const uploads = [];
+  const carried = {};
+  let earlier;
+  if (absent.length > 0) {
+    const from = JSON.parse(gh("api", `repos/${repository}/releases?per_page=20`)).find((r) => !r.draft && !r.prerelease && r.tag_name !== tag);
+    if (!from) throw new Error(`No earlier release carries ${absent.map((p) => PLATFORM_NAME[p]).join(" or ")} for ${tag}`);
+    const earlierDir = mkdtempSync(path.join(tmpdir(), "storytree-earlier-"));
+    gh("release", "download", from.tag_name, "--repo", repository, "--dir", earlierDir, "--pattern", "storytree-delivery.json", ...absent.flatMap((platform) => ["--pattern", PLATFORM_FEED[platform]]));
+    earlier = JSON.parse(readFileSync(path.join(earlierDir, "storytree-delivery.json"), "utf8"));
+    for (const platform of absent) {
+      const feed = carriedFeed(readFileSync(path.join(earlierDir, PLATFORM_FEED[platform]), "utf8"));
+      carried[platform] = feedVersion(feed);
+      writeFileSync(path.join(dir, PLATFORM_FEED[platform]), feed);
+      uploads.push(PLATFORM_FEED[platform]);
+    }
+    if (absent.includes("windows")) { windowsBootstraps(dir); uploads.push("install-storytree.ps1", "install-storytree.txt", "install-storytree-development.txt"); }
+    if (absent.includes("mac")) { macBootstraps(dir); uploads.push("install-storytree.sh", "install-storytree-mac.txt", "install-storytree-mac-development.txt"); }
+  }
+  const manifest = releaseDelivery(version, mine, earlier);
+  writeFileSync(path.join(dir, "storytree-delivery.json"), JSON.stringify(manifest, null, 2) + "\n");
+  uploads.push("storytree-delivery.json");
+  const summary = absent.length === 0 ? `${tag} carries every platform's new build.`
+    : `${tag} has no new ${absent.map((p) => PLATFORM_NAME[p]).join(" or ")} build: ${absent.map((p) => `${PLATFORM_NAME[p]} stays on ${carried[p]}`).join(", ")}.`;
+  return { fresh, carried, uploads, manifest, summary };
+}
+
+/** Publishes the draft with what `publication` writes; run again after a missing platform's later upload, it brings that platform in. */
+function publish(tag, version, release) {
+  const names = release.assets.map((asset) => asset.name);
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-delivery-"));
+  const fresh = freshPlatforms(names, version);
+  if (fresh.length > 0) gh("release", "download", tag, "--repo", repository, "--dir", dir, ...fresh.flatMap((platform) => ["--pattern", OWN_DELIVERY[platform]]));
+  const { carried, uploads, summary } = publication(tag, version, names, dir);
+  console.log(summary);
+  gh("release", "upload", tag, ...uploads.map((file) => path.join(dir, file)), "--repo", repository, "--clobber");
+  editNotes(tag, (body) => platformsNote(body, carried));
+  gh("release", "edit", tag, "--repo", repository, "--draft=false", "--latest");
+  output("mac", String(fresh.includes("mac")));
+}
+
+function editNotes(tag, change) {
+  const body = gh("release", "view", tag, "--repo", repository, "--json", "body", "--jq", ".body");
+  const notesFile = path.join(mkdtempSync(path.join(tmpdir(), "storytree-notes-")), "notes.md");
+  writeFileSync(notesFile, change(body));
+  gh("release", "edit", tag, "--repo", repository, "--notes-file", notesFile);
+}
 
 /** The release page's text: how to install first, since a first user may arrive here from anywhere. */
 function notes(command, macCommand, sha) {

@@ -105,6 +105,16 @@ jobs:
       - name: Check this platform's assets are complete, publishing nothing
         if: inputs.rehearsal
         run: node apps/desktop/release.mjs rehearse
+      # The set's names and delivery file, small, for the rehearsal's last job to say what publishing would do.
+      - name: Keep what this platform would publish
+        if: inputs.rehearsal
+        uses: actions/upload-artifact@v7
+        with:
+          name: rehearsal-set-${{ matrix.system }}
+          path: |
+            apps/desktop/release/*.names
+            apps/desktop/release/storytree-delivery*.json
+          retention-days: 5
       - name: Keep the rehearsal's installers and Apple's answer
         if: always() && inputs.rehearsal
         uses: actions/upload-artifact@v7

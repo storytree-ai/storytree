@@ -55,8 +55,10 @@ test("4.23 the stable candidate is the newest build that covers the pin's platfo
 
 test("4.23 GitHub's release says which platforms it carries, and a release run passes only when it published and its Mac acceptance run passed", () => {
   const asset = (name: string) => ({ name, browser_download_url: "", id: 1, size: 1 });
-  assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.5-setup.exe", "latest-linux.yml", "latest.yml"].map(asset) }), ["windows", "linux"]);
-  assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.4-setup.exe", "latest-mac.yml"].map(asset) }), ["mac"]);
+  assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.5-setup.exe", "storytree-0.3-0.3.5-linux-x86_64.AppImage", "latest-linux.yml", "latest.yml"].map(asset) }), ["windows", "linux"]);
+  assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.4-setup.exe", "storytree-0.3-0.3.5-mac-arm64.zip", "latest-mac.yml"].map(asset) }), ["mac"]);
+  // A feed carried from an earlier build (4.6) is not this release's build of its platform.
+  assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.5-setup.exe", "latest.yml", "latest-mac.yml", "latest-linux.yml"].map(asset) }), ["windows"]);
   const run = (id: number, publish: string, acceptance: string | null) => ({ id, jobs: [{ name: "source", conclusion: "success" }, { name: "publish", conclusion: publish }, { name: "mac-acceptance / run", conclusion: acceptance }] });
   assert.equal(releaseRunPassed([]).passed, false);
   assert.equal(releaseRunPassed([run(1, "skipped", "skipped")]).passed, false);

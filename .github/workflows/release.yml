@@ -84,14 +84,19 @@ jobs:
       version: ${{ needs.source.outputs.version }}
     secrets: inherit
 
-  # Published only when every platform's required assets are in the draft (contract 4.6), after the
-  # Mac entry is merged into storytree-delivery.json.
+  # Published with every platform whose build is in the draft, even when another platform's job failed (contract 4.6):
+  # a platform whose build is not keeps its last good build's feed and delivery entry, carried from the earlier release.
+  # The failed platform's job leaves this run red, so the Mint watcher reruns it once, and that rerun's upload and this
+  # job's rerun bring the platform into the release while it is still the latest.
   publish:
-    needs: [source, package]
+    needs: [source, draft, package]
+    if: ${{ !cancelled() && needs.draft.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: write
+    outputs:
+      mac: ${{ steps.publish.outputs.mac }}
     env:
       STORYTREE_RELEASE_VERSION: ${{ needs.source.outputs.version }}
       RELEASE_SHA: ${{ needs.source.outputs.sha }}
@@ -103,7 +108,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - name: Publish the release once every platform's assets are complete
+      - name: Publish the release with every platform whose build is complete
+        id: publish
         run: node apps/desktop/release.mjs publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -111,8 +117,10 @@ jobs:
   # Check (a) of decision_b0a98e971a05 D4: the published development one-liner, run on a fresh GitHub Mac, must
   # install this very version and bring up the app, its database and the setup check. The concurrency group keeps
   # the next release from publishing first, so "latest" is still this one. The evidence is an artifact of this run.
+  # A release without a new Mac build has nothing new for it to install, so it runs only when the Mac's build is in.
   mac-acceptance:
     needs: [source, publish]
+    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.mac == 'true' }}
     uses: ./.github/workflows/mac-acceptance.yml
     with:
       channel: development

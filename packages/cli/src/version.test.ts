@@ -11,10 +11,6 @@ import { buildBins } from "@storytree/app-setup/bins";
 
 import { run } from "./index.js";
 
-// 1.9 runs in the real project: run it as a person, so the door records no line on the agent session
-// running the tests (ADR-0983 D1).
-for (const name of ["CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"]) delete process.env[name];
-
 test("1.9 from a source checkout, `storytree --version` prints the desktop app's 0.3.<n> for this commit, and its short commit", async () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const git = (...args: string[]) => execFileSync("git", ["-C", here, ...args], { encoding: "utf8" }).trim();

@@ -9,6 +9,8 @@ import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
+import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
+
 import { clearUnitLimit, DEADLINE_GRACE_MS, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
 
 function fixture(t, files) {
@@ -82,6 +84,20 @@ test("leaves files behind", () => {
   assert.equal(path.dirname(seen.tmpdir), tmpdir(), "a folder inside the system temp folder");
   assert.deepEqual([seen.TMPDIR, seen.TMP, seen.TEMP], [seen.tmpdir, seen.tmpdir, seen.tmpdir], "every platform's temp variable names it");
   assert.equal(existsSync(seen.tmpdir), false, "removed with the stamp and the folder the test left in it");
+});
+
+// friction_fa050a39ba6f: tests an agent ran wrote their fixture words into the real project's door-answered lines, on its session.
+test("6.15 · a unit's tests start with no agent session: no watched harness's session variable and no STORYTREE_SESSION_ID", async (t) => {
+  const root = fixture(t, {
+    "session.test.mjs": `import { writeFileSync } from "node:fs"; import { test } from "node:test";
+test("records its environment", () => writeFileSync("RECORD", JSON.stringify(process.env)));`,
+  });
+  const named = Object.fromEntries([...WATCHED_HARNESSES.flatMap((harness) => (harness.shellSession === undefined ? [] : [harness.shellSession])), SESSION_ENV].map((name) => [name, "agent-1"]));
+  const run = await runUnit({ root, files: ["session.test.mjs"], env: { ...process.env, ...named }, stdio: "ignore" });
+  assert.equal(run.code, 0);
+  assert.ok(Object.keys(named).length >= 5, "every watched harness's variable and storytree's own");
+  const seen = JSON.parse(readFileSync(path.join(root, "RECORD"), "utf8"));
+  assert.deepEqual(Object.keys(named).filter((name) => name in seen), []);
 });
 
 // increment_655d99c13fc3: a file dying before it reports any test must explain its failure.

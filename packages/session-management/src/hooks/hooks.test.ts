@@ -37,7 +37,8 @@ import { claim, readClaims } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
 import { SHELL_GUARD } from "./shell-guard.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
-import { BACKGROUND, hookLines, recordHookEvent, type ReachLog } from "./hooks.js";
+import { BACKGROUND, hookLines, type ReachLog } from "./hooks.js";
+import { hookTools } from "./tools.js";
 import { queueFolder } from "./queue.js";
 import { readSettings, setSetting } from "@storytree/project-and-caller";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
@@ -1443,7 +1444,11 @@ test("3.40 a hook event delivered through the tool server records the lines its 
         const down: ReachLog = async () => { throw new Error("storytree is not answering"); };
         const input = (session: string) => ({ ...JSON.parse(recorded("claude-code", "post-tool-use-bash", folder)), session_id: `${project}-${session}` });
         const command = async (session: string) => assert.equal((await runHook("claude-code", JSON.stringify(input(session)), home)).code, 0);
-        const tool = (session: string, by = reach) => recordHookEvent("claude-code", input(session), by);
+        // Delivered as the tool server hands its hook_event tool a call, through the server's connection.
+        type Deliver = (args: { harness: string; input: Record<string, unknown> }, call: { reach: ReachLog; locate: undefined }) => Promise<{ data?: Record<string, unknown> }>;
+        let deliver: Deliver | undefined;
+        hookTools().registerHarnessTools?.((name, _description, _input, act) => { if (name === "hook_event") deliver = act as unknown as Deliver; });
+        const tool = async (session: string, by = reach) => (await deliver!({ harness: "claude-code", input: input(session) }, { reach: by, locate: undefined })).data;
 
         await command("command-only");
         assert.deepEqual(await tool("tool-only"), { recorded: 1, waiting: 0 });

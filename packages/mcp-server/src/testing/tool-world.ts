@@ -30,6 +30,7 @@ export const TOOLS = [
   "focus",
   "graduate_check",
   "health_worklist",
+  "hook_event",
   "import_project",
   "land",
   "list_all_runs",

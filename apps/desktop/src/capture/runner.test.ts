@@ -54,6 +54,24 @@ test("2.12 · a capture's stand-in bridge opens the page with the first-run guid
   assert.equal(await guideSeen({ guide: "unseen" }), null, "a capture of the guide itself opts back in to a first launch");
 });
 
+test("2.16 · a capture's stand-in bridge hides every teaching card the page shows, unless the capture pictures the cards", async t => {
+  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  t.after(() => browser.close());
+  const cardsShown = async (options?: { teaching: "shown" }) => {
+    const page = await browser.newPage();
+    await page.route("http://capture.test/**", route => route.fulfill({ contentType: "text/html", body: `<body><div class="teaching-card">first</div><script>setTimeout(() => { const late = document.createElement("div"); late.className = "teaching-card"; late.textContent = "later"; document.body.append(late); document.body.dataset.state = "ready"; }, 50);</script></body>` }));
+    await fakeBridge({}, options).install(page);
+    await page.goto("http://capture.test/index.html");
+    await page.waitForFunction(() => document.body.dataset.state === "ready");
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+    const shown = await page.locator(".teaching-card").evaluateAll(cards => cards.map(card => getComputedStyle(card).display !== "none"));
+    await page.close();
+    return shown;
+  };
+  assert.deepEqual(await cardsShown(), [false, false], "a card already in the page and one added later are both hidden, so none intercepts a capture's clicks");
+  assert.deepEqual(await cardsShown({ teaching: "shown" }), [true, true], "a capture of the cards themselves opts back in to seeing them");
+});
+
 // Each probe owns its socket and finishes only after it closes. Global fetch leaves
 // connection cleanup running, which can abort native Windows Node at test-force-exit.
 function readPage(url: string): Promise<string> {

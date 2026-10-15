@@ -59,6 +59,8 @@ export interface SeededCaptureOptions extends CaptureOptions {
   answers?: Partial<StorytreeBridge>;
   /** The first-run guide is already seen unless "unseen", for a capture of the guide itself. */
   guide?: FakeBridgeOptions["guide"];
+  /** The teaching cards are hidden unless "shown", for a capture of the cards themselves. */
+  teaching?: FakeBridgeOptions["teaching"];
   viewport?: ViewportSize;
   prepare?: (context: CapturePage) => unknown | Promise<unknown>;
   views: CaptureView[];
@@ -128,7 +130,7 @@ export async function runCapture(options: SeededCaptureOptions): Promise<unknown
       frontCovers: async (_, id) => seed.covers[id] ?? [],
       ...(survey === undefined ? {} : { codeSurvey: async () => survey }),
       ...answers,
-    }, { guide: options.guide });
+    }, { guide: options.guide, teaching: options.teaching });
     const page = await context.browser.newPage({ viewport: options.viewport ?? { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: "dark" });
     const errors: string[] = [], warnings: string[] = [], failed: string[] = [];
     page.on("pageerror", error => errors.push(String(error)));

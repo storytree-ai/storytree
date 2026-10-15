@@ -16,7 +16,7 @@ export interface FakeBridge {
   readonly defaulted: readonly string[];
   /** Rejects, naming the method, at the first call the fake cannot answer; never resolves. */
   readonly unanswered: Promise<never>;
-  /** Put the fake on `page` as window.storytree, and the first-run guide's memory, before the page's own scripts run. */
+  /** Put the fake on `page` as window.storytree, the first-run guide's memory and the teaching cards' hiding, before the page's own scripts run. */
   install(page: Page): Promise<void>;
   /** Wait until `page`'s body reads data-state=ready, failing at once on an unanswered call. */
   ready(page: Page, timeoutMs?: number): Promise<void>;
@@ -37,9 +37,18 @@ const PAGE_BRIDGE = `window.storytree = new Proxy({}, { get: (_, method) => meth
  */
 const GUIDE_SEEN = `try { localStorage.setItem("storytree:setup:guide-seen:v1", "yes"); } catch { /* about:blank has no storage */ }`;
 
+/**
+ * Every teaching card (learning-as-you-build) hidden as it appears, so none intercepts a capture's
+ * clicks. An init script, since the page's CSP refuses an added style tag; it watches the document
+ * itself, which exists before the page's own elements do. Text for the same reason as PAGE_BRIDGE.
+ */
+const TEACHING_HIDDEN = `new MutationObserver(() => { for (const card of document.querySelectorAll(".teaching-card")) card.style.display = "none"; }).observe(document, { childList: true, subtree: true });`;
+
 export interface FakeBridgeOptions {
   /** "unseen" for a capture of the first-run guide itself: the page then opens as a first launch. */
   guide?: "seen" | "unseen" | undefined;
+  /** "shown" for a capture of the teaching cards themselves; otherwise every card is hidden. */
+  teaching?: "hidden" | "shown" | undefined;
 }
 
 const PROJECT = "storytree";
@@ -93,7 +102,7 @@ const QUIET: StorytreeBridge = {
 };
 
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */
-export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen" }: FakeBridgeOptions = {}): FakeBridge {
+export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen", teaching = "hidden" }: FakeBridgeOptions = {}): FakeBridge {
   let refuse!: (error: Error) => void;
   const unanswered = new Promise<never>((_, reject) => (refuse = reject));
   unanswered.catch(() => {});
@@ -122,6 +131,7 @@ export function fakeBridge(answers: Partial<StorytreeBridge>, { guide = "seen" }
       await page.exposeFunction("storytreeFakeBridge", call);
       await page.addInitScript(PAGE_BRIDGE);
       if (guide === "seen") await page.addInitScript(GUIDE_SEEN);
+      if (teaching === "hidden") await page.addInitScript(TEACHING_HIDDEN);
     },
     async ready(page, timeoutMs = 60_000) {
       await Promise.race([page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: timeoutMs }), unanswered]);

@@ -28,7 +28,8 @@ Run scripts with `node --import tsx`. The seed holds `projects`, `tree`, `change
 `lines` and `covers`; `survey` is optional. A typed `answers` object can override
 bridge reads. The page opens with the first-run guide already seen, on the globe;
 a capture of the guide itself passes `guide: 'unseen'` (also `fakeBridge(answers,
-{ guide: 'unseen' })`). Unseeded known reads receive the bridge's quiet defaults; an unknown
+{ guide: 'unseen' })`). Every teaching card is hidden as it appears, so none
+intercepts a capture's clicks; a capture of the cards themselves passes `teaching: 'shown'`. Unseeded known reads receive the bridge's quiet defaults; an unknown
 method fails with its name. A view writes `<name>.png` and, when measured,
 `<name>.json`; `picture: false` omits the picture and `measurement` changes the JSON
 filename. The return value is the array of measured values.

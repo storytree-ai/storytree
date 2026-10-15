@@ -94,12 +94,6 @@ await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle 
   await page.waitForFunction(() => { let n = 0; window.__globe.scene.getObjectByName('sheet:under')?.traverse(o => { if (o.name.startsWith('knowledge-point:')) n++; }); return n > 0; }, undefined, { timeout: 180000 });
   for (const name of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
   await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
-  // The teaching cards (one at a time, as each part is first met) sit over the sheet and its buttons; they are not the subject.
-  await page.evaluate(() => {
-    const hide = () => { for (const card of document.querySelectorAll('.teaching-card')) card.style.display = 'none'; };
-    hide();
-    new MutationObserver(hide).observe(document.body, { childList: true, subtree: true });
-  });
   const shoot = async name => {
     await page.mouse.move(2, 2);
     await settle(page, 30);

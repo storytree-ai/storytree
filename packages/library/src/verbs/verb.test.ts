@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { mounted, verb, VerbRefusal, type VerbFamily, type VerbPlace } from "./verb.js";
+import { consumersOf, mounted, verb, VerbRefusal, type VerbFamily, type VerbPlace } from "./verb.js";
 
 test("16.1 · a verb is declared once with a face on each door or why a door lacks one, and its refusal is a misuse only when it says so, carrying the steps that do the job instead", async () => {
   const look = verb({
@@ -28,4 +28,10 @@ test("16.1 · a verb is declared once with a face on each door or why a door lac
   const misuse = new VerbRefusal("this needs <bed>", { misuse: true });
   assert.equal(misuse.misuse, true);
   assert.deepEqual(misuse.next, []);
+});
+
+test("16.2 · a verb declares who calls it, an agent, a person or both: left out it is both, and an agent-only verb is an agent's", () => {
+  assert.deepEqual(consumersOf({ consumers: ["user"] }), ["user"]);
+  assert.deepEqual(consumersOf({}), ["agent", "user"]);
+  assert.deepEqual(consumersOf({ agentOnly: "it closes out the agent session that runs it" }), ["agent"]);
 });

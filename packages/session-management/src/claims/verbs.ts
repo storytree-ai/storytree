@@ -24,6 +24,7 @@ const work = { kind: "text", word: 0, describe: "the work's id: an increment or 
 const reason = { kind: "text", describe: "why this session takes it: its name in the sessions list" } as const;
 
 const make = verb({
+  consumers: ["agent"],
   command: {
     family: "workspace",
     name: "workspace",
@@ -50,6 +51,7 @@ const make = verb({
 });
 
 const attach = verb({
+  consumers: ["agent"],
   command: {
     family: "workspace",
     name: "attach",
@@ -81,6 +83,7 @@ const attach = verb({
 });
 
 const claimOnly = verb({
+  consumers: ["agent"],
   command: { family: "workspace", name: "claim", summary: "claim work for this agent session in the folder it is in, making no worktree (11.9)", usage: "workspace claim <increment|capability> --reason <text>" },
   tool: ownTool("claim"),
   inputs: { work, reason },
@@ -96,6 +99,7 @@ const claimOnly = verb({
 });
 
 const releaseClaim = verb({
+  consumers: ["agent"],
   command: {
     family: "workspace",
     name: "release",
@@ -134,6 +138,7 @@ const releaseClaim = verb({
 });
 
 const stale = verb({
+  consumers: ["agent"],
   command: {
     family: "workspace",
     name: "stale",
@@ -156,6 +161,7 @@ const stale = verb({
 });
 
 const allow = verb({
+  consumers: ["user"],
   command: {
     family: "workspace",
     name: "allow",
@@ -185,6 +191,7 @@ function prNumber(typed: string): number {
 }
 
 const holdForPr = verb({
+  consumers: ["agent"],
   command: {
     family: "workspace",
     name: "hold",
@@ -205,6 +212,7 @@ const holdForPr = verb({
 });
 
 const letGoOfPr = verb({
+  consumers: ["agent"],
   command: {
     family: "workspace",
     name: "let-go",

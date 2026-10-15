@@ -1,10 +1,14 @@
-/** Reading the front doors 1.1–1.5: the counts one window of door-answered lines gives, against the doors' declared surfaces. */
+/** Reading the front doors 1.1–1.5 and 1.7: the counts one window of door-answered lines gives, against the doors' declared surfaces. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { countDoors, type DoorLine } from "./reading.js";
 
-const declared = { commands: ["storytree arc show", "storytree arc list", "storytree library search"], tools: ["show_plan", "search_notes", "retire"] };
+const both = ["agent", "user"] as const;
+const declared = {
+  commands: ["storytree arc show", "storytree arc list", "storytree library search"].map((verb) => ({ verb, consumers: both })),
+  tools: ["show_plan", "search_notes", "retire"].map((verb) => ({ verb, consumers: ["agent"] as const })),
+};
 const window = { since: "2026-10-01T00:00:00.000Z", until: "2026-10-08T00:00:00.000Z" };
 let at = 0;
 /** A door-answered line, answered unless told otherwise, each a second after the last. */
@@ -22,11 +26,11 @@ test("1.1 · every declared command and tool is listed with its calls and sessio
     line("b", "command", "storytree"),
   ], declared, new Map(), window);
   const of = (verb: string) => reading.surfaces.find((surface) => surface.verb === verb);
-  assert.deepEqual(of("storytree arc show"), { door: "command", verb: "storytree arc show", declared: true, calls: 3, sessions: 2 });
-  assert.deepEqual(of("storytree arc list"), { door: "command", verb: "storytree arc list", declared: true, calls: 0, sessions: 0 });
-  assert.deepEqual(of("retire"), { door: "tool", verb: "retire", declared: true, calls: 0, sessions: 0 });
-  assert.deepEqual(of("show_plan"), { door: "tool", verb: "show_plan", declared: true, calls: 1, sessions: 1 });
-  assert.deepEqual(of("storytree"), { door: "command", verb: "storytree", declared: false, calls: 1, sessions: 1 });
+  assert.deepEqual(of("storytree arc show"), { door: "command", verb: "storytree arc show", declared: true, consumers: both, judged: false, calls: 3, sessions: 2 });
+  assert.deepEqual(of("storytree arc list"), { door: "command", verb: "storytree arc list", declared: true, consumers: both, judged: false, calls: 0, sessions: 0 });
+  assert.deepEqual(of("retire"), { door: "tool", verb: "retire", declared: true, consumers: ["agent"], judged: true, calls: 0, sessions: 0 });
+  assert.deepEqual(of("show_plan"), { door: "tool", verb: "show_plan", declared: true, consumers: ["agent"], judged: true, calls: 1, sessions: 1 });
+  assert.deepEqual(of("storytree"), { door: "command", verb: "storytree", declared: false, judged: true, calls: 1, sessions: 1 });
   assert.equal(reading.surfaces.length, 7, "six declared surfaces and the one undeclared verb");
   assert.deepEqual(reading.calls, { command: 4, tool: 1 });
   assert.equal(reading.sessions, 2);
@@ -106,4 +110,15 @@ test("1.5 · calls, sessions and unknowns are split by machine, harness, and bri
   assert.deepEqual(split("harness", "codex"), { by: "harness", value: "codex", command: 2, tool: 0, sessions: 1, unknown: 1 });
   assert.deepEqual(split("briefed", "briefed"), { by: "briefed", value: "briefed", command: 2, tool: 1, sessions: 2, unknown: 1 });
   assert.deepEqual(split("briefed", "not briefed"), { by: "briefed", value: "not briefed", command: 1, tool: 1, sessions: 1, unknown: 0 });
+});
+
+test("1.7 · each declared verb carries its consumers, and one a person may call is not judged by these lines, which record no person's own terminal", () => {
+  const reading = countDoors([line("a", "command", "storytree arc show")], {
+    commands: [{ verb: "storytree settings show", consumers: ["user"] }, { verb: "storytree quality brief", consumers: ["agent"] }, { verb: "storytree arc show", consumers: both }],
+    tools: [],
+  }, new Map(), window);
+  const of = (verb: string) => reading.surfaces.find((surface) => surface.verb === verb);
+  assert.deepEqual(of("storytree settings show"), { door: "command", verb: "storytree settings show", declared: true, consumers: ["user"], judged: false, calls: 0, sessions: 0 });
+  assert.deepEqual(of("storytree quality brief"), { door: "command", verb: "storytree quality brief", declared: true, consumers: ["agent"], judged: true, calls: 0, sessions: 0 });
+  assert.equal(of("storytree arc show")?.judged, false, "a verb for both is never judged by the agents' lines alone");
 });

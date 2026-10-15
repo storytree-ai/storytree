@@ -332,7 +332,7 @@ for (const backend of [memory, postgres]) {
     await flight.pendChange(increment.id, { record: promise.id, retire: "overtaken by the address form" });
     await flight.pendChange(increment.id, { record: link.id, fields: { title: "2 · Link" } });
     await flight.pendChange(increment.id, { record: renumbered.id, fields: { title: "1.3 · Rejects a bad address" } });
-    await work.editCapability(link.id, { description: "Sent by another session" }, { actor: "session:other" });
+    await work.editCapability(link.id, { title: "2 · Emailed link" }, { actor: "session:other" });
     const movedLink = (await transactions.history({ id: link.id, newest: 1 }))[0]!;
     await work.addContract({ title: "1.3 · Planned by another session", capability: form.id });
 
@@ -341,7 +341,7 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual([edited.fields.title, edited.fields.description], ["1 · Address form", "Where they type it"]);
     assert.equal((await transactions.history({ id: form.id, newest: 1 }))[0]!.reason, `applied at the merge of PR #41 (${increment.id})`);
     assert.equal(await records.get(promise.id), null, "the retirement applied");
-    assert.equal(((await records.get(link.id)) as SchemaRecord<"capability">).fields.title, "2 · Confirmation link", "a stale change is not applied");
+    assert.equal(((await records.get(link.id)) as SchemaRecord<"capability">).fields.title, "2 · Emailed link", "a stale change is not applied");
     assert.equal(((await records.get(renumbered.id)) as SchemaRecord<"contract">).fields.title, "1.2 · Rejects a bad address", "a change the editor refuses is not applied");
     assert.deepEqual(result?.applied, [form.id, promise.id]);
     assert.deepEqual(result?.residue?.changes.map(({ record }) => record), [link.id, renumbered.id]);
@@ -373,6 +373,31 @@ for (const backend of [memory, postgres]) {
     assert.equal(closed?.fields.pending, undefined);
     assert.equal(((await records.get(link.id)) as SchemaRecord<"capability">).fields.title, "Link");
     assert.equal((await flight.arcView(arc.id))?.increments.length, 1, "no residue: the half-applied change was already applied");
+  });
+
+  contract("10.15", "a live write since a pending edit was read stales it only when it moved a field the edit sets: marking the capability built leaves its pending description to apply at the landing", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const form = await work.addCapability({ title: "Email form", story: story.id, description: "Where they type it" });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(increment.id, "active");
+    await flight.pendChange(increment.id, { record: form.id, fields: { description: "Where they type their address" } });
+    await work.setProposed(form.id, false, { actor: "session:same" });
+    assert.deepEqual(await flight.stalePending(increment.id), [], "the gate finds nothing stale");
+
+    const result = await flight.applyPending(increment.id, "#7");
+    const edited = (await records.get(form.id)) as SchemaRecord<"capability">;
+    assert.deepEqual([edited.fields.description, edited.fields.proposed], ["Where they type their address", false], "the edit applied over the built flag, which it left alone");
+    assert.deepEqual(result, { applied: [form.id] }, "no residue parked");
+
+    const again = await flight.addIncrement({ arc: arc.id, ...WORK });
+    await flight.advanceIncrement(again.id, "active");
+    await flight.pendChange(again.id, { record: form.id, fields: { description: "Typed here" } });
+    await work.editCapability(form.id, { description: "Typed elsewhere" }, { actor: "session:other" });
+    const moved = (await transactions.history({ id: form.id, newest: 1 }))[0]!;
+    assert.deepEqual((await flight.stalePending(again.id))?.map(({ moved }) => moved.seq), [moved.seq], "a field the edit sets has moved: stale");
+    assert.deepEqual((await flight.applyPending(again.id, "#8"))?.residue?.changes.map(({ record }) => record), [form.id]);
+    assert.equal(((await records.get(form.id)) as SchemaRecord<"capability">).fields.description, "Typed elsewhere", "never applied over the newer value");
   });
 
   contract("10.16", "an increment closed failed or withdrawn drops its pending changes, its history saying so, and the live plan is left as it was", async ({ work, flight, records, transactions }) => {

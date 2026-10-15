@@ -11,6 +11,7 @@ import type { ImportVerbContext, SetupVerbContext } from "../verbs.js";
 const NO_TOOL = { absent: "a project is removed, deleted or imported into by the person at this computer, from the app or a terminal" };
 
 const remove = verb({
+  consumers: ["user"],
   command: { family: "project", name: "remove", summary: "take a project added by mistake off this computer's list and free its folder here; its records stay in the library" },
   tool: NO_TOOL,
   callerless: true,
@@ -30,6 +31,7 @@ const remove = verb({
 });
 
 const deleting = verb({
+  consumers: ["user"],
   command: {
     family: "project", name: "delete", usage: "project delete <project> --confirm <project> [--no-snapshot]",
     summary: "delete a project's records from the library, for every computer using it, once its name is typed; a snapshot goes to this computer's backups first unless --no-snapshot",
@@ -59,6 +61,7 @@ const deleting = verb({
 export const PROJECT_VERBS: readonly Verb<VerbInputs, SetupVerbContext>[] = [remove, deleting];
 
 export const IMPORT = verb({
+  consumers: ["user"],
   command: {
     family: "import", name: "import",
     summary: "record the folder as imported by this project and map each package it declares to a mapped story; again, it adds new packages and drops gone ones; nothing is written into the folder",

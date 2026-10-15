@@ -103,7 +103,11 @@ export function islandNormal(radius: number): (point: { x: number; z: number }) 
   return ({ x, z }) => new Vector3(x, Math.sqrt(Math.max(sphere * sphere - x * x - z * z, 0)), z).normalize();
 }
 
-export function islandSurface(coast: readonly (readonly CoastPoint[])[], radius: number, story: string): Group {
+/** An island's sides on the glass sheet (ADR-1059 D2): lighter where they face south, toward the eye at rest. */
+export const ISLAND_SIDE_COLOUR = '#7d9a7a';
+
+/** The island's land on `radius`'s sphere; with a `thickness`, a raised plate whose sides run that far down from its coast. */
+export function islandSurface(coast: readonly (readonly CoastPoint[])[], radius: number, story: string, thickness = 0): Group {
   const sphere = radius + PLATE_CLEARANCE;
   // Plate-local height of the sphere under (x, z): 0 at the plate's centre, bending away from it.
   const heightAt = (x: number, z: number) => Math.sqrt(Math.max(sphere * sphere - x * x - z * z, 0)) - sphere;
@@ -136,6 +140,7 @@ export function islandSurface(coast: readonly (readonly CoastPoint[])[], radius:
     depth.raycast = () => {};
     group.add(depth);
   }
+  if (thickness > 0) group.add(islandSides(coast, heightAt, thickness));
   coast.forEach((ring, index) => {
     if (ring.length < 3) return;
     // A thin band centred on the rim: two vertices per rim point, one either side, joined round the loop.
@@ -162,6 +167,33 @@ export function islandSurface(coast: readonly (readonly CoastPoint[])[], radius:
     group.add(line);
   });
   return group;
+}
+
+/** A wall down each coast loop, `thickness` below the land at every point, shaded by the way it faces so the plate reads solid. */
+function islandSides(coast: readonly (readonly CoastPoint[])[], heightAt: (x: number, z: number) => number, thickness: number): Mesh {
+  const position: number[] = [], colour: number[] = [], indices: number[] = [];
+  const base = { r: parseInt(ISLAND_SIDE_COLOUR.slice(1, 3), 16) / 255, g: parseInt(ISLAND_SIDE_COLOUR.slice(3, 5), 16) / 255, b: parseInt(ISLAND_SIDE_COLOUR.slice(5, 7), 16) / 255 };
+  for (const ring of coast) {
+    if (ring.length < 3) continue;
+    const flip = area(ring) < 0 ? -1 : 1;
+    ring.forEach((p, i) => {
+      const q = ring[(i + 1) % ring.length]!, length = Math.hypot(q.x - p.x, q.z - p.z) || 1;
+      // The wall's outward direction on the plate, where +z is south: lit most facing south, least facing north.
+      const south = -flip * (q.x - p.x) / length, light = 0.62 + 0.38 * (south + 1) / 2;
+      const at = position.length / 3;
+      for (const { x, z } of [p, q]) position.push(x, heightAt(x, z), z, x, heightAt(x, z) - thickness, z);
+      for (let k = 0; k < 4; k++) colour.push(base.r * light, base.g * light, base.b * light);
+      indices.push(at, at + 1, at + 2, at + 1, at + 3, at + 2);
+    });
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(position, 3));
+  geometry.setAttribute('color', new Float32BufferAttribute(colour, 3));
+  geometry.setIndex(indices);
+  const sides = new Mesh(geometry, new MeshBasicMaterial({ vertexColors: true, side: DoubleSide }));
+  sides.name = 'island-side';
+  sides.raycast = () => {};
+  return sides;
 }
 
 /** Frees what {@link islandSurface} allocated. */

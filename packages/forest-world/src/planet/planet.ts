@@ -15,14 +15,14 @@ const flatCamera = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -SHIP
 const sunInView = new Vector3(LIGHT_DIRECTION.x, LIGHT_DIRECTION.y, LIGHT_DIRECTION.z)
   .normalize().applyQuaternion(flatCamera.invert());
 
-/** A rigid plate: local +y points out of the sphere, with no bend or change to its geometry. */
-export function plateTransform(spot: PlanetSpot, radius: number) {
+/** A rigid plate: local +y points out of the sphere, with no bend or change to its geometry; `lift` raises it off its rest. */
+export function plateTransform(spot: PlanetSpot, radius: number, lift = 0) {
   const normal = new Vector3(spot.x, spot.y, spot.z).normalize();
   if (!Number.isFinite(radius) || radius <= 0 || !Number.isFinite(normal.lengthSq()) || normal.lengthSq() === 0) {
     throw new Error('A planet plate needs a positive globe radius and a finite, nonzero spot.');
   }
   return {
-    position: normal.clone().multiplyScalar(radius + PLATE_CLEARANCE).toArray(),
+    position: normal.clone().multiplyScalar(radius + PLATE_CLEARANCE + lift).toArray(),
     quaternion: new Quaternion().setFromUnitVectors(UP, normal),
   };
 }

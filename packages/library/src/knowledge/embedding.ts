@@ -2,8 +2,8 @@
  * Capability 14 · Ranked search (the library story, ADR-0732; built as ADR-0733 says): a search ranks the live artifacts by
  * how close their meaning is to the question, with an embedding model computed on this computer.
  * The shape is the one 0.2's measurement settled (hindsight-memory-layer-arc-inc-02): an artifact's
- * rendered text, packed into ~3000-character chunks on paragraph boundaries; each chunk embedded;
- * an artifact scored by its best chunk's cosine with the question, which is sent with no prefix.
+ * rendered text, packed into ~1600-character chunks on paragraph boundaries (ADR-1044 D1); each chunk
+ * embedded; an artifact scored by its best chunk's cosine with the question, which is sent with no prefix.
  *
  * A vector is kept under the hash of the chunk it was made from, so an artifact that is written is
  * embedded again at the next search, and a search never ranks by a stale vector (ADR-0733 D4).
@@ -47,8 +47,11 @@ export class MemoryVectors implements VectorStore {
   }
 }
 
-/** The most characters in one chunk. */
-export const CHUNK = 3000;
+/**
+ * The most characters in one chunk: few enough that dense text stays inside the 512 tokens bge-small
+ * reads, which drops the rest without warning (ADR-1044 D1).
+ */
+export const CHUNK = 1600;
 
 /** The fields that name other artifacts or bookkeeping, not words: never rendered. */
 const UNRENDERED: ReadonlySet<string> = new Set([

@@ -19,7 +19,7 @@ const changes = seed.changes.changes;
 const known = knowledge(changes), core = underShelves(changes, known);
 const layout = planetLayout(forestScene(seed.tree, changes, workStates(seed.lines.lines)), new Map(storyNodes(seed.tree, changes).map(story => [story.id, story.place])));
 const { spots, radius: PLANET_RADIUS } = layout;
-const points = globePoints(core, spots, PLANET_RADIUS, known.notes);
+const points = globePoints(core, spots, PLANET_RADIUS);
 const depthCounts = {};
 for (const placement of core.placed.values()) depthCounts[placement.depth] = (depthCounts[placement.depth] ?? 0) + 1;
 const shelves = new Map(core.shelves.map(shelf => [shelf.node, shelf]));

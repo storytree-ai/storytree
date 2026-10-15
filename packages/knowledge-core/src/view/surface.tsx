@@ -172,7 +172,7 @@ export interface CoreUnderSheet extends SheetHanging {
 /** A note's dot under the sheet is sized as on a globe of this radius: about two ground units at the floor. */
 const SHEET_DOT_SCALE = 360;
 
-/** Knowledge under the globe's islands, or hung under the glass sheet with its links, without story text or ghosts: faint, or lit by a selected session's reads and window (ADR-0738 D5, ADR-0746 D1); with none selected, unlit (ADR-0921). */
+/** Knowledge under the globe's islands, or hung under the glass sheet with its links, without ghosts: faint, or lit by a selected session's reads and window (ADR-0738 D5, ADR-0746 D1); with none selected, unlit (ADR-0921). */
 export function KnowledgeGlobePoints({ core, spots, radius, places, growth, sheet }: {
   core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
   /** Hang the notes under the glass sheet instead of inside the globe. */
@@ -190,7 +190,7 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
     const { points, links } = sheetPoints(underShelves(state.history, known), sheet, known.notes);
     return { points: points.map(point => ({ ...point, at: sheet.place(point.at) })), links };
   }, [state.history, known, sheet?.shelfAt, sheet?.pool, sheet?.depthStep, sheet?.place]);
-  const placed = useMemo(() => hung?.points ?? globePoints(underShelves(state.history, known), spots, radius, known.notes), [hung, state.history, known, spots, radius]);
+  const placed = useMemo(() => hung?.points ?? globePoints(underShelves(state.history, known), spots, radius), [hung, state.history, known, spots, radius]);
   // With none selected, no session's traversal shows (ADR-0921): nothing lights and no path draws.
   const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     // The record is kept in place, so its version stands in for its reads.

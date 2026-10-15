@@ -19,6 +19,9 @@ The text above that marker is written by hand, and it counts toward the file's 4
 - In Windows PowerShell 5.1, never cut a command's output with `| Select-Object -First N`: it kills the
   command at line N, so work after that line is lost, and leaves `$LASTEXITCODE` at -1, which a tool
   reports as exit 255 under output that reads as success. Capture, then slice: `$o = pnpm -s storytree …`.
+- In Windows PowerShell 5.1, bare `Get-Content` reads a BOM-less UTF-8 file as ANSI, so `·` becomes `Â·`
+  and `×` becomes `Ã—` in whatever you send to the library. Read library-bound text with
+  `Get-Content -Encoding UTF8 -Raw`, or write it with the Write tool, never bare `Get-Content`.
 - `pnpm test` and `pnpm gate` queue behind the machine's heavy-run lock themselves (a waiting run says
   whose run it waits for), so run them plain, in the background: no flock wrapper. A session whose engine
   exits when its turn ends (a Mint lane) runs them in the foreground instead, until the table prints.

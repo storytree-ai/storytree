@@ -7,8 +7,9 @@ import { forestScene, storyNodes } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 import { applyPlanetFraming, applySheetEye, plateTransform, SHEET_RADIUS, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
-import { focusRotation } from "./planet-navigation.js";
-import { sheetCentre, sheetLayout, sheetOpening, sheetPan, sheetTurnedOver } from "./sheet-navigation.js";
+import { focusRotation, markerSpot } from "./planet-navigation.js";
+import { sheetCentre, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetTurnedOver } from "./sheet-navigation.js";
+import { sheetPoint } from "@storytree/forest-world/planet";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const size = { width: 1440, height: 960 };
@@ -113,4 +114,29 @@ test("3.54 the glass sheet turns over north to south about its west-east axis: o
   const panned = sheetPan(opening.turn, { x: 120, y: 80 }, top.camera.zoom, extent, true);
   const moved = eye({ ...opening, turn: panned }, extent, Math.PI).screen({ x: held.x + 40, y: held.y - 30 });
   assert.ok(Math.abs(moved.x - grabbed.x - 120) < 0.5 && Math.abs(moved.y - grabbed.y - 80) < 0.5, `the underside follows the drag (${(moved.x - grabbed.x).toFixed(1)}, ${(moved.y - grabbed.y).toFixed(1)})`);
+});
+
+test("3.11 on the glass sheet a failing island past the window's edge gets a marker at the edge nearest it, and its turn pans it into view", () => {
+  const layout = sheet(12), { extent } = layout, opening = sheetOpening(extent, size);
+  const opened = eye(opening, extent), zoom = opened.camera.zoom;
+  const failing = (story: string) => layout.islands.map(island => island.story === story ? { ...island, trees: [{ status: "unhealthy" as const }] } : island);
+  const where = (story: string) => sheetPoint(layout.spots.get(story)!);
+  const inside = (p: { x: number; y: number }) => p.x >= 0 && p.x <= size.width && p.y >= 0 && p.y <= size.height;
+  assert.ok(!inside(opened.screen(where("s11"))), "the deepest island opens past the window's right");
+  assert.ok(inside(opened.screen(where("s0"))), "the first lies in the window");
+  assert.deepEqual(sheetMarkers(layout.islands, opening.turn, zoom, size), [], "nothing failing, no marker");
+  assert.deepEqual(sheetMarkers(failing("s0"), opening.turn, zoom, size), [], "a failing island in the window needs none");
+  const [marker, ...rest] = sheetMarkers(failing("s11"), opening.turn, zoom, size);
+  assert.equal(rest.length, 0);
+  assert.equal(marker!.story, "s11");
+  const drawn = opened.screen(where("s11"));
+  assert.ok(Math.abs(marker!.left - drawn.x) < 0.5 && Math.abs(marker!.top - drawn.y) < 0.5, "it points where the island is drawn");
+  const spot = markerSpot(marker!, size, []);
+  assert.equal(spot.left, size.width - 20, "at the window's right edge, the edge nearest the island");
+  assert.ok(Math.abs(spot.top - drawn.y) < 0.5, "level with it");
+  assert.deepEqual(sheetMarkers(failing("s11"), opening.turn, zoom, size, undefined, "library"), [], "only the Library's face hides it (ADR-0660 D4)");
+  // Its click pans the island to the middle of the view, at the same zoom, and the marker goes.
+  const centred = sheetCentre(marker!.turn), at = where("s11");
+  assert.ok(Math.abs(centred.x - at.x) < 1e-6 && Math.abs(centred.y - at.y) < 1e-6, "the island comes to the middle of the view");
+  assert.deepEqual(sheetMarkers(failing("s11"), marker!.turn, zoom, size), []);
 });

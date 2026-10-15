@@ -1,5 +1,6 @@
 /** Capability 2 · The forest on the site. */
 import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
+import { cardOf } from "@storytree/learning-as-you-build";
 import type { Chip, Decision, Explainer, Group, Mark, TourStep } from "./tour.js";
 
 /** When the comparisons were checked against each tool's own documentation (definition_b0b80acc7330). */
@@ -150,16 +151,16 @@ export const steps: TourStep[] = [
     // ★
     "Let's start from the beginning and build a shopping site, so you can see how storytree draws a map as your agents build.",
   ], how: "The shop starts as an empty globe. Its agents plan the work before they write any code, and each story they plan will be an island here.",
-  why: "Watching a project grow from nothing shows you how to read the map of one that is already big.",
+  why: cardOf("empty").why,
   decisions: [], surfaces: land, ...shop },
   // The record just before the first claim (01:53:08): the shop's first arc and its four parts, none held yet. The arcs list is
   // small while the tour plays, and its first arc is pointed out and named.
   { id: "map-arcs", explainer: "map", template: "narrated", map: "shop", sessionsAt: "2026-10-05T01:53:00.000Z", growth: { seconds: 1, stage: "plans", until: "plans" },
-    title: "The plan comes first.", lines: [
+    title: cardOf("arc").title, lines: [
     // ✎
     "Tell your agents what you want to build and they will set up a plan of work.",
   ], how: "A plan is an end state and a list of the pieces of work that reach it. The shop's first plan had four. A session claims a piece of work before it starts, lands it through a pull request, and closes it.",
-  why: "A plan that lives beside the work lets the next agent pick up the next piece without asking you.",
+  why: cardOf("arc").why,
   decisions: [], surfaces: land, ...shop, panel: "arcs", labels: { 1: [{ point: "arc", text: "a plan" }] } },
   // The owner's one line (2026-10-11); the map tells the rest, a moment at a time within the line: each island rises, named a
   // story, in the order the agents started on them (first claims 01:53, 01:58, 02:28), then the pathways draw on, those to
@@ -186,7 +187,7 @@ export const steps: TourStep[] = [
     // ★
     "Each story shows the parts that make it work.",
   ], how: "Each story is broken into the parts that make it work, and each part's territory arrives in the order the agent built it, signing in's shop server first. Parts hold your code: each dot is a file, sized by its lines, in the part whose tests reach it. The cart and checkout have no code yet, so each of their planned parts has an equal share of the island, with no dots. Select a story and a panel shows how its parts work together: what each one is, and what depends on what.",
-  why: "You can see where the code went and which promises it serves, without opening a file.",
+  why: cardOf("capability").why,
   decisions: [], surfaces: { ...plain, roads: true }, lineSurfaces: { 2: { ...files, roads: true } }, ...shop,
   panel: "inset", inset: { target: signingIn, framing: .32 }, lineViews: { 3: { panel: "story" } },
   // Signing in's largest file in the survey its code arrived with (02:06), said as what the visitor gets (D10).
@@ -202,7 +203,7 @@ export const steps: TourStep[] = [
     "The plan shows it too: pieces 2, 3 and 4 of its work, each held by its own session.",
     "Your agent sessions are listed here too.",
   ], how: "Before writing, an agent claims the piece of work it will build and each part it will touch, and a second claim on the same work is turned away. Each claim is a flag in its session's colour, standing in its part's share; on the cart and checkout, which have no code yet, the share is marked as a lot. Within fifteen seconds, three sessions claimed eight parts on browsing, the cart and checkout.",
-  why: "Two agents editing the same thing is how work gets lost. A claim says who is on what before anyone writes, so an agent that can see what is taken picks other work instead.",
+  why: `${cardOf("claim").why} An agent that can see what is taken picks other work instead.`,
   compare: { lines: [
     "Cursor's Agents window runs agents in parallel, each in its own worktree, with diffs to review.",
     "LangSmith Studio visualises and debugs agent systems, with tracing and evaluation.",
@@ -212,13 +213,13 @@ export const steps: TourStep[] = [
   decisions: [], surfaces: lit({ ...files, roads: true }), ...shop, lineViews: { 2: { panel: "arcs" }, 3: { panel: "sessions" } },
   // The first flag (02:28:12), named by its session, which had named itself at 02:27:06; on a phone it would cover browsing's name.
   labels: { 1: [{ target: { kind: "capability", capability: productPage }, read: "holder", narrowest: 601 }], 3: [{ point: "sessions" }] } },
-  { id: "map-health", explainer: "map", template: "narrated", map: "shop", growth: { seconds: 16, stage: `lifted-${productPage}`, until: "pr7-building" }, title: "Health.", lines: [
+  { id: "map-health", explainer: "map", template: "narrated", map: "shop", growth: { seconds: 16, stage: `lifted-${productPage}`, until: "pr7-building" }, title: cardOf("health").title, lines: [
     // ✎
     "As your automated tests run in CI, storytree shows you which parts are healthy and which need your attention.",
     // DRAFT.
     "Yellow means nothing has proved it yet; green means its tests passed.",
   ], how: "As each part lands, its flag lifts, and the cart's and checkout's code takes their shares' place. The shop's CI ran its tests, and storytree matched the results to each part's promises. A colour counts only when something other than the agent checked it; saying 'done' doesn't count.",
-  why: "You can see what has been proved and what still needs checking, without taking an agent's word for it.",
+  why: cardOf("health").why,
   compare: { lines: [
     "VS Code's Explorer browses files and folders; its Outline lists a file's symbols.",
     "Aider's repo map ranks your code's names and signatures to fit the model's budget.",
@@ -239,7 +240,7 @@ export const steps: TourStep[] = [
     // DRAFT.
     "Storytree keeps each decision inside the globe, beneath the part of the map it's about.",
   ], how: "By the time the first round was green, the shop's agents had written {shopDecisions} decisions, most of them while planning, before any code. Each is a note in storytree's library, a knowledge graph: a note links to the notes it stands on, and the graph refuses loops, so every chain of reasons reads to its end. Principles, which steer judgement, are notes too. A note about no one part gathers at the core.",
-  why: "Every new agent session starts on its first day. Keeping the decisions with the work means the next session doesn't relearn them, and you don't explain them again.",
+  why: cardOf("decision").why,
   // With its third line, a drawn diagram plays in the top left: a decision glued beneath its island, and the decisions beneath
   // it tunnelling down to the core (ADR-1018 D7).
   decisions: [], surfaces: lit({ ...health, roads: true }), lineSurfaces: { 3: inside }, lineViews: { 3: { panel: "diagram" } }, ...shopHeld },

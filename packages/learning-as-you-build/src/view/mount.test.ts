@@ -101,3 +101,27 @@ test("3.2 · the journal lists every card seen, in order, and choosing one shows
   shelf.stop();
   assert.equal(host.children.length, 0);
 });
+
+test("3.3 · the decision card's depth draws a decision glued beneath its island and the ones it stands on deeper, toward the core; other cards draw nothing", () => {
+  const { host, store } = page();
+  const kept = journal(store);
+  kept.mark("story"); kept.mark("decision");
+  const shelf = mountJournal(host, { journal: kept });
+  shelf.open();
+  const show = (kind: string) => {
+    host.querySelector<HTMLButtonElement>(`[data-journal-entry="${kind}"]`)!.click();
+    return host.querySelector<HTMLElement>("[data-journal-card]")!;
+  };
+  assert.equal(show("story").querySelector("svg"), null);
+  const drawing = show("decision").querySelector("svg")!;
+  assert.ok(drawing, "the decision's depth has the drawing");
+  assert.equal(drawing.closest("[data-journal-card]")!.querySelector("[style]"), null, "still, with no style attribute for the app's style-src 'self' to refuse");
+  const at = (circle: Element) => ({ x: Number(circle.getAttribute("cx")), y: Number(circle.getAttribute("cy")) });
+  const [cover, ...deeper] = [...drawing.querySelectorAll(".diagram-decision")].map(at);
+  const core = drawing.querySelector(".diagram-core")!;
+  const coreTop = Number(core.getAttribute("cy")) - Number(core.getAttribute("r")) / 2;
+  assert.ok(deeper.length >= 3);
+  assert.ok(deeper.every(decision => decision.y > cover!.y), "the cover hangs nearest the island");
+  assert.ok([cover!, ...deeper].every(decision => decision.y < coreTop), "every decision hangs above the core it tunnels to");
+  shelf.stop();
+});

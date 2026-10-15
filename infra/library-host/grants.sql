@@ -2,11 +2,11 @@
 -- records in the storytree project's database, storytree_storytree, and nothing else. The database
 -- enforces it, whatever code CI runs. Safe to run again.
 --
--- RUN IT connected to the database storytree_storytree (not `postgres`), as an account that may act
--- as the role that owns that database: your own Google account, the one the storytree app signs in
--- as (Cloud SQL Studio, IAM database authentication). The first statement takes that role on, so
--- everything below is granted by the owner itself; an account that may not is refused at once,
--- with nothing changed.
+-- RUN IT on the Mint box, connected to the database storytree_storytree (not `postgres`), as an
+-- account that may act as the role that owns that database, mickh over the local socket:
+--   psql -X -v ON_ERROR_STOP=1 -d storytree_storytree -f infra/library-host/grants.sql
+-- The first statement takes that role on, so everything below is granted by the owner itself; an
+-- account that may not is refused at once, with nothing changed.
 --
 -- WHAT IT GRANTS. The database lets the account in (CONNECT), the schema lets it name the tables
 -- (USAGE), and then:
@@ -40,7 +40,7 @@ BEGIN
   BEGIN
     EXECUTE format('SET ROLE %I', owner);
   EXCEPTION WHEN insufficient_privilege THEN
-    RAISE EXCEPTION '% may not act as %, the role that owns storytree_storytree: sign in as an account that may (your own Google account, as the storytree app does) and run this again', session_user, owner;
+    RAISE EXCEPTION '% may not act as %, the role that owns storytree_storytree: connect as an account that may (mickh over the box''s local socket) and run this again', session_user, owner;
   END;
 END
 $$;

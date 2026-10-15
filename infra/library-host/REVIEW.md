@@ -110,3 +110,13 @@ now running `runtime-20261015T001739907Z-d8a9b3a8`:
 ```text
 33223a1040ffd5ad51c8f697cce8bc3dd33ba9ffec72350a67e4e4113edb479a  host.mjs
 ```
+
+## Addendum — 2026-10-15: the Cloud SQL paths retired
+
+increment_f371a46ecc94. The Cloud SQL instance was deleted on 2026-10-15
+(increment_56b41c5dc9b8), so `host.mjs` loses `rehearsal`, `rollback-rehearsal`,
+its Cloud SQL proxy and the connection-slot wait, and `transition.mjs`,
+`cutover.sh` and `rollback.sh` are removed with the freeze check and its test.
+`provision`, `backup`, `restore-backup` and `install-timer` are unchanged, except
+that the timer's runtime copy no longer carries `grants.sql`, which `backup` never
+read. The hashes above stay as evidence of what ran.

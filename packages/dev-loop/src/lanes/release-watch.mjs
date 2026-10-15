@@ -30,12 +30,16 @@ export const failedJob = (jobs) => jobs.find((job) => job.steps > 0 && RED.has(j
 
 /**
  * From the latest published release ({ tag, sha, at }), the release runs that attempted a release and main's push CI
- * runs (each newest first: { id, created, updated, status, conclusion, attempt, url, job }, main's with `sha`), decide
- * what to rerun and whether releases are stopped. Only attempts made since the latest release count: an older one is
- * no part of this stop, and rerunning it could publish an older build. While a rerun is running nothing is alarmed.
+ * runs (each newest first: { id, sha, created, updated, status, conclusion, attempt, url, job }), decide what to rerun
+ * and whether releases are stopped. Only attempts made since the latest release, and the run that published it, count:
+ * an older one is no part of this stop, and rerunning it could publish an older build. While a rerun is running nothing
+ * is alarmed.
  */
 export function judgeReleases({ release, attempts, main, now, limitMs = RELEASE_LIMIT_MS }) {
-  const since = attempts.filter((run) => Date.parse(run.created) > Date.parse(release.at));
+  // The run that published the latest release counts too: it publishes without a platform whose job failed (4.6) and
+  // ends red, and that platform's stop is this one.
+  const published = (run) => run.sha === release.sha;
+  const since = attempts.filter((run) => Date.parse(run.created) > Date.parse(release.at) || published(run));
   const done = since.filter((run) => run.status === "completed");
   const head = main[0];
   const reruns = [];
@@ -54,6 +58,9 @@ export function judgeReleases({ release, attempts, main, now, limitMs = RELEASE_
   // The last two attempts, so a fresh one still running holds this alarm until it ends.
   if (since.length >= 2 && since.slice(0, 2).every((run) => run.status === "completed" && RED.has(run.conclusion))) {
     return { reruns, alarm: { why: "the last two release attempts both ended failed or cancelled", run: named(since[0]) } };
+  }
+  if (since[0] && published(since[0]) && since[0].status === "completed" && RED.has(since[0].conclusion)) {
+    return { reruns, alarm: { why: `${release.tag} published without one platform's new build, and its rerun ended ${since[0].conclusion} too`, run: named(since[0]) } };
   }
   const released = main.find((run) => run.sha === release.sha)?.created ?? release.at;
   const waiting = main.filter((run) => run.conclusion === "success" && Date.parse(run.created) > Date.parse(released)).at(-1);

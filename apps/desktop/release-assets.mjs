@@ -1,7 +1,8 @@
-// What each platform contributes to a release (4.6). Every platform's runner uploads its own set into
-// one draft, and the draft is published only when every platform's required set is there, so an
-// installed app on any platform never meets a release that lacks its update feed. A new platform is
-// one more entry here.
+// What each platform contributes to a release (4.6). Every platform's runner uploads its own set into one draft. The
+// draft publishes with each platform whose required set is there; a platform whose set is not carries its last good
+// build's feed and delivery entry forward (packages/app/src/updates/release-carry.ts), so an installed app on any
+// platform never meets a release that lacks its own update feed, and one platform's failure holds only that platform.
+// A new platform is one more entry here.
 export const PLATFORMS = {
   windows: {
     required: (version) => [
@@ -40,7 +41,7 @@ export function platformUploads(platform, files) {
   return files.filter((name) => PLATFORMS[platform].uploads(name));
 }
 
-/** Each platform still missing part of its required set, with what is missing; {} when the release is complete. */
+/** Each platform still missing part of its required set, with what is missing; {} when every platform's build is in. */
 export function missingAssets(names, version) {
   const present = new Set(names);
   const missing = {};
@@ -49,4 +50,10 @@ export function missingAssets(names, version) {
     if (absent.length > 0) missing[platform] = absent;
   }
   return missing;
+}
+
+/** The platforms whose whole set for this version is in the release: the ones it publishes new builds for. */
+export function freshPlatforms(names, version) {
+  const missing = missingAssets(names, version);
+  return Object.keys(PLATFORMS).filter((platform) => !(platform in missing));
 }

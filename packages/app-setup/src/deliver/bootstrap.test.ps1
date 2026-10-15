@@ -155,6 +155,24 @@ $manifest.channelSchema = 1
 Assert ((Select-StorytreeInstaller $release $manifest 'arm64' 'stable').sha256 -eq ('a' * 64)) 'stable accepts a channel-aware installer'
 $manifest.version = '0.3.122'
 try { Select-StorytreeInstaller $release $manifest 'x64'; throw 'accepted stale manifest' } catch { Assert ($_.Exception.Message -match 'does not match') 'reject mixed releases' }
+# A release whose Windows build failed names the last good installer, with its version; that build's release has it (4.6).
+$earlier = @{ tag_name = 'v0.3.122'; draft = $false; prerelease = $false; assets = @(@{ name = 'storytree-delivery.json'; browser_download_url = 'https://github.com/storytree-ai/storytree/releases/download/v0.3.122/storytree-delivery.json' }, @{ name = 'storytree-0.3-0.3.122-setup.exe'; browser_download_url = 'https://github.com/storytree-ai/storytree/releases/download/v0.3.122/storytree-0.3-0.3.122-setup.exe' }) }
+$earlierManifest = @{ schema = 1; version = '0.3.122'; architectures = @('x64', 'arm64'); installer = @{ name = 'storytree-0.3-0.3.122-setup.exe'; sha256 = ('b' * 64) } }
+$script:Fetched = @()
+$fetch = { param($Url) $script:Fetched += $Url; if ($Url -ceq 'https://api.github.com/repos/storytree-ai/storytree/releases/tags/v0.3.122') { return $earlier }; throw "unexpected $Url" }
+$readManifest = { param($Url) $script:Fetched += $Url; return $earlierManifest }
+$carried = @{ schema = 1; version = '0.3.123'; architectures = @('x64', 'arm64'); installer = @{ name = 'storytree-0.3-0.3.122-setup.exe'; sha256 = ('b' * 64); version = '0.3.122' } }
+$build = Get-StorytreeWindowsBuild $release $carried $fetch $readManifest
+Assert ($build.release.tag_name -ceq 'v0.3.122' -and $build.manifest.version -ceq '0.3.122') 'a carried Windows build is read from its own release'
+Assert (($script:Fetched -join ' ') -ceq 'https://api.github.com/repos/storytree-ai/storytree/releases/tags/v0.3.122 https://github.com/storytree-ai/storytree/releases/download/v0.3.122/storytree-delivery.json') 'and its own manifest'
+Assert ((Select-StorytreeInstaller $build.release $build.manifest 'x64').sha256 -eq ('b' * 64)) 'its installer is selected as any release''s is'
+$own = Get-StorytreeWindowsBuild $release $earlierManifest $fetch $readManifest
+Assert ($own.release.tag_name -ceq 'v0.3.123') 'a release with its own Windows build is used as it is'
+$carried.installer.version = 'latest'
+try { Get-StorytreeWindowsBuild $release $carried $fetch $readManifest; throw 'accepted a carried entry naming no build' } catch { Assert ($_.Exception.Message -match 'no valid Windows build') 'refuse a carried entry naming no build' }
+$carried.installer.version = '0.3.122'
+$earlierManifest.installer.version = '0.3.121'
+try { Get-StorytreeWindowsBuild $release $carried $fetch $readManifest; throw 'followed a second carry' } catch { Assert ($_.Exception.Message -match 'does not name its own Windows build') 'a carried build is followed once, to a release that built it' }
 $file = [IO.Path]::GetTempFileName()
 try {
   [IO.File]::WriteAllText($file, 'interrupted download')

@@ -43,6 +43,18 @@ test("13.16 · a stopped release is rerun once, then judged an alarm; a quiet ma
   // An attempt made before the latest release published is not this stop's, and is never rerun.
   assert.deepEqual(judge({ attempts: [attempt({ id: 30, created: -5 })], main: [mainRun({ id: 1, sha: "c0", created: -20 })] }).reruns, []);
 
+  // The run that published the latest release without the Mac's new build ended red (4.6): it is rerun once, and red
+  // after its rerun it is an alarm naming the Mac's job, though the release published and main has nothing newer.
+  const quiet = [mainRun({ id: 1, sha: "c0", created: -20 })];
+  const partial = (n, conclusion = "failure") => ({ ...attempt({ id: 31, created: -5, attempt: n, conclusion }), sha: "c0" });
+  assert.deepEqual(judge({ attempts: [partial(1)], main: quiet }).reruns.map((rerun) => rerun.run.id), [31]);
+  const behind = judge({ attempts: [partial(2)], main: quiet, now: 300 });
+  assert.equal(behind.alarm.run.id, 31);
+  assert.equal(behind.alarm.run.job, "package (macOS)");
+  assert.match(behind.alarm.why, /v0\.3\.1355 published without one platform's new build/);
+  // Its rerun bringing the Mac in clears it.
+  assert.deepEqual(judge({ attempts: [partial(2, "success")], main: quiet, now: 300 }), { reruns: [], alarm: null });
+
   // Main's own CI red once: rerun once on the same commit. Red after its rerun: an alarm naming it.
   const red = (n) => [mainRun({ id: 3, sha: "c2", created: 10, conclusion: "failure", attempt: n, job: "test-unit (macOS)" }), mainRun({ id: 1, sha: "c0", created: -20 })];
   assert.deepEqual(judge({ main: red(1) }).reruns.map((rerun) => [rerun.what, rerun.run.id]), [["main", 3]]);

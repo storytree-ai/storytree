@@ -144,6 +144,20 @@ function Get-StorytreeAsset($Release, [string]$Name) {
   return $url
 }
 
+# A release whose Windows build failed names the last good installer, with that build's version (4.6). Its own release,
+# which built it, is read instead, once: that release names its installer as its own.
+function Get-StorytreeWindowsBuild($Release, $Manifest, [scriptblock]$Fetch, [scriptblock]$ReadManifest) {
+  $carried = [string]$Manifest.installer.version
+  if (-not $carried -or "v$carried" -ceq $Release.tag_name) { return @{ release = $Release; manifest = $Manifest } }
+  if ($carried -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'release manifest names no valid Windows build' }
+  $earlier = & $Fetch "https://api.github.com/repos/storytree-ai/storytree/releases/tags/v$carried"
+  if ($earlier.tag_name -cne "v$carried") { throw "the Windows build $carried was not found" }
+  $earlierManifest = & $ReadManifest (Get-StorytreeAsset $earlier 'storytree-delivery.json')
+  $again = [string]$earlierManifest.installer.version
+  if ($again -and $again -cne $carried) { throw "release $carried does not name its own Windows build" }
+  return @{ release = $earlier; manifest = $earlierManifest }
+}
+
 function Select-StorytreeInstaller($Release, $Manifest, [string]$Architecture, [string]$SelectedChannel = 'development') {
   if ($Release.draft -or $Release.prerelease -or $Release.tag_name -notmatch '^v\d+\.\d+\.\d+$') { throw 'release is not a stable storytree version' }
   $version = $Release.tag_name.Substring(1)
@@ -262,7 +276,8 @@ try {
       $release = Get-StorytreeRelease $selectedChannel { param($Url) Invoke-RestMethod $Url -Headers $headers } $env:STORYTREE_ACCEPTANCE_VERSION
       $manifestUrl = Get-StorytreeAsset $release 'storytree-delivery.json'
       $manifest = Invoke-RestMethod $manifestUrl
-      $asset = Select-StorytreeInstaller $release $manifest $Arch $selectedChannel
+      $build = Get-StorytreeWindowsBuild $release $manifest { param($Url) Invoke-RestMethod $Url -Headers $headers } { param($Url) Invoke-RestMethod $Url }
+      $asset = Select-StorytreeInstaller $build.release $build.manifest $Arch $selectedChannel
       $script:downloadDir = Join-Path ([IO.Path]::GetTempPath()) ('storytree-delivery-' + [Guid]::NewGuid().ToString('N'))
       New-Item -ItemType Directory -Path $script:downloadDir | Out-Null
       $file = Join-Path $script:downloadDir $asset.name

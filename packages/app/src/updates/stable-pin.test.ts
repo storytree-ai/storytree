@@ -254,11 +254,13 @@ test("4.16 a release's own Mac feed is read with each file at its absolute URL o
   ].join("\n");
   const assets: Record<string, number> = { "storytree-0.3-0.3.5-mac-arm64.zip": 30, "storytree-0.3-0.3.5-arm64.dmg": 40 };
   const resolve = (name: string) => ({ url: `${RELEASES}/v0.3.5/${name}`, size: assets[name]! });
-  assert.deepEqual(releaseFeed(text, resolve), { version: "0.3.5", files: [
+  assert.deepEqual(releaseFeed(text, resolve, "0.3.5"), { version: "0.3.5", files: [
     { url: `${RELEASES}/v0.3.5/storytree-0.3-0.3.5-mac-arm64.zip`, sha512: sha(3), size: 30 },
     { url: `${RELEASES}/v0.3.5/storytree-0.3-0.3.5-arm64.dmg`, sha512: sha(4), size: 40, blockMapSize: 5 },
   ] });
   assets["storytree-0.3-0.3.5-arm64.dmg"] = 41;
-  assert.throws(() => releaseFeed(text, resolve), /size/);
-  assert.throws(() => releaseFeed(text.replace("    size: 30", "    unknown: 30"), resolve), /Cannot read/);
+  assert.throws(() => releaseFeed(text, resolve, "0.3.5"), /size/);
+  assert.throws(() => releaseFeed(text.replace("    size: 30", "    unknown: 30"), resolve, "0.3.5"), /Cannot read/);
+  // A later release without a new Mac build carries this feed (4.6): it is no Mac build of that release, so a pin of it keeps the Mac where it was.
+  assert.equal(releaseFeed(text.replaceAll("url: storytree", "url: ../v0.3.5/storytree"), resolve, "0.3.6"), undefined);
 });

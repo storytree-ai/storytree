@@ -45,8 +45,10 @@ export async function publishStable(manifest: StableManifest, bootstrap: Bootstr
  * Reads the update feed electron-builder wrote for one platform (latest-mac.yml, latest-linux.yml) into one whose files
  * name the release's own assets by absolute URL, so a feed on the stable branch fetches them from that release.
  * Only that writer's fixed shape is read; anything else in a file entry refuses the pin rather than being dropped.
+ * A feed naming another version was carried from an earlier build because the release has no new one (4.6): it is
+ * no build of this release, so undefined, and the pin keeps that platform where an earlier pin put it.
  */
-export function releaseFeed(text: string, resolve: (name: string) => { url: string; size: number }): PlatformFeed {
+export function releaseFeed(text: string, resolve: (name: string) => { url: string; size: number }, release: string): PlatformFeed | undefined {
   const files: Partial<PlatformFeed["files"][number]>[] = [];
   let version: string | undefined;
   let inFiles = false;
@@ -64,6 +66,7 @@ export function releaseFeed(text: string, resolve: (name: string) => { url: stri
     else if (inFiles) throw new Error(`Cannot read a release feed line: ${line}`);
   }
   if (!version) throw new Error("A release feed names no version");
+  if (version !== release) return undefined;
   return { version, files: files.map(({ url, ...rest }) => {
     const original = resolve(url!);
     if (rest.size !== original.size) throw new Error(`Release feed size for ${url} does not match its asset`);
@@ -102,13 +105,14 @@ export async function formerPin(version: string, api: GithubRequest): Promise<St
   }
 }
 
-/** The platforms a release carries: Windows by its installer, the Mac and Linux by the feeds their updaters read. */
+/** The platforms a release has its own build of: Windows by its installer, the Mac and Linux by the builds their feeds name; a feed carried from an earlier build (4.6) counts for nothing. */
 export function releasePlatforms(release: Pick<Release, "tag_name" | "assets">): PublishedBuild["platforms"] {
   const names = new Set(release.assets.map(a => a.name));
   const version = release.tag_name.slice(1);
+  const built = (end: string) => [...names].some(n => n.startsWith(`storytree-0.3-${version}-`) && n.endsWith(end));
   return [
     ...(names.has(`storytree-0.3-${version}-setup.exe`) ? ["windows" as const] : []),
-    ...(Object.keys(FEED_PLATFORMS) as FeedPlatform[]).filter(p => names.has(FEED_PLATFORMS[p].file)),
+    ...(Object.keys(FEED_PLATFORMS) as FeedPlatform[]).filter(p => names.has(FEED_PLATFORMS[p].file) && built(FEED_PLATFORMS[p].build)),
   ];
 }
 
@@ -221,10 +225,11 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
       for (const platform of Object.keys(FEED_PLATFORMS) as FeedPlatform[]) {
         const { file } = FEED_PLATFORMS[platform];
         if (release.assets.some(a => a.name === file)) {
-          feeds[platform] = releaseFeed(download(release, file), name => {
+          const feed = releaseFeed(download(release, file), name => {
             const original = asset(release, name);
             return { url: original.browser_download_url, size: original.size };
-          });
+          }, wanted);
+          if (feed) feeds[platform] = feed;
         }
       }
       return { version: wanted, commit, channelSchema: delivery.channelSchema, draft: release.draft, prerelease: release.prerelease,

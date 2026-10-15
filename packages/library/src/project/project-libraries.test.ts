@@ -615,5 +615,11 @@ test("1.18 an edit through a product of a system record it reads from its factor
     const again = await storytree.openProject(product);
     assert.equal(await again.records.get(retired.id), null, "a factory edit does not bring back what the product retired");
     assert.deepEqual((await again.records.list("principle")).map((each) => each.id).sort(), [edited.id, own.id].sort());
+
+    // Retiring through the factory's id a record the product shadows retires its own as well.
+    await again.records.retire(shadowed.id, "not part of this product");
+    assert.equal(await again.records.get(shadowed.id), null);
+    assert.equal(await again.records.get(own.id), null);
+    assert.deepEqual((await again.records.list("principle")).map((each) => each.id), [edited.id]);
   });
 });

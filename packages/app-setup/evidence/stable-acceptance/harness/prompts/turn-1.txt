@@ -1,0 +1,5 @@
+Hi! I've just installed storytree and its guide says to start here: please run storytree's connection check first and keep going until it says everything is connected.
+
+Then: i'd like a small tip calculator I can open in my browser. I type the bill amount, pick a tip percentage (10, 15, 20 or a custom one) and the number of people, and it shows the tip, the total, and what each person pays, rounded to the cent. Keep it plain HTML, CSS and JavaScript with no build step, so I can just double-click index.html to open it.
+
+Please make sure it has automated tests that check the sums, and that I can run them with one command.

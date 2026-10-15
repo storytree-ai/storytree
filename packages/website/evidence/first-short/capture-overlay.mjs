@@ -1,6 +1,7 @@
 // pnpm --filter @storytree/website build, then: node packages/website/evidence/first-short/capture-overlay.mjs
 // Pictures of the first short's overlay on the built home page, into this folder: on a laptop and a phone mid-clip, and
-// with reduced motion asked for, where the still and its link stand in for the video.
+// with reduced motion asked for, where the still and its link stand in for the video; and on the tour, where it must leave
+// the tour's bar and its waitlist button clear.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -32,6 +33,18 @@ try {
       : await page.waitForFunction(() => { const v = document.querySelector("#short video"); return v && v.currentTime > 4 && !v.paused; }, null, { timeout: 30_000 }).then(() => true, () => false);
     await page.screenshot({ path: path.join(here, `overlay-${name}.png`) });
     console.log(name, reducedMotion === "reduce" ? "reduced motion" : playing ? "playing" : "NOT PLAYING (this Chromium may lack the codecs; the poster shows)");
+    await page.close();
+  }
+  for (const [name, viewport] of [["tour-laptop", { width: 1440, height: 900 }], ["tour-phone", { width: 390, height: 844 }]]) {
+    const page = await browser.newPage({ viewport });
+    await page.goto(url);
+    await page.locator("#chapter2").scrollIntoViewIfNeeded();
+    await page.locator("#tour-hatch").waitFor({ state: "visible", timeout: 30_000 });
+    await page.waitForTimeout(2000);
+    const [short, hatch, bar] = await Promise.all(["#short", "#tour-hatch", "#tour-bar"].map(selector => page.locator(selector).boundingBox()));
+    const overlaps = (a, b) => a && b && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    await page.screenshot({ path: path.join(here, `overlay-${name}.png`) });
+    console.log(name, overlaps(short, hatch) ? "COVERS THE WAITLIST BUTTON" : "waitlist button clear", overlaps(short, bar) ? "COVERS THE TOUR BAR" : "tour bar clear");
     await page.close();
   }
 } finally {

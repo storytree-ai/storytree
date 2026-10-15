@@ -18,10 +18,17 @@ const WIDTH = 4096;
 
 /**
  * Each meaning's axis, handed out the first time it is met and kept for every embedder this file
- * makes, so a new process reads vectors the old one kept. Never by hash: an artifact's random id
- * is embedded too, and a hash let its letters land on a question's axis (`fbdd` on `ship`).
+ * makes, so a new process reads vectors the old one kept. Never by hash: a hash let a word's
+ * letters land on a question's axis (`fbdd` on `ship`).
  */
 const AXES = new Map<string, number>();
+
+/**
+ * A record's id, which its rendered text carries. The fake reads no meaning in it: its random hex
+ * letters lengthened some vectors and not others, so close scores fell by luck (14.7's "ranked
+ * search miss" missed its note about 3 runs in 100).
+ */
+const ID = /\b[a-z]+_[0-9a-f]{12}\b/g;
 
 function axisOf(meaning: string): number {
   let axis = AXES.get(meaning);
@@ -43,7 +50,7 @@ function fakeEmbedder(): Embedder & { embedded: string[] } {
       embedded.push(...texts);
       return texts.map((text) => {
         const vector = new Float32Array(WIDTH);
-        for (const word of text.toLowerCase().match(/[a-z]+/g) ?? []) {
+        for (const word of text.toLowerCase().replace(ID, " ").match(/[a-z]+/g) ?? []) {
           vector[axisOf(MEANINGS[word] ?? word)]! += 1;
         }
         const length = Math.hypot(...vector) || 1;
@@ -211,7 +218,7 @@ for (const backend of [memory, postgres]) {
 
   contract("14.7", "the title lift matches whole words, a plural finding its singular, never letters inside a word", async (_, { knowledge, records }) => {
     const story = await records.create("story", { title: "Library" });
-    const capability = await records.create("capability", { title: "Ranked search", story: story.id, proposed: true });
+    const capability = await records.create("capability", { title: "Lookup", story: story.id, proposed: true });
     const filler = "The forest and its islands and their trees. ".repeat(10);
     await records.create("contract", { title: `14.10 · A ranked search missing a vector ${filler}`, capability: capability.id });
     const miss = await knowledge.defineTerm({ term: "Gaps", meaning: "A ranked search miss." });

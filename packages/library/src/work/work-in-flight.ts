@@ -901,12 +901,12 @@ class Snapshot {
    * arc's; a closed increment's none (11.4).
    */
   waitHolds(record: ArcFacts | IncrementFacts): Hold[] {
-    if (record.type === "arc") return holdsOf(record.fields.waits, (wait) => this.arcHold(wait));
+    if (record.type === "arc") return holdsOf(record.fields.waits, (wait) => this.arcWaitHold(wait));
     const increment = record as IncrementFacts;
     if (increment.fields.status === "closed") return [];
     return [
       ...holdsOf(increment.fields.waits, (wait) => this.incrementHold(wait)),
-      ...holdsOf(this.arcs.get(increment.fields.arc)?.fields.waits, (wait) => this.arcHold(wait)),
+      ...holdsOf(this.arcs.get(increment.fields.arc)?.fields.waits, (wait) => this.arcWaitHold(wait)),
     ];
   }
 
@@ -927,6 +927,11 @@ class Snapshot {
       ? undefined
       : arcState(arc, this.#byArc.get(arc.id) ?? [], this.#questionsByArc.get(arc.id) ?? [], new Date(), this.hasIncrements.has(arc.id)) === "closed";
     return arcHold(wait, closed);
+  }
+
+  /** Whether an arc's wait holds: on an arc, as arcHold reads it; on an increment, as incrementHold does (11.9). */
+  arcWaitHold(wait: Wait): Hold | undefined {
+    return this.arcs.has(wait.on) ? this.arcHold(wait) : this.incrementHold(wait);
   }
 
   /** Whether an increment wait holds, as capability 11 reads its blocker. */

@@ -21,7 +21,23 @@ const pin = verb({
   },
 });
 
+const candidate = verb({
+  command: { family: "release", name: "candidate", summary: "name the newest published build fit to pin as stable, with its evidence and what passed over each newer one; changes nothing", usage: "release candidate" },
+  tool: { absent: "it is read before the owner's own pin, from his shell or the fortnightly routine" },
+  inputs: {},
+  async act(_input, context) {
+    const { findStableCandidate } = await import("./stable-github.js");
+    const found = await findStableCandidate({ cwd: context.folder, library: context.library });
+    const passed = found.passedOver.map(b => `  ${b.version}: ${b.reasons.join("; ")}`);
+    const head = found.candidate
+      ? [`Stable candidate: storytree ${found.candidate.version} (stable is ${found.pinned ?? "not pinned yet"}).`, ...found.candidate.evidence.map(e => `  ${e}`)]
+      : [`No build newer than stable's ${found.pinned ?? "(none pinned)"} is fit to pin yet.`];
+    return { text: [...head, ...(passed.length ? ["", "Passed over, newest first:", ...passed] : []),
+      ...(found.candidate ? ["", `Pin it with: storytree release pin ${found.candidate.version}`, "", found.candidate.notes] : [])].join("\n") };
+  },
+});
+
 /** The command line's `release` family, at its place among `storytree`'s families. */
 export const RELEASE_FAMILIES: readonly VerbFamily[] = [
-  { name: "release", summary: "pin the owner's chosen existing build for stable installations", order: 12, verbs: [pin] },
+  { name: "release", summary: "find, pin or move back the build stable installations take", order: 12, verbs: [candidate, pin] },
 ];

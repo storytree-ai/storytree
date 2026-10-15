@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import type { Library } from "@storytree/library";
 import { STABLE_BRANCH } from "./release-channel.js";
 import { versionAt } from "./release-source.js";
+import { stableCandidate, type PublishedBuild, type StableCandidate } from "./stable-candidate.js";
 import {
   FEED_PLATFORMS, mergedPullRequests, moveStableBack, pinCoverage, pinStable, readStableManifest,
   type Bootstraps, type FeedPlatform, type PinPorts, type PlatformFeed, type PlatformFeeds, type StableManifest,
@@ -99,6 +100,77 @@ export async function formerPin(version: string, api: GithubRequest): Promise<St
     if (found) return readPin(api, found.sha);
     if (commits.length < 100) return undefined;
   }
+}
+
+/** The platforms a release carries: Windows by its installer, the Mac and Linux by the feeds their updaters read. */
+export function releasePlatforms(release: Pick<Release, "tag_name" | "assets">): PublishedBuild["platforms"] {
+  const names = new Set(release.assets.map(a => a.name));
+  const version = release.tag_name.slice(1);
+  return [
+    ...(names.has(`storytree-0.3-${version}-setup.exe`) ? ["windows" as const] : []),
+    ...(Object.keys(FEED_PLATFORMS) as FeedPlatform[]).filter(p => names.has(FEED_PLATFORMS[p].file)),
+  ];
+}
+
+/** A release run passed when it published the build and its Mac acceptance run passed; any rerun of it may say so. */
+export function releaseRunPassed(runs: readonly { id: number; jobs: readonly { name: string; conclusion: string | null }[] }[]): { passed: boolean; evidence: string } {
+  const url = (id: number) => `https://github.com/${REPOSITORY}/actions/runs/${id}`;
+  const passed = (jobs: readonly { name: string; conclusion: string | null }[], match: RegExp) => jobs.some(j => match.test(j.name) && j.conclusion === "success");
+  const good = runs.find(r => passed(r.jobs, /^publish$/) && passed(r.jobs, /^mac-acceptance\b/));
+  if (good) return { passed: true, evidence: `Release run ${good.id} published it and its Mac acceptance run passed (${url(good.id)}).` };
+  const published = runs.find(r => passed(r.jobs, /^publish$/));
+  return { passed: false, evidence: published
+    ? `its Mac acceptance run did not pass in release run ${published.id} (${url(published.id)})`
+    : "no release run of its commit published it with every job passing" };
+}
+
+/** `storytree release candidate`: the stable candidate read from GitHub and the library; it changes nothing. */
+export async function findStableCandidate(options: { library: Pick<Library, "list">; cwd: string }): Promise<StableCandidate> {
+  const api = github(options.cwd);
+  return stableCandidate({
+    async pinned() {
+      try { return await readPin(api, STABLE_BRANCH); }
+      catch (error) {
+        if (String((error as { stderr?: string }).stderr).includes("HTTP 404")) return undefined;
+        throw error;
+      }
+    },
+    async builds(after) {
+      const floor = after ? Number(after.slice(4)) : 0;
+      const builds: PublishedBuild[] = [];
+      for (let page = 1; ; page++) {
+        const releases = await api(`releases?per_page=100&page=${page}`) as (Release & { published_at: string | null })[];
+        for (const r of releases) {
+          if (r.draft || r.prerelease || !r.published_at || !/^v0\.3\.[1-9]\d*$/.test(r.tag_name)) continue;
+          if (Number(r.tag_name.slice(5)) > floor) builds.push({ version: r.tag_name.slice(1), publishedAt: r.published_at, platforms: releasePlatforms(r) });
+        }
+        // Releases come newest first; a page reaching the pin, or a short one, is the last needed.
+        const oldest = releases.filter(r => /^v0\.3\.\d+$/.test(r.tag_name)).map(r => Number(r.tag_name.slice(5)));
+        if (releases.length < 100 || Math.min(...oldest) <= floor) return builds;
+      }
+    },
+    async runs(build) {
+      const { sha } = await api(`commits/v${build.version}`) as { sha: string };
+      const { workflow_runs } = await api(`actions/workflows/release.yml/runs?head_sha=${sha}&per_page=20`) as { workflow_runs: { id: number; head_sha: string }[] };
+      const runs = [];
+      for (const run of workflow_runs.filter(r => r.head_sha === sha)) {
+        runs.push({ id: run.id, jobs: (await api(`actions/runs/${run.id}/jobs?per_page=100`) as { jobs: { name: string; conclusion: string | null }[] }).jobs });
+      }
+      return releaseRunPassed(runs);
+    },
+    async concerns() {
+      const text = (fields: Record<string, unknown>, names: string[]) => names.map(n => fields[n]).filter(v => typeof v === "string").join("\n");
+      const [frictions, questions] = await Promise.all([options.library.list("friction"), options.library.list("question")]);
+      return [
+        ...frictions.filter(f => f.fields["state"] === "open" || f.fields["state"] === "routed")
+          .map(f => ({ id: f.id, title: String(f.fields["title"]), text: text(f.fields, ["statement", "description", "evidence", "impact"]) })),
+        ...questions.filter(q => q.fields["lifecycle"] === "open")
+          .map(q => ({ id: q.id, title: String(q.fields["title"]), text: text(q.fields, ["statement", "stakes", "context"]) })),
+      ];
+    },
+    notes: async version => (await pinRelease(version, { ...options, preview: true })).releaseNotes,
+    now: () => new Date().toISOString(),
+  });
 }
 
 /** Thin front doors call this with their project library; all release rules stay in the app story. */

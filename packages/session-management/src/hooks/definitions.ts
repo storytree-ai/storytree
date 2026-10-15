@@ -10,7 +10,8 @@
  *   brought in by a prompt that quotes one (0.2 split on `/` too, but its 52 definitions shared no
  *   part). A name shorter than three letters is never looked for.
  * - A name is found as whole words, ignoring case, with `-`, `_` and runs of spaces read as one
- *   space, and its last word may be plural (`claims` finds "Claim", `policies` finds "Policy").
+ *   space, and its last word may be plural (`claims` finds "Claim", `policies` finds "Policy"): the
+ *   library's whole-words rule, which ranked search's title lift shares (ADR-1044 D3).
  * - Every match is added, the longest name first (a tie keeps the library's order), and each only
  *   once a session: the ones already given are left out.
  * - A harness's own notice, sent to the agent as if it were a prompt, gets none: 0.2's markers, and
@@ -19,6 +20,7 @@
  *   the first such prompt of a session also files a friction report, naming what each came through,
  *   for the drain to take to the owner (D2).
  */
+import { holdsName, normalisedWords } from "@storytree/library/whole-words";
 import type { NewFriction } from "../capture/index.js";
 import { notYetGivenIds } from "./given-once.js";
 
@@ -60,10 +62,9 @@ export function isHarnessNotice(prompt: string): boolean {
 
 /** All definitions `prompt` names, longest name first. */
 export function definitionsNamedIn(prompt: string, definitions: readonly Definition[]): NamedDefinition[] {
-  const text = normalised(prompt);
   const termsAndParts = definitions.map(({ term }) => {
-    const whole = normalised(term);
-    return { whole, parts: new Set(term.split("/").map(normalised).filter((part) => part !== whole)) };
+    const whole = normalisedWords(term);
+    return { whole, parts: new Set(term.split("/").map(normalisedWords).filter((part) => part !== whole)) };
   });
   const termHolders = tally(termsAndParts.map(({ whole }) => [whole]));
   const nameHolders = tally(termsAndParts.map(({ whole, parts }) => new Set([whole, ...parts])));
@@ -74,7 +75,7 @@ export function definitionsNamedIn(prompt: string, definitions: readonly Definit
       ...(termHolders.get(whole) === 1 ? [whole] : []),
       ...[...parts].filter((part) => nameHolders.get(part) === 1),
     ].filter((name) => name.length >= SHORTEST_NAME);
-    const [name] = names.filter((name) => pattern(name).test(text)).sort((a, b) => b.length - a.length);
+    const [name] = names.filter((name) => holdsName(prompt, name)).sort((a, b) => b.length - a.length);
     if (name !== undefined) found.push({ definition, name, order });
   });
   return found
@@ -129,19 +130,6 @@ function tally(groups: Iterable<string>[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const group of groups) for (const name of group) counts.set(name, (counts.get(name) ?? 0) + 1);
   return counts;
-}
-
-/** Lower case, with `-`, `_` and every run of spaces read as one space. */
-function normalised(text: string): string {
-  return text.toLowerCase().replace(/[-_\s]+/g, " ").trim();
-}
-
-/** `name` as whole words, its last word plural or not. */
-function pattern(name: string): RegExp {
-  const words = name.split(" ").map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const last = words.pop()!;
-  const plural = last.endsWith("y") ? `(?:${last}|${last.slice(0, -1)}ies)` : `${last}(?:e?s)?`;
-  return new RegExp(`(?<![\\p{L}\\p{N}])${[...words, plural].join(" ")}(?![\\p{L}\\p{N}])`, "u");
 }
 
 function firstLine(meaning: string): string {

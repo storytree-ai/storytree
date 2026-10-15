@@ -209,6 +209,38 @@ for (const backend of [memory, postgres]) {
     assert.equal((await knowledge.rankAll("how do I send an email", { limit: 1 })).hits[0]!.note.id, near.id, "a search by meaning ranks as before");
   });
 
+  contract("14.7", "the title lift matches whole words, a plural finding its singular, never letters inside a word", async (_, { knowledge, records }) => {
+    const story = await records.create("story", { title: "Library" });
+    const capability = await records.create("capability", { title: "Ranked search", story: story.id, proposed: true });
+    const filler = "The forest and its islands and their trees. ".repeat(10);
+    await records.create("contract", { title: `14.10 · A ranked search missing a vector ${filler}`, capability: capability.id });
+    const miss = await knowledge.defineTerm({ term: "Gaps", meaning: "A ranked search miss." });
+    const connecting = await knowledge.defineTerm({ term: "Connecting", meaning: `${filler} Reaching the server.` });
+    const switches = await knowledge.defineTerm({ term: "Switches", meaning: "A switch is on." });
+    const claim = await knowledge.defineTerm({ term: "Claim", meaning: `${filler} A session holds it.` });
+
+    assert.equal((await knowledge.rankAll("ranked search miss", { limit: 1 })).hits[0]!.note.id, miss.id, "\"missing\" does not hold the word \"miss\"");
+    const on = await knowledge.rankAll("on", { limit: 2 });
+    assert.equal(on.hits[0]!.note.id, switches.id, "\"connecting\" does not hold the word \"on\"");
+    assert.notEqual(on.hits[1]?.note.id, connecting.id);
+    assert.equal((await knowledge.rankAll("claims switch", { limit: 1 })).hits[0]!.note.id, switches.id, "no title holds both words, so meaning decides");
+    assert.equal((await knowledge.rankAll("claims", { limit: 1 })).hits[0]!.note.id, claim.id, "a plural finds its singular title");
+  });
+
+  contract("14.7", "a record whose title is the search, its contract number aside, ranks above one whose title only holds its words", async (_, { knowledge, records }) => {
+    const filler = "The forest and its islands and their trees. ".repeat(10);
+    const own = await knowledge.defineTerm({ term: "Edit-first curation", meaning: `${filler} Change a note before adding one.` });
+    await knowledge.defineTerm({ term: "Edit-first curation steps", meaning: "Edit first: curation." });
+    const story = await records.create("story", { title: "Library" });
+    const capability = await records.create("capability", { title: "Ranked search", story: story.id, proposed: true });
+    const numbered = await records.create("contract", { title: "14.7 · Title lift", capability: capability.id });
+    await knowledge.defineTerm({ term: "Title lift notes", meaning: "Title lift, title lift." });
+
+    assert.equal((await knowledge.rankAll("Edit-first curation", { limit: 1 })).hits[0]!.note.id, own.id);
+    assert.equal((await knowledge.rankAll("edit-first  CURATION", { limit: 1 })).hits[0]!.note.id, own.id, "case and spacing aside");
+    assert.equal((await knowledge.rankAll("title lift", { limit: 1 })).hits[0]!.note.id, numbered.id, "a contract's number is not part of its title");
+  });
+
   contract("14.12", "a long note's late paragraph is embedded, so a search finds the note by what that paragraph says", async (embedder, { reopen }) => {
     const knowledge = await reopen(async () => reads512Tokens(embedder));
     await knowledge.defineTerm({ term: "Pricing", meaning: "Plans cost ten a month." });

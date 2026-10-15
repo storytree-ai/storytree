@@ -137,7 +137,7 @@ esac
     assert.deepEqual(manifest, { ...windowsEntry, macos: { arm64: { ...arm64, version: "0.3.699" } }, linux: { x64 } });
     assert.match(readFileSync(path.join(sets, "latest-mac.yml"), "utf8"), /^  - url: \.\.\/v0\.3\.699\/storytree-0\.3-0\.3\.699-mac-arm64\.zip$/m);
     // The Mac's bootstrap is still in the release, so Linux's one-liner has one too.
-    assert.ok(readFileSync(path.join(sets, "install-storytree.sh"), "utf8").length > 0);
+    assert.equal(readFileSync(path.join(sets, "install-storytree.sh"), "utf8"), readFileSync(new URL("../../../packages/app-setup/src/deliver/install.sh", import.meta.url), "utf8"));
     // A later run of the Mac's job brings its build in.
     writeFileSync(path.join(sets, "mac.names"), mac("0.3.700").join("\n"));
     writeFileSync(path.join(sets, "storytree-delivery-mac.json"), JSON.stringify({ version: "0.3.700", macos: { arm64: { ...arm64, name: "storytree-0.3-0.3.700-mac-arm64.zip" } } }));

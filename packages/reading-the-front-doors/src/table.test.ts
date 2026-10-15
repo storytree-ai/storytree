@@ -1,11 +1,15 @@
-/** Reading the front doors 2.1–2.2: a reading printed for a person, and the same readings for a script. */
+/** Reading the front doors 2.1–2.3: a reading printed for a person, and the same readings for a script. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { countDoors, type DoorLine } from "./reading.js";
 import { doorsJson, doorsTable } from "./table.js";
 
-const declared = { commands: ["storytree arc show", "storytree arc list"], tools: ["show_plan", "retire"] };
+const agent = ["agent"] as const;
+const declared = {
+  commands: [{ verb: "storytree arc show", consumers: agent }, { verb: "storytree arc list", consumers: agent }, { verb: "storytree settings show", consumers: ["agent", "user"] as const }],
+  tools: [{ verb: "show_plan", consumers: agent }, { verb: "retire", consumers: agent }],
+};
 const line = (session: string, door: DoorLine["door"], verb: string, at: string, more: Partial<DoorLine> = {}): DoorLine =>
   ({ session, at, door, verb, outcome: "answered", next: [], ...more });
 const lines = [
@@ -25,12 +29,19 @@ function row(table: string, name: string): string[] | undefined {
 
 test("2.1 · every command and tool is printed with its calls and sessions in the short window and the long one beside it, then the misses with the command named", () => {
   const table = doorsTable(week, month);
-  assert.deepEqual(row(table, "storytree arc show"), ["storytree arc show", "1", "1", "2", "1"]);
-  assert.deepEqual(row(table, "retire"), ["retire", "0", "0", "0", "0"], "a tool with no call is printed at zero");
+  assert.deepEqual(row(table, "storytree arc show"), ["storytree arc show", "agent", "1", "1", "2", "1"]);
+  assert.deepEqual(row(table, "retire")?.slice(0, 6), ["retire", "agent", "0", "0", "0", "0"], "a tool with no call is printed at zero");
   assert.deepEqual(row(table, "storytree arc increment show"), ["storytree arc increment show", "1", "1", "→ storytree library read"]);
   assert.match(table, /2026-10-01 to 2026-10-08/);
   assert.deepEqual(row(table, "→ storytree arc list"), ["→ storytree arc list", "1", "1", "100%", "–"], "an offered step, its follow rate, and no like-for-like call to set a baseline");
   assert.deepEqual(row(table, "show_plan TypeError"), ["show_plan TypeError", "1", "1"], "failures by class, the short window and the long");
+});
+
+test("2.3 · each command and tool is printed with its consumers, and one with no call is marked unused, or not judged when a person may call it", () => {
+  const table = doorsTable(week, month);
+  assert.deepEqual(row(table, "retire"), ["retire", "agent", "0", "0", "0", "0", "unused"]);
+  assert.deepEqual(row(table, "storytree settings show"), ["storytree settings show", "agent, user", "0", "0", "0", "0", "not judged"]);
+  assert.match(table, /Not judged: a person may call it, and a person's own terminal writes no line/);
 });
 
 test("2.2 · the JSON carries both readings as the reading returns them", () => {

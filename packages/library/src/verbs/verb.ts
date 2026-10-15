@@ -131,6 +131,9 @@ export interface Absent {
   readonly absent: string;
 }
 
+/** Who calls a verb: an agent session, or a person at the command line or in the app (ADR-1045 D1). */
+export type Consumer = "agent" | "user";
+
 export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbPlace = VerbContext> {
   /** `storytree <family> <name>`, with its usage (after `storytree `) when its inputs cannot spell it, as grouped flags. */
   readonly command: { readonly family: string; readonly name: string; readonly summary: string; readonly usage?: string } | Absent;
@@ -138,6 +141,8 @@ export interface Verb<I extends VerbInputs = VerbInputs, C extends VerbPlace = V
   readonly inputs: I;
   /** Only an agent session may call it: why, as "it closes out the agent session that runs it". */
   readonly agentOnly?: string;
+  /** Who calls it (ADR-1045 D1): left out, both, or only an agent when it is `agentOnly`. Read it with `consumersOf`. */
+  readonly consumers?: readonly Consumer[];
   /** Its work needs no project or library (it reads a file, or runs offline): a door hands it only the place, with the caller's session when it knows one. */
   readonly callerless?: true;
   /** Its work writes to the library: each door hands it the writer (the context's `writer`), and the command line names that writer below its answer. */
@@ -174,6 +179,11 @@ export interface VerbFamily<C extends VerbPlace = VerbContext> extends VerbFamil
 /** Declare a verb, keeping its inputs' and its context's types for its act. */
 export function verb<I extends VerbInputs, C extends VerbPlace = VerbContext>(declared: Verb<I, C>): Verb<VerbInputs, C> {
   return declared as unknown as Verb<VerbInputs, C>;
+}
+
+/** Who calls `declared`: its consumers as declared, else an agent alone for an `agentOnly` verb, else both. */
+export function consumersOf(declared: Pick<Verb, "agentOnly" | "consumers">): readonly Consumer[] {
+  return declared.consumers ?? (declared.agentOnly === undefined ? ["agent", "user"] : ["agent"]);
 }
 
 /** Whether a door mounts the verb: a face that is not `Absent`. */

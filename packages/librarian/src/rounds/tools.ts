@@ -42,7 +42,7 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
         });
         // Bounded (6.9): the full records once reached fifteen million characters.
         return { text: `The librarian's worklist. Review graduation at every landing. ${full.friction.length} friction reports are due${full.frictionMore === undefined ? "" : `, and ${full.frictionMore} more wait`}; each other list shows its first few, with counts: read any note whole by its ID.`, data: { worklist: worklistView(full) } };
-      });
+      }, { consumers: ["agent"] });
       define("link", "Make one note rest on another, preserving its existing links. A definition rests only on the decision that created its term.", z.object({ from: text, to: text }), async ({ from, to }, { library, writer }) => {
         const note = await link(library, from, to, writer);
         return { text: `${from} rests on ${to}.`, data: { id: note.id } };

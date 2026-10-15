@@ -24,6 +24,7 @@ function server(context: VerbContext): NonNullable<VerbContext["server"]> {
 }
 
 const checksVerb = verb({
+  consumers: ["agent"],
   command: { family: "quality", name: "checks", summary: "every live quality control check: its question and the notes it enforces" },
   tool: NO_TOOL,
   inputs: {},
@@ -38,6 +39,7 @@ const checksVerb = verb({
 });
 
 const ledgerVerb = verb({
+  consumers: ["agent"],
   command: { family: "quality", name: "ledger", summary: "the QA ledger's counts: per check and package, the reviews that ran it and its hits by answer" },
   tool: NO_TOOL,
   inputs: {},
@@ -48,6 +50,7 @@ const ledgerVerb = verb({
 });
 
 const briefVerb = verb({
+  consumers: ["agent"],
   command: { family: "quality", name: "brief", summary: "issue the next review's brief for an increment's change: the diff of the branch it was claimed on against origin/main (or the local default branch with none), its contracts and the checks", usage: "quality brief <increment> [--diff @file]" },
   tool: NO_TOOL,
   inputs: {
@@ -72,6 +75,7 @@ const briefVerb = verb({
 });
 
 const takeVerb = verb({
+  consumers: ["agent"],
   command: { family: "quality", name: "take", summary: "take the change-reviewer's return on the increment's brief into the QA ledger, or refuse it naming what it leaves out", usage: "quality take <increment> --return @file" },
   tool: NO_TOOL,
   inputs: {
@@ -96,6 +100,7 @@ const takeVerb = verb({
 });
 
 const answerVerb = verb({
+  consumers: ["agent"],
   command: { family: "quality", name: "answer", summary: "the implementer's answer to a hit: fixed, or rejected with a reason", usage: "quality answer <hit> fixed|rejected [--reason …]" },
   tool: NO_TOOL,
   inputs: {
@@ -115,6 +120,7 @@ const answerVerb = verb({
 });
 
 const standingVerb = verb({
+  consumers: ["agent"],
   command: { family: "quality", name: "standing", summary: "the findings that still stand on an increment's change, or that it is ready for the gate" },
   tool: NO_TOOL,
   inputs: { increment: { kind: "text", word: 0, describe: "the increment whose change is reviewed" } },
@@ -126,6 +132,7 @@ const standingVerb = verb({
 });
 
 const graduateVerb = verb({
+  consumers: ["agent"],
   command: { family: "quality", name: "graduate", summary: "record that a part of a check, or with --whole all of it, is now enforced by a deterministic check in Guardrails", usage: "quality graduate <check> --part … --enforced-by <guardrails check> [--whole]" },
   tool: NO_TOOL,
   inputs: {

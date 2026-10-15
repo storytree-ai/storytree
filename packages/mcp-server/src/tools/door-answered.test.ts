@@ -67,12 +67,16 @@ test("6.61 a tool whose door-answered line cannot be written still gives its ans
   });
 });
 
-test("6.63 the tool server names every tool it would serve in a folder, the same names its client lists, without a call", async () => {
+test("6.63 the tool server names every tool it would serve in a folder, the same names its client lists, with who calls each, without a call", async () => {
   await withProject(async ({ folder }) => {
-    const named = await servedTools(folder, { extensions: [fixtures] });
+    const served = await servedTools(folder, { extensions: [fixtures] });
+    const named = served.map(({ name }) => name);
     await withAgent(folder, claudeCode("tool-door-names", { extensions: [fixtures] }), async (agent) => {
       assert.deepEqual([...named].sort(), await agent.tools());
     });
     assert.ok(named.includes("check_setup") && named.includes("show_thing"), "the setup check's tools and an extension's are named too");
+    const consumers = (tool: string) => served.find(({ name }) => name === tool)?.consumers;
+    assert.deepEqual(consumers("set_up_project"), ["user"], "each with who calls it");
+    assert.deepEqual(consumers("show_thing"), ["agent", "user"], "both, unless defined otherwise");
   });
 });

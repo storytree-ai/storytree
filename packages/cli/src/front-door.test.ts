@@ -243,7 +243,7 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
   });
 });
 
-test("1.18 storytree doors prints the front-door reading: every command walked from the door's own table and every tool the tool server serves, with calls, those with none at zero, and the misses", async () => {
+test("1.18 storytree doors prints the front-door reading: every command walked from the door's own table and every tool the tool server serves, with its consumers and calls, those with none at zero, and the misses", async () => {
   await inWorld(command, async (world) => {
     const session = { CLAUDE_CODE_SESSION_ID: "doors-1" };
     assert.equal((await world.run(["library", "search", "Mailer"], session)).code, 0);
@@ -255,15 +255,26 @@ test("1.18 storytree doors prints the front-door reading: every command walked f
     assert.equal(Date.parse(short.until) - Date.parse(short.since), 7 * DAY_MS, "the short window is a week by default");
     assert.equal(Date.parse(long.until) - Date.parse(long.since), 28 * DAY_MS, "and the long one four");
     const of = (verb: string) => short.surfaces.find((surface) => surface.verb === verb);
-    assert.deepEqual(of("storytree library search"), { door: "command", verb: "storytree library search", declared: true, calls: 1, sessions: 1 });
-    assert.deepEqual(of("storytree noticeboard"), { door: "command", verb: "storytree noticeboard", declared: true, calls: 0, sessions: 0 }, "a family's bare command is declared");
-    assert.deepEqual(of("check_setup"), { door: "tool", verb: "check_setup", declared: true, calls: 0, sessions: 0 });
+    const both = ["agent", "user"];
+    assert.deepEqual(of("storytree library search"), { door: "command", verb: "storytree library search", declared: true, consumers: both, judged: false, calls: 1, sessions: 1 });
+    assert.deepEqual(of("storytree noticeboard"), { door: "command", verb: "storytree noticeboard", declared: true, consumers: both, judged: false, calls: 0, sessions: 0 }, "a family's bare command is declared");
+    assert.deepEqual(of("check_setup"), { door: "tool", verb: "check_setup", declared: true, consumers: both, judged: false, calls: 0, sessions: 0 });
+    // Each verb's consumers come from where its story declares it (ADR-1045 D1), on both doors.
+    assert.deepEqual(of("storytree settings show")?.consumers, ["user"], "a settings verb is a person's");
+    assert.deepEqual(of("storytree auth list")?.consumers, ["user"], "a kept family's verb declares its own");
+    assert.deepEqual(of("storytree quality brief")?.consumers, ["agent"], "a dev-loop verb is an agent's");
+    assert.deepEqual(of("storytree session close-out")?.consumers, ["agent"], "an agent-only verb is an agent's");
+    assert.deepEqual(of("quality_brief")?.consumers, ["agent"], "a tool mounted from a declared verb carries its consumers");
+    assert.deepEqual(of("make_workspace")?.consumers, ["agent"], "a tool the server defines declares its own");
+    assert.deepEqual(of("set_up_project")?.consumers, ["user"], "setting up a project is a person's");
     assert.deepEqual(short.misses, [{ door: "command", where: "storytree arc increment", word: "show", named: "storytree library read", count: 1 }]);
 
     const printed = await world.run(["doors", "--days", "2", "--trend", "14"]);
     assert.equal(printed.code, 0, printed.stderr);
     assert.match(printed.stdout, /\(2 days\), with the 14 days/);
     assert.match(printed.stdout, /storytree arc increment show\s+1\s+1\s+→ storytree library read/);
+    assert.match(printed.stdout, /storytree quality brief\s+agent\s+0\s+0\s+0\s+0\s+unused/, "an agent's verb with no call is unused");
+    assert.match(printed.stdout, /storytree settings show\s+user\s+0\s+0\s+0\s+0\s+not judged/, "a person's is not judged");
     assert.equal((await world.run(["doors", "--days", "0"])).code, 2, "a window of no days is refused");
   });
 });

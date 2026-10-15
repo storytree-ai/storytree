@@ -1,6 +1,11 @@
-/** Capability 1 · Front door. A thin front door onto the keys story (ADR-0843): save, list and remove the keys storytree keeps. */
+/**
+ * Capability 1 · Front door. A thin front door onto the keys story (ADR-0843): save, list and remove the keys storytree keeps.
+ * Each is a person's own (ADR-1045 D1): a key is given at a terminal, never by an agent.
+ */
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";
+
+const USER = ["user"] as const;
 
 export const auth: Family = {
   name: "auth",
@@ -9,6 +14,7 @@ export const auth: Family = {
     name: "set",
     usage: "auth set <name>   (the key, or !<command> that prints it, on standard input)",
     summary: "save a key, read from standard input and never echoed",
+    consumers: USER,
     async act(args) {
       if (args.words.length !== 1 || args.names.length) {
         throw new Refusal("usage: storytree auth set <name>, with the key on standard input (never as an argument, which shells keep in their history)", { code: 2 });
@@ -22,6 +28,7 @@ export const auth: Family = {
     name: "list",
     usage: "auth list",
     summary: "name each key and where it resolves from, never its value",
+    consumers: USER,
     async act(args) {
       if (args.words.length || args.names.length) throw new Refusal("usage: storytree auth list", { code: 2 });
       const { listKeys } = await import("@storytree/keys");
@@ -34,6 +41,7 @@ export const auth: Family = {
     name: "remove",
     usage: "auth remove <name>",
     summary: "delete a saved key",
+    consumers: USER,
     async act(args) {
       if (args.words.length !== 1 || args.names.length) throw new Refusal("usage: storytree auth remove <name>", { code: 2 });
       const name = args.word(0, "a key name", "auth remove <name>");

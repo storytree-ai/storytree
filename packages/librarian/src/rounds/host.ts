@@ -43,8 +43,8 @@ export interface ToolAnswer {
   readonly refused?: boolean;
 }
 
-/** Registers one tool: its name, what it is for, its arguments, and what it does with them. */
-export type DefineTool = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>) => void;
+/** Registers one tool: its name, what it is for, its arguments, what it does with them, and who calls it (ADR-1045 D1). */
+export type DefineTool = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>, options?: { readonly consumers?: readonly ("agent" | "user")[] }) => void;
 
 /** The librarian's contribution to Session management's one tool server. */
 export interface ToolExtension {

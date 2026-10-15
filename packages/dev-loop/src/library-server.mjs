@@ -1,5 +1,7 @@
 // Capability 5 · Library tools. How this repo's library scripts (`pnpm check:own-health`, `library:export`, `library:restore`)
-// reach the app's library (~/.storytree/0.3/pgdata) without anyone quitting the app first. The
+// reach the library the storytree `library` setting names (settingLibraryServer below): a Postgres
+// address or Cloud SQL directly, and the app's library (~/.storytree/0.3/pgdata) without anyone
+// quitting the app first. The
 // "seed" in the names below is the first such script, `pnpm seed:library`, deleted by the flip
 // (ADR-0641 D2 step 4).
 //
@@ -108,4 +110,27 @@ export async function appLibraryServer(command, { writes, log = (line) => consol
       await server.stop();
     },
   };
+}
+
+/**
+ * The library the storytree `library` setting names, for `library:export` and `library:restore`
+ * (ADR-0734, ADR-0846), as `pnpm check:own-health` reaches it when run by hand: a Postgres address
+ * or Cloud SQL directly, or the app's library through appLibraryServer. It says which in `log`.
+ * `where` is what `connect` takes; `stop()` lets go of the app's database, and does nothing otherwise.
+ * @param {string} command
+ * @param {{ setting: { location: "local" } | { location: "cloudsql", instance: string, user: string } | { location: "postgres", address: string }, writes: boolean, log?: (line: string) => void }} options
+ */
+export async function settingLibraryServer(command, { setting, writes, log = (line) => console.log(line) }) {
+  if (setting.location === "postgres") {
+    log(`the library at ${setting.address}`);
+    return { where: { address: setting.address }, stop: async () => {} };
+  }
+  if (setting.location === "cloudsql") {
+    log(`the library on Cloud SQL: ${setting.instance}, as ${setting.user}`);
+    return { where: { cloudSql: { instance: setting.instance, user: setting.user } }, stop: async () => {} };
+  }
+  const { appHome } = await import("../../../apps/desktop/src/home.ts");
+  log(`the app's library: ${appHome().pgdata}`);
+  const server = await appLibraryServer(command, { writes, log });
+  return { where: { url: server.url }, stop: server.stop };
 }

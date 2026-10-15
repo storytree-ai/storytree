@@ -10,7 +10,7 @@ await buildCapture({ dist });
 const card = page => page.locator('.teaching-card');
 const next = async page => { await card(page).getByRole('button', { name: 'Got it' }).click(); };
 await runCapture({
-  folder: here, dist, ...captureSeed('forest'),
+  folder: here, dist, ...captureSeed('forest'), teaching: 'shown',
   prepare: async ({ page }) => {
     await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.querySelector('.teaching-card') !== null, undefined, { timeout: 120000 });
     for (const name of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }

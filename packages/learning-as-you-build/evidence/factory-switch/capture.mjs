@@ -17,7 +17,7 @@ const record = (type, recordId, title) => ({ type, recordId, action: 'created', 
 const factoryChanges = { changes: [record('agent', 'agent_builder', 'The session that builds'), record('principle', 'principle_small', 'Slow growth'), record('check', 'check_red', 'A test fails without its behaviour')], cursor: 3 };
 const card = page => page.locator('.teaching-card');
 await runCapture({
-  folder: here, dist, seed, survey,
+  folder: here, dist, seed, survey, teaching: 'shown',
   answers: {
     projectSelection: async () => selection(),
     chooseProject: async name => { current = name; return selection(); },

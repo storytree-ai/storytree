@@ -549,3 +549,16 @@ test("13.21 · the watcher's status says when its look loop runs code other than
   delete procs[8];
   assert.match(await status(), /look loop: not running/);
 });
+
+test("13.17 · a watch loop on a folder other than the box's own reads no releases, so it starts no release fix session", async (t) => {
+  const b = await box(t);
+  // A home with the lane runner is the box's; the loop is given another folder, as a test on the box gives it.
+  const home = await mkdtemp(join(tmpdir(), "lane-watch-box-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  await mkdir(join(home, "storytree-lanes"), { recursive: true });
+  await writeFile(join(home, "storytree-lanes", "run-lane.sh"), "");
+  let version = "tree-a";
+  assert.equal(await main(["watch"], { ...b.options, home, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
+    codeVersion: async () => version, sleep: async () => { version = "tree-b"; } }), RESTART);
+  assert.doesNotMatch(b.lines.join("\n"), /release/);
+});

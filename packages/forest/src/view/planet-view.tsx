@@ -19,7 +19,7 @@ import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
 import { asksForHome, miniGlobe } from "./mini-globe.js";
-import { sheetLayout, sheetOpening, sheetPan, sheetTurnedOver } from "./sheet-navigation.js";
+import { sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetTurnedOver } from "./sheet-navigation.js";
 import { growLand, pastIslands, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
@@ -286,7 +286,7 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
   return <><primitive object={drawn.root} /><primitive object={marks.root} /></>;
 }
 
-type ScreenMarker = EdgeMarker & { left: number; top: number };
+type ScreenMarker = Pick<EdgeMarker, "story" | "turn"> & { left: number; top: number };
 
 function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, onPast, showFailures, opening: globeOpening, aside, sheet }: {
   onPose: (pose: GlobePose) => void;
@@ -432,7 +432,11 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     if (zoomedPast !== past.current) onPast(past.current = zoomedPast);
     const centre = new Vector3().project(camera);
     const rim = radius * camera.zoom + 16;
-    const hidden = showFailures && sheet === undefined ? hiddenMarkers(islands, rotation, camera.quaternion, mode) : [];
+    const middle = { left: (centre.x + 1) * size.width / 2, top: (1 - centre.y) * size.height / 2 };
+    // On the sheet nothing is round the back; a failing island past the window's edge is marked at that edge (3.11).
+    const hidden = !showFailures ? [] : sheet === undefined
+      ? hiddenMarkers(islands, rotation, camera.quaternion, mode).map(marker => ({ ...marker, left: middle.left + marker.at.x * rim, top: middle.top - marker.at.y * rim }))
+      : sheetMarkers(islands, turn.current, camera.zoom, size, middle, mode);
     // The Sessions strip is docked over the pane's bottom edge; a marker sits clear above it (3.11).
     const box = gl.domElement.getBoundingClientRect();
     const docked = hidden.length === 0 ? [] : [...gl.domElement.ownerDocument.querySelectorAll(".sessions-list")].map(strip => {
@@ -440,8 +444,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       return { left: rect.left - box.left, right: rect.right - box.left, top: rect.top - box.top, bottom: rect.bottom - box.top };
     });
     const next = hidden.map(marker => {
-      const spot = markerSpot({ left: (centre.x + 1) * size.width / 2 + marker.at.x * rim, top: (1 - centre.y) * size.height / 2 - marker.at.y * rim }, size, docked);
-      return { ...marker, left: Math.round(spot.left), top: Math.round(spot.top) };
+      const spot = markerSpot(marker, size, docked);
+      return { story: marker.story, turn: marker.turn, left: Math.round(spot.left), top: Math.round(spot.top) };
     });
     const key = JSON.stringify(next);
     if (key !== lastMarkers.current) {
@@ -533,7 +537,11 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       style={{ left: marker.left, top: marker.top }}
       title={`${titles.get(marker.story)} · unhealthy (storytree verified)`}
       aria-label={`Show unhealthy story: ${titles.get(marker.story)}`}
-      onClick={() => { guide.current!.cancel(); turnTo(marker.turn); }}>!</button>)}
+      onClick={() => {
+        guide.current!.cancel();
+        // On the sheet the guide's stop pans the island into view at the zoom the user chose.
+        if (sheet === undefined || !controls.current!.stop({ target: { kind: "story", story: marker.story } })) turnTo(marker.turn);
+      }}>!</button>)}
     {home !== undefined && sheet === undefined && <MiniGlobeButton islands={islands} home={home} turn={turn.current} aside={aside} onHome={() => goHome.current!()} />}
   </Overlay>;
 }

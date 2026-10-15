@@ -30,6 +30,7 @@ import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud
 import { PgVectors, vectorServerIdentity, type VectorDomain } from "./embeddings.js";
 import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
 import { assertProjectName, PROJECT_DATABASE_PREFIX, ProjectGoneError, projectDatabase } from "./names.js";
+import { ProjectLineage } from "./factory.js";
 import { pendingMemories, upgradeMemories } from "./memory-upgrade.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
@@ -166,6 +167,8 @@ export interface Project {
   readonly knowledge: Knowledge;
   /** How healthy each story, capability and contract is, reported and verified (capability 5). */
   readonly health: HealthRecord;
+  /** Whether the project is the user's factory or a product naming its factory (ADR-1040). */
+  readonly lineage: ProjectLineage;
   /** Close this project's connections. */
   close(): Promise<void>;
 }
@@ -451,6 +454,7 @@ class ProjectLibrary implements Project {
   readonly flight: WorkInFlight;
   readonly knowledge: Knowledge;
   readonly health: HealthRecord;
+  readonly lineage: ProjectLineage;
   readonly #forget: () => void;
   #closing: Promise<void> | undefined;
 
@@ -464,6 +468,7 @@ class ProjectLibrary implements Project {
     this.flight = new WorkInFlight(this.records, this.work);
     this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache, domain), ...(embedder === undefined ? {} : { embedder }) });
     this.health = new HealthRecord(this.records, this.work);
+    this.lineage = new ProjectLineage(pool, name);
     this.#forget = forget;
   }
 

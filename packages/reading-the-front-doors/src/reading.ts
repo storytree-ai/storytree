@@ -5,7 +5,9 @@
  *
  * - Use per surface: every declared command and tool with its calls and sessions, those with none at
  *   zero; a verb neither door declares (the bare `storytree`, a family a word was refused in) is listed
- *   apart, never dropped.
+ *   apart, never dropped. Each declared one carries its consumers (ADR-1045 D1), and one whose consumers
+ *   include a person is not judged by these lines: the command line records nothing typed in a person's
+ *   own terminal, so its zero is no sign it went unused.
  * - Misses: each word refused as unknown, where it was refused and the command the refusal named, and
  *   each door's unknowns per 1,000 of its calls.
  * - Follows: for each offered step, how often it was offered, how often the session's next call took
@@ -35,10 +37,19 @@ export interface DoorLine {
   readonly next: readonly string[];
 }
 
+/** Who a verb is for: an agent session, a person at the command line or in the app, or both (ADR-1045 D1). */
+export type Consumer = "agent" | "user";
+
+/** One declared verb, as its door names it, with the consumers its story declared for it. */
+export interface DeclaredVerb {
+  readonly verb: string;
+  readonly consumers: readonly Consumer[];
+}
+
 /** The surfaces each door declares, from its own table: every command-line verb and every tool. */
 export interface Declared {
-  readonly commands: readonly string[];
-  readonly tools: readonly string[];
+  readonly commands: readonly DeclaredVerb[];
+  readonly tools: readonly DeclaredVerb[];
 }
 
 export interface Window {
@@ -46,7 +57,11 @@ export interface Window {
   readonly until: string;
 }
 
-export interface Surface { readonly door: Door; readonly verb: string; readonly declared: boolean; readonly calls: number; readonly sessions: number }
+/**
+ * One surface's use. A declared one carries its consumers; `judged` is whether these lines can judge its use: false when
+ * a person may call it, since a person's own terminal writes no line.
+ */
+export interface Surface { readonly door: Door; readonly verb: string; readonly declared: boolean; readonly consumers?: readonly Consumer[]; readonly judged: boolean; readonly calls: number; readonly sessions: number }
 export interface Miss { readonly door: Door; readonly where: string; readonly word: string; readonly named?: string; readonly count: number }
 export interface Follow { readonly step: string; readonly offered: number; readonly answered: number; readonly followed: number; readonly baseline: { readonly calls: number; readonly took: number } }
 export interface Failure { readonly door: Door; readonly verb: string; readonly class: string; readonly count: number }
@@ -116,15 +131,15 @@ function surfaces(lines: readonly DoorLine[], declared: Declared): Surface[] {
     surface.sessions.add(line.session);
     seen.set(key, surface);
   }
-  const listed = [...declared.commands.map((verb) => ["command", verb] as const), ...declared.tools.map((verb) => ["tool", verb] as const)];
-  const declaredKeys = new Set(listed.map(([door, verb]) => keyOf(door, verb)));
+  const listed = [...declared.commands.map((one) => ["command", one] as const), ...declared.tools.map((one) => ["tool", one] as const)];
+  const declaredKeys = new Set(listed.map(([door, { verb }]) => keyOf(door, verb)));
   const byUse = (a: Surface, b: Surface) => (a.door === b.door ? 0 : a.door === "command" ? -1 : 1) || b.calls - a.calls || a.verb.localeCompare(b.verb);
-  const known = [...new Map(listed.map(([door, verb]) => {
+  const known = [...new Map(listed.map(([door, { verb, consumers }]) => {
     const surface = seen.get(keyOf(door, verb));
-    return [keyOf(door, verb), { door, verb, declared: true, calls: surface?.calls ?? 0, sessions: surface?.sessions.size ?? 0 }] as const;
+    return [keyOf(door, verb), { door, verb, declared: true, consumers, judged: !consumers.includes("user"), calls: surface?.calls ?? 0, sessions: surface?.sessions.size ?? 0 }] as const;
   })).values()];
   const others = [...seen].filter(([key]) => !declaredKeys.has(key))
-    .map(([, surface]) => ({ door: surface.door, verb: surface.verb, declared: false, calls: surface.calls, sessions: surface.sessions.size }));
+    .map(([, surface]) => ({ door: surface.door, verb: surface.verb, declared: false, judged: true, calls: surface.calls, sessions: surface.sessions.size }));
   return [...known.sort(byUse), ...others.sort(byUse)];
 }
 

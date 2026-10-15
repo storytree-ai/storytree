@@ -7,6 +7,7 @@
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 
 const quit = verb({
+  consumers: ["user"],
   command: { family: "app", name: "quit", summary: "quit the running storytree app, as its tray's Quit does" },
   tool: { absent: "an agent quits the app from its shell, where the app's own record of where it runs is" },
   inputs: {},

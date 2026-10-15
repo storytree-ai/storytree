@@ -23,6 +23,7 @@ import type { ActivityLog } from "@storytree/session-management";
 import { openNamedProject, ProjectFolderError, requireApproval, route } from "@storytree/project-and-caller/routing";
 import { sourceVersion } from "@storytree/app/version";
 import type { ConnectOptions, Library, Storytree, WriteOptions } from "@storytree/library";
+import type { Consumer } from "@storytree/library/verbs";
 
 import { Refusal, render, UnknownCommand, type Answer, type Next } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
@@ -111,6 +112,8 @@ export interface Verb {
   readonly summary: string;
   /** Its flags that take no value. */
   readonly switches?: readonly string[];
+  /** Who calls it (ADR-1045 D1): left out, both an agent and a person. */
+  readonly consumers?: readonly Consumer[];
   act(args: Args, context: Context): Promise<Answer>;
 }
 

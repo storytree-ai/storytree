@@ -2,7 +2,7 @@
  * Capability 6 · Agent tools (the MCP server). A verb its owning story declared once (ADR-0969 D2), mounted as a
  * tool: its schema is read from the verb's inputs, the calling session's context is the wrapper's, a step its
  * answer names is called by its tool's name, and the verb's own refusal is an answer marked as an error. A verb
- * whose tool is declared absent is not served. The steps it offers next are named as tools, below its sentence as the
+ * whose tool is declared absent is not served, and one that is is served with its consumers (ADR-1045 D1). The steps it offers next are named as tools, below its sentence as the
  * command line prints them and in its data too, for a harness that shows the agent the data (ADR-0786 D2, as the owner
  * answered question_c7a7d394adf9).
  */
@@ -12,7 +12,7 @@ import { z } from "zod";
 import type { Line } from "@storytree/library";
 import type { NoteRead, NoteToolContext } from "@storytree/library/commands";
 import { currentBranch, presentersOf, readClaims } from "@storytree/session-management";
-import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbInput, type VerbInputs } from "@storytree/library/verbs";
+import { consumersOf, mounted, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbInput, type VerbInputs } from "@storytree/library/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
@@ -89,6 +89,6 @@ export function mountTools(define: Define, verbs: readonly Verb<VerbInputs, Tool
         if (error instanceof VerbRefusal) return { text: error.message, refused: true };
         throw error;
       }
-    });
+    }, { consumers: consumersOf(declared) });
   }
 }

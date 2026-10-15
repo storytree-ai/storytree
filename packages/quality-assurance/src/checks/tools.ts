@@ -27,8 +27,11 @@ interface ToolAnswer {
   readonly data?: Record<string, unknown>;
 }
 
-/** Registers one tool: its name, what it is for, its arguments, and what it does with them. */
-type DefineTool = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>) => void;
+/** Registers one tool: its name, what it is for, its arguments, what it does with them, and who calls it (ADR-1045 D1). */
+type DefineTool = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: ToolCall) => Promise<ToolAnswer>, options?: { readonly consumers?: readonly ("agent" | "user")[] }) => void;
+
+/** The checks, the ledger and the review loop are an agent session's: a reviewer's and its implementer's (ADR-1045 D1). */
+const AGENT = { consumers: ["agent"] } as const;
 
 /** Quality assurance's contribution to the MCP server's one tool server. */
 export interface ToolExtension {
@@ -53,11 +56,11 @@ export function qualityTools(): ToolExtension {
       define("quality_checks", "Read every live quality control check: the yes-or-no question a reviewer answers about a finished change, and the principle or guardrail notes it enforces.", z.object({}), async (_args, { library }) => {
         const reading = await checks(library);
         return { text: checksText(reading), data: { checks: reading } };
-      });
+      }, AGENT);
       define("quality_ledger", "Read the QA ledger's counts for this project: for each quality control check and each package, how many reviews ran it and how many hits it made, by the implementer's answer (fixed, rejected, unanswered).", z.object({}), async (_args, { storytree, project }) => {
         const reading = await (await openLedger(storytree)).reading(project);
         return { text: ledgerText(reading), data: { ledger: reading } };
-      });
+      }, AGENT);
       define("quality_brief", "Issue the next review's brief for an increment's change: its diff against the default branch origin names (origin/main when it names none, and the local default branch in a repository with no origin/main), the contracts of the capabilities it names and every live check. Give the diff, or the worktree whose branch is the change.", z.object({
         increment: z.string().min(1).describe("The increment whose change is reviewed"),
         diff: z.string().optional().describe("The change's diff against its default branch, as git diff gives it"),
@@ -66,7 +69,7 @@ export function qualityTools(): ToolExtension {
         if (diff === undefined && worktree === undefined) throw new Error("Give the change's diff, or the worktree whose branch is the change: this server's folder is not the branch.");
         const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? branchDiff(worktree!), diff === undefined ? branchBase(worktree!) : undefined);
         return { text: briefText(brief), data: { brief } };
-      });
+      }, AGENT);
       define("quality_take", "Take the change-reviewer's return on an increment's brief into the QA ledger, or refuse it naming what it leaves out, recording nothing. Give the worktree whose branch is the change, and what Guardrails' graduated checks find there is recorded with it.", z.object({
         increment: z.string().min(1).describe("The increment whose change was reviewed"),
         return: reviewReturn,
@@ -77,7 +80,7 @@ export function qualityTools(): ToolExtension {
           : await graduatedFindings(library, worktree);
         const taken = await (await openReviews(storytree)).take(project, increment, review as ReviewReturn, graduated);
         return { text: takenText(taken), data: { taken } };
-      });
+      }, AGENT);
       define("quality_answer", "The implementer's answer to a review's hit: fixed, or rejected with a reason.", z.object({
         hit: z.number().int().describe("The hit, by its number"),
         answer: z.enum(["fixed", "rejected"]),
@@ -86,7 +89,7 @@ export function qualityTools(): ToolExtension {
         if (answer === "rejected" && reason === undefined) throw new Error("A rejected hit needs its reason.");
         await (await openLedger(storytree)).answer(project, hit, answer === "fixed" ? { answer } : { answer, reason: reason! });
         return { text: `Answered hit ${hit}: ${answer}.`, data: { hit, answer } };
-      });
+      }, AGENT);
       define("quality_standing", "The findings that still stand on an increment's change, or that it is ready for the gate.", z.object({
         increment: z.string().min(1).describe("The increment whose change is reviewed"),
       }), async ({ increment }, { storytree, project }) => {
@@ -94,7 +97,7 @@ export function qualityTools(): ToolExtension {
         const standing = await reviews.standing(project, increment);
         const unmet = await reviews.unmet(project, increment);
         return { text: standingText(standing, unmet), data: { standing, unmet } };
-      });
+      }, AGENT);
       // "graduate" is the librarian's tool, so this one names what graduates.
       define("graduate_check", "Record that a part of a quality control check, or with whole all of it, is now enforced by a deterministic check in Guardrails; the reviewer judges only the rest, and a check graduated whole leaves the review brief.", z.object({
         check: z.string().min(1).describe("The check that graduates"),
@@ -105,7 +108,7 @@ export function qualityTools(): ToolExtension {
         await graduate(library, check, { part, enforcedBy: enforced_by, ...(whole ? { whole: true as const } : {}) });
         const reading = (await checks(library)).filter(({ id }) => id === check);
         return { text: `Graduated ${whole ? "all" : "part"} of ${check}.\n${checksText(reading)}`, data: { check: reading[0] } };
-      });
+      }, AGENT);
     },
   };
 }

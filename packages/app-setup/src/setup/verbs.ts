@@ -138,6 +138,7 @@ async function approvedHere(folder: string, project: string, library: ConnectOpt
 }
 
 export const DOCTOR = verb({
+  consumers: ["user"],
   command: { family: "doctor", name: "doctor", summary: "check storytree's setup, fix what it can, and name the fix for the rest", usage: "doctor [--set-up <project> | --join <project>]" },
   tool: NO_TOOL,
   callerless: true,
@@ -197,6 +198,7 @@ export const DOCTOR = verb({
 });
 
 export const SETUP = verb({
+  consumers: ["user"],
   command: { family: "setup", name: "setup", summary: "register storytree's hooks now, or take out exactly what storytree added", usage: "setup install | remove" },
   tool: NO_TOOL,
   callerless: true,

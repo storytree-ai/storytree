@@ -24,6 +24,8 @@ const part = {
   increment: z.string().min(1).optional().describe("The id of the increment, as the plan shows it: claiming one starts it"),
 };
 const ONE_PART = "Name a capability or an increment to claim, exactly one.";
+/** Claiming work and the workspace it is built in are an agent session's (ADR-1045 D1). */
+const AGENT = { consumers: ["agent"] } as const;
 
 export function registerClaimTools(define: Define, extensions: readonly ToolExtension[] = [], merges: MergeWatch = {}): void {
   define(
@@ -43,6 +45,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
           : "It is active now. When it is done, close it with its outcome and its pull request.";
       return { text: `You hold ${name} now.${taken} ${next}`, data: { held: true } };
     },
+    AGENT,
   );
 
   define(
@@ -76,6 +79,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
         data: { made: true, status: made.status, folder: made.folder, branch: made.branch, base: made.base },
       };
     },
+    AGENT,
   );
 
   define(
@@ -98,6 +102,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
         data: { attached: true, folder: attached.folder, branch: attached.branch, base: attached.base },
       };
     },
+    AGENT,
   );
 
   define("release", "Release a capability or an increment you hold, without landing or closing it, so another session can take it.", z.object(part), async ({ capability, increment }, call) => {
@@ -109,7 +114,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
       text: answer.holder === undefined ? `You don't hold ${id}, and nobody else does.` : `You don't hold ${id}: ${holderOf(answer.holder)} does.`,
       refused: true,
     };
-  });
+  }, AGENT);
 
   define(
     "stale_claims",

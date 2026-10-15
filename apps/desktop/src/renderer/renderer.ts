@@ -16,13 +16,15 @@ import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveRea
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { drawingOf, drillDown, forestDrawn, forestReading, forestScene, keptDrawing, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
 import { mountJourneyConsent, mountJourneySettings } from "@storytree/journey-events/view";
+import { journal, type Target } from "@storytree/learning-as-you-build";
+import { mountJournal, mountTeaching } from "@storytree/learning-as-you-build/view";
 import { mountLagRecorder } from "@storytree/lag-in-use/view";
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
-import { attachPanZoom, openForestView, mountLibraryPanel, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type GlobeOpening, type PanZoom, type TreeOpening, type TreeSpace } from "@storytree/forest/view";
+import { attachPanZoom, openForestView, mountLibraryPanel, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type GlobeLocator, type GlobeOpening, type PanZoom, type TreeOpening, type TreeSpace } from "@storytree/forest/view";
 
 declare global {
   interface Window {
@@ -31,6 +33,8 @@ declare global {
 }
 
 const content = element("content");
+/** The cards seen, kept for this user on this machine, so a kind is taught once across projects (Learning as you build). */
+const seenCards = journal(window.localStorage);
 const params = new URLSearchParams(location.search);
 const appMenu = mountAppMenu(element("app-menu-host"), {
   background: content,
@@ -46,7 +50,16 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
     void following?.refresh(true);
   },
   mountJourney: (host) => mountJourneySettings(host, window.storytree),
-  mountHelp: (host, returnFocus, onOpen) => mountSetupHelp(host, window.storytree, { returnFocus, embedded: true, onOpen }),
+  // Help holds the setup guide and, below it, the journal of teaching cards seen.
+  mountHelp: (host, returnFocus, onOpen) => {
+    const setup = mountSetupHelp(host, window.storytree, { returnFocus, embedded: true, onOpen });
+    const learned = mountJournal(host, { journal: seenCards });
+    return {
+      open() { setup.open(); learned.open(); },
+      close() { setup.close(); learned.close(); },
+      stop() { setup.stop(); learned.stop(); },
+    };
+  },
   mountAddProject: (host, onAdded) => mountAddProject(host, window.storytree, { onAdded }),
   mountRemoveProject: (host, current, onRemoved) => mountRemoveProject(host, window.storytree, { current, onRemoved }),
   mountDeleteProject: (host, onDeleted) => mountDeleteProject(host, window.storytree, { onDeleted }),
@@ -58,7 +71,7 @@ const lagRecorder = mountLagRecorder(window.storytree);
 window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); consentHost.remove(); lagRecorder?.stop(); });
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
-let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined } | undefined;
+let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined; teaching: ReturnType<typeof mountTeaching> | undefined } | undefined;
 let current: string | undefined;
 let following: ReturnType<typeof followProjects> | undefined;
 
@@ -121,7 +134,7 @@ async function showForest(name: string): Promise<void> {
   panel.hidden = true;
   content.replaceChildren(holder, panel);
   document.body.dataset.surface = "forest";
-  const mine: NonNullable<typeof showing> = { page: undefined, reading: undefined, view: undefined, arcs: undefined, sessions: undefined, card: undefined, tree: undefined };
+  const mine: NonNullable<typeof showing> = { page: undefined, reading: undefined, view: undefined, arcs: undefined, sessions: undefined, card: undefined, tree: undefined, teaching: undefined };
   showing = mine;
   // The surfaces switched on in the settings file (ADR-0750); if they cannot be read, all are on.
   const read = await window.storytree.readSurfaces().catch(() => undefined);
@@ -227,6 +240,8 @@ async function showForest(name: string): Promise<void> {
     onHighlight: stories => view.highlight(stories), onWisps: wisps => view.showWisps(wisps),
     onRoster: roster => core.showRoster(roster), onSelect: session => core.select(session) });
   core.onSelect(session => mine.sessions?.select(session));
+  // The first time each kind appears on this map, its card shows beside it (ADR-1048 D1).
+  mine.teaching = mountTeaching(content, { journal: seenCards, locate });
 
   // The tree this project last drew, at once and marked as not yet fresh, while the first read runs,
   // drawn with the survey, story order and work states it was drawn with, so the fresh drawing of an
@@ -263,6 +278,7 @@ async function showForest(name: string): Promise<void> {
       view.show(scene, new Map(storyNodes(tree, history(), survey).map(node => [node.id, node.place])));
       core.take(history(), news.lines);
       sayWhatWasDrawn(forestDrawn(scene));
+      mine.teaching?.take({ tree, changes: history(), lines: page.held().lines });
       if (!panel.hidden) showPanel();
       kept.write(tree);
       drawing.write(drawingOf(tree, history(), states, survey));
@@ -285,6 +301,7 @@ async function redraw(name: string): Promise<void> {
 }
 
 function stopShowing(): void {
+  showing?.teaching?.stop();
   showing?.card?.();
   showing?.tree?.stop();
   showing?.arcs?.stop();
@@ -297,6 +314,22 @@ function stopShowing(): void {
   showReadError(undefined);
   delete document.body.dataset.surface;
   delete document.body.dataset.note;
+}
+
+/**
+ * Where a teaching card's target is on the page: a story or capability at its island, a decision at its
+ * note on the globe, a plan or a question at the arcs drawer; undefined when it is not on show.
+ */
+function locate(target: Target): { x: number; y: number; visible: boolean } | undefined {
+  const globe = (window as { storytreeGlobe?: GlobeLocator }).storytreeGlobe;
+  if (target.kind === "story" || target.kind === "capability") return globe?.islands().find(island => island.story === target.story);
+  if (target.kind === "note") return globe?.notes().find(note => note.note === target.note);
+  if (target.kind === "arc" || target.kind === "question") {
+    // Just past the Arcs bar's label, on the bar.
+    const box = document.querySelector(".arc-surface-mount [data-open-arcs]")?.getBoundingClientRect();
+    return box === undefined || box.width === 0 ? undefined : { x: box.left + 60, y: box.top + box.height / 2, visible: true };
+  }
+  return undefined;
 }
 
 /** Show the start's bar (index.html's, on show from the window opening) while the forest settles, or take it away when settled. */

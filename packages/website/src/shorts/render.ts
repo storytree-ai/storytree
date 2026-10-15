@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
 import { RenderInternals, renderMedia, renderStill, selectComposition, type Codec } from "@remotion/renderer";
-import { LOW, SCALE } from "./split-screen.js";
+import { LOW, SCALE } from "./script.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,18 +21,19 @@ export function bundleShorts(): Promise<string> {
 /** Chrome's software WebGL, the same on every machine, so a frame is the same pixels wherever it renders. */
 const chromiumOptions = { gl: "swangle" } as const;
 
-/** One frame of a composition as a lossless PNG, rendered in a browser of its own. */
-export async function renderPng(serveUrl: string, id: string, frame: number, output?: string): Promise<Buffer> {
+/** One frame of a composition as a lossless PNG, rendered in a browser of its own; `scale` 0.5 gives the ×3 web size. */
+export async function renderPng(serveUrl: string, id: string, frame: number, output?: string, scale = 1): Promise<Buffer> {
   const composition = await selectComposition({ serveUrl, id, chromiumOptions, logLevel: "error" });
-  const { buffer } = await renderStill({ serveUrl, composition, frame, imageFormat: "png", output: output ?? null, chromiumOptions, logLevel: "error", overwrite: true });
+  const { buffer } = await renderStill({ serveUrl, composition, frame, imageFormat: "png", output: output ?? null, chromiumOptions, logLevel: "error", overwrite: true, scale });
   return buffer ?? readFile(output!);
 }
 
-/** The whole composition as a video: H.264 MP4 or VP9 WebM. */
-export async function renderVideo(serveUrl: string, id: string, codec: Extract<Codec, "h264" | "vp9">, output: string): Promise<void> {
+/** The whole composition as a video: H.264 MP4 or VP9 WebM, at `scale` of its 1920×1080 and the given quality. */
+export async function renderVideo(serveUrl: string, id: string, codec: Extract<Codec, "h264" | "vp9">, output: string,
+  { scale = 1, crf = codec === "h264" ? 16 : 20 }: { scale?: number; crf?: number } = {}): Promise<void> {
   const composition = await selectComposition({ serveUrl, id, chromiumOptions, logLevel: "error" });
   await renderMedia({ serveUrl, composition, codec, outputLocation: output, chromiumOptions, logLevel: "error", overwrite: true,
-    imageFormat: "png", ...(codec === "h264" ? { crf: 16 } : { crf: 20 }) });
+    imageFormat: "png", scale, crf });
 }
 
 /** Runs Remotion's bundled ffmpeg: no system install is needed. */

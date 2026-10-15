@@ -11,7 +11,10 @@
  * before a shell command and at the end of a turn) it hands the writing to a copy of itself that it
  * leaves running, detached and with nothing of the harness's open, and exits at once. The look around
  * the machine a hook hands on, once a minute, goes the same way, to a copy run with `--upkeep` that
- * may run for UPKEEP_DEADLINE_MS.
+ * may run for UPKEEP_DEADLINE_MS. Every copy is started with `--handed`, so its time is read apart.
+ *
+ * However it exits, it records how long it took, and in which parts (hooks/timing.ts, ADR-1056 D1); the status line,
+ * which is no hook event, is not timed.
  *
  * This module runs nothing by itself: an entry point calls hookCommand(), giving it what this story may not
  * import. The command setup registers is the app setup story's (packages/app-setup/src/bins/storytree-hook.ts),
@@ -20,13 +23,17 @@
  */
 import { spawn } from "node:child_process";
 
+import { storytreeHome } from "@storytree/project-and-caller";
+
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
-import { DEADLINE_MS, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
+import { DEADLINE_MS, HANDED, HookClock, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
 
 export type { DeclaredCapabilities };
 
 /** Run the hook command for this process: its harness and flags in argv, the hook's input on stdin. */
 export function hookCommand({ declaredCapabilities }: { declaredCapabilities?: DeclaredCapabilities } = {}): void {
+  const clock = new HookClock();
+  if (process.argv[2] !== "statusline") process.on("exit", () => recordHookTime(storytreeHome(), clock.reading(process.argv[2] ?? "", process.argv.slice(3))));
   setTimeout(() => process.exit(0), process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : DEADLINE_MS).unref();
   process.on("uncaughtException", () => process.exit(0));
   process.on("unhandledRejection", () => process.exit(0));
@@ -36,12 +43,13 @@ export function hookCommand({ declaredCapabilities }: { declaredCapabilities?: D
   process.stdin.on("data", (chunk: string) => (input += chunk));
   process.stdin.on("error", () => process.exit(0));
   process.stdin.on("end", () => {
+    clock.add("startup", performance.now());
     // `storytree-hook statusline`: Claude Code's status line (hooks/status-line.ts), printed with no newline.
     if (process.argv[2] === "statusline") {
       void statusLine(input).then((line) => process.stdout.write(line, () => process.exit(0)));
       return;
     }
-    runHook({ argv: process.argv.slice(2), input, handOff, ...(declaredCapabilities === undefined ? {} : { declaredCapabilities }) }).then(
+    runHook({ argv: process.argv.slice(2), input, handOff, clock, ...(declaredCapabilities === undefined ? {} : { declaredCapabilities }) }).then(
       (added) => (added === undefined ? process.exit(0) : process.stdout.write(added, () => process.exit(0))),
       () => process.exit(0),
     );
@@ -51,7 +59,7 @@ export function hookCommand({ declaredCapabilities }: { declaredCapabilities?: D
 /** Start this script again for `harness` with `flags`, detached, with `input` on its stdin, and resolve once it has the input. */
 function handOff(harness: string, input: string, flags: readonly string[] = []): Promise<void> {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [process.argv[1]!, harness, ...flags], { detached: true, stdio: ["pipe", "ignore", "ignore"], windowsHide: true, shell: false });
+    const child = spawn(process.execPath, [process.argv[1]!, harness, ...flags, HANDED], { detached: true, stdio: ["pipe", "ignore", "ignore"], windowsHide: true, shell: false });
     child.on("error", () => resolve());
     child.stdin.on("error", () => resolve());
     child.stdin.end(input, () => {

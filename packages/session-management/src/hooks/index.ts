@@ -9,3 +9,4 @@ export type { HookInput, HookLines } from "./hooks.js";
 export { CLOSE_OUT_REMINDER, closeOutReminder, rememberClosedOut } from "./close-out-reminder.js";
 export { EDIT_GATE } from "./edit-gate.js";
 export { SHELL_GUARD } from "./shell-guard.js";
+export { HANDED, HookClock, recordHookTime } from "./timing.js";

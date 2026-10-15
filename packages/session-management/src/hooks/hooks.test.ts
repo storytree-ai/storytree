@@ -124,11 +124,11 @@ async function projectFolder(dir: string, project: string, home: string = path.j
   return folder;
 }
 
-/** `project`'s lines, less the machine's start the first hook to reach it records (4.30), unless `starts` asks for those too. */
+/** `project`'s lines, less the machine's start the first hook to reach it records (4.30) and the hook times its look uploads (3.39), unless `starts` asks for all. */
 async function linesOf(project: string, { starts = false } = {}): Promise<Line[]> {
   const log = await openActivityLog(testServerUrl());
   try {
-    return (await log.since(project, 0)).lines.filter((line) => starts || line.kind !== "machine-started");
+    return (await log.since(project, 0)).lines.filter((line) => starts || (line.kind !== "machine-started" && line.kind !== "hook-times"));
   } finally {
     await log.close();
   }
@@ -1395,5 +1395,35 @@ test("3.36 a shell command that changes files in a capability its session's incr
       await storytree.close();
       await dropTestProjects([project]);
     }
+  });
+});
+
+test("3.39 every hook records on this machine how long it took, by harness and event, from its start to its exit and in its parts, a handed-on copy marked apart; the look around the machine uploads what waited as hook-times lines (ADR-1056 D1)", { timeout: 60_000 }, async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const folder = await projectFolder(dir, project);
+    const home = storytreeHome(dir, true);
+    const times = path.join(home, "hook-times.jsonl");
+    type Reading = { at: string; harness: string; event: string; total: number; parts: Record<string, number> };
+    const waiting = (): Reading[] => (existsSync(times) ? readFileSync(times, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as Reading) : []);
+
+    // A session's end hands nothing on: its own reading is all that waits.
+    const started = Date.now();
+    const ended = await runHook("claude-code", recorded("claude-code", "session-end", folder), home);
+    const [reading, ...more] = waiting();
+    assert.deepEqual(more, []);
+    assert.deepEqual([reading?.harness, reading?.event, Object.keys(reading?.parts ?? {}).sort()], ["claude-code", "SessionEnd", ["connect", "startup", "write"]]);
+    assert.ok(Date.parse(reading!.at) >= started - 1_000 && reading!.total <= ended.ms, "from its start to its exit, inside the time it ran");
+    assert.ok(Object.values(reading!.parts).every((part) => part >= 0 && part <= reading!.total), "each part inside the whole");
+
+    // The next hook hands the look around the machine on: the copy is marked apart, and uploads what waited.
+    await runHook("codex", recorded("codex", "post-tool-use-bash", folder), home);
+    // The copy may run for as long as the look around the machine may (20 s).
+    const deadline = Date.now() + 25_000;
+    const uploaded = async () => (await linesOf(project, { starts: true })).flatMap((line) => (line.kind === "hook-times" ? line.readings : []));
+    while (!(await uploaded()).some((r) => r.event === "SessionEnd") && Date.now() < deadline) await sleep(100);
+    assert.deepEqual((await uploaded()).find((r) => r.event === "SessionEnd"), reading);
+    while (!waiting().some((r) => r.event === "PostToolUse --upkeep --handed") && Date.now() < deadline) await sleep(100);
+    assert.ok(waiting().some((r) => r.harness === "codex" && r.event === "PostToolUse --upkeep --handed"), "the copy's own reading waits for the next upload");
   });
 });

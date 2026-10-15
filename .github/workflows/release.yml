@@ -1,16 +1,18 @@
 name: Release installed app
 
-# workflow_run fires after each whole CI run completes. Through the merge queue (ADR-0796), the
-# queue's merge is a push to main, so CI's run on that push is the one that releases; the pull
-# request's run (not yet merged) and the queue's own run (merge_group) select nothing. A direct
-# merge by CI uses GITHUB_TOKEN, which starts no push workflow, so then the pull request's run,
-# including automerge, is the one. Source selection refuses unmerged PRs; the jobs below verify the
-# exact merged commit again before it can ship.
+# workflow_run fires after each whole CI run completes, and only for CI runs on main. Through the merge
+# queue (ADR-0796) every merge is a push to main, and CI's run on that push tests the merged commit in
+# full on Linux, macOS and Windows (ci.yml: on a push to main the scope is everything), so that run is
+# the release's verification: `source` takes its commit only if it succeeded, and nothing here runs
+# the tests again (contract 4.6). Pull request and merge-queue runs start no release run at all.
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
+    branches: [main]
 
+# One release at a time, never cancelled once started. GitHub keeps one waiting run; a newer main
+# commit replacing an older waiting one is right, since its release contains the older.
 concurrency:
   group: installed-app-release
   cancel-in-progress: false
@@ -25,7 +27,6 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
-      pull-requests: read
     outputs:
       sha: ${{ steps.source.outputs.sha }}
       version: ${{ steps.source.outputs.version }}
@@ -43,46 +44,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-  verify:
-    needs: source
-    if: needs.source.outputs.sha != ''
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.runner }}
-    # The same limits as ci.yml's test job, which runs this full suite on main and passes: with the
-    # default 3-minute unit limit and a 15-minute job, Windows agent-link and cli were killed in
-    # every release attempt after 0.3.1045 (runs 38035124117, 38037855790), so nothing shipped.
-    timeout-minutes: 35
-    steps:
-      - name: Set the test run's deadline
-        shell: bash
-        run: echo "STORYTREE_TEST_DEADLINE=$(( $(date +%s) + 31 * 60 ))" >> "$GITHUB_ENV"
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ needs.source.outputs.sha }}
-          fetch-depth: 0
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      # Windows cli's own deadline, as ci.yml sets it (twice its slowest pass there).
-      - if: matrix.runner == 'windows-latest'
-        shell: bash
-        run: pnpm run test --set-limit=cli=720 --reason="Windows CI passes took up to 346 s; twice that, friction_21e0e923a222"
-      # A release is a complete artifact. Verify its exact merged commit, even if main moved.
-      - run: pnpm test -- --full
-        env:
-          STORYTREE_UNIT_LIMIT_MS: 360000
-
   # One draft per release, made once before any platform uploads: GitHub lets two drafts share a tag,
   # so the platforms never race to create it. A draft stays invisible to installed apps.
   draft:
-    needs: [source, verify]
+    needs: source
+    if: needs.source.outputs.sha != ''
     runs-on: ubuntu-latest
     # The real release's secrets, falling back to the repository's while one is not set there (release-package.yml).
     environment: release

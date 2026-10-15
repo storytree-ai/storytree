@@ -1,5 +1,5 @@
 // GitHub Actions' release front door. No builds or publication happen on import.
-// Source selection runs from main; the verified commit is then checked out in the build jobs.
+// Source selection runs from main; the commit main's CI verified is then checked out in the build jobs.
 import { execFileSync, spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,7 +13,6 @@ import { macReleaseNote, withMacNote } from "./mac-signing.mjs";
 const repository = "storytree-ai/storytree";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const gh = (...args) => execFileSync("gh", args, { encoding: "utf8" }).trim();
-const api = (endpoint) => JSON.parse(gh("api", `repos/${repository}/${endpoint}`));
 const output = (key, value) => appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
 
 function onMain(sha) {
@@ -41,17 +40,9 @@ if (process.env.STORYTREE_REHEARSAL === "true" && ["source", "draft", "upload", 
 
 if (process.argv[2] === "source") {
   const run = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8")).workflow_run;
-  let sha = releaseSource(run);
-  if (run.event === "pull_request" && run.conclusion === "success" && run.head_repository.full_name === repository) {
-    // workflow_run.pull_requests can be empty after the automatic merge; ask by the tested head.
-    const candidates = api(`commits/${run.head_sha}/pulls`);
-    for (const candidate of candidates) {
-      sha = releaseSource(run, api(`pulls/${candidate.number}`));
-      if (sha !== undefined) break;
-    }
-  }
+  const sha = releaseSource(run);
   if (sha === undefined) {
-    console.log("No successfully checked merge to release.");
+    console.log("No successful CI run on main to release.");
   } else {
     onMain(sha);
     const version = versionAt(git, sha);

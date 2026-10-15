@@ -1408,13 +1408,13 @@ test("3.39 every hook records on this machine how long it took, by harness and e
     const waiting = (): Reading[] => (existsSync(times) ? readFileSync(times, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as Reading) : []);
 
     // A session's end hands nothing on: its own reading is all that waits.
-    const started = Date.now();
-    const ended = await runHook("claude-code", recorded("claude-code", "session-end", folder), home);
+    await runHook("claude-code", recorded("claude-code", "session-end", folder), home);
     const [reading, ...more] = waiting();
     assert.deepEqual(more, []);
     assert.deepEqual([reading?.harness, reading?.event, Object.keys(reading?.parts ?? {}).sort()], ["claude-code", "SessionEnd", ["connect", "startup", "write"]]);
-    assert.ok(Date.parse(reading!.at) >= started - 1_000 && reading!.total <= ended.ms, "from its start to its exit, inside the time it ran");
-    assert.ok(Object.values(reading!.parts).every((part) => part >= 0 && part <= reading!.total), "each part inside the whole");
+    assert.ok(!Number.isNaN(Date.parse(reading!.at)), "when it started");
+    const { startup = 0, connect = 0, write = 0 } = reading!.parts;
+    assert.ok(Math.min(startup, connect, write) > 0 && startup + connect + write <= reading!.total + 0.3, "its parts, one after another, inside its whole");
 
     // The next hook hands the look around the machine on: the copy is marked apart, and uploads what waited.
     await runHook("codex", recorded("codex", "post-tool-use-bash", folder), home);

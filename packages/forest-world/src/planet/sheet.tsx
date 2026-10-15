@@ -4,24 +4,33 @@
  * territories and nameplate, and the roads are routed and raised exactly as on the globe, by the same code. The sphere's
  * radius is SHEET_RADIUS; a sheet 3000 units wide then sags 5.6 units at its corners and turns an edge island from an eye over
  * its middle by under half a degree. Turning the big sphere by a hair moves the sheet under the eye, so the globe's turn is the
- * sheet's pan. */
+ * sheet's pan. It is a floating slab of glass in a lit, perspective scene (ADR-1062 D1): the eye is a perspective one whose
+ * distance from the middle of the view is the zoom, and a lamp shades the islands' sides and the glass's edge. */
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { BufferGeometry, DoubleSide, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3, type Camera, type Object3D, type OrthographicCamera } from 'three';
+import { AmbientLight, BufferGeometry, DirectionalLight, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, MeshLambertMaterial, PlaneGeometry, Quaternion, Vector3, type Camera, type Light, type Object3D, type PerspectiveCamera } from 'three';
 import { PLATE_CLEARANCE, type PlanetSpot } from './planet.js';
 
 /** The radius of the sphere whose near pole is the sheet, in ground units. */
 export const SHEET_RADIUS = 200_000;
 
 /**
- * The eye's one fixed tabletop tilt (ADR-1059 D1), in radians: the angle between the line of sight and the face it looks at.
- * Steep enough to show the islands' sides, the glass's edge and the graph's depth, shallow enough that names stay legible.
- * The north edge lies away from the eye on the top face, and the south edge on the underside; nothing the user does changes it.
+ * The eye's resting tabletop tilt (ADR-1059 D1, ADR-1062 D3), in radians: how far the sheet is tipped from facing the eye
+ * square-on, its north edge away. Steep enough to show the islands' sides, the glass's edge and the graph's depth, shallow
+ * enough that names stay legible. The user tilts it anywhere from straight down on the top face (0) to straight up at the
+ * underside (π), and Home and the Stories button rest it here; the Library button rests it at the mirror tilt, π less this.
  */
 export const SHEET_TILT = 40 * Math.PI / 180;
 
 /** How far under the islands' resting plates the glass lies, in ground units: the roads ride just above it. */
 export const SHEET_GLASS_BELOW = 1.2;
+
+/** How thick the glass is, in ground units: its underside lies this far below its top face, and its edge shows between them. */
+export const SHEET_GLASS_THICKNESS = 4;
+
+/** The eye's field of view from the window's top to its bottom, in degrees: a moderate lens, so the slab reads as an object
+ * near the eye without the near edge swelling. */
+export const SHEET_FOV = 35;
 
 /** Every island's thickness on the sheet (ADR-1059 D2), from its land down to the glass, in ground units: one for all, so
  * an island's height stays free to carry a signal later. */
@@ -52,15 +61,41 @@ function sag(x: number, y: number): number {
   return Math.sqrt(SHEET_RADIUS * SHEET_RADIUS - x * x - y * y) - SHEET_RADIUS;
 }
 
+/** The eye's focal length in CSS pixels for a canvas `size`: how many pixels a unit spans at a unit's distance. */
+function focal(size: { height: number }): number {
+  return Math.max(size.height, 1) / 2 / Math.tan(SHEET_FOV * Math.PI / 360);
+}
+
+/** How far the perspective eye stands from the middle of the view on the glass, which lies on its line of sight. */
+function eyeDistance(camera: Camera): number {
+  return camera.position.length() - SHEET_RADIUS - PLATE_CLEARANCE;
+}
+
+/** The zoom the eye shows on a canvas `size`: CSS pixels per ground unit at the middle of the view, where its distance sets it. */
+export function sheetEyeZoom(camera: Camera, size: { height: number }): number {
+  return focal(size) / Math.max(eyeDistance(camera), Number.EPSILON);
+}
+
 /**
- * The eye for a sheet `reach` units across (its diagonal), after the framing has set its zoom: it stands `4 * reach` from
- * the pole along its own line of sight, with its near and far planes `2 * reach` either side of the sheet, so the depth
- * buffer spans the sheet and not the whole sphere, and marks lifted a twentieth of a unit off the land never fight it.
+ * Stands the perspective eye on its line of sight as far from the middle of the view as `zoom` (CSS pixels per ground unit
+ * there) asks on a canvas `size`: a zoom moves the eye, never the lens. Its depth range then spans the sheet, `reach` units
+ * across (its diagonal), whichever way it is tilted (`sheetDepthRange`).
  */
-export function applySheetEye(camera: OrthographicCamera, reach: number): void {
-  camera.position.setLength(SHEET_RADIUS + PLATE_CLEARANCE + 4 * reach);
-  camera.near = 2 * reach;
-  camera.far = 6 * reach;
+export function applySheetEye(camera: PerspectiveCamera, reach: number, zoom: number, size: { height: number }): void {
+  camera.zoom = 1;
+  camera.position.setLength(SHEET_RADIUS + PLATE_CLEARANCE + focal(size) / Math.max(zoom, Number.EPSILON));
+  sheetDepthRange(camera, reach);
+}
+
+/**
+ * Sets the eye's near and far planes round the sheet from where it stands now, so the depth buffer spans the sheet and not
+ * the whole sphere: the far plane past the sheet's farthest corner, the near one short of its nearest (or a fiftieth of the
+ * way to the middle of the view, when the eye is close enough that the sheet reaches past it).
+ */
+export function sheetDepthRange(camera: PerspectiveCamera, reach: number): void {
+  const distance = eyeDistance(camera);
+  camera.near = Math.max(distance / 50, distance - reach);
+  camera.far = distance + reach;
   camera.updateProjectionMatrix();
 }
 
@@ -91,51 +126,107 @@ function drawOrderBySide(group: Object3D, camera: Camera, above: number, below: 
   drawOrderAfter(group, seenFromBelow(group, camera) ? below : above);
 }
 
-/**
- * What hangs beneath the glass (the knowledge graph, ADR-1043 D5) is shown only while the eye looks at the sheet's underside,
- * drawn over the glass it hangs beyond; from the top face none of it is drawn, not even faintly through the glass (ADR-1061 D1).
- */
-export function hangUnderTheGlass(group: Object3D, camera: Camera): void {
-  group.visible = seenFromBelow(group, camera);
-  if (group.visible) drawOrderAfter(group, 21);
+/** How far the sheet is tilted from facing the eye square-on with its top face, in radians: 0 straight down on the top, π/2
+ * edge-on, π straight up at the underside. */
+export function tiltFromEye(sheet: Object3D, camera: Camera): number {
+  const up = new Vector3(0, 0, 1).applyQuaternion(sheet.getWorldQuaternion(new Quaternion()));
+  return up.angleTo(new Vector3(0, 0, 1).applyQuaternion(camera.quaternion));
 }
 
-/** What hangs beneath the glass, drawn as `hangUnderTheGlass` says, so turning the sheet over shows it the moment it passes edge-on. */
+/** The tilt from which what hangs under the glass comes into view below the slab, 30 degrees short of level: steeper, the
+ * smoked glass hides it all (ADR-1062 D4), so the top resting view shows no knowledge, not even faintly (ADR-1061 D1). */
+export const UNDER_SHOWS_FROM = 60 * Math.PI / 180;
+
+/**
+ * What hangs beneath the glass (the knowledge graph, ADR-1043 D5) shows by the angle (ADR-1062 D4): hidden from well above,
+ * in view from near level, drawn before the glass it hangs behind, and from below drawn over the glass it hangs beyond.
+ */
+export function hangUnderTheGlass(group: Object3D, camera: Camera): void {
+  const tilt = tiltFromEye(group, camera);
+  group.visible = tilt >= UNDER_SHOWS_FROM;
+  if (group.visible) drawOrderAfter(group, tilt > Math.PI / 2 ? 21 : -30);
+}
+
+/** What hangs beneath the glass, drawn as `hangUnderTheGlass` says, so it comes into view as the sheet tilts toward level. */
 export function UnderTheGlass({ children }: { children: ReactNode }) {
   const group = useRef<Group>(null);
   useFrame(({ camera }) => { if (group.current !== null) hangUnderTheGlass(group.current, camera); });
   return <group ref={group} name="sheet:under">{children}</group>;
 }
 
-/** The glass under the islands: a pane bent to the big sphere's sag, faint, with a bright rim, at the pole, `extent` across. */
+/** The colour of the glass's edge, lit by the scene's lamp (ADR-1062 D1). */
+const GLASS_EDGE_COLOUR = '#7fa6bb';
+
+/**
+ * The glass under the islands: a smoked slab `SHEET_GLASS_THICKNESS` thick, bent to the big sphere's sag, at the pole,
+ * `extent` across. Its two faces are faint panes, each with a bright rim, and its edge a lit band between them, so the
+ * slab shows its thickness from any tilt.
+ */
 export function sheetGlass(extent: SheetExtent): Group {
   const group = new Group();
   group.name = 'sheet:glass';
   group.position.set(0, 0, SHEET_RADIUS + PLATE_CLEARANCE);
-  const plane = new PlaneGeometry(extent.width, extent.height, 48, 32);
-  const position = plane.getAttribute('position');
-  // The pane lies just under the islands' resting plates, following the sphere they stand on.
-  for (let i = 0; i < position.count; i++) position.setZ(i, sag(position.getX(i), position.getY(i)) - SHEET_GLASS_BELOW);
-  // Smoked glass over the page.
-  const pane = new Mesh(plane, new MeshBasicMaterial({ color: '#1a2832', transparent: true, opacity: 0.72, depthWrite: false, side: DoubleSide }));
-  pane.name = 'sheet:pane';
-  pane.raycast = () => {};
-  // The rim, bent with the pane: each side sampled every 20 units.
-  const w = extent.width / 2, h = extent.height / 2, loop: Vector3[] = [];
+  const top = -SHEET_GLASS_BELOW, bottom = top - SHEET_GLASS_THICKNESS;
+  // Smoked glass, its top face just under the islands' resting plates, following the sphere they stand on.
+  const pane = (name: string, z: number) => {
+    const plane = new PlaneGeometry(extent.width, extent.height, 48, 32), position = plane.getAttribute('position');
+    for (let i = 0; i < position.count; i++) position.setZ(i, sag(position.getX(i), position.getY(i)) + z);
+    const mesh = new Mesh(plane, new MeshBasicMaterial({ color: '#1a2832', transparent: true, opacity: name === 'sheet:pane' ? 0.72 : 0.35, depthWrite: false, side: DoubleSide }));
+    mesh.name = name;
+    mesh.raycast = () => {};
+    return mesh;
+  };
+  // The rim, bent with the panes: each side sampled every 20 units.
+  const w = extent.width / 2, h = extent.height / 2, loop: { x: number; y: number }[] = [];
   const corners = [[-w, -h], [w, -h], [w, h], [-w, h]] as const;
   corners.forEach(([x0, y0], i) => {
     const [x1, y1] = corners[(i + 1) % 4]!, steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 20));
-    for (let s = 0; s < steps; s++) {
-      const x = x0 + (x1 - x0) * s / steps, y = y0 + (y1 - y0) * s / steps;
-      loop.push(new Vector3(x, y, sag(x, y) - SHEET_GLASS_BELOW));
-    }
+    for (let s = 0; s < steps; s++) loop.push({ x: x0 + (x1 - x0) * s / steps, y: y0 + (y1 - y0) * s / steps });
   });
-  const rim = new LineSegments(new BufferGeometry().setFromPoints(loop.flatMap((p, i) => [p, loop[(i + 1) % loop.length]!])),
-    new LineBasicMaterial({ color: '#cfe6f2', transparent: true, opacity: 0.55 }));
-  rim.name = 'sheet:rim';
-  rim.raycast = () => {};
-  group.add(pane, rim);
+  const rim = (name: string, z: number) => {
+    const at = loop.map(({ x, y }) => new Vector3(x, y, sag(x, y) + z));
+    const line = new LineSegments(new BufferGeometry().setFromPoints(at.flatMap((p, i) => [p, at[(i + 1) % at.length]!])),
+      new LineBasicMaterial({ color: '#cfe6f2', transparent: true, opacity: 0.55 }));
+    line.name = name;
+    line.raycast = () => {};
+    return line;
+  };
+  // The edge: a wall round the loop from the top face down to the underside, each facing outward for the lamp to shade.
+  const position: number[] = [], normal: number[] = [], indices: number[] = [];
+  loop.forEach((p, i) => {
+    const q = loop[(i + 1) % loop.length]!, out = new Vector3(q.y - p.y, -(q.x - p.x), 0).normalize(), at = position.length / 3;
+    for (const { x, y } of [p, q]) position.push(x, y, sag(x, y) + top, x, y, sag(x, y) + bottom);
+    for (let k = 0; k < 4; k++) normal.push(out.x, out.y, out.z);
+    indices.push(at, at + 1, at + 2, at + 1, at + 3, at + 2);
+  });
+  const wall = new BufferGeometry();
+  wall.setAttribute('position', new Float32BufferAttribute(position, 3));
+  wall.setAttribute('normal', new Float32BufferAttribute(normal, 3));
+  wall.setIndex(indices);
+  const edge = new Mesh(wall, new MeshLambertMaterial({ color: GLASS_EDGE_COLOUR, transparent: true, opacity: 0.8, depthWrite: false, side: DoubleSide }));
+  edge.name = 'sheet:edge';
+  edge.raycast = () => {};
+  group.add(pane('sheet:pane-under', bottom), edge, pane('sheet:pane', top), rim('sheet:rim', top), rim('sheet:rim-under', bottom));
   return group;
+}
+
+/**
+ * The sheet's lights (ADR-1062 D1): soft light all round, so nothing lit goes black, and one lamp above the eye's left
+ * shoulder, fixed with the eye, so a side turned toward it brightens as the user tilts or spins the slab.
+ */
+export function sheetLights(): Light[] {
+  const lamp = new DirectionalLight('#ffffff', 1.6);
+  lamp.position.set(-0.45, 0.8, 0.6);
+  lamp.name = 'sheet:lamp';
+  const soft = new AmbientLight('#ffffff', 0.9);
+  soft.name = 'sheet:soft-light';
+  return [soft, lamp];
+}
+
+/** The sheet's lights, mounted where the eye's frame is the scene's, so the lamp stays over the eye's shoulder. */
+export function SheetLights() {
+  const lights = useMemo(sheetLights, []);
+  return <>{lights.map(light => <primitive key={light.name} object={light} />)}</>;
 }
 
 /** The glass under the islands, drawn (`sheetGlass`). */

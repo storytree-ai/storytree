@@ -1,20 +1,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Group, Mesh as ThreeMesh, OrthographicCamera, Quaternion, Raycaster, Vector3, type Mesh } from 'three';
-import { plateTransform } from './planet.js';
+import { AmbientLight, Box3, DirectionalLight, Group, Mesh as ThreeMesh, MeshLambertMaterial, MeshStandardMaterial, PerspectiveCamera, Quaternion, Raycaster, Vector3, type BufferAttribute, type Mesh } from 'three';
+import { PLATE_CLEARANCE, plateTransform } from './planet.js';
 import { hollowIsland, islandSurface } from './island-surface.js';
-import { applyPlanetFraming } from './camera.js';
-import { applySheetEye, hangUnderTheGlass, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, sheetGlass, sheetPoint, sheetSpot } from './sheet.js';
+import { applySheetEye, hangUnderTheGlass, SHEET_FOV, SHEET_GLASS_THICKNESS, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetGlass, sheetLights, sheetPoint, sheetSpot } from './sheet.js';
+
+/** The page's eye on the sheet: a perspective one looking straight down at the glass's middle, framed to `zoom`. */
+function sheetEye(zoom: number, reach: number, size = { width: 1440, height: 960 }) {
+  const camera = new PerspectiveCamera(SHEET_FOV, size.width / size.height, 0.1, 1000);
+  camera.position.set(0, 0, 1);
+  camera.lookAt(0, 0, 0);
+  applySheetEye(camera, reach, zoom, size);
+  camera.updateMatrixWorld();
+  return camera;
+}
 
 test('6.22 on the glass sheet each island stands where it is placed and faces the eye square-on, within a degree, and the eye keeps a tight depth range round the sheet', () => {
   // The globe turned to face the eye, as the page does: its own +z toward the eye, which looks straight down at the sheet.
-  const camera = new OrthographicCamera(-720, 720, 480, -480, 0.1, 1000);
-  camera.position.set(0, 0, 1000);
-  camera.lookAt(0, 0, 0);
-  const reach = Math.hypot(3200, 900);
-  applyPlanetFraming(camera, SHEET_RADIUS, 0.002, { width: 1440, height: 960 });
-  applySheetEye(camera, reach);
-  camera.updateMatrixWorld();
+  const reach = Math.hypot(3200, 900), camera = sheetEye(0.5, reach);
   const toEye = new Vector3(0, 0, 1).applyQuaternion(camera.quaternion);
   for (const at of [{ x: 0, y: 0 }, { x: -1600, y: 450 }, { x: 1600, y: -450 }, { x: 1200, y: 300 }]) {
     const spot = sheetSpot(at);
@@ -29,6 +32,49 @@ test('6.22 on the glass sheet each island stands where it is placed and faces th
     assert.ok(depth > -1 && depth < 1, 'between the eye\'s near and far planes');
   }
   assert.ok(camera.far - camera.near <= 8 * reach, `the depth range is ${camera.far - camera.near} units, not the whole sphere's`);
+});
+
+test('6.26 the glass sheet is seen in perspective: nearer is drawn bigger, a zoom moves the eye toward the middle of the view and reads back as the zoom asked for, and the sheet stays between the near and far planes (ADR-1062 D1)', () => {
+  const size = { width: 1440, height: 960 }, reach = Math.hypot(3000, 1200);
+  for (const zoom of [0.4, 1, 3]) {
+    const camera = sheetEye(zoom, reach, size);
+    assert.ok(Math.abs(sheetEyeZoom(camera, size) - zoom) < 1e-9, `the eye reads back the zoom it was framed to (${zoom})`);
+    // A 100-unit road across the middle of the view is drawn `zoom` pixels a unit wide there.
+    const middle = new Vector3(0, 0, SHEET_RADIUS + PLATE_CLEARANCE), across = middle.clone().add(new Vector3(100, 0, 0));
+    const px = (a: Vector3, b: Vector3) => { const p = a.clone().project(camera), q = b.clone().project(camera); return Math.abs(q.x - p.x) * size.width / 2; };
+    assert.ok(Math.abs(px(middle, across) - 100 * zoom) < 1e-6, `${px(middle, across).toFixed(2)} px for 100 units at zoom ${zoom}`);
+    // The same road nearer the eye (raised toward it) is drawn bigger, and farther, smaller.
+    const lifted = (by: number) => px(middle.clone().setZ(middle.z + by), across.clone().setZ(across.z + by));
+    assert.ok(lifted(300) > px(middle, across) * 1.05 && lifted(-300) < px(middle, across) / 1.05, 'nearer is bigger, farther smaller');
+    assert.ok(camera.near > 0 && camera.near < camera.position.length() - SHEET_RADIUS - PLATE_CLEARANCE && camera.far >= camera.position.length() - SHEET_RADIUS + reach / 2, 'the sheet lies between the near and far planes');
+  }
+  // Zooming in moves the eye, not the lens: it stands half as far off at twice the zoom.
+  const off = (zoom: number) => sheetEye(zoom, reach, size).position.length() - SHEET_RADIUS - PLATE_CLEARANCE;
+  assert.ok(Math.abs(off(1) / off(2) - 2) < 1e-9 && sheetEye(2, reach, size).zoom === 1, 'twice the zoom, half the distance, the lens unchanged');
+});
+
+test('6.27 the glass sheet is a lit slab: the glass has a visible thickness with a rim round both faces, and its edge and every island\'s sides are shaded by the scene\'s lights (ADR-1062 D1)', () => {
+  const glass = sheetGlass({ width: 1200, height: 600 });
+  const top = glass.getObjectByName('sheet:pane') as Mesh, bottom = glass.getObjectByName('sheet:pane-under') as Mesh, edge = glass.getObjectByName('sheet:edge') as Mesh;
+  assert.ok(top !== undefined && bottom !== undefined && edge !== undefined, 'a top face, an underside and an edge');
+  const zAt = (mesh: Mesh) => { const box = new Box3().setFromBufferAttribute(mesh.geometry.getAttribute('position') as BufferAttribute); return box.max.z; };
+  assert.ok(Math.abs(zAt(top) - zAt(bottom) - SHEET_GLASS_THICKNESS) < 1e-6 && SHEET_GLASS_THICKNESS >= 3, `the glass is ${SHEET_GLASS_THICKNESS} units thick`);
+  assert.equal(glass.children.filter(o => o.name.startsWith('sheet:rim')).length, 2, 'a rim round each face');
+  const lit = (mesh: Mesh) => mesh.material instanceof MeshLambertMaterial || mesh.material instanceof MeshStandardMaterial;
+  assert.ok(lit(edge), 'the glass\'s edge takes the light');
+  const island = islandSurface([[{ x: -20, z: -20 }, { x: 20, z: -20 }, { x: 20, z: 20 }, { x: -20, z: 20 }]], SHEET_RADIUS, 'lit', SHEET_LAND_THICKNESS);
+  const sides = island.getObjectByName('island-side') as Mesh;
+  assert.ok(lit(sides) && sides.geometry.getAttribute('normal') !== undefined, 'an island\'s sides take the light');
+  // Each wall faces outward from the island, level with its land, so the light shades the four walls of a square four ways.
+  const normals = sides.geometry.getAttribute('normal'), position = sides.geometry.getAttribute('position'), facing = new Set<string>();
+  for (let i = 0; i < normals.count; i++) {
+    const n = new Vector3().fromBufferAttribute(normals, i), p = new Vector3().fromBufferAttribute(position, i);
+    assert.ok(Math.abs(n.y) < 1e-6 && n.x * p.x + n.z * p.z > 0, 'outward and level');
+    facing.add(`${Math.round(n.x)} ${Math.round(n.z)}`);
+  }
+  assert.equal(facing.size, 4);
+  const lights = sheetLights();
+  assert.ok(lights.some(light => light instanceof DirectionalLight) && lights.some(light => light instanceof AmbientLight), 'a lamp and soft light all round');
 });
 
 test('6.23 on the glass sheet every island is a raised plate of one shared thickness, its sides running from its land down to the glass', () => {
@@ -82,20 +128,28 @@ test('6.24 on the glass sheet a hollow island is its coast line alone, hiding no
   assert.deepEqual(shown().map(o => o.name).sort(), solid, 'turned back, it is whole again');
 });
 
-test('6.25 what hangs under the glass sheet is drawn only while the eye looks at its underside, never through the glass from the top (ADR-1061 D1)', () => {
+test('6.25 what hangs under the glass sheet shows by the angle: hidden from well above, at the top resting tilt, in view from near level and from below, drawn behind the glass from above and over it from below (ADR-1062 D4)', () => {
   const sheet = new Group(), under = new Group();
   sheet.add(under);
   under.add(new ThreeMesh());
-  const camera = new OrthographicCamera(-10, 10, 10, -10, 0.1, 100);
+  const camera = new PerspectiveCamera(SHEET_FOV, 1.5, 0.1, 100);
   camera.position.set(0, 0, 50);
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld();
-  sheet.updateMatrixWorld(true);
-  hangUnderTheGlass(under, camera);
-  assert.equal(under.visible, false, 'the top face shows none of it');
-  sheet.quaternion.setFromAxisAngle(new Vector3(1, 0, 0), Math.PI);
-  sheet.updateMatrixWorld(true);
-  hangUnderTheGlass(under, camera);
-  assert.equal(under.visible, true, 'the underside shows it');
-  assert.ok(under.children[0]!.renderOrder > 20, 'drawn over the glass it hangs beyond');
+  const at = (tilt: number) => {
+    sheet.quaternion.setFromAxisAngle(new Vector3(1, 0, 0), -tilt);
+    sheet.updateMatrixWorld(true);
+    hangUnderTheGlass(under, camera);
+    return { shown: under.visible, order: under.children[0]!.renderOrder };
+  };
+  const degrees = (d: number) => d * Math.PI / 180;
+  for (const tilt of [0, SHEET_TILT, degrees(55)]) assert.equal(at(tilt).shown, false, `from well above (${(tilt * 180 / Math.PI).toFixed(0)}°) none of it shows`);
+  for (const tilt of [degrees(75), degrees(89)]) {
+    const seen = at(tilt);
+    assert.ok(seen.shown && seen.order < -1, `near level from above (${(tilt * 180 / Math.PI).toFixed(0)}°) it shows, drawn before the glass it hangs behind`);
+  }
+  for (const tilt of [degrees(91), Math.PI - SHEET_TILT, Math.PI]) {
+    const seen = at(tilt);
+    assert.ok(seen.shown && seen.order > 20, `from below (${(tilt * 180 / Math.PI).toFixed(0)}°) it shows, drawn over the glass`);
+  }
 });

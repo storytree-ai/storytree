@@ -74,7 +74,7 @@ test("3.9 Library hides the islands and every mark on them, and keeps the glass 
   assert.equal(shownSurfaces({ sea: false }, true).sea, false);
 });
 
-test("3.62 the glass sheet's Library face keeps the islands as outlines with their names: territory borders without fill, no roads or file circles, and a session still tints them (ADR-1061 D2)", () => {
+test("3.62 seen from below the glass sheet, the islands are outlines with their names: territory borders without fill, no roads or file circles, and a session still tints them (ADR-1061 D2, ADR-1062 D4)", () => {
   const face = shownSurfaces(undefined, false, true);
   assert.deepEqual(islandMarks(face), [true, false, true, "plain", false, true]);
   assert.equal(face.knowledgeCore, true, "the knowledge it shows");

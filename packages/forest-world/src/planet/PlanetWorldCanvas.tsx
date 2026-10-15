@@ -2,7 +2,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree, type RootState } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
-import { Vector3, type Group, type OrthographicCamera } from 'three';
+import { Vector3, type Group, type OrthographicCamera, type PerspectiveCamera } from 'three';
 import type { ForestScene, Island } from '../scene.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
 import { drawnAtOnce, pageRoadRouter, routedDrawing } from './road-routing.js';
@@ -14,13 +14,14 @@ import { EXACT_COLOUR_CANVAS_PROPS } from '../exact-colour.js';
 import { SHIPPED_ELEVATION_DEG } from './camera.js';
 import { createPlanetSurface, plateTransform, type PlanetSpot } from './planet.js';
 import { disposeIslandSurface, hollowIsland, islandSurface } from './island-surface.js';
-import { applyPlanetFraming, applyPlanetSideOffset, wheelFloor } from './camera.js';
+import { applyPlanetFraming, applyPlanetSideOffset, orthographicZoomFor, wheelFloor } from './camera.js';
 import { GrowthProvider, usePlanetGrowth, type PlanetGrowth } from './PlanetGrowth.js';
 import { plateGrowth, roadSegmentWindows } from './growth.js';
 import { paintWhileSeen, startingFrameloop, viewportWatch, type ViewportWatch } from './paint-while-seen.js';
 import { redrawOnRestore } from './redraw-on-restore.js';
 import { globeExterior, type PlanetSurfaceVisibility } from './exterior.js';
-import { applySheetEye, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SheetGlass, type SheetExtent } from './sheet.js';
+import { applySheetEye, SHEET_FOV, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, sheetDepthRange, SheetGlass, SheetLights, type SheetExtent } from './sheet.js';
+import { PLATE_CLEARANCE } from './planet.js';
 
 export type { PlanetSpot } from './planet.js';
 export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
@@ -32,7 +33,7 @@ export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetG
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
 export type { PlanetSurfaceVisibility } from './exterior.js';
-export { applySheetEye, seenFromBelow, SHEET_LAND_LIFT, SHEET_RADIUS, SHEET_TILT, sheetPoint, sheetSpot, UnderTheGlass, type SheetExtent, type SheetPoint } from './sheet.js';
+export { applySheetEye, seenFromBelow, SHEET_FOV, SHEET_LAND_LIFT, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetPoint, sheetSpot, tiltFromEye, UnderTheGlass, type SheetExtent, type SheetPoint } from './sheet.js';
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;
@@ -71,7 +72,7 @@ export interface PlanetWorldCanvasProps {
   /** Draw first and newly arriving roads on in a live host; recorded growth takes precedence. */
   liveRoads?: boolean | undefined;
   /** Draw the world as a glass sheet this size, the near pole of a sphere of `radius` (ADR-1043 D1): the sheet's glass
-   * instead of the sea, and an eye whose depth range spans the sheet. */
+   * instead of the sea, lit, and seen by a perspective eye whose depth range spans the sheet (ADR-1062 D1). */
   sheet?: SheetExtent | undefined;
   /** Every island drawn as its coast line alone, hiding nothing beneath it: the glass sheet's Library face (ADR-1061 D2). */
   hollow?: boolean | undefined;
@@ -132,8 +133,9 @@ function Surface({ radius, visible }: { radius: number; visible: boolean }) {
 function Framing({ radius, framing, sideOffset, sheet }: { radius: number; framing: number; sideOffset: number; sheet: SheetExtent | undefined }) {
   const { camera, size, invalidate } = useThree();
   useLayoutEffect(() => {
-    applyPlanetFraming(camera as OrthographicCamera, radius, framing, size);
-    if (sheet !== undefined) applySheetEye(camera as OrthographicCamera, Math.hypot(sheet.width, sheet.height));
+    // On the sheet the framing's zoom stands the perspective eye off the middle of the view, by as far as it asks (ADR-1062 D1).
+    if (sheet !== undefined) applySheetEye(camera as PerspectiveCamera, Math.hypot(sheet.width, sheet.height), orthographicZoomFor(radius * framing, Math.min(size.width, size.height)), size);
+    else applyPlanetFraming(camera as OrthographicCamera, radius, framing, size);
     invalidate();
   }, [camera, radius, framing, size.width, size.height, invalidate, sheet?.width, sheet?.height]);
   // Keeping these effects separate lets a card move without resetting wheel/pinch zoom.
@@ -141,13 +143,20 @@ function Framing({ radius, framing, sideOffset, sheet }: { radius: number; frami
     applyPlanetSideOffset(camera as OrthographicCamera, size, sideOffset);
     invalidate();
   }, [camera, sideOffset, size.width, size.height, invalidate]);
+  // The wheel moves the sheet's eye, so its near and far planes follow it round the sheet.
+  useFrame(() => { if (sheet !== undefined) sheetDepthRange(camera as PerspectiveCamera, Math.hypot(sheet.width, sheet.height)); });
   return null;
 }
 
-/** The wheel and pinch zoom the eye; zooming out stops at half the framed size (6.18). */
-function Wheel({ radius, framing, orbit }: { radius: number; framing: number; orbit: boolean }) {
-  const size = useThree(state => state.size);
-  return <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={wheelFloor(radius, framing, size)} maxZoom={30} />;
+/** The wheel and pinch zoom the eye; zooming out stops at half the framed size (6.18). On the sheet they move the perspective
+ * eye toward or away from the middle of the view, between the same zooms (ADR-1062 D1). */
+function Wheel({ radius, framing, orbit, sheet }: { radius: number; framing: number; orbit: boolean; sheet: boolean }) {
+  const size = useThree(state => state.size), camera = useThree(state => state.camera);
+  if (!sheet) return <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={wheelFloor(radius, framing, size)} maxZoom={30} />;
+  // The eye stands this far off for a zoom of one CSS pixel per unit; the middle of the view lies on its line of sight.
+  const unit = Math.max(size.height, 1) / 2 / Math.tan(SHEET_FOV * Math.PI / 360);
+  const middle = camera.position.clone().setLength(SHEET_RADIUS + PLATE_CLEARANCE);
+  return <OrbitControls makeDefault enablePan={false} enableRotate={false} target={middle} minDistance={unit / 30} maxDistance={unit / wheelFloor(radius, framing, size)} />;
 }
 
 /** World 6.10: the globe draws only while some of its canvas is on screen, however busy its animations are. */
@@ -183,7 +192,8 @@ function useRoadsWhenRouted(scene: ForestScene, spots: ReadonlyMap<string, Plane
 const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
 /** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
- * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
+ * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate; on the glass sheet a lamp shades the islands' sides
+ * and the glass's edge, and the land's top keeps its exact colour (ADR-1062 D1). */
 export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], offset, plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, laneWays, growth, liveRoads = false, sheet, hollow = false }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
@@ -200,8 +210,11 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
   }, []);
   const watch = useMemo(viewportWatch, []);
   const exterior = globeExterior(surface, surfaces);
-  return <Canvas orthographic {...EXACT_COLOUR_CANVAS_PROPS} frameloop={startingFrameloop(watch)}
-    camera={{ position, near: 0.1, far: radius * 10 }} onCreated={onCreated}>
+  // The globe's eye is orthographic and the sheet's a perspective one (ADR-1062 D1); a canvas keeps the eye it was made with,
+  // so changing between them makes a new canvas.
+  const perspective = sheet !== undefined;
+  return <Canvas key={perspective ? 'sheet' : 'globe'} orthographic={!perspective} {...EXACT_COLOUR_CANVAS_PROPS} frameloop={startingFrameloop(watch)}
+    camera={perspective ? { position, near: 0.1, far: radius * 10, fov: SHEET_FOV } : { position, near: 0.1, far: radius * 10 }} onCreated={onCreated}>
     <PaintWhileSeen watch={watch} />
     <color attach="background" args={['#101418']} />
     <Framing radius={radius} framing={framing} sideOffset={sideOffset} sheet={sheet} />
@@ -217,7 +230,8 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
       <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} /><SelectionLanes plan={pathways} lit={lanes} inland={inland} /></group>
       {inside}
     </group>
-    <Wheel radius={radius} framing={framing} orbit={orbit} />
+    {perspective && <SheetLights />}
+    <Wheel radius={radius} framing={framing} orbit={orbit} sheet={perspective} />
     {/* The host's children read the growth too (usePlanetGrowth), as the plates and the inside do. */}
     {children}
     </GrowthProvider>

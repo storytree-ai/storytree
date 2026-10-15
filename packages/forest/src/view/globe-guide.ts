@@ -76,8 +76,9 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       if (found === undefined) return undefined;
       const projected = found.point.clone().project(camera), { width, height } = host.size();
       const centre = world.getObjectByName("globe")?.getWorldPosition(new Vector3()) ?? new Vector3();
-      // A note hung under the glass sheet is drawn only on its Library face, which faces the eye, so it is never round the back (3.63).
-      const near = target.kind === "core" || underTheGlass(found.object) || found.point.clone().sub(centre).dot(camera.getWorldDirection(new Vector3())) <= 0;
+      // On the glass sheet nothing is round the back: an island or a note hung under the glass is hidden only as `isDrawn`
+      // says, from whichever side the eye looks (3.63, ADR-1062 D4).
+      const near = target.kind === "core" || onTheSheet(world) || underTheGlass(found.object) || found.point.clone().sub(centre).dot(camera.getWorldDirection(new Vector3())) <= 0;
       let marked = target.kind !== "story";
       if (!marked) found.object.traverseVisible(object => {
         const mesh = object as Mesh;
@@ -108,11 +109,13 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       const world = host.world(), camera = host.camera(), { width, height } = host.size();
       world.updateMatrixWorld(true); camera.updateMatrixWorld(true);
       const centre = world.getObjectByName("globe")?.getWorldPosition(new Vector3()) ?? new Vector3(), facing = camera.getWorldDirection(new Vector3());
+      // 3.51: on the glass sheet no island is round the back, whatever the tilt.
+      const sheet = onTheSheet(world);
       const boxes: IslandBox[] = [];
       world.traverse(object => {
         if (!object.name.startsWith("planet:") || object.name === "planet:shell" || !isDrawn(object)) return;
         const ground = object.getObjectByName("island-ground") as Mesh | undefined;
-        if (ground?.geometry === undefined || object.getWorldPosition(new Vector3()).sub(centre).dot(facing) > 0) return;
+        if (ground?.geometry === undefined || (!sheet && object.getWorldPosition(new Vector3()).sub(centre).dot(facing) > 0)) return;
         ground.geometry.computeBoundingBox();
         const { min, max } = ground.geometry.boundingBox ?? new Box3();
         const xs: number[] = [], ys: number[] = [];
@@ -171,4 +174,9 @@ function underTheGlass(object: Object3D): boolean {
 export function isDrawn(object: Object3D): boolean {
   for (let at: Object3D | null = object; at !== null; at = at.parent) if (!at.visible) return false;
   return true;
+}
+
+/** Whether the world is drawn on the glass sheet, where nothing lies round the back of anything (ADR-1043 D1). */
+function onTheSheet(world: Object3D): boolean {
+  return world.getObjectByName("sheet:glass") !== undefined;
 }

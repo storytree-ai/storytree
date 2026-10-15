@@ -1,10 +1,10 @@
 /** Capability 3 · Story node render. The forest's globe book: lane B's plates at lane A's places, with lane C's failure turns. */
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Group, Quaternion, Vector3 } from "three";
+import { Group, Quaternion, Vector3, type Camera, type Object3D } from "three";
 import { claimTints, openingTurn, replayWisps, selectionLanes, type ClaimTint, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, SHEET_LAND_LIFT, UnderTheGlass, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
+import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, PLATE_CLEARANCE, SHEET_LAND_LIFT, SHEET_RADIUS, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
@@ -19,7 +19,7 @@ import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
 import { asksForHome, miniGlobe } from "./mini-globe.js";
-import { compassNorth, headingHome, opensBare, sheetDrag, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetTurnedOver, sheetTwist, SPIN_PER_PIXEL } from "./sheet-navigation.js";
+import { compassNorth, opensBare, restingTilt, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
 import { growLand, pastIslands, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
@@ -56,17 +56,23 @@ export type PlanetViewProps = {
   /** Hears a click on an island, or undefined for empty space. */
   onPick: (story: string | undefined, capability?: string) => void;
   onNote: (note: string) => void;
-  /** Draw the forest on the glass sheet, depth running west to east and moved only by pan, zoom and the turn, not on the globe
-   * (ADR-1043): `mode` "library" turns it over to its underside, where the knowledge graph hangs. */
+  /** Draw the forest on the glass sheet, depth running west to east, not on the globe (ADR-1043): the user tilts it from
+   * above to below (ADR-1062 D2), and a change of `mode` swings it to that side's resting view (D3). */
   sheet?: boolean | undefined;
+  /** On the sheet, told the tilt each time the eye comes to the other side of the glass, as the user tilts it past level,
+   * so the host's buttons follow (ADR-1062 D3). */
+  onSide?: ((tilt: number) => void) | undefined;
 };
 
-export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, library = true, frame, easeMoves = false, growth, liveRoads = false, recordedSessions, sheet = false }: PlanetViewProps) {
+export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, library = true, frame, easeMoves = false, growth, liveRoads = false, recordedSessions, sheet = false, onSide }: PlanetViewProps) {
   // Zoomed in past the islands, or in the Library, only the glass and the core show (ADR-0919 D3, D4). The hidden
   // marks stay mounted, so guides can still locate them.
   const [past, setPast] = useState(false);
-  // The glass sheet's Library face keeps the islands as hollow outlines with their names over the knowledge (ADR-1061 D2).
-  const outlines = sheet && mode === "library";
+  // Seen from below the glass sheet, the islands are hollow outlines with their names over the knowledge (ADR-1061 D2,
+  // ADR-1062 D4): the side the eye is on decides, not the button pressed.
+  const [below, setBelow] = useState(sheet && mode === "library");
+  const sideSeen = useCallback((tilt: number) => { setBelow(seesUnderside(tilt)); onSide?.(tilt); }, [onSide]);
+  const outlines = sheet && below;
   const shownSurfaces = useMemo(() => surfacesFor(surfaces, !sheet && (mode === "library" || past), outlines), [surfaces, mode, past, sheet, outlines]);
   const [cameraFraming, setFraming] = useState(framing);
   const [cameraOffset, setOffset] = useState(sideOffset);
@@ -145,7 +151,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     inside={underSheet !== undefined ? library && <UnderTheGlass><KnowledgeGlobePoints core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} /></UnderTheGlass> : <group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
     rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
-      rotation={rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast} sheet={layout.extent}
+      rotation={rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast} sheet={layout.extent} onSide={sideSeen}
       opening={{ framing: framing ?? 1.18, sideOffset: sideOffset ?? 0 }} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
@@ -225,7 +231,7 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
   surfaces: GlobeSurfaces;
   onStops: (story: string, stops: ReadonlyMap<string, { x: number; y: number; z: number }> | undefined) => void;
 }) {
-  const { invalidate, clock, camera } = useThree();
+  const { invalidate, clock, camera, size } = useThree();
   // A claim on another island leaves this one's territories as they were.
   const tints = useKept(claimed, tints => claimsOn(tints, land));
   const drawn = useMemo(() => {
@@ -252,7 +258,9 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
   }, [marks, tints, clock, invalidate]);
   useFrame(() => {
     // The canvas draws on demand: a transition asks for frames only while it plays; a standing flag asks for none.
-    if (marks.frame(clock.getElapsedTime(), { zoom: camera.zoom, eye: camera.quaternion, reduced: reducedMotion() })) invalidate();
+    // On the sheet a flag keeps its size at the zoom the perspective eye shows (ADR-1062 D1).
+    const zoom = raised ? sheetEyeZoom(camera, size) : camera.zoom;
+    if (marks.frame(clock.getElapsedTime(), { zoom, eye: camera.quaternion, reduced: reducedMotion() })) invalidate();
   });
   useEffect(() => {
     if (land.package === undefined) return;
@@ -292,8 +300,16 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
 
 type ScreenMarker = Pick<EdgeMarker, "story" | "turn"> & { left: number; top: number };
 
-function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, onPast, showFailures, opening: globeOpening, aside, sheet }: {
+/** The zoom on show, CSS pixels per ground unit at the middle of the view: the orthographic globe's lens, or how near the
+ * sheet's perspective eye stands (ADR-1062 D1). */
+function zoomOf(camera: Camera & { zoom?: number }, size: { width: number; height: number }, sheet: SheetExtent | undefined): number {
+  return sheet === undefined ? camera.zoom ?? 1 : sheetEyeZoom(camera, size);
+}
+
+function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, onPast, showFailures, opening: globeOpening, aside, sheet, onSide }: {
   onPose: (pose: GlobePose) => void;
+  /** Told the tilt as the eye comes to the other side of the glass sheet, tilting past level (ADR-1062 D3). */
+  onSide: (tilt: number) => void;
   /** The glass sheet drawn, when it is one (ADR-1043): a drag pans it, and it opens and goes Home to `sheetOpening`. */
   sheet: SheetExtent | undefined;
   /** CSS pixels of the canvas's right a panel covers (3.40). */
@@ -325,8 +341,17 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const [markers, setMarkers] = useState<ScreenMarker[]>([]);
   // The globe turns only by spin and tilt, and the eye never moves, so north stays up (arc north-up).
   const turn = useRef<GlobeTurn>({ yaw: 0, pitch: 0 });
-  // How far the glass sheet is turned over north to south: 0 its top face, π its underside (ADR-1043 D3).
-  const over = useRef(sheet !== undefined && mode === "library" ? Math.PI : 0);
+  // How far the glass sheet is tilted (ADR-1062 D2): 0 straight down on its top face, π straight up at its underside; it
+  // opens at the resting view of the face it opens on.
+  const tilt = useRef(restingTilt(mode));
+  // The side of the glass the eye is on, as the host last heard it.
+  const side = useRef<ForestMode>(seesUnderside(tilt.current) ? "library" : "forest");
+  // The mode read by the pointer's handlers, so a button following a hand's tilt past level never re-makes them mid-drag.
+  const modeNow = useRef(mode);
+  modeNow.current = mode;
+  // Held in a ref, so a host's new callback never re-makes the handlers mid-drag.
+  const sideHeard = useRef(onSide);
+  sideHeard.current = onSide;
   // How far the glass sheet is spun about its upright axis from its starting heading (ADR-1060 D2), and the compass's reading of it.
   const heading = useRef(0);
   const [compass, setCompass] = useState(0);
@@ -334,28 +359,45 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     turn.current = next;
     const rotation = focusRotation(next, camera.quaternion);
     if (sheet === undefined) { onRotate(rotation); return; }
-    const turned = sheetTurnedOver(rotation, camera.quaternion, over.current, heading.current);
+    const turned = sheetTilted(rotation, camera.quaternion, tilt.current, heading.current);
     onRotate(turned.quaternion, turned.position.toArray());
+    const now = seesUnderside(tilt.current) ? "library" : "forest";
+    if (now !== side.current) { side.current = now; sideHeard.current(tilt.current); }
   }, [camera, onRotate, sheet !== undefined]);
-  // The Stories and Library faces turn the sheet over, passing edge-on, the nearer way round; the turn, pan and zoom hold.
-  useEffect(() => {
-    if (sheet === undefined) return;
-    const from = over.current, to = mode === "library" ? Math.PI : 0;
-    if (from === to) return;
-    if (reducedMotion()) { over.current = to; turnTo(turn.current); return; }
-    let frame = 0;
-    const start = performance.now(), seconds = 0.9;
+  // The globe group as `turnTo` poses it now, for finding the place under the pointer before the host has drawn the pose.
+  const posed = (): Object3D => {
+    const group = new Group(), turned = sheetTilted(focusRotation(turn.current, camera.quaternion), camera.quaternion, tilt.current, heading.current);
+    group.quaternion.copy(turned.quaternion);
+    group.position.copy(turned.position);
+    return group;
+  };
+  // A tilt eases to `to` over `seconds`, or jumps there with reduced motion; a grab, or a new tilt, stops it where it is.
+  const tilting = useRef({ frame: 0, to: tilt.current });
+  const tiltTo = useCallback((to: number, seconds: number) => {
+    cancelAnimationFrame(tilting.current.frame);
+    tilting.current.to = to;
+    if (reducedMotion() || seconds === 0) { tilt.current = to; turnTo(turn.current); invalidate(); return; }
+    const from = tilt.current, start = performance.now();
     const step = (): void => {
       const t = Math.min(1, (performance.now() - start) / (seconds * 1000)), eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
-      over.current = from + (to - from) * eased;
+      tilt.current = from + (to - from) * eased;
       turnTo(turn.current);
       invalidate();
-      if (t < 1) frame = requestAnimationFrame(step);
+      if (t < 1) tilting.current.frame = requestAnimationFrame(step);
     };
-    frame = requestAnimationFrame(step);
-    // A press mid-turn turns on from where the sheet is.
-    return () => cancelAnimationFrame(frame);
-  }, [mode, turnTo]);
+    tilting.current.frame = requestAnimationFrame(step);
+  }, [turnTo]);
+  const holdTilt = (): void => { cancelAnimationFrame(tilting.current.frame); tilting.current.to = tilt.current; };
+  // Stories and Library are two resting views (ADR-1062 D3): pressing one swings the tilt to its rest, from above or from
+  // below, the same tilt a hand gives, unless the eye is already on that side (the host's button following a hand's tilt).
+  const shownMode = useRef(mode);
+  useEffect(() => {
+    if (sheet === undefined || shownMode.current === mode) return;
+    shownMode.current = mode;
+    if (side.current === mode) return;
+    tiltTo(restingTilt(mode), 0.9);
+  }, [mode, tiltTo]);
+  useEffect(() => () => cancelAnimationFrame(tilting.current.frame), []);
   // A spin eases to `to` over `seconds`, or jumps there with reduced motion; a new spin takes over from where the sheet is.
   const spinning = useRef({ frame: 0, to: 0 });
   const spinTo = useCallback((to: number, seconds: number) => {
@@ -373,18 +415,27 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     };
     spinning.current.frame = requestAnimationFrame(step);
   }, [turnTo]);
+  // A hand's spin and tilt (a rotating drag, or two fingers) stop any swing and take the sheet from where it is.
+  const spinTiltBy = useCallback((drag: { x: number; y: number }) => {
+    cancelAnimationFrame(spinning.current.frame);
+    holdTilt();
+    const next = sheetSpinTilt(heading.current, tilt.current, drag);
+    spinning.current.to = heading.current = next.heading;
+    tilting.current.to = tilt.current = next.tilt;
+    touched.current = true;
+  }, []);
   const spinBy = useCallback((clockwise: number) => {
     cancelAnimationFrame(spinning.current.frame);
-    spinning.current.to = heading.current = sheetSpin(heading.current, clockwise, over.current > Math.PI / 2);
+    spinning.current.to = heading.current = sheetSpin(heading.current, clockwise, seesUnderside(tilt.current));
     touched.current = true;
   }, []);
   useEffect(() => () => cancelAnimationFrame(spinning.current.frame), []);
   // The handle remains stable while its host reads the latest scene, camera and callbacks.
-  const host = useRef({ camera, scene, size, radius, onPose, turnTo, invalidate, opening, sheet, spinTo });
-  host.current = { camera, scene, size, radius, onPose, turnTo, invalidate, opening, sheet, spinTo };
+  const host = useRef({ camera, scene, size, radius, onPose, turnTo, invalidate, opening, sheet, spinTo, tiltTo });
+  host.current = { camera, scene, size, radius, onPose, turnTo, invalidate, opening, sheet, spinTo, tiltTo };
   const read = (): GlobePose => {
     const { camera: eye, size: viewport, radius: extent } = host.current;
-    return { turn: { ...turn.current }, framing: Math.min(viewport.width, viewport.height) / (2 * eye.zoom * extent),
+    return { turn: { ...turn.current }, framing: Math.min(viewport.width, viewport.height) / (2 * zoomOf(eye, viewport, host.current.sheet) * extent),
       sideOffset: eye.view?.enabled ? -eye.view.offsetX : 0 };
   };
   const guide = useRef<ReturnType<typeof createGlobeGuide>>(undefined);
@@ -434,17 +485,34 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     if (moved === undefined || !guide.current!.slide(moved.to, moved.glide && !reducedMotion() ? 600 : 0)) return;
     guideFrameAt.current = performance.now();
   }, [aside, size.width, size.height]);
+  // Where the middle of the view is drawn on the canvas, in CSS pixels from its top left, side offset and all.
+  const middleOfView = (): { x: number; y: number } => {
+    const { camera: eye, size: viewport } = host.current, at = eye.position.clone().setLength(SHEET_RADIUS + PLATE_CLEARANCE).project(eye);
+    return { x: (at.x + 1) * viewport.width / 2, y: (1 - at.y) * viewport.height / 2 };
+  };
+  // The turn after dragging the place on the sheet at `from` (on the canvas) by `drag`: the place stays under the pointer,
+  // or, where the pointer is over no place on the glass, the sheet moves as far as the middle of the view would.
+  const panBy = (drag: { x: number; y: number }, from: { x: number; y: number }): GlobeTurn => {
+    const { camera: eye, size: viewport, sheet: extent } = host.current;
+    if (extent === undefined) return turn.current;
+    const globe = posed(), grabbed = sheetUnder(eye, globe, turn.current, from, viewport, extent);
+    const now = grabbed && sheetUnder(eye, globe, turn.current, { x: from.x + drag.x, y: from.y + drag.y }, viewport, extent);
+    return grabbed !== undefined && now !== undefined ? sheetPanUnder(turn.current, grabbed, now, extent)
+      : sheetPan(turn.current, drag, zoomOf(eye, viewport, extent), extent, tilt.current, heading.current);
+  };
   const goHome = useRef<() => void>(undefined);
   goHome.current = () => {
     touched.current = false;
     const turn = sheet === undefined ? home : sheetOpening(sheet, size).turn;
-    // The compass and Home spin the sheet back to its starting heading, the short way round, as the view eases home (ADR-1060 D3).
-    if (sheet !== undefined) spinTo(headingHome(spinning.current.to), 0.6);
+    // The compass and Home spin the sheet back to its starting heading, the short way round, and tilt it to the top resting
+    // view, as the view eases home (ADR-1060 D3, ADR-1062 D2).
+    if (sheet !== undefined) { const back = sheetHome(spinning.current.to); spinTo(back.heading, 0.6); tiltTo(back.tilt, 0.6); }
     touched.current = false;
     if (turn === undefined || !guide.current!.home({ turn, ...besideAside.current!.home(size) })) return;
     guideFrameAt.current = performance.now();
   };
-  // On the sheet WASD and the arrows pan while held, Q and E spin it a quarter turn (ADR-1060 D1, D2); T is the page's.
+  // On the sheet WASD and the arrows pan while held, Q and E spin it a quarter turn, R and F tilt it a step (ADR-1060 D1, D2,
+  // ADR-1062 D2); T is the page's.
   const keyPan = useRef({ held: new Set<string>(), frame: 0, at: 0 });
   useEffect(() => {
     const keys = keyPan.current;
@@ -454,7 +522,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       const extent = host.current.sheet;
       if (keys.held.size === 0 || extent === undefined) { keys.frame = 0; return; }
       guide.current!.cancel();
-      host.current.turnTo(sheetPan(turn.current, sheetKeyPan(keys.held, seconds), host.current.camera.zoom, extent, over.current > Math.PI / 2, heading.current));
+      host.current.turnTo(panBy(sheetKeyPan(keys.held, seconds), middleOfView()));
       host.current.invalidate();
       keys.frame = requestAnimationFrame(panning);
     };
@@ -464,7 +532,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       if (key === undefined || key.kind === "turn") return;
       event.preventDefault();
       if (key.kind === "home") goHome.current!();
-      else if (key.kind === "spin") { if (!event.repeat) host.current.spinTo(sheetSpin(spinning.current.to, key.by * Math.PI / 2, over.current > Math.PI / 2), 0.35); }
+      else if (key.kind === "spin") { if (!event.repeat) host.current.spinTo(sheetSpin(spinning.current.to, key.by * Math.PI / 2, seesUnderside(tilt.current)), 0.35); }
+      else if (key.kind === "tilt") { touched.current = true; host.current.tiltTo(sheetTiltBy(tilting.current.to, key.by * TILT_STEP), 0.25); }
       else {
         touched.current = true;
         keys.held.add(key.key);
@@ -504,9 +573,12 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     // On the sheet nothing is round the back; a failing island past the window's edge is marked at that edge (3.11).
     const hidden = !showFailures ? [] : sheet === undefined
       ? hiddenMarkers(islands, rotation, camera.quaternion, mode).map(marker => ({ ...marker, left: middle.left + marker.at.x * rim, top: middle.top - marker.at.y * rim }))
-      : sheetMarkers(islands, turn.current, camera.zoom, size, middle, mode, heading.current);
+      : sheetMarkers(islands, island => {
+        const at = (scene.getObjectByName(`planet:${island.story}`)?.getWorldPosition(new Vector3()) ?? new Vector3()).project(camera);
+        return { left: (at.x + 1) * size.width / 2, top: (1 - at.y) * size.height / 2 };
+      }, size, tilt.current);
     // The compass turns with the sheet, read to a tenth of a degree.
-    const reading = sheet === undefined ? 0 : Math.round(compassNorth(heading.current, over.current > Math.PI / 2) * 1800 / Math.PI);
+    const reading = sheet === undefined ? 0 : Math.round(compassNorth(heading.current, seesUnderside(tilt.current)) * 1800 / Math.PI);
     if (reading !== compass) setCompass(reading);
     // The Sessions strip is docked over the pane's bottom edge; a marker sits clear above it (3.11).
     const box = gl.domElement.getBoundingClientRect();
@@ -531,26 +603,30 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     // Fingers on the sheet: two of them twist it about its upright axis (ADR-1060 D2), and the wheel's pinch zooms it.
     const fingers = new Map<number, { x: number; y: number }>();
     const pair = (): [{ x: number; y: number }, { x: number; y: number }] => { const [a, b] = [...fingers.values()]; return [a!, b!]; };
-    const pick = (event: PointerEvent) => pickGlobe(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, mode);
+    // On the sheet the side the eye is on decides what a click picks: from below, only the notes over the islands' outlines.
+    const picking = (): ForestMode => sheet === undefined ? modeNow.current : side.current;
+    const pick = (event: PointerEvent) => pickGlobe(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, picking());
     // Picking is costly: a pointer that moves many times a frame is picked once, where it last was.
     let cleared = 0, stopped = false;
     const clearHover = (): void => { cleared++; setHover(undefined); element.style.cursor = ""; };
     const hoverAt = oncePerFrame(({ event, at }: { event: PointerEvent; at: number }): void => {
       if (stopped || at !== cleared || down !== undefined) return;
       const box = element.getBoundingClientRect();
-      const { cursor, title, detail } = globeHover(scene, camera, box, { x: event.clientX, y: event.clientY }, mode);
+      const { cursor, title, detail } = globeHover(scene, camera, box, { x: event.clientX, y: event.clientY }, picking());
       element.style.cursor = cursor;
       setHover(title === undefined ? undefined : { title, ...(detail === undefined ? {} : { detail }), x: Math.max(8, Math.min(box.width - (detail === undefined ? 220 : 280), event.clientX - box.left + 12)), y: event.clientY - box.top + 14 });
     });
     // A drag redraws the globe once a frame, at the latest turn.
     const dragTo = oncePerFrame((next: GlobeTurn): void => { if (!stopped) turnTo(next); });
     const onDown = (event: PointerEvent): void => {
+      // A grab stops a swing between the resting views where it is (ADR-1062 D3).
+      if (sheet !== undefined) holdTilt();
       if (sheet !== undefined && event.pointerType === "touch") {
         fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-        // A second finger ends the first's pan: two fingers twist and pinch.
+        // A second finger ends the first's pan: two fingers twist, slide up and down to tilt, and pinch.
         if (fingers.size > 1) { down = undefined; clearHover(); return; }
       }
-      // A plain drag pans; on the sheet a right-drag or a Ctrl+drag spins it, so no switch changes what a drag does (ADR-1060 D2, D5).
+      // A plain drag pans; on the sheet a right-drag or a Ctrl+drag spins and tilts it, so no switch changes what a drag does (ADR-1060 D2, D5, ADR-1062 D2).
       const kind = sheet === undefined ? (event.button === 0 && event.isPrimary ? "pan" : undefined) : sheetDrag(event);
       down = kind !== undefined ? { x: event.clientX, y: event.clientY, id: event.pointerId, dragged: false, last: { x: event.clientX, y: event.clientY }, spin: kind === "spin" } : undefined;
       if (down !== undefined) element.setPointerCapture?.(event.pointerId);
@@ -563,6 +639,9 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
         fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
         guide.current!.cancel();
         spinBy(sheetTwist(before, pair()));
+        // The pair's middle moving up or down the window tilts the sheet, as a rotating drag does.
+        const after = pair();
+        spinTiltBy({ x: 0, y: (after[0].y + after[1].y - before[0].y - before[1].y) / 2 });
         dragTo(turn.current);
         return;
       }
@@ -573,9 +652,11 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
         touched.current = true;
         guide.current!.cancel();
         const drag = { x: event.clientX - down.last.x, y: event.clientY - down.last.y };
-        // On the sheet a drag pans, or spins it about its upright axis; nothing tilts it (ADR-1060 D2).
-        if (down.spin) spinBy(drag.x * SPIN_PER_PIXEL);
-        else turn.current = sheet === undefined ? dragTurn(turn.current, drag, element.clientHeight || 1) : sheetPan(turn.current, drag, camera.zoom, sheet, over.current > Math.PI / 2, heading.current);
+        // On the sheet a drag pans, keeping the place grabbed under the pointer, or spins the sheet about its upright axis
+        // with its sideways part and tilts it with its up-and-down part (ADR-1060 D2, ADR-1062 D2).
+        if (down.spin) spinTiltBy(drag);
+        else if (sheet === undefined) turn.current = dragTurn(turn.current, drag, element.clientHeight || 1);
+        else { const box = element.getBoundingClientRect(); turn.current = panBy(drag, { x: down.last.x - box.left, y: down.last.y - box.top }); }
         dragTo(turn.current);
         down.last = { x: event.clientX, y: event.clientY };
         clearHover();
@@ -597,9 +678,9 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       guide.current!.cancel(); clearHover();
       touched.current = true;
       // On the sheet a sideways scroll pans east and west; the wheel's zoom is the canvas's own.
-      if (sheet !== undefined && event.deltaX !== 0) dragTo(turn.current = sheetPan(turn.current, { x: -event.deltaX, y: 0 }, camera.zoom, sheet, over.current > Math.PI / 2, heading.current));
+      if (sheet !== undefined && event.deltaX !== 0) dragTo(turn.current = panBy({ x: -event.deltaX, y: 0 }, middleOfView()));
     };
-    // The right button spins the sheet, so it opens no menu there.
+    // The right button spins and tilts the sheet, so it opens no menu there.
     const onMenu = (event: MouseEvent): void => { if (sheet !== undefined) event.preventDefault(); };
     element.addEventListener("pointerdown", onDown);
     element.addEventListener("pointerup", onUp);
@@ -620,7 +701,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       element.removeEventListener("contextmenu", onMenu);
       element.style.cursor = "";
     };
-  }, [camera, gl, scene, onPick, onNote, mode, turnTo, sheet, spinBy]);
+  }, [camera, gl, scene, onPick, onNote, turnTo, sheet, spinBy, spinTiltBy]);
 
   // Pinned to the canvas, not to the globe's centre: under a side offset (3.40) the pointer's tooltip, the rim markers
   // (already placed from the projected centre) and the mini globe would otherwise move twice.

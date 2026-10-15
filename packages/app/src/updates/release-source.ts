@@ -1,4 +1,6 @@
-/** Capability 4 · Updates. Contract 4.6: a release starts at successful CI for work that actually reached main. */
+/** Capability 4 · Updates. Contract 4.6: a release starts at main's own successful CI run of the commit it ships.
+ * Through the merge queue (ADR-0796) every merge to main is a push that CI tests in full on all three systems, so that
+ * run is the verification and a release re-runs no tests; a pull request's run, or the queue's own, selects nothing. */
 interface Run {
   conclusion: string | null;
   event: string;
@@ -6,20 +8,11 @@ interface Run {
   head_branch: string;
   head_repository: { full_name: string };
 }
-interface PullRequest {
-  merged: boolean;
-  merge_commit_sha: string | null;
-  head: { sha: string; repo: { full_name: string } };
-  base: { ref: string };
-}
 const REPOSITORY = "storytree-ai/storytree";
 
-export function releaseSource(run: Run, pr?: PullRequest): string | undefined {
+export function releaseSource(run: Run): string | undefined {
   if (run.conclusion !== "success" || run.head_repository.full_name !== REPOSITORY) return undefined;
-  if (run.event === "push") return run.head_branch === "main" ? run.head_sha : undefined;
-  if (run.event !== "pull_request" || !pr?.merged || pr.base.ref !== "main" ||
-      pr.head.repo.full_name !== REPOSITORY || pr.head.sha !== run.head_sha) return undefined;
-  return pr.merge_commit_sha ?? undefined;
+  return run.event === "push" && run.head_branch === "main" ? run.head_sha : undefined;
 }
 
 /** The first-parent count increases only along main; reruns of a commit keep their version. */

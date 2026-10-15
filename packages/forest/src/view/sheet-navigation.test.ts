@@ -330,19 +330,19 @@ test("3.61 the sheet's keys are WASD, the arrows, Q, E, R, F and Home, no key sw
   assert.equal(sheetKey({ type: "keyup", key: "w" }), undefined, "only a press");
 });
 
-test("3.63 an island-less sheet, the user's factory, opens on the Library look at the view from above, over a pool wide enough to spread its notes", () => {
+test("3.63 an island-less sheet, the user's factory, opens on the Library look at the view from above, over a sea floor wide enough to spread its notes", () => {
   const empty = sheetLayout(forestScene({ arcs: [], stories: [] }, [], workStates([])), new Map());
-  assert.ok(empty.under.pool.width >= empty.under.pool.height, `pool ${empty.under.pool.width} wide`);
-  assert.ok(empty.extent.width >= empty.under.pool.width, "the glass runs under the whole pool");
+  assert.ok(empty.under.floor.width >= 120 && empty.under.floor.height >= 120, `floor ${empty.under.floor.width} by ${empty.under.floor.height}`);
+  assert.ok(empty.extent.width >= empty.under.floor.width && empty.extent.height >= empty.under.floor.height, "the glass runs over the whole floor");
   assert.equal(opensBare("library"), true);
   assert.equal(opensBare("forest"), false);
-  // At the opening view from above, through the Library's clear glass, a note hung in its pool is on show, so its
+  // At the opening view from above, through the Library's clear glass, a note on its floor is on show, so its
   // first-encounter card anchors at its dot.
   const opened = eye(sheetOpening(empty.extent, size), empty.extent), world = new Group(), glass = new Group(), dot = new Mesh();
   opened.globe.name = "globe";
   glass.name = "sheet:under";
   dot.name = "knowledge-point:agent_builder";
-  const { pool } = empty.under, at = empty.under.place({ x: pool.x + pool.width / 2, y: pool.y + pool.height / 2, z: -20 });
+  const { floor } = empty.under, at = empty.under.place({ x: floor.x + floor.width / 2, y: floor.y + floor.height / 2, z: -20 });
   dot.position.set(at.x, at.y, at.z);
   world.add(opened.globe.add(glass.add(dot)));
   let pose = sheetOpening(empty.extent, size);

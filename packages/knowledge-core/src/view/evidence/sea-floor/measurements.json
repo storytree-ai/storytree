@@ -1,0 +1,48 @@
+{
+ "viewport": {
+  "width": 1440,
+  "height": 960
+ },
+ "seed": "code-rows",
+ "poolBefore": {
+  "all": 711,
+  "shown": 572
+ },
+ "between": {
+  "id": "decision_13a84b8340ca",
+  "title": "Friction drains at every landing: the orchestrator step, a command-line route, and an always-on drain list",
+  "between": [
+   "The librarian",
+   "The agent link"
+  ]
+ },
+ "results": {
+  "above": {
+   "tiltDeg": 40,
+   "notesShown": 754,
+   "floorNotes": 163,
+   "floorOpacity": 0.06,
+   "hanging": 716,
+   "floorShown": 38,
+   "pulledByTwoOrMore": 87
+  },
+  "side-on": {
+   "tiltDeg": 85,
+   "notesShown": 754,
+   "floorNotes": 163,
+   "floorOpacity": 0.06,
+   "hanging": 716,
+   "floorShown": 38,
+   "pulledByTwoOrMore": 87
+  },
+  "below": {
+   "tiltDeg": 140,
+   "notesShown": 754,
+   "floorNotes": 163,
+   "floorOpacity": 0.06,
+   "hanging": 716,
+   "floorShown": 38,
+   "pulledByTwoOrMore": 87
+  }
+ }
+}

@@ -49,7 +49,7 @@ test("5.2 a story and its decisions print as files, the story's and each capabil
   });
 });
 
-test("5.11 the fold moves each story-text definition into the text of the story or capability behind its cover, in the order written, and retires it; one with no cover is listed and left, one behind a retired node's cover listed and retired; afterwards no definition is story prose", async (t) => {
+test("5.11 the fold moves each story-text definition into the text of the story or capability behind its cover, in the order written, and retires it; one with no cover is listed and left, one behind a retired node's cover listed and retired; afterwards only a piece with no cover is left a definition", async (t) => {
   await withLibrary(async (library) => {
     const { story, heating, storyCover, book } = await kettle(library);
     const behind = (cover, text) => library.defineTerm({ term: `Story text: ${cover.fields.title}`, meaning: text, links: [cover.id] });

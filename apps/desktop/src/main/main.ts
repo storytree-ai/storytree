@@ -304,7 +304,13 @@ async function run(): Promise<void> {
     ({ storytree, postgres } = opened);
     console.log(`library: ${opened.where}`);
     reads = pageReads({ storytree, transcriptCacheHome: path.join(home.dir, "transcripts") });
-    projects = projectSelection({ listProjects: async () => projectsOnThisComputer(await opened.storytree.projectIdentities(), home.dir), file: path.join(home.dir, "project-choice.json") });
+    const pages = reads;
+    projects = projectSelection({
+      listProjects: async () => projectsOnThisComputer(await opened.storytree.projectIdentities(), home.dir),
+      file: path.join(home.dir, "project-choice.json"),
+      // The app bar's switch to the factory and back reads each project's lineage through the libraries the page reads keep open.
+      lineageOf: (name) => pages.projectLineage(name),
+    });
     project = (await projects.read(args.project)).current;
     if (!args.smoke) recordLaunch();
   } catch (error) {

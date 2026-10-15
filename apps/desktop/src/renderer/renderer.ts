@@ -73,6 +73,8 @@ window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); 
 /** The project on show's forest and live reading, stopped when another project is shown. */
 let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined; teaching: ReturnType<typeof mountTeaching> | undefined } | undefined;
 let current: string | undefined;
+/** Whether the project on show is the user's factory, which its teaching cards read (ADR-1048 D3). */
+let onFactory = false;
 let following: ReturnType<typeof followProjects> | undefined;
 
 void open().catch((error: unknown) => showMessage("error", "Something went wrong", messageOf(error)));
@@ -94,8 +96,9 @@ async function open(): Promise<void> {
 }
 
 /** Redraw the picker when the list changes; only replace the surface when its project changes. */
-async function show({ current: name, projects }: ProjectSelection): Promise<void> {
-  appMenu.update({ projects, current: name });
+async function show({ current: name, projects, factory }: ProjectSelection): Promise<void> {
+  appMenu.update({ projects, current: name, ...(factory === undefined ? {} : { factory }) });
+  onFactory = factory?.place === "factory";
   if (name === undefined) {
     current = undefined;
     stopShowing();
@@ -278,7 +281,7 @@ async function showForest(name: string): Promise<void> {
       view.show(scene, new Map(storyNodes(tree, history(), survey).map(node => [node.id, node.place])));
       core.take(history(), news.lines);
       sayWhatWasDrawn(forestDrawn(scene));
-      mine.teaching?.take({ tree, changes: history(), lines: page.held().lines });
+      mine.teaching?.take({ tree, changes: history(), lines: page.held().lines, factory: onFactory });
       if (!panel.hidden) showPanel();
       kept.write(tree);
       drawing.write(drawingOf(tree, history(), states, survey));
@@ -318,12 +321,17 @@ function stopShowing(): void {
 
 /**
  * Where a teaching card's target is on the page: a story or capability at its island, a decision at its
- * note on the globe, a plan or a question at the arcs drawer; undefined when it is not on show.
+ * note on the globe, a plan or a question at the arcs drawer, the factory beside the app bar's switch; undefined when it
+ * is not on show.
  */
 function locate(target: Target): { x: number; y: number; visible: boolean } | undefined {
   const globe = (window as { storytreeGlobe?: GlobeLocator }).storytreeGlobe;
   if (target.kind === "story" || target.kind === "capability") return globe?.islands().find(island => island.story === target.story);
   if (target.kind === "note") return globe?.notes().find(note => note.note === target.note);
+  if (target.kind === "switch") {
+    const box = document.querySelector(".app-factory")?.getBoundingClientRect();
+    return box === undefined || box.width === 0 ? undefined : { x: box.right, y: box.top + box.height / 2, visible: true };
+  }
   if (target.kind === "arc" || target.kind === "question") {
     // Just past the Arcs bar's label, on the bar.
     const box = document.querySelector(".arc-surface-mount [data-open-arcs]")?.getBoundingClientRect();

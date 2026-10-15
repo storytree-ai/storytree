@@ -107,6 +107,19 @@ test("3.13 the page can ask the app for the system notes the project on show rea
   });
 });
 
+test("3.14 the app reads where a project sits among factories, for the app bar's switch, and refuses a name that is not a project", async () => {
+  const [factory, product, loose] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  await withApp([factory, product, loose], async ({ storytree, reads }) => {
+    await (await storytree.openProject(factory)).markFactory();
+    await (await storytree.openProject(product)).recordFactory(factory);
+
+    assert.deepEqual(await reads.projectLineage(factory), { kind: "factory" });
+    assert.deepEqual(await reads.projectLineage(product), { kind: "product", factory });
+    assert.deepEqual(await reads.projectLineage(loose), { kind: "none" });
+    await assert.rejects(reads.projectLineage(uniqueProjectName()), /there is no project called/);
+  });
+});
+
 /** A session that ran on another machine:its transcript streamed into the shared log there, and its file out of this app's reach. */
 async function ranElsewhere(log: ActivityLog, project: string, session: string, records: readonly unknown[]): Promise<string> {
   const folder = mkdtempSync(path.join(tmpdir(), "reads-"));

@@ -71,3 +71,27 @@ test("2.2 · a card fires once per user, on any project, and the journal keeps e
   broken.setItem("storytree.teaching.seen.v1", "{not json");
   assert.deepEqual(journal(broken).seen(), []);
 });
+
+test("2.3 · on a factory the factory is found first, at its switch, then its first role, note and check; a product finds none of them", () => {
+  const changes = [
+    created("principle", "principle_1"), created("agent", "agent_1"), created("check", "check_1"),
+    created("agent", "agent_gone"), { type: "agent", recordId: "agent_gone", action: "retired", record: { fields: {} } },
+  ];
+  // A factory holds no stories: its map is not "empty", it is the factory.
+  assert.deepEqual(encounters({ tree: tree([]), changes, lines: [], factory: true }), [
+    { kind: "factory", target: { kind: "switch" } },
+    { kind: "role", target: { kind: "note", note: "agent_1" } },
+    { kind: "note", target: { kind: "note", note: "principle_1" } },
+    { kind: "check", target: { kind: "note", note: "check_1" } },
+  ]);
+  assert.deepEqual(encounters({ tree: tree([]), changes, lines: [] }), [{ kind: "empty", target: { kind: "map" } }]);
+  // The factory card fires on the first switch and never again, on this factory or another.
+  const kept = journal(storage());
+  const product = encounters({ tree: tree([{ id: "story_a", capabilities: [] }]), changes: [], lines: [] });
+  assert.ok(!kept.unseen(product).some(found => found.kind === "factory"), "no factory card on a product");
+  const onFactory = encounters({ tree: tree([]), changes: [], lines: [], factory: true });
+  assert.deepEqual(kept.unseen(onFactory).map(found => found.kind), ["factory"]);
+  kept.mark("factory");
+  assert.deepEqual(kept.unseen(onFactory), []);
+  assert.deepEqual(kept.unseen(encounters({ tree: tree([]), changes: [], lines: [], factory: true })), [], "switching back and again shows nothing");
+});

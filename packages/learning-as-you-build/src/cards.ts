@@ -5,8 +5,11 @@
  * (packages/website/src/tour-copy.ts) so it reads true on the user's own project, not the tour's shop.
  */
 
-/** The kinds a card teaches, in the order cards show when several appear at once. */
-export const KINDS = ["empty", "arc", "story", "capability", "claim", "health", "decision", "question"] as const;
+/**
+ * The kinds a card teaches, in the order cards show when several appear at once. The factory and its parts (a role, a
+ * note, a check) show only on the user's factory (ADR-1048 D3).
+ */
+export const KINDS = ["empty", "factory", "role", "note", "check", "arc", "story", "capability", "claim", "health", "decision", "question"] as const;
 export type Kind = typeof KINDS[number];
 
 /** A decision behind a card, by its number in storytree's decision log and its title. */
@@ -34,6 +37,38 @@ const CARDS: Record<Kind, Omit<Card, "kind">> = {
     why: "Watching a project grow from nothing shows you how to read the map of one that is already big.",
     how: "Your agent plans the work before it writes code. As it does, storytree records the plan in your project's library and draws it here; nothing on the map is drawn by hand.",
     decisions: [adr(1048, "A new user learns on their own product")],
+  },
+  factory: {
+    title: "This is your factory.",
+    line: "It is your own version of storytree: the way your products are built, kept in one place for you to shape.",
+    what: "Your factory holds the system your products build with: its roles, notes and checks. Roles say how your agents work, notes are the rules and habits they stand on, and checks review each change.",
+    why: "What your agents learn about building well should help every product you make, not stay in the one where it was learned.",
+    how: "An edit in your factory reaches every product that builds with it. A product's own edit stays its own: its version of a role, note or check wins there, and the factory's edit never overwrites it. The top bar takes you back to your product.",
+    decisions: [adr(1040, "A user's factory: their own version of storytree"), adr(1041, "The factory is a project of its own, recorded by each product"), adr(1048, "Switching to the factory from the top bar teaches it")],
+  },
+  role: {
+    title: "A role.",
+    line: "A role says how one of your agents works: what it is for, what it does, and what it never does.",
+    what: "A role is an agent's standing brief, such as the session that builds the work or the reviewer that checks it. Your factory keeps them, and every product's agents read them.",
+    why: "An agent that starts each session knowing its job does it the same way every time, without you explaining it again.",
+    how: "Each session reads its role when it starts. Change the role here, and the next session in every product works the new way.",
+    decisions: [adr(1040, "A user's factory: their own version of storytree")],
+  },
+  note: {
+    title: "A note your agents stand on.",
+    line: "A note is a rule, a pattern or a habit your agents follow, written down once for every product.",
+    what: "Notes are principles, patterns, processes and guardrails: what your agents have learned about building well, each with why it holds and how to apply it.",
+    why: "A lesson learned on one product is worth keeping for the next. Written here, it outlives the session that learned it.",
+    how: "Agents find a note when its subject comes up and follow it. Each product reads its factory's notes as its own, unless it keeps its own version.",
+    decisions: [adr(1040, "A user's factory: their own version of storytree")],
+  },
+  check: {
+    title: "A check.",
+    line: "A check is a question a reviewer asks of every change before it lands.",
+    what: "A check names one thing a good change gets right, such as a test that fails when its behaviour is removed. A reviewer answers every check on every change.",
+    why: "A change your agent calls done is only a claim. A check asked by a fresh reviewer is how you know.",
+    how: "Before a change lands, a reviewer reads its checks and records what it found. A finding is fixed, or answered with a reason, before the change goes on.",
+    decisions: [adr(956, "A change-reviewer runs quality control on every change"), adr(1040, "A user's factory: their own version of storytree")],
   },
   arc: {
     title: "The plan comes first.",

@@ -2,7 +2,12 @@
 export const appMenuStyles = `
 :root:has(.app-menu-mount) { --app-bar-height: 48px; }
 body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
-.app-bar { position: fixed; inset: 0 0 auto; height: var(--app-bar-height); z-index: 7; display: flex; align-items: center; justify-content: end; padding: 0 12px; background: #101418; border-bottom: 1px solid #485159; }
+.app-bar { position: fixed; inset: 0 0 auto; height: var(--app-bar-height); z-index: 7; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; background: #101418; border-bottom: 1px solid #485159; }
+.app-factory { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; color: #a9b0ba; }
+.app-factory-here { color: #eceae3; font-weight: 600; }
+.app-factory-switch { height: 30px; padding: 0 12px; border: 1px solid #485159; border-radius: 6px; background: transparent; color: #eceae3; font: inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app-factory-switch:hover { background: #262a2f; }
+.app-factory-switch:focus-visible { outline: 2px solid #a9b0ba; outline-offset: 2px; }
 .app-gear { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #eceae3; cursor: pointer; }
 .app-gear:hover, .app-gear[aria-expanded="true"] { background: #262a2f; }
 .app-gear[data-update-pending] { position: relative; }

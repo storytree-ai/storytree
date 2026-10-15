@@ -13,7 +13,7 @@ import path from "node:path";
 
 import { lookAsApp, projectFolder, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
 import { idleAfterMs, importsOf, leaveAfterMs, machineOf, storytreeHome, standingDelegations } from "@storytree/project-and-caller";
-import type { Library, Storytree } from "@storytree/library";
+import type { FactoryLink, Library, Storytree } from "@storytree/library";
 
 import type { PageReadsBridge } from "./bridge.js";
 
@@ -26,6 +26,8 @@ export interface PageReads extends Answers<PageReadsBridge> {
   listProjects(): Promise<string[]>;
   /** The latest folder a session of the project worked in on this machine, still there: where its code can be read. */
   projectFolder(project: unknown): Promise<string | undefined>;
+  /** Where the project sits among factories (ADR-1040), from its library already open here: the app bar's switch reads it. */
+  projectLineage(project: unknown): Promise<FactoryLink>;
   /** The folders this machine imports for the project (ADR-0993 D2), where the code survey reads its mapped stories. */
   projectImports(project: unknown): Promise<{ folder: string; repository?: string }[]>;
   /** The app's own look at every project's branches (Session management 4.21), so the sessions list never waits on a hook's. Never throws, never blocks the process, and never runs twice at once. */
@@ -146,6 +148,7 @@ export function pageReads({ storytree, transcriptCacheHome, home }: PageReadsOpt
       return Promise.all(sessions.map((session: string) => storedSessionWindow(opened, known, lines, session, { cache })));
     },
     projectFolder: async (name) => projectFolder(await activityLog(), await project(name)),
+    projectLineage: async (name) => (await library(await project(name))).factory(),
     projectImports: async (name) => (await importsOf(storytree, await project(name), machineOf(home ?? storytreeHome()).id))
       .map(({ folder, repository }) => ({ folder, ...(repository === undefined ? {} : { repository }) })),
     lookAround: () => {

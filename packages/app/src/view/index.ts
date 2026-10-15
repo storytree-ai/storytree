@@ -2,7 +2,7 @@
 import { mountDecisionRights, mountSettings, type SettingsBridge } from "@storytree/project-and-caller/view";
 import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesBridge } from "../surfaces/bridge.js";
-import { renderAppMenu, renderSwitcher } from "./render.js";
+import { renderAppMenu, renderFactorySwitch, renderSwitcher } from "./render.js";
 import { appMenuStyles } from "./styles.js";
 import { mountSurfaces } from "./surfaces.js";
 import { switchProject } from "./switch.js";
@@ -42,6 +42,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   const gear = host.querySelector<HTMLButtonElement>(".app-gear")!;
   const menu = host.querySelector<HTMLElement>("#app-menu")!;
   const switcher = menu.querySelector<HTMLElement>("[data-app-switcher]")!;
+  const factory = host.querySelector<HTMLElement>("[data-app-factory]")!;
+  let factoryDrawn = "";
   const projectError = menu.querySelector<HTMLElement>("[data-app-project-error]")!;
   const desktop = host.ownerDocument.defaultView as (Window & { storytree: SettingsBridge & SurfacesBridge & { standingDelegations(name: string): Promise<string | undefined> } }) | null;
   const bridge: SettingsBridge = {
@@ -133,10 +135,25 @@ export function mountAppMenu(host: HTMLElement, options: {
   document.addEventListener("keydown", key, true);
 
   return {
-    update({ projects, current }: ProjectSelection): void {
+    update({ projects, current, factory: place }: ProjectSelection): void {
       shown = current !== undefined && projects.includes(current) ? current : undefined;
       removeProject?.refresh();
       deleteProject?.refresh();
+      // The bar's switch to the factory and back shows the project it names, as the Projects list does.
+      const drawn = renderFactorySwitch(place);
+      if (factoryDrawn !== drawn) {
+        factoryDrawn = drawn;
+        factory.innerHTML = drawn;
+        const toggle = factory.querySelector<HTMLButtonElement>("[data-app-factory-switch]");
+        toggle?.addEventListener("click", () => {
+          void switchProject(toggle.dataset.appFactorySwitch!, {
+            choose: options.chooseProject,
+            chosen: () => options.onChosen(),
+            failed: (_message, error) => options.onError(error),
+            busy: (on) => { toggle.disabled = on; },
+          });
+        });
+      }
       switcher.innerHTML = projects.length === 0 ? '<p class="app-no-projects">No projects yet</p>' : renderSwitcher(projects, current);
       const select = switcher.querySelector<HTMLSelectElement>("select");
       if (select === null) return;

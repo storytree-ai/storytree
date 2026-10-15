@@ -97,3 +97,63 @@ test("2.7 clicking the mounted menu sections switches their content and preserve
   assert.equal(help.at(-1), "stop");
   assert.equal(sharing.at(-1), "stop");
 });
+
+test("2.15 the app bar switches the project on show to its factory and back, and says plainly when there is none", async (t) => {
+  const window = new Window();
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-menu-"));
+  const globals = { document: window.document, CSSStyleSheet: window.CSSStyleSheet, HTMLElement: window.HTMLElement };
+  const previous = Object.fromEntries(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  Object.assign(globalThis, globals);
+  const host = window.document.createElement("header");
+  const background = window.document.createElement("main");
+  window.document.body.append(host, background);
+  const bridge = fakeBridge({});
+  Object.assign(window, { storytree: {
+    ...settingsActions(home),
+    standingDelegations: (...args: unknown[]) => bridge.call("standingDelegations", args),
+    readSurfaces: (...args: unknown[]) => bridge.call("readSurfaces", args),
+    saveSurface: (...args: unknown[]) => bridge.call("saveSurface", args),
+  } });
+  const chosen: string[] = [];
+  let shown = 0;
+  const menu = mountAppMenu(host as unknown as HTMLElement, {
+    background: background as unknown as HTMLElement,
+    async chooseProject(name) { chosen.push(name); },
+    onChosen() { shown++; }, onError(error) { throw error; }, onSurfacesChanged() {},
+    mountHelp() { return { open() {}, close() {}, stop() {} }; },
+    async checkForUpdates() { return { phase: "idle", runningBuild: "0.3.test" }; },
+  });
+  t.after(async () => {
+    menu.stop();
+    for (const key of Object.keys(globals)) {
+      const descriptor = previous[key];
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await window.happyDOM.close();
+    rmSync(home, { recursive: true, force: true });
+  });
+  const bar = () => host.querySelector(".app-bar")!;
+  const projects = ["my-factory", "my-site"];
+  menu.update({ projects, current: "my-site", factory: { place: "product", factory: "my-factory" } });
+  const toFactory = bar().querySelector<HTMLButtonElement>("[data-app-factory-switch]")!;
+  assert.ok(toFactory, "the switch is in the always-visible bar, outside the gear's overlay");
+  assert.match(toFactory.textContent, /Your factory/);
+  toFactory.click();
+  await setImmediate();
+  assert.deepEqual(chosen, ["my-factory"], "the switch chooses the factory as the project on show");
+  assert.equal(shown, 1);
+  menu.update({ projects, current: "my-factory", factory: { place: "factory", product: "my-site" } });
+  const back = bar().querySelector<HTMLButtonElement>("[data-app-factory-switch]")!;
+  assert.match(back.textContent, /Back to my-site/);
+  assert.match(bar().textContent, /Your factory/, "it says the factory is on show");
+  back.click();
+  await setImmediate();
+  assert.deepEqual(chosen, ["my-factory", "my-site"]);
+  menu.update({ projects, current: "my-site", factory: { place: "none" } });
+  assert.equal(bar().querySelector("[data-app-factory-switch]"), null);
+  assert.match(bar().textContent, /No factory yet/);
+  // Without a reading of factories the bar still holds the gear and nothing breaks.
+  menu.update({ projects, current: "my-site" });
+  assert.ok(bar().querySelector(".app-gear"));
+});

@@ -10,6 +10,7 @@ import { islandCoast, islandCoastReach } from "@storytree/forest-world/geometry"
 import { islandTerritories } from "../territories/territories.js";
 import { PLATE_CLEARANCE, SHEET_RADIUS, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from "@storytree/forest-world/planet";
 import type { GlobePose } from "./globe-guide.js";
+import type { ForestMode } from "./planet-navigation.js";
 
 /** Glass round the land on every side, in ground units. */
 const MARGIN = 24;
@@ -98,6 +99,24 @@ export function sheetPan(turn: GlobeTurn, drag: { x: number; y: number }, zoom: 
   if (under) drag = { x: drag.x, y: -drag.y };
   const clamp = (value: number, half: number) => Math.max(-half, Math.min(half, value));
   return turnToIsland(sheetSpot({ x: clamp(centre.x - drag.x / zoom, extent.width / 2), y: clamp(centre.y + drag.y / zoom, extent.height / 2) }));
+}
+
+/**
+ * 3.11 on the glass sheet (ADR-0660): nothing is round the back, but a failing island (storytree's verified word) can lie
+ * past the window's edge. Each one whose middle lies outside a canvas `size` gets a marker at the place it is drawn, in
+ * CSS pixels from the canvas's top left, for `markerSpot` to bring to the edge nearest it; `middle` is where the middle
+ * of the view is drawn. Its turn pans the island to the middle of the view. Only the Library's face hides them (D4).
+ */
+export function sheetMarkers(islands: readonly FacingIsland[], turn: GlobeTurn, zoom: number, size: { width: number; height: number },
+  middle = { left: size.width / 2, top: size.height / 2 }, mode: ForestMode = "forest"): { story: string; left: number; top: number; turn: GlobeTurn }[] {
+  if (mode === "library") return [];
+  const centre = sheetCentre(turn);
+  return islands.filter(island => island.trees.some(tree => tree.status === "unhealthy")).flatMap(island => {
+    const at = sheetPoint(island.spot);
+    const left = middle.left + (at.x - centre.x) * zoom, top = middle.top - (at.y - centre.y) * zoom;
+    if (left >= 0 && left <= size.width && top >= 0 && top <= size.height) return [];
+    return [{ story: island.story, left, top, turn: turnToIsland(island.spot) }];
+  });
 }
 
 /**

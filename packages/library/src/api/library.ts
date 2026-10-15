@@ -11,6 +11,7 @@
 import type { AnnotatedTree, ChangedOnMain, HealthWorkItem, NamedOnMain } from "../health/index.js";
 import { connect as connectServer, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
+import { InheritedRecords } from "../project/factory.js";
 import { couldBeId } from "../references.js";
 import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
@@ -113,6 +114,11 @@ export interface Library
   readonly identity: string;
   /** Every live record of this kind, upgraded, in id order. An unknown kind is refused. */
   list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]>;
+  /**
+   * The system records a product project reads from its factory and holds none of its own for (1.19), in id order: what
+   * its globe draws beside its own history. A project with no factory inherits none.
+   */
+  inherited(): Promise<SchemaRecord[]>;
   /**
    * The plan as it is now, story › capability › contract with every node's health, and the arcs: what the forest reads.
    * Given `pendingOf`, an increment, it is the plan that increment's branch reads (ADR-0966 D3): the live plan with
@@ -238,6 +244,7 @@ function libraryOf(project: Project): Library {
     list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]> {
       return project.records.list(kind);
     },
+    inherited: async () => (project.records instanceof InheritedRecords ? project.records.inherited() : []),
     /** The work model's tree, annotated with health (capability 5 reads the plan through capability 4). */
     async projectTree(options) {
       const parked = await project.flight.parkedCapabilities();

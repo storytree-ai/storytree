@@ -7,7 +7,7 @@
  */
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-import type { Change, Line } from "@storytree/library";
+import type { Change, Line, RecordEnvelope, SchemaRecord } from "@storytree/library";
 
 import { knowledge, storedEdges } from "../ghosts/ghosts.js";
 import { HIDDEN_AT_START, drawnPoints, kindRows } from "../kinds/kinds.js";
@@ -22,13 +22,20 @@ import { KindList, NoteCard } from "./drawing.js";
 /** How often the selected session's window is read again, as often as the sessions list's bars. */
 const WINDOW_EVERY_MS = 10_000;
 
-/** The one read the core makes beyond what it is handed: the selected session's window (Session management 9.10), from the host; none with none selected (ADR-0921). */
+/** The reads the core makes beyond what it is handed: the selected session's window (Session management 9.10), from the host, none with none selected (ADR-0921); and, where the host has it, the system notes a product reads from its factory (library 1.19). */
 export interface CoreReads {
   windowReading(project: string, session: string): Promise<SessionWindow>;
+  inherited?(project: string): Promise<readonly SchemaRecord[]>;
 }
 
 interface State {
   history: readonly Change[];
+  /** What the core draws: the notes read from the factory, as changes ahead of the history, then the history, so the product's own writes win. */
+  drawn: readonly Change[];
+  /** The notes drawn from the factory that the history holds no change of: their card says so. */
+  factory: ReadonlySet<string>;
+  /** The factory's notes, last read, as changes ahead of the history. */
+  inherited: readonly Change[];
   /** Bumped whenever the reads change, since the record itself is kept in place. */
   version: number;
   /** Undefined shows no session's traversal (ADR-0921). */
@@ -74,7 +81,7 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
   const listeners = new Set<() => void>();
   const selections = new Set<(session: string | undefined) => void>();
   let state: State = {
-    history: [], version: 0, session: undefined, roster: [], pinned: undefined, dismissed: undefined, hidden: HIDDEN_AT_START, window: undefined,
+    history: [], drawn: [], factory: new Set(), inherited: [], version: 0, session: undefined, roster: [], pinned: undefined, dismissed: undefined, hidden: HIDDEN_AT_START, window: undefined,
   };
   let windowTimer: ReturnType<typeof setInterval> | undefined;
   /** The selected session whose window is being read, so a slow read is not asked again over itself. */
@@ -89,6 +96,21 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
       // A failed read leaves the window as it was; the next one tries again.
     }).finally(() => { if (windowOut === session) windowOut = undefined; });
   };
+  /** Whether a read of the factory's notes is out, and whether another was asked for meanwhile. */
+  let inheritedOut = false, inheritedAgain = false;
+  /** Read the notes the project reads from its factory again, never over its own last read; a failed read keeps the last. */
+  const readInherited = (): void => {
+    if (host?.inherited === undefined) return;
+    if (inheritedOut) { inheritedAgain = true; return; }
+    inheritedOut = true;
+    host.inherited(project).then((records) => {
+      const inherited = records.map((record): Change => ({ seq: 0, recordId: record.id, type: record.type, action: "created", record: record as RecordEnvelope }));
+      store.set({ inherited, ...drawing(inherited, state.history) });
+    }, () => {}).finally(() => {
+      inheritedOut = false;
+      if (inheritedAgain) { inheritedAgain = false; readInherited(); }
+    });
+  };
   const store: Store = {
     reads,
     pin: pinned => store.set({ pinned, dismissed: undefined }),
@@ -97,7 +119,7 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
       const hidden = new Set(state.hidden);
       if (shown) hidden.delete(kind);
       else hidden.add(kind);
-      const pinned = state.pinned === undefined ? undefined : knowledge(state.history).notes.get(state.pinned);
+      const pinned = state.pinned === undefined ? undefined : knowledge(state.drawn).notes.get(state.pinned);
       store.set({ hidden, dismissed: !shown && pinned?.type === kind ? state.pinned : state.dismissed });
     },
     showRoster: roster => store.set({ roster }),
@@ -128,7 +150,14 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
     take(history, lines) {
       reads.add(lines);
       // The same history again keeps its knowledge: only lines came (ADR-0836 D1).
-      store.set({ history: history.length === state.history.length ? state.history : [...history], version: state.version + 1 });
+      if (history.length === state.history.length) {
+        store.set({ version: state.version + 1 });
+        return;
+      }
+      const taken = [...history];
+      store.set({ history: taken, ...drawing(state.inherited, taken), version: state.version + 1 });
+      // A longer history may be an edit of a factory note, or follow a change to the factory: read its notes again.
+      readInherited();
     },
     dispose() {
       if (windowTimer !== undefined) clearInterval(windowTimer);
@@ -136,7 +165,17 @@ export function createKnowledgeCore(project: string, { reads: host }: { reads?: 
       selections.clear();
     },
   };
+  readInherited();
   return store;
+}
+
+/** What the core draws from the factory's notes and the project's history, and which drawn notes are the factory's alone. */
+function drawing(inherited: readonly Change[], history: readonly Change[]): Pick<State, "drawn" | "factory"> {
+  const own = new Set(history.map(({ recordId }) => recordId));
+  return {
+    drawn: inherited.length === 0 ? history : [...inherited, ...history],
+    factory: new Set(inherited.map(({ recordId }) => recordId).filter((id) => !own.has(id))),
+  };
 }
 
 /** A listed session's colour, found by its own id or a child's. */
@@ -148,8 +187,8 @@ function colourOf(roster: readonly RosterEntry[], session: string | undefined): 
 export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onClose: () => void }) {
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
-  const known = useMemo(() => knowledge(state.history), [state.history]);
-  const card = state.pinned === undefined || state.pinned === state.dismissed ? undefined : noteCard(state.pinned, known);
+  const known = useMemo(() => knowledge(state.drawn), [state.drawn]);
+  const card = state.pinned === undefined || state.pinned === state.dismissed ? undefined : noteCard(state.pinned, known, state.factory);
   useEffect(() => {
     // A live retirement, or its kind switched off, removes the card as well as its dot. Defer until React's commit ends.
     let mounted = true;
@@ -184,13 +223,13 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
 }) {
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
-  const known = useMemo(() => knowledge(state.history), [state.history]);
+  const known = useMemo(() => knowledge(state.drawn), [state.drawn]);
   const hung = useMemo(() => {
     if (sheet === undefined) return undefined;
-    const { points, links } = sheetPoints(underShelves(state.history, known), sheet, known.notes);
+    const { points, links } = sheetPoints(underShelves(state.drawn, known), sheet, known.notes);
     return { points: points.map(point => ({ ...point, at: sheet.place(point.at) })), links };
-  }, [state.history, known, sheet?.shelfAt, sheet?.pool, sheet?.depthStep, sheet?.place]);
-  const placed = useMemo(() => hung?.points ?? globePoints(underShelves(state.history, known), spots, radius), [hung, state.history, known, spots, radius]);
+  }, [state.drawn, known, sheet?.shelfAt, sheet?.pool, sheet?.depthStep, sheet?.place]);
+  const placed = useMemo(() => hung?.points ?? globePoints(underShelves(state.drawn, known), spots, radius), [hung, state.drawn, known, spots, radius]);
   // With none selected, no session's traversal shows (ADR-0921): nothing lights and no path draws.
   const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys())),
     // The record is kept in place, so its version stands in for its reads.
@@ -234,7 +273,7 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
 export function KnowledgeKinds({ core }: { core: KnowledgeCore }) {
   const store = core as Store;
   const state = useSyncExternalStore(store.subscribe, store.get);
-  const known = useMemo(() => knowledge(state.history), [state.history]);
+  const known = useMemo(() => knowledge(state.drawn), [state.drawn]);
   const rows = useMemo(() => kindRows(known, state.hidden), [known, state.hidden]);
   return <KindList rows={rows} onShow={core.showKind} />;
 }

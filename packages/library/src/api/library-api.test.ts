@@ -42,6 +42,7 @@ const LIBRARY_API = [
   "recordFactory",
   "get",
   "list",
+  "inherited",
   "history",
   "addStory",
   "mapStories",
@@ -428,6 +429,7 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
     assert.deepEqual(surface(storytree), ["close", "dropProject", "listProjects", "openProject", "ownDatabase", "projectIdentities", "restore", "snapshot"]);
     const lib = await storytree.openProject(name);
     assert.deepEqual(surface(lib), [...LIBRARY_API].sort());
+    assert.deepEqual(await lib.inherited(), [], "a project with no factory inherits nothing");
     for (const internal of ["pool", "transactions", "records", "work", "knowledge", "project", "server"]) {
       assert.equal(internal in lib, false, `a Library has no ${internal}`);
       assert.equal(internal in storytree, false, `the connection has no ${internal}`);

@@ -84,6 +84,7 @@ const QUIET: StorytreeBridge = {
   projectTree: async () => ({ stories: [], arcs: [] }),
   changesSince: async (_, cursor) => ({ changes: [], cursor }),
   linesSince: async (_, cursor) => ({ lines: [], cursor }),
+  inherited: async () => [],
   frontCovers: async () => [],
   relatedNotes: async () => [],
   standingDelegations: async () => undefined,

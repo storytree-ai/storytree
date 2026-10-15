@@ -33,7 +33,11 @@ function axisOf(meaning: string): number {
   return axis;
 }
 
-/** A fake embedder: each meaning is one axis of its own; it counts the texts it is asked to embed. */
+/**
+ * A fake embedder: each meaning is one axis of its own; it counts the texts it is asked to embed.
+ * An artifact's random id is skipped: its letters (`b` three times in `definition_e7b40b11b55c`)
+ * would otherwise weigh on the length a word's share is divided by, so an id could outrank a word.
+ */
 function fakeEmbedder(): Embedder & { embedded: string[] } {
   const embedded: string[] = [];
   return {
@@ -43,7 +47,7 @@ function fakeEmbedder(): Embedder & { embedded: string[] } {
       embedded.push(...texts);
       return texts.map((text) => {
         const vector = new Float32Array(WIDTH);
-        for (const word of text.toLowerCase().match(/[a-z]+/g) ?? []) {
+        for (const word of text.toLowerCase().replace(/\b[a-z]+_[0-9a-f]{12}\b/g, " ").match(/[a-z]+/g) ?? []) {
           vector[axisOf(MEANINGS[word] ?? word)]! += 1;
         }
         const length = Math.hypot(...vector) || 1;
@@ -211,7 +215,7 @@ for (const backend of [memory, postgres]) {
 
   contract("14.7", "the title lift matches whole words, a plural finding its singular, never letters inside a word", async (_, { knowledge, records }) => {
     const story = await records.create("story", { title: "Library" });
-    const capability = await records.create("capability", { title: "Ranked search", story: story.id, proposed: true });
+    const capability = await records.create("capability", { title: "Search results", story: story.id, proposed: true });
     const filler = "The forest and its islands and their trees. ".repeat(10);
     await records.create("contract", { title: `14.10 · A ranked search missing a vector ${filler}`, capability: capability.id });
     const miss = await knowledge.defineTerm({ term: "Gaps", meaning: "A ranked search miss." });

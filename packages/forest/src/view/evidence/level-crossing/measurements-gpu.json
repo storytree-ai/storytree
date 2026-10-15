@@ -1,0 +1,184 @@
+{
+ "viewport": {
+  "width": 1440,
+  "height": 960
+ },
+ "renderer": "ANGLE (NVIDIA, Vulkan 1.4.329 (NVIDIA NVIDIA GeForce RTX 2060 (0x00001E89)), NVIDIA)",
+ "nearDeg": 12,
+ "seed": {
+  "stories": 27,
+  "capabilities": 142,
+  "taken": "2026-10-15T01:10:33.514Z",
+  "changesFolded": "each record: its created change and its last later change; cursor kept"
+ },
+ "results": {
+  "swing-to-library-1": {
+   "frames": 29,
+   "crossing": {
+    "frames": 2,
+    "longest": {
+     "ms": 83,
+     "fromDeg": 63.5,
+     "toDeg": 85
+    },
+    "medianMs": 83
+   },
+   "rest": {
+    "frames": 27,
+    "longest": {
+     "ms": 167,
+     "fromDeg": 40,
+     "toDeg": 40.2
+    },
+    "medianMs": 17
+   }
+  },
+  "swing-to-stories-1": {
+   "frames": 42,
+   "crossing": {
+    "frames": 4,
+    "longest": {
+     "ms": 50,
+     "fromDeg": 85.9,
+     "toDeg": 72.8
+    },
+    "medianMs": 17
+   },
+   "rest": {
+    "frames": 38,
+    "longest": {
+     "ms": 167,
+     "fromDeg": 140,
+     "toDeg": 139.8
+    },
+    "medianMs": 17
+   }
+  },
+  "hand-down-1": {
+   "frames": 73,
+   "crossing": {
+    "frames": 17,
+    "longest": {
+     "ms": 50,
+     "fromDeg": 98,
+     "toDeg": 101
+    },
+    "medianMs": 33
+   },
+   "rest": {
+    "frames": 56,
+    "longest": {
+     "ms": 67,
+     "fromDeg": 103,
+     "toDeg": 105
+    },
+    "medianMs": 17
+   }
+  },
+  "hand-up-1": {
+   "frames": 75,
+   "crossing": {
+    "frames": 18,
+    "longest": {
+     "ms": 67,
+     "fromDeg": 81,
+     "toDeg": 78
+    },
+    "medianMs": 17
+   },
+   "rest": {
+    "frames": 57,
+    "longest": {
+     "ms": 67,
+     "fromDeg": 76,
+     "toDeg": 74
+    },
+    "medianMs": 17
+   }
+  },
+  "swing-to-library-2": {
+   "frames": 44,
+   "crossing": {
+    "frames": 5,
+    "longest": {
+     "ms": 33,
+     "fromDeg": 90.1,
+     "toDeg": 100
+    },
+    "medianMs": 17
+   },
+   "rest": {
+    "frames": 39,
+    "longest": {
+     "ms": 167,
+     "fromDeg": 40,
+     "toDeg": 40.2
+    },
+    "medianMs": 17
+   }
+  },
+  "swing-to-stories-2": {
+   "frames": 38,
+   "crossing": {
+    "frames": 4,
+    "longest": {
+     "ms": 33,
+     "fromDeg": 87.2,
+     "toDeg": 76.6
+    },
+    "medianMs": 33
+   },
+   "rest": {
+    "frames": 34,
+    "longest": {
+     "ms": 167,
+     "fromDeg": 140,
+     "toDeg": 139.8
+    },
+    "medianMs": 17
+   }
+  },
+  "hand-down-2": {
+   "frames": 78,
+   "crossing": {
+    "frames": 17,
+    "longest": {
+     "ms": 67,
+     "fromDeg": 100,
+     "toDeg": 102
+    },
+    "medianMs": 17
+   },
+   "rest": {
+    "frames": 61,
+    "longest": {
+     "ms": 67,
+     "fromDeg": 43,
+     "toDeg": 45
+    },
+    "medianMs": 17
+   }
+  },
+  "hand-up-2": {
+   "frames": 79,
+   "crossing": {
+    "frames": 18,
+    "longest": {
+     "ms": 67,
+     "fromDeg": 80,
+     "toDeg": 77
+    },
+    "medianMs": 17
+   },
+   "rest": {
+    "frames": 61,
+    "longest": {
+     "ms": 67,
+     "fromDeg": 75,
+     "toDeg": 73
+    },
+    "medianMs": 17
+   }
+  }
+ }
+}

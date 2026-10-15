@@ -203,6 +203,19 @@ test("11.21 · an arc whose open work all waits on the owner, a question or othe
   assert.equal(plan("arc_event", "arc_dead"), undefined);
 });
 
+test("11.22 · an arc whose own wait holds is not offered for planning; one whose blocker can never land still is", () => {
+  const arc = (id, created) => ({ id, state: "active", title: id, created, openQuestions: 0 });
+  const work = survey([increment("learner", "x", { arc: "arc_learn" })], {
+    arcs: [arc("arc_prune", "2026-09-01T00:00:00Z"), arc("arc_stale", "2026-09-02T00:00:00Z")],
+    holds: {
+      waits: { arc_prune: [{ on: "learner", reason: "the learner says what to prune", forGood: false }], arc_stale: [{ on: "gone", reason: "x", forGood: true }] },
+      heldOn: {}, waitsFor: {},
+    },
+  });
+  assert.equal(pickPlan(work)?.id, "arc_stale", "an arc with nothing open that waits on live work leaves planning nothing to add");
+  assert.equal(pickPlan(work, { planned: new Map([["arc_stale", planState(work, "arc_stale")]]) }), undefined);
+});
+
 test("11.11 · work whose session ended without a hand-off is offered again after a back-off, and not before", () => {
   const ran = Date.parse("2026-10-07T01:00:00Z"), minute = 60_000;
   const attempts = new Map([["bounced", { at: ran }], ["handed", { at: ran }]]);

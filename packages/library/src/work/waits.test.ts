@@ -1,5 +1,5 @@
 /**
- * Capability 11 · Waits (ADR-0640): one test per contract 11.1-11.6 and 11.8 in the library story, each run
+ * Capability 11 · Waits (ADR-0640): one test per contract 11.1-11.6, 11.8 and 11.9 in the library story, each run
  * on BOTH backends: a WorkModel and a WorkInFlight over a fresh MemoryTransactions, and the `work`
  * and `flight` of a fresh Postgres project, dropped afterwards, pass or fail.
  *
@@ -127,7 +127,28 @@ for (const backend of [memory, postgres]) {
 
     await flight.addIncrement({ arc: mail.id, title: "Mailer, again", ...WORK });
     assert.deepEqual(await flight.waitHolds(launch.id), [], "the closing cleared the wait (11.8), so reopening the arc does not bring it back");
-    await assert.rejects(flight.addWait(launch.id, first.id, "?"), MissingReferenceError, "an arc waits on an arc");
+    await assert.rejects(flight.addWait(launch.id, first.id, "?"), WaitLoopError, "an arc may not wait on its own work");
+  });
+
+  contract("11.9", "an arc waits on an increment of another arc: the wait holds the arc and its open work until that increment lands, and is cleared when it does", async ({ work, flight, records }) => {
+    const learner = await work.createArc({ title: "Learner", ...ARC });
+    const prune = await work.createArc({ title: "Prune", ...ARC });
+    const learn = await flight.addIncrement({ arc: learner.id, title: "The learner", ...WORK });
+    await flight.addWait(prune.id, learn.id, "the learner says what to prune");
+    assert.deepEqual(await flight.waitHolds(prune.id), [{ on: learn.id, reason: "the learner says what to prune", forGood: false }], "an arc with no increments waits on it");
+    assert.deepEqual((await flight.holds()).waits[prune.id], [{ on: learn.id, reason: "the learner says what to prune", forGood: false }]);
+    const cut = await flight.addIncrement({ arc: prune.id, title: "Cut a door", ...WORK });
+    assert.deepEqual(await flight.waitHolds(cut.id), [{ on: learn.id, reason: "the learner says what to prune", forGood: false }], "its open work waits too");
+
+    await flight.closeIncrement(learn.id, { pr: "#1", disposition: "landed" });
+    assert.deepEqual(await flight.waitHolds(prune.id), []);
+    assert.deepEqual(await flight.waitHolds(cut.id), []);
+    assert.equal(((await records.get(prune.id))?.fields as { waits?: unknown }).waits, undefined, "the landing cleared the arc's stored wait (11.8)");
+
+    const again = await flight.addIncrement({ arc: learner.id, title: "The learner, again", ...WORK });
+    await flight.addWait(prune.id, again.id, "the second pass");
+    await flight.closeIncrement(again.id, { note: "Dropped", disposition: "withdrawn" });
+    assert.deepEqual(await flight.waitHolds(prune.id), [{ on: again.id, reason: "the second pass", forGood: true }], "a withdrawn blocker holds for good");
   });
 
   contract("11.3", "a wait that would close a loop across arcs and increments is refused, naming the loop, and nothing is written", async ({ work, flight, transactions }) => {

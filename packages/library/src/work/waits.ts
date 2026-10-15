@@ -1,6 +1,6 @@
 /**
- * Capability 11 · Waits (the library story): an arc waits on an arc, and an increment on an increment
- * on any arc, each with a reason, and a wait that would close a loop across both kinds is refused when
+ * Capability 11 · Waits (the library story): an arc waits on an arc or an increment, and an increment
+ * on an increment, on any arc, each with a reason, and a wait that would close a loop across both kinds is refused when
  * it is written. An open increment can also wait for the owner or an outside event, with a note (11.6).
  * waitHolds is the one answer to whether a wait still holds. A wait whose blocker lands (an increment)
  * or closes (an arc) is cleared in the same step, so no stored wait is stale (11.8, ADR-0975).
@@ -70,6 +70,9 @@ export class WaitLoopError extends Error {
   }
 }
 
+/** What an arc may wait on (11.9): an arc, or an increment, whose landing releases it. */
+const ARC_BLOCKER = { name: "arc or increment", types: ["arc", "increment"] } as const;
+
 /** One wait, as an arc or increment stores it. */
 export type Wait = { readonly on: string; readonly reason: string };
 
@@ -82,8 +85,8 @@ export interface WaitGraph {
 }
 
 /**
- * Make `waiter` wait on `blocker`, with a reason: an arc on a live arc, an increment on a live
- * increment on any arc (MissingReferenceError otherwise). Waiting again on the same blocker replaces
+ * Make `waiter` wait on `blocker`, with a reason: an arc on a live arc or increment (11.9), an
+ * increment on a live increment, on any arc (MissingReferenceError otherwise). Waiting again on the same blocker replaces
  * the reason. A wait that would close a loop in the work `read` gives is refused with a WaitLoopError
  * naming it. Null, with nothing written, if `waiter` is not a live arc or increment.
  */
@@ -97,7 +100,7 @@ export async function addWait(
 ): Promise<SchemaRecord<"arc" | "increment"> | null> {
   const record = await liveRecord(records, waiter, ["arc", "increment"]);
   if (record === null) return null;
-  await checkReference(records, "on", blocker, record.type);
+  await checkReference(records, "on", blocker, record.type === "arc" ? ARC_BLOCKER : "increment");
   const stored: readonly Wait[] = record.fields.waits ?? [];
   const waits = stored.some((wait) => wait.on === blocker)
     ? stored.map((wait) => (wait.on === blocker ? { on: blocker, reason } : wait))
@@ -116,13 +119,14 @@ export async function removeWait(records: SchemaRecords, waiter: string, blocker
 
 /**
  * Clear every stored wait on `blocker`, an arc or increment as `kind` says, which has landed (an increment) or closed (an arc), so no
- * wait is ever stale (11.8): from each open increment that waits on it, or each arc. Each waiter's
+ * wait is ever stale (11.8): from each arc that waits on it, and, for an increment, each open increment. Each waiter's
  * history keeps the cleared wait, with `reason`. The ids of the waiters cleared.
  */
 export async function clearWaitsOn(records: SchemaRecords, kind: "arc" | "increment", blocker: string, reason: string, options?: WriteOptions): Promise<string[]> {
-  const waiters = kind === "arc"
-    ? await records.select("arc", ["waits"])
-    : await records.select("increment", ["waits"], { not: { status: "closed" } });
+  const waiters = [
+    ...await records.select("arc", ["waits"]),
+    ...kind === "arc" ? [] : await records.select("increment", ["waits"], { not: { status: "closed" } }),
+  ];
   const cleared: string[] = [];
   for (const { id, fields } of waiters) {
     const stored: readonly Wait[] = fields.waits ?? [];

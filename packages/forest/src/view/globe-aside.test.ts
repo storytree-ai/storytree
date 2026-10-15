@@ -23,6 +23,9 @@ test("3.40 when the free width is narrower than the globe, it zooms out just eno
   assert.ok(beside.framing > 1.18, "zoomed out");
   assert.ok(diameter <= narrow.width - panel && diameter > narrow.width - panel - 30, `fits the free width snugly (${diameter.toFixed(0)}px)`);
   assert.equal(besidePanel(narrow, panel, { framing: 4, sideOffset: 0 }).framing, 4, "already further out than the fit: left alone");
+  const sheet = { framing: 0.002, sideOffset: 0 };
+  assert.deepEqual(besidePanel(narrow, panel, sheet, false), { framing: 0.002, sideOffset: -246 }, "the glass sheet only slides: it runs on past the free width, to pan to");
+  assert.deepEqual(createGlobeAside(() => sheet, { fit: false }).place(narrow, panel, sheet)?.to, { framing: 0.002, sideOffset: -246 });
 });
 
 test("3.40 opening glides aside; another island picked with the panel open moves nothing; closing glides back to the zoom it had", () => {

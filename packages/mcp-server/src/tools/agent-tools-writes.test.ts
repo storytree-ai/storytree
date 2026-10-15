@@ -498,7 +498,8 @@ test("6.17 another story registers its tools on this server, sharing routing, th
       assert.deepEqual(calls.map((line) => [line.session, line.kind === "tool-called" && line.tool]), [["librarian-reader", "librarian_worklist"]]);
       const instructions = agent.instructions()!;
       assert.ok(instructions.includes(extension.instructions!));
-      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), await agent.tools());
+      // The card names every tool but a harness's own (ADR-1056 D2).
+      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event"));
       assert.ok(instructions.split("\n").length <= 60);
     });
   });

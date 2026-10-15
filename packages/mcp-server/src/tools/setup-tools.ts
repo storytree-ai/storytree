@@ -65,12 +65,12 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       try {
         const found = findProject(folder);
         const identity = found.project === undefined ? undefined : found.identity;
-        const { library, log } = await connections.reach(report.storytree.library, report.project.name, identity, { folder: found.project === undefined ? folder : found.folder, home: setup.storytreeHome ?? storytreeHome() });
+        const { library, log, storytree } = await connections.reach(report.storytree.library, report.project.name, identity, { folder: found.project === undefined ? folder : found.folder, home: setup.storytreeHome ?? storytreeHome() });
         // Seeded roles are read only when the agent is pointed at them (1.14, 8.19).
         const starterRoles = await starterRolesIn(library);
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
-        // A library an earlier pack seeded is offered the newer one, for the user to take (8.26).
-        const starterPack = await starterPackStatus(library);
+        // A library an earlier pack seeded is offered the newer one, for the user to take (8.26); a product's is its factory's.
+        const starterPack = await starterPackStatus(library, storytree);
         if (starterPack.offered) said.push(newerPackSentence(starterPack));
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
         const caller = seenCaller(await callLines(log, report.project.name, metaOf(context), { harness: heard.harness, tool: "check_setup" }), heard, metaOf(context));
@@ -175,11 +175,12 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
 export function registerStarterPackTool(define: Define): void {
   define(
     "take_starter_pack",
-    "Take the newer starter pack into this project's library: call it only when check_setup offered it and the user said yes. It adds the records the library lacks and replaces only the ones the user has not edited; each edited one is left as it is and named, with the newer text beside it.",
+    "Take the newer starter pack into this project's library, or into the factory it reads its system from: call it only when check_setup offered it and the user said yes. It adds the records the library lacks and replaces only the ones the user has not edited; each edited one is left as it is and named, with the newer text beside it.",
     z.object({}),
-    async (_args, { library }) => {
-      const took = await takeStarterPack(library);
-      const said = [`Took the starter pack: added ${took.added.length} and replaced ${took.replaced.length} of its records.`];
+    async (_args, { library, storytree }) => {
+      const took = await takeStarterPack(library, storytree);
+      const into = took.factory === undefined ? "" : ` into the factory ${quoted(took.factory)}, which this project reads its system from`;
+      const said = [`Took the starter pack${into}: added ${took.added.length} and replaced ${took.replaced.length} of its records.`];
       if (took.kept.length > 0) {
         said.push(`Left as the user edited ${took.kept.length === 1 ? "it" : "them"}: ${took.kept.map(({ kind, title }) => `the ${kind} ${quoted(title)}`).join(", ")}. Show the user the newer text beside each (in this answer's data) and change one only if they ask.`);
       }
@@ -200,8 +201,9 @@ export function registerStarterPackTool(define: Define): void {
 }
 
 /** What the check says of a newer pack than the one that seeded the library (8.26). */
-function newerPackSentence({ seeded, current }: StarterPackStatus): string {
-  return `Its library was seeded by storytree's starter pack v${seeded}, and this storytree carries v${current}. Offer the user the newer pack: it adds what the library lacks and replaces only records they have not edited, leaving their edits as they are. Call take_starter_pack only if they say yes.`;
+function newerPackSentence({ seeded, current, factory }: StarterPackStatus): string {
+  const seededLibrary = factory === undefined ? "Its library was" : `The factory ${quoted(factory)}, which this project reads its system from, was`;
+  return `${seededLibrary} seeded by storytree's starter pack v${seeded}, and this storytree carries v${current}. Offer the user the newer pack: it adds what the library lacks and replaces only records they have not edited, leaving their edits as they are. Call take_starter_pack only if they say yes.`;
 }
 
 /**

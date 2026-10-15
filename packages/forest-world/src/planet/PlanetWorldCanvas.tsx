@@ -20,6 +20,7 @@ import { plateGrowth, roadSegmentWindows } from './growth.js';
 import { paintWhileSeen, startingFrameloop, viewportWatch, type ViewportWatch } from './paint-while-seen.js';
 import { redrawOnRestore } from './redraw-on-restore.js';
 import { globeExterior, type PlanetSurfaceVisibility } from './exterior.js';
+import { applySheetEye, SheetGlass, type SheetExtent } from './sheet.js';
 
 export type { PlanetSpot } from './planet.js';
 export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
@@ -31,6 +32,7 @@ export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetG
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
 export type { PlanetSurfaceVisibility } from './exterior.js';
+export { applySheetEye, SHEET_RADIUS, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from './sheet.js';
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;
@@ -66,6 +68,9 @@ export interface PlanetWorldCanvasProps {
   growth?: PlanetGrowth | undefined;
   /** Draw first and newly arriving roads on in a live host; recorded growth takes precedence. */
   liveRoads?: boolean | undefined;
+  /** Draw the world as a glass sheet this size, the near pole of a sphere of `radius` (ADR-1043 D1): the sheet's glass
+   * instead of the sea, and an eye whose depth range spans the sheet. */
+  sheet?: SheetExtent | undefined;
 }
 
 const NO_LANES: readonly LitLink[] = [];
@@ -114,12 +119,13 @@ function Surface({ radius, visible }: { radius: number; visible: boolean }) {
   return <primitive object={surface} visible={visible} />;
 }
 
-function Framing({ radius, framing, sideOffset }: { radius: number; framing: number; sideOffset: number }) {
+function Framing({ radius, framing, sideOffset, sheet }: { radius: number; framing: number; sideOffset: number; sheet: SheetExtent | undefined }) {
   const { camera, size, invalidate } = useThree();
   useLayoutEffect(() => {
     applyPlanetFraming(camera as OrthographicCamera, radius, framing, size);
+    if (sheet !== undefined) applySheetEye(camera as OrthographicCamera, Math.hypot(sheet.width, sheet.height));
     invalidate();
-  }, [camera, radius, framing, size.width, size.height, invalidate]);
+  }, [camera, radius, framing, size.width, size.height, invalidate, sheet?.width, sheet?.height]);
   // Keeping these effects separate lets a card move without resetting wheel/pinch zoom.
   useLayoutEffect(() => {
     applyPlanetSideOffset(camera as OrthographicCamera, size, sideOffset);
@@ -168,7 +174,7 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
 /** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
  * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, laneWays, growth, liveRoads = false }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, laneWays, growth, liveRoads = false, sheet }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
     const way = laneWays(dock.story, capability, dock.local), spot = spots.get(dock.story);
@@ -188,10 +194,10 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     camera={{ position, near: 0.1, far: radius * 10 }} onCreated={onCreated}>
     <PaintWhileSeen watch={watch} />
     <color attach="background" args={['#101418']} />
-    <Framing radius={radius} framing={framing} sideOffset={sideOffset} />
+    <Framing radius={radius} framing={framing} sideOffset={sideOffset} sheet={sheet} />
     <GrowthProvider growth={growth}>
     <group name="globe" quaternion={rotation}>
-      <Surface radius={radius} visible={exterior.sea} />
+      {sheet === undefined ? <Surface radius={radius} visible={exterior.sea} /> : <SheetGlass extent={sheet} />}
       {scene.islands.map(island => {
         const spot = spots.get(island.story);
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);

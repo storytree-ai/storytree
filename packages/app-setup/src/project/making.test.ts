@@ -196,14 +196,14 @@ const STARTER_CHECKS = ["Hidden skip", "Module mock", "Proxy assertion", "Tautol
 /** Every role the starter pack seeds, by title. */
 const STARTER_ROLE_TITLES = ["blind-reviewer", "change-reviewer", "corpus-investigator", "explorer", "frontend-builder", "librarian", "orchestrator", "story-author"];
 
-test("6.7 setting a new project up seeds its library with every starter role (orchestrator, librarian, change-reviewer, explorer, story-author, frontend-builder, blind-reviewer, corpus-investigator), the six test-quality checks a review's brief lists, and the notes they stand on; joining it from another machine adds no second copy", async () => {
-  const project = uniqueProjectName();
+test("6.7 setting a new project up gives its library, read through its factory, every starter role (orchestrator, librarian, change-reviewer, explorer, story-author, frontend-builder, blind-reviewer, corpus-investigator), the six test-quality checks a review's brief lists, and the notes they stand on; joining it from another machine adds no second copy", async () => {
+  const [project, factory] = [uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
     const { laptop, box } = machines(dir);
     const [onLaptop, onBox] = [path.join(dir, "laptop", "app"), path.join(dir, "box", "app")];
     mkdirSync(onLaptop, { recursive: true });
     mkdirSync(onBox, { recursive: true });
-    await withStorytree([project], async (storytree) => {
+    await withStorytree([project, factory], async (storytree) => {
       // The pack as the library holds it: each role and check by title, every note a role stands on, keeps as a rule or refuses, and every note a check enforces, live.
       const pack = async () => {
         const library = await storytree.openProject(project);
@@ -242,9 +242,9 @@ test("6.7 setting a new project up seeds its library with every starter role (or
       // A first try that fails at its last step (the choice cannot be saved), then the retry.
       const choice = path.join(laptop, "project-choice.json");
       mkdirSync(choice, { recursive: true });
-      await assert.rejects(setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop }));
+      await assert.rejects(setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop, factory }));
       rmSync(choice, { recursive: true });
-      await setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop });
+      await setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop, factory });
       const seeded = await pack();
       assert.deepEqual({ roles: seeded.roles, checks: seeded.checks }, { roles: STARTER_ROLE_TITLES, checks: STARTER_CHECKS }, "the retry adds no second role or check");
       assert.equal(new Set(seeded.notes.map((note) => note.replace(/^[a-z]+: /, ""))).size, seeded.notes.length, "the retry adds no second copy of a note");
@@ -277,7 +277,7 @@ test("6.7 setting a new project up seeds its library with every starter role (or
       ];
       assert.deepEqual(factoryNotes.filter((note) => !seeded.notes.includes(note)), [], "every note the factory's contents mark in is seeded");
       assert.deepEqual((await standsOn("corpus-investigator")).rules.slice(-2), ["The same file in another tree is a different file", "A measured claim carries the method that produced it"]);
-      await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true });
+      await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true, factory });
       assert.deepEqual(await pack(), seeded, "joining adds no second copy");
 
       // A review of a change in this project is briefed with the seeded checks.
@@ -354,7 +354,7 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
   });
 });
 
-test("6.11 setting the first project up makes the user's factory, a project with no folder holding the starter pack, and every new project names it; a later project finds it, a join makes none, and a product project already holding its name leaves it the next free one (ADR-1040)", async () => {
+test("6.11 setting the first project up makes the user's factory, a project with no folder holding the starter pack, and every new project names it, holding no copy of the pack; a later project finds it, a join makes none, and a product project already holding its name leaves it the next free one (ADR-1040)", async () => {
   const [factory, first, second, before] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
     const { laptop, box } = machines(dir);
@@ -364,7 +364,7 @@ test("6.11 setting the first project up makes the user's factory, a project with
       const linkOf = async (project: string) => {
         const library = await storytree.openProject(project, { create: false });
         try {
-          return { link: await library.factory(), roles: (await library.list("agent")).length };
+          return { link: await library.factory(), roles: (await library.list("agent")).map((role) => role.id).sort() };
         } finally {
           await library.close();
         }
@@ -372,9 +372,9 @@ test("6.11 setting the first project up makes the user's factory, a project with
 
       await setUpProject({ folder: folders[0]!, project: first, storytree, storytreeHome: laptop, factory });
       const made = await linkOf(factory);
-      assert.deepEqual(made, { link: { kind: "factory" }, roles: STARTER_ROLE_TITLES.length }, "the factory holds the starter pack");
+      assert.deepEqual({ link: made.link, roles: made.roles.length }, { link: { kind: "factory" }, roles: STARTER_ROLE_TITLES.length }, "the factory holds the starter pack");
       assert.equal(findProject(dir).project, undefined, "the factory has no folder of its own");
-      assert.deepEqual((await linkOf(first)).link, { kind: "product", factory });
+      assert.deepEqual(await linkOf(first), { link: { kind: "product", factory }, roles: made.roles }, "the product holds no copy: its roles are the factory's own");
 
       await setUpProject({ folder: folders[1]!, project: second, storytree, storytreeHome: laptop, factory });
       assert.deepEqual((await linkOf(second)).link, { kind: "product", factory }, "a later project finds the same factory");
@@ -385,7 +385,8 @@ test("6.11 setting the first project up makes the user's factory, a project with
       // A product project holding the name the factory would take leaves it the next free one.
       await setUpProject({ folder: folders[3]!, project: before, storytree, storytreeHome: laptop, factory: second });
       assert.deepEqual((await linkOf(before)).link, { kind: "product", factory: `${second}-2` });
-      assert.deepEqual(await linkOf(`${second}-2`), made);
+      const next = await linkOf(`${second}-2`);
+      assert.deepEqual({ link: next.link, roles: next.roles.length }, { link: { kind: "factory" }, roles: STARTER_ROLE_TITLES.length });
       assert.deepEqual((await linkOf(second)).link, { kind: "product", factory }, "the product project keeps its own factory");
     });
   });

@@ -425,10 +425,10 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
   });
 });
 
-test("app-setup 8.26 in a project an earlier starter pack seeded, the check names the seeded and current versions and offers take_starter_pack while it would add or replace something; once taken, or in a project never seeded, it offers nothing", async () => {
+test("app-setup 8.26 in a project an earlier starter pack seeded, or a product project whose factory it seeded, the check names the seeded and current versions and offers take_starter_pack while it would add or replace something, taken into the factory for the product; once taken, or in a project never seeded, it offers nothing", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    const [earlier, never] = [uniqueProjectName(), uniqueProjectName()];
+    const [earlier, never, factory, product] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
     const storytree = await connect({ url: testServerUrl() });
     try {
       const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } });
@@ -443,9 +443,18 @@ test("app-setup 8.26 in a project an earlier starter pack seeded, the check name
       const answered = (text: string) => text.split("\n\nHow to work with storytree")[0]!;
       // Version 1 of the pack seeded this one: a principle whose statement the pack has since changed.
       const library = await storytree.openProject(earlier);
-      await library.writeKnowledge("principle", { title: "Minimum to green", description: "Build only what the next failing test needs.", statement: "Write the least code that passes.", why: "Less to fix.", howToApply: "Name the behaviour first." }, { actor: "storytree setup (starter pack v1)" });
+      const v1 = { title: "Minimum to green", description: "Build only what the next failing test needs.", statement: "Write the least code that passes.", why: "Less to fix.", howToApply: "Name the behaviour first." };
+      await library.writeKnowledge("principle", v1, { actor: "storytree setup (starter pack v1)" });
       await library.close();
       await (await storytree.openProject(never)).close();
+      // A product holding no copy, reading its pack from a factory version 1 seeded.
+      const made = await storytree.openProject(factory);
+      await made.markFactory();
+      await made.writeKnowledge("principle", v1, { actor: "storytree setup (starter pack v1)" });
+      await made.close();
+      const built = await storytree.openProject(product);
+      await built.recordFactory(factory);
+      await built.close();
 
       await withAgent(await projectFolder(earlier), agentIn(path.join(dir, earlier)), async (agent) => {
         const offered = await agent.call("check_setup");
@@ -464,9 +473,21 @@ test("app-setup 8.26 in a project an earlier starter pack seeded, the check name
         assert.deepEqual(checked.data.starterPack, { seeded: null, current: STARTER_PACK_VERSION, offered: false });
         assert.doesNotMatch(answered(checked.text), /take_starter_pack/);
       });
+      await withAgent(await projectFolder(product), agentIn(path.join(dir, product)), async (agent) => {
+        const offered = await agent.call("check_setup");
+        assert.deepEqual(offered.data.starterPack, { seeded: 1, current: STARTER_PACK_VERSION, offered: true, factory });
+        assert.match(answered(offered.text), new RegExp(`factory "${factory}".*starter pack v1\\b.*take_starter_pack`));
+        const took = await agent.call("take_starter_pack");
+        assert.equal(took.isError, false, took.text);
+        assert.equal(took.data.factory, factory);
+        assert.match(took.text, new RegExp(`into the factory "${factory}"`));
+        assert.deepEqual((took.data.replaced as { title: string }[]).map(({ title }) => title), ["Minimum to green"]);
+        const taken = await agent.call("check_setup");
+        assert.deepEqual(taken.data.starterPack, { seeded: STARTER_PACK_VERSION, current: STARTER_PACK_VERSION, offered: false, factory });
+      });
     } finally {
       await storytree.close();
-      await dropTestProjects([earlier, never]);
+      await dropTestProjects([earlier, never, factory, product]);
     }
   });
 });

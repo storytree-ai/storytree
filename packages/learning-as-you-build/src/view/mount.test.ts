@@ -39,6 +39,7 @@ test("3.1 · a fired card shows beside its thing, takes no focus and blocks noth
   card.querySelector<HTMLButtonElement>("[data-more]")!.click();
   assert.equal(depth.hidden, false);
   assert.match(depth.textContent ?? "", /Why/);
+  assert.match(depth.textContent ?? "", /Decision 819: A package for each story/, "More names the decisions behind it");
   card.querySelector<HTMLButtonElement>("[data-dismiss]")!.click();
   assert.equal(host.querySelector(".teaching-card"), null);
   // Seen once, it does not come back for the same reading.

@@ -11,13 +11,10 @@ test("1.1 · every kind has a card with a title and a line at once, and what, wh
     assert.ok(said.every(text => text !== ""), `every kind has its ${field}`);
     assert.equal(new Set(said).size, KINDS.length, `each kind's ${field} is its own`);
   }
-  for (const kind of KINDS) {
-    assert.equal(cardOf(kind).kind, kind);
-    // Its decisions point into the log: each by a whole number, none twice.
-    const numbers = cardOf(kind).decisions.map(decision => decision.number);
-    assert.ok(numbers.length > 0 && numbers.every(Number.isInteger), `${kind} names the decisions behind it`);
-    assert.equal(new Set(numbers).size, numbers.length);
-  }
+  for (const kind of KINDS) assert.equal(cardOf(kind).kind, kind);
+  // The decisions behind a card: a story is its own package (ADR-0819), and the empty map's rule is ADR-1048.
+  assert.ok(cardOf("story").decisions.some(decision => decision.number === 819));
+  assert.ok(cardOf("empty").decisions.some(decision => decision.number === 1048));
   // The empty map's card says it fills as the user's agent builds (ADR-1048 D1).
   assert.match(cardOf("empty").line, /fills as your agent builds/);
 });

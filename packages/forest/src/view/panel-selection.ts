@@ -14,7 +14,7 @@ export class PanelSelection {
   switched(switches: GlobeSwitches): void {
     if ((!switches.stories && this.current?.kind === "story") || (!switches.library && this.current?.kind === "note")) this.close();
   }
-  /** The glass sheet turned to `face`: a story stays selected on both faces, and turning to the top face closes a note's card (ADR-1043 D3). */
+  /** The glass sheet's `face` pressed: a story stays selected in both looks, and pressing Stories closes a note's card (ADR-1043 D3, ADR-1062 D3). */
   turned(face: SheetFace): void {
     if (face === "stories" && this.current?.kind === "note") this.close();
   }

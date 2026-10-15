@@ -138,24 +138,40 @@ export function tiltFromEye(sheet: Object3D, camera: Camera): number {
 export const UNDER_SHOWS_FROM = 60 * Math.PI / 180;
 
 /**
- * What hangs beneath the glass (the knowledge graph, ADR-1043 D5) shows by the angle (ADR-1062 D4): hidden from well above,
- * in view from near level, drawn before the glass it hangs behind, and from below drawn over the glass it hangs beyond.
+ * What hangs beneath the glass (the knowledge graph, ADR-1043 D5) shows by the angle under smoked glass (ADR-1062 D4): hidden
+ * from well above, in view from near level, drawn before the glass it hangs behind, and from below drawn over the glass it
+ * hangs beyond. Under `clear` glass (the Library button, D3) it shows at every angle, from above included.
  */
-export function hangUnderTheGlass(group: Object3D, camera: Camera): void {
+export function hangUnderTheGlass(group: Object3D, camera: Camera, clear = false): void {
   const tilt = tiltFromEye(group, camera);
-  group.visible = tilt >= UNDER_SHOWS_FROM;
+  group.visible = clear || tilt >= UNDER_SHOWS_FROM;
   if (group.visible) drawOrderAfter(group, tilt > Math.PI / 2 ? 21 : -30);
 }
 
-/** What hangs beneath the glass, drawn as `hangUnderTheGlass` says, so it comes into view as the sheet tilts toward level. */
-export function UnderTheGlass({ children }: { children: ReactNode }) {
+/** What hangs beneath the glass, drawn as `hangUnderTheGlass` says, so it comes into view as the sheet tilts toward level,
+ * or shows at every angle under `clear` glass. */
+export function UnderTheGlass({ children, clear = false }: { children: ReactNode; clear?: boolean }) {
   const group = useRef<Group>(null);
-  useFrame(({ camera }) => { if (group.current !== null) hangUnderTheGlass(group.current, camera); });
+  useFrame(({ camera }) => { if (group.current !== null) hangUnderTheGlass(group.current, camera, clear); });
   return <group ref={group} name="sheet:under">{children}</group>;
 }
 
 /** The colour of the glass's edge, lit by the scene's lamp (ADR-1062 D1). */
 const GLASS_EDGE_COLOUR = '#7fa6bb';
+
+/** How opaque each part of the glass is, smoked (Stories) and clear (Library, ADR-1062 D3): clear, the panes all but vanish
+ * and only the rim and a faint edge say where the slab is, so what hangs beneath shows through from any angle. */
+const SMOKED = { 'sheet:pane': 0.72, 'sheet:pane-under': 0.35, 'sheet:edge': 0.8 } as const;
+const CLEAR = { 'sheet:pane': 0.05, 'sheet:pane-under': 0.03, 'sheet:edge': 0.25 } as const;
+
+/** Makes `glass` (`sheetGlass`) clear or smoked again, changing only how opaque its panes and edge are. */
+export function clearGlass(glass: Object3D, clear: boolean): void {
+  const opacity = clear ? CLEAR : SMOKED;
+  for (const name of Object.keys(opacity) as (keyof typeof opacity)[]) {
+    const part = glass.getObjectByName(name) as Mesh<BufferGeometry, MeshBasicMaterial> | undefined;
+    if (part !== undefined) part.material.opacity = opacity[name];
+  }
+}
 
 /**
  * The glass under the islands: a smoked slab `SHEET_GLASS_THICKNESS` thick, bent to the big sphere's sag, at the pole,
@@ -171,7 +187,7 @@ export function sheetGlass(extent: SheetExtent): Group {
   const pane = (name: string, z: number) => {
     const plane = new PlaneGeometry(extent.width, extent.height, 48, 32), position = plane.getAttribute('position');
     for (let i = 0; i < position.count; i++) position.setZ(i, sag(position.getX(i), position.getY(i)) + z);
-    const mesh = new Mesh(plane, new MeshBasicMaterial({ color: '#1a2832', transparent: true, opacity: name === 'sheet:pane' ? 0.72 : 0.35, depthWrite: false, side: DoubleSide }));
+    const mesh = new Mesh(plane, new MeshBasicMaterial({ color: '#1a2832', transparent: true, opacity: SMOKED[name as keyof typeof SMOKED], depthWrite: false, side: DoubleSide }));
     mesh.name = name;
     mesh.raycast = () => {};
     return mesh;
@@ -203,7 +219,7 @@ export function sheetGlass(extent: SheetExtent): Group {
   wall.setAttribute('position', new Float32BufferAttribute(position, 3));
   wall.setAttribute('normal', new Float32BufferAttribute(normal, 3));
   wall.setIndex(indices);
-  const edge = new Mesh(wall, new MeshLambertMaterial({ color: GLASS_EDGE_COLOUR, transparent: true, opacity: 0.8, depthWrite: false, side: DoubleSide }));
+  const edge = new Mesh(wall, new MeshLambertMaterial({ color: GLASS_EDGE_COLOUR, transparent: true, opacity: SMOKED['sheet:edge'], depthWrite: false, side: DoubleSide }));
   edge.name = 'sheet:edge';
   edge.raycast = () => {};
   group.add(pane('sheet:pane-under', bottom), edge, pane('sheet:pane', top), rim('sheet:rim', top), rim('sheet:rim-under', bottom));
@@ -229,9 +245,10 @@ export function SheetLights() {
   return <>{lights.map(light => <primitive key={light.name} object={light} />)}</>;
 }
 
-/** The glass under the islands, drawn (`sheetGlass`). */
-export function SheetGlass({ extent }: { extent: SheetExtent }) {
+/** The glass under the islands, drawn (`sheetGlass`), smoked or `clear`. */
+export function SheetGlass({ extent, clear = false }: { extent: SheetExtent; clear?: boolean }) {
   const glass = useMemo(() => sheetGlass(extent), [extent.width, extent.height]);
+  useEffect(() => clearGlass(glass, clear), [glass, clear]);
   useEffect(() => () => glass.traverse(object => {
     const mesh = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
     mesh.geometry?.dispose();

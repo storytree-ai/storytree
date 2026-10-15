@@ -417,7 +417,11 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
 
 /** `handover <pr> <increment> [--keep-open]`, `hand <pr> <increment> [--session <id>] [--keep-open]`, `run` or `status`; `box` overrides the box's home, paths and processes in tests. */
 export async function main(args, box = {}) {
-  const b = { ...boxDefaults({ home: box.home }), ...box };
+  const defaults = boxDefaults({ home: box.home });
+  const b = { ...defaults, ...box };
+  // The box's releases are its own folder's: a loop given another folder (a test on the box) would keep its stop
+  // there, forget it each run and start the box a real fix session every time, unless it brings its own reader.
+  if (!box.readReleases && b.dir !== defaults.dir) b.readReleases = undefined;
   const out = b.out ?? console.log;
   const keepOpen = args.includes("--keep-open"), refused = args.includes("--refused");
   if (args[0] === "handover" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {

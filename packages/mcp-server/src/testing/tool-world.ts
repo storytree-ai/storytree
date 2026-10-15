@@ -37,6 +37,7 @@ export const TOOLS = [
   "make_workspace",
   "mark_built",
   "move_increment",
+  "move_onto_factory",
   "name_session",
   "open",
   "park_arc",

@@ -85,8 +85,9 @@ export class ProjectLineage {
  * A product project's records, reading its system from its factory's (ADR-1040 D4). For the system kinds, `list` and
  * `select` give the product's own records and the factory's whose kind and title the product holds none of, in id
  * order, and `get` of a factory record's id gives the product's own record of that kind and title when it holds one,
- * so a role's links, written as the factory's ids, read the product's edits. Every other kind, every write and the
- * history are the product's own.
+ * so a role's links, written as the factory's ids, read the product's edits; `get` of a system record the product
+ * retired gives its own live record of that kind and title, else the factory's, so links to a copy it dropped still
+ * read (1.17). Every other kind, every write and the history are the product's own.
  */
 export class InheritedRecords extends SchemaRecords {
   readonly #factory: SchemaRecords;
@@ -100,9 +101,19 @@ export class InheritedRecords extends SchemaRecords {
     const own = await super.get(id);
     if (own !== null) return own;
     const inherited = await this.#factory.get(id);
-    if (inherited === null || !isSystem(inherited.type)) return null;
-    const [shadow] = await super.list(inherited.type, { where: { title: (inherited.fields as { title: string }).title } });
-    return shadow ?? inherited;
+    if (inherited !== null) {
+      if (!isSystem(inherited.type)) return null;
+      const [shadow] = await super.list(inherited.type, { where: { title: (inherited.fields as { title: string }).title } });
+      return shadow ?? inherited;
+    }
+    // A system record the product retired (moving onto its factory drops an unedited copy) reads as its kind and title.
+    const last = (await super.history({ id })).at(-1);
+    if (last?.action !== "retired") return null;
+    const retired = this.current(last.record);
+    if (!isSystem(retired.type)) return null;
+    const where = { where: { title: (retired.fields as { title: string }).title } };
+    const [shadow] = await super.list(retired.type, where);
+    return shadow ?? (await this.#factory.list(retired.type, where))[0] ?? null;
   }
 
   override async list<T extends RecordType>(type: T | readonly T[], filter?: Omit<ListFilter, "projection">): Promise<SchemaRecord<T>[]> {

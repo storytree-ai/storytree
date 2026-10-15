@@ -75,7 +75,9 @@ const CHECKS: readonly Check[] = [
 export const STARTER_ROLES: readonly string[] = ROLES.map((role) => role.title);
 
 type NoteKind = "principle" | "guardrail" | "pattern" | "process";
-type PackKind = NoteKind | "check" | "agent";
+export type PackKind = NoteKind | "check" | "agent";
+/** The kinds of record the pack writes. */
+export const PACK_KINDS: readonly PackKind[] = ["principle", "guardrail", "pattern", "process", "check", "agent"];
 type Fields = { readonly title: string } & Readonly<Record<string, unknown>>;
 /** One record of the pack, as it would be written. */
 interface PackRecord {
@@ -184,14 +186,13 @@ export async function takeStarterPack(library: Library): Promise<StarterPackTake
 }
 
 /** Who the history says wrote a pack record, with the pack's version. */
-const PACK_ACTOR = /^storytree setup \(starter pack v(\d+)\)$/;
+export const PACK_ACTOR = /^storytree setup \(starter pack v(\d+)\)$/;
 
 type Held = ReadonlyMap<PackKind, ReadonlyMap<string, { readonly id: string; readonly fields: Readonly<Record<string, unknown>> }>>;
 
 /** The live pack-kind records `library` holds, by kind and title. */
 async function heldRecords(library: Library): Promise<Held> {
-  const kinds: readonly PackKind[] = ["principle", "guardrail", "pattern", "process", "check", "agent"];
-  return new Map(await Promise.all(kinds.map(async (kind) => [kind, new Map((await library.list(kind)).map((record) => [record.fields.title, { id: record.id, fields: record.fields as Record<string, unknown> }]))] as const)));
+  return new Map(await Promise.all(PACK_KINDS.map(async (kind) => [kind, new Map((await library.list(kind)).map((record) => [record.fields.title, { id: record.id, fields: record.fields as Record<string, unknown> }]))] as const)));
 }
 
 /**

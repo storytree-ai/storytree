@@ -34,7 +34,7 @@ Rules for every pool lane on the Mint box (ADR-0955): one dispatcher starts each
 - **Defects and residue.**
   - A storytree defect you hit is parked on the arc that owns it, or fixed on its own PR if it is small and in your way. Never build around it silently.
   - Work you find that is outside your increment becomes a new increment on its arc (capabilities list empty), never a hidden extra in your PR.
-- **The shared library** is Postgres 16 on this box (ADR-0928). Never start, stop or reconfigure the box's postgresql service or Cloud SQL storytree-pg. Avoid looping over whole-library reads in scripts.
+- **The shared library** is Postgres 16 on this box (ADR-0928). Never start, stop or reconfigure the box's postgresql service. Avoid looping over whole-library reads in scripts.
 - **Before ending:**
   - run the `list_own_runs` tool or `pnpm storytree processes`, and stop or clear your runs (`stop_own_run` and `clear_own_runs`, or `processes stop` and `processes clear`);
   - make sure the worktree is clean;

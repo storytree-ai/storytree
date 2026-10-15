@@ -611,41 +611,27 @@ test("5.6 recordHealth records a skip's kind, marks a verdict the run did not re
   });
 });
 
-const CI = {
-  GITHUB_ACTIONS: "true",
-  GITHUB_SHA: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6",
-  HEALTH_WIF_PROVIDER: "projects/635716509357/locations/global/workloadIdentityPools/github-actions/providers/storytree-ci-health",
-  HEALTH_SERVICE_ACCOUNT: "storytree-ci-health@storytree-498613.iam.gserviceaccount.com",
-  HEALTH_CLOUDSQL_INSTANCE: "storytree-498613:australia-southeast1:storytree-pg",
-};
+const CI = { GITHUB_ACTIONS: "true", GITHUB_SHA: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6" };
 
-test("on CI, own health is recorded in the Cloud SQL library the CI identity names, signed in as its service account, by a test run on CI", () => {
-  assert.deepEqual(recordingTarget({ env: CI, setting: { location: "local" } }), {
+test("on CI with HEALTH_PG_ADDRESS set, own health is recorded in the library at that address, by a test run on CI", () => {
+  const address = "postgres://storytree-ci-health%40storytree-498613.iam@100.97.8.31:5432/postgres";
+  assert.deepEqual(recordingTarget({ env: { ...CI, HEALTH_PG_ADDRESS: address }, setting: { location: "local" } }), {
     record: true,
-    library: { cloudSql: { instance: "storytree-498613:australia-southeast1:storytree-pg", user: "storytree-ci-health@storytree-498613.iam" } },
-    writer: { by: "storytree test run on CI", commit: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6" },
+    library: { address },
+    writer: { by: "storytree test run on CI", commit: CI.GITHUB_SHA },
   });
 });
 
-test("on CI with the identity not configured, nothing is recorded, and it says which repository variables are unset", () => {
-  const { HEALTH_WIF_PROVIDER, HEALTH_CLOUDSQL_INSTANCE, ...partly } = CI;
-  const target = recordingTarget({ env: partly, setting: { location: "local" } });
-  assert.equal(target.record, false);
-  assert.match(target.why, /HEALTH_WIF_PROVIDER, HEALTH_CLOUDSQL_INSTANCE/);
-  assert.doesNotMatch(target.why, /HEALTH_SERVICE_ACCOUNT/);
-  assert.equal(recordingTarget({ env: { ...CI, HEALTH_SERVICE_ACCOUNT: "" }, setting: { location: "local" } }).record, false, "an empty variable is unset");
-});
-
-test("on CI with HEALTH_PG_ADDRESS set, own health is recorded in the library at that address, by a test run on CI, whatever the Cloud SQL identity says", () => {
-  const address = "postgres://storytree-ci-health%40storytree-498613.iam@100.97.8.31:5432/postgres";
-  const expected = { record: true, library: { address }, writer: { by: "storytree test run on CI", commit: CI.GITHUB_SHA } };
-  assert.deepEqual(recordingTarget({ env: { ...CI, HEALTH_PG_ADDRESS: address }, setting: { location: "local" } }), expected);
-  assert.deepEqual(recordingTarget({ env: { GITHUB_ACTIONS: "true", GITHUB_SHA: CI.GITHUB_SHA, HEALTH_PG_ADDRESS: address }, setting: { location: "local" } }), expected, "no Google identity is needed");
-  assert.deepEqual(recordingTarget({ env: { ...CI, HEALTH_PG_ADDRESS: "" }, setting: { location: "local" } }).library, { cloudSql: { instance: CI.HEALTH_CLOUDSQL_INSTANCE, user: "storytree-ci-health@storytree-498613.iam" } }, "an empty address keeps Cloud SQL");
+test("on CI with no HEALTH_PG_ADDRESS, nothing is recorded, and it says the variable is unset", () => {
+  for (const env of [CI, { ...CI, HEALTH_PG_ADDRESS: "" }]) {
+    const target = recordingTarget({ env, setting: { location: "local" } });
+    assert.equal(target.record, false);
+    assert.match(target.why, /HEALTH_PG_ADDRESS is unset/);
+  }
 });
 
 test("run by hand, own health is recorded in the library the setting names: the Cloud SQL instance, a Postgres address, or the app's own", () => {
-  const cloud = { location: "cloudsql", instance: "storytree-498613:australia-southeast1:storytree-pg", user: "storytree-mint@storytree-498613.iam" };
+  const cloud = { location: "cloudsql", instance: "my-project:australia-southeast1:my-instance", user: "you@my-project.iam" };
   assert.deepEqual(recordingTarget({ env: {}, setting: cloud }), {
     record: true,
     library: { cloudSql: { instance: cloud.instance, user: cloud.user } },

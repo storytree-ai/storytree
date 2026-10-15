@@ -11,7 +11,7 @@ import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pic
 
 async function loginEnvironment(home, env) {
   const login = { ...env };
-  const names = ["CLAUDE_CODE_OAUTH_TOKEN", "STORYTREE_DB_USER"];
+  const names = ["CLAUDE_CODE_OAUTH_TOKEN"];
   if (names.some((name) => !login[name])) {
     const source = await readOptional(join(home, ".storytree", "secrets.json"));
     let secrets;

@@ -543,18 +543,10 @@ async function markNotChecked(library, id, verdict, writer, platformsSeen) {
 /** @typedef {{ by: string, commit?: string }} Writer */
 
 /**
- * The repository variables that name CI's Google identity (infra/ci-health): the workload identity
- * provider it signs in through, the service account it acts as, and the Cloud SQL instance.
- */
-export const CI_IDENTITY = ["HEALTH_WIF_PROVIDER", "HEALTH_SERVICE_ACCOUNT", "HEALTH_CLOUDSQL_INSTANCE"];
-
-/**
  * Where a run records verified health, and as whom. On CI (GITHUB_ACTIONS), by a test run on CI at
- * GITHUB_SHA: in the library at HEALTH_PG_ADDRESS when that is set (the Mint box over Tailscale,
- * ADR-0928 D4; its password is PGPASSWORD), and otherwise in the Cloud SQL library the CI identity
- * names, signed in as its service account; when any of that identity's repository variables is
- * unset, nowhere, saying which. Run by hand, the library the storytree setting names: the Cloud SQL
- * instance, a Postgres address, or the desktop app's own (`"app"`).
+ * GITHUB_SHA: in the library at HEALTH_PG_ADDRESS (the Mint box over Tailscale, ADR-0928 D4; its
+ * password is PGPASSWORD), and nowhere when that is unset, saying so. Run by hand, the library the
+ * storytree setting names: a Cloud SQL instance, a Postgres address, or the desktop app's own (`"app"`).
  * @param {{ env: Record<string, string | undefined>, setting: { location: "local" } | { location: "cloudsql", instance: string, user: string } | { location: "postgres", address: string } }} input
  * @returns {{ record: false, why: string } | { record: true, library: "app" | { cloudSql: { instance: string, user: string } } | { address: string }, writer: Writer }}
  */
@@ -562,21 +554,11 @@ export function recordingTarget({ env, setting }) {
   if (env.GITHUB_ACTIONS === "true") {
     const writer = { by: VERIFIED_BY_CI, ...optional("commit", env.GITHUB_SHA) };
     if ((env.HEALTH_PG_ADDRESS ?? "") !== "") return { record: true, library: { address: env.HEALTH_PG_ADDRESS }, writer };
-    const unset = CI_IDENTITY.filter((name) => (env[name] ?? "") === "");
-    if (unset.length > 0) {
-      return {
-        record: false,
-        why:
-          `CI has no Google identity to record health with: the repository variable${unset.length === 1 ? "" : "s"} ` +
-          `${unset.join(", ")} ${unset.length === 1 ? "is" : "are"} unset (infra/ci-health/README.md says how to set them). Nothing was recorded.`,
-      };
-    }
-    // Cloud SQL names a service account's database user by its email without .gserviceaccount.com.
-    const user = env.HEALTH_SERVICE_ACCOUNT.replace(/\.gserviceaccount\.com$/, "");
     return {
-      record: true,
-      library: { cloudSql: { instance: env.HEALTH_CLOUDSQL_INSTANCE, user } },
-      writer,
+      record: false,
+      why:
+        "CI has no library to record health in: the repository variable HEALTH_PG_ADDRESS is unset " +
+        "(infra/library-host/README.md says how CI reaches the Mint box). Nothing was recorded.",
     };
   }
   if (setting.location === "postgres") return { record: true, library: { address: setting.address }, writer: { by: VERIFIED_BY } };

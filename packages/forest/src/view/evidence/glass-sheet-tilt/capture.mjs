@@ -10,7 +10,7 @@ import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildCapture, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
-import { SHEET_TILT } from '../../../../../forest-world/src/planet/sheet.tsx';
+import { SHEET_TILT } from '@storytree/forest-world/planet';
 
 const resting = Math.cos(SHEET_TILT);
 

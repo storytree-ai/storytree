@@ -613,7 +613,7 @@ test("5.6 recordHealth records a skip's kind, marks a verdict the run did not re
 
 const CI = { GITHUB_ACTIONS: "true", GITHUB_SHA: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6" };
 
-test("on CI with HEALTH_PG_ADDRESS set, own health is recorded in the library at that address, by a test run on CI", () => {
+test("5.7 on CI with HEALTH_PG_ADDRESS set, own health is recorded in the library at that address, by a test run on CI", () => {
   const address = "postgres://storytree-ci-health%40storytree-498613.iam@100.97.8.31:5432/postgres";
   assert.deepEqual(recordingTarget({ env: { ...CI, HEALTH_PG_ADDRESS: address }, setting: { location: "local" } }), {
     record: true,
@@ -622,7 +622,7 @@ test("on CI with HEALTH_PG_ADDRESS set, own health is recorded in the library at
   });
 });
 
-test("on CI with no HEALTH_PG_ADDRESS, nothing is recorded, and it says the variable is unset", () => {
+test("5.7 on CI with no HEALTH_PG_ADDRESS, nothing is recorded, and it says the variable is unset", () => {
   for (const env of [CI, { ...CI, HEALTH_PG_ADDRESS: "" }]) {
     const target = recordingTarget({ env, setting: { location: "local" } });
     assert.equal(target.record, false);

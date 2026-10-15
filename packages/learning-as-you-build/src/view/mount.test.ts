@@ -57,8 +57,8 @@ test("3.1 · a card at the window's right edge sits to the left of its point, in
   const card = host.querySelector<HTMLElement>(".teaching-card")!;
   card.getBoundingClientRect = () => ({ width: 300, height: 100 }) as DOMRect;
   teaching.take(oneStory);
-  assert.equal(card.style.left, `${990 - 12 - 300}px`);
-  assert.equal(card.style.top, `${600 - 100 - 12}px`);
+  assert.equal(card.style.left, "678px", "its right edge 12px left of the point");
+  assert.equal(card.style.top, "488px", "its bottom 12px above the window's");
   teaching.stop();
 });
 

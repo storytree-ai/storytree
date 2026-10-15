@@ -1026,7 +1026,6 @@ function residueBody(increment: string, mark: string, unapplied: readonly Unappl
   ].join("\n");
 }
 
-/** Where `status` sits in the lifecycle. */
 /**
  * Whether `latest`, its record's newest history entry, has moved `change` since it was read (ADR-0966
  * D5): the record is retired, or, for a retirement, any entry since its base; for an edit, a field it
@@ -1040,6 +1039,7 @@ function movedSince(change: PendingChange, latest: HistoryEntry): boolean {
   return Object.entries(change.before).some(([field, value]) => !isDeepStrictEqual(live[field] ?? null, value));
 }
 
+/** Where `status` sits in the lifecycle. */
 function rank(status: string): number {
   return (INCREMENT_STATUSES as readonly string[]).indexOf(status);
 }

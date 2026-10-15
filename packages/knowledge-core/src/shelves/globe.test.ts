@@ -77,20 +77,6 @@ test("1.6 a project of notes and no stories draws each note as a loose dot, foll
   assert.deepEqual(drawn().map(point => point.id).sort(), ["builder", "first", "proxy"]);
 });
 
-test("1.8 the drawn points exclude loose and shelved story-text definitions, retaining other knowledge", () => {
-  const history = new History().story("front")
-    .create("shelved-story-text", "definition", { term: "Story text: stories/forest.md", frontCoverOf: "front" })
-    .create("loose-story-text", "definition", { title: "Story text: stories/knowledge-core.md" })
-    .create("ordinary-definition", "definition", { term: "A shelf", definition: "An entrance into knowledge." })
-    .create("principle", "principle", { title: "Story text: stories/still-a-principle.md" })
-    .decision("decision", { title: "Story text: stories/still-a-decision.md", frontCoverOf: "front" });
-  const known = knowledge(history.changes);
-  const points = globePoints(underShelves(history.changes, known), spots, radius, known.notes);
-  assert.equal(known.active.size, 5, "the read-only drawing does not remove library records");
-  assert.equal(points.length, 3);
-  assert.deepEqual(points.map(point => point.id).sort(), ["decision", "ordinary-definition", "principle"]);
-});
-
 function assertLooseSpacing(pool: ReturnType<typeof globePoints>, shelf: ReturnType<typeof globePoints>): void {
   const margin = radius * 0.035;
   assert.ok(margin > radius * 0.012, "the separation exceeds one drawn dot diameter");

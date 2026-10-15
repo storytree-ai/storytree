@@ -558,6 +558,19 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await transactions.get("story-1"), written, "the record is unchanged");
     assert.deepEqual(await transactions.history(), before, "no history entry was written");
   });
+
+  contract("3.11", "a story and a capability carry their prose as text, read back whole and in order; one written without it reads as before", async ({ records }) => {
+    const prose = "An opening paragraph.\n\n- **A list item,** wrapped\n  onto a second line.\n\n## A closing section\n\nIts body.";
+    await records.create("story", MINIMAL.story, { id: "story-old" });
+    await records.create("story", { ...MINIMAL.story, text: prose }, { id: "story-1" });
+    await records.create("capability", { ...MINIMAL.capability, text: prose }, { id: "capability-1" });
+
+    assert.equal((await records.get("story-1"))?.fields.text, prose);
+    assert.equal((await records.get("capability-1"))?.fields.text, prose);
+    assert.deepEqual((await records.get("story-old"))?.fields, MINIMAL.story, "a story written before stories carried text reads as it was");
+    await records.edit("story-old", { text: "Added later." });
+    assert.equal((await records.get("story-old"))?.fields.text, "Added later.");
+  });
 }
 
 /** Tomorrow's schema: a story's `title` is renamed `name`, and its optional `description` becomes a required `summary`. */

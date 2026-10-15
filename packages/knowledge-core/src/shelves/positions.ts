@@ -1,7 +1,5 @@
 /** Capability 1 · Knowledge under its shelves. Capability 1's drawing coordinates, shared by the globe and the unmounted inspection view. */
-import type { RecordEnvelope } from "@storytree/library";
 import type { Core } from "./shelves.js";
-import { isStoryText } from "./story-text.js";
 
 export interface Point { x: number; y: number; z: number }
 interface PlacementInput { core: Core; spots: ReadonlyMap<string, Point>; radius: number }
@@ -20,14 +18,9 @@ export const LOOSE_BALL_RADIUS = 0.55;
 export const LOOSE_MIN_SEPARATION = 0.035;
 
 /** Shelf depths inside each island, with loose knowledge spread separately through a filled ball. */
-export function globePoints(core: Core, spots: ReadonlyMap<string, Point>, radius: number, notes?: ReadonlyMap<string, RecordEnvelope>): GlobePoint[] {
+export function globePoints(core: Core, spots: ReadonlyMap<string, Point>, radius: number): GlobePoint[] {
   const at = shelfPositions({ core, spots, radius });
-  const drawn = (id: string) => {
-    const record = notes?.get(id);
-    return record === undefined || !isStoryText(record);
-  };
-  for (const id of at.keys()) if (!drawn(id)) at.delete(id);
-  const outside = core.outside.filter(drawn).sort(compare);
+  const outside = [...core.outside].sort(compare);
   const loose = loosePositions(outside.length, [...at.values()].map(point => scale(point, 1 / radius)));
   outside.forEach((id, index) => at.set(id, scale(loose[index]!, radius)));
   return [...at].map(([id, point]) => ({ id, at: point, depth: core.placed.get(id)?.depth, home: core.placed.get(id)?.home }));

@@ -9,7 +9,6 @@ import type { RecordEnvelope } from "@storytree/library";
 import { linksOf } from "../ghosts/ghosts.js";
 import type { Core } from "./shelves.js";
 import type { GlobePoint } from "./positions.js";
-import { isStoryText } from "./story-text.js";
 
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 /** How far under the glass the first depth hangs, and how far apart siblings at one depth spread, in ground units. */
@@ -27,14 +26,9 @@ export interface SheetHanging {
 
 /** Every drawn note's place under the sheet, and each stored link (a `links` or `supersedes`) between two of them. */
 export function sheetPoints(core: Core, { shelfAt, pool, depthStep }: SheetHanging, notes?: ReadonlyMap<string, RecordEnvelope>): { points: GlobePoint[]; links: [string, string][] } {
-  const drawn = (id: string) => {
-    const record = notes?.get(id);
-    return record === undefined || !isStoryText(record);
-  };
   const points: GlobePoint[] = [];
   const siblings = new Map<string, number>();
   for (const placement of [...core.placed.values()].sort((a, b) => compare(a.note, b.note))) {
-    if (!drawn(placement.note)) continue;
     const shelf = shelfAt(placement.home);
     if (shelf === undefined) continue;
     const key = `${placement.home} ${placement.depth}`, index = siblings.get(key) ?? 0;
@@ -43,7 +37,7 @@ export function sheetPoints(core: Core, { shelfAt, pool, depthStep }: SheetHangi
     points.push({ id: placement.note, at: { x: shelf.x + r * Math.cos(a), y: shelf.y + r * Math.sin(a), z: -(FIRST_BELOW + placement.depth * depthStep) },
       depth: placement.depth, home: placement.home });
   }
-  const loose = core.outside.filter(drawn).sort(compare);
+  const loose = [...core.outside].sort(compare);
   const columns = Math.max(1, Math.ceil(Math.sqrt(loose.length * pool.width / Math.max(pool.height, 1))));
   const rows = Math.max(1, Math.ceil(loose.length / columns));
   loose.forEach((id, i) => {

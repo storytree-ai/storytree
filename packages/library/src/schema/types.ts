@@ -185,6 +185,8 @@ export const RECORD_SCHEMAS = {
     .object({
       title: nonEmpty,
       description: z.string().optional(),
+      /** Its prose, as markdown, whole and in the order written (ADR-1050 D1). Optional, so no version bump. */
+      text: z.string().optional(),
       /**
        * A mapped story (ADR-0993 D2): a package of an imported folder, written only by the work model's
        * mapStories. `from` is the import's key, `package` the package's folder relative to the imported
@@ -202,6 +204,8 @@ export const RECORD_SCHEMAS = {
       title: nonEmpty,
       story: z.string(),
       description: z.string().optional(),
+      /** Its prose, as markdown, whole and in the order written (ADR-1050 D1). Optional, so no version bump. */
+      text: z.string().optional(),
       dependsOn: ids.optional(),
       proposed: z.boolean(),
       /**

@@ -10,7 +10,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const out = captureOutput(here);
 const root = path.resolve(here, '../../../../../..');
 const require = createRequire(path.join(root, 'apps/desktop/package.json'));
-const { knowledge, underShelves, globePoints, noteTitle, isStoryText, LOOSE_BALL_RADIUS, LOOSE_MIN_SEPARATION } = await import(pathToFileURL(require.resolve('@storytree/knowledge-core')));
+const { knowledge, underShelves, globePoints, noteTitle, LOOSE_BALL_RADIUS, LOOSE_MIN_SEPARATION } = await import(pathToFileURL(require.resolve('@storytree/knowledge-core')));
 const { forestScene, storyNodes } = await import(pathToFileURL(require.resolve('@storytree/forest')));
 const { workStates } = await import(pathToFileURL(require.resolve('@storytree/arc-surface')));
 const { planetLayout } = await import('../../planet-navigation.ts');
@@ -20,7 +20,7 @@ const known = knowledge(changes), core = underShelves(changes, known);
 const layout = planetLayout(forestScene(seed.tree, changes, workStates(seed.lines.lines)),
   new Map(storyNodes(seed.tree, changes).map(story => [story.id, story.place])));
 const { spots, radius: PLANET_RADIUS } = layout;
-const points = globePoints(core, spots, PLANET_RADIUS, known.notes);
+const points = globePoints(core, spots, PLANET_RADIUS);
 const depthCounts = {};
 for (const placement of core.placed.values()) depthCounts[placement.depth] = (depthCounts[placement.depth] ?? 0) + 1;
 const shelves = new Map(core.shelves.map(shelf => [shelf.node, shelf]));
@@ -33,14 +33,12 @@ const notes = points.map(point => {
     entrances: placement?.entrances ?? [], at: point.at,
     radius: Math.hypot(point.at.x, point.at.y, point.at.z) };
 });
-const excluded = [...known.notes.values()].filter(isStoryText);
 const loose = notes.filter(note => note.depth === null);
 const shelf = notes.filter(note => note.depth !== null);
 const distance = (a, b) => Math.hypot(a.at.x - b.at.x, a.at.y - b.at.y, a.at.z - b.at.z);
 const looseMinimum = Math.min(...loose.flatMap((a, index) => loose.slice(index + 1).map(b => distance(a, b))));
 const shelfClearance = Math.min(...loose.flatMap(a => shelf.map(b => distance(a, b))));
-assert.equal(notes.length, core.placed.size + core.outside.length - excluded.length);
-assert.ok(notes.every(note => !isStoryText(known.notes.get(note.id))), 'story-text blocks are not drawn as knowledge');
+assert.equal(notes.length, core.placed.size + core.outside.length);
 assert.equal(new Set(notes.map(note => note.id)).size, notes.length);
 assert.ok(notes.every(note => note.radius < PLANET_RADIUS), 'every artifact is inside the shell');
 assert.ok(loose.every(note => note.radius <= PLANET_RADIUS * LOOSE_BALL_RADIUS), 'loose dots stay inside the filled ball');
@@ -50,7 +48,6 @@ assert.ok(LOOSE_MIN_SEPARATION > 0.012, 'clearance exceeds one drawn dot diamete
 const result = {
   seed: seed.stats, radius: PLANET_RADIUS, artifacts: known.notes.size, active: known.active.size,
   placed: shelf.length, depthCounts, noShelf: loose.length, drawn: notes.length,
-  excludedStoryText: excluded.length, excludedIds: excluded.map(note => note.id),
   spread: { shape: "filled ball sampled from a shuffled cubic lattice", maximumRadius: LOOSE_BALL_RADIUS, requiredSeparation: LOOSE_MIN_SEPARATION,
     dotDiameter: 0.012, measuredMinimum: looseMinimum / PLANET_RADIUS, measuredShelfClearance: shelfClearance / PLANET_RADIUS,
     measuredMaximumRadius: Math.max(...loose.map(note => note.radius)) / PLANET_RADIUS },

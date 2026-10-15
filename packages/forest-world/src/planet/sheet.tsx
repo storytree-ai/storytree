@@ -67,8 +67,7 @@ export function applySheetEye(camera: OrthographicCamera, reach: number): void {
 /**
  * Whether the eye looks at the sheet's underside: the top face's normal at the pole, turned with `sheet`, points away from it.
  * The islands' marks draw in orders 0 to 8, so the glass draws before them from above and after them from below (20), and
- * what hangs under the glass draws before it from above and after it from below (`UnderTheGlass`): whichever lies beyond
- * the glass is seen through it, faintly.
+ * the islands are seen through it, faintly; what hangs under the glass is drawn only from below, after it (`UnderTheGlass`).
  */
 export function seenFromBelow(sheet: Object3D, camera: Camera): boolean {
   const up = new Vector3(0, 0, 1).applyQuaternion(sheet.getWorldQuaternion(new Quaternion()));
@@ -78,10 +77,8 @@ export function seenFromBelow(sheet: Object3D, camera: Camera): boolean {
 /** Each object's own draw order, before the side the eye is on moved it (kept apart from userData, which a host may replace). */
 const ownOrders = new WeakMap<Object3D, number>();
 
-/** Sets each object's draw order under `group` for the side the eye is on, keeping their own orders' sequence. */
-function drawOrderBySide(group: Object3D | null, camera: Camera, above: number, below: number): void {
-  if (group === null) return;
-  const offset = seenFromBelow(group, camera) ? below : above;
+/** Sets each object's draw order under `group` to its own order moved by `offset`, keeping their sequence. */
+function drawOrderAfter(group: Object3D, offset: number): void {
   group.traverse(object => {
     if (object === group) return;
     if (!ownOrders.has(object)) ownOrders.set(object, object.renderOrder);
@@ -89,10 +86,24 @@ function drawOrderBySide(group: Object3D | null, camera: Camera, above: number, 
   });
 }
 
-/** What hangs beneath the glass (the knowledge graph, ADR-1043 D5): drawn under the glass from above, over it from below. */
+/** Sets each object's draw order under `group` for the side the eye is on, keeping their own orders' sequence. */
+function drawOrderBySide(group: Object3D, camera: Camera, above: number, below: number): void {
+  drawOrderAfter(group, seenFromBelow(group, camera) ? below : above);
+}
+
+/**
+ * What hangs beneath the glass (the knowledge graph, ADR-1043 D5) is shown only while the eye looks at the sheet's underside,
+ * drawn over the glass it hangs beyond; from the top face none of it is drawn, not even faintly through the glass (ADR-1061 D1).
+ */
+export function hangUnderTheGlass(group: Object3D, camera: Camera): void {
+  group.visible = seenFromBelow(group, camera);
+  if (group.visible) drawOrderAfter(group, 21);
+}
+
+/** What hangs beneath the glass, drawn as `hangUnderTheGlass` says, so turning the sheet over shows it the moment it passes edge-on. */
 export function UnderTheGlass({ children }: { children: ReactNode }) {
   const group = useRef<Group>(null);
-  useFrame(({ camera }) => drawOrderBySide(group.current, camera, -30, 21));
+  useFrame(({ camera }) => { if (group.current !== null) hangUnderTheGlass(group.current, camera); });
   return <group ref={group} name="sheet:under">{children}</group>;
 }
 

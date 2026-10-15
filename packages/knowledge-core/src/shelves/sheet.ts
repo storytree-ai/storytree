@@ -63,4 +63,9 @@ export function sheetPoints(core: Core, { shelfAt, pool, depthStep }: SheetHangi
   return { points, links };
 }
 
+/** The links drawn under the sheet (ADR-1061 D3): none at rest, and with a story selected exactly those touching its `notes`. */
+export function selectedLinks<Link extends readonly [string, string]>(links: readonly Link[], notes: ReadonlySet<string> | undefined): Link[] {
+  return notes === undefined ? [] : links.filter(([a, b]) => notes.has(a) || notes.has(b));
+}
+
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);

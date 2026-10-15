@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { OrthographicCamera, Quaternion, Vector3, type Mesh } from 'three';
+import { Group, Mesh as ThreeMesh, OrthographicCamera, Quaternion, Raycaster, Vector3, type Mesh } from 'three';
 import { plateTransform } from './planet.js';
-import { islandSurface } from './island-surface.js';
+import { hollowIsland, islandSurface } from './island-surface.js';
 import { applyPlanetFraming } from './camera.js';
-import { applySheetEye, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, sheetGlass, sheetPoint, sheetSpot } from './sheet.js';
+import { applySheetEye, hangUnderTheGlass, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, sheetGlass, sheetPoint, sheetSpot } from './sheet.js';
 
 test('6.22 on the glass sheet each island stands where it is placed and faces the eye square-on, within a degree, and the eye keeps a tight depth range round the sheet', () => {
   // The globe turned to face the eye, as the page does: its own +z toward the eye, which looks straight down at the sheet.
@@ -58,4 +58,44 @@ test('6.23 on the glass sheet every island is a raised plate of one shared thick
     assert.ok(Math.abs(land - drawn - SHEET_LAND_THICKNESS) < 1e-3, `the land stands ${(land - drawn).toFixed(3)} units above the glass at its corner`);
   }
   assert.ok(SHEET_LAND_THICKNESS >= 6, `thick enough to be seen at the tilt (${SHEET_LAND_THICKNESS} units)`);
+});
+
+test('6.24 on the glass sheet a hollow island is its coast line alone, hiding nothing beneath it, and turns solid again (ADR-1061 D2)', () => {
+  const coast = [[{ x: -20, z: -20 }, { x: 20, z: -20 }, { x: 20, z: 20 }, { x: -20, z: 20 }]];
+  const island = islandSurface(coast, SHEET_RADIUS, 'hollow', SHEET_LAND_THICKNESS);
+  const shown = () => {
+    const meshes: ThreeMesh[] = [];
+    island.traverseVisible(o => { if (o instanceof ThreeMesh) meshes.push(o); });
+    return meshes;
+  };
+  const solid = shown().map(o => o.name).sort();
+  hollowIsland(island, true);
+  island.updateMatrixWorld(true);
+  assert.ok(shown().length > 0 && shown().every(o => o.name.startsWith('island-coast')), `only its coast shows: ${shown().map(o => o.name)}`);
+  assert.ok(shown().every(o => !(o.material as { depthWrite: boolean }).depthWrite), 'and the coast writes no depth');
+  // A note under the island's middle, looked at from either side of the glass: nothing of the island is drawn over it.
+  for (const way of [1, -1]) {
+    const hits = new Raycaster(new Vector3(0, -40 * way, 0), new Vector3(0, way, 0)).intersectObject(island, true).filter(hit => hit.object.visible);
+    assert.deepEqual(hits.map(hit => hit.object.name), [], `nothing covers the note from ${way > 0 ? 'below' : 'above'}`);
+  }
+  hollowIsland(island, false);
+  assert.deepEqual(shown().map(o => o.name).sort(), solid, 'turned back, it is whole again');
+});
+
+test('6.25 what hangs under the glass sheet is drawn only while the eye looks at its underside, never through the glass from the top (ADR-1061 D1)', () => {
+  const sheet = new Group(), under = new Group();
+  sheet.add(under);
+  under.add(new ThreeMesh());
+  const camera = new OrthographicCamera(-10, 10, 10, -10, 0.1, 100);
+  camera.position.set(0, 0, 50);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  sheet.updateMatrixWorld(true);
+  hangUnderTheGlass(under, camera);
+  assert.equal(under.visible, false, 'the top face shows none of it');
+  sheet.quaternion.setFromAxisAngle(new Vector3(1, 0, 0), Math.PI);
+  sheet.updateMatrixWorld(true);
+  hangUnderTheGlass(under, camera);
+  assert.equal(under.visible, true, 'the underside shows it');
+  assert.ok(under.children[0]!.renderOrder > 20, 'drawn over the glass it hangs beyond');
 });

@@ -131,14 +131,12 @@ test("3.54 the glass sheet turns over north to south about its west-east axis: o
   assert.ok(Math.abs(moved.x - grabbed.x - 120) < 0.5 && Math.abs(moved.y - grabbed.y - 80) < 0.5, `the underside follows the drag (${(moved.x - grabbed.x).toFixed(1)}, ${(moved.y - grabbed.y).toFixed(1)})`);
 });
 
-test("3.56 under the glass sheet the knowledge graph visibly hangs: at the resting tilt each computed depth hangs well below the one above it, lower in the window on the top face and toward the eye on the underside", () => {
+test("3.56 under the glass sheet the knowledge graph visibly hangs: at the resting tilt each computed depth hangs well below the one above it, toward the eye on the Library face", () => {
   const layout = sheet(12), { extent, under } = layout, opening = sheetOpening(extent, size);
-  const top = eye(opening, extent), below = eye(opening, extent, Math.PI);
+  const below = eye(opening, extent, Math.PI);
   const shelf = under.shelfAt("s3")!;
   for (let depth = 0; depth < 4; depth++) {
     const z = -depth * under.depthStep, deeper = z - under.depthStep;
-    const drop = top.screen(shelf, deeper).y - top.screen(shelf, z).y;
-    assert.ok(drop >= 12, `on the top face a depth deeper is ${drop.toFixed(1)} px lower in the window`);
     const nearer = below.distance(shelf, z) - below.distance(shelf, deeper);
     assert.ok(nearer >= under.depthStep * 0.7, `on the underside a depth deeper hangs ${nearer.toFixed(1)} units nearer the eye`);
     assert.ok(Math.abs(below.screen(shelf, deeper).y - below.screen(shelf, z).y) >= 12, "and is seen apart from the one above it");

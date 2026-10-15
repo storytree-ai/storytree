@@ -13,10 +13,16 @@ const FOREST: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplate
 /** The islands and every mark on or between them; the glass and the core are not among them. */
 const NO_ISLANDS = { grounds: false, roads: false, nameplates: false, territories: false, fileCircles: false, sessionTints: false } as const;
 
+/** The glass sheet's Library face: the islands as outlines with their names over the knowledge, their territories as borders
+ * with no fill, no file circles and no roads; a session's tints still light them (ADR-1061 D2). */
+const OUTLINES = { roads: false, fileCircles: false } as const;
+
 /** What the globe shows: a host's switches over the Forest view, with the islands hidden in the Library or once
- * zoomed past them, while the glass and the core inside it stay (ADR-0919 D3, D4). */
-export function shownSurfaces(surfaces: Partial<GlobeSurfaces> | undefined, hideIslands: boolean): GlobeSurfaces {
-  return { ...FOREST, ...surfaces, ...(hideIslands ? NO_ISLANDS : {}) };
+ * zoomed past them, while the glass and the core inside it stay (ADR-0919 D3, D4); on the glass sheet's Library face
+ * (`outlines`), only their outlines and names. */
+export function shownSurfaces(surfaces: Partial<GlobeSurfaces> | undefined, hideIslands: boolean, outlines = false): GlobeSurfaces {
+  const shown = { ...FOREST, ...surfaces, ...(hideIslands ? NO_ISLANDS : {}) };
+  return outlines ? { ...shown, ...OUTLINES, territories: shown.territories && "plain" } : shown;
 }
 
 /** Framings (radii across half the screen's short side) past which the islands drop away, and back above which they

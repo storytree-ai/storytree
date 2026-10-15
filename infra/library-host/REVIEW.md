@@ -120,3 +120,14 @@ its Cloud SQL proxy and the connection-slot wait, and `transition.mjs`,
 `provision`, `backup`, `restore-backup` and `install-timer` are unchanged, except
 that the timer's runtime copy no longer carries `grants.sql`, which `backup` never
 read. The hashes above stay as evidence of what ran.
+
+Reviewed by the change-reviewer with no findings. Real runs, each after its dry
+run: one verified backup from the branch (`backups/20261015T061401182Z-01713fc9`,
+five dumps), then the timer re-installed by the README's path (the replaced units
+kept under `~/storytree-lanes/library-backups/replaced-units-increment_f371a46ecc94/`),
+now running `runtime-20261015T062513351Z-48e865e3`, whose service was started once
+and passed (`backups/20261015T062517218Z-88be4a8d`):
+
+```text
+2a23ecc2673f55b067da99fa77a585b3de14f76a600aac09f4f9fa1d9708979a  host.mjs
+```

@@ -5,7 +5,6 @@
  * imported, as quality assurance's is: no story may depend on the MCP server, which mounts this part from the
  * manifest (ADR-1021) and checks the two still fit (its test 6.75).
  */
-import type { LocateOptions } from "@storytree/project-and-caller";
 import { z } from "zod";
 
 import { recordHookEvent, type ReachLog } from "./hooks.js";
@@ -13,7 +12,7 @@ import { recordHookEvent, type ReachLog } from "./hooks.js";
 /** What a harness's tool has for one call: the server's connections to storytree, and where it looks for storytree. */
 interface HarnessCall {
   readonly reach: ReachLog;
-  readonly locate: LocateOptions;
+  readonly locate: Parameters<typeof recordHookEvent>[3];
 }
 
 /** What a tool answers. */

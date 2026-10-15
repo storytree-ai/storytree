@@ -5,8 +5,11 @@
 # Every step records its output and exit code in $OUT and carries on, so one failure still leaves the rest observed.
 # The repository is public, so nothing here prints a secret, and no agent is signed in.
 set -u
-OUT=${1:?usage: run.sh <output folder> [stable|development]}
+OUT=${1:?usage: run.sh <output folder> [stable|development] [0.3.n on stable: install this build before it is pinned]}
 CHANNEL=${2:-stable}
+VERSION=${3:-}
+case "$VERSION" in "" | 0.3.[1-9] | 0.3.[1-9]*[0-9]) ;; *) echo "run.sh: $VERSION is not a 0.3.<n> build" >&2; exit 2 ;; esac
+case "${VERSION#0.3.}" in *[!0-9]*) echo "run.sh: $VERSION is not a 0.3.<n> build" >&2; exit 2 ;; esac
 mkdir -p "$OUT"
 OUT=$(cd "$OUT" && pwd)
 APP="$HOME/Applications/storytree-0.3.app"
@@ -43,6 +46,9 @@ cd "$PROJECT" || exit 1
 # Each channel's one-liner as its release page gives it (install-storytree-mac*.txt).
 if [ "$CHANNEL" = development ]; then
   ONE_LINER="curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel development"
+elif [ -n "$VERSION" ]; then
+  # A stable candidate before it is pinned: its own release's one-liner, which a pin would publish, told the build.
+  ONE_LINER="curl -fsSL https://github.com/storytree-ai/storytree/releases/download/v$VERSION/install-storytree.sh | STORYTREE_ACCEPTANCE_VERSION=$VERSION sh"
 else
   ONE_LINER="curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh"
 fi

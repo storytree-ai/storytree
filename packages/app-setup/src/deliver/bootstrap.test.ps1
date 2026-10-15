@@ -73,6 +73,17 @@ $script:PointerFails = $true; $script:ReleaseUrls.Clear()
 try { Get-StorytreeRelease 'stable' $fetchRelease; throw 'accepted missing pin' }
 catch { Assert ($_.Exception.Message -match 'stable') 'missing stable pin stops delivery' }
 Assert ($script:ReleaseUrls.Count -eq 1) 'missing stable pin has no latest fallback'
+# An acceptance run installs a named build as a stable user would get it, before the pin moves to it.
+$script:ReleaseUrls.Clear()
+$selected = Get-StorytreeRelease 'stable' $fetchRelease '0.3.123'
+Assert ($selected.tag_name -eq 'v0.3.123') 'an acceptance version selects that release'
+Assert (($script:ReleaseUrls -join ',') -eq 'https://api.github.com/repos/storytree-ai/storytree/releases/tags/v0.3.123') 'an acceptance version reads neither the pin nor latest'
+try { Get-StorytreeRelease 'development' $fetchRelease '0.3.123'; throw 'accepted development' }
+catch { Assert ($_.Exception.Message -match 'installs as stable') 'an acceptance version on development stops delivery' }
+try { Get-StorytreeRelease 'stable' $fetchRelease 'latest'; throw 'accepted latest' }
+catch { Assert ($_.Exception.Message -match '0\.3\.<n>') 'an acceptance version that names no release stops delivery' }
+try { Get-StorytreeRelease 'stable' $fetchRelease '0.3.124'; throw 'accepted another build' }
+catch { Assert ($_.Exception.Message -match 'does not match') 'an acceptance version whose release is another build stops delivery' }
 Assert ((Get-StorytreeArchitecture 'AMD64' '') -eq 'x64') 'x64 selection'
 Assert ((Get-StorytreeArchitecture 'x86' 'ARM64') -eq 'arm64') 'native arm64 selection under emulation'
 Assert ((Get-StorytreeArchitecture 'ARM64' '') -eq 'arm64') 'native arm64 selection'

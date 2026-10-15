@@ -1,11 +1,12 @@
 /** Capability 3 · Surfaces. The app story's controls; the desktop frame only mounts them. */
 import { markSvg, type MarkRoles } from "@storytree/mark/drawing";
+import type { FactoryPlace } from "../projects/selection.js";
 
 /** The mark's roles on the page (its drawing only: the page cannot load the package's file writers): the page's stylesheet sets these from its own light or dark colours (contract 2.11). */
 const PAGE_MARK: MarkRoles = { ocean: "var(--mark-ocean)", land: "var(--mark-land)", tree: "var(--mark-tree)", leaf: "var(--mark-leaf)" };
 
 export function renderAppMenu(): string {
-  return `<header class="app-bar"><button type="button" class="app-gear" aria-label="App menu" popovertarget="app-menu" aria-controls="app-menu" aria-expanded="false" title="App menu">
+  return `<header class="app-bar"><div class="app-factory" data-app-factory></div><button type="button" class="app-gear" aria-label="App menu" popovertarget="app-menu" aria-controls="app-menu" aria-expanded="false" title="App menu">
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="m9.5 3-.6 2.3-1.7 1L5 5.7 2.5 10l1.7 1.7v2L2.5 15.4 5 19.7l2.2-.6 1.7 1 .6 2.3h5l.6-2.3 1.7-1 2.2.6 2.5-4.3-1.7-1.7v-2l1.7-1.7L19 5.7l-2.2.6-1.7-1L14.5 3z" transform="translate(0 -1)"/>
       <circle cx="12" cy="12" r="3.2"/>
@@ -51,6 +52,21 @@ export function renderSwitcher(projects: readonly string[], current: string | un
     .map((name) => `<option value="${escape(name)}"${name === current ? " selected" : ""}>${escape(name)}</option>`)
     .join("");
   return `<label class="app-project">Project <select id="project">${options}</select></label>`;
+}
+
+/**
+ * The app bar's switch between the product on show and its factory (ADR-1048 D3): to the factory from a product, back to
+ * the product from the factory, or, with no factory yet, a plain line saying so.
+ */
+export function renderFactorySwitch(place: FactoryPlace | undefined): string {
+  if (place === undefined) return "";
+  if (place.place === "none") return `<span class="app-factory-none">No factory yet</span>`;
+  if (place.place === "product") {
+    return `<button type="button" class="app-factory-switch" data-app-factory-switch="${escape(place.factory)}" title="Switch to your factory: the roles, notes and checks your products build with">Your factory</button>`;
+  }
+  return `<span class="app-factory-here">Your factory</span>`
+    + (place.product === undefined ? `<span class="app-factory-none">No product builds with it yet</span>`
+      : `<button type="button" class="app-factory-switch" data-app-factory-switch="${escape(place.product)}">Back to ${escape(place.product)}</button>`);
 }
 
 function escape(text: string): string {

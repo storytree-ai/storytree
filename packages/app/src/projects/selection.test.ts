@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import type { FactoryLink } from "@storytree/library";
+
 import { projectSelection } from "./selection.js";
 
 test("2.2, 2.4 a newly set-up first project appears on the next read, and another new project counts as a choice", async (t) => {
@@ -94,4 +96,33 @@ test("2.3 reopening follows the last picker choice, --project wins, and a missin
   assert.equal((await explicit.read()).current, "missing");
   await assert.rejects(explicit.choose("missing"), /no project/);
   assert.equal((await explicit.choose("z-site")).current, "z-site");
+});
+
+test("2.15 the selection says where the project on show sits among factories: a product's factory, the product a factory goes back to, or no factory", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "app-projects-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const links: Record<string, FactoryLink> = {
+    "my-factory": { kind: "factory" },
+    "a-site": { kind: "product", factory: "my-factory" },
+    "b-site": { kind: "product", factory: "my-factory" },
+    "loose": { kind: "none" },
+    "orphan": { kind: "product", factory: "gone-factory" },
+  };
+  const app = projectSelection({
+    file: path.join(dir, "project-choice.json"),
+    listProjects: async () => Object.keys(links).sort(),
+    lineageOf: async (name) => {
+      if (name === "broken") throw new Error("the library is not reachable");
+      return links[name]!;
+    },
+  });
+  assert.deepEqual((await app.choose("b-site")).factory, { place: "product", factory: "my-factory" });
+  assert.deepEqual((await app.choose("my-factory")).factory, { place: "factory", product: "b-site" }, "back to the product it came from");
+  assert.deepEqual((await projectSelection({ file: path.join(dir, "other.json"), listProjects: async () => Object.keys(links).sort(), lineageOf: async (name) => links[name]! })
+    .read("my-factory")).factory, { place: "factory", product: "a-site" }, "with none remembered, the first product naming it");
+  assert.deepEqual((await app.choose("loose")).factory, { place: "none" });
+  assert.deepEqual((await app.choose("orphan")).factory, { place: "none" }, "a factory that is not here is no factory yet");
+  // A lineage that cannot be read is no factory, never a broken selection.
+  links["broken"] = { kind: "none" };
+  assert.deepEqual((await app.choose("broken")).factory, { place: "none" });
 });

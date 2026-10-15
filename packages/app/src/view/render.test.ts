@@ -22,11 +22,12 @@ test("2.11 · the empty page shows storytree's mark in the page theme's colours,
 });
 
 // App capability 2: the gear and project switcher (pending contracts in evidence/top-bars/library-update).
-test("2.6–2.8 the app bar holds only the gear and opens a sectioned overlay", () => {
+test("2.6–2.8 the app bar holds the gear, with the factory switch's place at its left, and opens a sectioned overlay", () => {
   const html = renderAppMenu();
   const bar = html.match(/<header class="app-bar">([\s\S]*?)<\/header>/)?.[1];
   assert.ok(bar, "the gear has its own app bar");
   assert.equal((bar.match(/<button/g) ?? []).length, 1);
+  assert.ok(bar.indexOf("data-app-factory") < bar.indexOf("app-gear"), "the switch's place comes before the gear");
   assert.match(bar, /aria-label="App menu"[^>]*popovertarget="app-menu"/);
   assert.match(html, /id="app-menu"[^>]*popover="auto"/);
   assert.match(html, /role="dialog"[^>]*aria-modal="true"/);

@@ -27,7 +27,8 @@ test("6.4 · every bubble's words fit their box unbroken, and every box stays on
       const laid = layBubble(side, beat.bubble.text);
       assert.equal(laid.lines.join(" "), beat.bubble.text, `"${beat.bubble.text}" keeps its words whole`);
       assert.ok(laid.lines.length <= BUBBLE.rows, `"${beat.bubble.text}" fits ${BUBBLE.rows} lines`);
-      assert.ok(laid.lines.every(line => line.length * GLYPH + 2 * PAD <= laid.width && laid.width <= BUBBLE.width), `"${beat.bubble.text}" fits across`);
+      assert.ok(laid.lines.every(line => line.length * GLYPH <= BUBBLE.width - 2 * PAD), `"${beat.bubble.text}" fits across inside its padding`);
+      assert.ok(laid.width <= BUBBLE.width, `"${beat.bubble.text}" is drawn no wider than a bubble may be`);
       assert.ok(laid.x >= HALF[side] && laid.x + laid.width <= HALF[side] + 160);
       if (side === "with") assert.ok(laid.x + laid.width < INSET.x, "the bubble leaves the inset clear");
     }

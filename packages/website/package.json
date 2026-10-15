@@ -29,6 +29,9 @@
     "@types/react-dom": "^19.1.6",
     "@types/pg": "^8.23.1",
     "pg": "^8.23.0",
-    "@storytree/app-setup": "workspace:*"
+    "@storytree/app-setup": "workspace:*",
+    "@remotion/bundler": "4.0.535",
+    "@remotion/renderer": "4.0.535",
+    "remotion": "4.0.535"
   }
 }

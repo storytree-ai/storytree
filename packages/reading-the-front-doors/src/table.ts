@@ -1,7 +1,7 @@
 /**
  * Capability 2 · The printed table. A reading for a person in a terminal: the short window's numbers with the long window's beside
- * them, leading with what the owner asked to see first (every command and tool with its use, and the
- * misses), then follows, failures, refusals, door share per step and the splits (ADR-0983 D2). The
+ * them, leading with what the owner asked to see first (every command and tool with its consumers and its use, one with
+ * no call marked unused, or not judged when a person may call it (ADR-1045 D1), and the misses), then follows, failures, refusals, door share per step and the splits (ADR-0983 D2). The
  * same two readings as JSON, for a script that compares numbers rather than printed text.
  */
 import type { Door, Reading } from "./reading.js";
@@ -21,11 +21,14 @@ export function doorsTable(short: Reading, long: Reading): string {
   ];
   const surface = (door: Door, declared: boolean) => long.surfaces.filter((one) => one.door === door && one.declared === declared).map((one) => {
     const near = short.surfaces.find((other) => other.door === door && other.verb === one.verb);
-    return [one.verb, String(near?.calls ?? 0), String(near?.sessions ?? 0), String(one.calls), String(one.sessions)];
+    const use = [String(near?.calls ?? 0), String(near?.sessions ?? 0), String(one.calls), String(one.sessions)];
+    if (!declared) return [one.verb, ...use];
+    return [one.verb, (one.consumers ?? []).join(", "), ...use, !one.judged ? "not judged" : one.calls === 0 ? "unused" : ""];
   });
   const heads = [`calls ${sd}d`, `sessions ${sd}d`, `calls ${ld}d`, `sessions ${ld}d`];
-  section(out, "Commands", heads, surface("command", true));
-  section(out, "Tools", heads, surface("tool", true));
+  section(out, "Commands", ["consumers", ...heads, ""], surface("command", true));
+  section(out, "Tools", ["consumers", ...heads, ""], surface("tool", true));
+  out.push(`Unused: no call in ${ld} days. Not judged: a person may call it, and a person's own terminal writes no line.`);
   section(out, "Answered by neither door's list (help, a family a word was refused in)", heads, [...surface("command", false), ...surface("tool", false)]);
 
   section(out, "Words refused as unknown", [`${sd}d`, `${ld}d`, "the refusal named"], long.misses.map((miss) => {

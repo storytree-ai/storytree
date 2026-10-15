@@ -1,19 +1,27 @@
 /**
  * Capability 1 · Front door. `storytree doors`: how the two front doors are used, read on demand (ADR-0998 D1), a thin
  * front door over Reading the front doors. The declared surfaces it counts against are the doors' own:
- * every command walked from this door's table, and every tool the tool server serves in this folder.
+ * every command walked from this door's table, and every tool the tool server serves in this folder, each with
+ * the consumers its story declared for it (ADR-1045 D1).
  * Nothing recurs and nothing is written; it prints and ends.
  */
+import type { DeclaredVerb } from "@storytree/reading-the-front-doors";
+import { consumersOf } from "@storytree/library/verbs";
+
 import { Refusal } from "../answer.js";
 import type { Family, Verb } from "../door.js";
 
 const usage = "doors [--days <n>] [--trend <n>] [--json]";
 
-/** Every command the door answers, as its door-answered lines name it: a family's verbs, its bare command, and its families' within it. */
-function commandsOf(families: readonly Family[], path = "storytree"): string[] {
+/**
+ * Every command the door answers, as its door-answered lines name it, with its consumers: a family's verbs, its bare
+ * command, and its families' within it.
+ */
+function commandsOf(families: readonly Family[], path = "storytree"): DeclaredVerb[] {
   return families.filter((family) => family.waitsOn === undefined).flatMap((family) => {
     const at = `${path} ${family.name}`;
-    return [...(family.bare === undefined ? [] : [at]), ...family.verbs.map((verb) => `${at} ${verb.name}`), ...commandsOf(family.families ?? [], at)];
+    const named = (verb: string, declared: Verb) => ({ verb, consumers: consumersOf(declared) });
+    return [...(family.bare === undefined ? [] : [named(at, family.bare)]), ...family.verbs.map((verb) => named(`${at} ${verb.name}`, verb)), ...commandsOf(family.families ?? [], at)];
   });
 }
 
@@ -37,7 +45,8 @@ const read: Verb = {
     const [{ FAMILIES }, { servedTools }, { readDoors, doorsJson, doorsTable }] = await Promise.all([
       import("./index.js"), import("@storytree/mcp-server"), import("@storytree/reading-the-front-doors"),
     ]);
-    const declared = { commands: commandsOf(FAMILIES), tools: await servedTools(context.cwd) };
+    const tools = (await servedTools(context.cwd)).map(({ name, consumers }) => ({ verb: name, consumers }));
+    const declared = { commands: commandsOf(FAMILIES), tools };
     const [short, long] = await readDoors(log, project, declared, new Date(), [days, trend]);
     return args.has("json") ? { text: doorsJson(short!, long!), raw: true } : { text: doorsTable(short!, long!) };
   },

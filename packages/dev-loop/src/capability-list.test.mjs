@@ -168,7 +168,7 @@ test("7.7 CI's plan-read account, granted exactly infra/library-host/plan-read-g
     const increment = await library.addIncrement({ arc: arc.id, title: "Rename the drawer", objective: "Rename it", body: "Rename.", capabilities: [drawer.id] });
     await library.advanceIncrement(increment.id, "active");
     await library.pendChange(increment.id, { record: drawer.id, fields: { title: "1 · The cash drawer" } });
-    await library.editCapability(drawer.id, { description: "Changed since the pending change read it." });
+    await library.editCapability(drawer.id, { title: "1 · The till drawer" });
 
     await query(admin, `CREATE ROLE ${role} LOGIN PASSWORD '${password}'`);
     const grants = readFileSync(new URL("../../../infra/library-host/plan-read-grants.sql", import.meta.url), "utf8")

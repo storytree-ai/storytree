@@ -21,7 +21,7 @@ test("1.6 · each window counts only its own door-answered lines, and a session'
     await log.append(project, { ...common, session: "lane", kind: "tool-called", tool: "show_plan" }, { at: "2026-10-05T00:00:01.000Z" });
     for (const at of ["2026-10-06T00:00:00.000Z", "2026-10-06T00:01:00.000Z"]) await log.append(project, { ...common, session: "owner", kind: "prompt-submitted" }, { at });
 
-    const [week, month] = await readDoors(log, project, { commands: ["storytree arc show", "storytree arc list"], tools: ["show_plan"] }, new Date("2026-10-08T00:00:00.000Z"), [7, 28]);
+    const [week, month] = await readDoors(log, project, { commands: ["storytree arc show", "storytree arc list"].map((verb) => ({ verb, consumers: ["agent"] as const })), tools: [{ verb: "show_plan", consumers: ["agent"] as const }] }, new Date("2026-10-08T00:00:00.000Z"), [7, 28]);
     assert.equal(week?.since, "2026-10-01T00:00:00.000Z");
     assert.equal(week?.until, "2026-10-08T00:00:00.000Z");
     assert.deepEqual(week?.calls, { command: 2, tool: 0 }, "a tool-called line is not an answer, and a line past the window's end is left out");

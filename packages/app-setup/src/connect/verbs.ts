@@ -23,6 +23,7 @@ async function installed(args: string[], context: SetupVerbContext): Promise<{ t
 }
 
 const connect = verb({
+  consumers: ["user"],
   command: { family: "setup", name: "connect", summary: "connect the installed tools to your chosen agents; hooks are checked in their next session" },
   tool: NO_TOOL,
   callerless: true,
@@ -43,6 +44,7 @@ const connect = verb({
 });
 
 const disconnect = verb({
+  consumers: ["user"],
   command: { family: "setup", name: "disconnect", summary: "disconnect one agent while keeping other connections and your projects", usage: "setup disconnect <claude-code|codex|cursor|pi|antigravity>" },
   tool: NO_TOOL,
   callerless: true,
@@ -54,6 +56,7 @@ const disconnect = verb({
 });
 
 const uninstall = verb({
+  consumers: ["user"],
   command: {
     family: "setup", name: "uninstall", usage: "setup uninstall [--keep-library|--remove-library]",
     summary: "remove storytree from this computer, as Windows Apps & features does; your project folders are left alone",

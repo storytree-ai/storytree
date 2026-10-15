@@ -515,19 +515,19 @@ test("3.7 at each prompt, every matching project definition is added for the age
       const report = `Another Claude session sent a message:\n<agent-message from="a81ff3bf99082a039">\n[Subagent hand-back] The final report of a subagent.\n${prompt}\n</agent-message>`;
       assert.equal(await ask("claude-code", report, "cc-5"), undefined, "a subagent's report");
 
-      // Mirrored story text: many definitions share a "/"-part, and paragraphs of one heading share a term.
-      await define("Story text: stories/agent-link.md # Story: the agent link", "The link's first paragraph.");
-      await define("Story text: stories/agent-link.md # Story: the agent link", "The link's second paragraph.");
-      const cli = await define("Story text: stories/cli.md # Story: the command line", "The command line's paragraph.");
+      // Shared names: three definitions share the "/"-part "Review", and two share the term "Review/Ledger".
+      await define("Review/Ledger", "Where a review's findings are kept.");
+      await define("Review/Ledger", "The ledger's second meaning.");
+      const brief = await define("Review/Brief", "What a reviewer is handed.");
       assert.equal(
-        await ask("claude-code", "Read Story text: stories/*.md for the claim, and Story text: stories/agent-link.md # Story: the agent link", "cc-6"),
+        await ask("claude-code", "Read the review for the claim, and the Review/Ledger", "cc-6"),
         [
           "[storytree] Definitions from this project's library for terms in this prompt (open an artifact by its id to read all of it):",
           `- Claim (${claim.id}): Holding a capability while you build it.`,
         ].join("\n"),
         "a name two definitions answer to brings in neither",
       );
-      assert.match((await ask("claude-code", "Quoting Story text: stories/cli.md # Story: the command line", "cc-7")) ?? "", new RegExp(`\\(${cli.id}\\)`), "a name only one answers to");
+      assert.match((await ask("claude-code", "Quoting the Review/Brief", "cc-7")) ?? "", new RegExp(`\\(${brief.id}\\)`), "a name only one answers to");
       assert.equal(await ask("claude-code", prompt, "cc-4", storytreeHome(path.join(dir, "stopped"), false)), undefined, "storytree stopped");
 
       for (const term of ["Arc", "Story", "Capability", "Contract", "Increment"]) await define(term, `The ${term.toLowerCase()}.`);

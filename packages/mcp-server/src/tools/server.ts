@@ -39,6 +39,7 @@ import { callLines, endMergedClaims, type ActivityLog, type MergeWatch } from "@
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
 import { findProject, idleAfterMs, locateStorytree, route, storytreeHome } from "@storytree/project-and-caller";
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
+import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
 import { type SetupOptions } from "@storytree/app-setup/setup";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
@@ -99,6 +100,8 @@ export interface AgentTools {
   readonly server: McpServer;
   /** The name of every tool it serves, as its client lists them. */
   readonly tools: readonly string[];
+  /** Who calls the tool named (ADR-1045 D1): as it was defined, else both an agent and a person. */
+  consumers(tool: string): readonly Consumer[];
   close(): Promise<void>;
 }
 
@@ -131,8 +134,13 @@ export interface Call {
   progress(message: string): Promise<void>;
 }
 
-/** Registers one tool: its name, what it is for, its arguments, and what it does with them. */
-export type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: Call) => Promise<Answer>) => void;
+/** What else a tool is defined with: who calls it (ADR-1045 D1), both an agent and a person when left out. */
+export interface DefineOptions {
+  readonly consumers?: readonly Consumer[];
+}
+
+/** Registers one tool: its name, what it is for, its arguments, what it does with them, and who calls it. */
+export type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: Call) => Promise<Answer>, options?: DefineOptions) => void;
 
 /** Another story's contribution to the one tool server (ADR-0643 D6). */
 export interface ToolExtension {
@@ -156,6 +164,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   // Which project each part serves is the part's own call (the librarian's is storytree's own library first, ADR-0644 U1);
   // their behaviour stays in their packages, and this is the shared registration point for other stories (ADR-0643 D6).
   const servedTools = ["check_setup", "set_up_project", ...OWN_TOOLS];
+  // Who calls each tool, where it is not both: setting up a project is the user's ask (the habits card's).
+  const consumers = new Map<string, readonly Consumer[]>([["set_up_project", ["user"]]]);
   const host: ToolHost = { project: findProject(options.folder).project, tools: () => servedTools };
   const extensions = [
     ...TOOL_PARTS.flatMap((part) => part(host) ?? []),
@@ -172,8 +182,9 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   // The machine whose approved trunks let this folder reach its project (ADR-0942): the home setup records them in.
   const home = options.setup?.storytreeHome ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
 
-  const define: Define = (name, description, input, act) => {
+  const define: Define = (name, description, input, act, defined = {}) => {
     servedTools.push(name);
+    if (defined.consumers !== undefined) consumers.set(name, defined.consumers);
     const handle = async (args: unknown, context: ServerContext): Promise<CallToolResult> => {
       const where = route(options.folder, locate);
       if (where.status === "not-running") return result({ text: NOT_RUNNING_ANSWER });
@@ -276,6 +287,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   return {
     server,
     tools: servedTools,
+    consumers: (tool) => consumers.get(tool) ?? ["agent", "user"],
     async close() {
       await server.close();
       await connections.close();
@@ -284,14 +296,14 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
 }
 
 /**
- * The name of every tool a server in `folder` serves (6.63), read from the server itself rather than
- * listed by hand: a reading of the front doors counts the tools with no call against it (ADR-0998 D1).
+ * The name of every tool a server in `folder` serves (6.63), with who calls it (ADR-1045 D1), read from the server
+ * itself rather than listed by hand: a reading of the front doors counts the tools with no call against it (ADR-0998 D1).
  * Making the server connects to nothing; only a call does.
  */
-export async function servedTools(folder: string, options: Omit<AgentToolOptions, "folder"> = {}): Promise<string[]> {
+export async function servedTools(folder: string, options: Omit<AgentToolOptions, "folder"> = {}): Promise<{ name: string; consumers: readonly Consumer[] }[]> {
   const tools = createAgentTools({ ...options, folder });
   try {
-    return [...tools.tools];
+    return tools.tools.map((name) => ({ name, consumers: tools.consumers(name) }));
   } finally {
     await tools.close();
   }

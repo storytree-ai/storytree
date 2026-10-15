@@ -33,11 +33,7 @@ function axisOf(meaning: string): number {
   return axis;
 }
 
-/**
- * A fake embedder: each meaning is one axis of its own; it counts the texts it is asked to embed.
- * An artifact's id (`definition_46a366a7b35f`) is one word, never its letters: split, a run of `a`s
- * landed on the word "a" and outweighed a note's real words, so which note ranked first was random.
- */
+/** A fake embedder: each meaning is one axis of its own, record ids aside; it counts the texts it is asked to embed. */
 function fakeEmbedder(): Embedder & { embedded: string[] } {
   const embedded: string[] = [];
   return {
@@ -47,7 +43,8 @@ function fakeEmbedder(): Embedder & { embedded: string[] } {
       embedded.push(...texts);
       return texts.map((text) => {
         const vector = new Float32Array(WIDTH);
-        for (const word of text.toLowerCase().match(/[a-z]+(?:_[0-9a-f]+)?/g) ?? []) {
+        // A record's random id is left out: its letters (`ffe`, `ded`) would weigh on its length by chance.
+        for (const word of text.toLowerCase().replace(/\b[a-z]+_[0-9a-f]{12}\b/g, " ").match(/[a-z]+/g) ?? []) {
           vector[axisOf(MEANINGS[word] ?? word)]! += 1;
         }
         const length = Math.hypot(...vector) || 1;
@@ -218,7 +215,7 @@ for (const backend of [memory, postgres]) {
     const capability = await records.create("capability", { title: "Ranked search", story: story.id, proposed: true });
     const filler = "The forest and its islands and their trees. ".repeat(10);
     await records.create("contract", { title: `14.10 · A ranked search missing a vector ${filler}`, capability: capability.id });
-    const miss = await knowledge.defineTerm({ term: "Gaps", meaning: "A ranked search miss." });
+    const miss = await knowledge.defineTerm({ term: "Gaps", meaning: "A ranked search miss: the ranked search missed what was asked." });
     const connecting = await knowledge.defineTerm({ term: "Connecting", meaning: `${filler} Reaching the server.` });
     const switches = await knowledge.defineTerm({ term: "Switches", meaning: "A switch is on." });
     const claim = await knowledge.defineTerm({ term: "Claim", meaning: `${filler} A session holds it.` });

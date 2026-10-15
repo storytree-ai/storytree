@@ -29,7 +29,7 @@ const crop = (input, output, seconds) => ffmpeg(["-y", ...(seconds === undefined
 const machine = { host: os.hostname(), cpu: os.cpus()[0]?.model, cores: os.cpus().length, memoryGb: Math.round(os.totalmem() / 2 ** 30),
   platform: `${os.platform()} ${os.release()}`, node: process.version,
   systemFfmpeg: (() => { try { execFileSync("ffmpeg", ["-version"], { stdio: "ignore" }); return true; } catch { return false; } })(),
-  remotionFfmpeg: RenderInternals.getExecutablePath({ type: "ffmpeg", indent: false, logLevel: "error", binariesDirectory: null }) };
+  remotionFfmpeg: path.relative(path.resolve(here, "../../../.."), RenderInternals.getExecutablePath({ type: "ffmpeg", indent: false, logLevel: "error", binariesDirectory: null })) };
 let serveUrl;
 const seconds = {
   bundle: await timed(async () => { serveUrl = await bundleShorts(); }),

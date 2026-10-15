@@ -7,10 +7,8 @@
 // Which library, and as whom (packages/dev-loop/src/own-health.mjs's recordingTarget):
 // - On CI (.github/workflows/own-health.yml, after each merge to main, ADR-0744 D3), as "storytree
 //   test run on CI", with the commit in each note: the library at HEALTH_PG_ADDRESS over Tailscale
-//   when that variable is set (ADR-0928 D4), otherwise the Cloud SQL library, signed in as CI's own
-//   service account (infra/ci-health). With neither configured, it says so and records nothing,
-//   successfully.
-// - Run by hand, the library the storytree setting names (`storytree settings show`): the Cloud SQL
+//   (ADR-0928 D4). With that variable unset, it says so and records nothing, successfully.
+// - Run by hand, the library the storytree setting names (`storytree settings show`): a Cloud SQL
 //   instance, signed in as the setting's account; a Postgres address; or the desktop app's own (~/.storytree/0.3/pgdata),
 //   joining the running app's database, or starting the app's Postgres itself when the app is not
 //   running, and holding the one-writer lock while it records (packages/dev-loop/src/library-server.mjs), so the

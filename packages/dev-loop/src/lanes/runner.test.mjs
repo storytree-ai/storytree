@@ -12,19 +12,19 @@ import { main, runLane } from "./runner.mjs";
 const exec = promisify(execFile);
 const start = Date.parse("2026-10-06T00:00:00Z");
 const command = (script) => [process.execPath, "-e", script, "--"];
-const receipt = `console.log(JSON.stringify({args:process.argv.slice(1),cwd:process.cwd(),token:process.env.CLAUDE_CODE_OAUTH_TOKEN,db:process.env.STORYTREE_DB_USER,keys:['OPENAI_API_KEY','CODEX_API_KEY','CODEX_ACCESS_TOKEN','ANTHROPIC_API_KEY'].filter(k=>process.env[k]),stdin:require('node:fs').readFileSync(0,'utf8')})); console.error('engine stderr');`;
+const receipt = `console.log(JSON.stringify({args:process.argv.slice(1),cwd:process.cwd(),token:process.env.CLAUDE_CODE_OAUTH_TOKEN,keys:['OPENAI_API_KEY','CODEX_API_KEY','CODEX_ACCESS_TOKEN','ANTHROPIC_API_KEY'].filter(k=>process.env[k]),stdin:require('node:fs').readFileSync(0,'utf8')})); console.error('engine stderr');`;
 
 async function lane(t) {
   const home = await mkdtemp(join(tmpdir(), "lane-runner-"));
   t.after(() => rm(home, { recursive: true, force: true }));
   const lanesDir = join(home, "lanes"), cwd = join(home, "worktree");
   await mkdir(lanesDir); await mkdir(cwd); await mkdir(join(home, ".storytree"));
-  await writeFile(join(home, ".storytree", "secrets.json"), JSON.stringify({ CLAUDE_CODE_OAUTH_TOKEN: "test-login", STORYTREE_DB_USER: "test-db" }));
+  await writeFile(join(home, ".storytree", "secrets.json"), JSON.stringify({ CLAUDE_CODE_OAUTH_TOKEN: "test-login" }));
   const brief = join(home, "brief.md"), log = join(lanesDir, "lane.log"), err = join(lanesDir, "lane.err");
   await writeFile(brief, "Build this increment. Preserve `literal` $text and \"quotes\".\n");
   const lines = [];
   return { home, lanesDir, cwd, brief, log, err, addDirs: [join(home, "directory with spaces"), "another"],
-    env: { ...process.env, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", STORYTREE_DB_USER: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
+    env: { ...process.env, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
     commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines };
 }
 
@@ -40,18 +40,17 @@ test("10.6 · foreground engines receive the exact brief, model, directories and
       ? ["exec", brief, "--model", "gpt-6-astra", "--sandbox", "danger-full-access", "--dangerously-bypass-hook-trust", ...adds, "--json"]
       : ["-p", brief, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"]);
     assert.equal(await realpath(result.cwd), await realpath(options.cwd));
-    assert.equal(result.token, "test-login"); assert.equal(result.db, "test-db");
+    assert.equal(result.token, "test-login");
     assert.deepEqual(result.keys, []); assert.equal(result.stdin, "");
     assert.equal(await readFile(options.err, "utf8"), "engine stderr\n");
     assert.match(options.lines.at(-2), new RegExp(`^2026-10-06T00:00:00Z engine ${engine} forced by `));
     assert.equal(options.lines.at(-1), `2026-10-06T00:00:00Z engine ${engine} exit 0`);
   }
   options.env.CLAUDE_CODE_OAUTH_TOKEN = "existing-login";
-  options.env.STORYTREE_DB_USER = "existing-db";
   await rm(join(options.home, ".storytree", "secrets.json"));
   assert.equal(await runLane(options), 0);
   const result = JSON.parse(await readFile(options.log, "utf8"));
-  assert.equal(result.token, "existing-login"); assert.equal(result.db, "existing-db");
+  assert.equal(result.token, "existing-login");
   assert.equal(options.env.OPENAI_API_KEY, "test-api", "the caller's environment is not mutated");
 });
 

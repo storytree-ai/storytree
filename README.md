@@ -80,8 +80,7 @@ variable, which storytree reads last in its order. For a library reached by addr
 ```
 
 Better still, use no key at all. For a library on Cloud SQL, let the job sign in to Google as a
-service account through workload identity federation, as storytree's own CI does
-([infra/ci-health](infra/ci-health/README.md) sets one up): the service account has the Cloud SQL
+service account through workload identity federation: the service account has the Cloud SQL
 Client and Cloud SQL Instance User roles and is a database user of type
 `CLOUD_IAM_SERVICE_ACCOUNT` on the instance, named by its email without `.gserviceaccount.com`.
 

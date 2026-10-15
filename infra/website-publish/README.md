@@ -45,7 +45,7 @@ The three are the service account, its Secret Accessor binding on `heredotnow_ap
 binding that lets this repository's main-only sign-in act as it. It keeps its own state
 (`website-publish-0.3`, beside ci-health's `ci-health-0.3` in the same bucket) and changes nothing
 of ci-health's or 0.2's. A plan that fails reading `storytree-0-3-main` means ci-health's provider
-is missing: apply [infra/ci-health](../ci-health/README.md) step 1 first.
+is missing: apply [infra/ci-health](../ci-health/README.md) first.
 
 **2. Turn it on.** Set the two repository variables from Terraform's outputs (Settings > Secrets and
 variables > Actions > Variables, or with `gh`):
@@ -55,8 +55,8 @@ gh variable set WEBSITE_WIF_PROVIDER    --repo storytree-ai/storytree --body "$(
 gh variable set WEBSITE_SERVICE_ACCOUNT --repo storytree-ai/storytree --body "$(terraform output -raw WEBSITE_SERVICE_ACCOUNT)"
 ```
 
-`WEBSITE_WIF_PROVIDER` comes out the same as the existing `HEALTH_WIF_PROVIDER`, because the route is
-shared. They are variables, not secrets: neither is a credential. The sign-in itself is GitHub's
+`WEBSITE_WIF_PROVIDER` comes out the same as infra/ci-health's `WIF_PROVIDER` output, because the
+route is shared. They are variables, not secrets: neither is a credential. The sign-in itself is GitHub's
 short-lived token, exchanged each run.
 
 **3. Publish once.** `gh workflow run website.yml --repo storytree-ai/storytree --ref main` (or

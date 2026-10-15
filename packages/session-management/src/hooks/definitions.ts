@@ -15,7 +15,11 @@
  *   once a session: the ones already given are left out.
  * - A harness's own notice, sent to the agent as if it were a prompt, gets none: 0.2's markers, and
  *   an agent's message (a subagent's report, another session's message), in the first 400 characters.
+ * - Nothing is cut (ADR-1049 D1): one prompt's definitions past BIG_INJECTION_BYTES are all added, and
+ *   the first such prompt of a session also files a friction report, naming what each came through,
+ *   for the drain to take to the owner (D2).
  */
+import type { NewFriction } from "../capture/index.js";
 import { notYetGivenIds } from "./given-once.js";
 
 /** A definition, as the library holds it. */
@@ -25,12 +29,23 @@ export interface Definition {
   readonly meaning: string;
 }
 
+/** A definition a prompt named, with the name it answered to. */
+export interface NamedDefinition extends Definition {
+  readonly name: string;
+}
+
 /** How much of a meaning is shown: its first line, cut to this many characters. */
 const MEANING_CHARS = 200;
 /** The shortest name looked for. */
 const SHORTEST_NAME = 3;
 /** How far into a prompt a harness's notice marker is looked for. */
 const NOTICE_HEAD = 400;
+/** How big one prompt's added definitions may be before a friction report is filed (ADR-1049 D2): a reporting threshold, never a cap. */
+export const BIG_INJECTION_BYTES = 8 * 1024;
+/** The title of that report. */
+const BIG_INJECTION_TITLE = "One prompt's definitions passed 8 KB";
+/** How many terms the report shows for each name they came through. */
+const TERMS_A_NAME = 3;
 /**
  * What a harness puts at the head of its own notices to the agent: 0.2's three, and the wrapping of
  * an agent's message (a subagent's report handed back, or another session's message).
@@ -44,7 +59,7 @@ export function isHarnessNotice(prompt: string): boolean {
 }
 
 /** All definitions `prompt` names, longest name first. */
-export function definitionsNamedIn(prompt: string, definitions: readonly Definition[]): Definition[] {
+export function definitionsNamedIn(prompt: string, definitions: readonly Definition[]): NamedDefinition[] {
   const text = normalised(prompt);
   const termsAndParts = definitions.map(({ term }) => {
     const whole = normalised(term);
@@ -52,19 +67,19 @@ export function definitionsNamedIn(prompt: string, definitions: readonly Definit
   });
   const termHolders = tally(termsAndParts.map(({ whole }) => [whole]));
   const nameHolders = tally(termsAndParts.map(({ whole, parts }) => new Set([whole, ...parts])));
-  const found: { definition: Definition; length: number; order: number }[] = [];
+  const found: { definition: Definition; name: string; order: number }[] = [];
   definitions.forEach((definition, order) => {
     const { whole, parts } = termsAndParts[order]!;
     const names = [
       ...(termHolders.get(whole) === 1 ? [whole] : []),
       ...[...parts].filter((part) => nameHolders.get(part) === 1),
     ].filter((name) => name.length >= SHORTEST_NAME);
-    const length = Math.max(0, ...names.filter((name) => pattern(name).test(text)).map((name) => name.length));
-    if (length > 0) found.push({ definition, length, order });
+    const [name] = names.filter((name) => pattern(name).test(text)).sort((a, b) => b.length - a.length);
+    if (name !== undefined) found.push({ definition, name, order });
   });
   return found
-    .sort((a, b) => b.length - a.length || a.order - b.order)
-    .map(({ definition }) => definition);
+    .sort((a, b) => b.name.length - a.name.length || a.order - b.order)
+    .map(({ definition, name }) => ({ ...definition, name }));
 }
 
 /** What the agent is shown for `definitions`. */
@@ -80,9 +95,33 @@ export function definitionsContext(definitions: readonly Definition[]): string {
  * session has been given is kept in the temporary folder, one file a session; a session id that
  * could not be a file name keeps nothing, so every definition is new to it.
  */
-export function notYetGiven(session: string, definitions: readonly Definition[]): Definition[] {
+export function notYetGiven<D extends Definition>(session: string, definitions: readonly D[]): D[] {
   const fresh = new Set(notYetGivenIds(session, definitions.map(({ id }) => id), "definitions"));
   return definitions.filter(({ id }) => fresh.has(id));
+}
+
+/**
+ * The friction report for `added`, the definitions one prompt of `session` added as `context`, when
+ * the context passes BIG_INJECTION_BYTES and is the session's first to: its evidence groups the
+ * definitions by the name each came through, since one name bringing in many is the sprawl it is
+ * for. At most one a session, remembered as soon as it is decided, whether or not its filing succeeds.
+ */
+export function bigInjectionReport(session: string, added: readonly NamedDefinition[], context: string): NewFriction | undefined {
+  const bytes = Buffer.byteLength(context);
+  if (bytes <= BIG_INJECTION_BYTES || notYetGivenIds(session, [BIG_INJECTION_TITLE], "big-injections").length === 0) return undefined;
+  const byName = new Map<string, string[]>();
+  for (const { name, term } of added) byName.set(name, [...(byName.get(name) ?? []), term]);
+  const names = [...byName].sort((a, b) => b[1].length - a[1].length).map(([name, terms]) => {
+    const shown = terms.slice(0, TERMS_A_NAME).map((term) => `"${term}"`).join(", ");
+    return `- "${name}" brought ${terms.length}: ${shown}${terms.length > TERMS_A_NAME ? ", …" : ""}`;
+  });
+  return {
+    title: BIG_INJECTION_TITLE,
+    description: `The per-prompt definitions hook added ${added.length} definitions, ${bytes} bytes, to one prompt of session ${session}.`,
+    statement: `One prompt's definitions passed ${BIG_INJECTION_BYTES} bytes. All were added (ADR-1049 D1: no cap); a name that brings in many may be definition sprawl.`,
+    evidence: [`Session ${session}: ${added.length} definitions, ${bytes} bytes. The names they came through, most first:`, ...names].join("\n"),
+    impact: `${bytes} bytes of the agent's context went to one prompt's definitions.`,
+  };
 }
 
 /** How many of `groups` hold each name. */

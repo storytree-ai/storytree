@@ -18,7 +18,7 @@ export function notYetGivenIds(session: string, ids: readonly string[], ledger: 
 }
 
 /** The ledgers kept per session. */
-type Ledger = "definitions" | "context-nudges" | "close-outs";
+type Ledger = "definitions" | "context-nudges" | "close-outs" | "big-injections";
 
 /** Whether `id` is already in `session`'s `ledger`, without adding it. */
 export function alreadyGiven(session: string, id: string, ledger: Ledger): boolean {

@@ -12,14 +12,17 @@ export type Locate = (target: Target) => { x: number; y: number; visible: boolea
 const STYLES = `
 .teaching-card { position: fixed; z-index: 20; max-width: 22rem; padding: .75rem .9rem; border-radius: .6rem;
   background: rgba(20, 24, 32, .94); color: #f2f4f8; font: 14px/1.4 system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.35);
-  transform: translate(12px, -50%); }
-.teaching-card-corner { left: auto !important; top: auto !important; right: 1rem; bottom: 1rem; transform: none; }
+  max-height: calc(100vh - 24px); overflow-y: auto; }
+.teaching-card-corner { left: auto !important; top: auto !important; right: 1rem; bottom: 1rem; }
 .teaching-card h3 { margin: 0 0 .25rem; font-size: 15px; }
 .teaching-card p, .teaching-journal p { margin: .25rem 0; }
 .teaching-card [data-depth] h4, .teaching-journal h4 { margin: .5rem 0 0; font-size: 13px; }
 .teaching-card-actions { display: flex; gap: .5rem; margin-top: .5rem; }
 .teaching-journal ol { padding-left: 1.25rem; }
 `;
+
+/** Pixels between a card and its point, and kept clear at the window's edges. */
+const GAP = 12;
 
 /** The card's depth: what, why, how and its decisions. */
 function depth(card: Card): string {
@@ -54,7 +57,14 @@ export function mountTeaching(host: HTMLElement, { journal, locate }: { journal:
     const at = locate(shown.found.target);
     const onShow = at !== undefined && at.visible;
     shown.card.classList.toggle("teaching-card-corner", !onShow);
-    if (onShow) { shown.card.style.left = `${at.x}px`; shown.card.style.top = `${at.y}px`; }
+    if (!onShow) return;
+    // Beside its point, on the right unless the window has no room there, and always inside the window.
+    const { width, height } = shown.card.getBoundingClientRect();
+    const view = host.ownerDocument.defaultView;
+    const right = view?.innerWidth ?? Infinity, bottom = view?.innerHeight ?? Infinity;
+    const left = at.x + GAP + width + GAP <= right ? at.x + GAP : at.x - GAP - width;
+    shown.card.style.left = `${Math.max(GAP, Math.min(left, right - width - GAP))}px`;
+    shown.card.style.top = `${Math.max(GAP, Math.min(at.y - height / 2, bottom - height - GAP))}px`;
   };
   const next = (): void => {
     const found = waiting.shift();
@@ -74,6 +84,8 @@ export function mountTeaching(host: HTMLElement, { journal, locate }: { journal:
       node.querySelector<HTMLElement>("[data-depth]")!.hidden = !open;
       more.setAttribute("aria-expanded", String(open));
       more.textContent = open ? "Less" : "More";
+      // Taller now, so placed again to stay inside the window.
+      place();
     });
     node.querySelector("[data-dismiss]")!.addEventListener("click", () => {
       node.remove();
@@ -82,11 +94,14 @@ export function mountTeaching(host: HTMLElement, { journal, locate }: { journal:
     });
     host.append(node);
     shown = { card: node, found };
+    // Seen once shown: a card still waiting when the app closes shows next time.
+    journal.mark(found.kind);
     place();
   };
   return {
     take(reading) {
-      waiting.push(...journal.fresh(encounters(reading)));
+      const queued = (kind: Kind) => shown?.found.kind === kind || waiting.some(one => one.kind === kind);
+      waiting.push(...journal.unseen(encounters(reading)).filter(one => !queued(one.kind)));
       if (shown === undefined) next();
       else place();
     },

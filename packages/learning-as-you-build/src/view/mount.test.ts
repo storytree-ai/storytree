@@ -29,7 +29,7 @@ test("3.1 · a fired card shows beside its thing, takes no focus and blocks noth
   assert.ok(card, "the story's card shows");
   assert.equal(card.dataset.kind, "story");
   assert.deepEqual(asked.at(-1), { kind: "story", story: "story_a" });
-  assert.equal(card.style.left, "120px");
+  assert.equal(card.style.left, "132px", "just right of its point");
   assert.equal(card.style.top, "80px");
   assert.equal(card.getAttribute("role"), "status", "announced politely, not a dialog");
   assert.equal(card.getAttribute("aria-modal"), null);
@@ -48,16 +48,36 @@ test("3.1 · a fired card shows beside its thing, takes no focus and blocks noth
   teaching.stop();
 });
 
+test("3.1 · a card at the window's right edge sits to the left of its point, inside the window", () => {
+  const { document, host, store } = page();
+  const view = document.defaultView as unknown as { innerWidth: number; innerHeight: number };
+  view.innerWidth = 1000; view.innerHeight = 600;
+  const teaching = mountTeaching(host, { journal: journal(store), locate: () => ({ x: 990, y: 590, visible: true }) });
+  teaching.take(oneStory);
+  const card = host.querySelector<HTMLElement>(".teaching-card")!;
+  card.getBoundingClientRect = () => ({ width: 300, height: 100 }) as DOMRect;
+  teaching.take(oneStory);
+  assert.equal(card.style.left, `${990 - 12 - 300}px`);
+  assert.equal(card.style.top, `${600 - 100 - 12}px`);
+  teaching.stop();
+});
+
 test("3.1 · a target off screen puts its card in the corner, and the next card waits for the one on show", () => {
   const { host, store } = page();
-  const teaching = mountTeaching(host, { journal: journal(store), locate: () => undefined });
+  const kept = journal(store);
+  const teaching = mountTeaching(host, { journal: kept, locate: () => undefined });
   teaching.take({ tree: { stories: [{ id: "story_a", capabilities: [{ id: "cap_a", proposed: true }] }], arcs: [] }, changes: [], lines: [] });
   const card = host.querySelector<HTMLElement>(".teaching-card")!;
   assert.equal(card.dataset.kind, "story");
   assert.ok(card.classList.contains("teaching-card-corner"));
   assert.equal(host.querySelectorAll(".teaching-card").length, 1);
+  // The card still waiting is not yet seen, and the same reading again does not queue it twice.
+  assert.deepEqual(kept.seen().map(one => one.kind), ["story"]);
+  teaching.take({ tree: { stories: [{ id: "story_a", capabilities: [{ id: "cap_a", proposed: true }] }], arcs: [] }, changes: [], lines: [] });
   card.querySelector<HTMLButtonElement>("[data-dismiss]")!.click();
   assert.equal(host.querySelector<HTMLElement>(".teaching-card")!.dataset.kind, "capability");
+  host.querySelector<HTMLButtonElement>(".teaching-card [data-dismiss]")!.click();
+  assert.equal(host.querySelector(".teaching-card"), null, "each card shows once");
   teaching.stop();
   assert.equal(host.querySelector(".teaching-card"), null);
 });
@@ -65,7 +85,7 @@ test("3.1 · a target off screen puts its card in the corner, and the next card 
 test("3.2 · the journal lists every card seen, in order, and choosing one shows it again with its depth", () => {
   const { host, store } = page();
   const kept = journal(store);
-  kept.fresh([{ kind: "empty", target: { kind: "map" } }, { kind: "story", target: { kind: "story", story: "story_a" } }]);
+  kept.mark("empty"); kept.mark("story");
   const shelf = mountJournal(host, { journal: kept });
   shelf.open();
   const entries = [...host.querySelectorAll<HTMLButtonElement>("[data-journal-entry]")];
@@ -75,7 +95,7 @@ test("3.2 · the journal lists every card seen, in order, and choosing one shows
   assert.equal(shown.dataset.kind, "story");
   assert.match(shown.textContent ?? "", /Why/);
   // Cards seen since it was last opened are listed when it opens again.
-  kept.fresh([{ kind: "arc", target: { kind: "arc", arc: "arc_1" } }]);
+  kept.mark("arc");
   shelf.close(); shelf.open();
   assert.equal(host.querySelectorAll("[data-journal-entry]").length, 3);
   shelf.stop();

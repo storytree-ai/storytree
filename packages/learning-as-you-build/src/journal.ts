@@ -10,8 +10,10 @@ export interface Seen { kind: Kind; at: string }
 export interface Journal {
   /** Every card seen, oldest first. */
   seen(): Seen[];
-  /** The encounters whose kind this user has not seen yet, now marked seen. */
-  fresh(found: readonly Encounter[]): Encounter[];
+  /** The encounters whose kind this user has not seen yet. */
+  unseen(found: readonly Encounter[]): Encounter[];
+  /** Keep `kind` as seen now, once its card has shown; a kind already seen is left as it was. */
+  mark(kind: Kind): void;
 }
 
 const KEY = "storytree.teaching.seen.v1";
@@ -26,13 +28,13 @@ export function journal(storage: Pick<Storage, "getItem" | "setItem">, now: () =
   };
   return {
     seen: read,
-    fresh(found) {
+    unseen(found) {
       const seen = read();
-      const unseen = found.filter(one => !seen.some(was => was.kind === one.kind));
-      if (unseen.length === 0) return [];
-      const at = now();
-      storage.setItem(KEY, JSON.stringify([...seen, ...unseen.map(one => ({ kind: one.kind, at }))]));
-      return unseen;
+      return found.filter(one => !seen.some(was => was.kind === one.kind));
+    },
+    mark(kind) {
+      const seen = read();
+      if (!seen.some(was => was.kind === kind)) storage.setItem(KEY, JSON.stringify([...seen, { kind, at: now() }]));
     },
   };
 }

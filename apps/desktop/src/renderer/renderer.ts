@@ -325,8 +325,9 @@ function locate(target: Target): { x: number; y: number; visible: boolean } | un
   if (target.kind === "story" || target.kind === "capability") return globe?.islands().find(island => island.story === target.story);
   if (target.kind === "note") return globe?.notes().find(note => note.note === target.note);
   if (target.kind === "arc" || target.kind === "question") {
-    const box = document.querySelector(".arc-surface-mount")?.getBoundingClientRect();
-    return box === undefined || box.width === 0 ? undefined : { x: box.right, y: box.top + Math.min(box.height / 2, 40), visible: true };
+    // Just past the Arcs bar's label, on the bar.
+    const box = document.querySelector(".arc-surface-mount [data-open-arcs]")?.getBoundingClientRect();
+    return box === undefined || box.width === 0 ? undefined : { x: box.left + 60, y: box.top + box.height / 2, visible: true };
   }
   return undefined;
 }

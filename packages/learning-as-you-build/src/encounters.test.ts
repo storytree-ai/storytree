@@ -49,18 +49,22 @@ test("2.2 · a card fires once per user, on any project, and the journal keeps e
   let now = "2026-10-15T01:00:00.000Z";
   const first = journal(store, () => now);
   const empty = encounters({ tree: tree([]), changes: [], lines: [] });
-  assert.deepEqual(first.fresh(empty).map(found => found.kind), ["empty"]);
-  assert.deepEqual(first.fresh(empty), [], "the empty map is taught once");
+  assert.deepEqual(first.unseen(empty).map(found => found.kind), ["empty"]);
+  first.mark("empty");
+  assert.deepEqual(first.unseen(empty), [], "the empty map is taught once");
   now = "2026-10-15T02:00:00.000Z";
   const grown = encounters({ tree: tree([{ id: "story_a", capabilities: [capability("cap_a1", true)] }]), changes: [], lines: [] });
-  assert.deepEqual(first.fresh(grown).map(found => found.kind), ["story", "capability"]);
-  // Another project, after a restart: what this user has seen does not fire again.
+  assert.deepEqual(first.unseen(grown).map(found => found.kind), ["story", "capability"]);
+  first.mark("story");
+  // Another project, after a restart: what this user has seen does not fire again, and what never showed still does.
+  now = "2026-10-15T03:00:00.000Z";
   const again = journal(store, () => now);
   const other = encounters({ tree: tree([{ id: "story_z", capabilities: [capability("cap_z1", false)] }]), changes: [], lines: [] });
-  assert.deepEqual(again.fresh(other).map(found => found.kind), ["health"]);
+  assert.deepEqual(again.unseen(other).map(found => found.kind), ["capability", "health"]);
+  again.mark("capability"); again.mark("story");
   assert.deepEqual(again.seen(), [
     { kind: "empty", at: "2026-10-15T01:00:00.000Z" }, { kind: "story", at: "2026-10-15T02:00:00.000Z" },
-    { kind: "capability", at: "2026-10-15T02:00:00.000Z" }, { kind: "health", at: "2026-10-15T02:00:00.000Z" },
+    { kind: "capability", at: "2026-10-15T03:00:00.000Z" },
   ]);
   // A kept journal that cannot be read starts again rather than stopping the page.
   const broken = storage();

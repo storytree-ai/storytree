@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Group, Quaternion, Vector3 } from "three";
 import { claimTints, openingTurn, replayWisps, selectionLanes, type ClaimTint, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, UnderTheGlass, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
+import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, SHEET_LAND_LIFT, UnderTheGlass, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
 import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type CoreUnderSheet, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
@@ -89,7 +89,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const moving = useMovingSpots(layout.spots, easeMoves), travelling = moving !== layout.spots;
   const roadless = useMemo(() => ({ ...layout.scene, links: [] }), [layout.scene]);
   const [rotation, setRotation] = useState(() => new Quaternion());
-  // The globe's centre stands off the origin only while the glass sheet is turned (ADR-1043 D3).
+  // The globe's centre stands off the origin on the glass sheet, tilted and turned about the middle of the view (ADR-1043 D3, ADR-1059 D1).
   const [centre, setCentre] = useState<[number, number, number]>();
   const onRotate = useCallback((next: Quaternion, at?: [number, number, number]) => { setRotation(next); setCentre(at); }, []);
   // 5.7: replaying a growth with its recorded sessions, the wisps are the replay's, swapped as it passes each stage.
@@ -130,7 +130,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     const emphasis = shownSurfaces.sessionTints && highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} claimed={claimed} radius={layout.radius}
-        spot={layout.spots.get(island.story)!} lighting={lighting} surfaces={shownSurfaces} onStops={reportStops} />}
+        spot={layout.spots.get(island.story)!} lighting={lighting} surfaces={shownSurfaces} onStops={reportStops} raised={sheet} />}
       {onShow && <SessionIslandEmphasis emphasis={emphasis} />}
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} sheet={sheet} />}
@@ -210,7 +210,9 @@ const TERRITORY_LIFT = 0.05;
  * all in the plate's own units. It says where the circles lie on the globe (3.18), and lights the territories
  * and circles the selected session's window opened.
  */
-function Territories({ story, land, coast, claimed, radius, spot, lighting, surfaces, onStops }: {
+function Territories({ story, land, coast, claimed, radius, spot, lighting, surfaces, onStops, raised }: {
+  /** On the glass sheet, where each island's plate is raised by its thickness (ADR-1059 D2). */
+  raised: boolean;
   story: string;
   land: NonNullable<Island["land"]>;
   coast: readonly (readonly { x: number; z: number }[])[];
@@ -252,10 +254,10 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
   });
   useEffect(() => {
     if (land.package === undefined) return;
-    const { position, quaternion } = plateTransform(spot, radius);
+    const { position, quaternion } = plateTransform(spot, radius, raised ? SHEET_LAND_LIFT : 0);
     onStops(story, circleStops(drawn.circles, land.package, { position: new Vector3(...position), quaternion }));
     return () => onStops(story, undefined);
-  }, [drawn, land.package, story, spot.x, spot.y, spot.z, radius, onStops]);
+  }, [drawn, land.package, story, spot.x, spot.y, spot.z, radius, raised, onStops]);
   // 3.30: on a growing globe the land fills in behind its island; once whole it is left alone until the growth or the land changes.
   const growth = usePlanetGrowth();
   const whole = useRef(false);
@@ -324,7 +326,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const turnTo = useCallback((next: GlobeTurn) => {
     turn.current = next;
     const rotation = focusRotation(next, camera.quaternion);
-    if (sheet === undefined || over.current === 0) { onRotate(rotation); return; }
+    if (sheet === undefined) { onRotate(rotation); return; }
     const turned = sheetTurnedOver(rotation, camera.quaternion, over.current);
     onRotate(turned.quaternion, turned.position.toArray());
   }, [camera, onRotate, sheet !== undefined]);

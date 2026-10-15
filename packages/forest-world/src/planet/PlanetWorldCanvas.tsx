@@ -20,7 +20,7 @@ import { plateGrowth, roadSegmentWindows } from './growth.js';
 import { paintWhileSeen, startingFrameloop, viewportWatch, type ViewportWatch } from './paint-while-seen.js';
 import { redrawOnRestore } from './redraw-on-restore.js';
 import { globeExterior, type PlanetSurfaceVisibility } from './exterior.js';
-import { applySheetEye, SheetGlass, type SheetExtent } from './sheet.js';
+import { applySheetEye, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SheetGlass, type SheetExtent } from './sheet.js';
 
 export type { PlanetSpot } from './planet.js';
 export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
@@ -32,7 +32,7 @@ export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetG
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
 export type { PlanetSurfaceVisibility } from './exterior.js';
-export { applySheetEye, seenFromBelow, SHEET_RADIUS, sheetPoint, sheetSpot, UnderTheGlass, type SheetExtent, type SheetPoint } from './sheet.js';
+export { applySheetEye, seenFromBelow, SHEET_LAND_LIFT, SHEET_RADIUS, SHEET_TILT, sheetPoint, sheetSpot, UnderTheGlass, type SheetExtent, type SheetPoint } from './sheet.js';
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;
@@ -81,15 +81,17 @@ const ORIGIN: [number, number, number] = [0, 0, 0];
 /** How far below its resting place an island starts, in ground units: it rises out of the glass. */
 const RISE_DEPTH = 6;
 
-const Plate = memo(function Plate({ island, spot, radius, plate, visible, grounds, children }: {
+const Plate = memo(function Plate({ island, spot, radius, plate, visible, grounds, raised, children }: {
   island: Island; spot: PlanetSpot; radius: number; plate: PlanetPathwayPlate;
   visible: boolean; grounds: boolean;
+  /** On the glass sheet, a raised plate of the shared thickness with sides (ADR-1059 D2). */
+  raised: boolean;
   children: PlanetWorldCanvasProps['plateChildren'];
 }) {
-  const transform = useMemo(() => plateTransform(spot, radius), [spot.x, spot.y, spot.z, radius]);
+  const transform = useMemo(() => plateTransform(spot, radius, raised ? SHEET_LAND_LIFT : 0), [spot.x, spot.y, spot.z, radius, raised]);
   const { descriptors, coast } = plate;
-  // ADR-0804 D1: the island is one flat, pale, see-through surface with a coast line, and nothing else.
-  const ground = useMemo(() => islandSurface(coast, radius, island.story), [coast, radius, island.story]);
+  // ADR-0804 D1: the island is one flat, pale, see-through surface with a coast line, and nothing else; on the sheet it has sides.
+  const ground = useMemo(() => islandSurface(coast, radius, island.story, raised ? SHEET_LAND_THICKNESS : 0), [coast, radius, island.story, raised]);
   useEffect(() => () => disposeIslandSurface(ground), [ground]);
   // World 7.4: an island not yet risen is hidden with its marks; a rising one swells from its middle out of the glass.
   const growth = usePlanetGrowth();
@@ -181,8 +183,8 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
     const way = laneWays(dock.story, capability, dock.local), spot = spots.get(dock.story);
-    return way && spot && way.length > 1 ? onIsland(way, spot, radius) : undefined;
-  }), [laneWays, spots, radius]);
+    return way && spot && way.length > 1 ? onIsland(way, spot, radius, sheet === undefined ? 0 : SHEET_LAND_LIFT) : undefined;
+  }), [laneWays, spots, radius, sheet === undefined]);
   const pathways = drawing.plan;
   const reveal = useMemo(() => growth === undefined ? undefined : roadSegmentWindows(pathways, growth.plan.roads), [pathways, growth?.plan]);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
@@ -205,7 +207,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         const spot = spots.get(island.story);
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!}
-          visible={exterior.plates} grounds={exterior.grounds} children={plateChildren} />;
+          visible={exterior.plates} grounds={exterior.grounds} raised={sheet !== undefined} children={plateChildren} />;
       })}
       <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} /><SelectionLanes plan={pathways} lit={lanes} inland={inland} /></group>
       {inside}

@@ -39,8 +39,8 @@ const INLAND_STEP = 1;
 
 /** A way inland given in an island's own ground coordinates (`local`, starting on its dock), laid on the island as
  * the globe draws it at `spot`, every step at most a unit long. */
-export function onIsland(local: readonly CoastPoint[], spot: PlanetSpot, radius: number): Vector3[] {
-  const transform = plateTransform(spot, radius), at = new Vector3(...transform.position), surface = onIslandSurface(radius);
+export function onIsland(local: readonly CoastPoint[], spot: PlanetSpot, radius: number, lift = 0): Vector3[] {
+  const transform = plateTransform(spot, radius, lift), at = new Vector3(...transform.position), surface = onIslandSurface(radius);
   const fine = local.flatMap((p, i) => {
     if (i === 0) return [p];
     const a = local[i - 1]!, steps = Math.max(1, Math.ceil(Math.hypot(p.x - a.x, p.z - a.z) / INLAND_STEP));

@@ -141,6 +141,13 @@ export async function checkStory(library, story, writer, { root, evidence = [], 
   const dependant = (test) => sourceOf(test) === undefined;
   const count = (status) => run.results.filter((result) => result.status === status).length;
   log(`tests: ${run.results.length} results: ${count("passed")} passed, ${count("failed")} failed, ${count("skipped")} skipped`);
+  // The junit report goes to a file, so the log is the only place a failure seen only here can be traced from (friction_065efa9f6ad4).
+  const failed = run.results.filter((result) => result.status === "failed");
+  if (failed.length > 0) log(`\n${failed.length} failing test(s):`);
+  for (const result of failed) {
+    log(`  ${[...result.suites, result.name].join(" > ")}  (${path.relative(root, path.resolve(root, result.file)).replaceAll("\\", "/")})`);
+    for (const line of (result.message ?? "(no message)").split("\n")) log(`    ${line}`);
+  }
 
   const { verdicts, unmapped, stray, crashedFiles } = judge({
     contracts: numbers,

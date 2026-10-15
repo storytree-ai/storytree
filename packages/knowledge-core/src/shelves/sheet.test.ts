@@ -1,7 +1,7 @@
 /** Capability 1 under the glass sheet: notes hang beneath their shelves, loose ones in a pool on the south edge (ADR-1043 D5). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { knowledge, sheetPoints, underShelves } from "@storytree/knowledge-core";
+import { knowledge, selectedLinks, sheetPoints, underShelves } from "@storytree/knowledge-core";
 import { History } from "../testing/changes.js";
 
 const shelves = new Map([["west", { x: -100, y: 20 }], ["east", { x: 100, y: -10 }], ["cap", { x: 130, y: -30 }]]);
@@ -37,4 +37,11 @@ test("1.10 under the glass sheet each shelf's notes hang beneath its place, a st
   const pairs = links.map(pair => [...pair].sort().join(" ")).sort();
   assert.deepEqual(pairs, ["cover middle", "deep middle", "deep other", "loose-a loose-b"]);
   assert.deepEqual(sheetPoints(core, { shelfAt: node => shelves.get(node), pool, depthStep: 7 }, known.notes), { points, links }, "the same library hangs the same way");
+});
+
+test("1.11 under the glass sheet no links show at rest; selecting a story shows exactly the links that touch its notes (ADR-1061 D3)", () => {
+  const links: [string, string][] = [["a1", "a2"], ["a2", "b1"], ["b1", "b2"], ["c1", "a1"]];
+  assert.deepEqual(selectedLinks(links, undefined), [], "none at rest");
+  assert.deepEqual(selectedLinks(links, new Set(["a1", "a2"])), [["a1", "a2"], ["a2", "b1"], ["c1", "a1"]], "the selected story's, and only those");
+  assert.deepEqual(selectedLinks(links, new Set()), [], "a story with no notes shows none");
 });

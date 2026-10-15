@@ -1,6 +1,7 @@
 /** Capability 4 · Look inside and inspect an artifact. */
 import type { GlobePoint } from "../shelves/positions.js";
 import { noteMoments, noteShown } from "../shelves/growing.js";
+import { selectedLinks } from "../shelves/sheet.js";
 import type { RecordEnvelope } from "@storytree/library";
 import { Billboard } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -302,36 +303,24 @@ function lineOf(width: number, additive: boolean): Line2 {
 }
 
 /**
- * The links between notes under the glass sheet, as faint straight lines (ADR-1043 D5); a link touching one of the `bright`
- * notes (the selected story's) is drawn lighter, the rest quieter while a story is selected.
+ * The links between notes under the glass sheet, as straight lines (ADR-1043 D5): only those touching one of the `bright`
+ * notes (the selected story's), lit; with no story selected, none (ADR-1061 D3).
  */
 export function NoteLinks({ links, at, bright }: { links: readonly (readonly [string, string])[]; at: ReadonlyMap<string, Point>; bright: ReadonlySet<string> | undefined }) {
   const drawn = useMemo(() => {
-    const group = new Group();
-    group.name = "knowledge-links";
-    const line = (pairs: readonly (readonly [string, string])[], colour: string, opacity: number, name: string) => {
-      const position: number[] = [];
-      for (const [a, b] of pairs) {
-        const from = at.get(a), to = at.get(b);
-        if (from !== undefined && to !== undefined) position.push(from.x, from.y, from.z, to.x, to.y, to.z);
-      }
-      const geometry = new BufferGeometry();
-      geometry.setAttribute("position", new Float32BufferAttribute(position, 3));
-      const segments = new LineSegments(geometry, new LineBasicMaterial({ color: colour, transparent: true, opacity, depthWrite: false }));
-      segments.name = name;
-      segments.userData = { links: position.length / 6 };
-      segments.raycast = noRaycast;
-      return segments;
-    };
-    const lit = (pair: readonly [string, string]) => bright !== undefined && (bright.has(pair[0]) || bright.has(pair[1]));
-    group.add(line(links.filter(pair => !lit(pair)), "#8fb7c9", bright === undefined ? 0.16 : 0.07, "knowledge-links:quiet"),
-      line(links.filter(lit), "#e9f4fa", 0.55, "knowledge-links:selected"));
-    return group;
+    const position: number[] = [];
+    for (const [a, b] of selectedLinks(links, bright)) {
+      const from = at.get(a), to = at.get(b);
+      if (from !== undefined && to !== undefined) position.push(from.x, from.y, from.z, to.x, to.y, to.z);
+    }
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", new Float32BufferAttribute(position, 3));
+    const segments = new LineSegments(geometry, new LineBasicMaterial({ color: "#e9f4fa", transparent: true, opacity: 0.55, depthWrite: false }));
+    segments.name = "knowledge-links";
+    segments.userData = { links: position.length / 6 };
+    segments.raycast = noRaycast;
+    return segments;
   }, [links, at, bright]);
-  useEffect(() => () => drawn.traverse(object => {
-    const mesh = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
-    mesh.geometry?.dispose();
-    mesh.material?.dispose();
-  }), [drawn]);
+  useEffect(() => () => { drawn.geometry.dispose(); drawn.material.dispose(); }, [drawn]);
   return <primitive object={drawn} />;
 }

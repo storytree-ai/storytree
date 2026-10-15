@@ -196,6 +196,14 @@ function islandSides(coast: readonly (readonly CoastPoint[])[], heightAt: (x: nu
   return sides;
 }
 
+/** The parts of an island that fill it in: its ground, the depth under it and its sides; its coast lines stay. */
+const FILLS = new Set(['island-ground', 'island-depth', 'island-side']);
+
+/** Hollows an island to its coast line alone (ADR-1061 D2), hiding nothing beneath it, or makes it whole again. */
+export function hollowIsland(group: Group, hollow: boolean): void {
+  for (const part of group.children) if (FILLS.has(part.name)) part.visible = !hollow;
+}
+
 /** Frees what {@link islandSurface} allocated. */
 export function disposeIslandSurface(group: Group): void {
   group.traverse(object => {

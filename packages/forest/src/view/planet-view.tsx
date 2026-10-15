@@ -65,7 +65,9 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   // Zoomed in past the islands, or in the Library, only the glass and the core show (ADR-0919 D3, D4). The hidden
   // marks stay mounted, so guides can still locate them.
   const [past, setPast] = useState(false);
-  const shownSurfaces = useMemo(() => surfacesFor(surfaces, !sheet && (mode === "library" || past)), [surfaces, mode, past, sheet]);
+  // The glass sheet's Library face keeps the islands as hollow outlines with their names over the knowledge (ADR-1061 D2).
+  const outlines = sheet && mode === "library";
+  const shownSurfaces = useMemo(() => surfacesFor(surfaces, !sheet && (mode === "library" || past), outlines), [surfaces, mode, past, sheet, outlines]);
   const [cameraFraming, setFraming] = useState(framing);
   const [cameraOffset, setOffset] = useState(sideOffset);
   const previousFraming = useRef(framing);
@@ -138,7 +140,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     </>;
   }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, onShow, sheet]);
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
-    surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false} sheet={layout.extent}
+    surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false} sheet={layout.extent} hollow={outlines}
     offset={centre}
     inside={underSheet !== undefined ? library && <UnderTheGlass><KnowledgeGlobePoints core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} /></UnderTheGlass> : <group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
     rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>

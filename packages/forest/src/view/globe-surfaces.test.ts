@@ -74,6 +74,14 @@ test("3.9 Library hides the islands and every mark on them, and keeps the glass 
   assert.equal(shownSurfaces({ sea: false }, true).sea, false);
 });
 
+test("3.62 the glass sheet's Library face keeps the islands as outlines with their names: territory borders without fill, no roads, file circles or session tints (ADR-1061 D2)", () => {
+  const face = shownSurfaces(undefined, false, true);
+  assert.deepEqual(islandMarks(face), [true, false, true, "plain", false, false]);
+  assert.equal(face.knowledgeCore, true, "the knowledge it shows");
+  // A guide's switch still hides what it hides.
+  assert.equal(shownSurfaces({ nameplates: false }, false, true).nameplates, false);
+});
+
 test("3.34 zooming in past the islands hides them, leaving the glass and core; zooming back out brings them back without flickering", () => {
   // Framing is how many radii half the screen's short side spans: smaller is closer in.
   assert.equal(pastIslands(1.18, false), false, "the opening view");

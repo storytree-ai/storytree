@@ -254,6 +254,29 @@ test("6.7 setting a new project up seeds its library with every starter role (or
         refuse: ["Escalate up when blocked or out of scope"],
       });
       assert.deepEqual((await standsOn("orchestrator")).reading, ["Merge ceremony", "Pre-merge librarian pass", "Library edit ceremony", "Pull-based context architecture", "Decompose by testability; delegate the glue", "Parallel build-lane fan-out", "Friction earns durable guidance by supporting evidence, not by being reported"]);
+      // The notes no role of storytree's links, which its factory's contents mark in (ADR-1040).
+      const factoryNotes = [
+        "principle: Price the deferral",
+        "principle: Durable notes carry intent, not implementation surface",
+        "principle: Tightening a shared contract needs a full sweep",
+        "principle: A story's proof proves the goal, not the surface",
+        "principle: Cold rebuild",
+        "principle: Stateless graduates, stateful stays",
+        "principle: An escape sequence in a tool argument becomes a real byte",
+        "principle: The same file in another tree is a different file",
+        "principle: A human's words are stored verbatim, or not at all",
+        "principle: A user-approved reference is repo-resident",
+        "principle: De-noising promotes a signal, never drops it",
+        "guardrail: Types stay honest",
+        "pattern: A measured claim carries the method that produced it",
+        "process: Grill me: walk the user through their open questions",
+        "process: Stage the user's look",
+        "process: Attempt privileged actions, approve inline",
+        "process: Justify a new check",
+        "process: Migrate a schema: expand, migrate, contract",
+      ];
+      assert.deepEqual(factoryNotes.filter((note) => !seeded.notes.includes(note)), [], "every note the factory's contents mark in is seeded");
+      assert.deepEqual((await standsOn("corpus-investigator")).rules.slice(-2), ["The same file in another tree is a different file", "A measured claim carries the method that produced it"]);
       await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true });
       assert.deepEqual(await pack(), seeded, "joining adds no second copy");
 

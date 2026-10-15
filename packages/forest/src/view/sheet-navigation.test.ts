@@ -1,14 +1,14 @@
 /** The forest on the glass sheet: what moves it, and where it opens (ADR-1043 D4). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Group, OrthographicCamera, Vector3 } from "three";
+import { Group, Mesh, OrthographicCamera, Vector3 } from "three";
 import { workStates } from "@storytree/arc-surface";
 import { forestScene, storyNodes } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
 import { applyPlanetFraming, applySheetEye, plateTransform, SHEET_RADIUS, SHEET_TILT, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
 import { focusRotation, markerSpot } from "./planet-navigation.js";
-import { compassNorth, headingHome, sheetCentre, sheetDrag, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetTurnedOver, sheetTwist } from "./sheet-navigation.js";
+import { compassNorth, headingHome, opensBare, sheetCentre, sheetDrag, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetTurnedOver, sheetTwist } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -50,7 +50,7 @@ function eye(pose: GlobePose, extent: { width: number; height: number }, over = 
     .angleTo(new Vector3(0, 0, 1).applyQuaternion(camera.quaternion));
   // How far from the eye a place on the sheet lies, along its line of sight.
   const distance = (p: SheetPoint, z = 0) => -world(p, z).applyMatrix4(camera.matrixWorldInverse).z;
-  return { camera, screen, facing, distance };
+  return { camera, globe, screen, facing, distance };
 }
 
 test("3.52 on the glass sheet the eye rests at one fixed tabletop tilt, the north edge away from it: a drag or a sideways scroll pans the sheet, the wheel zooms it, the turn turns it over, and none of them changes the tilt; it opens framing the sheet's height from its west edge", () => {
@@ -283,4 +283,23 @@ test("3.61 the sheet's keys are WASD, the arrows, Q, E, Home and T to turn it ov
     assert.notEqual(keyed(key, { tagName: "BODY" }), undefined, `${key} on the page`);
   }
   assert.equal(sheetKey({ type: "keyup", key: "w" }), undefined, "only a press");
+});
+
+test("3.63 an island-less sheet, the user's factory, opens on its Library face over a pool wide enough to spread its notes", () => {
+  const empty = sheetLayout(forestScene({ arcs: [], stories: [] }, [], workStates([])), new Map());
+  assert.ok(empty.under.pool.width >= empty.under.pool.height, `pool ${empty.under.pool.width} wide`);
+  assert.ok(empty.extent.width >= empty.under.pool.width, "the glass runs under the whole pool");
+  assert.equal(opensBare("library"), true);
+  assert.equal(opensBare("forest"), false);
+  // Turned over to the Library face, a note hung in its pool is on show, so its first-encounter card anchors at its dot.
+  const opened = eye(sheetOpening(empty.extent, size), empty.extent, Math.PI), world = new Group(), glass = new Group(), dot = new Mesh();
+  opened.globe.name = "globe";
+  glass.name = "sheet:under";
+  dot.name = "knowledge-point:agent_builder";
+  const { pool } = empty.under, at = empty.under.place({ x: pool.x + pool.width / 2, y: pool.y + pool.height / 2, z: -20 });
+  dot.position.set(at.x, at.y, at.z);
+  world.add(opened.globe.add(glass.add(dot)));
+  let pose = sheetOpening(empty.extent, size);
+  const guide = createGlobeGuide({ world: () => world, camera: () => opened.camera, size: () => size, read: () => pose, write: next => { pose = next; }, invalidate() {} });
+  assert.equal(guide.position({ kind: "note", note: "agent_builder" })?.visible, true);
 });

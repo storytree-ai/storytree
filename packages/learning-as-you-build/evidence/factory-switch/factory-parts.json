@@ -1,1 +1,7 @@
-"role"
+{
+  "kind": "role",
+  "corner": false,
+  "face": "Library",
+  "left": "606.176px",
+  "top": "492.813px"
+}

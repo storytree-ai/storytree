@@ -19,7 +19,7 @@ import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
 import { asksForHome, miniGlobe } from "./mini-globe.js";
-import { compassNorth, headingHome, sheetDrag, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetTurnedOver, sheetTwist, SPIN_PER_PIXEL } from "./sheet-navigation.js";
+import { compassNorth, headingHome, opensBare, sheetDrag, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetTurnedOver, sheetTwist, SPIN_PER_PIXEL } from "./sheet-navigation.js";
 import { growLand, pastIslands, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
@@ -412,7 +412,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const [home, setHome] = useState<GlobeTurn>();
   useEffect(() => {
     if (home === undefined && islands.length > 0) setHome(openingTurn(islands));
-    if (opened.current || islands.length === 0) return;
+    if (opened.current || (islands.length === 0 && (sheet === undefined || !opensBare(mode)))) return;
     opened.current = true;
     if (sheet === undefined) { turnTo(openingTurn(islands)); return; }
     openSheet();

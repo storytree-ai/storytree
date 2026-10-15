@@ -44,7 +44,7 @@ await runCapture({
     { name: 'factory-more', prepare: async ({ page }) => { await card(page).getByRole('button', { name: 'More' }).click(); } },
     { name: 'factory-parts',
       prepare: async ({ page }) => { await card(page).getByRole('button', { name: 'Got it' }).click(); },
-      measure: async ({ page }) => page.evaluate(() => document.querySelector('.teaching-card')?.dataset.kind) },
+      measure: async ({ page }) => page.evaluate(() => { const c = document.querySelector('.teaching-card'); return { kind: c?.dataset.kind, corner: c?.classList.contains('teaching-card-corner'), face: document.querySelector('[data-globe-switch][aria-pressed="true"]')?.textContent, left: c?.style.left, top: c?.style.top }; }) },
     { name: 'back-on-product',
       prepare: async ({ page }) => {
         while (await card(page).count() > 0) await card(page).getByRole('button', { name: 'Got it' }).click();

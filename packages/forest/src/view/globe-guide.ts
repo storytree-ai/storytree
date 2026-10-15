@@ -76,7 +76,8 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       if (found === undefined) return undefined;
       const projected = found.point.clone().project(camera), { width, height } = host.size();
       const centre = world.getObjectByName("globe")?.getWorldPosition(new Vector3()) ?? new Vector3();
-      const near = target.kind === "core" || found.point.clone().sub(centre).dot(camera.getWorldDirection(new Vector3())) <= 0;
+      // A note hung under the glass sheet is drawn only on its Library face, which faces the eye, so it is never round the back (3.63).
+      const near = target.kind === "core" || underTheGlass(found.object) || found.point.clone().sub(centre).dot(camera.getWorldDirection(new Vector3())) <= 0;
       let marked = target.kind !== "story";
       if (!marked) found.object.traverseVisible(object => {
         const mesh = object as Mesh;
@@ -162,6 +163,11 @@ function ownStretch(world: Object3D, link: string): Object3D | undefined {
 }
 
 /** Three's raycaster includes invisible objects; every picker must check their ancestors too. */
+function underTheGlass(object: Object3D): boolean {
+  for (let at: Object3D | null = object; at !== null; at = at.parent) if (at.name === "sheet:under") return true;
+  return false;
+}
+
 export function isDrawn(object: Object3D): boolean {
   for (let at: Object3D | null = object; at !== null; at = at.parent) if (!at.visible) return false;
   return true;

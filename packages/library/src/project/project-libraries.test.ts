@@ -539,7 +539,7 @@ test("1.17 a product's link to a system record it retired, as moving onto its fa
   });
 });
 
-test("1.18 a change to the factory's system after a product was set up is in the factory's history and reaches the product's next session, the product's own edits still winning (ADR-1040)", async () => {
+test("1.16 a change to the factory's system after a product was set up is in the factory's history and reaches the product's next session, the product's own edits still winning (ADR-1040)", async () => {
   const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
   await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
     const made = await storytree.openProject(factory);

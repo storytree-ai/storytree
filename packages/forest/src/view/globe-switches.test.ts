@@ -1,7 +1,7 @@
 /** Forest capability 3: the globe's Stories and Library switches (ADR-1002 D1, D2). */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { flipSwitch, globeLayers, LAUNCH_FACE, LAUNCH_SWITCHES, sheetFaces } from "./globe-switches.js";
+import { flipSwitch, globeLayers, LAUNCH_FACE, LAUNCH_SWITCHES, openingFace, sheetFaces } from "./globe-switches.js";
 
 test("3.10 a launch opens with Stories on and Library off, and a press flips only its own switch", () => {
   assert.deepEqual(LAUNCH_SWITCHES, { stories: true, library: false });
@@ -28,4 +28,10 @@ test("3.55 the glass sheet's Stories and Library buttons are its two faces, one 
   assert.deepEqual(sheetFaces("stories", true), { mode: "forest", library: true, pressed: { stories: true, library: false }, offered: ["stories", "library"] });
   assert.deepEqual(sheetFaces("library", true), { mode: "library", library: true, pressed: { stories: false, library: true }, offered: ["stories", "library"] });
   assert.deepEqual(sheetFaces("library", false), { mode: "forest", library: false, pressed: { stories: true, library: false }, offered: ["stories"] });
+});
+
+test("3.63 the user's factory opens on the glass sheet's Library face, where its roles, notes and checks hang; a project, or a factory with the Library off, opens on Stories", () => {
+  assert.equal(openingFace({ factory: true, libraryOffered: true }), "library");
+  assert.equal(openingFace({ factory: false, libraryOffered: true }), "stories");
+  assert.equal(openingFace({ factory: true, libraryOffered: false }), "stories");
 });

@@ -389,6 +389,30 @@ test("5.9 a dependant's test titled with the story's package and a number the st
   });
 });
 
+test("5.12 own health's log names each failing test, with the suites around it, its file and its assertion message, and no test that passed", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "own-health-failing-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
+  const file = path.join(root, "packages/cli/src/kettle.test.mjs");
+  await withLibrary(async (lib) => {
+    const story = await kettle(lib);
+    const run = async () => ({
+      code: 1,
+      results: [
+        { name: "1.1 it does a", suites: [], file, status: "passed" },
+        { name: "it boils twice", suites: ["1.2 it does b"], file, status: "failed", message: "the count matches\n\n1 !== 2" },
+      ],
+    });
+    const lines = [];
+    assert.equal(await checkStory(lib, story, { by: "storytree test run" }, { root, runTests: run, log: (line) => lines.push(line), error: (line) => lines.push(line) }), true);
+    const output = lines.join("\n");
+    assert.ok(output.includes("1.2 it does b > it boils twice"), "the failing test is named within its suite");
+    assert.ok(output.includes("packages/cli/src/kettle.test.mjs"), "its file is named");
+    assert.ok(output.includes("the count matches") && output.includes("1 !== 2"), "its assertion message is shown");
+    assert.ok(!output.includes("1.1 it does a"), "a test that passed is not named");
+  });
+});
+
 test("5.4 checking the app story also runs the desktop app's tests as its own, crediting their numbered titles", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-frame-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

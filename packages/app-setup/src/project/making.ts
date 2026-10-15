@@ -1,8 +1,8 @@
 /**
  * Capability 6 · Make a folder a project (ADR-0969 D3, ADR-0757). After the user says yes, a folder becomes a storytree
  * project: the one check every way of adding a project goes through (the installer, the app's Add project,
- * `storytree doctor --set-up`, the agent's set_up_project), then the project opened (its library seeded with
- * the starter pack the first time), the folder recorded and approved as this machine's trunk, the marker left,
+ * `storytree doctor --set-up`, the agent's set_up_project), then the project opened (naming the user's factory,
+ * whose starter pack it reads, the first time), the folder recorded and approved as this machine's trunk, the marker left,
  * and the app's choice recorded. Reading which project a folder belongs to is Session management's project routing,
  * beneath the hooks; this writes to the trunks table it reads, through Session management's trunk functions.
  *
@@ -40,14 +40,14 @@ export const FACTORY_NAME = "factory";
 
 /**
  * Set `folder` up as project `project`, after the user said yes: the one check (ADR-0757) first,
- * then open the project in the library (creating its library the first time, seeded with the
- * starter pack, 6.7), record the folder as
+ * then open the project in the library (creating its library the first time, 6.7), record the folder as
  * the project's trunk on this machine, leave the marker, and record the user's choice for the app.
  * A refused folder (ProjectFolderError) or name (ProjectNameError, judged by the library before
  * anything touches the server) leaves nothing behind. `join` adds this machine's checkout to a
  * project that already exists; without it, an existing project's name is refused. Either approves
  * the trunk (ADR-0942 D1), and joining from a project's own recorded trunk approves it in place. A new project
- * names the user's factory (6.11), made the first time; a join makes none.
+ * names the user's factory (6.11), made the first time and seeded with the starter pack, and holds no copy of the
+ * pack itself: its roles, notes and checks are the factory's (6.7). A join makes none.
  */
 export async function setUpProject({ folder, project, storytree, storytreeHome: home = storytreeHome(), join = false, factory = FACTORY_NAME }: SetUpOptions): Promise<{ project: string; marker: string }> {
   const at = canonical(path.resolve(folder));
@@ -69,11 +69,8 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
     const registered = own === undefined ? await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: at }, by) : own.approvedBy !== undefined || (await approveTrunk(storytree, own, by));
     if (!registered) throw new ProjectFolderError(`${at} or project "${project}" was set up on this machine a moment ago by something else; check it again before setting it up.`);
     rememberApproval(home, machine.id, own ?? { project, folder: at });
-    // A new project's library starts with the starter pack and names the user's factory; one joined was set up where it was made.
-    if (!join) {
-      await library.recordFactory(await userFactory(storytree, factory, [...projects, project]));
-      await seedStarterPack(library);
-    }
+    // A new project names the user's factory and reads its system from there, holding no copy (ADR-1040); one joined was set up where it was made.
+    if (!join) await library.recordFactory(await userFactory(storytree, factory, [...projects, project]));
   } finally {
     await library.close();
   }

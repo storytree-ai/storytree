@@ -42,3 +42,17 @@ test("3.10 switching Stories off clears a selected story and its panel, switchin
   assert.equal(panel.current, undefined, "Library off closes the card");
   assert.equal(changes.length, 4, "only the two clearings changed the panel");
 });
+
+test("3.55 on the glass sheet a selected story stays selected across the turn either way, and turning to Stories closes a picked note's card", () => {
+  const changes: Selection[] = [];
+  const panel = new PanelSelection(selection => changes.push(selection));
+  panel.story("forest", "pay");
+  panel.turned("library");
+  panel.turned("stories");
+  assert.deepEqual(panel.current, { kind: "story", id: "forest", capability: "pay" }, "the story holds across the turn and back");
+  panel.turned("library");
+  panel.note("principle");
+  panel.turned("stories");
+  assert.equal(panel.current, undefined, "the note's card closes on the Stories face");
+  assert.equal(changes.length, 3, "only the pick, the note and the closing changed the panel");
+});

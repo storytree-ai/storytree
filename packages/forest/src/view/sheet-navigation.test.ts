@@ -8,7 +8,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import { applyPlanetFraming, applySheetEye, plateTransform, SHEET_RADIUS, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
 import { focusRotation } from "./planet-navigation.js";
-import { sheetCentre, sheetLayout, sheetOpening, sheetPan } from "./sheet-navigation.js";
+import { sheetCentre, sheetLayout, sheetOpening, sheetPan, sheetTurnedOver } from "./sheet-navigation.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const size = { width: 1440, height: 960 };
@@ -25,8 +25,8 @@ function sheet(depth: number) {
   return sheetLayout(scene, new Map(storyNodes(tree, history).map(node => [node.id, node.place])));
 }
 
-/** The page's eye and its globe group, posed as the canvas poses them. */
-function eye(pose: GlobePose, extent: { width: number; height: number }) {
+/** The page's eye and its globe group, posed as the canvas poses them, the sheet turned `over` radians. */
+function eye(pose: GlobePose, extent: { width: number; height: number }, over = 0) {
   const camera = new OrthographicCamera(-size.width / 2, size.width / 2, size.height / 2, -size.height / 2, 0.1, 1000);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
   camera.position.set(0, Math.sin(elevation), Math.cos(elevation));
@@ -35,14 +35,18 @@ function eye(pose: GlobePose, extent: { width: number; height: number }) {
   applySheetEye(camera, Math.hypot(extent.width, extent.height));
   camera.updateMatrixWorld();
   const globe = new Group();
-  globe.quaternion.copy(focusRotation(pose.turn, camera.quaternion));
+  const turned = sheetTurnedOver(focusRotation(pose.turn, camera.quaternion), camera.quaternion, over);
+  globe.quaternion.copy(turned.quaternion);
+  globe.position.copy(turned.position);
   globe.updateMatrixWorld();
   const world = (p: SheetPoint) => new Vector3(...plateTransform(sheetSpot(p), SHEET_RADIUS).position).applyMatrix4(globe.matrixWorld);
   const screen = (p: SheetPoint) => {
     const at = world(p).project(camera);
     return { x: (at.x + 1) * size.width / 2, y: (1 - at.y) * size.height / 2 };
   };
-  const facing = (p: SheetPoint) => world(p).sub(globe.position).normalize().angleTo(new Vector3(0, 0, 1).applyQuaternion(camera.quaternion));
+  // The angle between the top face's outward normal at `p` and the direction to the eye.
+  const facing = (p: SheetPoint) => new Vector3(...plateTransform(sheetSpot(p), SHEET_RADIUS).position).normalize().applyQuaternion(globe.quaternion)
+    .angleTo(new Vector3(0, 0, 1).applyQuaternion(camera.quaternion));
   return { camera, screen, facing };
 }
 
@@ -89,4 +93,24 @@ test("3.53 on the glass sheet, Home eases the view back to the one it opened on,
   const home = sheetCentre(pose.turn), opened = sheetCentre(opening.turn);
   assert.ok(Math.abs(home.x - opened.x) < 1e-6 && Math.abs(home.y - opened.y) < 1e-6, "back over the place it opened on");
   assert.equal(pose.framing, opening.framing, "at the zoom it opened at");
+});
+
+test("3.54 the glass sheet turns over north to south about its west-east axis: on the underside depth still runs west to east, the north edge lies at the bottom, and a drag still pans it the way the pointer moves", () => {
+  const { extent } = sheet(12), opening = sheetOpening(extent, size);
+  const top = eye(opening, extent), under = eye(opening, extent, Math.PI), edgeOn = eye(opening, extent, Math.PI / 2);
+  const held = sheetCentre(opening.turn);
+  const west = { x: held.x - 200, y: held.y }, east = { x: held.x + 200, y: held.y }, north = { x: held.x, y: held.y + 100 }, south = { x: held.x, y: held.y - 100 };
+  assert.ok(top.facing(held) < 1e-6 && Math.abs(under.facing(held) - Math.PI) < 1e-6, "the top face looks at the eye, then the underside does");
+  assert.ok(Math.abs(edgeOn.facing(held) - Math.PI / 2) < 1e-6, "half way, the sheet is edge-on");
+  for (const face of [top, under]) assert.ok(face.screen(west).x < face.screen(east).x - 300, "depth runs west to east on both faces");
+  assert.ok(top.screen(north).y < top.screen(south).y && under.screen(north).y > under.screen(south).y + 100, "turned over north to south: the north edge comes to the bottom");
+  for (const face of [under, edgeOn]) {
+    const at = face.screen(held), was = top.screen(held);
+    assert.ok(Math.hypot(at.x - was.x, at.y - was.y) < 1e-3, "the turn pivots on the middle of the view, so nothing slides away");
+  }
+  // A drag on the underside: the point under the pointer follows it.
+  const grabbed = under.screen({ x: held.x + 40, y: held.y - 30 });
+  const panned = sheetPan(opening.turn, { x: 120, y: 80 }, top.camera.zoom, extent, true);
+  const moved = eye({ ...opening, turn: panned }, extent, Math.PI).screen({ x: held.x + 40, y: held.y - 30 });
+  assert.ok(Math.abs(moved.x - grabbed.x - 120) < 0.5 && Math.abs(moved.y - grabbed.y - 80) < 0.5, `the underside follows the drag (${(moved.x - grabbed.x).toFixed(1)}, ${(moved.y - grabbed.y).toFixed(1)})`);
 });

@@ -1,5 +1,5 @@
 /** Capability 3 · Story node render. Forest capability 3: the story and artifact share one panel slot. A story picked by its territory names that capability (3.15). */
-import type { GlobeSwitches } from "./globe-switches.js";
+import type { GlobeSwitches, SheetFace } from "./globe-switches.js";
 
 export type Selection = { kind: "story"; id: string; capability?: string } | { kind: "note"; id: string } | undefined;
 
@@ -13,6 +13,10 @@ export class PanelSelection {
   /** Stories off hides the islands, so a selected story and its panel go; Library off hides the notes, so a note's card goes (3.10). */
   switched(switches: GlobeSwitches): void {
     if ((!switches.stories && this.current?.kind === "story") || (!switches.library && this.current?.kind === "note")) this.close();
+  }
+  /** The glass sheet turned to `face`: a story stays selected on both faces, and turning to the top face closes a note's card (ADR-1043 D3). */
+  turned(face: SheetFace): void {
+    if (face === "stories" && this.current?.kind === "note") this.close();
   }
   private show(selection: Selection): void {
     this.current = selection;

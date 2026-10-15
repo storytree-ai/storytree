@@ -24,3 +24,24 @@ export function globeLayers(switches: GlobeSwitches, libraryOffered: boolean): {
     offered: libraryOffered ? ["stories", "library"] : ["stories"],
   };
 }
+
+/** The glass sheet's two faces (ADR-1043 D3): Stories, its top, and Library, its underside, where the notes hang. */
+export type SheetFace = GlobeSwitch;
+
+/** A launch opens on the sheet's top face. */
+export const LAUNCH_FACE: SheetFace = "stories";
+
+/**
+ * What the forest page draws on the glass sheet for the face turned toward the eye: the turn replaces the switches' four
+ * combinations outright, so one button is pressed at a time. With the Surfaces menu's Library off (ADR-0750) there is no
+ * underside to turn to, and only Stories is offered.
+ */
+export function sheetFaces(face: SheetFace, libraryOffered: boolean): { mode: ForestMode; library: boolean; pressed: GlobeSwitches; offered: GlobeSwitch[] } {
+  const under = libraryOffered && face === "library";
+  return {
+    mode: under ? "library" : "forest",
+    library: libraryOffered,
+    pressed: { stories: !under, library: under },
+    offered: libraryOffered ? ["stories", "library"] : ["stories"],
+  };
+}

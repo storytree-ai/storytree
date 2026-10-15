@@ -1,7 +1,7 @@
 /**
  * Capability 3 · Story node render. The forest's page (the forest story, capability 3): its stories on the glass sheet, depth
- * running west to east (ADR-1043, which supersedes ADR-0655 D1's globe-only page), and the Library on the globe until the
- * sheet's underside carries it. PlanetView reuses the ported island drawing, with story names, selection and claims.
+ * running west to east (ADR-1043, which supersedes ADR-0655 D1's globe-only page), and the knowledge graph on the sheet's
+ * underside, which the Library face turns it over to. PlanetView reuses the ported island drawing, with story names, selection and claims.
  * Unchanged islands retain their objects, and a live update that changed nothing on show is not drawn again.
  * The page mounts only the globe, and loads none of 0.2's pine kit: no island carries a tree (ADR-0804 D1).
  */
@@ -13,7 +13,7 @@ import { nextScene, sameWisps } from "./planet-update.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
 import { panelAside } from "./globe-aside.js";
 import { globeFraming } from "./planet-navigation.js";
-import { flipSwitch, globeLayers, LAUNCH_SWITCHES, type GlobeSwitch, type GlobeSwitches } from "./globe-switches.js";
+import { LAUNCH_FACE, sheetFaces, type SheetFace } from "./globe-switches.js";
 import type { PlacedGlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
@@ -33,7 +33,8 @@ export interface ForestView {
 
 /** What the page draws, as one value handed to React on every change. */
 interface Drawn {
-  switches: GlobeSwitches;
+  /** The glass sheet's face toward the eye (ADR-1043 D3). */
+  face: SheetFace;
   places: ReadonlyMap<string, number>;
   scene: ForestScene;
   wisps: readonly SessionWisp[];
@@ -47,43 +48,39 @@ interface Drawn {
 /**
  * Open the globe in `container`. `onSelect` hears the story or artifact picked, or empty space.
  * The app's existing core supplies the faint points; its inspection page stays deferred.
- * It carries two switches, Stories and Library, each on or off by itself (ADR-1002 D1, D2). With `library` off
- * (ADR-0750) the globe stays solid and only Stories is offered; `opening` is how close it opens.
+ * Its Stories and Library buttons are the glass sheet's two faces, one pressed at a time: pressing the other turns the sheet
+ * over (ADR-1043 D3, replacing ADR-1002's four combinations here). With `library` off (ADR-0750) nothing hangs beneath and only
+ * Stories is offered; `opening` is how close it opens.
  * The page offers `window.storytreeGlobe`, the locator the lag instrument clicks islands by (3.41).
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
   { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
-    switches: LAUNCH_SWITCHES, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined, aside: 0,
+    face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined, aside: 0,
   };
 
   const render = (next: Partial<Drawn>): void => {
     drawn = { ...drawn, ...next };
     if (drawn.viewport === undefined) return;
-    const layers = globeLayers(drawn.switches, library);
+    const layers = sheetFaces(drawn.face, library);
     container.dataset.view = "globe";
     container.dataset.forestMode = layers.mode;
-    container.dataset.globeShown = String(layers.shown);
-    // Both off hides the globe without unmounting it, so its canvas, camera, turn and zoom come back as left (3.10);
-    // the mini globe and failure markers sit inside it and go with it, and nothing hidden can be picked.
-    // The stories lie on the glass sheet (ADR-1043); the Library's notes are still drawn inside the globe, so the Library
-    // switched on shows the globe, until the sheet's underside carries them.
-    const sheet = !layers.library;
+    container.dataset.globeShown = "true";
     root.render(<>
-      <div className="forest-globe" hidden={!layers.shown}>
-        <PlanetView key={sheet ? "sheet" : "globe"} sheet={sheet} core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
+      <div className="forest-globe">
+        <PlanetView sheet core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
           selected={drawn.selected} highlighted={drawn.highlighted}
           onPick={pick} onNote={pickNote} onControls={onControls} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library} liveRoads />
       </div>
-      <div className="forest-views" role="group" aria-label="Globe layers">
+      <div className="forest-views" role="group" aria-label="Sheet faces">
         {layers.offered.map(which => <button key={which} type="button"
-          data-globe-switch={which} aria-pressed={drawn.switches[which]} onClick={() => flip(which)}>
+          data-globe-switch={which} aria-pressed={layers.pressed[which]} onClick={() => turn(which)}>
           {which === "stories" ? "Stories" : "Library"}
         </button>)}
       </div>
-      {/* The knowledge core's kind list unfolds under the Library switch, while it is on (knowledge core 5, D1). */}
-      {layers.library && <KnowledgeKinds core={core} />}
+      {/* The knowledge core's kind list unfolds under the Library button, while the sheet shows its underside (knowledge core 5, D1). */}
+      {layers.mode === "library" && <KnowledgeKinds core={core} />}
     </>);
   };
   const selection = new PanelSelection(next => {
@@ -91,10 +88,10 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     render({ selected: next?.kind === "story" ? next.id : undefined });
     onSelect(next);
   });
-  const flip = (which: GlobeSwitch): void => {
-    const switches = flipSwitch(drawn.switches, which);
-    render({ switches });
-    selection.switched({ stories: switches.stories, library: globeLayers(switches, library).library });
+  const turn = (face: SheetFace): void => {
+    if (face === drawn.face) return;
+    render({ face });
+    selection.turned(face);
   };
   const pick = (story: string | undefined, capability?: string): void => selection.story(story, capability);
   const pickNote = (note: string): void => selection.note(note);

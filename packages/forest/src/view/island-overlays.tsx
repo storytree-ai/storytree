@@ -27,13 +27,15 @@ const PLATE_LIFT = 2;
  * A story's nameplate, its top edge at a fixed point just south of the island's coast, turning with the island; while the story is
  * selected, a smaller nameplate on each of its capabilities' territories (below a claimed one's flag), and the other stories' plates dim. No plate takes a pointer from the land beneath it.
  */
-export function Nameplates({ island, spot, coast, radius, selected, dimmed = false, claimed = new Map() }: {
+export function Nameplates({ island, spot, coast, radius, selected, dimmed = false, claimed = new Map(), sheet = false }: {
   island: Island; spot: PlanetSpot; coast: Coast; radius: number; selected: string | undefined; dimmed?: boolean;
+  /** On the glass sheet nothing hides a name: it reads from either face, so the underside says whose notes are whose (ADR-1043 D3). */
+  sheet?: boolean;
   /** Claimed capabilities: their flags stand where their nameplates would, so those nameplates hang just below (ADR-0968 D1). */
   claimed?: ReadonlyMap<string, unknown>;
 }) {
   // Plates hide behind the sphere only (whatever radius it has grown to): one exact test each, not a raycast of the land.
-  const occluder = useMemo(() => [{ current: globeOccluder(radius) }], [radius]);
+  const occluder = useMemo(() => sheet ? false : [{ current: globeOccluder(radius) }], [radius, sheet]);
   const surface = useMemo(() => onIslandSurface(radius, PLATE_LIFT), [radius]);
   // Placed once on the island's own plate, like print on a map: it moves only as the island does (ADR-0917).
   const at = useMemo(() => surface(storyPlate(coast, southOnPlate(plateTransform(spot, radius).quaternion))).toArray(), [surface, coast, spot, radius]);
@@ -47,7 +49,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
     group.parent.getWorldQuaternion(turned);
     if (label.current === null) return;
     const faces = facing(turned, camera.quaternion);
-    label.current.style.visibility = faces > 0 ? "" : "hidden";
+    label.current.style.visibility = sheet || faces > 0 ? "" : "hidden";
     label.current.dataset.facing = String(faces);
   }, -1);
   const chosen = island.story === selected;

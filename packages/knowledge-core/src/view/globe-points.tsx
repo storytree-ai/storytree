@@ -5,7 +5,7 @@ import type { RecordEnvelope } from "@storytree/library";
 import { Billboard } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AdditiveBlending, Color, type Group, type InterleavedBufferAttribute } from "three";
+import { AdditiveBlending, BufferGeometry, Color, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, type InterleavedBufferAttribute } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -33,8 +33,10 @@ const trailKey = (trail: Trail) => `${trail.colour} ${trail.from} ${trail.to}`;
 export interface CoreGrowth { now(): number; moment(date: string): number }
 
 /** Mesh raycasts stay disabled: the globe picks these small dots in screen space. */
-export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), trails = [], window, replay = false, stops, growth: grows }: {
+export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), trails = [], window, replay = false, stops, growth: grows, quiet }: {
   points: readonly GlobePoint[]; radius: number; notes: ReadonlyMap<string, RecordEnvelope>;
+  /** Notes drawn quieter than the rest: on the glass sheet, every note but the selected story's (ADR-1043 D3). */
+  quiet?: ReadonlySet<string> | undefined;
   /** Each note's dot radius, as a fraction of the globe's, from how widely it is read (ADR-0926); the floor for one not given. */
   sizes?: ReadonlyMap<string, number> | undefined;
   /** Notes the selected session read, each in the colour of the agent that read it (ADR-0738 D5). */
@@ -143,7 +145,8 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
       // An open read wears its reader's colour, or the session's; a compacted one is lighter; a glimpse is the session's, faint (ADR-0756).
       // A dot no session colours wears its kind's colour (capability 5, D3).
       const colour = dotColour(notes.get(point.id)?.type, state === "faded" ? lighter(window!.colour) : lighting?.colour ?? (state === null ? undefined : window!.colour));
-      const opacity = state === "glimpsed" && lighting === undefined ? 0.4 : state === "faded" ? 0.8 : lighting !== undefined || state === "in-window" ? 1 : lit.size > 0 ? 0.3 : 0.52;
+      const plain = state === "glimpsed" && lighting === undefined ? 0.4 : state === "faded" ? 0.8 : lighting !== undefined || state === "in-window" ? 1 : lit.size > 0 ? 0.3 : 0.52;
+      const opacity = quiet?.has(point.id) && lighting === undefined && state === null ? plain * 0.35 : plain;
       // A dot's size is its note's reach alone: a session's read shows in colour, brightness and rings, never in size (ADR-0926 D3).
       const size = sizes?.get(point.id) ?? DOT_FLOOR;
       return <mesh key={point.id} name={`knowledge-point:${point.id}`}
@@ -296,4 +299,39 @@ function lineOf(width: number, additive: boolean): Line2 {
   line.visible = false;
   line.frustumCulled = false;
   return line;
+}
+
+/**
+ * The links between notes under the glass sheet, as faint straight lines (ADR-1043 D5); a link touching one of the `bright`
+ * notes (the selected story's) is drawn lighter, the rest quieter while a story is selected.
+ */
+export function NoteLinks({ links, at, bright }: { links: readonly (readonly [string, string])[]; at: ReadonlyMap<string, Point>; bright: ReadonlySet<string> | undefined }) {
+  const drawn = useMemo(() => {
+    const group = new Group();
+    group.name = "knowledge-links";
+    const line = (pairs: readonly (readonly [string, string])[], colour: string, opacity: number, name: string) => {
+      const position: number[] = [];
+      for (const [a, b] of pairs) {
+        const from = at.get(a), to = at.get(b);
+        if (from !== undefined && to !== undefined) position.push(from.x, from.y, from.z, to.x, to.y, to.z);
+      }
+      const geometry = new BufferGeometry();
+      geometry.setAttribute("position", new Float32BufferAttribute(position, 3));
+      const segments = new LineSegments(geometry, new LineBasicMaterial({ color: colour, transparent: true, opacity, depthWrite: false }));
+      segments.name = name;
+      segments.userData = { links: position.length / 6 };
+      segments.raycast = noRaycast;
+      return segments;
+    };
+    const lit = (pair: readonly [string, string]) => bright !== undefined && (bright.has(pair[0]) || bright.has(pair[1]));
+    group.add(line(links.filter(pair => !lit(pair)), "#8fb7c9", bright === undefined ? 0.16 : 0.07, "knowledge-links:quiet"),
+      line(links.filter(lit), "#e9f4fa", 0.55, "knowledge-links:selected"));
+    return group;
+  }, [links, at, bright]);
+  useEffect(() => () => drawn.traverse(object => {
+    const mesh = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
+    mesh.geometry?.dispose();
+    mesh.material?.dispose();
+  }), [drawn]);
+  return <primitive object={drawn} />;
 }

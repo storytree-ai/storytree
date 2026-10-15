@@ -93,8 +93,7 @@ try {
   }
   const row = page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator(`.session-row[data-session-id="${session}"]`);
   await row.waitFor();
-  await page.evaluate(() => document.querySelector('[data-globe-switch="library"][aria-pressed="false"]')?.click()); // a launch opens with Library off
-  await page.locator('button[data-globe-switch="stories"]').click();
+  await page.locator('button[data-globe-switch="library"]').click(); // a launch opens on the Stories face: turn the sheet over to its notes
   const frames = async () => page.evaluate(async () => {
     for (let i = 0; i < 8; i++) { window.__globe.invalidate(); await new Promise(requestAnimationFrame); }
   });

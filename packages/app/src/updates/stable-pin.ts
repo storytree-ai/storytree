@@ -24,6 +24,8 @@ export interface StableManifest {
     commit: string;
     at: string;
     previous?: string;
+    /** Set when this pin moved stable back to a build pinned before, to stop the named bad build spreading. */
+    movedBackFrom?: string;
     /** The platforms this pin moved to its version. */
     covers?: ("windows" | FeedPlatform)[];
     increments: { id: string; title: string; pr: string; note?: string }[];
@@ -46,6 +48,8 @@ export interface PinCandidate {
 export interface Bootstraps { ps1: string; sh?: string }
 export interface PinPorts {
   previous(): Promise<{ ref: string; manifest: StableManifest } | undefined>;
+  /** The manifest the latest earlier pin of this version published, read from the stable branch's history. */
+  formerPin(version: string): Promise<StableManifest | undefined>;
   /** The adapter checks the release tag is on main and its version matches that commit. */
   candidate(version: string): Promise<PinCandidate>;
   pullRequests(commit: string): Promise<ReadonlySet<string>>;
@@ -106,12 +110,40 @@ export function pinCoverage(manifest: StableManifest): string {
   })].join(" ");
 }
 
+/**
+ * Stops a bad pin spreading: stable goes back to a build it was pinned to before, with that pin's installer, feeds and
+ * recorded increments, so the next pin lists again what only the bad build carried. Installs that already took the bad
+ * build keep it (the updater never downgrades: their database may have been migrated forward).
+ */
+export async function moveStableBack(version: string, ports: PinPorts, preview = false): Promise<StableManifest> {
+  const build = buildNumber(version);
+  const current = await ports.previous();
+  if (!current) throw new Error("Nothing is pinned as stable, so there is nothing to move back");
+  readStableManifest(current.manifest);
+  const from = current.manifest.version;
+  if (build >= buildNumber(from)) throw new Error(`--back moves stable to an older build than ${from}; pin a newer build without --back`);
+  const former = await ports.formerPin(version);
+  if (!former) throw new Error(`Stable was never pinned to ${version}; --back moves only to a build pinned before`);
+  readStableManifest(former);
+  const candidate = await ports.candidate(version);
+  if (candidate.version !== version || candidate.commit !== former.pin.commit) throw new Error("The formerly pinned release identity changed");
+  const manifest: StableManifest = {
+    ...former,
+    releaseNotes: `${former.releaseNotes}\n\nStable moved back from ${from} to ${version} to stop ${from} spreading; installs that already took ${from} keep it.`,
+    pin: { ...former.pin, at: ports.now(), previous: from, movedBackFrom: from },
+  };
+  if (!preview) await ports.publish(manifest, candidate.bootstrap, current.ref);
+  return manifest;
+}
+
 export async function pinStable(version: string, ports: PinPorts, preview = false): Promise<StableManifest> {
   const build = buildNumber(version);
   const previous = await ports.previous();
   if (previous) {
     readStableManifest(previous.manifest);
-    if (build < buildNumber(previous.manifest.version)) throw new Error("An older release cannot replace the stable pin");
+    if (build < buildNumber(previous.manifest.version)) {
+      throw new Error("An older release cannot replace the stable pin; to stop a bad pin spreading, move it back with --back to a build pinned before");
+    }
   }
   const candidate = await ports.candidate(version);
   const installer = candidate.installer;

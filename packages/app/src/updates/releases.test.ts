@@ -68,12 +68,30 @@ test("4.15 stable downloads only the pinned artifact while development continues
   assert.equal(unpinned.request("status").nextBuild, "0.3.3");
 });
 
+test("4.16 after stable moves back, an install on the bad build sees no update and one on an older build takes nothing newer than the pin", async (t) => {
+  const feed = await fixture(t);
+  feed.version = "0.3.9";
+  feed.stable = "0.3.2";
+  feed.running = "0.3.3";
+  let installed = 0;
+  const onBad = feed.updater(async () => { installed++; }, async () => true, async () => true, "stable");
+  assert.equal(await onBad.check(), "current");
+  assert.equal(onBad.request("status").phase, "up-to-date");
+  assert.equal(feed.downloads, 0);
+  feed.running = "0.3.1";
+  const older = feed.updater(async () => { installed++; }, async () => true, async () => true, "stable");
+  assert.equal(await older.check(), "restarting");
+  assert.equal(older.request("status").nextBuild, "0.3.2");
+  assert.equal(installed, 1);
+});
+
 /** The stable branch exactly as a pin of `version` writes it, every file pointing at that release's own assets. */
 async function pinnedBranch(installer: Buffer, version: string): Promise<Map<string, string>> {
   const at = (name: string) => `https://github.com/storytree-ai/storytree/releases/download/v${version}/storytree-0.3-${version}-${name}`;
   const digest = { sha512: createHash("sha512").update(installer).digest("base64"), size: installer.length };
   const manifest = await pinStable(version, {
     previous: async () => undefined,
+    formerPin: async () => undefined,
     candidate: async () => ({ version, commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false,
       installer: { url: at("setup.exe"), sha256: "a".repeat(64), ...digest }, bootstrap: { ps1: "bootstrap" },
       // An arch-neutral name: MacUpdater drops arm64 files on an Intel host, which this test may run on.
@@ -301,7 +319,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-release-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const installer = Buffer.from("fixture release payload — never executed");
-  const state = { version: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined };
+  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined };
   const files = (base = "") => ["setup.exe", "storytree-mac.zip"].map(url => ({ url: `${base}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
   const server = createServer((request, response) => {
     if (state.offline) { response.writeHead(404).end(); return; }
@@ -345,7 +363,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
     updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "development") {
       if (platform === "darwin") electron.autoUpdater = state.squirrel = new Squirrel();
       const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", ...(channel ? { releaseChannel: () => channel } : {}) }, {
-        version: "0.3.1", name: "storytree-test", isPackaged: true,
+        version: state.running, name: "storytree-test", isPackaged: true,
         appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),
         quit: () => assert.fail("separate quit"), onQuit: () => assert.fail("install-on-quit bypasses lifecycle"),

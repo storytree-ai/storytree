@@ -4,7 +4,7 @@ import type { Library } from "@storytree/library";
 import { STABLE_BRANCH } from "./release-channel.js";
 import { versionAt } from "./release-source.js";
 import {
-  FEED_PLATFORMS, mergedPullRequests, pinCoverage, pinStable, readStableManifest,
+  FEED_PLATFORMS, mergedPullRequests, moveStableBack, pinCoverage, pinStable, readStableManifest,
   type Bootstraps, type FeedPlatform, type PinPorts, type PlatformFeed, type PlatformFeeds, type StableManifest,
 } from "./stable-pin.js";
 
@@ -28,8 +28,9 @@ export async function publishStable(manifest: StableManifest, bootstrap: Bootstr
       { path: FEED_PLATFORMS[platform as FeedPlatform].file, mode: "100644", type: "blob", content: JSON.stringify(feed, null, 2) + "\n" })),
     { path: "README.md", mode: "100644", type: "blob", content: `${manifest.releaseNotes}\n\n${pinCoverage(manifest)}\n\nPinned from ${manifest.pin.commit}. Installer bytes remain on their original development releases.\n` },
   ] }) as { sha: string };
+  const back = manifest.pin.movedBackFrom;
   const commit = await api("git/commits", "POST", {
-    message: `Pin storytree ${manifest.version} as stable`, tree: tree.sha, parents: expectedRef ? [expectedRef] : [],
+    message: back ? `Move stable back to storytree ${manifest.version} from ${back}` : `Pin storytree ${manifest.version} as stable`, tree: tree.sha, parents: expectedRef ? [expectedRef] : [],
   }) as { sha: string };
   try {
     if (expectedRef) await api(`git/refs/heads/${STABLE_BRANCH}`, "PATCH", { sha: commit.sha, force: false });
@@ -76,8 +77,32 @@ interface Release {
   assets: { name: string; browser_download_url: string; id: number; size: number }[];
 }
 
+/** The stable branch's pin commits, newest first: the version each pinned, from the message publishStable writes. */
+export function pinCommits(commits: readonly { sha: string; commit: { message: string } }[]): { sha: string; version: string }[] {
+  return commits.flatMap(({ sha, commit }) => {
+    const m = /^(?:Pin storytree (0\.3\.[1-9]\d*) as stable|Move stable back to storytree (0\.3\.[1-9]\d*) from )/.exec(commit.message);
+    return m ? [{ sha, version: (m[1] ?? m[2])! }] : [];
+  });
+}
+
+async function readPin(api: GithubRequest, ref: string): Promise<StableManifest> {
+  const file = await api(`contents/latest.yml?ref=${ref}`) as { content: string; encoding: string };
+  if (file.encoding !== "base64") throw new Error("Cannot read the stable pin");
+  return readStableManifest(JSON.parse(Buffer.from(file.content, "base64").toString("utf8")));
+}
+
+/** The manifest the newest earlier pin of `version` published, or nothing when stable was never pinned to it. */
+export async function formerPin(version: string, api: GithubRequest): Promise<StableManifest | undefined> {
+  for (let page = 1; ; page++) {
+    const commits = await api(`commits?sha=${STABLE_BRANCH}&per_page=100&page=${page}`) as { sha: string; commit: { message: string } }[];
+    const found = pinCommits(commits).find(c => c.version === version);
+    if (found) return readPin(api, found.sha);
+    if (commits.length < 100) return undefined;
+  }
+}
+
 /** Thin front doors call this with their project library; all release rules stay in the app story. */
-export async function pinRelease(version: string, options: { library: Pick<Library, "list">; cwd: string; preview?: boolean }): Promise<StableManifest> {
+export async function pinRelease(version: string, options: { library: Pick<Library, "list">; cwd: string; preview?: boolean; back?: boolean }): Promise<StableManifest> {
   const api = github(options.cwd);
   const git = (...args: string[]) => execFileSync("git", args, { cwd: options.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 }).trim();
   const asset = (release: Release, name: string) => {
@@ -99,10 +124,9 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
         if (String((error as { stderr?: string }).stderr).includes("HTTP 404")) return undefined;
         throw error;
       }
-      const file = await api(`contents/latest.yml?ref=${ref.object.sha}`) as { content: string; encoding: string };
-      if (file.encoding !== "base64") throw new Error("Cannot read the previous stable pin");
-      return { ref: ref.object.sha, manifest: readStableManifest(JSON.parse(Buffer.from(file.content, "base64").toString("utf8"))) };
+      return { ref: ref.object.sha, manifest: await readPin(api, ref.object.sha) };
     },
+    formerPin: wanted => formerPin(wanted, api),
     async candidate(wanted) {
       const release = await api(`releases/tags/v${wanted}`) as Release;
       if (release.tag_name !== `v${wanted}` || release.draft || release.prerelease) throw new Error("Pin a published development build by its 0.3.<n> version");
@@ -144,5 +168,5 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
     publish: (manifest, bootstrap, expected) => publishStable(manifest, bootstrap, expected, api),
     now: () => new Date().toISOString(),
   };
-  return pinStable(version, ports, options.preview);
+  return options.back ? moveStableBack(version, ports, options.preview) : pinStable(version, ports, options.preview);
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mergedPullRequests, pinCoverage, type PinCandidate, pinStable, type PinPorts, type PlatformFeed, type StableManifest } from "./stable-pin.js";
-import { publishStable, releaseFeed, type GithubRequest } from "./stable-github.js";
+import { mergedPullRequests, moveStableBack, pinCoverage, type PinCandidate, pinStable, type PinPorts, type PlatformFeed, type StableManifest } from "./stable-pin.js";
+import { formerPin, publishStable, releaseFeed, type GithubRequest } from "./stable-github.js";
 
 type PinCandidateFeeds = PinCandidate["feeds"];
 const RELEASES = "https://github.com/storytree-ai/storytree/releases/download";
@@ -25,6 +25,7 @@ function fixture() {
   };
   const ports: PinPorts = {
     previous: async () => current,
+    formerPin: async version => state.published.findLast(manifest => manifest.version === version),
     candidate: async () => state.candidate,
     pullRequests: async () => new Set(["531", "532"]),
     increments: async () => state.increments,
@@ -167,6 +168,72 @@ test("4.16 a platform feed that is not its own release's complete build is refus
   assert.equal(state.published.length, 0);
   state.candidate = { ...state.candidate, feeds: good };
   assert.match(pinCoverage(await pinStable("0.3.2", ports, true)), /^Windows, Mac and Linux take 0\.3\.2\.$/);
+});
+
+test("4.16 the pin moves back only to a build pinned before, restoring that pin's feeds and increments; any other older build is refused", async () => {
+  const { state, ports } = fixture();
+  const good = state.candidate;
+  const first = await pinStable("0.3.2", ports);
+  state.increments.push({ id: "two", fields: { title: "Stable updates", status: "closed", outcome: { disposition: "landed", pr: "532" } } });
+  release(state, "0.3.3", {});
+  const bad = await pinStable("0.3.3", ports);
+  assert.deepEqual(bad.pin.includedIncrements, ["one", "two"]);
+  // Pinning forward to an older build stays refused, and says how to stop a bad pin instead.
+  release(state, "0.3.2", {});
+  await assert.rejects(pinStable("0.3.2", ports), /older.*--back/s);
+  // Back to a build never pinned, or to one that is not older, is refused.
+  release(state, "0.3.1", {});
+  await assert.rejects(moveStableBack("0.3.1", ports), /never pinned/);
+  release(state, "0.3.3", {});
+  await assert.rejects(moveStableBack("0.3.3", ports), /older/);
+  // The release behind a former pin must still be that pin's build.
+  release(state, "0.3.2", platformFeeds("0.3.2"));
+  await assert.rejects(moveStableBack("0.3.2", ports), /identity/);
+  assert.equal(state.published.length, 2);
+  state.candidate = good;
+  const preview = await moveStableBack("0.3.2", ports, true);
+  assert.equal(state.published.length, 2);
+  const back = await moveStableBack("0.3.2", ports);
+  assert.deepEqual(back, preview);
+  assert.equal(state.published.length, 3);
+  assert.equal(back.version, "0.3.2");
+  assert.deepEqual(back.files, first.files);
+  assert.deepEqual(back.feeds, first.feeds);
+  assert.equal(back.pin.previous, "0.3.3");
+  assert.equal(back.pin.movedBackFrom, "0.3.3");
+  assert.match(back.releaseNotes, /moved back from 0\.3\.3/i);
+  // Stable users on the restored build never had the bad pin's increments, so the next pin lists them again.
+  assert.deepEqual(back.pin.includedIncrements, ["one"]);
+  release(state, "0.3.4", {});
+  const next = await pinStable("0.3.4", ports);
+  assert.deepEqual(next.pin.increments.map(i => i.id), ["two"]);
+});
+
+test("4.16 a former pin is read from the stable branch's history, a move back included, and a build only mentioned there is not one", async () => {
+  const { ports } = fixture();
+  const pinned = await pinStable("0.3.2", ports, true);
+  const history = [
+    { sha: "c3", commit: { message: "Move stable back to storytree 0.3.2 from 0.3.3" } },
+    { sha: "c2", commit: { message: "Pin storytree 0.3.3 as stable" } },
+    { sha: "c0", commit: { message: "Notes about storytree 0.3.1" } },
+    { sha: "c1", commit: { message: "Pin storytree 0.3.2 as stable" } },
+  ];
+  const read: string[] = [];
+  const api: GithubRequest = async endpoint => {
+    if (endpoint.startsWith("commits?")) return endpoint.includes("page=1") ? history : [];
+    read.push(endpoint);
+    return { encoding: "base64", content: Buffer.from(JSON.stringify(pinned)).toString("base64") };
+  };
+  assert.deepEqual(await formerPin("0.3.2", api), pinned);
+  assert.deepEqual(read, ["contents/latest.yml?ref=c3"]);
+  assert.equal(await formerPin("0.3.1", api), undefined);
+  // A move back is written to the branch under its own message.
+  const messages: string[] = [];
+  await publishStable({ ...pinned, pin: { ...pinned.pin, movedBackFrom: "0.3.3" } }, { ps1: "b" }, "base", async (endpoint, _m, body) => {
+    if (endpoint === "git/commits") messages.push((body as { message: string }).message);
+    return { sha: "sha" };
+  });
+  assert.deepEqual(messages, ["Move stable back to storytree 0.3.2 from 0.3.3"]);
 });
 
 test("4.16 a release's own Mac feed is read with each file at its absolute URL on that release, and a size that differs from the asset is refused", () => {

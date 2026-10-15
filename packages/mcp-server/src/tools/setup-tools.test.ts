@@ -471,6 +471,50 @@ test("app-setup 8.26 in a project an earlier starter pack seeded, the check name
   });
 });
 
+test("app-setup 6.12 move_onto_factory, on the user's yes, drops the project's unedited copies its factory holds and keeps the ones the user edited, naming each", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const [project, factory] = [uniqueProjectName(), uniqueProjectName()];
+    const storytree = await connect({ url: testServerUrl() });
+    try {
+      const principle = (title: string, statement: string) => ({ title, description: "Build only what the next failing test needs.", statement, why: "Less to fix.", howToApply: "Name the behaviour first." });
+      const made = await storytree.openProject(factory);
+      await made.markFactory();
+      const theirs = await made.writeKnowledge("principle", principle("Minimum to green", "The factory's statement."), { actor: "storytree setup (starter pack v5)" });
+      await made.writeKnowledge("principle", principle("Edit before adding", "The factory's statement."), { actor: "storytree setup (starter pack v5)" });
+      await made.close();
+      // A product made before it stopped holding copies: one copy unedited, one its user edited.
+      const library = await storytree.openProject(project);
+      await library.recordFactory(factory);
+      const copy = await library.writeKnowledge("principle", principle("Minimum to green", "The copy's statement."), { actor: "storytree setup (starter pack v5)" });
+      const edited = await library.writeKnowledge("principle", principle("Edit before adding", "The copy's statement."), { actor: "storytree setup (starter pack v5)" });
+      await library.editNote(edited.id, { why: "Our own reason." }, { actor: "session:the-user" });
+      await library.close();
+
+      const folder = path.join(dir, project);
+      mkdirSync(folder);
+      writeFileSync(path.join(folder, MARKER_FILE), `${JSON.stringify({ project })}\n`);
+      await approveCheckout(folder, project, home.storytreeHome);
+      await withAgent(folder, claudeCode(`claude-${project}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
+        const moved = await agent.call("move_onto_factory");
+        assert.equal(moved.isError, false, moved.text);
+        assert.deepEqual({ factory: moved.data.factory, dropped: moved.data.dropped, kept: moved.data.kept }, {
+          factory,
+          dropped: [{ kind: "principle", title: "Minimum to green", id: copy.id }],
+          kept: [{ kind: "principle", title: "Edit before adding", id: edited.id, why: "own" }],
+        });
+        assert.match(moved.text, new RegExp(`builds with the factory "${factory}": dropped 1 unedited copy.*Kept as this project's own: the principle "Edit before adding"\\.$`));
+      });
+      const after = await storytree.openProject(project, { create: false });
+      assert.equal((await after.get(copy.id))?.id, theirs.id, "the dropped copy reads as the factory's");
+      await after.close();
+    } finally {
+      await storytree.close();
+      await dropTestProjects([project, factory]);
+    }
+  });
+});
+
 test("app-setup 8.20 once storytree has received the session's edit of the check file, the check deletes the file where the agent wrote it, in a worktree whose tool server runs in the project's folder and while the other hooks are still missing (regression: the laptop's worktree sessions, 2026-10-02)", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {

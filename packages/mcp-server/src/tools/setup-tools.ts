@@ -13,7 +13,7 @@ import { habitsCard } from "../instructions/habits.js";
 import { hookFailures, type HookFailure } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/project-and-caller";
 import { findProject, storytreeHome } from "@storytree/project-and-caller";
-import { IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, takeStarterPack, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
+import { IDENTITY_FIX, makeRepository, moveOntoFactory, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, takeStarterPack, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -169,7 +169,8 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
 
 /**
  * `take_starter_pack`, which the agent calls on the user's yes to check_setup's offer of a newer starter pack (8.26):
- * the pack is taken into the project's library without overwriting what its user edited (6.9).
+ * the pack is taken into the project's library without overwriting what its user edited (6.9). And `move_onto_factory`,
+ * which the agent calls on the user's yes, moving a project made before factories onto theirs, its edits kept (6.12).
  */
 export function registerStarterPackTool(define: Define): void {
   define(
@@ -183,6 +184,17 @@ export function registerStarterPackTool(define: Define): void {
         said.push(`Left as the user edited ${took.kept.length === 1 ? "it" : "them"}: ${took.kept.map(({ kind, title }) => `the ${kind} ${quoted(title)}`).join(", ")}. Show the user the newer text beside each (in this answer's data) and change one only if they ask.`);
       }
       return { text: said.join(" "), data: { ...took } };
+    },
+  );
+  define(
+    "move_onto_factory",
+    "Move this project onto the user's factory, the project holding the system their projects build with (ADR-1040): call it only when the user said yes. Each copy of a role, note or check this project never edited, and the factory also holds, is dropped so the factory's shows through; every one the user edited or added stays this project's own. Moving again changes nothing.",
+    z.object({}),
+    async (_args, { storytree, project }) => {
+      const moved = await moveOntoFactory({ storytree, project });
+      const said = [`This project now builds with the factory "${moved.factory}": dropped ${moved.dropped.length} unedited ${moved.dropped.length === 1 ? "copy" : "copies"} of its system.`];
+      if (moved.kept.length > 0) said.push(`Kept as this project's own: ${moved.kept.map(({ kind, title, why }) => `the ${kind} ${quoted(title)}${why === "own" ? "" : ` (${why})`}`).join(", ")}.`);
+      return { text: said.join(" "), data: { ...moved } };
     },
   );
 }

@@ -510,3 +510,31 @@ test("1.16 a product project reads its factory's roles, notes and checks, and it
     assert.equal(await orphan.records.get(shared.id), null);
   });
 });
+
+test("1.17 a product's link to a system record it retired, as moving onto its factory drops a copy, reads the record of that kind and title: its own, else the factory's (ADR-1040)", async () => {
+  const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
+  await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
+    const made = await storytree.openProject(factory);
+    await made.lineage.markFactory();
+    const principle = (title: string, statement: string) => ({ title, description: `${title}.`, statement, why: "It helps.", howToApply: "Do it." });
+    const theirs = await made.knowledge.writeKnowledge("principle", principle("Keep it small", "The factory's wording."));
+
+    const before = await storytree.openProject(product);
+    const copy = await before.knowledge.writeKnowledge("principle", principle("Keep it small", "The copy's wording."));
+    const decision = await before.knowledge.recordDecision({ title: "A decision", text: "Kept.", status: "accepted" });
+    await before.lineage.recordFactory(factory);
+    await before.close();
+
+    const built = await storytree.openProject(product);
+    await built.records.retire(copy.id, "dropped for the factory's");
+    assert.equal((await built.records.get(copy.id))?.fields.statement, "The factory's wording.", "a link to the dropped copy reads the factory's record");
+    assert.equal((await built.records.get(copy.id))?.id, theirs.id);
+
+    const edited = await built.knowledge.writeKnowledge("principle", principle("Keep it small", "The product's later wording."));
+    assert.equal((await built.records.get(copy.id))?.id, edited.id, "its own record of the title wins over the factory's");
+
+    // Memory the product retired stays retired.
+    await built.records.retire(decision.id, "withdrawn");
+    assert.equal(await built.records.get(decision.id), null);
+  });
+});

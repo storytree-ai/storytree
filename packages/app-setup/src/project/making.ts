@@ -100,7 +100,7 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
  * made under the first of those names `taken` lacks, marked a factory and seeded with the starter pack. Of two setups
  * making it at once, only the one whose mark made it seeds it.
  */
-async function userFactory(storytree: Storytree, name: string, taken: readonly string[]): Promise<string> {
+export async function userFactory(storytree: Storytree, name: string, taken: readonly string[]): Promise<string> {
   const candidate = new RegExp(`^${name}(-[0-9]+)?$`);
   const named = taken.filter((each) => candidate.test(each)).sort((a, b) => a.length - b.length || a.localeCompare(b));
   for (const each of named) {

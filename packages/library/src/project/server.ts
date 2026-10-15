@@ -173,11 +173,21 @@ export function waitsOf(pool: Pool): { readonly waitMs: number; say(what: string
 const RESET_TRIES = 5;
 
 /**
+ * How long the server lets a library connection sit idle inside a transaction before it ends that
+ * session. Every storytree transaction runs its statements back to back, so one idle this long
+ * belongs to a client that is gone: a process killed, or a network cut, between its write and its
+ * commit, whose write lock would otherwise block every other session until TCP keepalive notices,
+ * hours later (friction_fb2ec81f0582: a cancelled CI own-health run held it for minutes).
+ */
+export const IDLE_IN_TRANSACTION_MS = 10_000;
+
+/**
  * A pool for `config`, whose connections wait for a free slot on the server rather than fail for
- * want of one, and each name the machine and process holding it unless `config` names them.
+ * want of one, each name the machine and process holding it unless `config` names them, and each
+ * is ended by the server when left idle in a transaction (IDLE_IN_TRANSACTION_MS).
  */
 export function newPool(config: WaitingPoolConfig): Pool {
-  const pool = new SlotWaitingPool({ application_name: CLIENT_NAME, ...config });
+  const pool = new SlotWaitingPool({ application_name: CLIENT_NAME, idle_in_transaction_session_timeout: IDLE_IN_TRANSACTION_MS, ...config });
   // An idle connection that drops (a server restart, a dropped database) is discarded by the pool
   // and the next query reconnects or fails loudly. Without a listener Node would crash instead.
   pool.on("error", () => {});

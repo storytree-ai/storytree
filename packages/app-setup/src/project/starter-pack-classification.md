@@ -1,4 +1,4 @@
-# Where the starter pack's roles and notes came from (pack version 4)
+# Where the starter pack's roles and notes came from (pack version 5)
 
 Evidence for increment_d90f79ab4d9e, on the arc "A new project's library starts with the full system"
 (ADR-0996). Read on 2026-10-11 from storytree's own library: its eight agent roles and the 65 notes (47 principles, 5 guardrails, 9 patterns, 4 processes)
@@ -107,7 +107,30 @@ FB frontend-builder, BR blind-reviewer, CI corpus-investigator; c = required rea
 | Library edit ceremony (process) | SO c | ADAPT | `build:guidance`, the command line's `@file` and shell-quoting rules (the habits card names only the tools a user's agent has) and friction ids dropped. |
 | Friction adjudication (process) | LC c | ADAPT | `storytree arc increment new --remedies` becomes park_increment and add_remedies. |
 
-The pack seeds 45 principles, 7 guardrails, 8 patterns and 4 processes: the pack's own four
+Pack version 5 (increment_e3895e1ac1bf) adds the notes no role of storytree's links, which `factory-contents.md` marks IN (BRING here) or ADAPT, and links each from the role it serves:
+
+| storytree's note (kind) | used by | class | pack note / reason |
+|---|---|---|---|
+| Price the deferral (principle) | SO r | BRING | 0.2's measured examples kept without their history; "doc-vs-implementation-precedence" named as the pack's Implementation outranks the doc. |
+| Durable notes carry intent, not implementation surface (principle) | LC r, SA r | BRING | 0.2's eviction history dropped. |
+| Tightening a shared contract needs a full sweep (principle) | SO r | ADAPT | `pnpm test` and 0.3's scoped runs become the project's tests and a scoped run in general. |
+| A story's proof proves the goal, not the surface (principle) | SA r | BRING | 0.2's UAT practice named as Minimum test to red's story-level form. |
+| Cold rebuild (principle) | SA r | BRING | 0.3-as-a-port-of-0.2 dropped. |
+| Stateless graduates, stateful stays (principle) | LC r | BRING | Names the graduate tool. |
+| An escape sequence in a tool argument becomes a real byte (principle) | SO r | BRING | 0.2's incidents kept as general examples; "pass prose to storytree" becomes any command line. |
+| The same file in another tree is a different file (principle) | SO r, CI r | BRING | 0.3's training-wheels second repository dropped; worktrees named as make_workspace's. |
+| A human's words are stored verbatim, or not at all (principle) | LC r | ADAPT | "His" becomes the user's; the schema-refusal wording advice (storytree's own schema) dropped. |
+| An owner-approved reference is repo-resident (principle) | FB r | ADAPT | Retitled "A user-approved reference is repo-resident"; `docs/design/<topic>/` becomes a design folder. |
+| De-noising promotes a signal, never drops it (principle) | FB r | ADAPT | "Observability surface" becomes any dense view; its links to Show what matters now and Nothing is out of reach (OUT) become the declared, recoverable hide they describe. |
+| Types stay honest (guardrail) | SO a, FB a | ADAPT | For a TypeScript project; 0.2's oxlint rungs and `pnpm typecheck` become the project's type check and any linter. |
+| A measured claim carries the method that produced it (pattern) | LC r, CI r | BRING | 0.2's audit kept as an example; `storytree library list question` becomes the query that counted. |
+| Grill me: walk the owner through his open questions (process) | none | ADAPT | Retitled "Grill me: walk the user through their open questions"; the Mint box dispatch, Windows PowerShell rules, ADR numbers, friction ids and the 22-round evidence counts dropped; storytree's commands become the user's tools. No role links it: the user's words trigger it. |
+| Stage the owner's look (process) | SO r, FB r | ADAPT | Retitled "Stage the user's look"; ADR-0794 dropped. |
+| Attempt privileged actions, approve inline (process) | SO r | ADAPT | A `gh` mutation becomes a change on the project's host. |
+| Justify a new check (process) | SO r | ADAPT | CI and `pnpm test-ratio` become the project's pipeline and a command the user runs; 0.2's sixteen retired rungs kept without their numbers. |
+| Migrate a library schema: expand, migrate, contract (process) | SO r | ADAPT | Retitled "Migrate a schema: expand, migrate, contract" and generalised to any schema the project owns; storytree's library schema dropped. |
+
+The pack seeds 56 principles, 8 guardrails, 9 patterns and 9 processes: the pack's own four
 principles and its module-mock guardrail (v1 and v2), and every note above that is not folded or
 dropped. Not here: projects already set up (increment_aa6273267336), role files in a user's agent
 folders (arc_4e3323a6b963).

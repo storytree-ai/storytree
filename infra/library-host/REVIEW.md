@@ -91,3 +91,22 @@ running `runtime-20261011T205304635Z-3c67f849`:
 ```text
 cf16714fe59d2fc0e168b2cce67b3329cece039e4ee88700e9919fe535c7a0f7  host.mjs
 ```
+
+## Addendum — 2026-10-15: storytree-quality joins the backups
+
+increment_12f4800dc93e. `backup` also dumps, scratch-restores and uploads
+`storytree-quality`, the QA ledger (`packages/quality-assurance`: every
+change-reviewer return, hit and answer, which ADR-0956 D7's ten-review refusal
+counts), owned by `storytree_library` and unmarked like `storytree-lag`. A manifest
+naming the three, the three and `storytree-lag`, or all five restores; anything
+else is refused. The Cloud copy, cutover and rollback still name the three.
+Reviewed by the change-reviewer with no findings. Real runs, each after its dry
+run: one verified backup (`backups/20261015T000729408Z-82609577`, five dumps), a
+bucket restore of it and of the pre-change `backups/20261015T000047703Z-d54d3776`
+(four dumps), then the timer re-installed by the README's path (the replaced units
+kept under `~/storytree-lanes/library-backups/replaced-units-increment_12f4800dc93e/`),
+now running `runtime-20261015T001739907Z-d8a9b3a8`:
+
+```text
+33223a1040ffd5ad51c8f697cce8bc3dd33ba9ffec72350a67e4e4113edb479a  host.mjs
+```

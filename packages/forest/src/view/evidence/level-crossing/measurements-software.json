@@ -1,0 +1,268 @@
+{
+ "viewport": {
+  "width": 1440,
+  "height": 960
+ },
+ "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "nearDeg": 12,
+ "seed": {
+  "stories": 27,
+  "capabilities": 142,
+  "taken": "2026-10-15T01:10:33.514Z",
+  "changesFolded": "each record: its created change and its last later change; cursor kept"
+ },
+ "results": {
+  "stories-hand-down-1": {
+   "frames": 46,
+   "crossing": {
+    "frames": 12,
+    "longest": {
+     "ms": 183,
+     "fromDeg": 91,
+     "toDeg": 93
+    },
+    "medianMs": 83
+   },
+   "rest": {
+    "frames": 34,
+    "longest": {
+     "ms": 167,
+     "fromDeg": 138,
+     "toDeg": 140
+    },
+    "medianMs": 83
+   }
+  },
+  "stories-hand-up-1": {
+   "frames": 49,
+   "crossing": {
+    "frames": 13,
+    "longest": {
+     "ms": 117,
+     "fromDeg": 91,
+     "toDeg": 89
+    },
+    "medianMs": 83
+   },
+   "rest": {
+    "frames": 36,
+    "longest": {
+     "ms": 133,
+     "fromDeg": 115,
+     "toDeg": 113
+    },
+    "medianMs": 83
+   }
+  },
+  "stories-hand-down-2": {
+   "frames": 49,
+   "crossing": {
+    "frames": 13,
+    "longest": {
+     "ms": 117,
+     "fromDeg": 92,
+     "toDeg": 95
+    },
+    "medianMs": 83
+   },
+   "rest": {
+    "frames": 36,
+    "longest": {
+     "ms": 167,
+     "fromDeg": 73,
+     "toDeg": 76
+    },
+    "medianMs": 83
+   }
+  },
+  "stories-hand-up-2": {
+   "frames": 48,
+   "crossing": {
+    "frames": 13,
+    "longest": {
+     "ms": 117,
+     "fromDeg": 87,
+     "toDeg": 85
+    },
+    "medianMs": 83
+   },
+   "rest": {
+    "frames": 35,
+    "longest": {
+     "ms": 167,
+     "fromDeg": 113,
+     "toDeg": 110
+    },
+    "medianMs": 83
+   }
+  },
+  "stories-hand-down-3": {
+   "frames": 49,
+   "crossing": {
+    "frames": 13,
+    "longest": {
+     "ms": 117,
+     "fromDeg": 92,
+     "toDeg": 95
+    },
+    "medianMs": 83
+   },
+   "rest": {
+    "frames": 36,
+    "longest": {
+     "ms": 167,
+     "fromDeg": 123,
+     "toDeg": 127
+    },
+    "medianMs": 83
+   }
+  },
+  "stories-hand-up-3": {
+   "frames": 48,
+   "crossing": {
+    "frames": 12,
+    "longest": {
+     "ms": 150,
+     "fromDeg": 90,
+     "toDeg": 88
+    },
+    "medianMs": 100
+   },
+   "rest": {
+    "frames": 36,
+    "longest": {
+     "ms": 150,
+     "fromDeg": 42,
+     "toDeg": 40
+    },
+    "medianMs": 83
+   }
+  },
+  "library-hand-down-1": {
+   "frames": 49,
+   "crossing": {
+    "frames": 12,
+    "longest": {
+     "ms": 100,
+     "fromDeg": 77,
+     "toDeg": 80
+    },
+    "medianMs": 50
+   },
+   "rest": {
+    "frames": 37,
+    "longest": {
+     "ms": 117,
+     "fromDeg": 131,
+     "toDeg": 133
+    },
+    "medianMs": 67
+   }
+  },
+  "library-hand-up-1": {
+   "frames": 48,
+   "crossing": {
+    "frames": 14,
+    "longest": {
+     "ms": 83,
+     "fromDeg": 103,
+     "toDeg": 101
+    },
+    "medianMs": 50
+   },
+   "rest": {
+    "frames": 34,
+    "longest": {
+     "ms": 100,
+     "fromDeg": 137,
+     "toDeg": 135
+    },
+    "medianMs": 67
+   }
+  },
+  "library-hand-down-2": {
+   "frames": 48,
+   "crossing": {
+    "frames": 12,
+    "longest": {
+     "ms": 100,
+     "fromDeg": 87,
+     "toDeg": 90
+    },
+    "medianMs": 50
+   },
+   "rest": {
+    "frames": 36,
+    "longest": {
+     "ms": 133,
+     "fromDeg": 137,
+     "toDeg": 140
+    },
+    "medianMs": 67
+   }
+  },
+  "library-hand-up-2": {
+   "frames": 50,
+   "crossing": {
+    "frames": 13,
+    "longest": {
+     "ms": 83,
+     "fromDeg": 103,
+     "toDeg": 101
+    },
+    "medianMs": 50
+   },
+   "rest": {
+    "frames": 37,
+    "longest": {
+     "ms": 100,
+     "fromDeg": 135,
+     "toDeg": 133
+    },
+    "medianMs": 67
+   }
+  },
+  "library-hand-down-3": {
+   "frames": 47,
+   "crossing": {
+    "frames": 13,
+    "longest": {
+     "ms": 117,
+     "fromDeg": 76,
+     "toDeg": 79
+    },
+    "medianMs": 50
+   },
+   "rest": {
+    "frames": 34,
+    "longest": {
+     "ms": 133,
+     "fromDeg": 109,
+     "toDeg": 112
+    },
+    "medianMs": 67
+   }
+  },
+  "library-hand-up-3": {
+   "frames": 47,
+   "crossing": {
+    "frames": 13,
+    "longest": {
+     "ms": 83,
+     "fromDeg": 103,
+     "toDeg": 101
+    },
+    "medianMs": 50
+   },
+   "rest": {
+    "frames": 34,
+    "longest": {
+     "ms": 117,
+     "fromDeg": 48,
+     "toDeg": 45
+    },
+    "medianMs": 67
+   }
+  }
+ }
+}

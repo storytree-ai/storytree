@@ -69,7 +69,11 @@ const waits = z.array(z.object({ on: z.string(), reason: nonEmpty }).strict()).o
 const day = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "a day is YYYY-MM-DD")
-  .refine((text) => new Date(`${text}T00:00:00Z`).toISOString().startsWith(text), "a day is a real day");
+  .refine((text) => {
+    // Zod still runs this after the pattern refuses, so text that is no date at all is refused here, not thrown on.
+    const at = new Date(`${text}T00:00:00Z`);
+    return !Number.isNaN(at.getTime()) && at.toISOString().startsWith(text);
+  }, "a day is a real day");
 
 /**
  * What an increment waits for outside the library (capability 11, ADR-0938 D1), at most one per

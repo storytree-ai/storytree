@@ -15,14 +15,17 @@ const history = () => new History().story("front")
   .decision("old", { frontCoverOf: "front" })
   .decision("new", { frontCoverOf: "front", supersedes: ["old"] })
   .decision("maybe", { status: "proposed" })
-  .create("word", "definition", { term: "Shelf", meaning: "An entrance." });
+  .create("word", "definition", { term: "Shelf", meaning: "An entrance." })
+  .create("found", "definition", { term: "OpenSpec (2026-10-10)", meaning: "Specs beside code." })
+  .create("found", "research", { title: "OpenSpec", description: "Looked at", researched: "2026-10-10", findings: "Specs beside code." });
 
-test("5.5 the kind list has a row per kind with a drawn dot, in a fixed order, with its name, colour and count; ghosts and proposals are not counted", () => {
+test("5.5 the kind list has a row per kind with a drawn dot, in a fixed order, with its name, colour and count; ghosts and proposals are not counted, and a note refiled as another kind counts as its new kind", () => {
   const rows = kindRows(knowledge(history().changes), new Set(["friction"]));
   assert.deepEqual(rows.map(({ kind, label, count, shown }) => ({ kind, label, count, shown })), [
     { kind: "decision", label: "Decisions", count: 2, shown: true },
     { kind: "definition", label: "Definitions", count: 1, shown: true },
     { kind: "principle", label: "Principles", count: 1, shown: true },
+    { kind: "research", label: "Research", count: 1, shown: true },
     { kind: "friction", label: "Friction", count: 2, shown: false },
   ]);
   assert.equal(new Set(rows.map(({ colour }) => colour)).size, rows.length, "each kind has its own colour");

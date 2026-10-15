@@ -565,11 +565,12 @@ for (const backend of [memory, postgres]) {
     await records.create("story", { ...MINIMAL.story, text: prose }, { id: "story-1" });
     await records.create("capability", { ...MINIMAL.capability, text: prose }, { id: "capability-1" });
 
-    assert.equal((await records.get("story-1"))?.fields.text, prose);
-    assert.equal((await records.get("capability-1"))?.fields.text, prose);
+    const textOf = async (id: string) => ((await records.get(id))?.fields as { text?: string } | undefined)?.text;
+    assert.equal(await textOf("story-1"), prose);
+    assert.equal(await textOf("capability-1"), prose);
     assert.deepEqual((await records.get("story-old"))?.fields, MINIMAL.story, "a story written before stories carried text reads as it was");
     await records.edit("story-old", { text: "Added later." });
-    assert.equal((await records.get("story-old"))?.fields.text, "Added later.");
+    assert.equal(await textOf("story-old"), "Added later.");
   });
 }
 

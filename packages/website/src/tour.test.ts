@@ -7,9 +7,7 @@ import { aim, createTour, depthLink, flight, globeOf, groups, insetAt, islandsKe
 import { decisionLabel, freePlayLines, steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
 import { globeSide } from "./tour-camera.js";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { DecisionsDiagram } from "./tour-diagram.js";
+import { decisionsDiagram } from "@storytree/learning-as-you-build/view";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
   id, title: id, explainer, lines, decisions: [], surfaces: {},
@@ -617,7 +615,7 @@ test("2.29 · where the knowledge chapter says decisions sit beneath the map, a 
 });
 
 test("2.29 · the diagram plays over its line's length, and draws each decision as the globe places it: the cover beneath the island, each one it stands on deeper, toward the core", () => {
-  const html = renderToStaticMarkup(createElement(DecisionsDiagram, { seconds: 7.7 }));
+  const html = decisionsDiagram({ seconds: 7.7 });
   assert.match(html, /--diagram-length:7\.7s/);
   // Every decision's depth below the surface, in the order drawn: the cover first, then the ones it stands on.
   const decisions = [...html.matchAll(/<circle class="diagram-decision" cx="([\d.]+)" cy="([\d.]+)"/g)].map(([, x, y]) => ({ x: Number(x), y: Number(y) }));

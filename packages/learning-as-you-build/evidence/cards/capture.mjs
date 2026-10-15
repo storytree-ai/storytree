@@ -31,5 +31,18 @@ await runCapture({
         await page.locator('[data-journal-card]').scrollIntoViewIfNeeded();
       },
       measure: async ({ page }) => page.evaluate(() => [...document.querySelectorAll('[data-journal-entry]')].map(e => e.dataset.journalEntry)) },
+    // The seed has no decision for its card to fire on, so the journal is told one was seen, and reopened to show its depth.
+    { name: 'decision-more',
+      prepare: async ({ page }) => {
+        await page.evaluate(() => {
+          const key = 'storytree.teaching.seen.v1';
+          localStorage.setItem(key, JSON.stringify([...JSON.parse(localStorage.getItem(key) ?? '[]'), { kind: 'decision', at: new Date().toISOString() }]));
+        });
+        // Help is still open from the journal's view: choosing it again opens the journal afresh.
+        await page.locator('[data-app-section="help"]').click();
+        await page.locator('[data-journal-entry="decision"]').click();
+        await page.locator('[data-journal-card] .tour-diagram').scrollIntoViewIfNeeded();
+      },
+      measure: async ({ page }) => page.evaluate(() => { const svg = document.querySelector('[data-journal-card] svg'); const box = svg?.getBoundingClientRect(); return { kind: document.querySelector('[data-journal-card]')?.dataset.kind, drawing: box ? { width: Math.round(box.width), height: Math.round(box.height) } : null }; }) },
   ],
 });

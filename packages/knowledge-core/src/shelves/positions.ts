@@ -8,6 +8,8 @@ export interface GlobePoint {
   at: Point;
   depth: number | undefined;
   home: string | undefined;
+  /** Under the glass sheet, the shelves pulling it, strongest first (ADR-1063 D1). */
+  toward?: string[];
 }
 
 const CAPABILITY_CONE = 0.14;

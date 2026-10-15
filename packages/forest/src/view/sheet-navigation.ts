@@ -22,8 +22,8 @@ const MARGIN = 24;
 /** CSS pixels of the window's height kept clear at the opening: the Sessions strip docked over the bottom, as much again at the top. */
 const CLEAR_HEIGHT = 170;
 
-/** The depth of the pool along the sheet's south edge, where notes on no shelf lie (ADR-1043 D5), in ground units. */
-const POOL_HEIGHT = 90;
+/** How wide and deep an island-less sheet's sea floor is, in ground units: with no land to set it, room for the user's factory's notes (3.63). */
+const BARE_FLOOR = 180;
 
 /** An island-less sheet opens at once only on its Library face, where the user's factory's notes hang (3.63); on Stories it waits for its islands. */
 export function opensBare(mode: ForestMode): boolean {
@@ -31,9 +31,9 @@ export function opensBare(mode: ForestMode): boolean {
 }
 
 /**
- * The islands at their places on the sheet (`sheetPlaces`), centred on the pole, and the glass they stand on, which runs on
- * south past the islands for the pool of notes no shelf reaches. `under` says where the knowledge graph hangs: each
- * story's shelf under its island's middle, each capability's under its territory's, and the pool along the south edge.
+ * The islands at their places on the sheet (`sheetPlaces`), centred on the pole, and the glass they stand on. `under` says
+ * where the knowledge graph hangs: each story's shelf under its island's middle, each capability's under its territory's,
+ * and the sea floor across the islands' footprint, where notes with no links lie (ADR-1063 D3).
  */
 export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>) {
   const placed = sheetPlaces(scene.islands.map(island => {
@@ -41,11 +41,10 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
     if (place === undefined) throw new Error(`No permanent place for ${island.title}`);
     return { story: island.story, place, reach: islandCoastReach(island) };
   }));
-  // An island-less sheet (the user's factory, 3.63) has no land to set the pool's width, so its pool is as wide as it is deep.
-  const { south, north } = placed.bounds, { west, east } = scene.islands.length === 0 ? { west: -POOL_HEIGHT / 2, east: POOL_HEIGHT / 2 } : placed.bounds;
-  const pool = { x: west, y: south - MARGIN - POOL_HEIGHT, width: east - west, height: POOL_HEIGHT };
-  const centre = { x: (west + east) / 2, y: (pool.y + north) / 2 };
-  const extent: SheetExtent = { width: east - west + 2 * MARGIN, height: north - pool.y + 2 * MARGIN };
+  // An island-less sheet (the user's factory, 3.63) has no land to set the floor, so its floor is a square round the pole.
+  const { west, east, south, north } = scene.islands.length === 0 ? { west: -BARE_FLOOR / 2, east: BARE_FLOOR / 2, south: -BARE_FLOOR / 2, north: BARE_FLOOR / 2 } : placed.bounds;
+  const centre = { x: (west + east) / 2, y: (south + north) / 2 };
+  const extent: SheetExtent = { width: east - west + 2 * MARGIN, height: north - south + 2 * MARGIN };
   const at = new Map([...placed.at].map(([story, p]) => [story, { x: p.x - centre.x, y: p.y - centre.y }]));
   const islands: FacingIsland[] = scene.islands.map(island => ({ story: island.story, trees: island.trees, spot: sheetSpot(at.get(island.story)!) }));
   const shelves = new Map<string, SheetPoint>(), stories = new Map<string, string>();
@@ -68,7 +67,7 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
   const under = {
     shelfAt: (node: string) => shelves.get(node),
     storyOf: (node: string) => stories.get(node),
-    pool: { x: pool.x - centre.x, y: pool.y - centre.y, width: pool.width, height: pool.height },
+    floor: { x: west - centre.x, y: south - centre.y, width: east - west, height: north - south },
     depthStep: DEPTH_STEP,
     // A place in the sheet's own frame, drawn on the big sphere: z up from the glass.
     place: ({ x, y, z }: { x: number; y: number; z: number }) => {

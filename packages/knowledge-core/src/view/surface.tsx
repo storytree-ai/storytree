@@ -15,8 +15,8 @@ import { ORCHESTRATOR, dotSizes, lighting, noteCard, trails as readingPaths, tra
 import { ReadRecord } from "../reads/reads.js";
 import { underShelves } from "../shelves/shelves.js";
 import { globePoints, type Point as ShelfPoint } from "../shelves/positions.js";
-import { sheetPoints, type SheetHanging } from "../shelves/sheet.js";
-import { GlobePoints, NoteLinks, type CoreGrowth } from "./globe-points.js";
+import { sheetLit, sheetPoints, type SheetHanging } from "../shelves/sheet.js";
+import { GlobePoints, NoteLinks, SeaFloor, type CoreGrowth } from "./globe-points.js";
 import { KindList, NoteCard } from "./drawing.js";
 
 /** How often the selected session's window is read again, as often as the sessions list's bars. */
@@ -198,20 +198,20 @@ export function KnowledgeNoteCard({ core, onClose }: { core: KnowledgeCore; onCl
   return card === undefined ? null : <NoteCard card={card} onClose={onClose} />;
 }
 
-/** Under the glass sheet (ADR-1043 D5): where each shelf stands, the pool, and where a place under the sheet is drawn. */
+/** Under the glass sheet (ADR-1043 D5, ADR-1063): where each shelf stands, the islands' footprint the sea floor spreads across, and where a place under the sheet is drawn. */
 export interface CoreUnderSheet extends SheetHanging {
   /** Where a place in the sheet's own frame (x east, y north, z up from the glass) is drawn, in the host's frame. */
   place(at: ShelfPoint): Point;
   /** The story a shelf belongs to. */
   storyOf(node: string): string | undefined;
-  /** The selected story: its notes, and the links that touch them, are lit; the rest are quieter (ADR-1043 D3). */
+  /** The selected story: the notes pulled toward its island, and the links that touch them, are lit; the rest are quieter (ADR-1043 D3, ADR-1063 D4). */
   selected: string | undefined;
 }
 
 /** A note's dot under the sheet is sized as on a globe of this radius: about two ground units at the floor. */
 const SHEET_DOT_SCALE = 360;
 
-/** Knowledge under the globe's islands, or hung under the glass sheet with its links, without ghosts: faint, or lit by a selected session's reads and window (ADR-0738 D5, ADR-0746 D1); with none selected, unlit (ADR-0921). */
+/** Knowledge under the globe's islands, or hung under the glass sheet with its links over a faint sea floor, without ghosts: faint, or lit by a selected session's reads and window (ADR-0738 D5, ADR-0746 D1); with none selected, unlit (ADR-0921). */
 export function KnowledgeGlobePoints({ core, spots, radius, places, growth, sheet }: {
   core: KnowledgeCore; spots: ReadonlyMap<string, Point>; radius: number;
   /** Hang the notes under the glass sheet instead of inside the globe. */
@@ -226,9 +226,11 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
   const known = useMemo(() => knowledge(state.drawn), [state.drawn]);
   const hung = useMemo(() => {
     if (sheet === undefined) return undefined;
-    const { points, links } = sheetPoints(underShelves(state.drawn, known), sheet, known.notes);
-    return { points: points.map(point => ({ ...point, at: sheet.place(point.at) })), links };
-  }, [state.drawn, known, sheet?.shelfAt, sheet?.pool, sheet?.depthStep, sheet?.place]);
+    const { points, links, floor } = sheetPoints(underShelves(state.drawn, known), sheet, known.notes);
+    const corners = floor.notes === 0 ? undefined
+      : [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => sheet.place({ x: floor.x + u! * floor.width, y: floor.y + v! * floor.height, z: floor.z }));
+    return { points: points.map(point => ({ ...point, at: sheet.place(point.at) })), links, floor: corners === undefined ? undefined : { corners, notes: floor.notes } };
+  }, [state.drawn, known, sheet?.shelfAt, sheet?.floor, sheet?.depthStep, sheet?.place]);
   const placed = useMemo(() => hung?.points ?? globePoints(underShelves(state.drawn, known), spots, radius), [hung, state.drawn, known, spots, radius]);
   // With none selected, no session's traversal shows (ADR-0921): nothing lights and no path draws.
   const lit = useMemo(() => lighting(store.reads, state.roster, state.session, new Set(known.notes.keys())),
@@ -255,18 +257,19 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth, shee
   const traversal = useMemo(() => window === undefined ? undefined : traversalTrails(window.steps, colour, state.session!), [window, colour, state.session]);
   const drawnPaths = window?.status !== undefined ? paths : traversal ?? [];
   // A new selection starts its own history, so lines already taken when it opens do not grow (ADR-0742 D4).
-  // On the sheet a selected story's notes are lit and the rest quieter, so whose notes are whose reads at a glance.
+  // On the sheet the notes pulled toward a selected story's island are lit, those between it and another island too, and the
+  // rest quieter, so whose notes are whose reads at a glance.
   const selected = sheet?.selected, storyOf = sheet?.storyOf;
   const [bright, quiet] = useMemo(() => {
-    if (selected === undefined || storyOf === undefined) return [undefined, undefined];
-    const own = (point: { home: string | undefined }) => point.home !== undefined && storyOf(point.home) === selected;
-    return [new Set(points.filter(own).map(({ id }) => id)), new Set(points.filter(point => !own(point)).map(({ id }) => id))];
-  }, [points, selected, storyOf]);
+    if (selected === undefined || storyOf === undefined || hung === undefined) return [undefined, undefined];
+    const own = sheetLit(hung.points, selected, storyOf);
+    return [new Set(points.filter(({ id }) => own.has(id)).map(({ id }) => id)), new Set(points.filter(({ id }) => !own.has(id)).map(({ id }) => id))];
+  }, [points, hung, selected, storyOf]);
   const at = useMemo(() => new Map(points.map(point => [point.id, point.at])), [points]);
   const drawn = <GlobePoints key={state.session ?? ""} points={points} radius={sheet === undefined ? radius : SHEET_DOT_SCALE} notes={known.notes} sizes={sizes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} stops={stops} growth={growth} quiet={quiet} />;
   // A switched-off kind's links go with its dots.
   const links = useMemo(() => hung?.links.filter(([a, b]) => at.has(a) && at.has(b)), [hung, at]);
-  return links === undefined ? drawn : <>{drawn}<NoteLinks links={links} at={at} bright={bright} /></>;
+  return links === undefined ? drawn : <>{drawn}<NoteLinks links={links} at={at} bright={bright} />{hung?.floor && <SeaFloor {...hung.floor} />}</>;
 }
 
 /** The kind list (capability 5, D1): each kind with a dot, its colour and its count, switched on or off by a press. */

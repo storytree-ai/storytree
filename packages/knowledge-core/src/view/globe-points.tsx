@@ -6,7 +6,7 @@ import type { RecordEnvelope } from "@storytree/library";
 import { Billboard } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AdditiveBlending, BufferGeometry, Color, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, type InterleavedBufferAttribute } from "three";
+import { AdditiveBlending, BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, type InterleavedBufferAttribute } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -152,7 +152,7 @@ export function GlobePoints({ points, radius, notes, sizes, lit = new Map(), tra
       const size = sizes?.get(point.id) ?? DOT_FLOOR;
       return <mesh key={point.id} name={`knowledge-point:${point.id}`}
       position={[point.at.x, point.at.y, point.at.z]} raycast={noRaycast}
-      userData={{ id: point.id, size, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null,
+      userData={{ id: point.id, size, title: notes.has(point.id) ? noteTitle(notes.get(point.id)!) : point.id, depth: point.depth ?? null, home: point.home ?? null, toward: point.toward ?? null,
         lit: lighting?.colour ?? null, window: state, colour, opacity }}>
       <sphereGeometry args={[radius * size, 12, 8]} />
       <meshBasicMaterial color={colour} transparent opacity={opacity} depthWrite={false} />
@@ -322,5 +322,21 @@ export function NoteLinks({ links, at, bright }: { links: readonly (readonly [st
     return segments;
   }, [links, at, bright]);
   useEffect(() => () => { drawn.geometry.dispose(); drawn.material.dispose(); }, [drawn]);
+  return <primitive object={drawn} />;
+}
+
+/** The sea floor under the glass (ADR-1063 D3): a faint plane through its four corners, so the notes lying on it read as the bottom of the scene. */
+export function SeaFloor({ corners, notes }: { corners: readonly Point[]; notes: number }) {
+  const drawn = useMemo(() => {
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", new Float32BufferAttribute(corners.flatMap(({ x, y, z }) => [x, y, z]), 3));
+    geometry.setIndex([0, 1, 2, 0, 2, 3]);
+    const floor = new Mesh(geometry, new MeshBasicMaterial({ color: "#9fc3d6", transparent: true, opacity: 0.06, side: DoubleSide, depthWrite: false }));
+    floor.name = "knowledge-floor";
+    floor.userData = { notes };
+    floor.raycast = noRaycast;
+    return floor;
+  }, [corners, notes]);
+  useEffect(() => () => { drawn.geometry.dispose(); (drawn.material as MeshBasicMaterial).dispose(); }, [drawn]);
   return <primitive object={drawn} />;
 }

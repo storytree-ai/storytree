@@ -223,7 +223,17 @@ test("passes too", () => {});`,
   assert.notEqual(result.code, 0);
   assert.equal(result.timedOut, false, "an exit hang is not a slow unit: its deadline does not grow");
   assert.deepEqual(result.exitHung.map((file) => path.relative(root, file).replaceAll("\\", "/")), ["nested/exit-hang.test.mjs"]);
-  assert.match(unitReason({ ...result, unitLimitMs: 60_000 }, root), /killed; nested\/exit-hang\.test\.mjs: its tests ended, but its process did not exit/);
+  assert.match(unitReason({ ...result, unitLimitMs: 60_000 }, root), /killed; nested\/exit-hang\.test\.mjs: its last reported test ended, but its process did not exit/);
+});
+
+// friction_e50f26922ba5: where a child's stdout is an async pipe (Windows), a test blocking its process in
+// a synchronous call never reports its start, so the exit watch sees the file idle and kills it.
+test("6.1 a file killed by the exit watch is named with both causes: a hung exit, or a test blocking its process in a synchronous call", () => {
+  const root = path.resolve("unit-root");
+  const reason = unitReason({ ms: 25_000, timedOut: false, exitHung: [path.join(root, "a", "blocked.test.mjs")], unitLimitMs: 60_000 }, root);
+  assert.match(reason, /killed; a\/blocked\.test\.mjs: its last reported test ended, but its process did not exit/);
+  assert.match(reason, /a handle left open or an exit that hangs/);
+  assert.match(reason, /a test blocking its process in a synchronous call/);
 });
 
 test("each unit's time is added to the machine's timing history, outside the checkout", async (t) => {

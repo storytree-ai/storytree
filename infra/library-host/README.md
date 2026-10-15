@@ -15,8 +15,11 @@ rolls it back.
 The backups also carry `storytree-lag`, the lag runner's history
 (`packages/dev-loop/src/lag-box.mjs`): each action's baseline, its runs and the
 reasons recorded by `pnpm lag:box rebaseline`. The runs could be measured again;
-the reasons could not. It was made by the lag runner on Mint and never lived on
-Cloud SQL, so the rehearsal, cutover and rollback leave it out.
+the reasons could not. They also carry `storytree-quality`, the QA ledger
+(`packages/quality-assurance`): every change-reviewer return, hit and answer, which
+ADR-0956 D7's ten-review refusal counts; a review cannot be re-run. Both were made
+on Mint by their own packages and never lived on Cloud SQL, so the rehearsal,
+cutover and rollback leave them out.
 
 Every machine-changing script needs a read-only review and a dry run before its
 real run. Do not run `cutover.sh` or `rollback.sh` for real during rehearsal.
@@ -130,7 +133,7 @@ node infra/library-host/host.mjs backup
 node infra/library-host/host.mjs backup
 ```
 
-All four dumps (the three 0.3 databases and `storytree-lag`) must restore into new scratch databases and match their source
+All five dumps (the three 0.3 databases, `storytree-lag` and `storytree-quality`) must restore into new scratch databases and match their source
 snapshot's per-table row counts before **any** upload. Scratch names are unique;
 only databases marked as created by this increment may be dropped. No forced
 disconnect or existing-database overwrite is used. A session advisory lock on
@@ -154,7 +157,8 @@ node infra/library-host/host.mjs rollback-rehearsal gs://storytree-498613-librar
 ```
 
 The local proof downloads every dump the manifest names (a backup from before
-`storytree-lag` joined names three), verifies sizes/hashes and restores each
+`storytree-lag` joined names three, one from before `storytree-quality` joined
+names four), verifies sizes/hashes and restores each
 into scratch. The Cloud SQL proof restores the project backup only into
 `storytree_rollback_rehearsal`, checks it, then drops it. It refuses an existing
 scratch name. If Mint IAM lacks database-creation rights, the laptop owner must

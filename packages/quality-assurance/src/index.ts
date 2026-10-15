@@ -8,4 +8,4 @@ export type { GraduatedFindings } from "./graduation/graduation.js";
 export { forgetProjectQuality, LEDGER_DATABASE, ledgerText, openLedger } from "./ledger/ledger.js";
 export type { Answer, Count, FoundBy, Hit, HitRow, Ledger, Review, RunRow } from "./ledger/ledger.js";
 export { branchBase, branchDiff, briefText, changeFolder, diffPackages, openReviews, packageOf, REVIEW_LIMIT, standingText, takenText } from "./review/review.js";
-export type { Base, Brief, Reviews, ReviewReturn, Taken } from "./review/review.js";
+export type { Base, Brief, Reviews, ReviewReturn, Taken, Unmet } from "./review/review.js";

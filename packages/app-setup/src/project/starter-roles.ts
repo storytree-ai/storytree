@@ -42,6 +42,9 @@ const EXAMPLE = "An example carries its discriminator";
 const FRICTION_EVIDENCE = "Friction earns durable guidance by supporting evidence, not by being reported";
 const IMPLEMENTATION = "Implementation outranks the doc";
 const LIBRARIAN_PASS = "Pre-merge librarian pass";
+const DURABLE = "Durable notes carry intent, not implementation surface";
+const MEASURED = "A measured claim carries the method that produced it";
+const TYPES_HONEST = "Types stay honest";
 
 export const ROLES: readonly Role[] = [
   {
@@ -82,8 +85,16 @@ export const ROLES: readonly Role[] = [
       MACHINE_LOOP,
       PLAIN,
       "Register follows audience",
+      "Price the deferral",
+      "Tightening a shared contract needs a full sweep",
+      "An escape sequence in a tool argument becomes a real byte",
+      "The same file in another tree is a different file",
+      "Justify a new check",
+      "Migrate a schema: expand, migrate, contract",
+      "Attempt privileged actions, approve inline",
+      "Stage the user's look",
     ],
-    refuse: [NEVER_BYPASS, SELF_ATTEST, USER_LOOP, EDIT_SURFACE, ASK_IMPORTED],
+    refuse: [NEVER_BYPASS, SELF_ATTEST, USER_LOOP, EDIT_SURFACE, ASK_IMPORTED, TYPES_HONEST],
   },
   {
     title: "librarian",
@@ -120,6 +131,10 @@ export const ROLES: readonly Role[] = [
       CITING,
       "An awaited notification is never a turn-ending state",
       FRICTION_EVIDENCE,
+      DURABLE,
+      "Stateless graduates, stateful stays",
+      "A human's words are stored verbatim, or not at all",
+      MEASURED,
     ],
     refuse: [EDIT_SURFACE, ESCALATE_UP],
   },
@@ -196,6 +211,9 @@ export const ROLES: readonly Role[] = [
       "A spec body describes only what it contracts",
       "A deferral recorded without a status reads as pending work",
       "One way to do things",
+      "A story's proof proves the goal, not the surface",
+      "Cold rebuild",
+      DURABLE,
     ],
     refuse: [SELF_ATTEST, ESCALATE_UP],
   },
@@ -227,8 +245,11 @@ export const ROLES: readonly Role[] = [
       "The resting view is designed, not fitted",
       STANDARD,
       NO_CLAIM,
+      "De-noising promotes a signal, never drops it",
+      "A user-approved reference is repo-resident",
+      "Stage the user's look",
     ],
-    refuse: [SELF_ATTEST, USER_LOOP, ESCALATE_UP],
+    refuse: [SELF_ATTEST, USER_LOOP, ESCALATE_UP, TYPES_HONEST],
   },
   {
     title: "blind-reviewer",
@@ -276,7 +297,7 @@ export const ROLES: readonly Role[] = [
     ].join("\n"),
     escalation: "- A judgement, not a claim about state: one finding, agrees: false, actual: \"question is not a verifiable claim about state\"; the caller reframes it or takes it to the user.\n- State that would corrupt the library (a broken link, two records contradicting each other): report it with severity high, and do not fix it; the caller routes the fix.\n- storytree unreachable: agrees: false, actual: \"could not determine — library unreachable\"; never guess from a copy.\n- A source the tools cannot reach: agrees: false, actual: \"could not access source — <reason>\".\nAnything outside this role goes back to the calling session with the reason.",
     standsOn: [IMPLEMENTATION, PULL_CONTEXT],
-    rules: [AUTHORITATIVE, NO_CLAIM, "Exploration principles", COULD_NOT_RUN, "An observable is evidence only for what it observes", "Prose names a set it never checked", CITING],
+    rules: [AUTHORITATIVE, NO_CLAIM, "Exploration principles", COULD_NOT_RUN, "An observable is evidence only for what it observes", "Prose names a set it never checked", CITING, "The same file in another tree is a different file", MEASURED],
     refuse: [ESCALATE_UP],
   },
 ];

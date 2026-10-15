@@ -254,6 +254,29 @@ test("6.7 setting a new project up seeds its library with every starter role (or
         refuse: ["Escalate up when blocked or out of scope"],
       });
       assert.deepEqual((await standsOn("orchestrator")).reading, ["Merge ceremony", "Pre-merge librarian pass", "Library edit ceremony", "Pull-based context architecture", "Decompose by testability; delegate the glue", "Parallel build-lane fan-out", "Friction earns durable guidance by supporting evidence, not by being reported"]);
+      // The notes no role of storytree's links, which its factory's contents mark in (ADR-1040).
+      const factoryNotes = [
+        "principle: Price the deferral",
+        "principle: Durable notes carry intent, not implementation surface",
+        "principle: Tightening a shared contract needs a full sweep",
+        "principle: A story's proof proves the goal, not the surface",
+        "principle: Cold rebuild",
+        "principle: Stateless graduates, stateful stays",
+        "principle: An escape sequence in a tool argument becomes a real byte",
+        "principle: The same file in another tree is a different file",
+        "principle: A human's words are stored verbatim, or not at all",
+        "principle: A user-approved reference is repo-resident",
+        "principle: De-noising promotes a signal, never drops it",
+        "guardrail: Types stay honest",
+        "pattern: A measured claim carries the method that produced it",
+        "process: Grill me: walk the user through their open questions",
+        "process: Stage the user's look",
+        "process: Attempt privileged actions, approve inline",
+        "process: Justify a new check",
+        "process: Migrate a schema: expand, migrate, contract",
+      ];
+      assert.deepEqual(factoryNotes.filter((note) => !seeded.notes.includes(note)), [], "every note the factory's contents mark in is seeded");
+      assert.deepEqual((await standsOn("corpus-investigator")).rules.slice(-2), ["The same file in another tree is a different file", "A measured claim carries the method that produced it"]);
       await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true });
       assert.deepEqual(await pack(), seeded, "joining adds no second copy");
 
@@ -328,5 +351,42 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
     assert.equal(missing.state, "could not");
     assert.match(missing.state === "could not" ? missing.reason : "", /git is not installed/);
     assert.equal(existsSync(path.join(gitless, ".git")), false);
+  });
+});
+
+test("6.11 setting the first project up makes the user's factory, a project with no folder holding the starter pack, and every new project names it; a later project finds it, a join makes none, and a product project already holding its name leaves it the next free one (ADR-1040)", async () => {
+  const [factory, first, second, before] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const { laptop, box } = machines(dir);
+    const folders = [path.join(dir, "first"), path.join(dir, "second"), path.join(dir, "box-first"), path.join(dir, "before")];
+    for (const folder of folders) mkdirSync(folder);
+    await withStorytree([factory, first, second, before, `${factory}-2`, `${second}-2`], async (storytree) => {
+      const linkOf = async (project: string) => {
+        const library = await storytree.openProject(project, { create: false });
+        try {
+          return { link: await library.factory(), roles: (await library.list("agent")).length };
+        } finally {
+          await library.close();
+        }
+      };
+
+      await setUpProject({ folder: folders[0]!, project: first, storytree, storytreeHome: laptop, factory });
+      const made = await linkOf(factory);
+      assert.deepEqual(made, { link: { kind: "factory" }, roles: STARTER_ROLE_TITLES.length }, "the factory holds the starter pack");
+      assert.equal(findProject(dir).project, undefined, "the factory has no folder of its own");
+      assert.deepEqual((await linkOf(first)).link, { kind: "product", factory });
+
+      await setUpProject({ folder: folders[1]!, project: second, storytree, storytreeHome: laptop, factory });
+      assert.deepEqual((await linkOf(second)).link, { kind: "product", factory }, "a later project finds the same factory");
+      await setUpProject({ folder: folders[2]!, project: first, storytree, storytreeHome: box, join: true, factory });
+      assert.deepEqual(await linkOf(factory), made, "neither seeds the factory again");
+      assert.equal((await storytree.listProjects()).includes(`${factory}-2`), false, "no second factory is made");
+
+      // A product project holding the name the factory would take leaves it the next free one.
+      await setUpProject({ folder: folders[3]!, project: before, storytree, storytreeHome: laptop, factory: second });
+      assert.deepEqual((await linkOf(before)).link, { kind: "product", factory: `${second}-2` });
+      assert.deepEqual(await linkOf(`${second}-2`), made);
+      assert.deepEqual((await linkOf(second)).link, { kind: "product", factory }, "the product project keeps its own factory");
+    });
   });
 });

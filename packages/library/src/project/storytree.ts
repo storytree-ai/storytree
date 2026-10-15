@@ -30,6 +30,7 @@ import { cloudSqlServer, type CloudSqlConfig, type CloudSqlSeams } from "./cloud
 import { PgVectors, vectorServerIdentity, type VectorDomain } from "./embeddings.js";
 import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
 import { assertProjectName, PROJECT_DATABASE_PREFIX, ProjectGoneError, projectDatabase } from "./names.js";
+import { InheritedRecords, ProjectLineage } from "./factory.js";
 import { pendingMemories, upgradeMemories } from "./memory-upgrade.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
@@ -166,6 +167,8 @@ export interface Project {
   readonly knowledge: Knowledge;
   /** How healthy each story, capability and contract is, reported and verified (capability 5). */
   readonly health: HealthRecord;
+  /** Whether the project is the user's factory or a product naming its factory (ADR-1040). */
+  readonly lineage: ProjectLineage;
   /** Close this project's connections. */
   close(): Promise<void>;
 }
@@ -225,7 +228,8 @@ class ServerConnection implements Storytree {
     }
   }
 
-  async #openProject(name: string, options: OpenOptions): Promise<Project> {
+  /** `inherit: false` opens a factory for the product reading it, which reads no factory of its own. */
+  async #openProject(name: string, options: OpenOptions & { readonly inherit?: boolean }): Promise<Project> {
     assertProjectName(name); // before anything touches the server
     const database = projectDatabase(name);
     try {
@@ -239,13 +243,33 @@ class ServerConnection implements Storytree {
         await pool.end();
         throw error;
       }
+      const factory = options.inherit === false ? undefined : await this.#factoryOf(pool, name).catch(async (error: unknown) => {
+        await pool.end();
+        throw error;
+      });
       const domain = { server: vectorServerIdentity(pool, this.#cloudInstance), database, identity };
-      const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder);
+      const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder, factory);
       this.#projects.add(project);
       return project;
     } catch (error) {
       throw this.#server.explain(error);
     }
+  }
+
+  /**
+   * The factory a product project reads its system from (ADR-1040 D4), opened beside it: none when the project names
+   * no factory, or names one that is gone or is not a factory.
+   */
+  async #factoryOf(pool: Pool, name: string): Promise<Project | undefined> {
+    const link = await new ProjectLineage(pool, name).factory();
+    if (link.kind !== "product") return undefined;
+    const factory = await this.#openProject(link.factory, { create: false, inherit: false }).catch((error: unknown) => {
+      if (error instanceof ProjectGoneError) return undefined;
+      throw error;
+    });
+    if (factory === undefined || (await factory.lineage.factory()).kind === "factory") return factory;
+    await factory.close();
+    return undefined;
   }
 
   async ownDatabase(name: string, options: OwnDatabaseOptions = {}): Promise<Pool> {
@@ -451,24 +475,30 @@ class ProjectLibrary implements Project {
   readonly flight: WorkInFlight;
   readonly knowledge: Knowledge;
   readonly health: HealthRecord;
+  readonly lineage: ProjectLineage;
   readonly #forget: () => void;
   #closing: Promise<void> | undefined;
 
-  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, domain: VectorDomain, embedder?: EmbedderSource) {
+  readonly #factory: Project | undefined;
+
+  /** Given `factory`, the product project reads its system from that factory's records, and closes it with its own. */
+  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, domain: VectorDomain, embedder?: EmbedderSource, factory?: Project) {
     this.name = name;
     this.identity = identity;
     this.pool = pool;
     this.transactions = new PgTransactions(pool);
-    this.records = new SchemaRecords(this.transactions);
+    this.records = factory === undefined ? new SchemaRecords(this.transactions) : new InheritedRecords(this.transactions, factory.records);
+    this.#factory = factory;
     this.work = new WorkModel(this.records);
     this.flight = new WorkInFlight(this.records, this.work);
     this.knowledge = new Knowledge(this.records, name, { vectors: new PgVectors(pool, vectorCache, domain), ...(embedder === undefined ? {} : { embedder }) });
     this.health = new HealthRecord(this.records, this.work);
+    this.lineage = new ProjectLineage(pool, name);
     this.#forget = forget;
   }
 
   close(): Promise<void> {
-    this.#closing ??= this.pool.end().finally(this.#forget);
+    this.#closing ??= Promise.all([this.pool.end(), this.#factory?.close()]).then(() => undefined).finally(this.#forget);
     return this.#closing;
   }
 }

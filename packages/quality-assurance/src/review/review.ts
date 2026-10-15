@@ -77,11 +77,17 @@ export interface ReviewReturn {
   readonly rejections?: readonly { readonly hit: number; readonly accepted: boolean; readonly why?: string }[];
 }
 
+/** A contract a review found not met, with why. */
+export interface Unmet {
+  readonly contract: string;
+  readonly why: string;
+}
+
 /** A return taken: the review's name in the ledger, its hits, the contracts it found unmet, and what stands now. */
 export interface Taken {
   readonly review: string;
   readonly hits: readonly HitRow[];
-  readonly unmet: readonly { readonly contract: string; readonly why: string }[];
+  readonly unmet: readonly Unmet[];
   readonly standing: readonly HitRow[];
   /** Why Guardrails' graduated checks did not run on the change, when they did not: none of their findings is recorded. */
   readonly graduatedNotRun?: string;
@@ -99,8 +105,10 @@ export interface Reviews {
    * What Guardrails' graduated checks found on the change, when given, is recorded with it as theirs (contract 5.3).
    */
   take(project: string, change: string, review: ReviewReturn, graduated?: GraduatedFindings): Promise<Taken>;
-  /** `change`'s standing findings, oldest first: none means it is ready for the gate. */
+  /** `change`'s standing findings, oldest first: none, with no contract `unmet`, means it is ready for the gate. */
   standing(project: string, change: string): Promise<HitRow[]>;
+  /** The contracts the latest review taken on `change` found not met: each stands until a later review finds it met. */
+  unmet(project: string, change: string): Promise<Unmet[]>;
 }
 
 /** Open the review loop on `server`'s connection. */
@@ -140,11 +148,14 @@ class PgReviews implements Reviews {
     const taken = await this.#taken(project, change);
     const earlier = await this.#hits(project, change, "TRUE");
     const standing = earlier.filter((hit) => hit.answer === "unanswered" || (hit.answer === "rejected" && !hit.accepted));
-    if (taken >= REVIEW_LIMIT && standing.length > 0) {
+    const unmet = await this.unmet(project, change);
+    const count = standing.length + unmet.length;
+    if (taken >= REVIEW_LIMIT && count > 0) {
       const arc = (increment.fields as { arc: string }).arc;
       throw new Error([
-        `${taken} reviews of ${change} have run and ${standing.length} finding${standing.length === 1 ? "" : "s"} still stand${standing.length === 1 ? "s" : ""}, so no further review runs (ADR-0956 D7).`,
+        `${taken} reviews of ${change} have run and ${count} finding${count === 1 ? "" : "s"} still stand${count === 1 ? "s" : ""}, so no further review runs (ADR-0956 D7).`,
         ...standing.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.answer === "rejected" ? `rejected: ${hit.reason}` : "unanswered"}`),
+        ...unmet.map(({ contract, why }) => `  contract ${contract} not met: ${why}`),
         `Raise an open question on arc ${arc} holding ${change}, in ADR-0944 D4's order: land what is green, push the rest and name its branch in the residue, raise the question, release the claims.`,
       ].join("\n"));
     }
@@ -221,7 +232,7 @@ class PgReviews implements Reviews {
     return {
       review: name,
       hits,
-      unmet: review.contracts.filter(({ met }) => !met).map(({ contract, why }) => ({ contract, why: why ?? "" })),
+      unmet: unmetIn(review),
       standing: await this.standing(project, change),
       ...(graduated !== undefined && !graduated.ran ? { graduatedNotRun: graduated.reason } : {}),
     };
@@ -229,6 +240,14 @@ class PgReviews implements Reviews {
 
   standing(project: string, change: string): Promise<HitRow[]> {
     return this.#hits(project, change, STANDING);
+  }
+
+  async unmet(project: string, change: string): Promise<Unmet[]> {
+    const { rows } = await this.#pool.query<{ taken: ReviewReturn }>(
+      "SELECT taken FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NOT NULL ORDER BY iteration DESC LIMIT 1",
+      [project, change],
+    );
+    return rows[0] === undefined ? [] : unmetIn(rows[0].taken);
   }
 
   async #taken(project: string, change: string): Promise<number> {
@@ -240,6 +259,11 @@ class PgReviews implements Reviews {
     const { rows } = await this.#pool.query<HitRecord>(`SELECT ${HIT_COLUMNS} FROM quality_hits WHERE project = $1 AND change = $2 AND ${where} ORDER BY id`, [project, change]);
     return rows.map(hitRow);
   }
+}
+
+/** The contracts a return found not met, with why. */
+function unmetIn(review: ReviewReturn): Unmet[] {
+  return (review.contracts ?? []).filter(({ met }) => !met).map(({ contract, why }) => ({ contract, why: why ?? "" }));
 }
 
 /** What a return gets wrong against its brief, each naming the check, contract or hit; none means it is taken. */
@@ -404,16 +428,17 @@ export function takenText(taken: Taken): string {
     `Recorded review ${taken.review}: ${taken.hits.length === 0 ? "no hits" : `${taken.hits.length} hit${taken.hits.length === 1 ? "" : "s"}`}.`,
     ...taken.hits.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.found ?? ""}`),
     ...(taken.graduatedNotRun === undefined ? [] : [`  Guardrails' graduated checks did not run, so nothing of theirs is recorded: ${taken.graduatedNotRun}`]),
-    ...taken.unmet.map(({ contract, why }) => `  contract ${contract} not met: ${why}`),
-    standingText(taken.standing),
+    standingText(taken.standing, taken.unmet),
   ].join("\n");
 }
 
-/** The standing findings as plain text, or that the change is ready for the gate. */
-export function standingText(standing: readonly HitRow[]): string {
-  if (standing.length === 0) return "No finding stands: the change is ready for the gate.";
+/** The standing findings and unmet contracts as plain text, or that the change is ready for the gate. */
+export function standingText(standing: readonly HitRow[], unmet: readonly Unmet[] = []): string {
+  const count = standing.length + unmet.length;
+  if (count === 0) return "No finding stands: the change is ready for the gate.";
   return [
-    `${standing.length} finding${standing.length === 1 ? "" : "s"} stand${standing.length === 1 ? "s" : ""}; answer each, fixed or rejected with a reason, then review again:`,
+    `${count} finding${count === 1 ? "" : "s"} stand${count === 1 ? "s" : ""}; answer each hit, fixed or rejected with a reason, fix each contract not met or put it to the owner, then review again:`,
     ...standing.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.answer === "rejected" ? `rejected, not accepted: ${hit.reason}` : "unanswered"}`),
+    ...unmet.map(({ contract, why }) => `  contract ${contract} not met: ${why}`),
   ].join("\n");
 }

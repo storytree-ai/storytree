@@ -13,7 +13,7 @@ success:
 - **OUT**: stays out, with the reason. Storytree's memory is always out (D3).
 
 It is a session's reading, recorded rather than asked; the owner corrects it by editing this file.
-The starter pack (`starter-pack.ts`, pack version 4) is the factory's seed: everything it already
+The starter pack (`starter-pack.ts`, pack version 5) is the factory's seed: everything it already
 seeds is IN or ADAPT, and `starter-pack-classification.md` holds those calls, so they are not
 repeated here.
 
@@ -26,8 +26,8 @@ library holds no other role.
 ## Notes
 
 The 65 notes the roles link are classified in `starter-pack-classification.md` (two DROP:
-Observability-first, One element per signal). These are the notes no role links, which the pack
-does not seed yet:
+Observability-first, One element per signal). These are the notes no role links; pack version 5 seeds every one marked IN or ADAPT, and
+`starter-pack-classification.md` records how each was adapted:
 
 | storytree's note (kind) | class | reason |
 |---|---|---|

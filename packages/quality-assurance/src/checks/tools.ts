@@ -90,8 +90,10 @@ export function qualityTools(): ToolExtension {
       define("quality_standing", "The findings that still stand on an increment's change, or that it is ready for the gate.", z.object({
         increment: z.string().min(1).describe("The increment whose change is reviewed"),
       }), async ({ increment }, { storytree, project }) => {
-        const standing = await (await openReviews(storytree)).standing(project, increment);
-        return { text: standingText(standing), data: { standing } };
+        const reviews = await openReviews(storytree);
+        const standing = await reviews.standing(project, increment);
+        const unmet = await reviews.unmet(project, increment);
+        return { text: standingText(standing, unmet), data: { standing, unmet } };
       });
       // "graduate" is the librarian's tool, so this one names what graduates.
       define("graduate_check", "Record that a part of a quality control check, or with whole all of it, is now enforced by a deterministic check in Guardrails; the reviewer judges only the rest, and a check graduated whole leaves the review brief.", z.object({

@@ -69,7 +69,9 @@ test("1.3 the worklist names each accepted decision on no shelf that no note res
     const spec = await wholeProject(library, "The MVP spec");
     const license = await wholeProject(library, "The license");
 
-    assert.deepEqual((await unrestedDecisions(library)).map((decision) => decision.id), [spec.id, license.id]);
+    // Two decisions written back to back can share a creation millisecond, so their order is the
+    // random ids'; the contract promises which decisions, not their order.
+    assert.deepEqual((await unrestedDecisions(library)).map((decision) => decision.id).sort(), [spec.id, license.id].sort());
 
     await link(library, cover.id, spec.id);
     assert.deepEqual((await unrestedDecisions(library)).map((decision) => decision.id), [license.id]);

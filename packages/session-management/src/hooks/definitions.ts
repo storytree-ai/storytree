@@ -5,10 +5,10 @@
  *
  * - A definition answers to its term, and to each `/`-separated part of it, but only by a name
  *   that points at it alone: its term unless another definition has the same term, and a part only
- *   when no other definition answers to it. So the story-text mirrors, which all share the part
- *   "Story text: stories" and repeat one heading's term for each of its paragraphs, are not all
- *   brought in by a prompt that quotes one (0.2 split on `/` too, but its 52 definitions shared no
- *   part). A name shorter than three letters is never looked for.
+ *   when no other definition answers to it. So "Review/Ledger" and "Review/Brief" answer to their
+ *   own parts but not to "Review", which they share, and two definitions of one term answer to
+ *   neither it nor its parts (0.2 split on `/` too, but its 52 definitions shared no part). A name
+ *   shorter than three letters is never looked for.
  * - A name is found as whole words, ignoring case, with `-`, `_` and runs of spaces read as one
  *   space, and its last word may be plural (`claims` finds "Claim", `policies` finds "Policy"): the
  *   library's whole-words rule, which ranked search's title lift shares (ADR-1044 D3).

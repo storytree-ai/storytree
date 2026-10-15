@@ -14,6 +14,8 @@ import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 
+import { WRITE_LOCK } from "../transactions/pg.js";
+import { localServer } from "./server.js";
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 
 test("8.3 two accounts sharing the creator role both open, write and read one project, and one's own database, on one server", async () => {
@@ -298,6 +300,32 @@ test("8.8 a write still kept waiting for another session's write at its wait bou
     });
     assert.deepEqual((await library.projectTree()).stories, []);
   } finally {
+    await storytree.close();
+    await dropTestDatabases([`storytree_${project}`]);
+  }
+});
+
+test("8.9 a writer cut off holding the project's write lock holds it at most 10 s: the server ends its idle transaction, and another session's waiting write is written", async () => {
+  const project = `${uniqueProjectName()}-orphan`;
+  const storytree = await connect({ url: testServerUrl(), onWait: () => {} });
+  // A library connection that takes the write lock mid-write and then goes silent, as one does
+  // whose process was killed or whose network went away before it could commit.
+  const cutOff = localServer(new URL(testServerUrl())).pool(`storytree_${project}`);
+  let silent: pg.PoolClient | undefined;
+  try {
+    const library = await storytree.openProject(project);
+    silent = await cutOff.connect();
+    silent.on("error", () => {}); // the server ending its session is the point
+    await silent.query("BEGIN");
+    await silent.query(WRITE_LOCK);
+
+    const started = Date.now();
+    await library.addStory({ title: "Written past the cut-off writer", description: "Its lock was let go." });
+    assert.ok(Date.now() - started < 15_000, `written within the idle bound, not the 30 s wait (${Date.now() - started} ms)`);
+    assert.deepEqual((await library.projectTree()).stories.map((story) => story.title), ["Written past the cut-off writer"]);
+  } finally {
+    silent?.release(true);
+    await cutOff.end().catch(() => {});
     await storytree.close();
     await dropTestDatabases([`storytree_${project}`]);
   }

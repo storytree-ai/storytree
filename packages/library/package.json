@@ -5,7 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./verbs": "./src/verbs/verb.ts",
-    "./commands": "./src/commands/index.ts"
+    "./commands": "./src/commands/index.ts",
+    "./whole-words": "./src/knowledge/whole-words.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

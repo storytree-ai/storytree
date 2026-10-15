@@ -527,7 +527,7 @@ test("1.17 a product's link to a system record it retired, as moving onto its fa
 
     const built = await storytree.openProject(product);
     await built.records.retire(copy.id, "dropped for the factory's");
-    assert.equal((await built.records.get(copy.id))?.fields.statement, "The factory's wording.", "a link to the dropped copy reads the factory's record");
+    assert.equal(((await built.records.get(copy.id))?.fields as { statement?: string } | undefined)?.statement, "The factory's wording.", "a link to the dropped copy reads the factory's record");
     assert.equal((await built.records.get(copy.id))?.id, theirs.id);
 
     const edited = await built.knowledge.writeKnowledge("principle", principle("Keep it small", "The product's later wording."));

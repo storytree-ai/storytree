@@ -190,6 +190,14 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    */
   z.object({ ...common, kind: z.literal("session-described"), of: z.string().min(1), app: z.enum(["claude-desktop", "codex"]),
     title: z.string().min(1).optional(), status: z.string().min(1).optional() }).strict(),
+  /**
+   * How long hooks on the machine the line names took (ADR-1056 D1), uploaded in a batch by the look around the machine:
+   * each reading's harness, event (with its flags), start, total from process start to exit and its parts, in ms. A
+   * machine's cost, never its writer's work: written on the uploading session, which it never makes read live.
+   */
+  z.object({ ...common, kind: z.literal("hook-times"), readings: z.array(z.object({ at: z.string().datetime({ offset: true }), harness: z.string().min(1), event: z.string().min(1),
+    total: z.number().nonnegative(), parts: z.object({ startup: z.number().nonnegative().optional(), connect: z.number().nonnegative().optional(),
+      write: z.number().nonnegative().optional(), handoff: z.number().nonnegative().optional() }).strict() }).strict()).min(1).max(500) }).strict(),
 ]);
 
 /** A line as it is written. */

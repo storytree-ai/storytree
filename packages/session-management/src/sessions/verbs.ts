@@ -1,6 +1,7 @@
 /**
  * Capability 4 · Sessions. The session verbs, declared once (ADR-0969 D2): name a session, close it out, and list the
- * sessions. The command line and the MCP server each mount them; listing the sessions has no tool, and says why.
+ * sessions, and read how long the hooks took. The command line and the MCP server each mount them; listing the sessions
+ * and the hook times have no tool, and say why.
  * Machines' verbs are mounted from here too (MACHINE_VERBS), as this is the verbs' one entry. SESSION_FAMILIES, which the
  * package's manifest names under `verbs` (ADR-1033), gives the command line them as its `session` and `machine` families,
  * with the noticeboard's (NOTICEBOARD_VERBS) and the context reading (CONTEXT_READING) as its `noticeboard` and `context`.
@@ -84,13 +85,26 @@ const list = verb({
   },
 });
 
+const hookTimes = verb({
+  command: { family: "session", name: "hook-times", summary: "how long the hooks took, by harness, event and machine, over the last days (7 unless --days)" },
+  tool: { absent: "how long hooks take is the owner's and the developers' reading of the machines, not an agent's step" },
+  inputs: {
+    days: { kind: "count", optional: true, describe: "how many days back; 7 unless given" },
+    json: { kind: "switch", describe: "as JSON" },
+  },
+  async act({ days, json }, { log, project }: SessionVerbContext) {
+    const { hookTimes: read } = await import("./hook-times.js");
+    return { text: await read(log, project, { json, ...(days === undefined ? {} : { days }) }) };
+  },
+});
+
 /** The session verbs, in the order the command line lists them. */
-export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, name, closeOut];
+export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [list, name, closeOut, hookTimes];
 
 /** The command line's families of these verbs, each at its place among `storytree`'s families. */
 export const SESSION_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [
   { name: "noticeboard", summary: "who is on what right now (read only)", order: 5, verbs: NOTICEBOARD_VERBS, bare: NOTICEBOARD_BOARD },
   { name: "context", summary: "how full this session's context is (Session management's)", order: 31, verbs: [], bare: CONTEXT_READING },
-  { name: "session", summary: "list the running sessions, name this one, or close it out (Session management's)", order: 32, verbs: SESSION_VERBS },
+  { name: "session", summary: "list the running sessions, name this one, close it out, or read how long hooks took (Session management's)", order: 32, verbs: SESSION_VERBS },
   { name: "machine", summary: "the computers that work on this project, and this one's short name (Session management's)", order: 33, verbs: MACHINE_VERBS },
 ];

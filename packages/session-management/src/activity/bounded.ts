@@ -44,7 +44,7 @@ const ROW = "seq, project, at, session, harness, source, kind, folder";
 /** The fields every line has its own column for. */
 const COLUMN_FIELDS = new Set(["session", "harness", "source", "kind", "folder"]);
 /** The kinds of line whose writer only looked at others' work (readings.ts ABOUT_OTHERS). */
-const ABOUT_OTHERS = ["merged", "branch-state", "main-state", "session-archived", "session-unarchived", "session-described", "machine-started"];
+const ABOUT_OTHERS = ["merged", "branch-state", "main-state", "session-archived", "session-unarchived", "session-described", "machine-started", "hook-times"];
 /** Fields the sessions fold never reads from a line that only places its session: dropped from those. */
 const PLACING_ONLY = ["command", "files", "transcript", "task"];
 

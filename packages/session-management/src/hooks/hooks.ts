@@ -69,6 +69,7 @@ import { bigInjectionReport, definitionsContext, definitionsNamedIn, isHarnessNo
 import { hookIdentity, noteHookFailure, type HookFailure } from "./failures.js";
 import { isSelfNamed, selfNamedLines } from "./self-named.js";
 import { shellEdits } from "./shell-edits.js";
+import type { HookClock } from "./timing.js";
 import { rememberedImports, SHELL_GUARD, shellGuard, watchImports, watchWorktree } from "./shell-guard.js";
 
 /** What a hook is run with: the command's arguments (the harness first, then any flags) and its stdin. */
@@ -87,6 +88,8 @@ export interface HookInput {
   readonly locate?: LocateOptions;
   /** Which capability each edited file declares, for the gate before each edit (`--edit-gate`). Without it the gate refuses nothing. */
   readonly declaredCapabilities?: DeclaredCapabilities;
+  /** The hook process's clock, which its parts are timed on (timing.ts, ADR-1056 D1). Without it, nothing is timed. */
+  readonly clock?: HookClock;
 }
 
 /** The flag that makes a hook hand its writing to the background instead of doing it. */
@@ -170,10 +173,14 @@ export async function runHook(hook: HookInput): Promise<string | undefined> {
 /** The flag naming the event in a hook command, for a harness whose input names none (Antigravity). */
 export const EVENT = "--event=";
 
-async function answerHook({ argv, input: given, handOff, merges, locate, declaredCapabilities }: HookInput): Promise<string | undefined> {
+async function answerHook({ argv, input: given, handOff: handing, merges, locate, declaredCapabilities, clock }: HookInput): Promise<string | undefined> {
   const [harness = "", ...flags] = argv;
   const read = parse(given);
   const parsed = withEvent(read, flags);
+  const event = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>).hook_event_name : undefined;
+  if (clock !== undefined && typeof event === "string" && event !== "") clock.event = event;
+  // Every copy this hook starts is timed as its hand-off.
+  const handOff: HookInput["handOff"] = handing === undefined || clock === undefined ? handing : (to, input, more) => clock.time("handoff", () => handing(to, input, more));
   // A copy this hook hands its work to is started without the flag, so the event goes with the input.
   const input = parsed === read ? given : JSON.stringify(parsed);
   const failed = (stage: HookFailure["stage"], error: unknown) => noteHookFailure(storytreeHome, hookIdentity(harness, parsed), stage, error);
@@ -198,7 +205,7 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
     if (asked !== undefined) {
       // The user's own words may carry their yes to changing imported code (contract 5.42); a harness's notice is not theirs.
       const said = isHarnessNotice(asked.prompt) ? undefined : yesSaid(harness, asked, locate, homeOf(locate), failed);
-      const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed, declaredCapabilities !== undefined)]);
+      const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock)]);
       const context = looked?.context;
       if (looked?.report !== undefined) {
         // The report is filed by a copy of this hook, so the prompt does not wait for the library's write.
@@ -210,7 +217,7 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
     }
     if (made === undefined) return;
     // After an edit the gate asked the user about, the user's yes is recorded on the increment (contract 5.41).
-    await Promise.all([writeLines(harness, input, flags, made, handOff, merges, locate, failed, declaredCapabilities !== undefined), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed)]);
+    await Promise.all([writeLines(harness, input, flags, made, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed)]);
   } catch (error) {
     // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said, but why is kept here.
     failed("hook", error);
@@ -219,7 +226,7 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
 }
 
 /** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine; a failure is traced with `failed`. Never throws. */
-async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false): Promise<void> {
+async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock): Promise<void> {
   try {
     if (made.lines.length === 0) return;
     const where = route(made.folder, locate);
@@ -255,6 +262,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
     const [{ openActivityLog, thisMachine }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
     const machine = thisMachine();
     let opened;
+    const connecting = performance.now();
     try {
       const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
       const log = await (async () => {
@@ -271,9 +279,13 @@ async function writeLines(harness: string, input: string, flags: readonly string
       failed("reach", error);
       enqueue(home, where.project, made.lines);
       return;
+    } finally {
+      clock?.add("connect", performance.now() - connecting);
     }
     const { storytree, log } = opened;
     let written = 0;
+    const writing = performance.now();
+    const handing = clock?.spent("handoff") ?? 0;
     try {
       // A folder whose marker names a deleted project's database writes nothing, under its name or into a new project of it (ADR-0831).
       if (where.identity !== undefined && (await storytree.projectIdentities())[where.project] !== where.identity) return;
@@ -318,6 +330,8 @@ async function writeLines(harness: string, input: string, flags: readonly string
       failed("write", error);
       enqueue(home, where.project, made.lines.slice(written));
     } finally {
+      // The write's time is its own: a hand-off inside it is timed as the hand-off.
+      clock?.add("write", performance.now() - writing - ((clock?.spent("handoff") ?? 0) - handing));
       await log.close();
       await storytree.close();
     }
@@ -342,6 +356,9 @@ async function upkeep(made: HookLines, merges: MergeWatch | undefined, locate: L
     if (!(await approved(storytree, where.project, where.folder, homeOf(locate)))) return;
     const log = await openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
     try {
+      // The readings of how long this machine's hooks took go up first (ADR-1056 D1).
+      const { uploadHookTimes } = await import("./timing.js");
+      await uploadHookTimes(storytreeHome(), log, where.project, { session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }) });
       // The hook that handed it on found it due: each look is taken now.
       await lookAround({ log, project: where.project, folder: made.folder, session: first.session, ...(first.harness === undefined ? {} : { harness: first.harness }), source: "hook" }, { ...merges, everyMs: 0 });
     } finally {

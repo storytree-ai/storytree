@@ -3,7 +3,7 @@ import test from 'node:test';
 import { AmbientLight, Box3, DirectionalLight, Group, Mesh as ThreeMesh, MeshLambertMaterial, MeshStandardMaterial, PerspectiveCamera, Quaternion, Raycaster, Vector3, type BufferAttribute, type Mesh } from 'three';
 import { PLATE_CLEARANCE, plateTransform } from './planet.js';
 import { hollowIsland, islandSurface } from './island-surface.js';
-import { applySheetEye, hangUnderTheGlass, SHEET_FOV, SHEET_GLASS_THICKNESS, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetGlass, sheetLights, sheetPoint, sheetSpot } from './sheet.js';
+import { applySheetEye, clearGlass, hangUnderTheGlass, SHEET_FOV, SHEET_GLASS_THICKNESS, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetGlass, sheetLights, sheetPoint, sheetSpot } from './sheet.js';
 
 /** The page's eye on the sheet: a perspective one looking straight down at the glass's middle, framed to `zoom`. */
 function sheetEye(zoom: number, reach: number, size = { width: 1440, height: 960 }) {
@@ -152,4 +152,30 @@ test('6.25 what hangs under the glass sheet shows by the angle: hidden from well
     const seen = at(tilt);
     assert.ok(seen.shown && seen.order > 20, `from below (${(tilt * 180 / Math.PI).toFixed(0)}°) it shows, drawn over the glass`);
   }
+});
+
+test('6.28 under clear glass (the Library look) what hangs beneath shows at every angle, from straight above to straight below, and the glass clears and smokes again without moving (ADR-1062 D3, D4)', () => {
+  const sheet = new Group(), under = new Group();
+  sheet.add(under);
+  under.add(new ThreeMesh());
+  const camera = new PerspectiveCamera(SHEET_FOV, 1.5, 0.1, 100);
+  camera.position.set(0, 0, 50);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  for (const tilt of [0, SHEET_TILT, Math.PI / 2, Math.PI - SHEET_TILT, Math.PI]) {
+    sheet.quaternion.setFromAxisAngle(new Vector3(1, 0, 0), -tilt);
+    sheet.updateMatrixWorld(true);
+    hangUnderTheGlass(under, camera, true);
+    assert.equal(under.visible, true, `clear, at ${(tilt * 180 / Math.PI).toFixed(0)}° it shows`);
+  }
+  const glass = sheetGlass({ width: 400, height: 300 });
+  const opacity = () => ['sheet:pane', 'sheet:pane-under', 'sheet:edge'].map(name => ((glass.getObjectByName(name) as ThreeMesh).material as { opacity: number }).opacity);
+  const smoked = opacity(), where = glass.position.clone();
+  clearGlass(glass, true);
+  const clear = opacity();
+  clear.forEach((value, at) => assert.ok(value <= smoked[at]! / 3, `clear, part ${at} is far fainter than smoked (${value} against ${smoked[at]})`));
+  assert.ok(clear[0]! <= 0.1, "the top pane all but vanishes");
+  clearGlass(glass, false);
+  assert.deepEqual(opacity(), smoked, "smoked again");
+  assert.ok(glass.position.equals(where), "the glass never moves");
 });

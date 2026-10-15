@@ -83,11 +83,6 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
  * tilt, far enough that each depth is seen hanging lower than the one above it (ADR-1059 D3). */
 const DEPTH_STEP = 20;
 
-/** The tilt each resting view rests at (ADR-1062 D3): the top one from above at `SHEET_TILT`, the Library one its mirror from below. */
-export function restingTilt(mode: ForestMode): number {
-  return mode === "library" ? Math.PI - SHEET_TILT : SHEET_TILT;
-}
-
 /** Whether the eye at `tilt` looks at the sheet's underside: past level, toward straight up. */
 export function seesUnderside(tilt: number): boolean {
   return tilt > Math.PI / 2;
@@ -188,8 +183,8 @@ export function sheetPanUnder(turn: GlobeTurn, grabbed: SheetPoint, now: SheetPo
 }
 
 /** The sheet's keys (ADR-1060, ADR-1062 D2): WASD and the arrows pan, Q and E spin a quarter turn, R and F tilt a step toward
- * looking down on the islands or up at the graph, Home faces it back, T swings it to the other resting view. */
-export type SheetKey = { kind: "pan"; key: string } | { kind: "spin"; by: -1 | 1 } | { kind: "tilt"; by: -1 | 1 } | { kind: "home" } | { kind: "turn" };
+ * looking down on the islands or up at the graph, and Home faces it back. No key moves the eye for Stories or Library (ADR-1062 D3). */
+export type SheetKey = { kind: "pan"; key: string } | { kind: "spin"; by: -1 | 1 } | { kind: "tilt"; by: -1 | 1 } | { kind: "home" };
 
 const PAN_KEYS = new Map<string, { x: number; y: number }>([
   // The drag each key makes, per second: W goes away from you, so what is under the view slides down the window.
@@ -213,7 +208,6 @@ export function sheetKey(event: { type: string; key?: string; target?: unknown; 
   if (key === "q" || key === "e") return { kind: "spin", by: key === "q" ? -1 : 1 };
   if (key === "r" || key === "f") return { kind: "tilt", by: key === "r" ? -1 : 1 };
   if (key === "home") return { kind: "home" };
-  if (key === "t") return { kind: "turn" };
   return undefined;
 }
 
@@ -279,11 +273,12 @@ export function compassNorth(heading: number, under = false): number {
  * 3.11 on the glass sheet (ADR-0660): nothing is round the back, but a failing island (storytree's verified word) can lie
  * past the window's edge. Each one whose middle is drawn (`drawn`, in CSS pixels from the canvas's top left) outside a canvas
  * `size` gets a marker there, for `markerSpot` to bring to the edge nearest it. Its turn pans the island to the middle of
- * the view. Seen from below, where the islands are only outlines over the knowledge, none is marked (ADR-0660 D4, ADR-1062 D4).
+ * the view. In Library, where the islands are only outlines over the knowledge, none is marked, from any angle; in Stories
+ * one is, from above or below (ADR-0660 D4, ADR-1062 D3).
  */
 export function sheetMarkers(islands: readonly FacingIsland[], drawn: (island: FacingIsland) => { left: number; top: number }, size: { width: number; height: number },
-  tilt = SHEET_TILT): { story: string; left: number; top: number; turn: GlobeTurn }[] {
-  if (seesUnderside(tilt)) return [];
+  mode: ForestMode = "forest"): { story: string; left: number; top: number; turn: GlobeTurn }[] {
+  if (mode === "library") return [];
   return islands.filter(island => island.trees.some(tree => tree.status === "unhealthy")).flatMap(island => {
     const { left, top } = drawn(island);
     if (left >= 0 && left <= size.width && top >= 0 && top <= size.height) return [];

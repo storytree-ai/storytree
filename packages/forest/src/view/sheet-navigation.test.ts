@@ -8,7 +8,7 @@ import type { AnnotatedTree, Change } from "@storytree/library";
 import { applySheetEye, plateTransform, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
 import { focusRotation, markerSpot } from "./planet-navigation.js";
-import { compassNorth, headingHome, opensBare, restingTilt, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP } from "./sheet-navigation.js";
+import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP } from "./sheet-navigation.js";
 import { sheetPoint } from "@storytree/forest-world/planet";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
@@ -177,7 +177,7 @@ test("3.64 the glass sheet tilts like a table: a rotating drag's up-and-down par
   assert.ok(sheetTiltBy(SHEET_TILT, -TILT_STEP) < SHEET_TILT && sheetSpinTilt(0, SHEET_TILT, { x: 0, y: -20 }).tilt > SHEET_TILT, "F and a drag up tip it toward the underside");
 });
 
-test("3.56 under the glass sheet the knowledge graph visibly hangs: at the Library's resting tilt from below each computed depth hangs well below the one above it, toward the eye", () => {
+test("3.56 under the glass sheet the knowledge graph visibly hangs: seen from below at the mirror of the opening tilt, each computed depth hangs well below the one above it, toward the eye", () => {
   const layout = sheet(12), { extent, under } = layout, opening = sheetOpening(extent, size);
   const below = eye(opening, extent, UNDERNEATH);
   const shelf = under.shelfAt("s3")!;
@@ -207,7 +207,7 @@ test("3.11 on the glass sheet a failing island past the window's edge gets a mar
   const spot = markerSpot(marker!, size, []);
   assert.equal(spot.left, size.width - 20, "at the window's right edge, the edge nearest the island");
   assert.ok(Math.abs(spot.top - at11.y) < 0.5, "level with where it is drawn");
-  for (const tilt of [Math.PI / 2 + 0.05, UNDERNEATH]) assert.deepEqual(sheetMarkers(failing("s11"), drawn, size, tilt), [], "seen from below, where the islands are outlines over the knowledge, none is marked (ADR-0660 D4)");
+  assert.deepEqual(sheetMarkers(failing("s11"), drawn, size, "library"), [], "in Library, where the islands are outlines over the knowledge, none is marked (ADR-0660 D4)");
   // Its click pans the island to the middle of the view, at the same zoom, and the marker goes.
   const centred = sheetCentre(marker!.turn), at = where("s11");
   assert.ok(Math.abs(centred.x - at.x) < 1e-6 && Math.abs(centred.y - at.y) < 1e-6, "the island comes to the middle of the view");
@@ -320,10 +320,9 @@ test("3.60 the compass points to the glass sheet's starting north on the window,
   }
 });
 
-test("3.61 the sheet's keys are WASD, the arrows, Q, E, R, F, Home and T to swing it to the other resting view, and none of them acts while you type in a text field or hold Ctrl, Alt or the command key", () => {
-  assert.deepEqual(keyed("t"), { kind: "turn" });
-  assert.deepEqual(keyed("x"), undefined);
-  for (const key of ["w", "ArrowUp", "q", "E", "r", "F", "Home", "t"]) {
+test("3.61 the sheet's keys are WASD, the arrows, Q, E, R, F and Home, no key swings it between Stories and Library, and none of them acts while you type in a text field or hold Ctrl, Alt or the command key", () => {
+  for (const key of ["t", "x"]) assert.deepEqual(keyed(key), undefined, `${key} does nothing`);
+  for (const key of ["w", "ArrowUp", "q", "E", "r", "F", "Home"]) {
     for (const target of [{ tagName: "INPUT" }, { tagName: "TEXTAREA" }, { tagName: "SELECT" }, { tagName: "DIV", isContentEditable: true }]) assert.equal(keyed(key, target), undefined, `${key} in a ${target.tagName}`);
     for (const extra of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }]) assert.equal(keyed(key, { tagName: "BODY" }, extra), undefined, `${key} with ${Object.keys(extra)[0]}`);
     assert.notEqual(keyed(key, { tagName: "BODY" }), undefined, `${key} on the page`);
@@ -331,15 +330,15 @@ test("3.61 the sheet's keys are WASD, the arrows, Q, E, R, F, Home and T to swin
   assert.equal(sheetKey({ type: "keyup", key: "w" }), undefined, "only a press");
 });
 
-test("3.63 an island-less sheet, the user's factory, opens at the Library's resting view from below, over a pool wide enough to spread its notes", () => {
+test("3.63 an island-less sheet, the user's factory, opens on the Library look at the view from above, over a pool wide enough to spread its notes", () => {
   const empty = sheetLayout(forestScene({ arcs: [], stories: [] }, [], workStates([])), new Map());
   assert.ok(empty.under.pool.width >= empty.under.pool.height, `pool ${empty.under.pool.width} wide`);
   assert.ok(empty.extent.width >= empty.under.pool.width, "the glass runs under the whole pool");
   assert.equal(opensBare("library"), true);
   assert.equal(opensBare("forest"), false);
-  // At the Library's resting view from below, a note hung in its pool is on show, so its first-encounter card anchors at its dot.
-  assert.equal(restingTilt("library"), UNDERNEATH);
-  const opened = eye(sheetOpening(empty.extent, size), empty.extent, restingTilt("library")), world = new Group(), glass = new Group(), dot = new Mesh();
+  // At the opening view from above, through the Library's clear glass, a note hung in its pool is on show, so its
+  // first-encounter card anchors at its dot.
+  const opened = eye(sheetOpening(empty.extent, size), empty.extent), world = new Group(), glass = new Group(), dot = new Mesh();
   opened.globe.name = "globe";
   glass.name = "sheet:under";
   dot.name = "knowledge-point:agent_builder";

@@ -19,7 +19,7 @@ import { decisionRights } from "@storytree/project-and-caller";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
-async function sessionStart(harness = "claude-code"): Promise<{ client: Client; close(): Promise<void> }> {
+async function sessionStart(harness = "claude-code"): Promise<{ client: Client; harnessTools: readonly string[]; close(): Promise<void> }> {
   // A user's folder, not this checkout: storytree's own project also serves the librarian's tools.
   const folder = mkdtempSync(path.join(tmpdir(), "habits-card-"));
   const tools = createAgentTools({ folder, env: {} });
@@ -29,6 +29,7 @@ async function sessionStart(harness = "claude-code"): Promise<{ client: Client; 
   await client.connect(clientSide);
   return {
     client,
+    harnessTools: tools.harnessTools,
     async close() {
       await client.close();
       await tools.close();
@@ -40,7 +41,8 @@ async function sessionStart(harness = "claude-code"): Promise<{ client: Client; 
 test("7.1 the card names every tool the server has, and no tool the server lacks", async () => {
   const session = await sessionStart();
   try {
-    const offered = (await session.client.listTools()).tools.map((tool) => tool.name).sort();
+    // A harness's own tools are for it, not the agent, so the card leaves them off (ADR-1056 D2).
+    const offered = (await session.client.listTools()).tools.map((tool) => tool.name).filter((tool) => !session.harnessTools.includes(tool)).sort();
     const taught = [...new Set([...habitsCard().matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort();
     assert.deepEqual(taught, offered);
     for (const tool of ["list_own_runs", "list_all_runs", "stop_own_run", "clear_own_runs"]) assert.ok(taught.includes(tool), tool);

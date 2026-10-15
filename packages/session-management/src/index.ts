@@ -25,3 +25,4 @@ export { TranscriptCache } from "./transcripts/index.js";
 export type { Arrival, ContextCommandAnswer, ContextCommandOptions, ContextReading, SessionWindow, WindowOpen, WindowReading, WindowTarget } from "./context/index.js";
 export { CaptureError, hasConcreteEvidence, recordFriction, recordResteer, reinforceFriction } from "./capture/index.js";
 export type { NewFriction, NewResteer, Reinforcement } from "./capture/index.js";
+export { hookToolParts } from "./hooks/tools.js";

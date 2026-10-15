@@ -216,8 +216,8 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["quality_standing", { increment: "increment_000000000000" }],
         ["graduate_check", { check: "check_000000000000", part: "a constant asserted equal to itself", enforced_by: "self-equal-assertion" }],
       ];
-      // Own's offline tools and the setup check's two do not depend on the library.
-      const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run", "clear_own_runs"];
+      // Own's offline tools and the setup check's two do not depend on the library; a harness's hook event waits on this machine instead (3.40).
+      const offlineTools = ["check_setup", "set_up_project", "list_all_runs", "list_own_runs", "stop_own_run", "clear_own_runs", "hook_event"];
       assert.deepEqual(calls.map(([tool]) => tool).sort(), TOOLS.filter((tool) => !offlineTools.includes(tool)), "every library tool is tried");
       for (const [tool, args] of calls) {
         const answer = await agent.call(tool, args);

@@ -46,14 +46,16 @@
  * a trace of why left on this machine (failures.ts, contract 3.23).
  */
 import type { Harness } from "@storytree/project-and-caller/caller";
+import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import path from "node:path";
 
 import type { NewLine, Storytree } from "@storytree/library";
 
+import type { ActivityLog, DeliveredEvent } from "../activity/index.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
-import { findProject, openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions } from "@storytree/project-and-caller";
+import { findProject, openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
@@ -184,6 +186,8 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
   // A copy this hook hands its work to is started without the flag, so the event goes with the input.
   const input = parsed === read ? given : JSON.stringify(parsed);
   const failed = (stage: HookFailure["stage"], error: unknown) => noteHookFailure(storytreeHome, hookIdentity(harness, parsed), stage, error);
+  // The event as the tool server would know it too, so the log keeps it once whichever way it came (ADR-1056 D2).
+  const delivered: DeliveredEvent = { key: eventKey(harness, parsed), via: "command" };
   try {
     // Any Codex hook that runs proves the user trusted storytree's hooks there (3.18), in a project or not.
     if (harness === "codex" && typeof parsed === "object" && parsed !== null) {
@@ -205,7 +209,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     if (asked !== undefined) {
       // The user's own words may carry their yes to changing imported code (contract 5.42); a harness's notice is not theirs.
       const said = isHarnessNotice(asked.prompt) ? undefined : yesSaid(harness, asked, locate, homeOf(locate), failed);
-      const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock)]);
+      const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock)]);
       const context = looked?.context;
       if (looked?.report !== undefined) {
         // The report is filed by a copy of this hook, so the prompt does not wait for the library's write.
@@ -217,7 +221,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     }
     if (made === undefined) return;
     // After an edit the gate asked the user about, the user's yes is recorded on the increment (contract 5.41).
-    await Promise.all([writeLines(harness, input, flags, made, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed)]);
+    await Promise.all([writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed)]);
   } catch (error) {
     // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said, but why is kept here.
     failed("hook", error);
@@ -225,33 +229,123 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
   return undefined;
 }
 
+/**
+ * The key of a hook event from `harness` (ADR-1056 D2): its input, keys in order, hashed with the harness's name. It is
+ * the same whichever way the event reaches storytree, so the log keeps its lines once.
+ */
+export function eventKey(harness: string, input: unknown): string {
+  return createHash("sha256").update(JSON.stringify([harness, inOrder(input)])).digest("hex");
+}
+
+/** `value` with every object's keys in order, so two inputs alike but for their keys' order are one. */
+function inOrder(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(inOrder);
+  if (typeof value !== "object" || value === null) return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, inOrder((value as Record<string, unknown>)[key])]));
+}
+
+/** One hook's lines as either way records them, and where. */
+interface Prepared {
+  readonly where: Exclude<Route, { status: "not-a-project" }>;
+  readonly made: HookLines;
+  readonly firstLine: NewLine | undefined;
+}
+
+/**
+ * Where `made`'s lines go, and the lines as both the command hook and the tool server record them (ADR-1056 D2): each
+ * naming its folder's branch, at its worktree's root, with what a shell command edited; undefined outside a project.
+ * `guarded` also sets the shell guard's baseline of the worktree.
+ */
+async function prepare(made: HookLines, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded: boolean): Promise<Prepared | undefined> {
+  const where = route(made.folder, locate);
+  if (where.status === "not-a-project") return undefined;
+  // The branch the folder is on now, on every line, before any waits on this machine (ADR-0754 D4).
+  const { currentBranch, worktreeRoot } = await import("../activity/branch.js");
+  const branch = currentBranch(made.folder);
+  if (branch !== undefined) made = { ...made, lines: made.lines.map((line) => (line.branch === undefined ? { ...line, branch } : line)) };
+  // A command run in a subfolder is recorded at its worktree's root, so a session lists each worktree once (4.22),
+  // or, with no git repository, at the folder holding the project's marker (4.33).
+  const root = worktreeRoot(made.folder);
+  const marker = root === undefined ? findProject(made.folder) : undefined;
+  const recordAt = root ?? (marker?.project === undefined ? undefined : marker.folder);
+  if (recordAt !== undefined && recordAt !== path.resolve(made.folder)) made = { ...made, lines: made.lines.map((line) => (line.folder === made.folder ? { ...line, folder: recordAt } : line)) };
+  const home = storytreeHome();
+  // Observe before queueing or reaching the store: shell writes remain edits while offline, and
+  // a command's edit line feeds the same upkeep/claim path as an explicit edit tool (3.22).
+  const firstLine = made.lines[0];
+  if (root !== undefined && firstLine !== undefined) made = { ...made, lines: [...made.lines, ...shellEdits(home, root, firstLine, (error) => failed("observe", error))] };
+  // The shell guard's own baseline of the worktree is set here too, when it is given the map's rule to judge claims by.
+  if (guarded && root !== undefined && firstLine !== undefined) watchWorktree(home, root, firstLine, failed);
+  return { where, made, firstLine };
+}
+
+/** Add `lines` to `project`'s log as `delivered` records them, oldest first, counting each into `written` as it is added. */
+async function appendEvent(log: ActivityLog, project: string, lines: readonly NewLine[], delivered: DeliveredEvent, written: { count: number }): Promise<void> {
+  for (const line of lines) {
+    await log.append(project, line, { event: delivered });
+    written.count += 1;
+  }
+}
+
+/** How the tool server reaches the activity log of a routed project: through its own open connection, refused (a ProjectFolderError) for a checkout not approved for it. */
+export type ReachLog = (where: Extract<Route, { status: "routed" }>) => Promise<ActivityLog>;
+
+/** What one hook event delivered through the tool server came to: how many of its lines were recorded, and how many wait on this machine. */
+export interface DeliveredLines {
+  readonly recorded: number;
+  readonly waiting: number;
+}
+
+/**
+ * Record one hook event from `harness` delivered through the tool server rather than by a command hook (ADR-1056 D2):
+ * the lines the command hook makes of it, written through the server's connection (`reach`), each kept once whichever
+ * way the event came. It does nothing else a command hook does: no look around the machine, no transcript shipped, no
+ * claim ended. While the log cannot be reached its lines wait on this machine, as a command hook's do.
+ */
+export async function recordHookEvent(harness: string, input: unknown, reach: ReachLog, locate?: LocateOptions): Promise<DeliveredLines> {
+  const failed = (stage: HookFailure["stage"], error: unknown) => noteHookFailure(storytreeHome, hookIdentity(harness, input), stage, error);
+  const made = hookLines(harness, input);
+  const ready = made === undefined || made.lines.length === 0 ? undefined : await prepare(made, locate, failed, false);
+  if (ready === undefined) return { recorded: 0, waiting: 0 };
+  const { where, made: lines } = ready;
+  const delivered: DeliveredEvent = { key: eventKey(harness, input), via: "tool" };
+  const { enqueue } = await import("./queue.js");
+  const waits = (from: number): DeliveredLines => {
+    enqueue(storytreeHome(), where.project, lines.lines.slice(from), delivered);
+    return { recorded: from, waiting: lines.lines.length - from };
+  };
+  if (where.status === "not-running") return waits(0);
+  let log: ActivityLog;
+  try {
+    log = await reach(where);
+  } catch (error) {
+    // A checkout not approved for the project writes nothing, not even later (ADR-0942 D1).
+    if (error instanceof ProjectFolderError) return { recorded: 0, waiting: 0 };
+    failed("reach", error);
+    return waits(0);
+  }
+  const written = { count: 0 };
+  try {
+    await appendEvent(log, where.project, lines.lines, delivered, written);
+    return { recorded: written.count, waiting: 0 };
+  } catch (error) {
+    failed("write", error);
+    return waits(written.count);
+  }
+}
+
 /** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine; a failure is traced with `failed`. Never throws. */
-async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock): Promise<void> {
+async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, delivered: DeliveredEvent, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock): Promise<void> {
   try {
     if (made.lines.length === 0) return;
-    const where = route(made.folder, locate);
-    if (where.status === "not-a-project") return;
-    // The branch the folder is on now, on every line, before any waits on this machine (ADR-0754 D4).
-    const { currentBranch, worktreeRoot } = await import("../activity/branch.js");
-    const branch = currentBranch(made.folder);
-    if (branch !== undefined) made = { ...made, lines: made.lines.map((line) => (line.branch === undefined ? { ...line, branch } : line)) };
-    // A command run in a subfolder is recorded at its worktree's root, so a session lists each worktree once (4.22),
-    // or, with no git repository, at the folder holding the project's marker (4.33).
-    const root = worktreeRoot(made.folder);
-    const marker = root === undefined ? findProject(made.folder) : undefined;
-    const recordAt = root ?? (marker?.project === undefined ? undefined : marker.folder);
-    if (recordAt !== undefined && recordAt !== path.resolve(made.folder)) made = { ...made, lines: made.lines.map((line) => (line.folder === made.folder ? { ...line, folder: recordAt } : line)) };
-    // Storytree cannot be reached: the lines wait on this machine for the next hook that reaches it.
+    const ready = await prepare(made, locate, failed, guarded);
+    if (ready === undefined) return;
+    const { where, firstLine } = ready;
+    made = ready.made;
     const home = storytreeHome();
-    // Observe before queueing or reaching the store: shell writes remain edits while offline, and
-    // a command's edit line feeds the same upkeep/claim path as an explicit edit tool (3.22).
-    const firstLine = made.lines[0];
-    if (root !== undefined && firstLine !== undefined) made = { ...made, lines: [...made.lines, ...shellEdits(home, root, firstLine, (error) => failed("observe", error))] };
-    // The shell guard's own baseline of the worktree is set here too, when it is given the map's rule to judge claims by.
-    if (guarded && root !== undefined && firstLine !== undefined) watchWorktree(home, root, firstLine, failed);
     const { enqueue, uploadQueued } = await import("./queue.js");
     if (where.status === "not-running") {
-      enqueue(home, where.project, made.lines);
+      enqueue(home, where.project, made.lines, delivered);
       return;
     }
     if (flags.includes(BACKGROUND) && handOff !== undefined) {
@@ -259,7 +353,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
       return undefined;
     }
     // Only now, with lines to write and somewhere to write them, is the database reached.
-    const [{ openActivityLog, thisMachine }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
+    const [{ openActivityLog, thisMachine, currentBranch }, { connect }] = await Promise.all([import("../activity/index.js"), import("@storytree/library")]);
     const machine = thisMachine();
     let opened;
     const connecting = performance.now();
@@ -277,13 +371,13 @@ async function writeLines(harness: string, input: string, flags: readonly string
     } catch (error) {
       if (error instanceof ProjectFolderError) return;
       failed("reach", error);
-      enqueue(home, where.project, made.lines);
+      enqueue(home, where.project, made.lines, delivered);
       return;
     } finally {
       clock?.add("connect", performance.now() - connecting);
     }
     const { storytree, log } = opened;
-    let written = 0;
+    const written = { count: 0 };
     const writing = performance.now();
     const handing = clock?.spent("handoff") ?? 0;
     try {
@@ -299,10 +393,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
         const { recordMachineStart } = await import("../sessions/machine-start.js");
         await recordMachineStart(home, log, where.project, { session: by.session, ...(by.harness === undefined ? {} : { harness: by.harness }) }).catch(() => undefined);
       }
-      for (const line of made.lines) {
-        await log.append(where.project, line);
-        written += 1;
-      }
+      await appendEvent(log, where.project, made.lines, delivered, written);
       // A claim whose pull request has merged ends now (ADR-0643 D3), except before a storytree tool
       // call or at a prompt, which the harness waits for; the tool call looks for itself.
       const [first] = made.lines;
@@ -328,7 +419,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
     } catch (error) {
       // The log went away mid-hook: what it did not take waits for the next hook.
       failed("write", error);
-      enqueue(home, where.project, made.lines.slice(written));
+      enqueue(home, where.project, made.lines.slice(written.count), delivered);
     } finally {
       // The write's time is its own: a hand-off inside it is timed as the hand-off.
       clock?.add("write", performance.now() - writing - ((clock?.spent("handoff") ?? 0) - handing));

@@ -29,6 +29,9 @@
  *   progress, and stops at its next phase once the client has cancelled it (6.41);
  * - turns a refusal from the library or the claims into a readable answer marked as an error,
  *   never a crash.
+ *
+ * A harness's own tools (ADR-1056 D2: a hook event handed over with no process started for it) are served beside
+ * these through the same connections, but none of the above records them: their calls are not an agent's.
  */
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -37,7 +40,7 @@ import path from "node:path";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { callLines, endMergedClaims, type ActivityLog, type MergeWatch } from "@storytree/session-management";
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
-import { findProject, idleAfterMs, locateStorytree, route, storytreeHome } from "@storytree/project-and-caller";
+import { findProject, idleAfterMs, locateStorytree, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
@@ -98,8 +101,10 @@ export interface JourneyMilestones {
 /** A tool server, and how to close it with every connection it opened. */
 export interface AgentTools {
   readonly server: McpServer;
-  /** The name of every tool it serves, as its client lists them. */
+  /** The name of every tool it serves an agent or a person, as its client lists them. */
   readonly tools: readonly string[];
+  /** The name of every tool it serves a harness instead (ADR-1056 D2): listed to the client too, but off the card, with no call recorded. */
+  readonly harnessTools: readonly string[];
   /** Who calls the tool named (ADR-1045 D1): as it was defined, else both an agent and a person. */
   consumers(tool: string): readonly Consumer[];
   close(): Promise<void>;
@@ -142,9 +147,21 @@ export interface DefineOptions {
 /** Registers one tool: its name, what it is for, its arguments, what it does with them, and who calls it. */
 export type Define = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: Call) => Promise<Answer>, options?: DefineOptions) => void;
 
+/** What a harness's tool has for one call (ADR-1056 D2): the server's own connections to storytree, and where it looks for storytree. */
+export interface HarnessCall {
+  /** The activity log of the project `where` routes to, through the server's connection; refused (a ProjectFolderError) for a checkout not approved for it. */
+  readonly reach: (where: Extract<Route, { status: "routed" }>) => Promise<ActivityLog>;
+  readonly locate: LocateOptions;
+}
+
+/** Registers one harness's tool: its name, what it is for, its arguments and what it does with them. */
+export type DefineForHarness = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: HarnessCall) => Promise<Answer>) => void;
+
 /** Another story's contribution to the one tool server (ADR-0643 D6). */
 export interface ToolExtension {
   readonly registerTools?: (define: Define) => void;
+  /** Tools a harness calls rather than the model (ADR-1056 D2): served apart from the agent's, recording no call, and off the card. */
+  readonly registerHarnessTools?: (define: DefineForHarness) => void;
   /** A short addition to the habits card, naming the added tools in backticks. */
   readonly instructions?: string;
   /** Suggest the next step after a successful landing; undefined means nothing is due. */
@@ -177,7 +194,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   const env = options.env ?? process.env;
   // A session id of its own, for a harness that names none: one server process serves one session.
   const ownSession = `storytree-mcp-${randomUUID()}`;
-  const locate = options.dataDir === undefined ? {} : { dataDir: options.dataDir };
+  const locate: LocateOptions = options.dataDir === undefined ? {} : { dataDir: options.dataDir };
   const callerOf = (context: ServerContext): Caller => callerFrom(server, context, env, ownSession);
   // The machine whose approved trunks let this folder reach its project (ADR-0942): the home setup records them in.
   const home = options.setup?.storytreeHome ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
@@ -236,6 +253,26 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     server.registerTool(name, { description, inputSchema: input }, handle as never);
   };
 
+  // A harness's tool is answered through the same connections, but its call is not an agent's: no tool-called or
+  // door-answered line, no claims ended, no session looked for (ADR-1056 D2).
+  const harnessTools: string[] = [];
+  const defineForHarness: DefineForHarness = (name, description, input, act) => {
+    harnessTools.push(name);
+    const reach: HarnessCall["reach"] = async (where) => (await connections.reach(where.library, where.project, where.identity, { folder: where.folder, home })).log;
+    const handle = async (args: unknown): Promise<CallToolResult> => {
+      try {
+        return result(await act(args as never, { reach, locate }));
+      } catch (error) {
+        if (isUnreachable(error)) {
+          await connections.close();
+          return result({ text: NOT_RUNNING_ANSWER });
+        }
+        return result({ text: refusalOf(error), refused: true });
+      }
+    };
+    server.registerTool(name, { description, inputSchema: input }, handle as never);
+  };
+
   registerSetupTools({
     server,
     folder: options.folder,
@@ -283,10 +320,12 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   registerPipelineTools(define, options.protection);
   registerContextTools(define, options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir)));
   for (const extension of extensions) extension.registerTools?.(define);
+  for (const extension of extensions) extension.registerHarnessTools?.(defineForHarness);
 
   return {
     server,
     tools: servedTools,
+    harnessTools,
     consumers: (tool) => consumers.get(tool) ?? ["agent", "user"],
     async close() {
       await server.close();

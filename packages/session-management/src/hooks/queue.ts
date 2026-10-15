@@ -14,14 +14,15 @@ import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync
 import { hostname } from "node:os";
 import path from "node:path";
 
-import type { ActivityLog } from "../activity/index.js";
+import type { ActivityLog, DeliveredEvent } from "../activity/index.js";
 import type { NewLine } from "@storytree/library";
 
-/** One waiting line: the project it is for, and when it was written. */
+/** One waiting line: the project it is for, when it was written, and the hook event it records, so it is kept once whichever way that event came (ADR-1056 D2). */
 interface Queued {
   readonly project: string;
   readonly at: string;
   readonly line: NewLine;
+  readonly event?: DeliveredEvent;
 }
 
 /** Where lines wait, under the storytree home `home`. */
@@ -29,15 +30,15 @@ export function queueFolder(home: string): string {
   return path.join(home, "queued-lines");
 }
 
-/** Keep `lines` for `project`, written now on this machine, until a hook reaches the log. */
-export function enqueue(home: string, project: string, lines: readonly NewLine[]): void {
+/** Keep `lines` for `project`, written now on this machine and recording `event`, until a hook reaches the log. */
+export function enqueue(home: string, project: string, lines: readonly NewLine[], event?: DeliveredEvent): void {
   if (lines.length === 0) return;
   const folder = queueFolder(home);
   mkdirSync(folder, { recursive: true });
   const at = new Date();
   const machine = hostname().trim() || undefined;
   const text = lines.map((line): string => JSON.stringify({ project, at: at.toISOString(),
-    line: line.machine !== undefined || machine === undefined ? line : { ...line, machine } } satisfies Queued)).join("\n");
+    line: line.machine !== undefined || machine === undefined ? line : { ...line, machine }, ...(event === undefined ? {} : { event }) } satisfies Queued)).join("\n");
   const name = `${String(at.getTime()).padStart(15, "0")}-${process.pid}-${randomBytes(4).toString("hex")}`;
   writeFileSync(path.join(folder, `${name}.part`), `${text}\n`);
   renameSync(path.join(folder, `${name}.part`), path.join(folder, `${name}.jsonl`));
@@ -77,7 +78,7 @@ export async function uploadQueued(home: string, log: ActivityLog, admits: (proj
       renameSync(file, `${file}.unreadable`);
       continue;
     }
-    for (const { project, at, line } of waiting) if (await admitted(project, line.folder)) await log.append(project, line, { at, once: true });
+    for (const { project, at, line, event } of waiting) if (await admitted(project, line.folder)) await log.append(project, line, { at, once: true, ...(event === undefined ? {} : { event }) });
     rmSync(file, { force: true });
   }
 }

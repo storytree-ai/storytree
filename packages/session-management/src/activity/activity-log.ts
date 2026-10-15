@@ -87,7 +87,23 @@ export interface AppendOptions {
   readonly at?: string;
   /** Add it only if the project has no line exactly like it, at that time: an upload tried twice adds it once. */
   readonly once?: boolean;
+  /**
+   * The hook event it records, and which way that event came (ADR-1056 D2). A line exactly like it, of
+   * the same event, that came the other way within EVENT_WINDOW of its time is the same line, so it is
+   * not added again: an event both ways deliver is kept once. One way never dedupes against itself, so
+   * two events with the same input, each delivered once, are two.
+   */
+  readonly event?: DeliveredEvent;
 }
+
+/** A hook event, by its key (the same whichever way it came), and the way it came: by the command hook, or through the tool server. */
+export interface DeliveredEvent {
+  readonly key: string;
+  readonly via: "command" | "tool";
+}
+
+/** How far apart the two ways may deliver one event and still be read as one: both run within seconds of it. */
+export const EVENT_WINDOW = "2 minutes";
 
 /** One project's log, as a locked write sees it. */
 export interface LockedLog {
@@ -139,6 +155,10 @@ const SCHEMA: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS activity_project_at_idx ON activity (project, at)`,
   // ... and inside folders, whatever their case or slashes (bounded.ts FOLDER_KEY), by a range of the folder's key.
   `CREATE INDEX IF NOT EXISTS activity_project_folder_idx ON activity (project, (lower(replace(folder, '\\', '/'))) text_pattern_ops)`,
+  // The hook event a line records and the way it came, so an event both ways deliver is kept once (ADR-1056 D2).
+  `ALTER TABLE activity ADD COLUMN IF NOT EXISTS event text`,
+  `ALTER TABLE activity ADD COLUMN IF NOT EXISTS event_via text`,
+  `CREATE INDEX IF NOT EXISTS activity_project_event_idx ON activity (project, event) WHERE event IS NOT NULL`,
   ...TRANSCRIPT_SCHEMA,
 ];
 
@@ -378,7 +398,7 @@ function parseLine(line: NewLine): NewLine {
 }
 
 /** Add `line` to `project`'s log on `client`, inside a transaction holding the project's lock. */
-async function insert(client: PoolClient, project: string, line: NewLine, { at, once = false }: AppendOptions = {}): Promise<Line> {
+async function insert(client: PoolClient, project: string, line: NewLine, { at, once = false, event }: AppendOptions = {}): Promise<Line> {
   // A cause is an earlier line of this project's log: a dangling one is refused, never healed (0.2 inc-74).
   if (line.causedBy !== undefined) {
     const { rowCount } = await client.query("SELECT 1 FROM activity WHERE project = $1 AND seq = $2", [project, line.causedBy]);
@@ -396,10 +416,21 @@ async function insert(client: PoolClient, project: string, line: NewLine, { at, 
     );
     if (same[0] !== undefined) return lineOf(same[0]);
   }
+  if (event !== undefined) {
+    // The same line of the same event, come the other way about the same time, is this line (ADR-1056 D2).
+    const { rows: same } = await client.query<ActivityRow>(
+      `SELECT seq, project, at, ${COLUMNS.join(", ")}, detail FROM activity
+        WHERE project = $1 AND event = $9 AND event_via <> $10 AND session = $2 AND harness IS NOT DISTINCT FROM $3 AND source = $4
+          AND kind = $5 AND folder IS NOT DISTINCT FROM $6 AND detail = $7::jsonb
+          AND at BETWEEN coalesce($8::timestamptz, now()) - interval '${EVENT_WINDOW}' AND coalesce($8::timestamptz, now()) + interval '${EVENT_WINDOW}' LIMIT 1`,
+      [...values, event.key, event.via],
+    );
+    if (same[0] !== undefined) return lineOf(same[0]);
+  }
   const { rows } = await client.query<{ seq: string; at: Date }>(
-    `INSERT INTO activity (project, session, harness, source, kind, folder, detail, at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, coalesce($8::timestamptz, now())) RETURNING seq, at`,
-    values,
+    `INSERT INTO activity (project, session, harness, source, kind, folder, detail, at, event, event_via)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, coalesce($8::timestamptz, now()), $9, $10) RETURNING seq, at`,
+    [...values, event?.key ?? null, event?.via ?? null],
   );
   const row = rows[0]!;
   return { ...line, seq: Number(row.seq), project, at: row.at.toISOString() } as Line;

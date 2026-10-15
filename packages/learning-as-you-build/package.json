@@ -1,0 +1,18 @@
+{
+  "name": "@storytree/learning-as-you-build",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./view": "./src/view/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "happy-dom": "catalog:",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

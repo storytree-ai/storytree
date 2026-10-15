@@ -75,6 +75,9 @@ importers:
       '@storytree/lag-in-use':
         specifier: workspace:*
         version: link:../../packages/lag-in-use
+      '@storytree/learning-as-you-build':
+        specifier: workspace:*
+        version: link:../../packages/learning-as-you-build
       '@storytree/library':
         specifier: workspace:*
         version: link:../../packages/library
@@ -620,6 +623,21 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      happy-dom:
+        specifier: 'catalog:'
+        version: 20.14.5
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/learning-as-you-build:
     devDependencies:
       '@types/node':
         specifier: ^24.13.6

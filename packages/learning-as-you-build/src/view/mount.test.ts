@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { Window } from "happy-dom";
 
 import { journal } from "../journal.js";
-import { mountJournal, mountTeaching } from "./mount.js";
+import { mountJournal, mountTeaching } from "./index.js";
 
 function page() {
   const dom = new Window();

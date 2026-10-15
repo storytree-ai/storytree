@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { cardOf, KINDS } from "./cards.js";
+import { cardOf, KINDS } from "./index.js";
 
 test("1.1 · every kind has a card with a title and a line at once, and what, why, how and its decisions for More", () => {
   assert.deepEqual([...KINDS], ["empty", "arc", "story", "capability", "claim", "health", "decision", "question"]);

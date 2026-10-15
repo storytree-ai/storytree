@@ -436,3 +436,27 @@ test("1.11 opening a project whose tables are not current, as an account that ma
     await dropTestRoles([reader]);
   }
 });
+
+test("1.15 a project records whether it is the user's factory or a product naming its factory, and refuses to be both (ADR-1040)", async () => {
+  const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
+  await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
+    const made = await storytree.openProject(factory);
+    const built = await storytree.openProject(product);
+    assert.deepEqual(await made.lineage.factory(), { kind: "none" }, "a new project names no factory");
+
+    assert.equal(await made.lineage.markFactory(), true, "the first mark makes it the factory");
+    assert.equal(await made.lineage.markFactory(), false, "a second mark finds it one already");
+    await built.lineage.recordFactory(factory);
+    assert.deepEqual(await made.lineage.factory(), { kind: "factory" });
+    assert.deepEqual(await built.lineage.factory(), { kind: "product", factory });
+
+    // Kept in the project's own library, read again over a fresh connection.
+    await built.close();
+    assert.deepEqual(await (await storytree.openProject(product)).lineage.factory(), { kind: "product", factory });
+
+    await assert.rejects(made.lineage.recordFactory(product), /is a factory/);
+    await assert.rejects((await storytree.openProject(product)).lineage.markFactory(), /product project/);
+    await assert.rejects((await storytree.openProject(product)).lineage.recordFactory(product), RangeError);
+    assert.deepEqual(await made.lineage.factory(), { kind: "factory" }, "a refused write leaves it as it was");
+  });
+});

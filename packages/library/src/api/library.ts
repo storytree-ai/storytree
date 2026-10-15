@@ -89,6 +89,7 @@ const FROM_KNOWLEDGE = [
   "writeKnowledge", "defineTerm", "editNote", "search", "searchEach", "rank", "rankAll", "findPhrase",
   "relatedNotes", "related", "relatedEach", "definitions", "frontCovers", "decision", "decisions", "composeStatement",
 ] as const satisfies readonly (keyof Project["knowledge"])[];
+const FROM_LINEAGE = ["factory", "markFactory", "recordFactory"] as const satisfies readonly (keyof Project["lineage"])[];
 
 /**
  * One project's library, as everything outside the library reaches it. Every write accepts
@@ -96,15 +97,16 @@ const FROM_KNOWLEDGE = [
  *
  * Most of its operations are its parts' own (FROM_RECORDS and the lists beside it name them), each
  * documented on its method: records in schema/records.ts, the plan in work/work-model.ts, work in
- * flight in work/work-in-flight.ts, health in health/health-record.ts and knowledge in
- * knowledge/knowledge.ts. An editor shows that doc comment on the Library's method too.
+ * flight in work/work-in-flight.ts, health in health/health-record.ts, knowledge in
+ * knowledge/knowledge.ts and the project's factory in project/factory.ts. An editor shows that doc comment on the Library's method too.
  */
 export interface Library
   extends Pick<Project["records"], (typeof FROM_RECORDS)[number]>,
     Pick<Project["work"], (typeof FROM_WORK)[number]>,
     Pick<Project["flight"], (typeof FROM_FLIGHT)[number]>,
     Pick<Project["health"], (typeof FROM_HEALTH)[number]>,
-    Pick<Project["knowledge"], (typeof FROM_KNOWLEDGE)[number]> {
+    Pick<Project["knowledge"], (typeof FROM_KNOWLEDGE)[number]>,
+    Pick<Project["lineage"], (typeof FROM_LINEAGE)[number]> {
   /** The project's name. */
   readonly name: string;
   /** The identity of the project's database, as Storytree.projectIdentities() gives it. */
@@ -232,6 +234,7 @@ function libraryOf(project: Project): Library {
     ...take(project.flight, FROM_FLIGHT),
     ...take(project.health, FROM_HEALTH),
     ...take(project.knowledge, FROM_KNOWLEDGE),
+    ...take(project.lineage, FROM_LINEAGE),
     list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]> {
       return project.records.list(kind);
     },

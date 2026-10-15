@@ -3,6 +3,7 @@ export { PASSWORD_KEY } from "./address.js";
 export { cloudSqlServer } from "./cloud-sql.js";
 export type { CloudSqlConfig, CloudSqlConnector, CloudSqlSeams } from "./cloud-sql.js";
 export { ConnectionError } from "./connection-error.js";
+export type { FactoryLink } from "./factory.js";
 export { SEED_CONNECTION } from "./seed-connection.js";
 export type { ConnectionProblem } from "./connection-error.js";
 export { ProjectGoneError, ProjectNameError } from "./names.js";

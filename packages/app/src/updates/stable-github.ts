@@ -3,7 +3,10 @@ import { execFileSync } from "node:child_process";
 import type { Library } from "@storytree/library";
 import { STABLE_BRANCH } from "./release-channel.js";
 import { versionAt } from "./release-source.js";
-import { mergedPullRequests, pinStable, readStableManifest, type Bootstraps, type PinPorts, type StableManifest } from "./stable-pin.js";
+import {
+  FEED_PLATFORMS, mergedPullRequests, pinCoverage, pinStable, readStableManifest,
+  type Bootstraps, type FeedPlatform, type PinPorts, type PlatformFeed, type PlatformFeeds, type StableManifest,
+} from "./stable-pin.js";
 
 const REPOSITORY = "storytree-ai/storytree";
 export type GithubRequest = (endpoint: string, method?: string, body?: unknown) => Promise<unknown>;
@@ -21,7 +24,9 @@ export async function publishStable(manifest: StableManifest, bootstrap: Bootstr
     { path: "latest.yml", mode: "100644", type: "blob", content: JSON.stringify(manifest, null, 2) + "\n" },
     { path: "install-storytree.ps1", mode: "100644", type: "blob", content: bootstrap.ps1 },
     ...(bootstrap.sh === undefined ? [] : [{ path: "install-storytree.sh", mode: "100644", type: "blob", content: bootstrap.sh }]),
-    { path: "README.md", mode: "100644", type: "blob", content: `${manifest.releaseNotes}\n\nPinned from ${manifest.pin.commit}. Installer bytes remain on the original development release.\n` },
+    ...Object.entries(manifest.feeds ?? {}).map(([platform, feed]) => (
+      { path: FEED_PLATFORMS[platform as FeedPlatform].file, mode: "100644", type: "blob", content: JSON.stringify(feed, null, 2) + "\n" })),
+    { path: "README.md", mode: "100644", type: "blob", content: `${manifest.releaseNotes}\n\n${pinCoverage(manifest)}\n\nPinned from ${manifest.pin.commit}. Installer bytes remain on their original development releases.\n` },
   ] }) as { sha: string };
   const commit = await api("git/commits", "POST", {
     message: `Pin storytree ${manifest.version} as stable`, tree: tree.sha, parents: expectedRef ? [expectedRef] : [],
@@ -32,6 +37,36 @@ export async function publishStable(manifest: StableManifest, bootstrap: Bootstr
   } catch (error) {
     throw new Error(`Stable pin was not confirmed; it may have moved. Read it again before retrying. ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+/**
+ * Reads the update feed electron-builder wrote for one platform (latest-mac.yml, latest-linux.yml) into one whose files
+ * name the release's own assets by absolute URL, so a feed on the stable branch fetches them from that release.
+ * Only that writer's fixed shape is read; anything else in a file entry refuses the pin rather than being dropped.
+ */
+export function releaseFeed(text: string, resolve: (name: string) => { url: string; size: number }): PlatformFeed {
+  const files: Partial<PlatformFeed["files"][number]>[] = [];
+  let version: string | undefined;
+  let inFiles = false;
+  for (const line of text.split(/\r?\n/)) {
+    let m: RegExpExecArray | null;
+    if (!line.trim()) continue;
+    if ((m = /^version: '?([^'\s]+)'?$/.exec(line))) { version = m[1]; inFiles = false; }
+    else if (line === "files:") inFiles = true;
+    else if (inFiles && (m = /^  - url: (\S+)$/.exec(line))) files.push({ url: m[1]! });
+    else if (inFiles && files.length && (m = /^    (sha512|size|blockMapSize): (\S+)$/.exec(line))) {
+      const file = files.at(-1)!;
+      if (m[1] === "sha512") file.sha512 = m[2]!;
+      else file[m[1] as "size" | "blockMapSize"] = Number(m[2]);
+    } else if (/^\S/.test(line)) inFiles = false;
+    else if (inFiles) throw new Error(`Cannot read a release feed line: ${line}`);
+  }
+  if (!version) throw new Error("A release feed names no version");
+  return { version, files: files.map(({ url, ...rest }) => {
+    const original = resolve(url!);
+    if (rest.size !== original.size) throw new Error(`Release feed size for ${url} does not match its asset`);
+    return { ...rest, url: original.url } as PlatformFeed["files"][number];
+  }) };
 }
 
 interface Release {
@@ -86,8 +121,18 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
       if (delivery.installer.name !== installer.name || delivery.installer.size !== installer.size) throw new Error("Release installer does not match its delivery manifest");
       // The development updater's complete publication is required too; it remains untouched.
       asset(release, "latest.yml");
+      const feeds: PlatformFeeds = {};
+      for (const platform of Object.keys(FEED_PLATFORMS) as FeedPlatform[]) {
+        const { file } = FEED_PLATFORMS[platform];
+        if (release.assets.some(a => a.name === file)) {
+          feeds[platform] = releaseFeed(download(release, file), name => {
+            const original = asset(release, name);
+            return { url: original.browser_download_url, size: original.size };
+          });
+        }
+      }
       return { version: wanted, commit, channelSchema: delivery.channelSchema, draft: release.draft, prerelease: release.prerelease,
-        installer: { ...delivery.installer, url: installer.browser_download_url }, bootstrap: {
+        installer: { ...delivery.installer, url: installer.browser_download_url }, feeds, bootstrap: {
           ps1: download(release, "install-storytree.ps1"),
           ...(release.assets.some(a => a.name === "install-storytree.sh") ? { sh: download(release, "install-storytree.sh") } : {}),
         } };

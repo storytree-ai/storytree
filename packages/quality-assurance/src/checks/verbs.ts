@@ -120,7 +120,8 @@ const standingVerb = verb({
   inputs: { increment: { kind: "text", word: 0, describe: "the increment whose change is reviewed" } },
   async act({ increment }, context: QualityVerbContext) {
     const { openReviews, standingText } = await import("../index.js");
-    return { text: standingText(await (await openReviews(server(context))).standing(context.library.name, increment)) };
+    const reviews = await openReviews(server(context));
+    return { text: standingText(await reviews.standing(context.library.name, increment), await reviews.unmet(context.library.name, increment)) };
   },
 });
 

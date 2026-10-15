@@ -1,0 +1,194 @@
+{
+ "viewport": {
+  "width": 1440,
+  "height": 960
+ },
+ "seed": {
+  "stories": 27,
+  "capabilities": 142,
+  "taken": "2026-10-15T01:10:33.514Z",
+  "changesFolded": "each record: its created change and its last later change; cursor kept"
+ },
+ "results": {
+  "table-top": {
+   "tiltDeg": 40,
+   "rollDeg": 0.1,
+   "perspective": true,
+   "fovDeg": 35,
+   "zoomPxPerUnit": 1.093,
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "islandsOnScreen": 21,
+   "notesShown": 0,
+   "links": 0,
+   "filled": 54,
+   "coasts": 27,
+   "lights": 2,
+   "selected": null
+  },
+  "keys": {
+   "tiltDeg": 0.1,
+   "rollDeg": 0,
+   "perspective": true,
+   "fovDeg": 35,
+   "zoomPxPerUnit": 1.093,
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "islandsOnScreen": 13,
+   "notesShown": 0,
+   "links": 0,
+   "filled": 54,
+   "coasts": 27,
+   "lights": 2,
+   "selected": null
+  },
+  "table-part-way": {
+   "tiltDeg": 65,
+   "rollDeg": 0.1,
+   "perspective": true,
+   "fovDeg": 35,
+   "zoomPxPerUnit": 1.093,
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "islandsOnScreen": 21,
+   "notesShown": 956,
+   "links": 0,
+   "filled": 54,
+   "coasts": 27,
+   "lights": 2,
+   "selected": null
+  },
+  "table-edge-on": {
+   "tiltDeg": 86,
+   "rollDeg": 0.1,
+   "perspective": true,
+   "fovDeg": 35,
+   "zoomPxPerUnit": 1.093,
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "islandsOnScreen": 21,
+   "notesShown": 956,
+   "links": 0,
+   "filled": 54,
+   "coasts": 27,
+   "lights": 2,
+   "selected": null
+  },
+  "grab": {
+   "grabbedDeg": 132,
+   "afterDeg": 132
+  },
+  "table-underside": {
+   "tiltDeg": 140,
+   "rollDeg": 0.1,
+   "perspective": true,
+   "fovDeg": 35,
+   "zoomPxPerUnit": 1.093,
+   "pressed": {
+    "stories": "false",
+    "library": "true"
+   },
+   "islandsOnScreen": 21,
+   "notesShown": 956,
+   "links": 0,
+   "filled": 0,
+   "coasts": 27,
+   "lights": 2,
+   "selected": null
+  },
+  "table-top-selected": {
+   "tiltDeg": 40,
+   "rollDeg": 0.1,
+   "perspective": true,
+   "fovDeg": 35,
+   "zoomPxPerUnit": 1.093,
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "islandsOnScreen": 21,
+   "notesShown": 0,
+   "links": 59,
+   "filled": 54,
+   "coasts": 27,
+   "lights": 2,
+   "selected": "story_d754d997f22a"
+  },
+  "table-part-way-selected": {
+   "tiltDeg": 65,
+   "rollDeg": 0.1,
+   "perspective": true,
+   "fovDeg": 35,
+   "zoomPxPerUnit": 1.093,
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "islandsOnScreen": 22,
+   "notesShown": 956,
+   "links": 59,
+   "filled": 54,
+   "coasts": 27,
+   "lights": 2,
+   "selected": "story_d754d997f22a"
+  },
+  "table-edge-on-selected": {
+   "tiltDeg": 86,
+   "rollDeg": 0.1,
+   "perspective": true,
+   "fovDeg": 35,
+   "zoomPxPerUnit": 1.093,
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "islandsOnScreen": 23,
+   "notesShown": 956,
+   "links": 59,
+   "filled": 54,
+   "coasts": 27,
+   "lights": 2,
+   "selected": "story_d754d997f22a"
+  },
+  "table-underside-selected": {
+   "tiltDeg": 140,
+   "rollDeg": 0.1,
+   "perspective": true,
+   "fovDeg": 35,
+   "zoomPxPerUnit": 1.093,
+   "pressed": {
+    "stories": "false",
+    "library": "true"
+   },
+   "islandsOnScreen": 21,
+   "notesShown": 956,
+   "links": 59,
+   "filled": 0,
+   "coasts": 27,
+   "lights": 2,
+   "selected": "story_d754d997f22a"
+  },
+  "strip": {
+   "frames": [
+    0.1,
+    20,
+    40,
+    60,
+    80,
+    100,
+    120,
+    140,
+    160,
+    179.9
+   ]
+  }
+ }
+}

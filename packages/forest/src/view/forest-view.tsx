@@ -13,7 +13,7 @@ import { nextScene, sameWisps } from "./planet-update.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
 import { panelAside } from "./globe-aside.js";
 import { globeFraming } from "./planet-navigation.js";
-import { openingFace, sheetFaces, type SheetFace } from "./globe-switches.js";
+import { faceAt, openingFace, sheetFaces, type SheetFace } from "./globe-switches.js";
 import { sheetKey } from "./sheet-navigation.js";
 import type { PlacedGlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
@@ -49,8 +49,9 @@ interface Drawn {
 /**
  * Open the globe in `container`. `onSelect` hears the story or artifact picked, or empty space.
  * The app's existing core supplies the faint points; its inspection page stays deferred.
- * Its Stories and Library buttons are the glass sheet's two faces, one pressed at a time: pressing the other turns the sheet
- * over (ADR-1043 D3, replacing ADR-1002's four combinations here). With `library` off (ADR-0750) nothing hangs beneath and only
+ * Its Stories and Library buttons are the glass sheet's two resting views, one pressed at a time: pressing the other swings
+ * the tilt to its rest from above or below, and the pressed one follows the side of the glass the eye is on as the user tilts
+ * it by hand (ADR-1062 D3, replacing ADR-1002's four combinations here). With `library` off (ADR-0750) nothing hangs beneath and only
  * Stories is offered; `opening` is how close it opens, and `factory` opens the user's factory on its Library face (3.63).
  * The page offers `window.storytreeGlobe`, the locator the lag instrument clicks islands by (3.41).
  */
@@ -72,15 +73,16 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       <div className="forest-globe">
         <PlanetView sheet core={core} scene={drawn.scene} places={drawn.places} wisps={drawn.wisps}
           selected={drawn.selected} highlighted={drawn.highlighted}
-          onPick={pick} onNote={pickNote} onControls={onControls} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library} liveRoads />
+          onPick={pick} onNote={pickNote} onControls={onControls} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library} liveRoads
+          onSide={tilt => turn(faceAt(tilt))} />
       </div>
       <div className="forest-views" role="group" aria-label="Sheet faces">
         {layers.offered.map(which => <button key={which} type="button"
-          data-globe-switch={which} aria-pressed={layers.pressed[which]} title={layers.offered.length > 1 ? "Turn the sheet over (T)" : undefined} onClick={() => turn(which)}>
+          data-globe-switch={which} aria-pressed={layers.pressed[which]} title={layers.offered.length > 1 ? SWING_TITLE : TILT_TITLE} onClick={() => turn(which)}>
           {which === "stories" ? "Stories" : "Library"}
         </button>)}
       </div>
-      {/* The knowledge core's kind list unfolds under the Library button, while the sheet shows its underside (knowledge core 5, D1). */}
+      {/* The knowledge core's kind list unfolds under the Library button, while the eye is below the glass (knowledge core 5, D1). */}
       {layers.mode === "library" && <KnowledgeKinds core={core} />}
     </>);
   };
@@ -96,7 +98,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
   };
   const pick = (story: string | undefined, capability?: string): void => selection.story(story, capability);
   const pickNote = (note: string): void => selection.note(note);
-  // T turns the sheet over, as the Stories and Library buttons do (ADR-1060 D4).
+  // T swings the sheet to the other resting view, as the Stories and Library buttons do (ADR-1060 D4, ADR-1062 D3).
   const onKey = (event: KeyboardEvent): void => {
     selection.key(event.key);
     if (library && sheetKey(event)?.kind === "turn") turn(drawn.face === "stories" ? "library" : "stories");
@@ -148,6 +150,10 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     },
   };
 }
+
+/** What the face buttons say they do: swing between the resting views, and how to tilt the sheet by hand (ADR-1062 D2). */
+const TILT_TITLE = "Tilt the sheet: R and F, or right-drag up and down";
+const SWING_TITLE = `Swing to the other side of the glass (T). ${TILT_TITLE}`;
 
 /** Mount the Library panel, the knowledge core's card for the note picked, in the slot the story panel also uses. */
 export function mountLibraryPanel(container: HTMLElement, core: KnowledgeCore, onClose: () => void): () => void {

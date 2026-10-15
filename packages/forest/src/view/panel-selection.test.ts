@@ -43,7 +43,7 @@ test("3.10 switching Stories off clears a selected story and its panel, switchin
   assert.equal(changes.length, 4, "only the two clearings changed the panel");
 });
 
-test("3.55 on the glass sheet a selected story stays selected across the turn either way, and turning to Stories closes a picked note's card", () => {
+test("3.55 on the glass sheet a selected story stays selected on either side of the glass, and coming back above it to Stories closes a picked note's card", () => {
   const changes: Selection[] = [];
   const panel = new PanelSelection(selection => changes.push(selection));
   panel.story("forest", "pay");

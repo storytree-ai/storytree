@@ -7,7 +7,8 @@ unit directions and the placement rule's fixed `radius` in ground units.
 Each island is centred before `forestDescriptors` builds it; its clipped coast then becomes one
 flat, pale, see-through surface with a coast band (`island-surface.ts`, ADR-0804 D1), bent onto the
 globe's sphere under a rigid tangent group. There is no ground colouring, no pines or plants, and so
-no kit to parse and no sun to calibrate. There is one orthographic canvas. Plates own and dispose
+no kit to parse and no sun to calibrate. The globe's canvas is orthographic; the glass sheet's (ADR-1062 D1) is a
+perspective one, lit by soft light and one lamp over the eye's shoulder (`sheet.tsx`). Plates own and dispose
 their surface geometry. Drag orbits the camera; wheel/pinch zooms. Rendering runs on demand, and only
 while some of the canvas is on screen (6.10, `paint-while-seen.ts`): off screen the frameloop stops,
 keeping the scene, camera and clock, so a host can mount the globe below the fold for free. The
@@ -35,7 +36,10 @@ page keeps its near-side names, claims and picking rule. The surface owns and di
 geometry and material.
 
 The camera's constants live in `camera.ts`: the shipped elevation (`SHIPPED_ELEVATION_DEG`), the
-orthographic zoom for a viewport (`orthographicZoomFor`) and the globe's framing.
+orthographic zoom for a viewport (`orthographicZoomFor`) and the globe's framing. On the glass sheet the
+same zoom (CSS pixels per unit at the middle of the view) sets how far the perspective eye stands off
+(`applySheetEye`, `sheetEyeZoom`), and the wheel moves the eye, not the lens; what hangs under the glass shows
+by the angle the sheet is tilted to (`hangUnderTheGlass`).
 
 ## Historical first-slice capture
 

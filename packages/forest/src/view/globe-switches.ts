@@ -32,6 +32,14 @@ export type SheetFace = GlobeSwitch;
 export const LAUNCH_FACE: SheetFace = "stories";
 
 /**
+ * The face the sheet opens on (3.63): the user's factory holds no stories, only its system's roles, notes and checks, so it
+ * opens turned over to the Library face where they hang, when the Surfaces menu offers it; everything else opens on Stories.
+ */
+export function openingFace({ factory, libraryOffered }: { factory: boolean; libraryOffered: boolean }): SheetFace {
+  return factory && libraryOffered ? "library" : LAUNCH_FACE;
+}
+
+/**
  * What the forest page draws on the glass sheet for the face turned toward the eye: the turn replaces the switches' four
  * combinations outright, so one button is pressed at a time. With the Surfaces menu's Library off (ADR-0750) there is no
  * underside to turn to, and only Stories is offered.

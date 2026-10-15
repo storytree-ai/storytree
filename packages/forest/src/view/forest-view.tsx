@@ -13,7 +13,7 @@ import { nextScene, sameWisps } from "./planet-update.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
 import { panelAside } from "./globe-aside.js";
 import { globeFraming } from "./planet-navigation.js";
-import { LAUNCH_FACE, sheetFaces, type SheetFace } from "./globe-switches.js";
+import { openingFace, sheetFaces, type SheetFace } from "./globe-switches.js";
 import { sheetKey } from "./sheet-navigation.js";
 import type { PlacedGlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
@@ -51,14 +51,14 @@ interface Drawn {
  * The app's existing core supplies the faint points; its inspection page stays deferred.
  * Its Stories and Library buttons are the glass sheet's two faces, one pressed at a time: pressing the other turns the sheet
  * over (ADR-1043 D3, replacing ADR-1002's four combinations here). With `library` off (ADR-0750) nothing hangs beneath and only
- * Stories is offered; `opening` is how close it opens.
+ * Stories is offered; `opening` is how close it opens, and `factory` opens the user's factory on its Library face (3.63).
  * The page offers `window.storytreeGlobe`, the locator the lag instrument clicks islands by (3.41).
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
-  { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
+  { library = true, opening = "whole-planet", factory = false }: { library?: boolean; opening?: GlobeOpening | undefined; factory?: boolean } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
-    face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined, aside: 0,
+    face: openingFace({ factory, libraryOffered: library }), places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined, aside: 0,
   };
 
   const render = (next: Partial<Drawn>): void => {

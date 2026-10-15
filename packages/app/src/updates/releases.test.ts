@@ -9,12 +9,15 @@ import path from "node:path";
 import test from "node:test";
 
 import { NodeHttpExecutor } from "builder-util/out/nodeHttpExecutor.js";
-import { MacUpdater, NsisUpdater } from "electron-updater";
+import { AppImageUpdater, MacUpdater, NsisUpdater } from "electron-updater";
 import { ElectronHttpExecutor } from "electron-updater/out/electronHttpExecutor.js";
 
 import { background, type Launch } from "../lifecycle/background.js";
 import { keepBackups } from "../lifecycle/backups.js";
+import { STABLE_FEED } from "./release-channel.js";
 import { ReleaseUpdater, releaseBase } from "./releases.js";
+import { publishStable } from "./stable-github.js";
+import { pinStable } from "./stable-pin.js";
 
 type Platform = "win32" | "darwin";
 const PLATFORMS: readonly Platform[] = ["win32", "darwin"];
@@ -63,6 +66,45 @@ test("4.15 stable downloads only the pinned artifact while development continues
   feed.stable = "0.3.3";
   assert.equal(await unpinned.check(), "restarting");
   assert.equal(unpinned.request("status").nextBuild, "0.3.3");
+});
+
+/** The stable branch exactly as a pin of `version` writes it, every file pointing at that release's own assets. */
+async function pinnedBranch(installer: Buffer, version: string): Promise<Map<string, string>> {
+  const at = (name: string) => `https://github.com/storytree-ai/storytree/releases/download/v${version}/storytree-0.3-${version}-${name}`;
+  const digest = { sha512: createHash("sha512").update(installer).digest("base64"), size: installer.length };
+  const manifest = await pinStable(version, {
+    previous: async () => undefined,
+    candidate: async () => ({ version, commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false,
+      installer: { url: at("setup.exe"), sha256: "a".repeat(64), ...digest }, bootstrap: { ps1: "bootstrap" },
+      // An arch-neutral name: MacUpdater drops arm64 files on an Intel host, which this test may run on.
+      feeds: { mac: { version, files: [{ url: at("mac.zip"), ...digest }] }, linux: { version, files: [{ url: at("linux-x86_64.AppImage"), ...digest }] } } }),
+    pullRequests: async () => new Set(), increments: async () => [], publish: async () => {}, now: () => "2026-10-16T00:00:00.000Z",
+  }, true);
+  const branch = new Map<string, string>();
+  await publishStable(manifest, { ps1: "bootstrap" }, undefined, async (endpoint, _method, body) => {
+    if (endpoint === "git/trees") for (const file of (body as { tree: { path: string; content: string }[] }).tree) branch.set(file.path, file.content);
+    return { sha: "sha" };
+  });
+  return branch;
+}
+
+test("4.15 a stable Mac install and a stable Linux install each take only the pinned build, from the feeds the pin wrote, while development moves on", async (t) => {
+  const feed = await fixture(t, "darwin");
+  feed.version = "0.3.9";
+  feed.stableBranch = await pinnedBranch(feed.installer, "0.3.2");
+  const mac = feed.updater(async () => {}, async () => false, async () => false, "stable");
+  assert.equal(await mac.check(), "waiting");
+  assert.equal(mac.request("status").nextBuild, "0.3.2");
+  assert.deepEqual(feed.fetched, ["/release/storytree-ai/storytree/releases/download/v0.3.2/storytree-0.3-0.3.2-mac.zip"]);
+
+  const environment = { APPIMAGE: process.env["APPIMAGE"], TEST_UPDATER_ARCH: process.env["TEST_UPDATER_ARCH"] };
+  t.after(() => { for (const [key, value] of Object.entries(environment)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
+  Object.assign(process.env, { APPIMAGE: path.join(tmpdir(), "storytree.AppImage"), TEST_UPDATER_ARCH: "x64" });
+  const linux = feed.linux(STABLE_FEED);
+  const found = await linux.checkForUpdates();
+  assert.equal(found?.updateInfo.version, "0.3.2");
+  await linux.downloadUpdate();
+  assert.deepEqual(feed.fetched.at(-1), "/release/storytree-ai/storytree/releases/download/v0.3.2/storytree-0.3-0.3.2-linux-x86_64.AppImage");
 });
 
 test("4.4 the platform picks the updater's base: NSIS on Windows, Squirrel.Mac on macOS, none elsewhere", () => {
@@ -259,11 +301,18 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-release-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const installer = Buffer.from("fixture release payload — never executed");
-  const state = { version: "0.3.1", stable: undefined as string | undefined, offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined };
+  const state = { version: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined };
   const files = (base = "") => ["setup.exe", "storytree-mac.zip"].map(url => ({ url: `${base}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
   const server = createServer((request, response) => {
     if (state.offline) { response.writeHead(404).end(); return; }
-    if (request.url?.startsWith("/stable/latest.yml")) {
+    if (state.stableBranch && request.url?.startsWith("/stable/")) {
+      const file = state.stableBranch.get(request.url.slice("/stable/".length).split("?")[0]!);
+      if (file === undefined) response.writeHead(404).end();
+      else response.end(file);
+    } else if (request.url?.startsWith("/release/")) {
+      state.fetched.push(request.url);
+      response.end(installer);
+    } else if (request.url?.startsWith("/stable/latest.yml")) {
       if (!state.stable) { response.writeHead(404).end(); return; }
       response.end(JSON.stringify({ version: state.stable, files: files(`http://127.0.0.1:${(server.address() as { port: number }).port}/`) }));
     } else if (/^\/latest(-mac)?\.yml/.test(request.url ?? "")) {
@@ -279,6 +328,18 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   assert.ok(address !== null && typeof address === "object");
   const config = path.join(dir, "app-update.yml");
   await writeFile(config, JSON.stringify({ provider: "generic", url: `http://127.0.0.1:${address.port}`, updaterCacheDirName: "updates" }));
+  // Replace only Electron's network transport, retaining its file download and digest checks.
+  const executor = () => {
+    const transport = new NodeHttpExecutor();
+    return Object.assign(new ElectronHttpExecutor(), { createRequest(options: Parameters<typeof transport.createRequest>[0], callback: Parameters<typeof transport.createRequest>[1]) {
+      if (options.hostname === "raw.githubusercontent.com") {
+        options = { ...options, protocol: "http:", hostname: "127.0.0.1", port: address.port, path: `/stable/${String(options.path).split("/").at(-1)}` };
+      } else if (options.hostname === "github.com") {
+        options = { ...options, protocol: "http:", hostname: "127.0.0.1", port: address.port, path: `/release${String(options.path)}` };
+      }
+      return transport.createRequest(options, callback);
+    } });
+  };
   return Object.assign(state, {
     holds: path.join(dir, "update-holds"),
     updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "development") {
@@ -291,17 +352,25 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
       }, platform);
       // MacUpdater serves the download to Squirrel.Mac from its own local server.
       t.after(() => { const proxy = (updater.base as unknown as { server?: Server }).server; proxy?.closeAllConnections(); proxy?.close(); });
-      // Replace only Electron's network transport, retaining its file download and digest checks.
-      const transport = new NodeHttpExecutor();
-      const executor = Object.assign(new ElectronHttpExecutor(), { createRequest(options: Parameters<typeof transport.createRequest>[0], callback: Parameters<typeof transport.createRequest>[1]) {
-        if (options.hostname === "raw.githubusercontent.com") {
-          options = { ...options, protocol: "http:", hostname: "127.0.0.1", port: address.port, path: `/stable/${String(options.path).split("/").at(-1)}` };
-        }
-        return transport.createRequest(options, callback);
-      } });
-      Object.assign(updater.base, { httpExecutor: executor, _testOnlyOptions: { platform } });
+      Object.assign(updater.base, { httpExecutor: executor(), _testOnlyOptions: { platform } });
       updater.logger = null;
       updater.base.disableDifferentialDownload = true;
+      return updater;
+    },
+    /** electron-updater's AppImage updater, which storytree does not drive yet, reading the same feeds. */
+    linux(channelFeed: string) {
+      const updater = new AppImageUpdater(null, {
+        version: "0.3.1", name: "storytree-test", isPackaged: true,
+        appUpdateConfigPath: config, userDataPath: dir, baseCachePath: path.join(dir, "linux"),
+        whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),
+        quit: () => assert.fail("separate quit"), onQuit: () => {},
+      } as never);
+      Object.assign(updater, { httpExecutor: executor(), _testOnlyOptions: { platform: "linux" } });
+      updater.logger = null;
+      updater.autoDownload = false;
+      updater.autoInstallOnAppQuit = false;
+      updater.disableDifferentialDownload = true;
+      updater.setFeedURL({ provider: "generic", url: channelFeed });
       return updater;
     },
   });

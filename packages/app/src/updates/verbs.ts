@@ -13,9 +13,9 @@ const pin = verb({
     preview: { kind: "switch", describe: "preview the release notes and publish nothing" },
   },
   async act(input, context) {
-    const { pinRelease } = await import("./stable-github.js");
+    const [{ pinRelease }, { pinCoverage }] = await Promise.all([import("./stable-github.js"), import("./stable-pin.js")]);
     const pin = await pinRelease(input.version, { cwd: context.folder, library: context.library, preview: input.preview });
-    return { text: `${input.preview ? "Preview of" : "Stable is pinned to"} storytree ${pin.version}. ${input.preview ? "Nothing was published." : "The original installer is unchanged."}\n\n${pin.releaseNotes}` };
+    return { text: `${input.preview ? "Preview of" : "Stable is pinned to"} storytree ${pin.version}. ${input.preview ? "Nothing was published." : "The original installers are unchanged."}\n${pinCoverage(pin)}\n\n${pin.releaseNotes}` };
   },
 });
 

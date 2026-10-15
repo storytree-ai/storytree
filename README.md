@@ -109,24 +109,22 @@ server named by its address (see Keys).
 ## This repo's own library
 
 Storytree 0.3 keeps its own plan in the kind of library it gives every project, and the library is
-its only copy (ADR-0641, in 0.2's decision log). Since 2026-09-28 that library is on Google Cloud
-SQL, shared by every machine that develops 0.3, and its project `storytree` holds 0.3's own
+its only copy (ADR-0641, in 0.2's decision log). Since 2026-10-08 that library is Postgres 16 on
+the Mint box (ADR-0928), shared by every machine that develops 0.3, and its project `storytree` holds 0.3's own
 stories, their capabilities and contracts, the notes filed behind their front covers, and the
 decisions made for them. Sessions plan and edit them through the storytree tools, as a user's agent
 does, and an edit is live when it is written. There are no story or decision files to edit.
-`pnpm storytree settings show` says which library a machine uses.
+`pnpm storytree settings show` says which library a machine uses, and each script below uses that
+library (the app's local one, one on Cloud SQL, or one at a Postgres address) and says which.
 
-- `pnpm library:export` prints a project as read-only story and decision files into
-  `library-export/` (which git ignores), for reading the plan outside the app. It reads only the
-  app's local library, not one on Cloud SQL or at a Postgres address.
+- `pnpm library:export` prints the project `storytree` as read-only story and decision files into
+  `library-export/` (which git ignores), for reading the plan outside the app.
 - `pnpm check:own-health` runs each story's own tests and records what they showed as its verified
-  health, in the app's local library or the Cloud SQL one, as the `library` setting says. CI also
-  runs it on `main` after merges, recording into storytree's own library on Cloud SQL
-  ([`.github/workflows/own-health.yml`](.github/workflows/own-health.yml)).
+  health. CI also runs it on `main` after merges, recording into storytree's own library on the Mint
+  box over Tailscale ([`.github/workflows/own-health.yml`](.github/workflows/own-health.yml)).
 - The app keeps a snapshot of every project, taken at start and once a day, in
-  `~/.storytree/0.3/backups/`. `node --import tsx packages/dev-loop/src/restore-library.mjs
-  <snapshot>` puts one back into the app's local library, only into an empty project, so it never
-  overwrites live edits.
+  `~/.storytree/0.3/backups/`. `pnpm library:restore <snapshot> [--project <name>]` puts one back,
+  only into an empty project, so it never overwrites live edits.
 
 A script that uses the app's local library joins the running app's database, or starts it when the
 app is not running, and waits its turn behind another script, so there is no need to quit the app.

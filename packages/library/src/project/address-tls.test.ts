@@ -11,7 +11,7 @@
  * under the desktop app's own runtime, Electron, whose TLS is not Node's.
  */
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { createServer, type Server, type Socket } from "node:net";
@@ -236,15 +236,24 @@ const skip = process.env[UNDER_ELECTRON] !== undefined
   ? "other: this run is the one under Electron, which does not start another"
   : electron instanceof Error && process.env.CI === undefined ? `other: Electron is not installed here (${electron.message.split("\n")[0]})` : false;
 
-test("15.4 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's", { skip }, () => {
+test("15.4 every check in this file holds under the desktop app's runtime, Electron, whose TLS is not Node's", { skip, timeout: 150_000 }, async () => {
   assert.ok(typeof electron === "string", `Electron is not installed: ${String(electron)}`);
   // NODE_TEST_CONTEXT would make the child report to this runner's protocol instead of running its own.
   const { NODE_TEST_CONTEXT: _parent, ...env } = process.env;
-  const run = spawnSync(electron, ["--import", "tsx", "--test", "--test-reporter=spec", fileURLToPath(import.meta.url)], {
-    cwd: fileURLToPath(new URL("../..", import.meta.url)),
-    encoding: "utf8",
-    timeout: 120_000,
-    env: { ...env, ELECTRON_RUN_AS_NODE: "1", [UNDER_ELECTRON]: "1" },
+  // Not spawnSync: blocking this process holds back the report that this test has started, so the
+  // test harness, seeing a file with no test running, would kill it as one that never exits.
+  const run = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve, reject) => {
+    const child = spawn(electron, ["--import", "tsx", "--test", "--test-reporter=spec", fileURLToPath(import.meta.url)], {
+      cwd: fileURLToPath(new URL("../..", import.meta.url)),
+      timeout: 120_000,
+      env: { ...env, ELECTRON_RUN_AS_NODE: "1", [UNDER_ELECTRON]: "1" },
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => (stdout += chunk));
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
+    child.once("error", reject);
+    child.once("close", (status) => resolve({ status, stdout, stderr }));
   });
   assert.equal(run.status, 0, `under Electron:\n${run.stdout}\n${run.stderr}`);
   assert.match(run.stdout, /pass [1-9]/);

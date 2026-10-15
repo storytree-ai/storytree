@@ -4,7 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties } from "react";
 import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
-import { globeOccluder, onIslandSurface, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
+import { globeOccluder, onIslandSurface, plateTransform, SHEET, type PlanetSpot } from "@storytree/forest-world/planet";
 import { islandTerritories, type Coast } from "../territories/territories.js";
 import { capabilityPlates, facing, fadedCapabilities, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { islandProgress } from "./island-progress.js";
@@ -33,7 +33,8 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
   claimed?: ReadonlyMap<string, unknown>;
 }) {
   // Plates hide behind the sphere only (whatever radius it has grown to): one exact test each, not a raycast of the land.
-  const occluder = useMemo(() => [{ current: globeOccluder(radius) }], [radius]);
+  // SPIKE: on the glass sheet nothing hides a name: it faces the viewer from either side, over the glass.
+  const occluder = useMemo(() => SHEET ? undefined : [{ current: globeOccluder(radius) }], [radius]);
   const surface = useMemo(() => onIslandSurface(radius, PLATE_LIFT), [radius]);
   // Placed once on the island's own plate, like print on a map: it moves only as the island does (ADR-0917).
   const at = useMemo(() => surface(storyPlate(coast, southOnPlate(plateTransform(spot, radius).quaternion))).toArray(), [surface, coast, spot, radius]);
@@ -47,7 +48,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
     group.parent.getWorldQuaternion(turned);
     if (label.current === null) return;
     const faces = facing(turned, camera.quaternion);
-    label.current.style.visibility = faces > 0 ? "" : "hidden";
+    label.current.style.visibility = SHEET || faces > 0 ? "" : "hidden";
     label.current.dataset.facing = String(faces);
   }, -1);
   const chosen = island.story === selected;

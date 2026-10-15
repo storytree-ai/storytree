@@ -3,3 +3,4 @@
 export { createKnowledgeCore, KnowledgeGlobePoints, KnowledgeKinds, KnowledgeNoteCard, useCodeLighting } from "./surface.js";
 export type { CodeLighting, CoreReads, KnowledgeCore } from "./surface.js";
 export type { CoreGrowth } from "./globe-points.js";
+export { SheetUnderside, type SheetUndersideProps } from "./sheet-underside.js";

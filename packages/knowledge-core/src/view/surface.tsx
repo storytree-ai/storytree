@@ -198,6 +198,13 @@ export function KnowledgeGlobePoints({ core, spots, radius, places, growth }: {
   return <GlobePoints key={state.session ?? ""} points={points} radius={radius} notes={known.notes} sizes={sizes} lit={lit} trails={drawnPaths} window={window} replay={state.session !== undefined} stops={stops} growth={growth} />;
 }
 
+/** SPIKE (spike/glass-sheet): the core's change history and its switched-off kinds, for the glass sheet's underside. */
+export function useCoreHistory(core: KnowledgeCore): { history: readonly Change[]; hidden: ReadonlySet<string> } {
+  const store = core as Store;
+  const state = useSyncExternalStore(store.subscribe, store.get);
+  return { history: state.history, hidden: state.hidden };
+}
+
 /** The kind list (capability 5, D1): each kind with a dot, its colour and its count, switched on or off by a press. */
 export function KnowledgeKinds({ core }: { core: KnowledgeCore }) {
   const store = core as Store;

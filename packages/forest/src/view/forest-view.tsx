@@ -7,6 +7,7 @@
 import { createRoot } from "react-dom/client";
 import type { ForestScene, SessionWisp } from "@storytree/forest";
 import { KnowledgeKinds, KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
+import { SHEET } from "@storytree/forest-world/planet";
 import { PlanetView } from "./planet-view.js";
 import { nextScene, sameWisps } from "./planet-update.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
@@ -75,7 +76,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
       <div className="forest-views" role="group" aria-label="Globe layers">
         {layers.offered.map(which => <button key={which} type="button"
           data-globe-switch={which} aria-pressed={drawn.switches[which]} onClick={() => flip(which)}>
-          {which === "stories" ? "Stories" : "Library"}
+          {which === "stories" ? (SHEET ? "Forest" : "Stories") : "Library"}
         </button>)}
       </div>
       {/* The knowledge core's kind list unfolds under the Library switch, while it is on (knowledge core 5, D1). */}
@@ -88,6 +89,9 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     onSelect(next);
   });
   const flip = (which: GlobeSwitch): void => {
+    // SPIKE: on the glass sheet the two buttons are one Forest / Library control: one face or the other, and the
+    // selection holds across the turn.
+    if (SHEET) { render({ switches: { stories: which === "stories", library: which === "library" } }); return; }
     const switches = flipSwitch(drawn.switches, which);
     render({ switches });
     selection.switched({ stories: switches.stories, library: globeLayers(switches, library).library });

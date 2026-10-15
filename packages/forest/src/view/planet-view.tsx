@@ -2,11 +2,12 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Group, Quaternion, Vector3 } from "three";
-import { claimTints, openingTurn, replayWisps, selectionLanes, type ClaimTint, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, openingTurn, replayWisps, selectionLanes, sheetPlaces, type ClaimTint, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
-import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, usePlanetGrowth, type PlanetGrowth } from "@storytree/forest-world/planet";
+import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, SHEET, SHEET_ACROSS, SHEET_RADIUS, sheetSpot, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
+import { islandCoast, islandCoastReach } from "@storytree/forest-world/geometry";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
-import { KnowledgeGlobePoints, useCodeLighting, type CodeLighting, type KnowledgeCore } from "@storytree/knowledge-core/view";
+import { KnowledgeGlobePoints, SheetUnderside, useCodeLighting, type CodeLighting, type KnowledgeCore } from "@storytree/knowledge-core/view";
 import { SessionIslandEmphasis } from "./session-emphasis.js";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
@@ -61,7 +62,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   // Zoomed in past the islands, or in the Library, only the glass and the core show (ADR-0919 D3, D4). The hidden
   // marks stay mounted, so guides can still locate them.
   const [past, setPast] = useState(false);
-  const shownSurfaces = useMemo(() => surfacesFor(surfaces, mode === "library" || past), [surfaces, mode, past]);
+  const shownSurfaces = useMemo(() => surfacesFor(surfaces, !SHEET && (mode === "library" || past)), [surfaces, mode, past]);
   const [cameraFraming, setFraming] = useState(framing);
   const [cameraOffset, setOffset] = useState(sideOffset);
   const previousFraming = useRef(framing);
@@ -79,7 +80,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const setPose = useCallback((pose: GlobePose) => { setFraming(pose.framing); setOffset(pose.sideOffset); }, []);
   // A live update that moved no island keeps the spots on show, so only a changed island's plate draws again (ADR-0836 D1).
   const shown = useRef<ReturnType<typeof planetLayout>>(undefined);
-  const layout = useMemo(() => planetLayout(scene, places, shown.current, frame), [scene, places, frame]);
+  const layout = useMemo(() => SHEET ? sheetLayout(scene, places) : planetLayout(scene, places, shown.current, frame), [scene, places, frame]);
   shown.current = layout;
   // 3.28: while a change of layout plays, only the plates travel, with no roads; the rest is drawn once, at the new layout.
   const moving = useMovingSpots(layout.spots, easeMoves), travelling = moving !== layout.spots;
@@ -109,7 +110,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   }), [stopsByStory, code]);
   const lighting = useCodeLighting(core, codePlaces);
   // Contract 3.26: the selected story's links to other stories light as lanes; the Library shows none.
-  const lanes = useKept(useMemo(() => mode === "forest" ? selectionLanes(scene, selected) : [], [scene, selected, mode]), JSON.stringify);
+  const lanes = useKept(useMemo(() => SHEET || mode === "forest" ? selectionLanes(scene, selected) : [], [scene, selected, mode]), JSON.stringify);
   // ADR-0991 D4: a lit lane runs on from its dock along the territories' borders to its capability.
   const ways = useMemo(() => laneWays(layout.scene.islands), [layout.scene]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => {
@@ -119,15 +120,16 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} claimed={claimed} radius={layout.radius}
         spot={layout.spots.get(island.story)!} lighting={lighting} surfaces={shownSurfaces} onStops={reportStops} />}
-      {mode === "forest" && <SessionIslandEmphasis emphasis={emphasis} />}
+      {(SHEET || mode === "forest") && <SessionIslandEmphasis emphasis={emphasis} />}
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
       {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
-      {mode === "forest" && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
+      {(SHEET || mode === "forest") && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
     </>;
   }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, mode]);
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
-    surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false}
-    inside={<group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
+    surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false} sheet={"sheet" in layout ? layout.sheet.extent : undefined}
+    inside={"sheet" in layout ? <SheetUnderside core={core} selected={selected} {...layout.sheet.underside} />
+      : <group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
     rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={setRotation} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast}
@@ -179,6 +181,59 @@ function useMovingSpots(spots: ReadonlyMap<string, FacingIsland["spot"]>, ease: 
 function GrowingCore({ growing, ...props }: Omit<Parameters<typeof KnowledgeGlobePoints>[0], "growth"> & { growing: boolean }) {
   const growth = usePlanetGrowth();
   return <KnowledgeGlobePoints {...props} growth={growing ? growth : undefined} />;
+}
+
+/** SPIKE (spike/glass-sheet): how far below the glass one depth of the knowledge graph hangs under the next, in ground units. */
+const SHEET_DEPTH_STEP = 7;
+
+/**
+ * SPIKE (spike/glass-sheet): the islands on a flat sheet at their permanent places (`sheetPlaces`), with the pool for notes no
+ * shelf reaches as a band of glass south of the bottom row, and where each shelf of the knowledge graph hangs: a story's
+ * under its island's middle, a capability's under its territory.
+ */
+function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>) {
+  const placed = sheetPlaces(scene.islands.map(island => {
+    const place = places.get(island.story);
+    if (place === undefined) throw new Error(`No permanent place for ${island.title}`);
+    return { story: island.story, place, reach: islandCoastReach(island) };
+  }), SHEET_ACROSS);
+  const margin = 24, poolHeight = placed.rowPitch * 0.7;
+  const { west, east, south, north } = placed.bounds;
+  const pool = { x: west, y: south - margin - poolHeight, width: east - west, height: poolHeight };
+  const glass = { west: west - margin, east: east + margin, south: pool.y - margin, north: north + margin };
+  const centre = { x: (glass.west + glass.east) / 2, y: (glass.south + glass.north) / 2 };
+  const extent: SheetExtent = { width: glass.east - glass.west, height: glass.north - glass.south };
+  const at = new Map([...placed.at].map(([story, p]) => [story, { x: p.x - centre.x, y: p.y - centre.y }]));
+  const shelves = new Map<string, { x: number; y: number }>(), stories = new Map<string, string>();
+  for (const island of scene.islands) {
+    const middle = at.get(island.story)!;
+    shelves.set(island.story, middle);
+    stories.set(island.story, island.story);
+    for (const tree of island.trees) if (tree.capability !== undefined) { stories.set(tree.capability, island.story); shelves.set(tree.capability, middle); }
+    if (island.land === undefined) continue;
+    // A capability's shelf hangs under the middle of its territory: plate x is east, plate z south.
+    const map = islandTerritories(island.land.territories, islandCoast(island));
+    map.territories.forEach((territory, index) => {
+      if (territory.capability === undefined) return;
+      const cells = map.cells.filter(cell => cell.territory === index);
+      if (cells.length === 0) return;
+      const x = cells.reduce((sum, cell) => sum + cell.site.x, 0) / cells.length, z = cells.reduce((sum, cell) => sum + cell.site.z, 0) / cells.length;
+      shelves.set(territory.capability, { x: middle.x + x, y: middle.y - z });
+    });
+  }
+  const islands: FacingIsland[] = scene.islands.map(island => ({ story: island.story, trees: island.trees, spot: sheetSpot(at.get(island.story)!) }));
+  return {
+    scene, islands, spots: new Map(islands.map(island => [island.story, island.spot])), radius: SHEET_RADIUS,
+    sheet: {
+      extent, at,
+      underside: {
+        shelfAt: (node: string) => shelves.get(node),
+        storyOf: (node: string) => stories.get(node),
+        pool: { x: pool.x - centre.x, y: pool.y - centre.y, width: pool.width, height: pool.height },
+        depthStep: SHEET_DEPTH_STEP,
+      },
+    },
+  };
 }
 
 /** `value`, or the one kept before while `keyOf` reads both the same: a reading equal to the last keeps its identity. */
@@ -338,11 +393,33 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   // The turn the globe opened on, kept as home even when a guide took the first turn (3.37).
   const [home, setHome] = useState<GlobeTurn>();
   useEffect(() => {
-    if (home === undefined && islands.length > 0) setHome(openingTurn(islands));
+    // SPIKE: the sheet opens face up (or face down, opened on the Library), level, whatever is failing.
+    const opening = SHEET ? { yaw: mode === "library" ? Math.PI : 0, pitch: 0 } : openingTurn(islands);
+    if (home === undefined && islands.length > 0) setHome(opening);
     if (opened.current || islands.length === 0) return;
     opened.current = true;
-    turnTo(openingTurn(islands));
+    turnTo(opening);
   }, [islands, turnTo, home]);
+  // SPIKE: the Forest / Library control turns the sheet over left to right, about its north-south line, passing edge-on.
+  const flipping = useRef(0);
+  useEffect(() => {
+    if (!SHEET || !opened.current) return;
+    const from = turn.current.yaw, face = mode === "library" ? Math.PI : 0;
+    // The nearer way round to the face asked for.
+    const to = from + Math.atan2(Math.sin(face - from), Math.cos(face - from));
+    if (Math.abs(to - from) < 1e-6) return;
+    cancelAnimationFrame(flipping.current);
+    if (reducedMotion()) { turnTo({ yaw: to, pitch: 0 }); return; }
+    const start = performance.now(), seconds = 0.9;
+    const step = (): void => {
+      const t = Math.min(1, (performance.now() - start) / (seconds * 1000)), eased = t < .5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+      turnTo({ yaw: from + (to - from) * eased, pitch: 0 });
+      invalidate();
+      if (t < 1) flipping.current = requestAnimationFrame(step);
+    };
+    flipping.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(flipping.current);
+  }, [mode, turnTo, invalidate]);
   // 3.40: the globe follows the right-hand panel into the free width, and back.
   const besideAside = useRef<ReturnType<typeof createGlobeAside>>(undefined);
   besideAside.current ??= createGlobeAside(() => host.current.opening);
@@ -374,11 +451,11 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     const now = performance.now();
     guide.current!.frame(now - guideFrameAt.current);
     guideFrameAt.current = now;
-    const zoomedPast = pastIslands(Math.min(size.width, size.height) / (2 * camera.zoom * radius), past.current);
+    const zoomedPast = !SHEET && pastIslands(Math.min(size.width, size.height) / (2 * camera.zoom * radius), past.current);
     if (zoomedPast !== past.current) onPast(past.current = zoomedPast);
     const centre = new Vector3().project(camera);
     const rim = radius * camera.zoom + 16;
-    const hidden = showFailures ? hiddenMarkers(islands, rotation, camera.quaternion, mode) : [];
+    const hidden = showFailures && !SHEET ? hiddenMarkers(islands, rotation, camera.quaternion, mode) : [];
     // The Sessions strip is docked over the pane's bottom edge; a marker sits clear above it (3.11).
     const box = gl.domElement.getBoundingClientRect();
     const docked = hidden.length === 0 ? [] : [...gl.domElement.ownerDocument.querySelectorAll(".sessions-list")].map(strip => {
@@ -399,14 +476,15 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   useEffect(() => {
     const element = gl.domElement;
     let down: { x: number; y: number; id: number; dragged: boolean; last: { x: number; y: number } } | undefined;
-    const pick = (event: PointerEvent) => pickGlobe(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, mode);
+    // SPIKE: the sheet's land can be picked from either face.
+    const pick = (event: PointerEvent) => pickGlobe(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, SHEET ? "forest" : mode);
     // Picking is costly: a pointer that moves many times a frame is picked once, where it last was.
     let cleared = 0, stopped = false;
     const clearHover = (): void => { cleared++; setHover(undefined); element.style.cursor = ""; };
     const hoverAt = oncePerFrame(({ event, at }: { event: PointerEvent; at: number }): void => {
       if (stopped || at !== cleared || down !== undefined) return;
       const box = element.getBoundingClientRect();
-      const { cursor, title, detail } = globeHover(scene, camera, box, { x: event.clientX, y: event.clientY }, mode);
+      const { cursor, title, detail } = globeHover(scene, camera, box, { x: event.clientX, y: event.clientY }, SHEET ? "forest" : mode);
       element.style.cursor = cursor;
       setHover(title === undefined ? undefined : { title, ...(detail === undefined ? {} : { detail }), x: Math.max(8, Math.min(box.width - (detail === undefined ? 220 : 280), event.clientX - box.left + 12)), y: event.clientY - box.top + 14 });
     });
@@ -424,6 +502,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
         down.dragged ||= isGlobeDrag(down, { x: event.clientX, y: event.clientY });
         guide.current!.cancel();
         turn.current = dragTurn(turn.current, { x: event.clientX - down.last.x, y: event.clientY - down.last.y }, element.clientHeight || 1);
+        // SPIKE: the sheet only turns over, about its north-south line; it never tilts.
+        if (SHEET) turn.current = { yaw: turn.current.yaw, pitch: 0 };
         dragTo(turn.current);
         down.last = { x: event.clientX, y: event.clientY };
         clearHover();
@@ -472,7 +552,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       title={`${titles.get(marker.story)} · unhealthy (storytree verified)`}
       aria-label={`Show unhealthy story: ${titles.get(marker.story)}`}
       onClick={() => { guide.current!.cancel(); turnTo(marker.turn); }}>!</button>)}
-    {home !== undefined && <MiniGlobeButton islands={islands} home={home} turn={turn.current} aside={aside} onHome={() => goHome.current!()} />}
+    {home !== undefined && !SHEET && <MiniGlobeButton islands={islands} home={home} turn={turn.current} aside={aside} onHome={() => goHome.current!()} />}
   </Overlay>;
 }
 

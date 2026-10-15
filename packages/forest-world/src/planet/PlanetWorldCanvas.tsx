@@ -20,6 +20,8 @@ import { plateGrowth, roadSegmentWindows } from './growth.js';
 import { paintWhileSeen, startingFrameloop, viewportWatch, type ViewportWatch } from './paint-while-seen.js';
 import { redrawOnRestore } from './redraw-on-restore.js';
 import { globeExterior, type PlanetSurfaceVisibility } from './exterior.js';
+import { SheetGlass, type SheetExtent } from './sheet.js';
+import { PLATE_CLEARANCE } from './planet.js';
 
 export type { PlanetSpot } from './planet.js';
 export { globeOccluder, plateTransform, PLATE_CLEARANCE } from './planet.js';
@@ -31,6 +33,7 @@ export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetG
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
 export type { PlanetSurfaceVisibility } from './exterior.js';
+export { SHEET, SHEET_ACROSS, SHEET_RADIUS, seenFromBelow, sheetSag, sheetSpot, type SheetExtent, type SheetPoint } from './sheet.js';
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;
@@ -66,6 +69,8 @@ export interface PlanetWorldCanvasProps {
   growth?: PlanetGrowth | undefined;
   /** Draw first and newly arriving roads on in a live host; recorded growth takes precedence. */
   liveRoads?: boolean | undefined;
+  /** SPIKE: draw the world as a glass sheet of this size (see sheet.tsx); `radius` is then the big sphere's. */
+  sheet?: SheetExtent | undefined;
 }
 
 const NO_LANES: readonly LitLink[] = [];
@@ -114,12 +119,25 @@ function Surface({ radius, visible }: { radius: number; visible: boolean }) {
   return <primitive object={surface} visible={visible} />;
 }
 
-function Framing({ radius, framing, sideOffset }: { radius: number; framing: number; sideOffset: number }) {
+/** SPIKE: the zoom that frames the whole sheet at rest, with a margin round it. */
+export function sheetZoom(sheet: SheetExtent, size: { width: number; height: number }): number {
+  // Clear of the Sessions strip docked over the canvas's bottom edge, and as much again at the top, so it stays centred.
+  return Math.min(0.92 * size.width / sheet.width, Math.max(size.height - 170, 1) / sheet.height);
+}
+
+function Framing({ radius, framing, sideOffset, sheet }: { radius: number; framing: number; sideOffset: number; sheet: SheetExtent | undefined }) {
   const { camera, size, invalidate } = useThree();
   useLayoutEffect(() => {
-    applyPlanetFraming(camera as OrthographicCamera, radius, framing, size);
+    if (sheet === undefined) applyPlanetFraming(camera as OrthographicCamera, radius, framing, size);
+    else {
+      const eye = camera as OrthographicCamera, reach = Math.hypot(sheet.width, sheet.height);
+      eye.zoom = sheetZoom(sheet, size);
+      eye.position.setLength(4 * reach);
+      eye.far = 8 * reach;
+      eye.updateProjectionMatrix();
+    }
     invalidate();
-  }, [camera, radius, framing, size.width, size.height, invalidate]);
+  }, [camera, radius, framing, size.width, size.height, invalidate, sheet?.width, sheet?.height]);
   // Keeping these effects separate lets a card move without resetting wheel/pinch zoom.
   useLayoutEffect(() => {
     applyPlanetSideOffset(camera as OrthographicCamera, size, sideOffset);
@@ -129,8 +147,10 @@ function Framing({ radius, framing, sideOffset }: { radius: number; framing: num
 }
 
 /** The wheel and pinch zoom the eye; zooming out stops at half the framed size (6.18). */
-function Wheel({ radius, framing, orbit }: { radius: number; framing: number; orbit: boolean }) {
+function Wheel({ radius, framing, orbit, sheet }: { radius: number; framing: number; orbit: boolean; sheet: SheetExtent | undefined }) {
   const size = useThree(state => state.size);
+  // SPIKE: the sheet pans (right drag) as well as zooms, along its length; a left drag turns it.
+  if (sheet !== undefined) return <OrbitControls makeDefault enablePan screenSpacePanning enableRotate={false} minZoom={sheetZoom(sheet, size) / 2} maxZoom={30} />;
   return <OrbitControls makeDefault enablePan={false} enableRotate={orbit} minZoom={wheelFloor(radius, framing, size)} maxZoom={30} />;
 }
 
@@ -168,7 +188,7 @@ const CAPTURE_SEAM = '__storytreeCaptureGlobe';
 
 /** The globe: one Canvas, the see-through sea, and each story's island as a flat surface with a coast
  * (ADR-0804 D1). Nothing on it is lit, so there is no sun to calibrate. */
-export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, laneWays, growth, liveRoads = false }: PlanetWorldCanvasProps) {
+export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1], plateChildren, children, surface = true, surfaces, inside, framing = 1.18, sideOffset = 0, orbit = true, lanes = NO_LANES, laneWays, growth, liveRoads = false, sheet }: PlanetWorldCanvasProps) {
   const drawing = useRoadsWhenRouted(scene, spots, radius);
   const inland = useMemo((): InlandWay | undefined => laneWays && ((dock, capability) => {
     const way = laneWays(dock.story, capability, dock.local), spot = spots.get(dock.story);
@@ -177,7 +197,8 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
   const pathways = drawing.plan;
   const reveal = useMemo(() => growth === undefined ? undefined : roadSegmentWindows(pathways, growth.plan.roads), [pathways, growth?.plan]);
   const elevation = SHIPPED_ELEVATION_DEG * Math.PI / 180;
-  const position: [number, number, number] = [0, Math.sin(elevation) * radius * 4, Math.cos(elevation) * radius * 4];
+  const reach = sheet === undefined ? radius : Math.hypot(sheet.width, sheet.height);
+  const position: [number, number, number] = [0, Math.sin(elevation) * reach * 4, Math.cos(elevation) * reach * 4];
   const onCreated = useCallback(({ camera, get }: RootState) => {
     camera.lookAt(0, 0, 0);
     (globalThis as { [CAPTURE_SEAM]?: (state: () => RootState) => void })[CAPTURE_SEAM]?.(get);
@@ -185,13 +206,15 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
   const watch = useMemo(viewportWatch, []);
   const exterior = globeExterior(surface, surfaces);
   return <Canvas orthographic {...EXACT_COLOUR_CANVAS_PROPS} frameloop={startingFrameloop(watch)}
-    camera={{ position, near: 0.1, far: radius * 10 }} onCreated={onCreated}>
+    camera={{ position, near: 0.1, far: reach * 10 }} onCreated={onCreated}>
     <PaintWhileSeen watch={watch} />
     <color attach="background" args={['#101418']} />
-    <Framing radius={radius} framing={framing} sideOffset={sideOffset} />
+    <Framing radius={radius} framing={framing} sideOffset={sideOffset} sheet={sheet} />
     <GrowthProvider growth={growth}>
     <group name="globe" quaternion={rotation}>
-      <Surface radius={radius} visible={exterior.sea} />
+      {sheet === undefined ? <Surface radius={radius} visible={exterior.sea} /> : <SheetGlass extent={sheet} />}
+      {/* SPIKE: on a sheet, the big sphere's near pole is brought to the turning frame's origin. */}
+      <group name="sheet-top" position={sheet === undefined ? undefined : [0, 0, -(radius + PLATE_CLEARANCE)]}>
       {scene.islands.map(island => {
         const spot = spots.get(island.story);
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);
@@ -199,9 +222,10 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
           visible={exterior.plates} grounds={exterior.grounds} children={plateChildren} />;
       })}
       <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} /><SelectionLanes plan={pathways} lit={lanes} inland={inland} /></group>
+      </group>
       {inside}
     </group>
-    <Wheel radius={radius} framing={framing} orbit={orbit} />
+    <Wheel radius={radius} framing={framing} orbit={orbit} sheet={sheet} />
     {/* The host's children read the growth too (usePlanetGrowth), as the plates and the inside do. */}
     {children}
     </GrowthProvider>

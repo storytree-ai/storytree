@@ -8,14 +8,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { FIRST_SHORT } from "../../src/shorts/root.tsx";
 import { brokenBlocks, bundleShorts, renderPng, renderVideo, rgbOf } from "../../src/shorts/render.ts";
+import { POSTER } from "../../src/shorts/script.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const site = path.resolve(here, "../../public/shorts");
 const NAME = "seeing-what-agents-built";
 /** One still per beat, in seconds: the start, each question and its answer, the typing, the end card. */
 const BEATS = { opening: 0.8, upstream: 4.5, "does-what": 8.5, "what-it-means": 13.5, "typing-to-the-agent": 18, done: 21, "end-card": 24 };
-/** The poster: the island beat, the documents piled up beside it. */
-const POSTER = 13.5;
 
 const timed = async run => { const start = performance.now(); await run(); return Math.round(performance.now() - start) / 1000; };
 await mkdir(site, { recursive: true });

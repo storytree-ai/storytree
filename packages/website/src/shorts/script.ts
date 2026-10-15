@@ -43,6 +43,8 @@ export type Beat = {
 /** How long the short runs, in seconds, and the end card's start. */
 export const LENGTH = 26;
 export const END_CARD = 22.5;
+/** The poster frame, in seconds: the island beat, the documents piled up beside it. */
+export const POSTER = 13.5;
 
 /** The few exact words the developer grounds their agent in: the name the globe showed them. */
 export const groundingWords = (island: string) => `> ${island.replace(/^the /i, "").toLowerCase()} 6.2: tighten`;

@@ -309,8 +309,8 @@ body:not(.immersive-home) h3 { margin: 0 0 10px; font-size: 18px; font-weight: 6
 .short { position: fixed; z-index: 80; inset: auto 16px 16px auto; width: min(400px, calc(100vw - 32px)); margin: 0; padding: 0; border: 2px solid #0b0d12; background: #0b0d12; box-shadow: 0 8px 28px rgba(0, 0, 0, .45); }
 .short video, .short img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
 .short-still { display: none; }
-.short form { position: absolute; top: 4px; right: 4px; margin: 0; }
-.short-close { width: 28px; height: 28px; border: 0; border-radius: 0; background: rgba(11, 13, 18, .8); color: #fff; font: 700 18px/1 var(--term, monospace); cursor: pointer; }
+.short form { position: absolute; top: 0; right: 0; margin: 0; }
+.short-close { width: 44px; height: 44px; border: 0; border-radius: 0; background: rgba(11, 13, 18, .8); color: #fff; font: 700 18px/1 var(--term, monospace); cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   #short video { display: none; }
   .short-still { display: block; }

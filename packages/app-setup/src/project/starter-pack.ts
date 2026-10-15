@@ -7,13 +7,13 @@
  * starter-pack-classification.md records where each came from. These files are the one place its
  * text lives: change it there and raise STARTER_PACK_VERSION.
  *
- * Seeding writes only what the library does not already hold under the same title, so setting a
- * project up again after a failed try adds no second copy. Joining a project from another machine
- * seeds nothing: its library was seeded when it was first set up, and is the user's since.
+ * Seeding writes only what the library does not already hold under the same title, so seeding it
+ * again adds no second copy. Only the user's factory is seeded (ADR-1040): a product project holds no
+ * copy and reads the factory's, so its pack is checked and taken in the factory.
  */
 import { isDeepStrictEqual } from "node:util";
 
-import type { Library, NewKnowledge } from "@storytree/library";
+import { ProjectGoneError, type Library, type NewKnowledge, type Storytree } from "@storytree/library";
 import { GUARDRAILS, NO_MODULE_MOCK, PATTERNS, PRINCIPLES, PROCESSES, TEST_CREATION } from "./starter-notes.js";
 import { ROLES } from "./starter-roles.js";
 
@@ -131,15 +131,46 @@ export async function starterRolesIn(library: Library): Promise<string[]> {
  * Which pack seeded `library` and whether the newer one is offered (contract 8.26). The version is the highest a pack
  * record's history names in its writer, `storytree setup (starter pack vN)`; a library no pack wrote was never seeded
  * (null). The newer pack is offered only while taking it would add or replace something, so a library whose remaining
- * differences are all its user's edits is not offered it again.
+ * differences are all its user's edits is not offered it again. Given `storytree`, a product project holding no
+ * record a pack wrote is answered for its factory, which it reads its pack from, named in `factory`.
  */
 export interface StarterPackStatus {
   readonly seeded: number | null;
   readonly current: number;
   readonly offered: boolean;
+  readonly factory?: string;
 }
 
-export async function starterPackStatus(library: Library): Promise<StarterPackStatus> {
+export async function starterPackStatus(library: Library, storytree?: Storytree): Promise<StarterPackStatus> {
+  const factory = await packFactory(library, storytree);
+  if (factory === undefined) return statusIn(library);
+  try {
+    return { ...(await statusIn(factory.library)), factory: factory.name };
+  } finally {
+    await factory.library.close();
+  }
+}
+
+/**
+ * The factory whose pack `library` reads (8.26, 6.9): its factory, opened from `storytree`, when `library` is a
+ * product project no pack wrote a record of. Undefined otherwise, and for a factory gone or no longer one: the
+ * library's pack is then its own.
+ */
+async function packFactory(library: Library, storytree: Storytree | undefined): Promise<{ readonly name: string; readonly library: Library } | undefined> {
+  if (storytree === undefined) return undefined;
+  const link = await library.factory();
+  if (link.kind !== "product" || (await statusIn(library)).seeded !== null) return undefined;
+  const opened = await storytree.openProject(link.factory, { create: false }).catch((error: unknown) => {
+    if (error instanceof ProjectGoneError) return undefined;
+    throw error;
+  });
+  if (opened === undefined) return undefined;
+  if ((await opened.factory()).kind === "factory") return { name: link.factory, library: opened };
+  await opened.close();
+  return undefined;
+}
+
+async function statusIn(library: Library): Promise<StarterPackStatus> {
   const holding = await heldRecords(library);
   const ids = new Map([...holding.values()].flatMap((byTitle) => [...byTitle].map(([title, record]) => [title, record.id] as const)));
   // A note not held yet is linked by a stand-in no id equals, so a role that links it differs from the pack's.
@@ -156,14 +187,27 @@ export interface StarterPackTake {
   readonly added: StarterPackRecord[];
   readonly replaced: StarterPackRecord[];
   readonly kept: (StarterPackRecord & { readonly newer: Fields })[];
+  /** The factory the pack was taken into, for a product project that reads its pack from there. */
+  readonly factory?: string;
 }
 
 /**
  * Take the current pack into `library` (contract 6.9): write each record it does not hold under the title, replace a
  * pack record whose fields differ from the current pack's and whose newest change a pack wrote, and leave one whose
  * newest change is anyone else's: the user's edit is never overwritten. A role's links are resolved as seeding does.
+ * Given `storytree`, a product project that reads its pack from its factory (starterPackStatus) takes it there.
  */
-export async function takeStarterPack(library: Library): Promise<StarterPackTake> {
+export async function takeStarterPack(library: Library, storytree?: Storytree): Promise<StarterPackTake> {
+  const factory = await packFactory(library, storytree);
+  if (factory === undefined) return takeInto(library);
+  try {
+    return { ...(await takeInto(factory.library)), factory: factory.name };
+  } finally {
+    await factory.library.close();
+  }
+}
+
+async function takeInto(library: Library): Promise<StarterPackTake> {
   const holding = await heldRecords(library);
   const ids = new Map<string, string>();
   const took: { added: StarterPackRecord[]; replaced: StarterPackRecord[]; kept: (StarterPackRecord & { newer: Fields })[] } = { added: [], replaced: [], kept: [] };

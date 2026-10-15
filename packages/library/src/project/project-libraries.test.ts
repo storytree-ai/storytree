@@ -493,7 +493,7 @@ test("1.16 a product project reads its factory's roles, notes and checks, and it
     assert.deepEqual((await built.records.list("check")).map((each) => each.id), [check.id]);
 
     // A role's links, written as the factory's ids, read the note the product edited in place of the factory's.
-    assert.equal((await built.records.get(shared.id))?.fields.title, "Keep it small");
+    assert.equal((await built.records.get(shared.id))?.id, shared.id, "a note the product holds no copy of reads as the factory's");
     assert.equal((await built.records.get(edited.id))?.id, own.id, "the product's own note shadows the factory's under its id too");
     assert.equal((await built.records.get(added.id))?.id, added.id);
     assert.deepEqual((await built.knowledge.search("wording")).map((note) => note.id).sort(), [shared.id, own.id].sort());

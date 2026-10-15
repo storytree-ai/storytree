@@ -52,7 +52,7 @@ test("6.12 moving an existing project onto the user's factory drops each copy of
       await library.editNote(role.id, { oneLine: "Our orchestrator." }, { actor: "session:the-user" });
       const added = await library.writeKnowledge("principle", { ...principle("Edit before adding"), title: "Name things plainly" }, { actor: "session:the-user" });
       const gone = await library.writeKnowledge("principle", { ...principle("Edit before adding"), title: "A note the pack dropped" }, { actor: "storytree setup (starter pack v2)" });
-      const roleLinks = await Promise.all(role.fields.context.map(async (link) => [link, (await library.get(link))!.fields.title] as const));
+      const roleLinks = await Promise.all(role.fields.context.map(async (link) => [link, ((await library.get(link))!.fields as { title?: string }).title] as const));
       return { greenCopy: id("Minimum to green"), redCopy: id("Minimum test to red"), roleLinks, added: added.id, gone: gone.id };
     }, true);
 
@@ -73,7 +73,7 @@ test("6.12 moving an existing project onto the user's factory drops each copy of
       assert.equal(statements.get("Name things plainly")?.id, ids.added);
       assert.equal(statements.get("A note the pack dropped")?.id, ids.gone);
       // The kept role still links the copies it was seeded with: each reads the factory's record now, or the project's own.
-      const linked = await Promise.all(ids.roleLinks.map(async ([link]) => [link, (await library.get(link))?.fields.title] as const));
+      const linked = await Promise.all(ids.roleLinks.map(async ([link]) => [link, ((await library.get(link))?.fields as { title?: string } | undefined)?.title] as const));
       assert.deepEqual(linked, ids.roleLinks, "each link of the kept role reads the note of the title it was written for");
       assert.equal((await library.get(ids.redCopy))?.id, statements.get("Minimum test to red")?.id);
       assert.equal((await library.get(ids.greenCopy))?.id, ids.greenCopy);

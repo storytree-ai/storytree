@@ -546,6 +546,58 @@ test("3.7 at each prompt, every matching project definition is added for the age
   }
 });
 
+test("3.38 one prompt's definitions past 8 KB are all still added, and file one friction report a session, in the background; a prompt under it files none", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  try {
+    const library = await storytree.openProject(project);
+    const meaning = "A part of the sprawl, defined at length so that forty of them pass eight kilobytes between them. ".repeat(3);
+    const terms = Array.from({ length: 80 }, (_, i) => `Sprawl part ${i + 1}`);
+    for (const term of terms) await library.defineTerm({ term, meaning });
+    await library.defineTerm({ term: "Claim", meaning: "Holding a capability while you build it." });
+    const naming = (from: number, to: number) => `Read ${terms.slice(from, to).join(", ")}.`;
+    const reports = async () => (await library.list("friction")).filter(({ fields }) => fields.title === "One prompt's definitions passed 8 KB");
+    const reportFor = async (session: string) => {
+      for (let tries = 0; tries < 100; tries++) {
+        const found = (await reports()).filter(({ fields }) => fields.evidence.includes(session));
+        if (found.length > 0) return found;
+        await sleep(100);
+      }
+      return [];
+    };
+    await withTempDir(async (dir) => {
+      const folder = await projectFolder(dir, project);
+      const home = storytreeHome(dir, true);
+      const ask = async (prompt: string, session: string) => {
+        const ran = await runHook("claude-code", prompted("claude-code", folder, prompt, session), home);
+        assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" }, prompt);
+        return addedContext(ran);
+      };
+      const big = `${project}-big`;
+
+      assert.match((await ask("Who holds the claim?", big)) ?? "", /Claim/, "a prompt under 8 KB");
+      const added = await ask(naming(0, 40), big);
+      assert.equal(added?.split("\n").length, 41, "all forty added, nothing cut");
+      assert.ok(Buffer.byteLength(added!) > 8 * 1024);
+      const [report, ...more] = await reportFor(big);
+      assert.ok(report !== undefined, "the big prompt files a report");
+      assert.deepEqual(more, []);
+      for (const said of [big, "40 definitions", `${Buffer.byteLength(added!)} bytes`, `"Sprawl part 40"`]) assert.ok(report.fields.evidence.includes(said), `evidence names ${said}: ${report.fields.evidence}`);
+
+      assert.equal((await ask(naming(40, 80), big))?.split("\n").length, 41, "a second big prompt adds all forty too");
+      // Another session's big prompt files its own report; once it lands, the first session still has one.
+      const other = `${project}-other`;
+      assert.equal((await ask(naming(0, 40), other))?.split("\n").length, 41);
+      assert.equal((await reportFor(other)).length, 1);
+      assert.equal((await reportFor(big)).length, 1, "one report a session");
+      assert.equal((await reports()).length, 2, "the prompt under 8 KB filed none");
+    });
+  } finally {
+    await storytree.close();
+    await dropTestProjects([project]);
+  }
+});
+
 test("9.9 past context guidance, the Claude Code prompt hook advises handing off and starting fresh once per session; it never refuses a prompt, and Codex or absent readings get no advice", async (t) => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });

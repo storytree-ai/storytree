@@ -1,0 +1,65 @@
+{
+  "renderedAt": "2026-10-15T03:58:41.113Z",
+  "composition": {
+    "id": "seeing-what-agents-built",
+    "fps": 30,
+    "frames": 780
+  },
+  "seconds": {
+    "bundle": 1.951,
+    "siteWebm": 70.296,
+    "siteMp4": 62.844,
+    "poster": 5.233,
+    "socialMp4": 122.359
+  },
+  "bytes": {
+    "public/shorts/seeing-what-agents-built.webm": 1024299,
+    "public/shorts/seeing-what-agents-built.mp4": 781104,
+    "public/shorts/seeing-what-agents-built.png": 25765,
+    "seeing-what-agents-built-1080p.mp4": 1610773
+  },
+  "stills": [
+    {
+      "beat": "opening",
+      "seconds": 0.8,
+      "file": "still-opening.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "upstream",
+      "seconds": 4.5,
+      "file": "still-upstream.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "does-what",
+      "seconds": 8.5,
+      "file": "still-does-what.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "what-it-means",
+      "seconds": 13.5,
+      "file": "still-what-it-means.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "typing-to-the-agent",
+      "seconds": 18,
+      "file": "still-typing-to-the-agent.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "done",
+      "seconds": 21,
+      "file": "still-done.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "end-card",
+      "seconds": 24,
+      "file": "still-end-card.png",
+      "brokenBlocks": 0
+    }
+  ]
+}

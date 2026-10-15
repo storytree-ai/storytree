@@ -64,7 +64,8 @@ import { EDIT_GATE, editGate, recordYesAfterEdit, yesSaid } from "./edit-gate.js
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
 import { contextNudge } from "./context-nudge.js";
-import { definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
+import type { NewFriction } from "../capture/index.js";
+import { bigInjectionReport, definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
 import { hookIdentity, noteHookFailure, type HookFailure } from "./failures.js";
 import { isSelfNamed, selfNamedLines } from "./self-named.js";
 import { shellEdits } from "./shell-edits.js";
@@ -92,6 +93,8 @@ export interface HookInput {
 export const BACKGROUND = "--background";
 /** The flag that makes a hook take only the once-a-minute look around the machine, which may run longer than a hook. */
 export const UPKEEP = "--upkeep";
+/** The flag that makes a hook file only the friction report a prompt hook handed it (ADR-1049 D2), so the prompt never waits on it. */
+export const BIG_INJECTION = "--big-injection";
 /** The flag of the session-start hook installs before ADR-0752 registered to ask the setup question; now it does nothing. */
 export const ASK_SETUP = "--ask-setup";
 
@@ -181,6 +184,7 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
     }
     // An older install's asking hook, until the next setup check replaces its registration.
     if (flags.includes(ASK_SETUP)) return;
+    if (flags.includes(BIG_INJECTION)) return void (await fileBigInjection(parsed));
     // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
     if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed);
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
@@ -194,7 +198,14 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
     if (asked !== undefined) {
       // The user's own words may carry their yes to changing imported code (contract 5.42); a harness's notice is not theirs.
       const said = isHarnessNotice(asked.prompt) ? undefined : yesSaid(harness, asked, locate, homeOf(locate), failed);
-      const [context, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed, declaredCapabilities !== undefined)]);
+      const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, handOff, merges, locate, failed, declaredCapabilities !== undefined)]);
+      const context = looked?.context;
+      if (looked?.report !== undefined) {
+        // The report is filed by a copy of this hook, so the prompt does not wait for the library's write.
+        const handed = JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: asked.session, cwd: asked.folder, report: looked.report });
+        // Without a copy to hand it to, it is filed here; a failure is traced, never in the prompt's way.
+        await (handOff === undefined ? fileBigInjection(JSON.parse(handed)).catch((error: unknown) => failed("hook", error)) : handOff(harness, handed, [BIG_INJECTION]));
+      }
       return promptAnswer(harness, yes === undefined ? context : [...yes, ...(context ?? [])], parsed);
     }
     if (made === undefined) return;
@@ -377,7 +388,7 @@ function promptIn(harness: string, input: unknown): Prompted | undefined {
  * for Claude Code only, advice once past context guidance. Undefined for none. Both are remembered
  * separately across this session's prompts.
  */
-async function contextForPrompt({ harness, session, folder, prompt }: Prompted): Promise<string[] | undefined> {
+async function contextForPrompt({ harness, session, folder, prompt }: Prompted): Promise<{ context?: string[]; report?: NewFriction } | undefined> {
   if (isHarnessNotice(prompt)) return undefined;
   const where = route(folder);
   if (where.status !== "routed") return undefined;
@@ -389,8 +400,31 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
     const named = definitionsNamedIn(prompt, (await library.definitions()).map(({ id, fields }) => ({ id, ...fields })));
     const fresh = notYetGiven(session, named);
     const nudge = harness === "claude-code" ? await contextNudge(storytree, where.project, session) : undefined;
-    const context = [...(fresh.length === 0 ? [] : [definitionsContext(fresh)]), ...(nudge === undefined ? [] : [nudge])];
-    return context.length === 0 ? undefined : context;
+    const definitions = fresh.length === 0 ? undefined : definitionsContext(fresh);
+    const context = [...(definitions === undefined ? [] : [definitions]), ...(nudge === undefined ? [] : [nudge])];
+    const report = definitions === undefined ? undefined : bigInjectionReport(session, fresh, definitions);
+    return { ...(context.length === 0 ? {} : { context }), ...(report === undefined ? {} : { report }) };
+  } finally {
+    await storytree.close();
+  }
+}
+
+/**
+ * File the friction report a prompt hook handed on (ADR-1049 D2) in the library of the project its
+ * folder belongs to, as its session wrote it. A failure is thrown to the hook, which traces it.
+ */
+async function fileBigInjection(handed: unknown): Promise<void> {
+  const { session_id: session, cwd: folder, report } = (handed ?? {}) as { session_id?: unknown; cwd?: unknown; report?: NewFriction };
+  if (typeof session !== "string" || typeof folder !== "string" || report === undefined) return;
+  const where = route(folder);
+  if (where.status !== "routed") return;
+  const [{ recordFriction }, { currentBranch }, { connect }] = await Promise.all([import("../capture/index.js"), import("../activity/branch.js"), import("@storytree/library")]);
+  const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
+  try {
+    if (!(await approved(storytree, where.project, where.folder, storytreeHome()))) return;
+    const library = await openNamedProject(storytree, where.project, where.identity);
+    const branch = currentBranch(folder);
+    await recordFriction(library, { ...report, ...(branch === undefined ? {} : { branch }) }, { actor: `session:${session}` });
   } finally {
     await storytree.close();
   }

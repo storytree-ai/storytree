@@ -235,7 +235,7 @@ async function showForest(name: string): Promise<void> {
     // A click on a territory opens its story on that capability (forest 3.15).
     chosen = selection?.kind === "story" ? selection.capability : undefined;
     showPanel();
-  }, core, { library: surfaceOn(surfaces, "library"), opening: globeOpening });
+  }, core, { library: surfaceOn(surfaces, "library"), opening: globeOpening, factory: onFactory });
   if (showing !== mine) return view.dispose();
   mine.view = view;
   // Sessions off is a quiet globe: no list, no session tints and no islands lit on hover.

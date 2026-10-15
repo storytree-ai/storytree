@@ -23,6 +23,11 @@ const CLEAR_HEIGHT = 170;
 /** The depth of the pool along the sheet's south edge, where notes on no shelf lie (ADR-1043 D5), in ground units. */
 const POOL_HEIGHT = 90;
 
+/** An island-less sheet opens at once only on its Library face, where the user's factory's notes hang (3.63); on Stories it waits for its islands. */
+export function opensBare(mode: ForestMode): boolean {
+  return mode === "library";
+}
+
 /**
  * The islands at their places on the sheet (`sheetPlaces`), centred on the pole, and the glass they stand on, which runs on
  * south past the islands for the pool of notes no shelf reaches. `under` says where the knowledge graph hangs: each
@@ -34,7 +39,8 @@ export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, numb
     if (place === undefined) throw new Error(`No permanent place for ${island.title}`);
     return { story: island.story, place, reach: islandCoastReach(island) };
   }));
-  const { west, east, south, north } = placed.bounds;
+  // An island-less sheet (the user's factory, 3.63) has no land to set the pool's width, so its pool is as wide as it is deep.
+  const { south, north } = placed.bounds, { west, east } = scene.islands.length === 0 ? { west: -POOL_HEIGHT / 2, east: POOL_HEIGHT / 2 } : placed.bounds;
   const pool = { x: west, y: south - MARGIN - POOL_HEIGHT, width: east - west, height: POOL_HEIGHT };
   const centre = { x: (west + east) / 2, y: (pool.y + north) / 2 };
   const extent: SheetExtent = { width: east - west + 2 * MARGIN, height: north - pool.y + 2 * MARGIN };

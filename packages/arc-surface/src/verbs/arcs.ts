@@ -209,9 +209,9 @@ function needed(value: string | undefined, name: string): string {
  * removeWaitFor, whose refusals are the library's (ADR-0938 D1).
  */
 const arcWait = verb({
-  command: { family: "arc", name: "wait", summary: "make an arc wait on another, with a reason", usage: "arc wait <arc> --on <arc> --reason <why>" },
+  command: { family: "arc", name: "wait", summary: "make an arc wait on another arc or an increment, with a reason", usage: "arc wait <arc> --on <arc|increment> --reason <why>" },
   tool: { absent: NO_TOOL },
-  inputs: { arc: { kind: "text", word: 0, describe: "the arc's id" }, on: { kind: "text", optional: true, describe: "the arc it waits on" }, reason: { kind: "text", optional: true, describe: "why" } },
+  inputs: { arc: { kind: "text", word: 0, describe: "the arc's id" }, on: { kind: "text", optional: true, describe: "the arc or increment it waits on" }, reason: { kind: "text", optional: true, describe: "why" } },
   writes: true,
   async act({ arc: id, on, reason }, context: ArcVerbContext) {
     const blocker = needed(on, "on");
@@ -222,9 +222,9 @@ const arcWait = verb({
 });
 
 const arcUnwait = verb({
-  command: { family: "arc", name: "unwait", summary: "clear a wait", usage: "arc unwait <arc> --on <arc>" },
+  command: { family: "arc", name: "unwait", summary: "clear a wait", usage: "arc unwait <arc> --on <arc|increment>" },
   tool: { absent: NO_TOOL },
-  inputs: { arc: { kind: "text", word: 0, describe: "the arc's id" }, on: { kind: "text", optional: true, describe: "the arc it waits on" } },
+  inputs: { arc: { kind: "text", word: 0, describe: "the arc's id" }, on: { kind: "text", optional: true, describe: "the arc or increment it waits on" } },
   writes: true,
   async act({ arc: id, on }, context: ArcVerbContext) {
     const blocker = needed(on, "on");

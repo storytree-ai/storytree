@@ -13,7 +13,7 @@ import { test } from "node:test";
 import { hostPlatform, missingAssets, platformUploads, PLATFORMS } from "../release-assets.mjs";
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
 import { linuxDeliveryAssets, macDeliveryAssets } from "../delivery-assets.mjs";
-import { releaseDelivery } from "../../../packages/app/src/updates/release-carry.ts";
+import { releaseDelivery } from "@storytree/app/updates/release-carry";
 
 const windows = (version: string) => [
   `storytree-0.3-${version}-setup.exe`, `storytree-0.3-${version}-setup.exe.blockmap`, "latest.yml",

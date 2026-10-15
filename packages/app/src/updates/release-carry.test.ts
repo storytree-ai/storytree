@@ -73,8 +73,9 @@ test("4.6 a platform whose build is not in the release keeps the earlier release
   assert.deepEqual(noWindowsOrMac, { schema: 1, channelSchema: 1, version: "0.3.702", architectures: ["x64", "arm64"],
     installer: { ...next.installer, version: "0.3.701" }, macos: { arm64: { ...arm64("0.3.700"), version: "0.3.700" } }, linux: { x64: x64("0.3.702") } });
   // With nothing earlier to carry, an absent platform cannot publish.
+  const { macos: _gone, ...withoutMac } = earlier;
   assert.throws(() => releaseDelivery("0.3.701", { windows: next }), /No earlier release carries a Mac build/);
-  assert.throws(() => releaseDelivery("0.3.701", { windows: next, linux: { version: "0.3.701", linux: {} } }, { ...earlier, macos: undefined }), /0\.3\.700 has no Mac build to carry/);
+  assert.throws(() => releaseDelivery("0.3.701", { windows: next, linux: { version: "0.3.701", linux: {} } }, withoutMac), /0\.3\.700 has no Mac build to carry/);
 });
 
 test("4.6 the release page says which platforms stay on an earlier build, and stops saying it once a later run brings the build", () => {

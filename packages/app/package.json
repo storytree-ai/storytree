@@ -11,6 +11,7 @@
     "./surfaces": "./src/surfaces/bridge.ts",
     "./surfaces/verbs": "./src/surfaces/verbs.ts",
     "./updates/bridge": "./src/updates/bridge.ts",
+    "./updates/release-carry": "./src/updates/release-carry.ts",
     "./updates/verbs": "./src/updates/verbs.ts",
     "./version": "./src/updates/version.ts",
     "./view": "./src/view/index.ts"

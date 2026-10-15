@@ -3,10 +3,21 @@
  * the system their product projects build with, and each product project names it. Both facts are the library's own,
  * kept in library_meta beside the project's name: `kind` is `factory` or `product`, and a product's `factory` is the
  * name of the project it builds with. A project that says neither (one made before factories, or by a join) has none.
+ *
+ * A product reads its system from its factory (InheritedRecords): its roles, notes and checks are the factory's, except
+ * where it holds its own record of the same kind and title, which wins. Its memory, and everything it writes, stay its own.
  */
 import type { Pool } from "pg";
 
+import { SchemaRecords, type SchemaRecord } from "../schema/records.js";
+import type { RecordType } from "../schema/types.js";
+import type { ListFilter, Transactions } from "../transactions/types.js";
 import { assertProjectName } from "./names.js";
+
+/** The kinds that are a project's system, which a product reads from its factory; never memory (ADR-1040 D3). */
+export const SYSTEM_KINDS: readonly RecordType[] = ["agent", "check", "principle", "guardrail", "pattern", "process"];
+
+const isSystem = (kind: RecordType): boolean => SYSTEM_KINDS.includes(kind);
 
 /** What a project is to factories: the user's factory, a product project naming its factory, or neither. */
 export type FactoryLink = { readonly kind: "factory" } | { readonly kind: "product"; readonly factory: string } | { readonly kind: "none" };
@@ -67,5 +78,64 @@ export class ProjectLineage {
     } finally {
       client.release(failed);
     }
+  }
+}
+
+/**
+ * A product project's records, reading its system from its factory's (ADR-1040 D4). For the system kinds, `list` and
+ * `select` give the product's own records and the factory's whose kind and title the product holds none of, in id
+ * order, and `get` of a factory record's id gives the product's own record of that kind and title when it holds one,
+ * so a role's links, written as the factory's ids, read the product's edits. Every other kind, every write and the
+ * history are the product's own.
+ */
+export class InheritedRecords extends SchemaRecords {
+  readonly #factory: SchemaRecords;
+
+  constructor(transactions: Transactions, factory: SchemaRecords) {
+    super(transactions);
+    this.#factory = factory;
+  }
+
+  override async get(id: string): Promise<SchemaRecord | null> {
+    const own = await super.get(id);
+    if (own !== null) return own;
+    const inherited = await this.#factory.get(id);
+    if (inherited === null || !isSystem(inherited.type)) return null;
+    const [shadow] = await super.list(inherited.type, { where: { title: (inherited.fields as { title: string }).title } });
+    return shadow ?? inherited;
+  }
+
+  override async list<T extends RecordType>(type: T | readonly T[], filter?: Omit<ListFilter, "projection">): Promise<SchemaRecord<T>[]> {
+    return this.#merged(type, filter, (kinds, from) => from.list(kinds, filter), (kinds) => super.list(kinds, filter));
+  }
+
+  override async select<T extends RecordType, K extends keyof SchemaRecord<T>["fields"] & string>(
+    type: T, fields: readonly K[], filter: Omit<ListFilter, "projection"> = {},
+  ): Promise<(Omit<SchemaRecord<T>, "fields"> & { fields: Pick<SchemaRecord<T>["fields"], K> })[]> {
+    return this.#merged(type, filter, (kinds, from) => from.select(kinds[0]!, fields, filter), (kinds) => super.select(kinds[0]!, fields, filter));
+  }
+
+  /**
+   * The product's own records of `type` read by `own`, and the factory's read by `read` whose kind and title the
+   * product holds none of, whether or not its own match `filter`; kept to `filter.limit` in id order.
+   */
+  async #merged<T extends RecordType, R extends { readonly id: string; readonly type: RecordType; readonly fields: object }>(
+    type: T | readonly T[],
+    filter: Omit<ListFilter, "projection"> | undefined,
+    read: (kinds: readonly T[], from: SchemaRecords) => Promise<R[]>,
+    own: (kinds: readonly T[]) => Promise<R[]>,
+  ): Promise<R[]> {
+    const kinds = typeof type === "string" ? [type] : type;
+    const mine = await own(kinds);
+    const inheritable = kinds.filter(isSystem);
+    if (inheritable.length === 0) return mine;
+    const held = new Set<string>();
+    for (const kind of inheritable) {
+      for (const record of await super.select(kind, ["title" as never])) held.add(`${kind}\0${(record.fields as { title: string }).title}`);
+    }
+    const inherited = (await Promise.all(inheritable.map((kind) => read([kind], this.#factory)))).flat();
+    const shown = inherited.filter((record) => !held.has(`${record.type}\0${(record.fields as { title?: string }).title}`));
+    const merged = [...mine, ...shown].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    return filter?.limit === undefined ? merged : merged.slice(0, filter.limit);
   }
 }

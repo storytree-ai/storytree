@@ -460,3 +460,53 @@ test("1.15 a project records whether it is the user's factory or a product namin
     assert.deepEqual(await made.lineage.factory(), { kind: "factory" }, "a refused write leaves it as it was");
   });
 });
+
+test("1.16 a product project reads its factory's roles, notes and checks, and its own record of the same kind and title wins (ADR-1040)", async () => {
+  const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
+  await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
+    const made = await storytree.openProject(factory);
+    await made.lineage.markFactory();
+    const principle = (title: string, statement: string) => ({ title, description: `${title}.`, statement, why: "It helps.", howToApply: "Do it." });
+    const shared = await made.knowledge.writeKnowledge("principle", principle("Keep it small", "The factory's wording."));
+    const edited = await made.knowledge.writeKnowledge("principle", principle("Test first", "The factory's wording."));
+    const check = await made.knowledge.writeKnowledge("check", { title: "Proxy assertion", description: "Proxies pass.", question: "Is any assertion a proxy?", enforces: [shared.id] });
+    const role = await made.knowledge.writeKnowledge("agent", {
+      title: "builder", description: "Builds.", oneLine: "Builds.", role: "Build.", outcome: "Built.", context: [shared.id, edited.id], tools: "All", workflow: "Build it.",
+    });
+    await made.knowledge.recordDecision({ title: "The factory's own decision", text: "Kept in the factory.", status: "accepted" });
+
+    const before = await storytree.openProject(product);
+    await before.lineage.recordFactory(factory);
+    const own = await before.knowledge.writeKnowledge("principle", principle("Test first", "The product's own wording."));
+    const added = await before.knowledge.writeKnowledge("principle", principle("Name things plainly", "The product's own note."));
+    await before.close();
+
+    // A product's library reads its factory from the next opening on.
+    const built = await storytree.openProject(product);
+    const statements = (await built.records.list("principle")).map((each) => [each.fields.title, each.fields.statement]).sort();
+    assert.deepEqual(statements, [
+      ["Keep it small", "The factory's wording."],
+      ["Name things plainly", "The product's own note."],
+      ["Test first", "The product's own wording."],
+    ]);
+    assert.deepEqual((await built.records.list("agent")).map((each) => each.id), [role.id]);
+    assert.deepEqual((await built.records.list("check")).map((each) => each.id), [check.id]);
+
+    // A role's links, written as the factory's ids, read the note the product edited in place of the factory's.
+    assert.equal((await built.records.get(shared.id))?.id, shared.id, "a note the product holds no copy of reads as the factory's");
+    assert.equal((await built.records.get(edited.id))?.id, own.id, "the product's own note shadows the factory's under its id too");
+    assert.equal((await built.records.get(added.id))?.id, added.id);
+    assert.deepEqual((await built.knowledge.search("wording")).map((note) => note.id).sort(), [shared.id, own.id].sort());
+
+    // The factory's memory stays its own, and nothing the product wrote reaches the factory.
+    assert.deepEqual(await built.records.list("decision"), []);
+    assert.deepEqual((await made.records.list("principle")).map((each) => each.fields.statement), ["The factory's wording.", "The factory's wording."]);
+
+    // A product whose factory is gone reads only its own records.
+    await made.close();
+    await storytree.dropProject(factory);
+    const orphan = await storytree.openProject(product);
+    assert.deepEqual((await orphan.records.list("principle")).map((each) => each.id).sort(), [own.id, added.id].sort());
+    assert.equal(await orphan.records.get(shared.id), null);
+  });
+});

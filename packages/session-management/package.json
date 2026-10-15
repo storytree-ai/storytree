@@ -31,6 +31,13 @@
     "typescript": "~7.0.2"
   },
   "storytree": {
+    "tools": [
+      {
+        "from": ".",
+        "export": "hookToolParts",
+        "order": 3
+      }
+    ],
     "verbs": [
       {
         "from": "./verbs",

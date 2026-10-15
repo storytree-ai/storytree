@@ -256,3 +256,21 @@ test("2.8 a read inside folders, latest line per session, on a log of many lines
     }
   });
 });
+
+test("2.11 a line appended for a hook event is not added again when the log holds a line exactly like it, of the same event, that came the other way within two minutes of its time; the same way twice adds it twice", async () => {
+  const project = uniqueProjectName();
+  await withLog(async (log) => {
+    const line: NewLine = { session: "s1", harness: "claude-code", source: "hook", kind: "turn-ended", folder: "/site" };
+    const command = { key: "event-a", via: "command" } as const;
+    const tool = { key: "event-a", via: "tool" } as const;
+    const kept = await log.append(project, line, { event: command });
+    assert.equal((await log.append(project, line, { event: tool })).seq, kept.seq, "the other way's delivery is the line already kept");
+    await log.append(project, { ...line, folder: "/elsewhere" }, { event: tool });
+    await log.append(project, line, { event: { key: "event-b", via: "tool" } });
+    await log.append(project, line, { event: command });
+    const later = new Date(Date.parse(kept.at) + 3 * 60_000).toISOString();
+    await log.append(project, line, { event: tool, at: later });
+    const lines = (await log.since(project, 0)).lines;
+    assert.deepEqual(lines.map((written) => written.folder), ["/site", "/elsewhere", "/site", "/site", "/site"], "a different line, another event, the same way again and the other way past the window each add one");
+  });
+});

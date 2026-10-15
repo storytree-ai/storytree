@@ -37,7 +37,7 @@ import { claim, readClaims } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
 import { SHELL_GUARD } from "./shell-guard.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
-import { BACKGROUND, hookLines } from "./hooks.js";
+import { BACKGROUND, hookLines, recordHookEvent, type ReachLog } from "./hooks.js";
 import { queueFolder } from "./queue.js";
 import { readSettings, setSetting } from "@storytree/project-and-caller";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
@@ -1426,4 +1426,46 @@ test("3.39 every hook records on this machine how long it took, by harness and e
     while (!waiting().some((r) => r.event === "PostToolUse --upkeep --handed") && Date.now() < deadline) await sleep(100);
     assert.ok(waiting().some((r) => r.harness === "codex" && r.event === "PostToolUse --upkeep --handed"), "the copy's own reading waits for the next upload");
   });
+});
+
+test("3.40 a hook event delivered through the tool server records the lines its command hook would; delivered both ways, in either order, its lines are kept once; while the log cannot be reached they wait on this machine and are kept once when uploaded", async () => {
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project);
+      // The tool server's process, here this one, has the machine's storytree home.
+      process.env.STORYTREE_HOME = home;
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        const reach: ReachLog = async () => log;
+        const down: ReachLog = async () => { throw new Error("storytree is not answering"); };
+        const input = (session: string) => ({ ...JSON.parse(recorded("claude-code", "post-tool-use-bash", folder)), session_id: `${project}-${session}` });
+        const command = async (session: string) => assert.equal((await runHook("claude-code", JSON.stringify(input(session)), home)).code, 0);
+        const tool = (session: string, by = reach) => recordHookEvent("claude-code", input(session), by);
+
+        await command("command-only");
+        assert.deepEqual(await tool("tool-only"), { recorded: 1, waiting: 0 });
+        await tool("tool-first");
+        await command("tool-first");
+        await command("command-first");
+        await tool("command-first");
+        assert.deepEqual(await tool("offline", down), { recorded: 0, waiting: 1 });
+        await command("offline");
+
+        const lines = await linesOf(project);
+        const of = (session: string) => lines.filter((line) => line.session === `${project}-${session}`).map((line) => ({ ...written(line), session: "" }));
+        const alone = of("command-only");
+        assert.equal(alone.length, 1);
+        for (const session of ["tool-only", "tool-first", "command-first", "offline"]) assert.deepEqual(of(session), alone, session);
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
 });

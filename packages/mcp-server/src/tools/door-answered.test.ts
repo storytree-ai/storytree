@@ -72,7 +72,8 @@ test("6.63 the tool server names every tool it would serve in a folder, the same
     const served = await servedTools(folder, { extensions: [fixtures] });
     const named = served.map(({ name }) => name);
     await withAgent(folder, claudeCode("tool-door-names", { extensions: [fixtures] }), async (agent) => {
-      assert.deepEqual([...named].sort(), await agent.tools());
+      // Less a harness's own tools, which no agent or person calls (ADR-1056 D2).
+      assert.deepEqual([...named].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event"));
     });
     assert.ok(named.includes("check_setup") && named.includes("show_thing"), "the setup check's tools and an extension's are named too");
     const consumers = (tool: string) => served.find(({ name }) => name === tool)?.consumers;

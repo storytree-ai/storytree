@@ -171,7 +171,7 @@ test("quality-assurance 2.3 and 4.4 · the shared server's quality_brief, qualit
       assert.deepEqual({ answer: rejected!.answer, reason: rejected!.reason }, { answer: "rejected", reason: "BASE is a worked number" });
       await client.callTool({ name: "quality_answer", arguments: { hit: hit!.id, answer: "fixed" } });
       const standing = await client.callTool({ name: "quality_standing", arguments: { increment } });
-      assert.deepEqual(standing.structuredContent, { message: standingText([]), standing: [] });
+      assert.deepEqual(standing.structuredContent, { message: standingText([]), standing: [], unmet: [] });
     });
   } finally {
     rmSync(folder, { recursive: true, force: true });

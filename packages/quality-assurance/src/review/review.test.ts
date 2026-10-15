@@ -15,7 +15,7 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { branchDiff, briefText, changeFolder, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, type ReviewReturn } from "../index.js";
+import { branchDiff, briefText, changeFolder, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, takenText, type ReviewReturn } from "../index.js";
 
 const DIFF = [
   "diff --git a/packages/forest-world/src/camera.test.ts b/packages/forest-world/src/camera.test.ts",
@@ -331,6 +331,26 @@ test("4.1 · a change's standing findings are its unanswered hits and unaccepted
   });
 });
 
+test("4.1 · a contract the latest review found not met stands, and take and standing do not read ready, until a later review finds it met", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    await reviews.brief(library, increment, DIFF);
+    const taken = await reviews.take(library.name, increment, { ...clean(checks, contracts), contracts: [{ contract: contracts[0]!, met: false, why: "a bad email is kept" }, { contract: contracts[1]!, met: true }] });
+
+    assert.deepEqual(taken.standing, []);
+    assert.doesNotMatch(takenText(taken), /ready for the gate/);
+    assert.deepEqual(await reviews.unmet(library.name, increment), [{ contract: contracts[0], why: "a bad email is kept" }]);
+    assert.doesNotMatch(standingText(await reviews.standing(library.name, increment), await reviews.unmet(library.name, increment)), /ready for the gate/);
+    assert.match(standingText([], await reviews.unmet(library.name, increment)), new RegExp(`contract ${contracts[0]} not met: a bad email is kept`));
+
+    await reviews.brief(library, increment, DIFF);
+    const met = await reviews.take(library.name, increment, clean(checks, contracts));
+    assert.deepEqual(await reviews.unmet(library.name, increment), []);
+    assert.match(takenText(met), /ready for the gate/);
+  });
+});
+
 test("4.2 · the second brief holds each earlier hit with its answer, and a return that leaves a rejection unjudged is refused naming it, recording nothing", async () => {
   await withLibrary(async (library, storytree) => {
     const { increment, contracts, checks } = await plan(library);
@@ -401,6 +421,6 @@ test("4.4 · the tools this package registers record the same answer to a hit an
 
     const standing = await reviews.standing(library.name, increment);
     assert.deepEqual(standing.map(({ id, answer, reason }) => ({ id, answer, reason })), [{ id: byApi!.id, answer: "rejected", reason: "BASE is a worked number" }]);
-    assert.deepEqual(await tools.quality_standing!({ increment }, call), { text: standingText(standing), data: { standing } });
+    assert.deepEqual(await tools.quality_standing!({ increment }, call), { text: standingText(standing), data: { standing, unmet: [] } });
   });
 });

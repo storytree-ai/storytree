@@ -91,9 +91,12 @@ await runCapture({
   folder: here, dist: path.join(here, 'dist', smoke ? 'smoke' : label), seed, survey,
   answers: { windowReading, windowReadings: async (project, sessions) => Promise.all(sessions.map(one => windowReading(project, one))), idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000 },
   prepare: async ({ page }) => {
+    // The traversal is drawn on the core inside the globe, which the Library switched on shows (the stories alone lie on the glass sheet).
+    await page.waitForFunction(() => document.body.dataset.state === 'ready' && !!document.querySelector('[data-globe-switch="library"]'), undefined, { timeout: 120000 });
+    await page.evaluate(() => document.querySelector('[data-globe-switch="library"][aria-pressed="false"]')?.click());
     await page.waitForFunction(ids => {
       const state = window.__globe;
-      if (document.body.dataset.state !== 'ready' || !state || !window.__nav) return false;
+      if (document.body.dataset.state !== 'ready' || !state || !window.__nav || state.scene.getObjectByName('sheet:glass')) return false;
       return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
     }, seed.tree.stories.map(s => s.id), { timeout: 120000 });
     await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 60000 });

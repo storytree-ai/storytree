@@ -16,18 +16,13 @@
 // record prints as a decision file of its own, named after the record (decisions/adr-0621.md), and
 // as a pointer on its node's shelf.
 //
-// Where an artifact prints (the story text moved into the library by ADR-0641 D2 step 2): a
-// definition whose term starts `Story text: ` prints in a story when its first link that names a
-// front cover names one of that story's covers, or of its capabilities'. Other definitions are not story blocks. Its meaning is the block as the file
-// writes it, list marker, bold label, line breaks and indentation included, and it prints verbatim.
-// - Behind a capability's cover, it prints in that capability's section, after the shelf and
-//   before the contracts, in the order the artifacts were written. So an indented item (`  - …`)
-//   written first continues the shelf's list. An artifact starting with a line the export makes takes
-//   that line's place: `- **Depends on:**` the line it would make from the capability's
-//   dependencies, and `**Contracts**` the header of its contracts.
-// - Behind the story's cover, an artifact starting with a `## ` heading is a closing section, heading
-//   and all, printed after the last capability; any other is an opening block, printed after the
-//   description.
+// Where the prose prints (ADR-1050 D1: a story's and a capability's prose is its own `text`, as markdown):
+// - A story's text, up to its first `## ` heading, prints after its description; from that heading on, its closing
+//   sections print after the last capability.
+// - A capability's text prints in its section, after the shelf and before the contracts. A text starting with a list
+//   item continues the shelf's list. Two lines the export makes are taken from the text when it has them: a first
+//   line `- **Depends on:** …` (with the indented lines that continue it) takes the place of the one it would make
+//   from the capability's dependencies, and a last paragraph `**Contracts** …` the header of its contracts.
 
 // --- the export ------------------------------------------------------------------------------
 
@@ -48,29 +43,14 @@ export async function exportLibrary(library) {
     for (const capability of story.capabilities) where.set(capability.id, { file, number: numberOf(capability.title) });
   }
 
-  /** @type {Map<string, string>} cover id -> the node it is a front cover of */
-  const coverOf = new Map();
-  for (const note of notes) if (note.type === "decision" && note.fields.frontCoverOf !== undefined) coverOf.set(note.id, note.fields.frontCoverOf);
-  // Notes created in the same millisecond tie in creation order, broken by their random ids; the
-  // history's sequence is the order they were written.
-  /** @type {Map<string, number>} definition id -> where its creation sits in the history */
-  const written = new Map();
-  for (const entry of await library.history({ types: ["definition"] })) if (entry.action === "created") written.set(entry.recordId, entry.seq);
-  const blocks = notes.filter((note) => note.type === "definition" && note.fields.term.startsWith("Story text: "));
-  blocks.sort((a, b) => (written.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (written.get(b.id) ?? Number.MAX_SAFE_INTEGER));
-  /** @type {Map<string, string[]>} node id -> the texts of the story-text definitions behind its covers, in the order they were written */
-  const behind = new Map();
-  for (const note of blocks) {
-    const cover = note.fields.links?.find((id) => coverOf.has(id));
-    if (cover === undefined) continue;
-    const node = coverOf.get(cover);
-    behind.set(node, [...(behind.get(node) ?? []), note.fields.meaning]);
-  }
+  /** @type {Map<string, string>} node id -> its prose */
+  const prose = new Map();
+  for (const kind of ["story", "capability"]) for (const record of await library.list(kind)) if (record.fields.text !== undefined) prose.set(record.id, record.fields.text);
 
   /** @type {Map<string, string>} */
   const files = new Map();
   for (const story of tree.stories) {
-    files.set(where.get(story.id).file, await printStory(library, story, behind));
+    files.set(where.get(story.id).file, await printStory(library, story, prose));
   }
   for (const note of notes) {
     if (note.type !== "decision" || foundingBookOf(note.fields.text) !== undefined) continue;
@@ -81,22 +61,26 @@ export async function exportLibrary(library) {
   return files;
 }
 
-async function printStory(library, story, behind) {
-  const notes = behind.get(story.id) ?? [];
-  const closing = notes.filter((text) => text.startsWith("## "));
+async function printStory(library, story, prose) {
+  const text = prose.get(story.id) ?? "";
+  const heading = /(?:^|\n\n)## /.exec(text);
+  const opening = heading === null ? text : text.slice(0, heading.index);
+  const closing = heading === null ? "" : text.slice(heading.index).replace(/^\n\n/, "");
   /** @type {string[]} blocks, each printed with a blank line after it */
   const out = [`# Story: ${story.title.charAt(0).toLowerCase()}${story.title.slice(1)}`];
   if (story.description !== undefined) out.push(`**What it is.** ${story.description}`);
-  out.push(...notes.filter((text) => !closing.includes(text)), "---");
+  if (opening !== "") out.push(opening);
+  out.push("---");
 
   const numbers = new Map(story.capabilities.map((capability) => [capability.id, numberOf(capability.title)]));
   for (const capability of story.capabilities) {
     out.push(`## ${capability.title}`);
     if (capability.description !== undefined) out.push(capability.description);
-    const all = behind.get(capability.id) ?? [];
-    const dependsLine = all.find((text) => text.startsWith("- **Depends on:**"));
-    const contractsLine = all.find((text) => text.startsWith("**Contracts**"));
-    const own = all.filter((text) => text !== dependsLine && text !== contractsLine);
+    let own = prose.get(capability.id) ?? "";
+    const dependsLine = /^- \*\*Depends on:\*\*.*(?:\n[ \t]+(?!- )\S.*)*/.exec(own)?.[0];
+    if (dependsLine !== undefined) own = own.slice(dependsLine.length);
+    const contractsLine = /(?:^|\n\n)(\*\*Contracts\*\*[^\n]*)$/.exec(own);
+    if (contractsLine !== null) own = own.slice(0, contractsLine.index);
     const on = capability.dependsOn.map((id) => numbers.get(id));
     /** @type {string[]} the section's list, printed as one block */
     const list = [dependsLine ?? `- **Depends on:** ${on.length === 0 ? "nothing in this story" : listed(on)}.`];
@@ -105,20 +89,17 @@ async function printStory(library, story, behind) {
       list.push("- **Its shelf,** founding book first:");
       for (const cover of covers) list.push(`  - ${shelfItem(cover)}`);
     }
-    // An artifact that is a list item continues the list; any other stands apart, and the list starts again after it.
-    for (const text of own) {
-      if (/^\s*- /.test(text)) list.push(text);
-      else {
-        if (list.length > 0) out.push(list.splice(0).join("\n"));
-        out.push(text);
-      }
-    }
-    if (list.length > 0) out.push(list.join("\n"));
+    // The text continues the list when it starts with a list item, and stands apart otherwise.
+    const rest = own.replace(/^\n\n/, "").replace(/^\n/, "");
+    const continues = rest !== "" && (dependsLine === undefined ? /^\s*- /.test(rest) : !own.startsWith("\n\n"));
+    if (continues) list.push(rest);
+    out.push(list.join("\n"));
+    if (rest !== "" && !continues) out.push(rest);
     if (capability.contracts.length > 0) {
-      out.push([contractsLine ?? "**Contracts:**", ...capability.contracts.map((contract) => `${numberOf(contract.title).split(".")[1]}. ${contract.title.replace(/^[\d.]+ · /, "")}`)].join("\n"));
+      out.push([contractsLine?.[1] ?? "**Contracts:**", ...capability.contracts.map((contract) => `${numberOf(contract.title).split(".")[1]}. ${contract.title.replace(/^[\d.]+ · /, "")}`)].join("\n"));
     }
   }
-  if (closing.length > 0) out.push("---", ...closing);
+  if (closing !== "") out.push("---", closing);
   return `${out.join("\n\n")}\n`;
 }
 

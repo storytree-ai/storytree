@@ -15,10 +15,9 @@ const history = () => new History().story("front")
   .decision("old", { frontCoverOf: "front" })
   .decision("new", { frontCoverOf: "front", supersedes: ["old"] })
   .decision("maybe", { status: "proposed" })
-  .create("prose", "definition", { term: "Story text: stories/forest.md ## 1", meaning: "…" })
   .create("word", "definition", { term: "Shelf", meaning: "An entrance." });
 
-test("5.5 the kind list has a row per kind with a drawn dot, in a fixed order, with its name, colour and count; story text, ghosts and proposals are not counted", () => {
+test("5.5 the kind list has a row per kind with a drawn dot, in a fixed order, with its name, colour and count; ghosts and proposals are not counted", () => {
   const rows = kindRows(knowledge(history().changes), new Set(["friction"]));
   assert.deepEqual(rows.map(({ kind, label, count, shown }) => ({ kind, label, count, shown })), [
     { kind: "decision", label: "Decisions", count: 2, shown: true },

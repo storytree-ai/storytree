@@ -203,7 +203,8 @@ async function answerHook({ argv, input: given, handOff, merges, locate, declare
       if (looked?.report !== undefined) {
         // The report is filed by a copy of this hook, so the prompt does not wait for the library's write.
         const handed = JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: asked.session, cwd: asked.folder, report: looked.report });
-        await (handOff === undefined ? fileBigInjection(JSON.parse(handed)) : handOff(harness, handed, [BIG_INJECTION]));
+        // Without a copy to hand it to, it is filed here; a failure is traced, never in the prompt's way.
+        await (handOff === undefined ? fileBigInjection(JSON.parse(handed)).catch((error: unknown) => failed("hook", error)) : handOff(harness, handed, [BIG_INJECTION]));
       }
       return promptAnswer(harness, yes === undefined ? context : [...yes, ...(context ?? [])], parsed);
     }

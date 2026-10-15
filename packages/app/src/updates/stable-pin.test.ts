@@ -209,6 +209,14 @@ test("4.16 the pin moves back only to a build pinned before, restoring that pin'
   assert.deepEqual(next.pin.increments.map(i => i.id), ["two"]);
 });
 
+test("4.16 an expedited pin says in its notes that it skipped the soak, and why, above what it carries", async () => {
+  const { ports } = fixture();
+  const pinned = await pinStable("0.3.2", ports, true, "The forest drew nothing on 0.3.1");
+  assert.match(pinned.releaseNotes, /^# storytree 0\.3\.2\n\nExpedited without the 24-hour soak: The forest drew nothing on 0\.3\.1\n\n- Choose update timing/);
+  assert.equal(pinned.pin.expedited, "The forest drew nothing on 0.3.1");
+  assert.equal((await pinStable("0.3.2", ports, true)).pin.expedited, undefined);
+});
+
 test("4.16 a former pin is read from the stable branch's history, a move back included, and a build only mentioned there is not one", async () => {
   const { ports } = fixture();
   const pinned = await pinStable("0.3.2", ports, true);

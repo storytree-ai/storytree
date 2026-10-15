@@ -174,7 +174,7 @@ export async function findStableCandidate(options: { library: Pick<Library, "lis
 }
 
 /** Thin front doors call this with their project library; all release rules stay in the app story. */
-export async function pinRelease(version: string, options: { library: Pick<Library, "list">; cwd: string; preview?: boolean; back?: boolean }): Promise<StableManifest> {
+export async function pinRelease(version: string, options: { library: Pick<Library, "list">; cwd: string; preview?: boolean; back?: boolean; expedited?: string }): Promise<StableManifest> {
   const api = github(options.cwd);
   const git = (...args: string[]) => execFileSync("git", args, { cwd: options.cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 }).trim();
   const asset = (release: Release, name: string) => {
@@ -240,5 +240,6 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
     publish: (manifest, bootstrap, expected) => publishStable(manifest, bootstrap, expected, api),
     now: () => new Date().toISOString(),
   };
-  return options.back ? moveStableBack(version, ports, options.preview) : pinStable(version, ports, options.preview);
+  if (options.back && options.expedited) throw new Error("--expedited pins an urgent fix forward; --back moves stable back, and needs no reason in its notes");
+  return options.back ? moveStableBack(version, ports, options.preview) : pinStable(version, ports, options.preview, options.expedited);
 }

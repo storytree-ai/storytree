@@ -26,6 +26,8 @@ export interface StableManifest {
     previous?: string;
     /** Set when this pin moved stable back to a build pinned before, to stop the named bad build spreading. */
     movedBackFrom?: string;
+    /** The owner's reason for pinning this build without the 24-hour soak, as an urgent fix. */
+    expedited?: string;
     /** The platforms this pin moved to its version. */
     covers?: ("windows" | FeedPlatform)[];
     increments: { id: string; title: string; pr: string; note?: string }[];
@@ -136,7 +138,8 @@ export async function moveStableBack(version: string, ports: PinPorts, preview =
   return manifest;
 }
 
-export async function pinStable(version: string, ports: PinPorts, preview = false): Promise<StableManifest> {
+/** `expedited` is the owner's reason for pinning an urgent fix without the 24-hour soak; the notes say it first. */
+export async function pinStable(version: string, ports: PinPorts, preview = false, expedited?: string): Promise<StableManifest> {
   const build = buildNumber(version);
   const previous = await ports.previous();
   if (previous) {
@@ -170,7 +173,7 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
     included.add(id);
     return [{ id, title: fields.title, pr, ...(outcome.note ? { note: outcome.note } : {}) }];
   });
-  const releaseNotes = [`# storytree ${version}`, "", ...increments.flatMap(i => [
+  const releaseNotes = [`# storytree ${version}`, "", ...(expedited ? [`Expedited without the 24-hour soak: ${expedited}`, ""] : []), ...increments.flatMap(i => [
     `- ${i.title} ([#${i.pr}](https://github.com/storytree-ai/storytree/pull/${i.pr}))${i.note ? ` — ${i.note}` : ""}`,
   ]), ...(increments.length ? [] : ["No newly recorded landed increments in this build."])].join("\n");
   const feeds: PlatformFeeds = {};
@@ -181,7 +184,7 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
   const manifest: StableManifest = {
     schema: 1, channel: "stable", version,
     files: [{ url: installer.url, sha512: installer.sha512, size: installer.size }], releaseNotes, feeds,
-    pin: { commit: candidate.commit, at: ports.now(), ...(previous ? { previous: previous.manifest.version } : {}), covers: ["windows", ...platforms],
+    pin: { commit: candidate.commit, at: ports.now(), ...(previous ? { previous: previous.manifest.version } : {}), ...(expedited ? { expedited } : {}), covers: ["windows", ...platforms],
       increments, includedIncrements: [...included] },
   };
   if (!preview) await ports.publish(manifest, candidate.bootstrap, previous?.ref);

@@ -5,11 +5,11 @@
  * not take is refused with its usage, and a refusal's next steps are named as commands. A callerless verb is handed only
  * its place, with the shell's session when it names one alone, so it runs where no library opens. A
  * verb that writes is handed the writer, named below its answer once its work asks for it, so one that wrote nothing names
- * none; a raw answer is printed as it is. A declared family is
+ * none; a raw answer is printed as it is. The verb's consumers go with it, for a reading of the doors. A declared family is
  * mounted with the families within it, its bare verb, its guesses and its retired words.
  */
 import type { Library } from "@storytree/library";
-import { mounted, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
+import { consumersOf, mounted, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
 
 import { Refusal, type Next } from "./answer.js";
 import { commandInput, commandUsage } from "./command-input.js";
@@ -82,6 +82,7 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
     usage,
     summary: face.summary,
     switches,
+    consumers: consumersOf(declared),
     async act(args, context) {
       try {
         const input = commandInput(declared, { word: (index) => args.words[index], flag: (name) => args.text(name), flags: (name) => args.texts(name), has: (name) => args.has(name), names: () => args.names });

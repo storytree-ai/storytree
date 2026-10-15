@@ -83,6 +83,7 @@ const reinforce = verb({
 });
 
 const drain = verb({
+  consumers: ["agent"],
   command: { family: "friction", name: "drain", summary: "the reports a landing's librarian pass routes: up to three from other branches, most recurrences first" },
   tool: { absent: "the MCP server's own worklist tool lists the friction due" },
   inputs: {},

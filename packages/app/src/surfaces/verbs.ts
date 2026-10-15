@@ -16,6 +16,7 @@ export interface SettingsPlace extends VerbPlace {
 const NEXT = [{ command: "settings show", why: "read your settings" }] as const;
 
 const show = verb({
+  consumers: ["user"],
   command: { family: "settings", name: "show", summary: "show each setting's value, type, default and meaning" },
   tool: { absent: "the user's settings are the person's own, read from a terminal" },
   inputs: {},
@@ -30,6 +31,7 @@ const show = verb({
 });
 
 const set = verb({
+  consumers: ["user"],
   command: {
     family: "settings",
     name: "set",

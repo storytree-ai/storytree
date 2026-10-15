@@ -11,6 +11,7 @@ import { promisify } from "node:util";
 const territoryFolder = fileURLToPath(new URL("./evidence/territory-health", import.meta.url));
 const pathwaysFolder = fileURLToPath(new URL("./evidence/pathway-repair/", import.meta.url));
 const rowDetailFolder = fileURLToPath(new URL("../../evidence/row-detail", import.meta.url));
+const libraryLookFolder = fileURLToPath(new URL("./evidence/glass-library-look", import.meta.url));
 const checkout = path.resolve(pathwaysFolder, "../../../../../..");
 const exec = promisify(execFile);
 const run = (file: string, args: string[], options: ExecFileOptions) => {
@@ -87,4 +88,13 @@ test("7.8 · in a real browser, every session row starts collapsed, and its expa
   const summary = JSON.parse(stdout.trim().split("\n").findLast(line => line.startsWith("{"))!);
   // Two rows at work; the builder's subagent is folded under its "+1".
   assert.deepEqual(summary, { collapsed: 2, worktrees: 3, files: 5, muted: 1 });
+});
+
+test("3.55 · in a real browser, pressing Library or Stories leaves the eye and the sheet exactly where the user tilted them, from above, side on and from below; the look follows the button, never the tilt", { timeout: 200_000 }, async () => {
+  const { stdout } = await run(process.execPath, ["--import", "tsx", path.join(libraryLookFolder, "capture.mjs"), "--smoke"],
+    { cwd: checkout, timeout: 180_000, env: { ...process.env, CAPTURE_CHANNEL: process.env.CAPTURE_CHANNEL ?? "chrome" } });
+  const summary = JSON.parse(stdout.trim().split("\n").findLast(line => line.startsWith("{"))!);
+  // At each tilt: Stories draws solid islands, Library outlines only, and neither press moved the eye.
+  const both = { stories: true, library: true };
+  assert.deepEqual(summary, { unmoved: ["above", "side-on", "below"], looks: { above: both, "side-on": both, below: both } });
 });

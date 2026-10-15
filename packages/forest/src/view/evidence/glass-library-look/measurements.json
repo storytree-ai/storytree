@@ -1,0 +1,60 @@
+{
+ "viewport": {
+  "width": 1440,
+  "height": 960
+ },
+ "seed": "code-rows",
+ "results": {
+  "above": {
+   "tiltDeg": 40,
+   "stories": {
+    "pressed": "stories",
+    "pane": 0.72,
+    "notesShown": 0,
+    "filled": 30,
+    "coasts": 15
+   },
+   "library": {
+    "pressed": "library",
+    "pane": 0.05,
+    "notesShown": 754,
+    "filled": 0,
+    "coasts": 15
+   }
+  },
+  "side-on": {
+   "tiltDeg": 85,
+   "stories": {
+    "pressed": "stories",
+    "pane": 0.72,
+    "notesShown": 754,
+    "filled": 30,
+    "coasts": 15
+   },
+   "library": {
+    "pressed": "library",
+    "pane": 0.05,
+    "notesShown": 754,
+    "filled": 0,
+    "coasts": 15
+   }
+  },
+  "below": {
+   "tiltDeg": 140,
+   "stories": {
+    "pressed": "stories",
+    "pane": 0.72,
+    "notesShown": 754,
+    "filled": 30,
+    "coasts": 15
+   },
+   "library": {
+    "pressed": "library",
+    "pane": 0.05,
+    "notesShown": 754,
+    "filled": 0,
+    "coasts": 15
+   }
+  }
+ }
+}

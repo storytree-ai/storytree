@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { FIRST_SHORT } from "./root.js";
-import { brokenBlocks, bundleShorts, renderPng, rgbOf } from "./render.js";
+import { brokenBlocks, bundleShorts, remotionOn, renderPng, rgbOf } from "./render.js";
 
 /** A frame with the documents piled up, the island lit and the cursor on it. */
 const FRAME = 390;
@@ -29,4 +29,16 @@ test("6.2 · the same frame renders identically twice, the turning globe include
   await renderPng(serveUrl, FIRST_SHORT.id, FRAME, first);
   await renderPng(serveUrl, FIRST_SHORT.id, FRAME, second);
   assert.ok((await rgbOf(first)).equals(await rgbOf(second)));
+});
+
+test("6.7 · on Windows arm64, which Remotion builds no Headless Shell or binaries for, a short renders in the installed Chrome with Remotion's x64 binaries; elsewhere with its own", () => {
+  const chrome = String.raw`C:\Program Files\Google\Chrome\Application\chrome.exe`;
+  const x64Binaries = () => "compositor-win32-x64-msvc";
+  const laptop = { platform: "win32", arch: "arm64", env: { PROGRAMFILES: String.raw`C:\Program Files` }, x64Binaries } as const;
+  assert.deepEqual(remotionOn({ ...laptop, exists: file => file === chrome }),
+    { browserExecutable: chrome, chromeMode: "chrome-for-testing", binariesDirectory: "compositor-win32-x64-msvc" });
+  assert.throws(() => remotionOn({ ...laptop, exists: () => false }), /no installed Chrome was found at C:\\Program Files\\Google/);
+  for (const [platform, arch] of [["linux", "x64"], ["win32", "x64"], ["darwin", "arm64"]] as const)
+    assert.deepEqual(remotionOn({ platform, arch, env: {}, exists: () => true, x64Binaries }),
+      { browserExecutable: null, chromeMode: "headless-shell", binariesDirectory: null });
 });

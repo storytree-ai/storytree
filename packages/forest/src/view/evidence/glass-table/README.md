@@ -13,7 +13,8 @@ should be like a floating panel of glass, with the knowledge graph under the gla
   tilt and twist to spin. **R** and **F** tilt it 15° a step (R toward looking down on the islands, F toward looking up at
   the graph). The tilt stops at straight down and straight up, never rolls, and pivots on the middle of the view. Home and
   the compass bring it back to the opening view, tilt included.
-- **Two resting views** (D3): Stories swings the tilt to 40° from above, Library to its mirror from below, over 0.9 s; a
+- **Two resting views** (D3, since amended by the owner: the buttons now change only the look and never move the eye, see
+  `../glass-library-look/`): Stories swings the tilt to 40° from above, Library to its mirror from below, over 0.9 s; a
   grab stops the swing where it is. Tilting by hand past level presses the other button. **T** swings to the other view.
 - **The angle decides what shows** (D4): from steeper than 60° above, the smoked glass hides the knowledge graph (the top
   resting view shows none of it); from there to level it comes into view below the slab; from below it is drawn over the

@@ -33,7 +33,7 @@ export { usePlanetGrowth, type GrowthReader, type PlanetGrowth } from './PlanetG
 export { crossingLength, growthMoment, growthPlan, type GrowthOptions, type GrowthPlan, type GrowthStage } from './growth.js';
 
 export type { PlanetSurfaceVisibility } from './exterior.js';
-export { applySheetEye, seenFromBelow, SHEET_FOV, SHEET_LAND_LIFT, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetPoint, sheetSpot, tiltFromEye, UnderTheGlass, type SheetExtent, type SheetPoint } from './sheet.js';
+export { applySheetEye, clearGlass, seenFromBelow, SHEET_FOV, SHEET_LAND_LIFT, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetPoint, sheetSpot, tiltFromEye, UnderTheGlass, type SheetExtent, type SheetPoint } from './sheet.js';
 
 export interface PlanetWorldCanvasProps {
   scene: ForestScene;
@@ -74,7 +74,8 @@ export interface PlanetWorldCanvasProps {
   /** Draw the world as a glass sheet this size, the near pole of a sphere of `radius` (ADR-1043 D1): the sheet's glass
    * instead of the sea, lit, and seen by a perspective eye whose depth range spans the sheet (ADR-1062 D1). */
   sheet?: SheetExtent | undefined;
-  /** Every island drawn as its coast line alone, hiding nothing beneath it: the glass sheet's Library face (ADR-1061 D2). */
+  /** Every island drawn as its coast line alone over clear glass, hiding nothing beneath it: the glass sheet's Library look
+   * (ADR-1061 D2, ADR-1062 D3). */
   hollow?: boolean | undefined;
 }
 
@@ -220,7 +221,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
     <Framing radius={radius} framing={framing} sideOffset={sideOffset} sheet={sheet} />
     <GrowthProvider growth={growth}>
     <group name="globe" quaternion={rotation} position={offset ?? ORIGIN}>
-      {sheet === undefined ? <Surface radius={radius} visible={exterior.sea} /> : <SheetGlass extent={sheet} />}
+      {sheet === undefined ? <Surface radius={radius} visible={exterior.sea} /> : <SheetGlass extent={sheet} clear={hollow} />}
       {scene.islands.map(island => {
         const spot = spots.get(island.story);
         if (spot === undefined) throw new Error(`No planet spot for story ${island.story}`);

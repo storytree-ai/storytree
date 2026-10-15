@@ -365,6 +365,11 @@ export const RECORD_SCHEMAS = {
       provenance: provenance.optional(),
       reinforcedBy: z.array(z.object({ branch: nonEmpty, date: nonEmpty, evidence: nonEmpty }).strict()).optional(),
       dischargedBy: nonEmpty.optional(),
+      /**
+       * The session the friction drain handed it to, and until when (an ISO time): another session's
+       * drain passes it over until then. Optional, so no version bump.
+       */
+      lease: z.object({ holder: nonEmpty, until: nonEmpty }).strict().optional(),
     })
     .strict(),
   /**

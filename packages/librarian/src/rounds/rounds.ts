@@ -6,14 +6,14 @@
  * kind, and when there is no start to read from, since the trigger fires when unsure (0.2's
  * `pre-merge-librarian-pass`). The worklist gathers each capability's list into one report.
  */
-import type { Library, Related, SchemaRecord } from "@storytree/library";
+import type { Library, Related, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { newNotes, type NewNote } from "../catalogue/index.js";
 import { brokenEdges, type BrokenEdge } from "../decision-log/index.js";
 import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
 import { relatedUnlinked, unrestedDecisions } from "../links/index.js";
 import { allNotes } from "../notes.js";
-import { DRAIN, openQuestions, openFriction } from "../queues/index.js";
+import { leaseFriction, openQuestions, openFriction } from "../queues/index.js";
 
 /** The curated kinds: a write to any of them since the session started makes the whole pass due. */
 export const CURATED: readonly string[] = ["decision", "question", "principle", "guardrail", "pattern", "process", "definition", "agent"];
@@ -35,6 +35,8 @@ export interface WorklistOptions {
   /** The tools served, to match against the processes; without them, processes are not matched. */
   readonly tools?: readonly string[];
   readonly now?: Date;
+  /** The session asking: the friction drain leases what it gives to the writer's actor. */
+  readonly writer?: WriteOptions;
   /** Told each phase as it starts; a rejection stops the worklist before that phase reads anything. */
   readonly progress?: (phase: string) => Promise<void>;
 }
@@ -83,8 +85,9 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
   // The live notes, read once for every list that needs them (6.7).
   const notes = await allNotes(library);
   const open = await openFriction(library, options.branch === undefined ? {} : { branch: options.branch }, notes);
-  const friction = open.slice(0, DRAIN);
-  const more = open.length > friction.length ? { frictionMore: open.length - friction.length } : {};
+  // Leased to this session, so a session draining at the same time is handed others (5.8).
+  const { taken: friction, free } = await leaseFriction(library, open, { ...(options.writer === undefined ? {} : { writer: options.writer }), ...(options.now === undefined ? {} : { now: options.now }) });
+  const more = free > friction.length ? { frictionMore: free - friction.length } : {};
   await phase("trigger");
   if (!(await roundDue(library, options)).rest) return { graduation, friction, ...more };
   const { since } = options;

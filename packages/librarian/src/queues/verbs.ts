@@ -86,9 +86,11 @@ const drain = verb({
   command: { family: "friction", name: "drain", summary: "the reports a landing's librarian pass routes: up to three from other branches, most recurrences first" },
   tool: { absent: "the MCP server's own worklist tool lists the friction due" },
   inputs: {},
+  // It leases what it lists to the asking session (5.8).
+  writes: true,
   async act(_input, context: VerbContext) {
     const { frictionDrain } = await import("./queues.js");
-    const due = await frictionDrain(context.library, { branch: await branchIn(context.folder) });
+    const due = await frictionDrain(context.library, { branch: await branchIn(context.folder), ...(context.writer === undefined ? {} : { writer: context.writer }) });
     if (due.length === 0) return { text: "No friction is due: every report from another branch is routed." };
     const lines = due.map((note) => `  ${note.id}  (${note.fields.reinforcedBy?.length ?? 0} recurrences)  ${note.fields.title}`);
     return {

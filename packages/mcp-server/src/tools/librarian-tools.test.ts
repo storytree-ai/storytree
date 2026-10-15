@@ -125,6 +125,8 @@ test("(the librarian's 6.4) the shared server lists and calls every librarian ve
     assert.notEqual((await call(client, "park", { memory: kept, reason: "This experiment is still running" })).isError, true);
     const parked = await call(client, "worklist", { memoryFolders: [memory] });
     assert.deepEqual((parked.structuredContent!.worklist as typeof work).graduation.map((item) => item.file), [durable]);
+    assert.equal(((await fields(library, friction.id)).lease as { holder: string }).holder, "session:curator");
+    cursor = (await library.changesSince(cursor)).cursor;
     assert.equal((await call(client, "graduate", { memory: durable, kind: "definition", fields: { term: "Missing meaning" } })).isError, true);
     assert.ok(existsSync(durable), "a refused graduation keeps its source");
     const graduated = await write("graduate", { memory: durable, kind: "definition", fields: { term: "Library", meaning: "The single copy" } }, "after-clear");

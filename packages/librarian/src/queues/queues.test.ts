@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Queues: one test per contract 5.1-5.6 in the librarian story, each in a fresh
+ * Capability 5 · Queues: one test per contract 5.1-5.9 in the librarian story, each in a fresh
  * project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -9,7 +9,7 @@ import type { Library } from "@storytree/library";
 
 import { worklist } from "../rounds/index.js";
 import { withLibrary } from "../testing/pg.js";
-import { frictionDrain, openQuestions, route } from "./index.js";
+import { frictionDrain, LEASE_MINUTES, openFriction, openQuestions, route } from "./index.js";
 
 function question(library: Library, arc: string, title: string, leaseDays?: number) {
   return library.raiseQuestion({ arc, title, stakes: "It blocks work.", statement: `${title}?`, context: "Two ways.", options: "A or B.", ...(leaseDays === undefined ? {} : { leaseDays }) });
@@ -152,5 +152,57 @@ test("5.6 every route but nothing needs an open increment remedying the report o
     assert.deepEqual((await frictionDrain(library, { branch: "claude/me" })).map(({ id }) => id), [dismissed.id], "a recurrence puts it back in the drain");
     const rerouted = await route(library, dismissed.id, "guardrail", "It recurs: refuse it", { dischargedBy: "#6" });
     assert.deepEqual([rerouted.fields.route, rerouted.fields.state], ["guardrail", "resolved"], "a reopened report is judged afresh, on any route");
+  });
+});
+
+test("5.8 the friction drain leases what it lists to the session that asked: a second session draining meanwhile gets the next unleased reports, a route ends the lease, and a lapsed lease frees the report", async () => {
+  await withLibrary(async (library) => {
+    for (const name of ["A", "B", "C", "D", "E"]) await friction(library, `Report ${name}`, "claude/other");
+    // Reports written in one millisecond can tie on creation order, so take the order the drain lists.
+    const [a, b, c, d, e] = await openFriction(library, { branch: "claude/me" });
+    const one = { actor: "session:one" };
+    const two = { actor: "session:two" };
+    const ids = async (writer: { actor: string }, now?: Date) =>
+      (await frictionDrain(library, { branch: "claude/me", writer, ...(now === undefined ? {} : { now }) })).map(({ id }) => id);
+
+    assert.deepEqual(await ids(one), [a!.id, b!.id, c!.id]);
+    assert.deepEqual(await ids(two), [d!.id, e!.id], "the second session is not handed the first one's reports");
+    assert.deepEqual(await ids(one), [a!.id, b!.id, c!.id], "the session that holds them is handed them again");
+
+    const routed = await route(library, a!.id, "nothing", "A one-off.", one);
+    assert.equal(routed.fields.lease, undefined, "routing a report ends its lease");
+
+    const lapsed = new Date(Date.now() + (LEASE_MINUTES + 1) * 60_000);
+    assert.deepEqual(await ids(two, lapsed), [b!.id, c!.id, d!.id], "a lapsed lease frees its reports for another session");
+  });
+});
+
+test("5.8 two sessions draining at the same moment are never handed the same report", async () => {
+  await withLibrary(async (library) => {
+    for (const name of ["A", "B", "C", "D", "E", "F"]) await friction(library, `Report ${name}`, "claude/other");
+    const [first, second] = await Promise.all(["session:one", "session:two"].map((actor) => frictionDrain(library, { branch: "claude/me", writer: { actor } })));
+    const handed = [...first!, ...second!].map(({ id }) => id);
+    assert.equal(handed.length, 6);
+    assert.equal(new Set(handed).size, 6, "no report is handed to both");
+  });
+});
+
+test("5.9 route checks whether a report is already routed inside its write: a pass that read the report before another pass's route committed is refused, and nothing is written (regression, friction_2a561540827c: routed both ways 12 s apart)", async () => {
+  await withLibrary(async (library) => {
+    const report = await friction(library, "Seed refused", "claude/other");
+    // The later pass read the notes before the earlier pass's route committed: its reads stay as they were.
+    const read = await library.search("");
+    const late = new Proxy(library, {
+      get(target, key) {
+        if (key === "search") return async () => read;
+        const value = Reflect.get(target, key) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    await route(library, report.id, "edit-existing", "Edited the seeding note.", { dischargedBy: "#8" });
+    const { cursor } = await library.changesSince(0);
+
+    await assert.rejects(route(late, report.id, "nothing", "A one-off."), /already routed to edit-existing: Edited the seeding note\./);
+    assert.deepEqual((await library.changesSince(cursor)).changes, [], "nothing was written");
   });
 });

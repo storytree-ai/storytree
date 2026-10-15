@@ -261,9 +261,10 @@ export class Knowledge {
    * Change only the named fields of an artifact, as capability 3's edit does; new links, and a new
    * front cover, are checked as they are when the artifact is written. Setting `frontCoverOf` to
    * undefined takes a decision off its node's shelf. The artifact's earlier wording stays in its
-   * history. Returns null, and writes nothing, if `id` is not a live artifact.
+   * history. Returns null, and writes nothing, if `id` is not a live artifact. `checkCurrent` is
+   * given the artifact as stored inside the write, under its lock; a throw refuses the edit.
    */
-  async editNote(id: string, fields: NoteEdit, options?: WriteOptions): Promise<Note | null> {
+  async editNote(id: string, fields: NoteEdit, options?: WriteOptions & { readonly checkCurrent?: (note: Note) => void }): Promise<Note | null> {
     const own = Object.keys(fields).find((field) => Object.hasOwn(OWN_VERBS, field));
     if (own !== undefined) throw new RangeError(`editNote does not change ${JSON.stringify(own)}: ${OWN_VERBS[own]}`);
     const note = await liveRecord(this.#records, id, NOTE_TYPES);
@@ -279,7 +280,11 @@ export class Knowledge {
       await checkReferences(this.#records, "supersedes", fields.supersedes, "decision");
       if (Array.isArray(fields.supersedes)) await this.#refuseSupersessionLoop(id, fields.supersedes);
     }
-    return (await this.#records.edit(id, fields, options)) as Note | null;
+    const { checkCurrent, ...writer } = options ?? {};
+    return (await this.#records.edit(id, fields, {
+      ...writer,
+      ...(checkCurrent === undefined ? {} : { checkCurrent: (current) => checkCurrent(current as Note) }),
+    })) as Note | null;
   }
 
   /**

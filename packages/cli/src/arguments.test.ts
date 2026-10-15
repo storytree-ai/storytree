@@ -15,9 +15,6 @@ import { fileURLToPath } from "node:url";
 import { run } from "./index.js";
 
 const checkout = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-// These commands run in the real project: run them as a person, so the door records no line on the
-// agent session running the tests (ADR-0983 D1). Both the in-process run and the spawned pnpm read this.
-for (const name of ["CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"]) delete process.env[name];
 
 /** `pnpm -s storytree <words…>` in the checkout, by the pnpm these tests run under. */
 function pnpmStorytree(...words: string[]) {

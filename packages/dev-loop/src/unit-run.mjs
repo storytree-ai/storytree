@@ -21,7 +21,12 @@ import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
+
 import { parseJunit } from "./own-health.mjs";
+
+/** The variables that name an agent's session to a command: each watched harness's, and storytree's own. */
+const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => (harness.shellSession === undefined ? [] : [harness.shellSession])), SESSION_ENV];
 
 export const TEST_LIMIT_MS = 60_000;
 export const UNIT_LIMIT_MS = 180_000;
@@ -70,6 +75,9 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
   // A unit is a run of its own even when a test runs it: under node:test, NODE_TEST_CONTEXT would
   // make it report into the outer run instead.
   const { NODE_TEST_CONTEXT: _, STORYTREE_TEST_EVIDENCE: _evidence, ...own } = env;
+  // Nor are its tests an agent's session: a command a test runs in the real project would record on the session
+  // that started the run, its fixture words read as that agent's (friction_fa050a39ba6f). A test that needs one sets its own.
+  for (const name of SESSION_VARIABLES) delete own[name];
   // A temp folder of the unit's own, named by each platform's variable and removed with whatever its
   // tests left in it when it ends: a run leaves nothing of its own in the system temp folder
   // (increment_74ca830203db). A run killed with its harness may leave this one folder.

@@ -19,7 +19,7 @@ import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
 import { asksForHome, miniGlobe } from "./mini-globe.js";
-import { sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetTurnedOver } from "./sheet-navigation.js";
+import { compassNorth, headingHome, sheetDrag, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetTurnedOver, sheetTwist, SPIN_PER_PIXEL } from "./sheet-navigation.js";
 import { growLand, pastIslands, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
@@ -317,17 +317,22 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const opening = sheet === undefined ? globeOpening : { framing: sheetOpening(sheet, size).framing, sideOffset: globeOpening.sideOffset };
   const [hover, setHover] = useState<{ title: string; detail?: string; x: number; y: number }>();
   const opened = useRef(false);
+  // Until the user or a guide moves the sheet, it keeps to its opening as the canvas or the sheet changes size.
+  const touched = useRef(false);
   const lastMarkers = useRef("");
   const [markers, setMarkers] = useState<ScreenMarker[]>([]);
   // The globe turns only by spin and tilt, and the eye never moves, so north stays up (arc north-up).
   const turn = useRef<GlobeTurn>({ yaw: 0, pitch: 0 });
   // How far the glass sheet is turned over north to south: 0 its top face, π its underside (ADR-1043 D3).
   const over = useRef(sheet !== undefined && mode === "library" ? Math.PI : 0);
+  // How far the glass sheet is spun about its upright axis from its starting heading (ADR-1060 D2), and the compass's reading of it.
+  const heading = useRef(0);
+  const [compass, setCompass] = useState(0);
   const turnTo = useCallback((next: GlobeTurn) => {
     turn.current = next;
     const rotation = focusRotation(next, camera.quaternion);
     if (sheet === undefined) { onRotate(rotation); return; }
-    const turned = sheetTurnedOver(rotation, camera.quaternion, over.current);
+    const turned = sheetTurnedOver(rotation, camera.quaternion, over.current, heading.current);
     onRotate(turned.quaternion, turned.position.toArray());
   }, [camera, onRotate, sheet !== undefined]);
   // The Stories and Library faces turn the sheet over, passing edge-on, the nearer way round; the turn, pan and zoom hold.
@@ -349,9 +354,32 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     // A press mid-turn turns on from where the sheet is.
     return () => cancelAnimationFrame(frame);
   }, [mode, turnTo]);
+  // A spin eases to `to` over `seconds`, or jumps there with reduced motion; a new spin takes over from where the sheet is.
+  const spinning = useRef({ frame: 0, to: 0 });
+  const spinTo = useCallback((to: number, seconds: number) => {
+    cancelAnimationFrame(spinning.current.frame);
+    spinning.current.to = to;
+    touched.current = true;
+    if (reducedMotion() || seconds === 0) { heading.current = to; turnTo(turn.current); invalidate(); return; }
+    const from = heading.current, start = performance.now();
+    const step = (): void => {
+      const t = Math.min(1, (performance.now() - start) / (seconds * 1000)), eased = 1 - (1 - t) ** 3;
+      heading.current = from + (to - from) * eased;
+      turnTo(turn.current);
+      invalidate();
+      if (t < 1) spinning.current.frame = requestAnimationFrame(step);
+    };
+    spinning.current.frame = requestAnimationFrame(step);
+  }, [turnTo]);
+  const spinBy = useCallback((clockwise: number) => {
+    cancelAnimationFrame(spinning.current.frame);
+    spinning.current.to = heading.current = sheetSpin(heading.current, clockwise, over.current > Math.PI / 2);
+    touched.current = true;
+  }, []);
+  useEffect(() => () => cancelAnimationFrame(spinning.current.frame), []);
   // The handle remains stable while its host reads the latest scene, camera and callbacks.
-  const host = useRef({ camera, scene, size, radius, onPose, turnTo, invalidate, opening });
-  host.current = { camera, scene, size, radius, onPose, turnTo, invalidate, opening };
+  const host = useRef({ camera, scene, size, radius, onPose, turnTo, invalidate, opening, sheet, spinTo });
+  host.current = { camera, scene, size, radius, onPose, turnTo, invalidate, opening, sheet, spinTo };
   const read = (): GlobePose => {
     const { camera: eye, size: viewport, radius: extent } = host.current;
     return { turn: { ...turn.current }, framing: Math.min(viewport.width, viewport.height) / (2 * eye.zoom * extent),
@@ -366,8 +394,6 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     write: pose => { opened.current = true; host.current.turnTo(pose.turn); host.current.onPose(pose); },
     invalidate: () => host.current.invalidate(),
   });
-  // Until the user or a guide moves the sheet, it keeps to its opening as the canvas or the sheet changes size.
-  const touched = useRef(false);
   const controls = useRef<PlacedGlobeControls>(undefined);
   const guideFrameAt = useRef(0);
   const placedAside = useRef(aside);
@@ -410,13 +436,51 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   goHome.current = () => {
     touched.current = false;
     const turn = sheet === undefined ? home : sheetOpening(sheet, size).turn;
+    // The compass and Home spin the sheet back to its starting heading, the short way round, as the view eases home (ADR-1060 D3).
+    if (sheet !== undefined) spinTo(headingHome(spinning.current.to), 0.6);
+    touched.current = false;
     if (turn === undefined || !guide.current!.home({ turn, ...besideAside.current!.home(size) })) return;
     guideFrameAt.current = performance.now();
   };
+  // On the sheet WASD and the arrows pan while held, Q and E spin it a quarter turn (ADR-1060 D1, D2); T is the page's.
+  const keyPan = useRef({ held: new Set<string>(), frame: 0, at: 0 });
   useEffect(() => {
-    const onKey = (event: KeyboardEvent): void => { if (asksForHome(event)) { event.preventDefault(); goHome.current!(); } };
+    const keys = keyPan.current;
+    const panning = (): void => {
+      const now = performance.now(), seconds = Math.min(0.1, (now - keys.at) / 1000);
+      keys.at = now;
+      const extent = host.current.sheet;
+      if (keys.held.size === 0 || extent === undefined) { keys.frame = 0; return; }
+      guide.current!.cancel();
+      host.current.turnTo(sheetPan(turn.current, sheetKeyPan(keys.held, seconds), host.current.camera.zoom, extent, over.current > Math.PI / 2, heading.current));
+      host.current.invalidate();
+      keys.frame = requestAnimationFrame(panning);
+    };
+    const onKey = (event: KeyboardEvent): void => {
+      if (host.current.sheet === undefined) { if (asksForHome(event)) { event.preventDefault(); goHome.current!(); } return; }
+      const key = sheetKey(event);
+      if (key === undefined || key.kind === "turn") return;
+      event.preventDefault();
+      if (key.kind === "home") goHome.current!();
+      else if (key.kind === "spin") { if (!event.repeat) host.current.spinTo(sheetSpin(spinning.current.to, key.by * Math.PI / 2, over.current > Math.PI / 2), 0.35); }
+      else {
+        touched.current = true;
+        keys.held.add(key.key);
+        if (keys.frame === 0) { keys.at = performance.now(); keys.frame = requestAnimationFrame(panning); }
+      }
+    };
+    const onKeyUp = (event: KeyboardEvent): void => { keys.held.delete(event.key.toLowerCase()); };
+    const onBlur = (): void => keys.held.clear();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+      cancelAnimationFrame(keys.frame);
+      keys.frame = 0;
+    };
   }, []);
   useEffect(() => {
     onControls?.(controls.current);
@@ -438,7 +502,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     // On the sheet nothing is round the back; a failing island past the window's edge is marked at that edge (3.11).
     const hidden = !showFailures ? [] : sheet === undefined
       ? hiddenMarkers(islands, rotation, camera.quaternion, mode).map(marker => ({ ...marker, left: middle.left + marker.at.x * rim, top: middle.top - marker.at.y * rim }))
-      : sheetMarkers(islands, turn.current, camera.zoom, size, middle, mode);
+      : sheetMarkers(islands, turn.current, camera.zoom, size, middle, mode, heading.current);
+    // The compass turns with the sheet, read to a tenth of a degree.
+    const reading = sheet === undefined ? 0 : Math.round(compassNorth(heading.current, over.current > Math.PI / 2) * 1800 / Math.PI);
+    if (reading !== compass) setCompass(reading);
     // The Sessions strip is docked over the pane's bottom edge; a marker sits clear above it (3.11).
     const box = gl.domElement.getBoundingClientRect();
     const docked = hidden.length === 0 ? [] : [...gl.domElement.ownerDocument.querySelectorAll(".sessions-list")].map(strip => {
@@ -458,7 +525,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
 
   useEffect(() => {
     const element = gl.domElement;
-    let down: { x: number; y: number; id: number; dragged: boolean; last: { x: number; y: number } } | undefined;
+    let down: { x: number; y: number; id: number; dragged: boolean; last: { x: number; y: number }; spin: boolean } | undefined;
+    // Fingers on the sheet: two of them twist it about its upright axis (ADR-1060 D2), and the wheel's pinch zooms it.
+    const fingers = new Map<number, { x: number; y: number }>();
+    const pair = (): [{ x: number; y: number }, { x: number; y: number }] => { const [a, b] = [...fingers.values()]; return [a!, b!]; };
     const pick = (event: PointerEvent) => pickGlobe(scene, camera, element.getBoundingClientRect(), { x: event.clientX, y: event.clientY }, mode);
     // Picking is costly: a pointer that moves many times a frame is picked once, where it last was.
     let cleared = 0, stopped = false;
@@ -473,20 +543,37 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     // A drag redraws the globe once a frame, at the latest turn.
     const dragTo = oncePerFrame((next: GlobeTurn): void => { if (!stopped) turnTo(next); });
     const onDown = (event: PointerEvent): void => {
-      down = event.button === 0 && event.isPrimary ? { x: event.clientX, y: event.clientY, id: event.pointerId, dragged: false, last: { x: event.clientX, y: event.clientY } } : undefined;
+      if (sheet !== undefined && event.pointerType === "touch") {
+        fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        // A second finger ends the first's pan: two fingers twist and pinch.
+        if (fingers.size > 1) { down = undefined; clearHover(); return; }
+      }
+      // A plain drag pans; on the sheet a right-drag or a Ctrl+drag spins it, so no switch changes what a drag does (ADR-1060 D2, D5).
+      const kind = sheet === undefined ? (event.button === 0 && event.isPrimary ? "pan" : undefined) : sheetDrag(event);
+      down = kind !== undefined ? { x: event.clientX, y: event.clientY, id: event.pointerId, dragged: false, last: { x: event.clientX, y: event.clientY }, spin: kind === "spin" } : undefined;
       if (down !== undefined) element.setPointerCapture?.(event.pointerId);
       clearHover();
     };
-    const onCancel = (): void => { down = undefined; clearHover(); };
+    const onCancel = (event: PointerEvent): void => { fingers.delete(event.pointerId); down = undefined; clearHover(); };
     const onMove = (event: PointerEvent): void => {
+      if (fingers.size > 1 && fingers.has(event.pointerId)) {
+        const before = pair();
+        fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        guide.current!.cancel();
+        spinBy(sheetTwist(before, pair()));
+        dragTo(turn.current);
+        return;
+      }
+      if (fingers.has(event.pointerId)) fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (down !== undefined) {
         if (event.pointerId !== down.id) return;
         down.dragged ||= isGlobeDrag(down, { x: event.clientX, y: event.clientY });
         touched.current = true;
         guide.current!.cancel();
         const drag = { x: event.clientX - down.last.x, y: event.clientY - down.last.y };
-        // The sheet only pans under a drag; it never spins or tilts (ADR-1043 D4).
-        turn.current = sheet === undefined ? dragTurn(turn.current, drag, element.clientHeight || 1) : sheetPan(turn.current, drag, camera.zoom, sheet, over.current > Math.PI / 2);
+        // On the sheet a drag pans, or spins it about its upright axis; nothing tilts it (ADR-1060 D2).
+        if (down.spin) spinBy(drag.x * SPIN_PER_PIXEL);
+        else turn.current = sheet === undefined ? dragTurn(turn.current, drag, element.clientHeight || 1) : sheetPan(turn.current, drag, camera.zoom, sheet, over.current > Math.PI / 2, heading.current);
         dragTo(turn.current);
         down.last = { x: event.clientX, y: event.clientY };
         clearHover();
@@ -495,9 +582,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       hoverAt({ event, at: cleared });
     };
     const onUp = (event: PointerEvent): void => {
-      const from = down;
+      const from = down, twisted = fingers.size > 1;
+      fingers.delete(event.pointerId);
       down = undefined;
-      if (from === undefined || from.id !== event.pointerId || from.dragged || isGlobeDrag(from, { x: event.clientX, y: event.clientY })) return;
+      if (twisted || from === undefined || from.id !== event.pointerId || from.dragged || from.spin || isGlobeDrag(from, { x: event.clientX, y: event.clientY })) return;
       clearHover();
       const hit = pick(event);
       if (hit?.kind === "note") onNote(hit.id);
@@ -507,14 +595,17 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       guide.current!.cancel(); clearHover();
       touched.current = true;
       // On the sheet a sideways scroll pans east and west; the wheel's zoom is the canvas's own.
-      if (sheet !== undefined && event.deltaX !== 0) dragTo(turn.current = sheetPan(turn.current, { x: -event.deltaX, y: 0 }, camera.zoom, sheet, over.current > Math.PI / 2));
+      if (sheet !== undefined && event.deltaX !== 0) dragTo(turn.current = sheetPan(turn.current, { x: -event.deltaX, y: 0 }, camera.zoom, sheet, over.current > Math.PI / 2, heading.current));
     };
+    // The right button spins the sheet, so it opens no menu there.
+    const onMenu = (event: MouseEvent): void => { if (sheet !== undefined) event.preventDefault(); };
     element.addEventListener("pointerdown", onDown);
     element.addEventListener("pointerup", onUp);
     element.addEventListener("pointermove", onMove);
     element.addEventListener("pointerleave", onCancel);
     element.addEventListener("pointercancel", onCancel);
     element.addEventListener("wheel", onWheel, { passive: true });
+    element.addEventListener("contextmenu", onMenu);
     clearHover();
     return () => {
       stopped = true;
@@ -524,9 +615,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       element.removeEventListener("pointerleave", onCancel);
       element.removeEventListener("pointercancel", onCancel);
       element.removeEventListener("wheel", onWheel);
+      element.removeEventListener("contextmenu", onMenu);
       element.style.cursor = "";
     };
-  }, [camera, gl, scene, onPick, onNote, mode, turnTo, sheet]);
+  }, [camera, gl, scene, onPick, onNote, mode, turnTo, sheet, spinBy]);
 
   // Pinned to the canvas, not to the globe's centre: under a side offset (3.40) the pointer's tooltip, the rim markers
   // (already placed from the projected centre) and the mini globe would otherwise move twice.
@@ -545,7 +637,24 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
         if (sheet === undefined || !controls.current!.stop({ target: { kind: "story", story: marker.story } })) turnTo(marker.turn);
       }}>!</button>)}
     {home !== undefined && sheet === undefined && <MiniGlobeButton islands={islands} home={home} turn={turn.current} aside={aside} onHome={() => goHome.current!()} />}
+    {sheet !== undefined && <SheetCompass north={compass * Math.PI / 1800} aside={aside} onHome={() => goHome.current!()} />}
   </Overlay>;
+}
+
+/** ADR-1060 D3: the sheet's compass, its needle pointing to the starting north on the window; a click spins and pans it home. */
+function SheetCompass({ north, aside, onHome }: { north: number; aside: number; onHome: () => void }) {
+  const c = 32, r = 26, needle = 20, x = Math.cos(north), y = -Math.sin(north);
+  const tip = { x: c + x * needle, y: c + y * needle }, tail = { x: c - x * needle * 0.7, y: c - y * needle * 0.7 };
+  const side = { x: -y * 5, y: x * 5 };
+  return <button type="button" className="planet-mini-globe sheet-compass" style={aside > 0 ? { marginRight: aside } : undefined}
+    title="Face the starting way, back to the opening view (Home)" aria-label="Face the starting way, back to the opening view (Home)" onClick={onHome}>
+    <svg viewBox="0 0 64 64" width={64} height={64} aria-hidden="true">
+      <circle cx={c} cy={c} r={r} className="mini-globe-sea" />
+      <polygon points={`${tip.x},${tip.y} ${c + side.x},${c + side.y} ${c - side.x},${c - side.y}`} className="sheet-compass-north" />
+      <polygon points={`${tail.x},${tail.y} ${c + side.x},${c + side.y} ${c - side.x},${c - side.y}`} className="sheet-compass-south" />
+      <text x={c + x * (r - 1)} y={c + y * (r - 1)} className="mini-globe-label" textAnchor="middle" dominantBaseline="central">N</text>
+    </svg>
+  </button>;
 }
 
 /** The canvas's middle, where a fullscreen overlay's middle stays whatever the camera's side offset. */

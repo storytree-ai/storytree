@@ -178,6 +178,10 @@
 /* The face on show is on the far side of the opening view: a dashed blue ring, never mistaken for home. */
 .mini-globe-facing.behind circle { stroke: #8ec5ff; stroke-dasharray: 3 2; }
 .mini-globe-facing.behind .mini-globe-facing-dot { fill: #8ec5ff; }
+/* The glass sheet's compass (ADR-1060 D3): the north half of its needle warm, the south half dim. */
+.sheet-compass-north { fill: #eadcae; }
+.sheet-compass-south { fill: #5b6873; }
+.sheet-compass .mini-globe-label { font-size: 10px; paint-order: stroke; stroke: #16212a; stroke-width: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
   .planet-mini-globe { transition: none; }

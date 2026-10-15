@@ -1,0 +1,80 @@
+{
+ "viewport": {
+  "width": 1440,
+  "height": 960
+ },
+ "seed": {
+  "stories": 27,
+  "capabilities": 142,
+  "taken": "2026-10-15T01:10:33.514Z",
+  "changesFolded": "each record: its created change and its last later change; cursor kept"
+ },
+ "results": {
+  "sheet-rest": {
+   "mode": "forest",
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "facing": 0.766,
+   "zoomPxPerUnit": 1.043,
+   "compassNorthDeg": 90,
+   "islandsOnScreen": 21
+  },
+  "sheet-after-q": {
+   "mode": "forest",
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "facing": 0.765,
+   "zoomPxPerUnit": 1.043,
+   "compassNorthDeg": 180,
+   "islandsOnScreen": 14
+  },
+  "sheet-home": {
+   "mode": "forest",
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "facing": 0.766,
+   "zoomPxPerUnit": 1.043,
+   "compassNorthDeg": 90,
+   "islandsOnScreen": 21
+  },
+  "sheet-odd-heading": {
+   "mode": "forest",
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "facing": 0.767,
+   "zoomPxPerUnit": 1.043,
+   "compassNorthDeg": 51,
+   "islandsOnScreen": 21
+  },
+  "sheet-underside-spun": {
+   "mode": "library",
+   "pressed": {
+    "stories": "false",
+    "library": "true"
+   },
+   "facing": -0.767,
+   "zoomPxPerUnit": 1.043,
+   "compassNorthDeg": -51,
+   "islandsOnScreen": 21
+  },
+  "after-frames": {
+   "mode": "forest",
+   "pressed": {
+    "stories": "true",
+    "library": "false"
+   },
+   "facing": 0.766,
+   "zoomPxPerUnit": 1.043,
+   "compassNorthDeg": 0,
+   "islandsOnScreen": 19
+  }
+ }
+}

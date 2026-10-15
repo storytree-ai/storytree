@@ -16,10 +16,13 @@
  * cannot see: that the arc, and every capability, link and friction an increment names, is live,
  * and that an increment moves only forward. A refusal throws with nothing written.
  */
+import { isDeepStrictEqual } from "node:util";
+
 import { byCreation } from "../creation-order.js";
 import { checkReference, checkReferences, liveRecord } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import { INCREMENT_STATUSES, type FieldsOf } from "../schema/types.js";
+import type { HistoryEntry } from "../transactions/index.js";
 import * as questions from "./owner-questions.js";
 import { heldOnOpen, type NewQuestion, type QuestionEdit, type QuestionLease, type Settlement } from "./owner-questions.js";
 import * as waits from "./waits.js";
@@ -399,17 +402,18 @@ export class WorkInFlight {
   }
 
   /**
-   * Increment `id`'s pending changes whose record has changed since they were read (ADR-0966 D5's gate
-   * case): each with its base and the history entry that moved it, in the increment's order. Empty when
-   * every base is still its record's latest entry; null if `id` is not a live increment.
+   * Increment `id`'s pending changes their record has moved since they were read (ADR-0966 D5's gate
+   * case, movedSince): each with its base and its record's latest history entry, in the increment's
+   * order. Empty when none has moved; null if `id` is not a live increment.
    */
   async stalePending(id: string): Promise<StalePending[] | null> {
     const increment = await liveRecord(this.#records, id, ["increment"]);
     if (increment === null) return null;
     const stale: StalePending[] = [];
-    for (const { record, type, base } of increment.fields.pending ?? []) {
+    for (const change of increment.fields.pending ?? []) {
+      const { record, type, base } = change;
       const [latest] = await this.#records.history({ id: record, newest: 1 });
-      if (latest === undefined || latest.seq === base) continue;
+      if (latest === undefined || !movedSince(change, latest)) continue;
       const moved = { seq: latest.seq, action: latest.action, at: latest.at, ...(latest.actor === undefined ? {} : { actor: latest.actor }) };
       stale.push({ record, type, base, moved });
     }
@@ -420,8 +424,8 @@ export class WorkInFlight {
    * Apply increment `id`'s pending changes (ADR-0966 D4): what GitHub reporting its branch merged, or
    * its landed close, calls. Each goes through the plan's own editor (editStory, editCapability,
    * editContract, retire), which checks it as a live edit is checked, and its history entry's reason
-   * reads "applied at the merge of PR #n (<increment>)". One whose record has changed since it was
-   * read, or is gone, is stale; one its editor refuses is refused: neither is applied, and both are
+   * reads "applied at the merge of PR #n (<increment>)". One its record has moved since it was read
+   * (movedSince), or whose record is gone, is stale; one its editor refuses is refused: neither is applied, and both are
    * parked together as one proposal increment on the same arc, its body naming each record, its base,
    * the entry that moved it or the refusal, and the change (D5). A change whose record's latest entry
    * already carries its mark, as after a crash part-way, counts as applied. The increment keeps none
@@ -633,7 +637,7 @@ export class WorkInFlight {
         applied.push(record);
         continue;
       }
-      if (latest === undefined || latest.seq !== base || latest.action === "retired") {
+      if (latest === undefined || movedSince(change, latest)) {
         const moved = latest === undefined
           ? { seq: base, action: "retired" as const, at: "", actor: undefined }
           : { seq: latest.seq, action: latest.action, at: latest.at, actor: latest.actor };
@@ -1023,6 +1027,19 @@ function residueBody(increment: string, mark: string, unapplied: readonly Unappl
 }
 
 /** Where `status` sits in the lifecycle. */
+/**
+ * Whether `latest`, its record's newest history entry, has moved `change` since it was read (ADR-0966
+ * D5): the record is retired, or, for a retirement, any entry since its base; for an edit, a field it
+ * sets no longer holds the value it was read with. A write that touched only other fields, as marking
+ * a capability built does, leaves the edit to apply, since applying it overwrites nothing newer.
+ */
+function movedSince(change: PendingChange, latest: HistoryEntry): boolean {
+  if (latest.seq === change.base) return false;
+  if (latest.action === "retired" || "retire" in change) return true;
+  const live = latest.record.fields as Record<string, unknown>;
+  return Object.entries(change.before).some(([field, value]) => !isDeepStrictEqual(live[field] ?? null, value));
+}
+
 function rank(status: string): number {
   return (INCREMENT_STATUSES as readonly string[]).indexOf(status);
 }

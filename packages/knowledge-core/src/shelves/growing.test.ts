@@ -15,7 +15,7 @@ test("1.9 replaying a growth, each note appears beneath its home once the replay
     .decision("loose")
     .decision("m-other", { frontCoverOf: "north" });
   const known = knowledge(history.changes);
-  const points = globePoints(underShelves(history.changes, known), spots, 218, known.notes);
+  const points = globePoints(underShelves(history.changes, known), spots, 218);
   // The replay's clock: one second per recorded second, from the first change.
   const first = Date.parse(history.changes[0]!.record.createdAt);
   const moments = noteMoments(points, known.notes, date => (Date.parse(date) - first) / 1000);

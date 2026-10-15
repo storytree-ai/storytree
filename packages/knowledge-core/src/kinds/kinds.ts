@@ -2,7 +2,6 @@
 import type { RecordEnvelope } from "@storytree/library";
 
 import type { Knowledge } from "../ghosts/ghosts.js";
-import { isStoryText } from "../shelves/story-text.js";
 
 /** The kinds in the order the list shows them, each with its name and its muted colour (D3); the work's own records come last. */
 const KINDS: readonly { kind: string; label: string; colour: string }[] = [
@@ -35,12 +34,12 @@ export interface KindRow {
   shown: boolean;
 }
 
-/** The kind list: a row for each kind with a drawn dot, which story text, ghosts and proposed decisions have none of. */
+/** The kind list: a row for each kind with a drawn dot, which ghosts and proposed decisions have none of. */
 export function kindRows({ notes, active }: Knowledge, hidden: ReadonlySet<string>): KindRow[] {
   const counts = new Map<string, number>();
   for (const id of active) {
     const note = notes.get(id)!;
-    if (!isStoryText(note)) counts.set(note.type, (counts.get(note.type) ?? 0) + 1);
+    counts.set(note.type, (counts.get(note.type) ?? 0) + 1);
   }
   return KINDS.filter(({ kind }) => counts.has(kind)).map(row => ({ ...row, count: counts.get(row.kind)!, shown: !hidden.has(row.kind) }));
 }

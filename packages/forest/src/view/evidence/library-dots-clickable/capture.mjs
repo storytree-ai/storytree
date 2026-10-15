@@ -199,8 +199,7 @@ async function capture(page, browser, name) {
   result.browser = await browser.version();
   result.seed = seed.stats;
   result.counts = { islandsDrawn: result.drawn.islands.length, pointsDrawn: result.drawn.points.length,
-    shelfPoints: result.points.filter(p => p.depth !== null).length, loosePoints: result.points.filter(p => p.depth === null).length,
-    excludedStoryText: census.excludedStoryText };
+    shelfPoints: result.points.filter(p => p.depth !== null).length, loosePoints: result.points.filter(p => p.depth === null).length };
   result.spread = census.spread;
   await page.screenshot({ path: path.join(out, `${name}.png`), timeout: 180000 });
   writeFileSync(path.join(out, `${name}.json`), JSON.stringify(result, null, 2) + '\n');
@@ -367,7 +366,7 @@ async function openLand(page) {
       cardReplacesStory: true, storyReplacesCard: true, closeDismisses: true, escapeDismisses: true,
       dragIsNotClick: true, dragTurnsGlobeWithFixedCamera: true, hiddenIslandsUnpickable: true, noCardInspectionMetadata: true,
       wheelClearsHover: true, liveRetirementClosesCardAndRemovesDot: true,
-      storyTextExcluded: true, allEligibleDotsSubmittedInBothModes: true },
+      allEligibleDotsSubmittedInBothModes: true },
     errors, warnings: [...new Set(warnings)],
   };
   writeFileSync(path.join(out, 'interactions.json'), JSON.stringify(report, null, 2) + '\n');

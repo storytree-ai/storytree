@@ -22,6 +22,8 @@ export function bundleShorts(): Promise<string> {
 
 /** Chrome's software WebGL, the same on every machine, so a frame is the same pixels wherever it renders. */
 const chromiumOptions = { gl: "swangle" } as const;
+/** How long a page may take to draw its first frame: software WebGL on a slow machine (a macOS CI runner) passes Remotion's 30 seconds. */
+const timeoutInMilliseconds = 180_000;
 
 export interface Machine {
   readonly platform: NodeJS.Platform;
@@ -62,8 +64,8 @@ export function remotionOn({ platform, arch, env, exists, x64Binaries }: Machine
 /** One frame of a composition as a lossless PNG, rendered in a browser of its own; `scale` 0.5 gives the ×3 web size. */
 export async function renderPng(serveUrl: string, id: string, frame: number, output?: string, scale = 1): Promise<Buffer> {
   const setup = remotionOn();
-  const composition = await selectComposition({ serveUrl, id, chromiumOptions, ...setup, logLevel: "error" });
-  const { buffer } = await renderStill({ serveUrl, composition, frame, imageFormat: "png", output: output ?? null, chromiumOptions, ...setup,
+  const composition = await selectComposition({ serveUrl, id, chromiumOptions, timeoutInMilliseconds, ...setup, logLevel: "error" });
+  const { buffer } = await renderStill({ serveUrl, composition, frame, imageFormat: "png", output: output ?? null, chromiumOptions, timeoutInMilliseconds, ...setup,
     logLevel: "error", overwrite: true, scale });
   return buffer ?? readFile(output!);
 }
@@ -72,8 +74,8 @@ export async function renderPng(serveUrl: string, id: string, frame: number, out
 export async function renderVideo(serveUrl: string, id: string, codec: Extract<Codec, "h264" | "vp9">, output: string,
   { scale = 1, crf = codec === "h264" ? 16 : 20 }: { scale?: number; crf?: number } = {}): Promise<void> {
   const setup = remotionOn();
-  const composition = await selectComposition({ serveUrl, id, chromiumOptions, ...setup, logLevel: "error" });
-  await renderMedia({ serveUrl, composition, codec, outputLocation: output, chromiumOptions, ...setup, logLevel: "error", overwrite: true,
+  const composition = await selectComposition({ serveUrl, id, chromiumOptions, timeoutInMilliseconds, ...setup, logLevel: "error" });
+  await renderMedia({ serveUrl, composition, codec, outputLocation: output, chromiumOptions, timeoutInMilliseconds, ...setup, logLevel: "error", overwrite: true,
     imageFormat: "png", scale, crf });
 }
 

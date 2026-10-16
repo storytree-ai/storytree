@@ -213,7 +213,7 @@ test("12.10 · its own code is the code it runs: a merge touching only other dev
     await git("commit", "-qm", path);
   };
   await git("init", "-q");
-  await commit("packages/dev-loop/src/lanes/launch.mjs", "pool v1");
+  await commit("packages/agent-pool/src/launch.mjs", "pool v1");
   await commit("packages/dev-loop/src/test-runner.mjs", "tests v1");
   const dispatch = async (merge) => {
     const started = [];
@@ -230,7 +230,7 @@ test("12.10 · its own code is the code it runs: a merge touching only other dev
   };
   const elsewhere = await dispatch(() => commit("packages/dev-loop/src/test-runner.mjs", "tests v2"));
   assert.deepEqual(elsewhere, { code: 0, started: ["a", "b"] }, "the test runner changed: no restart, and b starts after the merge");
-  const own = await dispatch(() => commit("packages/dev-loop/src/lanes/launch.mjs", "pool v2"));
+  const own = await dispatch(() => commit("packages/agent-pool/src/launch.mjs", "pool v2"));
   assert.deepEqual(own, { code: 3, started: ["a"] }, "the dispatcher's code changed: it restarts, starting nothing more");
   const configured = await dispatch(() => commit("agent-pool.json", "{\"sessions\": 4}"));
   assert.deepEqual(configured, { code: 3, started: ["a"] }, "the pool's configuration changed: it restarts to read it");

@@ -13,7 +13,7 @@ import { promisify } from "node:util";
  * name that file here. The pool's configuration (agent-pool.json, pool-config.mjs) is read once at start, so it is here too.
  */
 export const POOL_CODE = [...["launch.mjs", "feed.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "watch.mjs", "pool-config.mjs",
-  "pool-brief.md", "pool-brief-plan.md", "pool-brief-read-only.md"].map((name) => `packages/dev-loop/src/lanes/${name}`), "agent-pool.json"];
+  "pool-brief.md", "pool-brief-plan.md", "pool-brief-read-only.md"].map((name) => `packages/agent-pool/src/${name}`), "agent-pool.json"];
 
 /**
  * The version of `paths` (repository-relative) at the checkout's HEAD: one hash of their blob ids, so it moves only

@@ -1,5 +1,5 @@
 /** Capability 6 · Pixel-art shorts. The cast's sprite sheet and its frame map (public/sprites, drawn by
- * evidence/first-short/draw-cast.mjs): every pose of the developer as frames, and every prop, as rectangles of one picture. */
+ * evidence/first-short/assemble-cast.mjs): every pose of the developer as frames, and every prop, as rectangles of one picture. */
 import type { Pose, Prop } from "./script.js";
 
 export type Rect = { x: number; y: number; w: number; h: number };

@@ -2,7 +2,7 @@
 // Renders the first short, "seeing what agents built" (increment_9294d76b04cf). Into packages/website/public/shorts: the
 // site's cut at 960×540 (×3) as VP9 WebM and H.264 MP4, and its poster. Into this folder: the 1920×1080 MP4 for social
 // media, a lossless still of each beat, and measurements.json (sizes, render times, broken pixel blocks in each still).
-// After changing a scene, a pose (draw-cast.mjs) or the forest's drawing, run this again and commit what it writes.
+// After changing a scene, a pose (assemble-cast.mjs) or the forest's drawing, run this again and commit what it writes.
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

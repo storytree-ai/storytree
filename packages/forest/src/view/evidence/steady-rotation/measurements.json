@@ -1,0 +1,90 @@
+{
+ "viewport": {
+  "width": 1440,
+  "height": 960
+ },
+ "seed": {
+  "stories": 27,
+  "capabilities": 142,
+  "taken": "2026-10-15T01:10:33.514Z",
+  "changesFolded": "each record: its created change and its last later change; cursor kept"
+ },
+ "runs": {
+  "before": [
+   {
+    "tiltDeg": 50,
+    "southX": 0
+   },
+   {
+    "tiltDeg": 60,
+    "southX": -6.8
+   },
+   {
+    "tiltDeg": 70,
+    "southX": -13.5
+   },
+   {
+    "tiltDeg": 80,
+    "southX": -19.9
+   },
+   {
+    "tiltDeg": 89.9,
+    "southX": -26
+   },
+   {
+    "tiltDeg": 100,
+    "southX": -19.9
+   },
+   {
+    "tiltDeg": 110,
+    "southX": -13.5
+   },
+   {
+    "tiltDeg": 120,
+    "southX": -6.8
+   },
+   {
+    "tiltDeg": 130,
+    "southX": 0
+   }
+  ],
+  "after": [
+   {
+    "tiltDeg": 50,
+    "southX": 0
+   },
+   {
+    "tiltDeg": 60,
+    "southX": 6.8
+   },
+   {
+    "tiltDeg": 70.1,
+    "southX": 13.5
+   },
+   {
+    "tiltDeg": 80.1,
+    "southX": 19.9
+   },
+   {
+    "tiltDeg": 90.1,
+    "southX": 26
+   },
+   {
+    "tiltDeg": 100.1,
+    "southX": 31.5
+   },
+   {
+    "tiltDeg": 110.1,
+    "southX": 36.5
+   },
+   {
+    "tiltDeg": 120.1,
+    "southX": 40.7
+   },
+   {
+    "tiltDeg": 130.1,
+    "southX": 44.2
+   }
+  ]
+ }
+}

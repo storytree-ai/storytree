@@ -21,7 +21,7 @@ import { pinStable } from "./stable-pin.js";
 type Platform = "win32" | "darwin" | "linux";
 const PLATFORMS: readonly Platform[] = ["win32", "darwin", "linux"];
 /** AppImageUpdater replaces the AppImage with a POSIX `mv`, which a Windows host lacks; Linux and macOS hosts run these. */
-const hostRuns = (platform: Platform) => ({ skip: platform === "linux" && process.platform === "win32" ? "the AppImage install needs a POSIX mv, which Windows lacks" : false });
+const hostRuns = (platform: Platform) => ({ skip: platform === "linux" && process.platform === "win32" ? "platform:win32: the AppImage install needs a POSIX mv, which Windows lacks" : false });
 
 /**
  * Electron's Squirrel.Mac autoUpdater, which MacUpdater takes from require("electron"): it fetches

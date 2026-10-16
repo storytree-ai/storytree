@@ -44,8 +44,12 @@ const execArg = (arg: string): string => {
   return quoted.replace(/\\/g, "\\\\").replace(/%/g, "%%");
 };
 
-/** The Linux login item: an XDG autostart entry in `autostart`, written when on and removed when off. */
-function autostartEntry(options: { execPath: string; autostart: string }): LoginItems {
+/**
+ * The Linux login item: an XDG autostart entry in `autostart`, written when on and removed when off. Where the kernel
+ * blocks Chromium's sandbox the installer's menu entry starts the app with `--no-sandbox` (decision_624dbe5bcddb), so an
+ * app started that way (`sandboxOff`) writes it into the autostart entry too, or its sign-in start would fail.
+ */
+function autostartEntry(options: { execPath: string; autostart: string; sandboxOff?: boolean }): LoginItems {
   const file = path.join(options.autostart, SIGN_IN_DESKTOP_FILE);
   return {
     set(item) {
@@ -57,7 +61,7 @@ function autostartEntry(options: { execPath: string; autostart: string }): Login
       writeFileSync(file, `[Desktop Entry]
 Type=Application
 Name=${SIGN_IN_NAME}
-Exec=${[options.execPath, ...item.args].map(execArg).join(" ")}
+Exec=${[options.execPath, ...(options.sandboxOff ? ["--no-sandbox"] : []), ...item.args].map(execArg).join(" ")}
 Terminal=false
 X-GNOME-Autostart-enabled=true
 `);
@@ -69,7 +73,7 @@ X-GNOME-Autostart-enabled=true
  * Where the platform keeps a login item: Electron's on Windows, a LaunchAgent in `launchAgents` on a Mac,
  * an autostart entry in `autostart` on Linux.
  */
-export function loginItemsFor(platform: NodeJS.Platform, options: { electron: LoginItems; execPath: string; launchAgents: string; autostart: string }): LoginItems {
+export function loginItemsFor(platform: NodeJS.Platform, options: { electron: LoginItems; execPath: string; launchAgents: string; autostart: string; sandboxOff?: boolean }): LoginItems {
   if (platform === "linux") return autostartEntry(options);
   if (platform !== "darwin") return options.electron;
   const file = path.join(options.launchAgents, `${SIGN_IN_LABEL}.plist`);

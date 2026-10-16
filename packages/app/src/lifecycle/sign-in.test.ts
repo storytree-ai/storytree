@@ -97,3 +97,11 @@ test("1.12 on Linux, opening at sign-in is an XDG autostart entry that starts th
   linux.set(true);
   assert.equal(existsSync(entry), true);
 });
+
+test("1.12 on Linux, an app the menu entry started without the sandbox, where the kernel blocks it, opens at sign-in without it too", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "sign-in-"));
+  const autostart = path.join(dir, "autostart");
+  const loginItems = loginItemsFor("linux", { electron: fakeLoginItems(), execPath: "/opt/storytree-0.3", launchAgents: path.join(dir, "LaunchAgents"), autostart, sandboxOff: true });
+  signIn({ installed: true, file: path.join(dir, "sign-in.json"), loginItems }).apply();
+  assert.match(readFileSync(path.join(autostart, SIGN_IN_DESKTOP_FILE), "utf8"), /^Exec=\/opt\/storytree-0\.3 --no-sandbox --background$/m);
+});

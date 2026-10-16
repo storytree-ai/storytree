@@ -1,0 +1,37 @@
+name: Mac self-update run
+
+# Check (b) of decision_b0a98e971a05 D4, its second half (increment_e9ed21b673a3): on a fresh Apple Silicon runner,
+# a Developer ID signed and notarised release passes Gatekeeper with a browser's quarantine attribute, then updates
+# itself to the newest release while left idle, keeping its project. Recorded by
+# packages/app-setup/evidence/mac-acceptance/harness/self-update.sh and kept as an artifact; a push to a
+# mac-self-update/ branch runs it before the workflow reaches main. The repository is public: no secret is used.
+on:
+  workflow_dispatch:
+    inputs:
+      from:
+        description: The signed 0.3.<n> release to install first; the run waits for it to update itself to the newest
+        default: "0.3.1482"
+  push:
+    branches: ["mac-self-update/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: macos-latest
+    # Ten minutes' settle after the launch, three-minute checks and the download fit well inside.
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: packages/app-setup/evidence/mac-acceptance/harness
+      - name: Install release N, open it quarantined, and leave it idle until it updates itself
+        run: bash packages/app-setup/evidence/mac-acceptance/harness/self-update.sh "$RUNNER_TEMP/mac-self-update" "${{ inputs.from || '0.3.1482' }}"
+      - name: Fail unless Gatekeeper accepted it and it updated itself with its project kept
+        run: bash packages/app-setup/evidence/mac-acceptance/harness/judge-self-update.sh "$RUNNER_TEMP/mac-self-update" "${{ inputs.from || '0.3.1482' }}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mac-self-update
+          path: ${{ runner.temp }}/mac-self-update

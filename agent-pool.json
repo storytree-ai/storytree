@@ -1,5 +1,5 @@
 {
-  "about": "The owner's configuration of the dev loop's agent pool: the Mint box (ADR-1066 D2 G). packages/dev-loop/src/lanes/pool-config.mjs reads it and says what each field means; AGENT_POOL_CONFIG names another file. ~ is the home folder of the machine reading it.",
+  "about": "The owner's configuration of the dev loop's agent pool: the Mint box (ADR-1066 D2 G). packages/agent-pool/src/pool-config.mjs reads it and says what each field means; AGENT_POOL_CONFIG names another file. ~ is the home folder of the machine reading it.",
   "machine": "mint",
   "checkout": "~/code/storytree03",
   "lanes": "~/storytree-lanes",

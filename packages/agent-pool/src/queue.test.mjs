@@ -20,7 +20,7 @@ test("12.1 · each running lane's engine counts once: not its wrapper or native 
     "  102   101 node /home/m/.nvm/versions/node/v24.19.0/bin/codex exec # Overnight lane: track L, a",
     `  103   102 ${codex} exec # Overnight lane: track L, a`,
     `  104   103 ${codex.replace(/codex$/, "codex-code-mode-host")}`,
-    "  200   199 node /home/m/code/storytree03/packages/dev-loop/src/lanes/runner.mjs run brief log err",
+    "  200   199 node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs run brief log err",
     "  201   200 /home/m/.local/bin/claude -p # Overnight lane: track B, b --model claude-opus-5-5",
     "  202   201 /home/m/.local/bin/claude -p child of the same lane",
     "  300   299 codex exec Reply with the single word OK.",
@@ -54,7 +54,7 @@ test("12.3 · one dispatcher at a time: a live one refuses a second, and a dead 
   const dir = await folder(t);
   const pidFile = join(dir, "pool.pid");
   const marks = [/launch\.mjs pool( |$)/];
-  const processes = { 10: "node --import tsx packages/dev-loop/src/lanes/launch.mjs pool", 11: "node /repo/launch.mjs pool", 12: "node /repo/launch.mjs pools", 13: "vim" };
+  const processes = { 10: "node --import tsx packages/agent-pool/src/launch.mjs pool", 11: "node /repo/launch.mjs pool", 12: "node /repo/launch.mjs pools", 13: "vim" };
   const argsOf = async (pid) => processes[pid] ?? "";
   for (const [old, held] of [["10", false], ["11", false], ["12", true], ["13", true], ["99", true], ["", true]]) {
     await writeFile(pidFile, old);

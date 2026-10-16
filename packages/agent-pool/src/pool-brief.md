@@ -1,5 +1,5 @@
 ---
-Rules for every pool lane on the Mint box (ADR-0955): one dispatcher starts each lane from one pool of ready increments, and claims are the only conflict guard. Read these whole. This file is versioned in the repository (packages/dev-loop/src/lanes/pool-brief.md); change it there.
+Rules for every pool lane on the Mint box (ADR-0955): one dispatcher starts each lane from one pool of ready increments, and claims are the only conflict guard. Read these whole. This file is versioned in the repository (packages/agent-pool/src/pool-brief.md); change it there.
 
 - **What you are.** You are a headless storytree 0.3 lane on the Mint box, running Codex, or Claude Code once Codex's weekly allowance is used up. You drive ONE increment, named at the top of this brief. Follow the repository's AGENTS.md (the same guidance as CLAUDE.md) as the session-orchestrator:
   - read the increment's body (the `open` tool or `pnpm storytree library read <increment>`) and its arc (the `show_plan` tool or `pnpm storytree arc show <arc>`);
@@ -21,7 +21,7 @@ Rules for every pool lane on the Mint box (ADR-0955): one dispatcher starts each
   - It is already done on main or overtaken. If a pull request made for this increment merged it, that is a landing; close it (the `close_increment` tool or `pnpm storytree arc increment close <increment>`) `--disposition landed --pr <n> --note "<evidence>"`. Only work overtaken by other work closes `--disposition withdrawn --note "<evidence>"`.
   - It waits on an open increment that has not landed. Check the `show_plan` tool or `arc show`, then end without building.
 - **Land by handing your pull request to the watcher (ADR-0955 D3), not by watching CI yourself.** Once `pnpm gate` is green and the NON-DRAFT pull request is open and pushed, run from ~/code/storytree03:
-  `node packages/dev-loop/src/lanes/watch.mjs hand <pr> <increment>`
+  `node packages/agent-pool/src/watch.mjs hand <pr> <increment>`
   - The watcher, which uses no model, takes it from there: it puts the increment on an event wait while the pull request lands; on MERGED it closes the increment as landed with the pull request and releases your leftover claims; on a red it starts a fix session.
   - If your pull request is only one of several the increment lands in, add `--keep-open`: on MERGED the watcher then releases your claims but leaves the increment open for its next step. Write on its body what is done and what is next.
   - Then close out (the `close_out` tool or `pnpm storytree session close-out --safe yes --why "PR #<n> open and green at the gate, handed to the watcher"`), write your report and end. Do not wait for CI, and do not close the increment yourself.

@@ -6,9 +6,9 @@
 // here an undeclared one fails too (ADR-0925 D2), which a user's `storytree check` is not asked to do.
 
 import { allocationProblems as problemsOf } from "@storytree/guardrails";
-import { STORIES } from "./package-boundaries.mjs";
+import { OWNED } from "./package-boundaries.mjs";
 
 /** One sentence per unallocated, misdeclared or undeclared source file of storytree's story packages at `root`, each with its ways out. */
 export function allocationProblems(root) {
-  return problemsOf(root, STORIES, { undeclaredFails: true });
+  return problemsOf(root, OWNED, { undeclaredFails: true });
 }

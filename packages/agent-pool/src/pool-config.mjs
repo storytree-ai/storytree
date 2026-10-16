@@ -19,7 +19,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** The checkout this code is in, and its configuration file. */
-const HERE = resolve(fileURLToPath(new URL("../../../../", import.meta.url)));
+const HERE = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 export const CONFIG_FILE = join(HERE, "agent-pool.json");
 
 function readConfig(file) {

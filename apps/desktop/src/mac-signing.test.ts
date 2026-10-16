@@ -4,7 +4,7 @@ import { test } from "node:test";
 // The release's macOS signing mode, chosen from the repository's signing secrets (apps/desktop's
 // mac-signing.mjs): the release workflow and dist.mjs both follow it.
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
-import { builderEnv, gatekeeperSkip, historyLines, identityFrom, macBuilderConfig, macReleaseNote, macSigning, notarise, pendingLine, withMacNote } from "../mac-signing.mjs";
+import { builderEnv, gatekeeperSkip, historyLines, identityFrom, macBuilderConfig, macNotarisation, macReleaseNote, macSigning, notarise, pendingLine, staplerSkip, withMacNote } from "../mac-signing.mjs";
 
 const apple = { APPLE_API_KEY: "-----BEGIN PRIVATE KEY-----", APPLE_API_KEY_ID: "KEY123", APPLE_API_ISSUER: "issuer-uuid" };
 const listed = [
@@ -78,22 +78,46 @@ test("4.20 electron-builder never notarises by itself, so its unbounded wait on 
   assert.deepEqual(macBuilderConfig(macSigning({ CSC_LINK: "base64p12", ...apple })), { notarize: false });
 });
 
-test("4.20 Apple's answer is waited for only until the bound: accepted is notarised; still in progress or refused publishes signed but not notarised, naming the submission", async () => {
-  const answering = (statuses: string[], step = 60_000) => {
+test("4.20 Apple's answer is waited for only until the bound: accepted is notarised and stapled; still in progress or refused publishes signed but not notarised, naming the submission", async () => {
+  const answering = (statuses: string[], step = 60_000, stapling = true) => {
     let clock = 0;
     const asked: string[] = [];
+    const stapled: number[] = [];
     return {
       asked,
-      run: { submit: () => "sub-1", info: (id: string) => (asked.push(id), statuses.shift() ?? "In Progress"), sleep: async (ms: number) => { clock += ms; }, now: () => clock, waitMs: 10 * step, pollMs: step },
+      stapled,
+      run: { submit: () => "sub-1", info: (id: string) => (asked.push(id), statuses.shift() ?? "In Progress"), staple: () => (stapled.push(clock), stapling), sleep: async (ms: number) => { clock += ms; }, now: () => clock, waitMs: 10 * step, pollMs: step },
     };
   };
   const accepted = answering(["In Progress", "In Progress", "Accepted"]);
-  assert.deepEqual(await notarise(accepted.run), { id: "sub-1", status: "Accepted", notarised: true });
+  assert.deepEqual(await notarise(accepted.run), { id: "sub-1", status: "Accepted", notarised: true, stapled: true });
   assert.deepEqual(accepted.asked, ["sub-1", "sub-1", "sub-1"]);
+  assert.equal(accepted.stapled.length, 1);
+  // Apple accepted but the ticket would not staple: still notarised (Gatekeeper asks Apple online), recorded unstapled.
+  assert.deepEqual(await notarise(answering(["Accepted"], 60_000, false).run), { id: "sub-1", status: "Accepted", notarised: true, stapled: false });
   const waiting = answering([]);
-  assert.deepEqual(await notarise(waiting.run), { id: "sub-1", status: "In Progress", notarised: false });
+  assert.deepEqual(await notarise(waiting.run), { id: "sub-1", status: "In Progress", notarised: false, stapled: false });
   assert.equal(waiting.asked.length, 11);
-  assert.deepEqual(await notarise(answering(["Invalid"]).run), { id: "sub-1", status: "Invalid", notarised: false });
+  assert.deepEqual(waiting.stapled, []);
+  const refused = answering(["Invalid"]);
+  assert.deepEqual(await notarise(refused.run), { id: "sub-1", status: "Invalid", notarised: false, stapled: false });
+  assert.deepEqual(refused.stapled, []);
+});
+
+test("4.20 a Developer ID build is notarised and stapled once signed, before electron-builder makes its zip and dmg, so both carry the ticket", async () => {
+  // Run 38914897950: notarising the finished zip left the shipped app with no ticket stapled to it.
+  const asked: string[][] = [];
+  const hooks = macNotarisation(macSigning({ CSC_LINK: "base64p12", ...apple }), "/release/mac-notarisation.json", async (app: string, outcome: string) => { asked.push([app, outcome]); });
+  await hooks.afterSign({ appOutDir: "/release/mac-arm64", packager: { appInfo: { productFilename: "storytree-0.3" } } });
+  assert.deepEqual(asked, [["/release/mac-arm64/storytree-0.3.app", "/release/mac-notarisation.json"]]);
+  assert.deepEqual(macNotarisation(macSigning({}), "/release/mac-notarisation.json", async () => { throw new Error("an ad-hoc build is not notarised"); }), {});
+});
+
+test("4.20 the install check validates the stapled ticket of a build Apple notarised, and says why when it does not", () => {
+  assert.equal(staplerSkip({ adHoc: false, answer: { id: "sub-1", status: "Accepted", notarised: true, stapled: true } }), undefined);
+  assert.match(staplerSkip({ adHoc: true, answer: undefined }) ?? "", /ad-hoc/);
+  assert.match(staplerSkip({ adHoc: false, answer: { id: "sub-1", status: "In Progress", notarised: false, stapled: false } }) ?? "", /sub-1.*"In Progress"/);
+  assert.match(staplerSkip({ adHoc: false, answer: { id: "sub-1", status: "Accepted", notarised: true, stapled: false } }) ?? "", /sub-1.*did not staple/);
 });
 
 test("4.20 the install check asks Gatekeeper only of a build Apple notarised: an ad-hoc build or one Apple had not accepted by the bound skips it, saying why", () => {

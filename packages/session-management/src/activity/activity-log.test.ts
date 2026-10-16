@@ -5,12 +5,15 @@
  */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { connect, type Line, type NewLine } from "@storytree/library";
 import pg from "pg";
 
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { databasesOnTestServer, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { selectLines } from "./bounded.js";
 import { ACTIVITY_DATABASE, cachedLines, openActivityLog, type ActivityLog, type LinesCache } from "./index.js";
@@ -124,6 +127,36 @@ test("a reader that asks again and again, through a lines cache, fetches a proje
     assert.deepEqual(second.map(({ kind }) => kind), ["session-started", "session-ended"], "the line added in between is seen");
     assert.deepEqual(third, second, "two asks at once read each line once");
     assert.deepEqual(asked, [0, first[0]!.seq, second[1]!.seq], "from the start once, then only from the cursor");
+  });
+});
+
+test("2.12 a log opened in a storytree home whose settings name an experiment and arm stamps both on every line it writes; one opened in a home naming none writes its lines without them", async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (home) => {
+    writeFileSync(path.join(home, "settings.json"), JSON.stringify({ experiment: { name: "twin-build", arm: "map-reads-off" } }));
+    const armed = await openActivityLog(testServerUrl(), { home });
+    try {
+      await armed.append(project, { session: "lane-1", source: "hook", kind: "file-edited", files: ["a.ts"] });
+      await armed.locked(project, async (writer) => {
+        await writer.append({ session: "lane-1", source: "tool", kind: "door-answered", door: "tool", verb: "focus", outcome: "denied-by-arm", next: [] });
+      });
+    } finally {
+      await armed.close();
+    }
+  });
+  await withTempDir(async (home) => {
+    const plain = await openActivityLog(testServerUrl(), { home });
+    try {
+      await plain.append(project, { session: "real-1", source: "hook", kind: "file-edited", files: ["b.ts"] });
+      const labels = (await plain.since(project, 0)).lines.map((line) => [line.session, line.kind, line.experiment, line.arm]);
+      assert.deepEqual(labels, [
+        ["lane-1", "file-edited", "twin-build", "map-reads-off"],
+        ["lane-1", "door-answered", "twin-build", "map-reads-off"],
+        ["real-1", "file-edited", undefined, undefined],
+      ]);
+    } finally {
+      await plain.close();
+    }
   });
 });
 

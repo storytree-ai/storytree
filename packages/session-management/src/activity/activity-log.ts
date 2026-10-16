@@ -21,6 +21,7 @@ import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
 
 import { connect, NEW_LINE, type Line, type LineKind, type LinesSince, type NewLine, type Storytree } from "@storytree/library";
+import { readExperiment } from "@storytree/project-and-caller";
 
 import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, MAIN_WORK, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
 import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, type TranscriptRecords } from "./transcript-records.js";
@@ -128,6 +129,11 @@ export interface OpenOptions {
   readonly machine?: string;
   /** The git branch a folder on this machine is on (ADR-0754 D4): every line it adds that names a folder and no branch names this one. By default, none. */
   readonly branchOf?: (folder: string) => string | undefined;
+  /**
+   * The storytree home whose settings may name the experiment and arm this log's writer runs in (ADR-1064 D2): every line
+   * it adds is labelled with both, read once as the log opens. By default, this process's storytree home.
+   */
+  readonly home?: string;
 }
 
 /** This machine's name, as lines record it: its host name, trimmed; undefined when it has none. */
@@ -185,10 +191,12 @@ interface ActivityRow {
  * with it; from a URL, closing the log closes the connection it opened.
  */
 export async function openActivityLog(server: string | Storytree, options: OpenOptions = {}): Promise<ActivityLog> {
-  if (typeof server !== "string") return new PgActivityLog(await activityPool(server), options.machine, undefined, options.branchOf);
+  const experiment = readExperiment(options.home);
+  const stamp: Stamp = { machine: options.machine, branchOf: options.branchOf, ...(experiment === undefined ? {} : { labels: { experiment: experiment.name, arm: experiment.arm } }) };
+  if (typeof server !== "string") return new PgActivityLog(await activityPool(server), stamp);
   const own = await connect({ url: server, connectTimeoutMs: options.connectTimeoutMs ?? 5_000 });
   try {
-    return new PgActivityLog(await activityPool(own), options.machine, own, options.branchOf);
+    return new PgActivityLog(await activityPool(own), stamp, own);
   } catch (error) {
     await own.close();
     throw error;
@@ -225,10 +233,16 @@ export async function forgetProjectActivity(server: Storytree, project: string):
   }
 }
 
+/** What a log adds to every line it writes: its machine, its folder's branch, and its experiment arm's labels. */
+interface Stamp {
+  readonly machine: string | undefined;
+  readonly branchOf: ((folder: string) => string | undefined) | undefined;
+  readonly labels?: { readonly experiment: string; readonly arm: string };
+}
+
 class PgActivityLog implements ActivityLog {
   readonly #pool: Pool;
-  readonly #machine: string | undefined;
-  readonly #branchOf: ((folder: string) => string | undefined) | undefined;
+  readonly #stamp: Stamp;
   #closing: Promise<void> | undefined;
 
   /** The connection the log opened for itself from a URL, closed with the log; the pool is its. */
@@ -236,10 +250,9 @@ class PgActivityLog implements ActivityLog {
 
   readonly transcripts: TranscriptRecords;
 
-  constructor(pool: Pool, machine: string | undefined, owner?: Storytree, branchOf?: (folder: string) => string | undefined) {
+  constructor(pool: Pool, stamp: Stamp, owner?: Storytree) {
     this.#pool = pool;
-    this.#machine = machine;
-    this.#branchOf = branchOf;
+    this.#stamp = stamp;
     this.#owner = owner;
     this.transcripts = new PgTranscriptRecords(pool);
   }
@@ -333,11 +346,16 @@ class PgActivityLog implements ActivityLog {
     );
   }
 
-  /** `line`, naming this log's machine when it names none, and its folder's branch when it names a folder and no branch. */
+  /**
+   * `line`, naming this log's machine when it names none, its folder's branch when it names a folder and no branch,
+   * and the experiment and arm this log's home names, whatever the line says (ADR-1064 D2).
+   */
   #stamped(line: NewLine): NewLine {
-    const machine = line.machine !== undefined || this.#machine === undefined ? line : { ...line, machine: this.#machine };
-    const branch = line.branch !== undefined || line.folder === undefined ? undefined : this.#branchOf?.(line.folder);
-    return branch === undefined ? machine : { ...machine, branch };
+    const { machine: ownMachine, branchOf, labels } = this.#stamp;
+    const machine = line.machine !== undefined || ownMachine === undefined ? line : { ...line, machine: ownMachine };
+    const branch = line.branch !== undefined || line.folder === undefined ? undefined : branchOf?.(line.folder);
+    const branched = branch === undefined ? machine : { ...machine, branch };
+    return labels === undefined ? branched : { ...branched, ...labels };
   }
 
   close(): Promise<void> {

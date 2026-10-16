@@ -283,6 +283,9 @@ importers:
       '@storytree/ci-health':
         specifier: workspace:*
         version: link:../ci-health
+      '@storytree/experiments':
+        specifier: workspace:*
+        version: link:../experiments
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
@@ -389,6 +392,22 @@ importers:
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+
+  packages/experiments:
+    dependencies:
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
 
   packages/forest:
     dependencies:
@@ -797,6 +816,9 @@ importers:
       '@storytree/app-setup':
         specifier: workspace:*
         version: link:../app-setup
+      '@storytree/experiments':
+        specifier: workspace:*
+        version: link:../experiments
       '@storytree/guardrails':
         specifier: workspace:*
         version: link:../guardrails

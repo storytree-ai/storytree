@@ -395,10 +395,16 @@ importers:
 
   packages/experiments:
     dependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
     devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

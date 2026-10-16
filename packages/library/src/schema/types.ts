@@ -32,7 +32,7 @@ export type RecordType =
 /**
  * Capability 6's kinds beyond decisions and definitions: ADR-0640's eight, each with 0.2's fields
  * (`packages/library/src/knowledge.ts` in storytree 0.2), ADR-0956 D3's quality control check and
- * ADR-1058's research, each with a title and a one-line description.
+ * ADR-1058's research and ADR-1064 D5's experiment, each with a title and a one-line description.
  */
 export type KnowledgeKind =
   | "principle"
@@ -44,7 +44,8 @@ export type KnowledgeKind =
   | "resteer"
   | "techstack"
   | "check"
-  | "research";
+  | "research"
+  | "experiment";
 
 /**
  * An increment's lifecycle, in the only order it moves (capability 10). Its ready step, between
@@ -433,6 +434,39 @@ export const RECORD_SCHEMAS = {
    */
   research: z.object({ ...knowledgeHead, researched: day, findings: nonEmpty }).strict(),
   /**
+   * An experiment written down before it runs (ADR-1064 D5): at least two `arms` of distinct names, each with the verbs
+   * it `denies` by door when it denies any, its `hypotheses`, `measures`, what result counts as the variable helping,
+   * not helping or inconclusive (`criteria`), its `budget` and `stopRules`. `frozen` is when it was frozen (an ISO 8601
+   * timestamp); from then on only its `outcome`, which waits for the freeze, may change (Knowledge.editNote).
+   */
+  experiment: z
+    .object({
+      ...knowledgeHead,
+      arms: z
+        .array(
+          z.object({
+            name: nonEmpty,
+            description: nonEmpty,
+            denies: z.object({ tools: z.array(nonEmpty), commands: z.array(nonEmpty) }).strict().optional(),
+          }).strict(),
+        )
+        .min(2)
+        .refine((arms) => new Set(arms.map(({ name }) => name)).size === arms.length, "no two arms share a name"),
+      hypotheses: z.array(nonEmpty).min(1),
+      measures: z.array(nonEmpty).min(1),
+      criteria: z.object({ helps: nonEmpty, noHelp: nonEmpty, inconclusive: nonEmpty }).strict(),
+      budget: nonEmpty,
+      stopRules: z.array(nonEmpty).min(1),
+      frozen: z.iso.datetime().optional(),
+      outcome: nonEmpty.optional(),
+    })
+    .strict()
+    .superRefine((fields, context) => {
+      if (fields.outcome !== undefined && fields.frozen === undefined) {
+        context.addIssue({ code: "custom", path: ["outcome"], message: "an experiment's outcome is added only once it is frozen" });
+      }
+    }),
+  /**
    * One increment of an arc's work (capability 10), from the moment it is decided until it closes;
    * closed, it is the arc's log entry. It names the `capabilities` it changes, the lock list a claim
    * on it lights (ADR-0949 D2), parked empty and filled by the session that claims it; it cites
@@ -571,6 +605,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   techstack: 1,
   check: 1,
   research: 1,
+  experiment: 1,
   increment: 3,
   question: 1,
 };

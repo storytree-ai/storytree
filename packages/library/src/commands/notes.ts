@@ -100,12 +100,12 @@ const writeNote = verb({
   command: NO_COMMAND("new"),
   tool: {
     name: "write_note",
-    description: "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent, techstack, check or research (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you claimed most recently.",
+    description: "Write an artifact: a decision (title and text), definition (term and meaning), or principle, guardrail, pattern, process, agent, techstack, check, research or experiment (required fields in fields). Use record_friction and record_resteer for their evidence rules. With no place named, it goes onto the shelf of the capability you claimed most recently.",
   },
   writes: true,
   inputs: {
-    kind: { kind: "text", describe: "decision, definition, principle, guardrail, pattern, process, agent, techstack, check or research; friction and resteer have capture tools" },
-    fields: { kind: "fields", json: true, describe: "Required fields of a principle, guardrail, pattern, process, agent, techstack, check or research" },
+    kind: { kind: "text", describe: "decision, definition, principle, guardrail, pattern, process, agent, techstack, check, research or experiment; friction and resteer have capture tools" },
+    fields: { kind: "fields", json: true, describe: "Required fields of a principle, guardrail, pattern, process, agent, techstack, check, research or experiment" },
     text: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A decision's text" },
     title: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A decision's title" },
     term: { kind: "text", optional: true, verbatim: true, blank: true, describe: "A definition's term" },
@@ -238,8 +238,8 @@ async function writeArtifact(args: NoteArgs, context: NoteToolContext): Promise<
   const links = args.links.length === 0 ? undefined : [...args.links];
   if (args.kind === "memory") throw new VerbRefusal("memory belongs to the agent harness, not the library (ADR-0650); write a proper artifact kind such as decision, definition or principle.");
   if (args.kind === "friction" || args.kind === "resteer") throw new VerbRefusal(`Use record_${args.kind} to write this artifact under its evidence rules.`);
-  const further = ["principle", "guardrail", "pattern", "process", "agent", "techstack", "check", "research"].includes(args.kind);
-  if (!further && args.kind !== "decision" && args.kind !== "definition") throw new VerbRefusal(`Unknown artifact kind ${quoted(args.kind)}; use decision, definition, principle, guardrail, pattern, process, agent, techstack, check or research.`);
+  const further = ["principle", "guardrail", "pattern", "process", "agent", "techstack", "check", "research", "experiment"].includes(args.kind);
+  if (!further && args.kind !== "decision" && args.kind !== "definition") throw new VerbRefusal(`Unknown artifact kind ${quoted(args.kind)}; use decision, definition, principle, guardrail, pattern, process, agent, techstack, check, research or experiment.`);
   const needs: readonly string[] = further ? [] : FIELDS[args.kind as keyof typeof FIELDS];
   if (further && fields === undefined) throw new VerbRefusal(`Give the required fields for a ${args.kind} in fields.`);
   if (!further && fields !== undefined) throw new VerbRefusal(`A ${args.kind} takes ${needs.join(" and ")} directly.`);
@@ -327,7 +327,7 @@ function firstLineOf(note: Findable): string {
   return line.length > 120 ? `${line.slice(0, 117)}...` : line;
 }
 
-/** What the eight further kinds, a check and research are called in a sentence. */
+/** What the eight further kinds, a check, research and an experiment are called in a sentence. */
 const KIND_NAMES: Readonly<Record<string, string>> = {
   principle: "Principle",
   guardrail: "Guardrail",
@@ -339,6 +339,7 @@ const KIND_NAMES: Readonly<Record<string, string>> = {
   techstack: "Tech stack",
   check: "Quality control check",
   research: "Research",
+  experiment: "Experiment",
 };
 
 /** An artifact in full, as opening it shows it. */

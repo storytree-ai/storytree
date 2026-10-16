@@ -1,5 +1,5 @@
 {
- "forest-world 6.17 showing hidden roads draws them by distance without advancing recorded arrivals": {
+ "forest-world 11.17 showing hidden roads draws them by distance without advancing recorded arrivals": {
   "src/coast-clip.ts": {
    "6": 39
   },
@@ -79,7 +79,7 @@
    "6": 5
   }
  },
- "forest-world 6.7 the mounted globe hides its sea, island grounds and roads independently, keeping plate children; hiding the exterior hides all of it": {
+ "forest-world 11.7 the mounted globe hides its sea, island grounds and roads independently, keeping plate children; hiding the exterior hides all of it": {
   "src/coast-clip.ts": {
    "6": 39
   },

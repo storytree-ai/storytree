@@ -1,4 +1,4 @@
-/** Capability 6 · The planet. The road worker (world 6.21): a host bundles this as its own script and names it in its
+/** Capability 11 · The planet. The road worker (Map view 11.21): a host bundles this as its own script and names it in its
  * page (road-routing.ts, ROAD_WORKER_META); the globe posts it each layout's routing and draws the roads it answers. */
 import { routeTrails } from '../core/routing.js';
 import type { CrossRouting } from './pathways.js';

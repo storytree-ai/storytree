@@ -1,4 +1,4 @@
-// The globe's half of world 6.10 that a headless test can reach: what it asks of its R3F root as the
+// The globe's half of Map view 11.10 that a headless test can reach: what it asks of its R3F root as the
 // browser says its canvas has come into or gone out of view. The browser half (that Chromium really
 // draws nothing) is evidence/planet/capture.mjs, which counts the shipped canvas's frames.
 import assert from 'node:assert/strict';
@@ -34,7 +34,7 @@ function watcher() {
 
 const canvas = {} as Element;
 
-test('6.10 a globe starts paused, draws once its canvas is seen, and asks for no frame while it is not', () => {
+test('11.10 a globe starts paused, draws once its canvas is seen, and asks for no frame while it is not', () => {
   const { watch, observe } = watcher();
   const globe = root(startingFrameloop(observe));
   const stop = paintWhileSeen(() => globe as unknown as PaintingRoot, canvas, observe);
@@ -58,7 +58,7 @@ test('6.10 a globe starts paused, draws once its canvas is seen, and asks for no
   assert.ok(watch.stopped, 'unmounting stops the watch');
 });
 
-test('6.10 its R3F clock keeps time while it is away, so recorded growth carries on rather than starting again', () => {
+test('11.10 its R3F clock keeps time while it is away, so recorded growth carries on rather than starting again', () => {
   const { watch, observe } = watcher();
   const globe = root(startingFrameloop(observe));
   paintWhileSeen(() => globe as unknown as PaintingRoot, canvas, observe);
@@ -71,7 +71,7 @@ test('6.10 its R3F clock keeps time while it is away, so recorded growth carries
   assert.ok(globe.clock.getElapsedTime() >= 5, 'back, the clock carries on from where it was');
 });
 
-test('6.10 where the browser cannot say what is on screen, the globe draws as before', () => {
+test('11.10 where the browser cannot say what is on screen, the globe draws as before', () => {
   const globe = root(startingFrameloop(undefined));
   assert.equal(globe.frameloop, 'demand');
   paintWhileSeen(() => globe as unknown as PaintingRoot, canvas, undefined)();
@@ -86,7 +86,7 @@ test('6.10 where the browser cannot say what is on screen, the globe draws as be
   }
 });
 
-test('6.10 a canvas only touching the viewport is not seen; any sliver of it in view is', () => {
+test('11.10 a canvas only touching the viewport is not seen; any sliver of it in view is', () => {
   const kept = globalThis.IntersectionObserver;
   let report: (entries: unknown[]) => void = () => {};
   globalThis.IntersectionObserver = class {

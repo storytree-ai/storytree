@@ -59,7 +59,9 @@ for phase in $PHASES; do
     user) admin "user.ps1 create $NAME" | tee -a "$OUT/run.log" ;;
     prepare)
       step prepare 10
-      tr -d '\r\n' < "$TOKEN" > "$OUT/steps/claude-token.txt"; put "$OUT/steps/claude-token.txt" claude-token.txt
+      # All whitespace goes: a token pasted from a wrapped terminal line arrives with spaces in it, and Claude Code
+      # then reads it as no sign-in at all.
+      tr -d '[:space:]' < "$TOKEN" > "$OUT/steps/claude-token.txt"; put "$OUT/steps/claude-token.txt" claude-token.txt
       rm -f "$OUT/steps/claude-token.txt" ;;
     install) step install 20; fetch ;;
     app)

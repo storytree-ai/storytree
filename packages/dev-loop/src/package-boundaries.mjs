@@ -40,6 +40,9 @@ export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "
 // learning-as-you-build: story_7d7b0ffccf55 (Learning as you build, ADR-1048).
 // experiments: story_c2dbcf855db2 (Experiments, ADR-1064 D1).
 
+/** STORIES with the packages each owns beyond its own (ADR-1066 D3), as the package and allocation rules take them. */
+export const OWNED = STORIES.map((story) => Object.hasOwn(ALSO_OWNED, story) ? { story, packages: [story, ...ALSO_OWNED[story]] } : story);
+
 /**
  * Story code the frame still holds, each with the open question on storytree-0-3-scales-arc that
  * decides when it moves into its story's package. An entry that no longer holds anything is a
@@ -60,6 +63,5 @@ export const EDGES = { edges: DECLARED.edges };
 
 /** What in the repo at `root` breaks the boundaries, one sentence each; empty when nothing does. */
 export function boundaryProblems(root) {
-  const stories = STORIES.map((story) => Object.hasOwn(ALSO_OWNED, story) ? { story, packages: [story, ...ALSO_OWNED[story]] } : story);
-  return packageProblems(root, { stories, frames: FRAMES, notYetMoved: NOT_YET_MOVED, edges: EDGES });
+  return packageProblems(root, { stories: OWNED, frames: FRAMES, notYetMoved: NOT_YET_MOVED, edges: EDGES });
 }

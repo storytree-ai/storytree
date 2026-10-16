@@ -12,7 +12,7 @@ const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-lin
  * The packages a story owns beyond its own (ADR-1066 D3), by its own package's folder name under packages/,
  * each by its folder name: a story that folds another in names the folded story's package here.
  */
-export const ALSO_OWNED: Readonly<Record<string, readonly string[]>> = {};
+export const ALSO_OWNED: Readonly<Record<string, readonly string[]>> = { "dev-loop": ["agent-pool"] };
 
 /** The package a story's code lives in: named after its title ("Session management" is packages/session-management), but for a few named otherwise. */
 export function packageOf(title: string): string {

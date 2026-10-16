@@ -2,7 +2,7 @@
   "name": "@storytree/dev-loop",
   "private": true,
   "type": "module",
-  "description": "The dev loop (story_95ed402f9bd3, ADR-0805 D3): the test runner and its scoping, the gate, worktree provisioning, the guidance build, the library's export, restore and server, own health, and storytree's declarations for the Guardrails story's package and allocation checks. The root package.json's commands and CI run them from here.",
+  "description": "The dev loop (story_95ed402f9bd3, ADR-0805 D3): the test runner and its scoping, the gate, worktree provisioning, the guidance build, the library's export, restore and server, forwarders at the agent pool's old paths (packages/agent-pool is the story's second package, ADR-1066 D3), own health, and storytree's declarations for the Guardrails story's package and allocation checks. The root package.json's commands and CI run them from here.",
   "dependencies": {
     "@storytree/forest": "workspace:*",
     "@storytree/session-management": "workspace:*",
@@ -13,7 +13,8 @@
     "pg": "^8.23.0",
     "playwright-core": "1.60.0",
     "tsx": "^4.23.15",
-    "@storytree/project-and-caller": "workspace:*"
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/agent-pool": "workspace:*"
   },
   "exports": {
     "./browser-coverage": "./src/browser-coverage.mjs"

@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 
 import { countEngines } from "./queue.mjs";
-import { ensureWatcher, hand, handOver, main, projectOf, readPull, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { ensureWatcher, hand, handOver, isFixSession, main, projectOf, readPull, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -184,7 +184,7 @@ test("13.5 · a hand-off parks the increment on an event wait and starts the wat
   assert.equal(record.handedAt, minutes(0));
 
   const pidFile = join(b.dir, "watch.pid"), spawned = [];
-  const procs = { 7: "node /repo/packages/dev-loop/src/lanes/watch.mjs run", 8: "vim notes" };
+  const procs = { 7: "node /repo/packages/agent-pool/src/watch.mjs run", 8: "vim notes" };
   const start = (pid) => ensureWatcher({ pidFile, argsOf: async (p) => procs[p] ?? "", spawn: async () => { spawned.push(pid); return pid; } });
   await writeFile(pidFile, "7\n");
   assert.equal(await start(9), false, "a live watcher holds the pid file");
@@ -254,10 +254,10 @@ test("13.10 · a watcher whose code changes between two looks ends with the rest
   };
   await mkdir(repo, { recursive: true });
   await git("init", "-q");
-  await commit("packages/dev-loop/src/lanes/watch.mjs", "watcher v1");
+  await commit("packages/agent-pool/src/watch.mjs", "watcher v1");
   await commit("packages/dev-loop/src/test-runner.mjs", "tests v1");
   const merges = [() => commit("packages/dev-loop/src/test-runner.mjs", "tests v2"),
-    () => commit("packages/dev-loop/src/lanes/watch.mjs", "watcher v2")];
+    () => commit("packages/agent-pool/src/watch.mjs", "watcher v2")];
   looks = 0;
   b.looks[41] = { state: "pending", head: "h1" };
   const { codeVersion: _, ...unpinned } = watching;
@@ -524,7 +524,7 @@ test("13.23 · a pull request open past three days since it was handed over give
 
 test("13.21 · the watcher's status says when its look loop runs code other than the checkout's", async (t) => {
   const b = await box(t);
-  const procs = { 7: "node /repo/packages/dev-loop/src/lanes/watch.mjs run", 8: "node /repo/packages/dev-loop/src/lanes/watch.mjs watch" };
+  const procs = { 7: "node /repo/packages/agent-pool/src/watch.mjs run", 8: "node /repo/packages/agent-pool/src/watch.mjs watch" };
   let checkout = "tree-a";
   const status = async (extra = {}) => {
     const outs = [];
@@ -565,7 +565,7 @@ test("13.17 · a watch loop on a folder other than the box's own reads no releas
 
 test("13.24 · a hand-over from another machine runs on the configured machine, in its checkout as written there; with none configured it is refused", async (t) => {
   assert.deepEqual(remoteCommand({ machine: "box", remoteCheckout: "~/src/shop" }, ["hand", "41", "increment_one", "--session", SESSION]),
-    ["ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "box", `cd ~/src/shop && node packages/dev-loop/src/lanes/watch.mjs hand 41 increment_one --session ${SESSION}`]]);
+    ["ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "box", `cd ~/src/shop && node packages/agent-pool/src/watch.mjs hand 41 increment_one --session ${SESSION}`]]);
 
   const home = await mkdtemp(join(tmpdir(), "lane-watch-nobox-"));
   t.after(() => rm(home, { recursive: true, force: true }));
@@ -574,6 +574,15 @@ test("13.24 · a hand-over from another machine runs on the configured machine, 
   assert.equal(await main(["handover", "41", "increment_one"], { home, env: { AGENT_POOL_CONFIG: join(home, "agent-pool.json") }, onBox: false, session: SESSION,
     out: (line) => lines.push(line) }), 1);
   assert.match(lines.join("\n"), /names no machine to hand over to/);
+});
+
+test("13.26 · a fix session counts as running whether its runner was started from the agent pool's package or from the dev loop's old lanes path", () => {
+  assert.ok(isFixSession("/usr/bin/node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs run /l/watch/fix-41-1-brief.md log err"));
+  assert.ok(isFixSession("/usr/bin/node /home/m/code/storytree03/packages/dev-loop/src/lanes/runner.mjs run /l/watch/fix-41-1-brief.md log err"),
+    "one started before the move still holds its pull request's fix slot");
+  assert.ok(!isFixSession("/usr/bin/node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs status"));
+  assert.ok(!isFixSession("vim runner.mjs"));
+  assert.ok(!isFixSession(""), "a process that is gone");
 });
 
 test("13.25 · each red the watcher handles writes one pr-red line as its fix session starts, with its conflict and failed checks, in the hand-off's own project", async (t) => {

@@ -130,6 +130,18 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  packages/agent-pool:
+    dependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
+      '@storytree/session-management':
+        specifier: workspace:*
+        version: link:../session-management
+
   packages/app:
     dependencies:
       '@storytree/library':
@@ -362,6 +374,9 @@ importers:
 
   packages/dev-loop:
     dependencies:
+      '@storytree/agent-pool':
+        specifier: workspace:*
+        version: link:../agent-pool
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest

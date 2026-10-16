@@ -89,12 +89,12 @@ Your job is to get releases moving and nothing else. Work from ~/code/storytree0
 - First name your row: \`pnpm storytree session name "${name}"\`.
 - Read the failing log (\`gh run view ${alarm.run.id} --log-failed\`) and the arc ${RELEASE_ARC} (\`pnpm storytree arc show ${RELEASE_ARC}\`).
 - A fix in the code: park an increment for it on ${RELEASE_ARC}, make its workspace (it claims it), build it to a green \`pnpm gate\`
-  in the foreground, open a NON-DRAFT pull request and hand it over: \`node packages/dev-loop/src/lanes/watch.mjs hand <pr> <increment>\`.
-  Then record it, so no second session starts while it lands: \`node packages/dev-loop/src/lanes/watch.mjs release-fix --pr <pr>\`.
+  in the foreground, open a NON-DRAFT pull request and hand it over: \`node packages/agent-pool/src/watch.mjs hand <pr> <increment>\`.
+  Then record it, so no second session starts while it lands: \`node packages/agent-pool/src/watch.mjs release-fix --pr <pr>\`.
   Never force-push, squash or \`gh pr merge\`.
 - A stop no session can move (an outside party such as Apple, a secret only the owner sets): raise the question on ${RELEASE_ARC}
   (\`pnpm storytree question new --arc ${RELEASE_ARC} …\`), written so he can answer it cold, and record it:
-  \`node packages/dev-loop/src/lanes/watch.mjs release-fix --question <question>\`. The alarm stays quiet until it is settled.
+  \`node packages/agent-pool/src/watch.mjs release-fix --question <question>\`. The alarm stays quiet until it is settled.
 - You exit when you end a turn, so run \`pnpm gate\` in the foreground until its table prints; never end a turn to wait.
 - Then \`pnpm storytree session close-out --safe yes --why "…"\`, and end.
 `;

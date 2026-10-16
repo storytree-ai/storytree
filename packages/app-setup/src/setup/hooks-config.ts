@@ -19,6 +19,11 @@
  *   A second end-of-turn hook runs in the foreground, since Codex reads a Stop hook's block as
  *   Claude Code does: it may ask the agent to close out (ADR-0758 D4).
  *   Codex runs a newly added hook only after the user approves it once (ADR-0626 D4).
+ *   From Codex 0.148 (`codexVersion`, as `codex --version` says it), each event the tool server takes
+ *   (Session management's codex-delivery.ts) is handed to it by an `mcp_tool` handler, with no process
+ *   started (ADR-1056 D2), and the command hook beside it stays as the fallback, `async` and standing
+ *   down when the tool recorded the event; the hooks that passed `--background` are `async` instead.
+ *   A Codex older than that, or one whose version cannot be read, keeps the shape above.
  * - Cursor: `~/.cursor/hooks.json`, which no variable moves. From Cursor's documentation and installed code,
  *   not a live session (hooks/cursor.ts in Session management says which). Its file names a `version`, and
  *   lists each event's hooks flat: an entry is itself one command line, which Cursor runs through a shell
@@ -42,7 +47,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, defaultHomes, EDIT_GATE, EVENT, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, SHELL_GUARD, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
+import { AFTER_TOOL, ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, CODEX_DELIVERS_FROM, codexDelivers, codexToolArguments, defaultHomes, EDIT_GATE, EVENT, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, SHELL_GUARD, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
 import { HARNESS_IDS } from "@storytree/project-and-caller/caller";
 
 import { piExtension } from "./pi-extension.js";
@@ -109,9 +114,9 @@ type Settings = Record<string, unknown> & { hooks?: Record<string, HookEntry[]> 
  * Register storytree's hooks for each harness whose home is here, replacing any older registration
  * of them, and install storytree's status line in Claude Code where the user has none of their own.
  */
-export function registerHooks(homes: Homes, hook: HookCommand, disconnected: ReadonlySet<Harness> = new Set()): HooksReport {
+export function registerHooks(homes: Homes, hook: HookCommand, disconnected: ReadonlySet<Harness> = new Set(), codexVersion?: string): HooksReport {
   const claude = disconnected.has("claude-code") ? { registration: "disconnected" as const, replaced: [] } : register(homes.claude, "settings.json", claudeEntries(hook), hook.script);
-  const codex = disconnected.has("codex") ? { registration: "disconnected" as const, replaced: [] } : register(homes.codex, "hooks.json", codexEntries(hook), hook.script);
+  const codex = disconnected.has("codex") ? { registration: "disconnected" as const, replaced: [] } : register(homes.codex, "hooks.json", codexEntries(hook, codexVersion), hook.script);
   // Cursor's hooks file must name its version: a new file gets 1, and one the user wrote keeps its own.
   const cursor = disconnected.has("cursor") ? { registration: "disconnected" as const, replaced: [] } : register(homes.cursor, "hooks.json", cursorEntries(hook), hook.script, { version: 1 });
   const pi = disconnected.has("pi") ? { registration: "disconnected" as const, replaced: [] } : registerPi(homes.pi, hook);
@@ -233,13 +238,34 @@ function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[
   };
 }
 
-/** Codex's entries: one command line for this machine's shell. */
-function codexEntries({ node, script }: HookCommand): Record<string, HookEntry[]> {
+/** Codex's entries: one command line for this machine's shell, and from Codex 0.148 the tool server's handler beside it. */
+function codexEntries({ node, script }: HookCommand, codexVersion?: string): Record<string, HookEntry[]> {
   const line =
     process.platform === "win32"
       ? `& ${powerShellQuoted(node)} ${powerShellQuoted(script)} codex`
       : `${shQuoted(node)} ${shQuoted(script)} codex`;
   const run = (timeout: number, background = false) => ({ type: "command", command: background ? `${line} ${BACKGROUND}` : line, timeout });
+  if (codexDelivers(codexVersion)) {
+    // The tool server takes the event; the command hook, which the agent never waits for, records it only if the tool did not (ADR-1056 D2).
+    const delivered = (event: string) => [
+      { type: "mcp_tool", server: "storytree", tool: "hook_event", input: codexToolArguments(event), timeout: 5 },
+      { type: "command", command: `${line} ${AFTER_TOOL}`, timeout: 10, async: true },
+    ];
+    return {
+      SessionStart: [{ hooks: delivered("SessionStart") }],
+      PreToolUse: [
+        // Before a storytree tool, as before: only a subagent's input names its agent, so no template can carry every one.
+        { matcher: `^${STORYTREE_TOOLS}`, hooks: [run(10)] },
+        { matcher: "^Bash$", hooks: delivered("PreToolUse") },
+        { matcher: "^apply_patch$", hooks: [{ type: "command", command: `${line} ${EDIT_GATE}`, timeout: 10 }] },
+      ],
+      PostToolUse: [{ matcher: "^(apply_patch|Bash|spawn_agent)$", hooks: delivered("PostToolUse") }, { matcher: "^Bash$", hooks: [{ type: "command", command: `${line} ${SHELL_GUARD}`, timeout: 10 }] }],
+      Stop: [{ hooks: delivered("Stop") }, { hooks: [{ type: "command", command: `${line} ${CLOSE_OUT_REMINDER}`, timeout: 10 }] }],
+      // The prompt hook reaches the library anyway, for the definitions it adds; Codex runs no tool handler at a session's end.
+      UserPromptSubmit: [{ hooks: [run(10)] }],
+      SessionEnd: [{ hooks: [run(3)] }],
+    };
+  }
   return {
     SessionStart: [{ hooks: [run(10)] }],
     PreToolUse: [
@@ -437,6 +463,13 @@ function shQuoted(text: string): string {
   return `'${text.replaceAll("'", "'\\''")}'`;
 }
 
+/** Two registrations' entries, event by event. */
+function mergedEntries(one: Record<string, HookEntry[]>, other: Record<string, HookEntry[]>): Record<string, HookEntry[]> {
+  const merged: Record<string, HookEntry[]> = { ...one };
+  for (const [event, entries] of Object.entries(other)) merged[event] = [...(merged[event] ?? []), ...entries];
+  return merged;
+}
+
 /** Remove one installation's hooks from one harness, preserving other commands in mixed groups. */
 function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): RemovalReport {
   const report: RemovalReport = { "claude-code": "none", codex: "none", cursor: "none", pi: "none", antigravity: "none", statusLine: "none" };
@@ -449,7 +482,8 @@ function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): 
   const settings = readSettings(file);
   if (settings === null || Array.isArray(settings) || typeof settings !== "object" ||
       (settings.hooks !== undefined && (settings.hooks === null || Array.isArray(settings.hooks) || typeof settings.hooks !== "object"))) throw new Error(`Repair ${file} before removing hooks.`);
-  const entries = harness === "claude-code" ? claudeEntries(hook) : harness === "codex" ? codexEntries(hook) : cursorEntries(hook);
+  // Both of Codex's shapes, whichever Codex this machine had when they were registered.
+  const entries = harness === "claude-code" ? claudeEntries(hook) : harness === "codex" ? mergedEntries(codexEntries(hook), codexEntries(hook, CODEX_DELIVERS_FROM)) : cursorEntries(hook);
   // Cursor's entries are themselves the hooks.
   const wanted: Record<string, unknown>[] = Object.values(entries).flatMap((groups) => groups.flatMap((group) => harness === "cursor" ? [{ command: group.command }] : group.hooks ?? []));
   // The asking start hook an install before ADR-0752 registered goes too.
@@ -465,7 +499,10 @@ function removeHarnessHooks(homes: Homes, harness: Harness, hook: HookCommand): 
         return [];
       }
       if (group === null || typeof group !== "object" || !Array.isArray(group.hooks)) throw new Error(`Repair ${file} before removing hooks.`);
-      const kept = group.hooks.filter((entry) => !wanted.some((own) => entry !== null && typeof entry === "object" && entry.command === own.command && isDeepStrictEqual(entry.args, own.args)));
+      // A hook with no command (Codex's tool handler) is storytree's only when it is exactly the one storytree registers.
+      const ours = (entry: unknown, own: Record<string, unknown>) => entry !== null && typeof entry === "object" &&
+        (own.command === undefined ? isDeepStrictEqual(entry, own) : (entry as Record<string, unknown>).command === own.command && isDeepStrictEqual((entry as Record<string, unknown>).args, own.args));
+      const kept = group.hooks.filter((entry) => !wanted.some((own) => ours(entry, own)));
       if (kept.length === group.hooks.length) return [group];
       removed = true;
       return kept.length === 0 ? [] : [{ ...group, hooks: kept }];

@@ -9,6 +9,7 @@
  * A tool that does not answer within `waitMs` is reported as not answering and left behind, so the
  * check never hangs on one (a sign-in prompt, a stuck update, a network wait).
  */
+import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -111,6 +112,25 @@ const BUNDLED_CODEX: readonly (readonly string[])[] = [
   ["codex-cli", "CodexCLI.app", "Contents", "MacOS", "codex"],
   ["codex"],
 ];
+
+/**
+ * The version Codex says it is (`codex --version`), on the PATH or else where its desktop app keeps it; undefined where
+ * none answers within `waitMs`. Asked while hooks are registered, which is synchronous: the shape of Codex's hooks
+ * depends on it (hooks-config.ts).
+ */
+export function installedCodexVersion(options: MachineOptions = {}): string | undefined {
+  const waitMs = options.waitMs ?? 3_000;
+  const env = options.path === undefined ? process.env : { ...process.env, PATH: options.path, Path: options.path };
+  // The npm install of Codex is a .cmd on Windows, which only a shell runs; the desktop app's is an .exe, run with none.
+  const asked = (command: string, shell: boolean) => spawnSync(command, ["--version"], { env, timeout: waitMs, encoding: "utf8", shell, windowsHide: true });
+  const desktop = desktopCodex(options.codexHome ?? (process.env.CODEX_HOME || path.join(homedir(), ".codex")), options.localAppData ?? process.env.LOCALAPPDATA, options.applications ?? macApplications());
+  for (const [command, shell] of [["codex", process.platform === "win32"] as const, ...desktop.map((file) => [file, false] as const)]) {
+    const answer = asked(command, shell);
+    const version = answer.status === 0 ? /\d+\.\d+\.\d+/.exec(answer.stdout)?.[0] : undefined;
+    if (version !== undefined) return version;
+  }
+  return undefined;
+}
 
 /** Codex on the PATH, else the desktop app's own CLI, asked with no shell (its path may hold spaces). */
 async function codexCli(env: NodeJS.ProcessEnv, waitMs: number, options: MachineOptions): Promise<AgentCliState> {

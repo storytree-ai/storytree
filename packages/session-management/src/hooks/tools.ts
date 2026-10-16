@@ -41,8 +41,8 @@ export function hookTools(): ToolExtension {
         input: z.record(z.string(), z.unknown()).describe("The hook's input, as the harness gives its command hook"),
       }), async ({ harness, input }, { reach, locate }) => {
         const { recorded, waiting } = await recordHookEvent(harness, input, reach, locate);
-        const text = waiting > 0 ? `${waiting} line(s) wait on this machine until storytree can be reached` : recorded > 0 ? `recorded ${recorded} line(s)` : "nothing to record";
-        return { text, data: { recorded, waiting } };
+        // Codex reads a tool handler's text as a command hook's output, which may add it for the agent: it says nothing, as the command hook does.
+        return { text: "", data: { recorded, waiting } };
       });
     },
   };

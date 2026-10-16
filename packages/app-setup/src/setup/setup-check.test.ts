@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { connect, type Line } from "@storytree/library";
 
-import { noteCodexHookRan, registeredHookScripts, SHELL_GUARD } from "@storytree/session-management";
+import { AFTER_TOOL, BACKGROUND, noteCodexHookRan, registeredHookScripts, SHELL_GUARD } from "@storytree/session-management";
 import { locateStorytree, MARKER_FILE } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
@@ -1099,3 +1099,54 @@ test("8.18 the check says when the hooks run an older release than the latest, s
   });
 });
 
+
+test("8.32 with a Codex that runs tool handlers (0.148 or later), each event the tool server takes is handed to it by a handler carrying that event's fields, beside the command hook, now in the background and standing down when the tool recorded it; an older Codex, or one whose version cannot be read, keeps the command hooks alone; removing storytree takes out both and leaves a tool handler of the user's own (ADR-1056 D2)", async () => {
+  await withTempDir(async (dir) => {
+    type Hook = { type: string; command?: string; async?: boolean; server?: string; tool?: string; input?: { harness: string; input: Record<string, string> } };
+    type Group = { matcher?: string; hooks: Hook[] };
+    const registered = async (codexVersion: string | undefined) => {
+      const home = throwawayHome(path.join(dir, codexVersion ?? "unknown"));
+      await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome, ...(codexVersion === undefined ? {} : { codexVersion }) });
+      return { home, events: (readJson(home.codexHooks).hooks ?? {}) as Record<string, Group[]> };
+    };
+    const handlers = (events: Record<string, Group[]>) => Object.values(events).flat().flatMap((group) => group.hooks).filter((hook) => hook.type === "mcp_tool");
+
+    for (const version of ["0.147.2", undefined]) {
+      const { events } = await registered(version);
+      assert.deepEqual(handlers(events), [], `${version}: no tool handler`);
+      assert.ok(events.Stop?.[0]?.hooks[0]?.command?.endsWith(` codex ${BACKGROUND}`), `${version}: the turn's hook hands its work to a copy of itself`);
+    }
+
+    const { home, events } = await registered("0.153.4");
+    const tool = (group: Group | undefined) => group?.hooks.find((hook) => hook.type === "mcp_tool");
+    const delivered = { SessionStart: events.SessionStart?.[0], PreToolUse: events.PreToolUse?.find((group) => group.matcher === "^Bash$"), PostToolUse: events.PostToolUse?.[0], Stop: events.Stop?.[0] };
+    // Only fields every input of the event carries (Codex 0.155's recorded inputs, Session management's fixtures): a missing one fails the handler.
+    const common = ["session_id", "cwd", "hook_event_name", "transcript_path"];
+    const fields: Record<string, string[]> = {
+      SessionStart: [...common, "source"],
+      PreToolUse: [...common, "tool_name", "tool_input", "tool_use_id"],
+      PostToolUse: [...common, "tool_name", "tool_input", "tool_response", "tool_use_id"],
+      Stop: common,
+    };
+    for (const [event, group] of Object.entries(delivered)) {
+      const handler = tool(group);
+      assert.deepEqual([handler?.server, handler?.tool, handler?.input?.harness], ["storytree", "hook_event", "codex"], event);
+      assert.deepEqual(handler?.input?.input, Object.fromEntries(fields[event]!.map((field) => [field, "${" + field + "}"])), `${event}: each field it carries, as Codex fills a template`);
+      const command = group?.hooks.find((hook) => hook.type === "command");
+      assert.ok(command?.async === true && command.command?.endsWith(` codex ${AFTER_TOOL}`), `${event}: the command hook beside it, in the background, standing down when the tool recorded the event`);
+    }
+    // Codex runs no tool handler at a session's end; before a storytree tool, only a subagent's input names its agent; the prompt hook reaches the library anyway.
+    for (const event of ["SessionEnd", "UserPromptSubmit"]) assert.equal(tool(events[event]?.[0]), undefined, event);
+    assert.equal(tool(events.PreToolUse?.[0]), undefined, "before a storytree tool");
+    // The hooks the agent waits for, for their answers, are as they were.
+    assert.ok(!events.Stop?.[1]?.hooks[0]?.async && !events.PostToolUse?.[1]?.hooks[0]?.async, "the close-out reminder and the shell guard stay in the foreground");
+
+    // A tool handler of the user's own, in a group of storytree's, stays when storytree's hooks go.
+    const own = { type: "mcp_tool", server: "mine", tool: "note", input: {} };
+    const file = readJson(home.codexHooks) as { hooks: Record<string, Group[]> };
+    file.hooks.Stop![0]!.hooks.push(own as Hook);
+    writeFileSync(home.codexHooks, `${JSON.stringify(file, null, 2)}\n`);
+    assert.equal(removeHooks(home.homes, { harness: "codex", hook: HOOK }).codex, "removed");
+    assert.deepEqual(readJson(home.codexHooks), { hooks: { Stop: [{ hooks: [own] }] } });
+  });
+});

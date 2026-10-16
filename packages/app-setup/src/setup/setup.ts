@@ -24,11 +24,11 @@ import { hooksRelease, type HooksRelease, type LatestRelease } from "./hooks-rel
 import { openStorytree, type StorytreeOpened } from "./open-storytree.js";
 import { ghState, putCommandOnPath, type CommandInstall, type CommandPath, type GhState } from "./command.js";
 import { setupLines, type SetupLine } from "./diagnostics.js";
-import { machineState, type MachineState } from "./machine.js";
+import { installedCodexVersion, machineState, type MachineState } from "./machine.js";
 
 
 export type { SetupLine } from "./diagnostics.js";
-export { machineState, NODE_FLOOR, runsElevated } from "./machine.js";
+export { installedCodexVersion, machineState, NODE_FLOOR, runsElevated } from "./machine.js";
 export type { AgentCliState, MachineOptions, MachineState, ToolState } from "./machine.js";
 
 export { ghState, putCommandOnPath, removeCommand } from "./command.js";
@@ -46,6 +46,8 @@ export interface SetupOptions {
   readonly hook?: HookCommand;
   /** Where the harnesses keep their settings. By default, CLAUDE_CONFIG_DIR or ~/.claude, and CODEX_HOME or ~/.codex. */
   readonly homes?: Homes;
+  /** The version of the Codex its hooks are registered for, which sets their shape. By default, asked of this machine's Codex with the default homes, and none with homes given. */
+  readonly codexVersion?: string;
   /** The storytree home, where the app keeps its Postgres and how to open it. By default, storytreeHome(). */
   readonly storytreeHome?: string;
   /** How long to wait for storytree to come up after opening it. */
@@ -128,7 +130,8 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   // A harness the user disconnected gets no hooks back until they connect it again (app-setup's connect).
   const disconnected = disconnectedHarnesses(options.storytreeHome ?? storytreeHome());
   const homes = options.homes ?? defaultHomes();
-  const hooks = options.hook === undefined ? undefined : registerHooks(homes, options.hook, disconnected);
+  const codexVersion = options.codexVersion ?? (options.homes === undefined && options.hook !== undefined && !disconnected.has("codex") ? installedCodexVersion() : undefined);
+  const hooks = options.hook === undefined ? undefined : registerHooks(homes, options.hook, disconnected, codexVersion);
   const codexServer = disconnected.has("codex") ? undefined : codexServerState(homes.codex, options.folder);
   const codexHooks = codexHooksState(options);
   const found = findProject(options.folder);

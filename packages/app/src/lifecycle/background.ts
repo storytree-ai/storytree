@@ -25,6 +25,14 @@ export interface Launch {
   readonly args: readonly string[];
 }
 
+/**
+ * This same build, to start again: its program and its own arguments, without --background. Inside an
+ * AppImage the program runs from a mount that vanishes when it exits, so the AppImage file is started.
+ */
+export function thisBuild({ execPath, argv, appImage }: { execPath: string; argv: readonly string[]; appImage?: string }): Launch {
+  return { execPath: appImage ?? execPath, args: argv.slice(1).filter((arg) => arg !== "--background") };
+}
+
 export interface Background {
   /** The last window was closed: the app keeps running, and nothing is stopped. */
   windowClosed(): "keep-running";

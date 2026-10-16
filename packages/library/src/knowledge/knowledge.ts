@@ -9,7 +9,8 @@
  *
  * ADR-0640 grows it by eight kinds, written with writeKnowledge: principles, guardrails, patterns,
  * processes, agent roles, friction, re-steers and tech stack; ADR-0956 D3 adds a ninth, the quality control
- * check, which enforces at least one principle or guardrail, and ADR-1058 D1 a tenth, research. They are artifacts like decisions and definitions:
+ * check, which enforces at least one principle or guardrail, ADR-1058 D1 a tenth, research, and ADR-1064 D5 an eleventh, the
+ * experiment, which once frozen takes only its outcome. They are artifacts like decisions and definitions:
  * searched, linked only to artifacts, and edited with editNote. An agent role's required reading, rules,
  * anti-patterns and step reading, and a process's branch edges, are links to artifacts too (6-a).
  *
@@ -106,6 +107,7 @@ export const KNOWLEDGE_KINDS: readonly KnowledgeKind[] = [
   "techstack",
   "check",
   "research",
+  "experiment",
 ];
 
 const NOTE_TYPES: readonly NoteType[] = ["decision", "definition", ...KNOWLEDGE_KINDS];
@@ -157,6 +159,20 @@ function frictionMove(before: FieldsOf<"friction">, edit: FrictionEdit): Frictio
   }
   if (!("route" in edit) && !("dischargedBy" in edit)) return edit;
   return { ...edit, state: after.route === undefined ? "open" : judgedState(after.route, after.dischargedBy) };
+}
+
+/**
+ * Refuse a change to a frozen experiment other than its outcome (ADR-1064 D5): what was written down before it ran,
+ * the freeze time included, stays as it was, so the reading can only add an outcome. A `type` change is a refile.
+ */
+function refuseFrozenEdit(note: Note, change: object): void {
+  if (note.type !== "experiment") return;
+  const frozen = (note.fields as FieldsOf<"experiment">).frozen;
+  if (frozen === undefined) return;
+  const changed = Object.keys(change).filter((field) => field !== "outcome");
+  if (changed.length > 0) {
+    throw new RangeError(`experiment ${note.id} was frozen at ${frozen}: only its outcome may be added, not ${changed.map((field) => JSON.stringify(field)).join(", ")}`);
+  }
 }
 
 /** What an artifact may link to: another artifact, never the work (capability 9). */
@@ -269,7 +285,9 @@ export class Knowledge {
     if (!KNOWLEDGE_KINDS.includes(kind) || kind === "friction" || kind === "resteer") {
       throw new RangeError(`refile writes ${KNOWLEDGE_KINDS.filter((one) => one !== "friction" && one !== "resteer").join(", ")}, not ${JSON.stringify(kind)}`);
     }
-    if ((await liveRecord(this.#records, id, NOTE_TYPES)) === null) return null;
+    const note = await liveRecord(this.#records, id, NOTE_TYPES);
+    if (note === null) return null;
+    refuseFrozenEdit(note as Note, { type: kind });
     await this.#checkNoteReferences(fields);
     await this.#refuseLinkLoop(id, fields);
     return this.#records.create(kind, fields as FieldsOf<K>, { ...options, id });
@@ -278,7 +296,7 @@ export class Knowledge {
   /**
    * Change only the named fields of an artifact, as capability 3's edit does; new links, and a new
    * front cover, are checked as they are when the artifact is written. Setting `frontCoverOf` to
-   * undefined takes a decision off its node's shelf. The artifact's earlier wording stays in its
+   * undefined takes a decision off its node's shelf. A frozen experiment takes only its outcome (ADR-1064 D5). The artifact's earlier wording stays in its
    * history. Returns null, and writes nothing, if `id` is not a live artifact. `checkCurrent` is
    * given the artifact as stored inside the write, under its lock; a throw refuses the edit.
    */
@@ -301,7 +319,10 @@ export class Knowledge {
     const { checkCurrent, ...writer } = options ?? {};
     return (await this.#records.edit(id, fields, {
       ...writer,
-      ...(checkCurrent === undefined ? {} : { checkCurrent: (current) => checkCurrent(current as Note) }),
+      checkCurrent: (current) => {
+        refuseFrozenEdit(current as Note, fields);
+        checkCurrent?.(current as Note);
+      },
     })) as Note | null;
   }
 

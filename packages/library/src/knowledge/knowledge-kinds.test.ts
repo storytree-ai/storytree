@@ -336,3 +336,86 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(written, ["definition", "research"], "its history keeps what it was");
   });
 }
+
+for (const backend of [memory, postgres]) {
+  test(`6.17 [${backend.label}] an experiment record is saved with its arms, hypotheses, measures, criteria, budget and stop rules; once frozen, only an outcome may be added`, async () => {
+    const { knowledge, transactions, cleanup } = await backend.open();
+    try {
+      const experiment = {
+        title: "Twin build of nextjs-vite-rewrite",
+        description: "Does the Map help agents on a long multi-agent build?",
+        arms: [
+          { name: "map-reads-on", description: "The factory as it runs" },
+          { name: "map-reads-off", description: "The factory with Map reads denied", denies: { tools: ["focus"], commands: ["storytree map"] } },
+        ],
+        hypotheses: ["Lanes with Map reads spend fewer tokens before their first edit"],
+        measures: ["Share of the 370 tests passing after each merge", "Tokens per landed increment"],
+        criteria: { helps: "The on arm's pass share rises faster", noHelp: "The curves stay within 5 points", inconclusive: "Either arm stops before 20 merges" },
+        budget: "The owner's subscription; tokens are measured, not capped",
+        stopRules: ["Stop an arm when its pass share has not risen for 10 merges", "Stop at 14 days of wall clock"],
+      };
+
+      const saved = await knowledge.writeKnowledge("experiment", experiment);
+      assert.equal(saved.type, "experiment");
+      assert.deepEqual((await transactions.get(saved.id))?.fields, experiment, "an experiment reads back as given");
+      assert.deepEqual((await knowledge.search("wall clock")).map(({ id }) => id), [saved.id], "an experiment is found by a word of its stop rules");
+
+      const before = await transactions.history();
+      for (const field of ["title", "description", "arms", "hypotheses", "measures", "criteria", "budget", "stopRules"] as const) {
+        const { [field]: _left, ...without } = experiment;
+        await assert.rejects(
+          knowledge.writeKnowledge("experiment", without as never),
+          (error: unknown) => error instanceof SchemaError && error.fields.includes(field),
+          `an experiment without ${field} is refused, naming it`,
+        );
+      }
+      for (const [field, wrong, why] of [
+        ["arms", { arms: [experiment.arms[0]] }, "an experiment compares at least two arms"],
+        ["arms", { arms: [experiment.arms[0], experiment.arms[0]] }, "no two arms share a name"],
+        ["hypotheses", { hypotheses: [] }, "an experiment states a hypothesis"],
+        ["criteria", { criteria: { helps: "Rises faster", noHelp: "Flat" } }, "it says what counts as inconclusive"],
+        ["outcome", { outcome: "The Map helped" }, "an outcome waits for the freeze"],
+        ["frozen", { frozen: "next week" }, "a freeze is a time"],
+      ] as const) {
+        await assert.rejects(
+          knowledge.writeKnowledge("experiment", { ...experiment, ...wrong } as never),
+          (error: unknown) => error instanceof SchemaError && error.fields.includes(field),
+          why,
+        );
+      }
+      assert.deepEqual(await transactions.history(), before, "nothing was written");
+
+      assert.equal((await knowledge.editNote(saved.id, { budget: "Two weeks of the subscription" }))?.type, "experiment", "an unfrozen experiment is edited as any artifact");
+      const frozen = "2026-10-17T03:00:00.000Z";
+      await knowledge.editNote(saved.id, { frozen });
+
+      const atFreeze = await transactions.history();
+      for (const edit of [
+        { hypotheses: ["Lanes with Map reads finish sooner"] },
+        { criteria: { ...experiment.criteria, helps: "Anything better" } },
+        { arms: [...experiment.arms].reverse() },
+        { stopRules: ["Never stop"] },
+        { title: "A different experiment" },
+        { frozen: "2026-10-18T03:00:00.000Z" },
+        { frozen: undefined },
+      ]) {
+        await assert.rejects(knowledge.editNote(saved.id, edit as never), /frozen/, `a frozen experiment refuses ${JSON.stringify(edit)}`);
+      }
+      await assert.rejects(
+        knowledge.refile(saved.id, "research", { title: "A note", description: "One line", researched: "2026-10-17", findings: "None" }),
+        /frozen/,
+        "a frozen experiment is not refiled out of its freeze",
+      );
+      assert.deepEqual(await transactions.history(), atFreeze, "nothing was written");
+
+      await knowledge.editNote(saved.id, { outcome: "Inconclusive: the off arm stopped at 12 merges" });
+      assert.deepEqual(
+        (await transactions.get(saved.id))?.fields,
+        { ...experiment, budget: "Two weeks of the subscription", frozen, outcome: "Inconclusive: the off arm stopped at 12 merges" },
+        "the reading adds its outcome to the frozen record",
+      );
+    } finally {
+      await cleanup();
+    }
+  });
+}

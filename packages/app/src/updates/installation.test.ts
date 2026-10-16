@@ -76,3 +76,19 @@ test("4.21 a Windows app is installed by the installer's marker, follows release
   assert.equal(installation({ ...app, portable: path.join(dir, "storytree.exe") }).installed, false);
   assert.equal(installation({ ...app, platform: "linux" }).installed, false, "no other system has an installer");
 });
+
+test("4.21 a Linux AppImage the delivery record's folder holds is installed and follows releases; one run from elsewhere is not", (t) => {
+  const dir = machine(t);
+  const home = path.join(dir, ".storytree", "0.3");
+  const installDir = path.join(dir, ".local", "share", "storytree-0.3");
+  // A running AppImage's resources sit in its mount, which moves each run; APPIMAGE names the file itself.
+  const app: RunningApp = { platform: "linux", packaged: true, resourcesPath: "/tmp/.mount_storyt1/resources", appPath: "/tmp/.mount_storyt1/resources/app.asar", home, appImage: path.join(installDir, "storytree-0.3") };
+  const none = { installed: false, followsReleases: false, markerFile: undefined };
+
+  assert.deepEqual(installation(app), none, "no delivery record yet");
+  delivered(home, installDir);
+  assert.deepEqual(installation(app), { installed: true, followsReleases: true, markerFile: undefined });
+  assert.deepEqual(installation({ ...app, packaged: false }), none, "a development run is never installed");
+  assert.deepEqual(installation({ ...app, appImage: undefined }), none, "an unpacked build runs from no AppImage");
+  assert.deepEqual(installation({ ...app, appImage: path.join(dir, "Downloads", "storytree-0.3") }), none, "a downloaded copy is not the installed one");
+});

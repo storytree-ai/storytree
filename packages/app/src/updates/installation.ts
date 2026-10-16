@@ -9,6 +9,10 @@
  * channel is release-channel.json alone. Squirrel.Mac refuses an update to an app that is not Developer
  * ID signed, so a Mac app follows releases only when its build recorded that mode in its package.json
  * (apps/desktop/dist.mjs); an ad-hoc build is installed but does not update itself.
+ *
+ * On Linux the one-liner installs a folder holding the AppImage as storytree-0.3, which its record names as
+ * installDir; the app running from that AppImage (APPIMAGE) is installed, and replacing the file needs no
+ * signature or admin password, so it follows releases.
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -25,6 +29,8 @@ export interface RunningApp {
   readonly home: string;
   /** PORTABLE_EXECUTABLE_FILE, which only the Windows portable build sets. */
   readonly portable?: string | undefined;
+  /** APPIMAGE, the AppImage file a Linux build runs from; its resources sit in a mount that moves each run. */
+  readonly appImage?: string | undefined;
 }
 
 export interface Installation {
@@ -40,11 +46,23 @@ function readJson(file: string): unknown {
   try { return JSON.parse(readFileSync(file, "utf8")); } catch { return undefined; }
 }
 
+/** The folder the one-liner's delivery record says it installed into, if it says one. */
+function recordedInstallDir(home: string): string | undefined {
+  const record = readJson(path.join(home, "delivery.json")) as { schema?: unknown; installDir?: unknown } | undefined;
+  return record?.schema === 1 && typeof record.installDir === "string" ? record.installDir : undefined;
+}
+
 function macInstalled(app: RunningApp): boolean {
-  const record = readJson(path.join(app.home, "delivery.json")) as { schema?: unknown; installDir?: unknown } | undefined;
-  if (record?.schema !== 1 || typeof record.installDir !== "string") return false;
+  const installDir = recordedInstallDir(app.home);
   // The bundle is <name>.app, holding Contents/Resources.
-  return path.resolve(record.installDir) === path.resolve(app.resourcesPath, "..", "..");
+  return installDir !== undefined && path.resolve(installDir) === path.resolve(app.resourcesPath, "..", "..");
+}
+
+function linuxInstalled(app: RunningApp): boolean {
+  if (app.appImage === undefined) return false;
+  const installDir = recordedInstallDir(app.home);
+  // The installation is a folder holding the AppImage as storytree-0.3, its agent tools beside it.
+  return installDir !== undefined && path.resolve(installDir, "storytree-0.3") === path.resolve(app.appImage);
 }
 
 function developerId(app: RunningApp): boolean {
@@ -61,5 +79,6 @@ export function installation(app: RunningApp): Installation {
     return { installed: true, followsReleases: true, markerFile };
   }
   if (app.platform === "darwin" && macInstalled(app)) return { installed: true, followsReleases: developerId(app), markerFile: undefined };
+  if (app.platform === "linux" && linuxInstalled(app)) return { installed: true, followsReleases: true, markerFile: undefined };
   return none;
 }

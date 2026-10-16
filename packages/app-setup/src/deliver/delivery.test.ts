@@ -9,7 +9,7 @@ import { buildLauncher, LAUNCHER_PROGRAM } from "../bins/build.js";
 import { launcherRuns } from "../setup/index.js";
 import { disconnectAgents, installedToolServerCommand } from "@storytree/app-setup/connect";
 
-import { finishDelivery, installCommand, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
+import { finishDelivery, installCommand, refreshTools, toolPaths, verifyPayload, writePayloadManifest } from "./index.js";
 import { runtimeProblem, waitForApp } from "./delivery.js";
 
 /** The program the Windows command is made from: on Windows the real one, which tests run; elsewhere nothing runs it. */
@@ -292,4 +292,34 @@ test("delivery on a Cloud SQL library waits for the app itself, not for a local 
     app.kill();
     rmSync(home, { recursive: true, force: true });
   }
+});
+
+test("1.5 after a Linux AppImage replaces itself, its next start puts its own agent tools beside it, at the paths the hooks already use", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree linux tools "));
+  try {
+    const install = path.join(dir, ".local", "share", "storytree-0.3");
+    const tools = toolPaths(install, "linux");
+    // A build's agent tools: the scripts, its node and a lazily imported chunk named for that build.
+    const build = (into: string, chunk: string) => {
+      mkdirSync(path.join(into, "chunks"), { recursive: true });
+      for (const file of ["node", ...["mcp", "hook", "setup", "cli", "deliver"].map((key) => path.basename(tools[key as "mcp"]))]) writeFileSync(path.join(into, file), `${chunk} ${file}`);
+      writeFileSync(path.join(into, "chunks", `${chunk}.mjs`), `export const build = "${chunk}";`);
+      writePayloadManifest(into, "x64", "24.21.0", "linux");
+    };
+    build(tools.dir, "old");
+    writeFileSync(tools.app, "the replaced AppImage");
+    // The new AppImage's own tools, in the mount it runs from.
+    const bundled = path.join(dir, "mount", "resources", "agent-tools");
+    build(bundled, "new");
+
+    assert.equal(refreshTools(install, bundled), true);
+    assert.equal(readFileSync(tools.hook, "utf8"), "new storytree-hook.mjs");
+    assert.deepEqual(readdirSync(path.join(tools.dir, "chunks")), ["new.mjs"], "no chunk of the old build is left to mix with the new");
+    assert.equal(verifyPayload(install, "x64", "linux").hook, tools.hook);
+    assert.deepEqual(readdirSync(path.dirname(tools.dir)), ["agent-tools"], "nothing is left beside the tools");
+
+    assert.equal(refreshTools(install, bundled), false, "tools that match the build are left alone");
+    assert.equal(refreshTools(install, path.join(dir, "no-tools")), false, "a build without tools changes nothing");
+    assert.equal(readFileSync(tools.hook, "utf8"), "new storytree-hook.mjs");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

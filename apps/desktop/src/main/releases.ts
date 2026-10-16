@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { app } from "electron";
 import { ReleaseUpdater, installation, releaseChannel, type InstallChoice, type Installation, type ReleaseOptions } from "@storytree/app";
+import { refreshTools } from "@storytree/app-setup/deliver";
 
 import { appHome } from "../home.js";
 import { releasesLog, waitingLine } from "./releases-log.js";
@@ -12,13 +13,22 @@ import { releasesLog, waitingLine } from "./releases-log.js";
 function thisInstallation(): Installation {
   return installation({
     platform: process.platform, packaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath(),
-    home: appHome().dir, portable: process.env.PORTABLE_EXECUTABLE_FILE,
+    home: appHome().dir, portable: process.env.PORTABLE_EXECUTABLE_FILE, appImage: process.env.APPIMAGE,
   });
 }
 
-/** Whether this is the app the installer put here (the Windows installer's marker, or a Mac delivery record naming this bundle). */
+/** Whether this is the app the installer put here (the Windows installer's marker, or a delivery record naming this Mac bundle or Linux AppImage). */
 export function installedApp(): boolean {
   return thisInstallation().installed;
+}
+
+/** An installed Linux AppImage that replaced itself puts its own agent tools beside it, where the hooks run them (Get storytree 1.5). */
+function refreshAgentTools(): void {
+  const appImage = process.env.APPIMAGE;
+  if (process.platform !== "linux" || appImage === undefined) return;
+  try {
+    if (refreshTools(path.dirname(appImage), path.join(process.resourcesPath, "agent-tools"))) console.log("Agent tools updated to this build's");
+  } catch (error) { console.error(`Agent tools could not be updated: ${error instanceof Error ? error.message : String(error)}`); }
 }
 
 /** Whether a downloaded release can install itself here, which the gear's install choice is about. */
@@ -30,6 +40,7 @@ export function releasesInstall(): boolean {
 export function followReleases(options: ReleaseOptions, home: string, choice: () => InstallChoice): ReleaseUpdater | undefined {
   const { followsReleases, markerFile } = thisInstallation();
   if (!followsReleases) return undefined;
+  refreshAgentTools();
 
   const updater = new ReleaseUpdater({ ...options, home, releaseChannel: () => releaseChannel(home, markerFile === undefined ? "" : readFileSync(markerFile, "utf8")) });
   const log = releasesLog(path.join(home, "releases.log"));

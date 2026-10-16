@@ -14,13 +14,14 @@ import { ElectronHttpExecutor } from "electron-updater/out/electronHttpExecutor.
 
 import { background, type Launch } from "../lifecycle/background.js";
 import { keepBackups } from "../lifecycle/backups.js";
-import { STABLE_FEED } from "./release-channel.js";
 import { ReleaseUpdater, releaseBase } from "./releases.js";
 import { publishStable } from "./stable-github.js";
 import { pinStable } from "./stable-pin.js";
 
-type Platform = "win32" | "darwin";
-const PLATFORMS: readonly Platform[] = ["win32", "darwin"];
+type Platform = "win32" | "darwin" | "linux";
+const PLATFORMS: readonly Platform[] = ["win32", "darwin", "linux"];
+/** AppImageUpdater replaces the AppImage with a POSIX `mv`, which a Windows host lacks; Linux and macOS hosts run these. */
+const hostRuns = (platform: Platform) => ({ skip: platform === "linux" && process.platform === "win32" ? "platform:win32: the AppImage install needs a POSIX mv, which Windows lacks" : false });
 
 /**
  * Electron's Squirrel.Mac autoUpdater, which MacUpdater takes from require("electron"): it fetches
@@ -115,25 +116,25 @@ test("4.15 a stable Mac install and a stable Linux install each take only the pi
   assert.equal(mac.request("status").nextBuild, "0.3.2");
   assert.deepEqual(feed.fetched, ["/release/storytree-ai/storytree/releases/download/v0.3.2/storytree-0.3-0.3.2-mac.zip"]);
 
-  const environment = { APPIMAGE: process.env["APPIMAGE"], TEST_UPDATER_ARCH: process.env["TEST_UPDATER_ARCH"] };
-  t.after(() => { for (const [key, value] of Object.entries(environment)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
-  Object.assign(process.env, { APPIMAGE: path.join(tmpdir(), "storytree.AppImage"), TEST_UPDATER_ARCH: "x64" });
-  const linux = feed.linux(STABLE_FEED);
-  const found = await linux.checkForUpdates();
-  assert.equal(found?.updateInfo.version, "0.3.2");
-  await linux.downloadUpdate();
-  assert.deepEqual(feed.fetched.at(-1), "/release/storytree-ai/storytree/releases/download/v0.3.2/storytree-0.3-0.3.2-linux-x86_64.AppImage");
+  const linuxFeed = await fixture(t, "linux");
+  linuxFeed.version = "0.3.9";
+  linuxFeed.stableBranch = feed.stableBranch;
+  const linux = linuxFeed.updater(async () => {}, async () => false, async () => false, "stable");
+  assert.equal(await linux.check(), "waiting");
+  assert.equal(linux.request("status").nextBuild, "0.3.2");
+  assert.deepEqual(linuxFeed.fetched, ["/release/storytree-ai/storytree/releases/download/v0.3.2/storytree-0.3-0.3.2-linux-x86_64.AppImage"]);
 });
 
-test("4.4 the platform picks the updater's base: NSIS on Windows, Squirrel.Mac on macOS, none elsewhere", () => {
+test("4.4 the platform picks the updater's base: NSIS on Windows, Squirrel.Mac on macOS, the AppImage's own on Linux, none elsewhere", () => {
   assert.equal(Object.getPrototypeOf(releaseBase("win32")), NsisUpdater);
   assert.equal(Object.getPrototypeOf(releaseBase("darwin")), MacUpdater);
-  for (const platform of ["linux", "freebsd", "aix"] as const) assert.equal(releaseBase(platform), undefined);
-  assert.throws(() => new ReleaseUpdater({ restart: async () => {}, canRestart: async () => true, quiet: async () => true }, undefined, "linux"), /linux/);
+  assert.equal(Object.getPrototypeOf(releaseBase("linux")), AppImageUpdater);
+  for (const platform of ["freebsd", "aix"] as const) assert.equal(releaseBase(platform), undefined);
+  assert.throws(() => new ReleaseUpdater({ restart: async () => {}, canRestart: async () => true, quiet: async () => true }, undefined, "freebsd"), /freebsd/);
 });
 
 for (const platform of PLATFORMS) {
-  test(`4.4 ${platform}: an installed app downloads a newer release, waits for a seed, stops its database and restarts through ${platform === "win32" ? "NSIS" : "Squirrel.Mac"}`, async (t) => {
+  test(`4.4 ${platform}: an installed app downloads a newer release, waits for a seed, stops its database and restarts through ${{ win32: "NSIS", darwin: "Squirrel.Mac", linux: "the replaced AppImage" }[platform]}`, hostRuns(platform), async (t) => {
     const feed = await fixture(t, platform);
     let writing = true;
     let finishStop!: () => void;
@@ -165,6 +166,10 @@ for (const platform of PLATFORMS) {
     if (platform === "win32") {
       assert.deepEqual(target?.args, ["--updated", "/S", "--force-run"]);
       assert.deepEqual(await readFile(target!.execPath), feed.installer);
+    } else if (platform === "linux") {
+      // The AppImage file was replaced in place, and the restart starts it; nothing ran it before the database stopped.
+      assert.deepEqual(target, { execPath: feed.appImage, args: [] });
+      assert.deepEqual(await readFile(feed.appImage), feed.installer);
     } else {
       // Squirrel.Mac staged the verified download; the relaunch opens the app once ShipIt has swapped it.
       assert.deepEqual(feed.squirrel?.staged, feed.installer);
@@ -174,7 +179,7 @@ for (const platform of PLATFORMS) {
     assert.equal(feed.downloads, 1);
   });
 
-  test(`4.4 ${platform}: a downloaded release waits for a quiet moment, says it is pending, and installs when the user asks`, async (t) => {
+  test(`4.4 ${platform}: a downloaded release waits for a quiet moment, says it is pending, and installs when the user asks`, hostRuns(platform), async (t) => {
     const feed = await fixture(t, platform);
     feed.version = "0.3.2";
     const launches: Launch[] = [];
@@ -190,7 +195,7 @@ for (const platform of PLATFORMS) {
   });
 
   for (const entry of ["automatic", "menu"] as const) {
-    test(`4.4 ${platform}: the ${entry} release restart keeps its window open while a snapshot is being written`, async (t) => {
+    test(`4.4 ${platform}: the ${entry} release restart keeps its window open while a snapshot is being written`, hostRuns(platform), async (t) => {
       const feed = await fixture(t, platform);
       feed.version = "0.3.2";
       let finishSnapshot!: () => void;
@@ -285,7 +290,7 @@ test("4.12 an explicit install overrides a run hold but still waits for a seed",
 });
 
 for (const platform of PLATFORMS) {
-  test(`4.5 ${platform}: a failed feed or corrupt download leaves the app running and can be retried; equal and older releases never restart it`, async (t) => {
+  test(`4.5 ${platform}: a failed feed or corrupt download leaves the app running and can be retried; equal and older releases never restart it`, hostRuns(platform), async (t) => {
     const feed = await fixture(t, platform);
     const launches: Launch[] = [];
     const updater = feed.updater(async (target) => { launches.push(target); }, async () => true);
@@ -303,7 +308,7 @@ for (const platform of PLATFORMS) {
     assert.equal(launches.length, 1);
   });
 
-  test(`4.5 ${platform}: repeated checks share one download and quitting prevents a pending install`, async (t) => {
+  test(`4.5 ${platform}: repeated checks share one download and quitting prevents a pending install`, hostRuns(platform), async (t) => {
     const feed = await fixture(t, platform);
     feed.version = "0.3.2";
     const updater = feed.updater(async () => { assert.fail("must not restart after stopping updates"); }, async () => false);
@@ -320,7 +325,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   t.after(() => rm(dir, { recursive: true, force: true }));
   const installer = Buffer.from("fixture release payload — never executed");
   const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined };
-  const files = (base = "") => ["setup.exe", "storytree-mac.zip"].map(url => ({ url: `${base}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
+  const files = (base = "") => ["setup.exe", "storytree-mac.zip", "storytree-linux.AppImage"].map(url => ({ url: `${base}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
   const server = createServer((request, response) => {
     if (state.offline) { response.writeHead(404).end(); return; }
     if (state.stableBranch && request.url?.startsWith("/stable/")) {
@@ -333,9 +338,9 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
     } else if (request.url?.startsWith("/stable/latest.yml")) {
       if (!state.stable) { response.writeHead(404).end(); return; }
       response.end(JSON.stringify({ version: state.stable, files: files(`http://127.0.0.1:${(server.address() as { port: number }).port}/`) }));
-    } else if (/^\/latest(-mac)?\.yml/.test(request.url ?? "")) {
+    } else if (/^\/latest(-mac|-linux)?\.yml/.test(request.url ?? "")) {
       response.end(JSON.stringify({ version: state.version, files: files() }));
-    } else if (request.url === "/setup.exe" || request.url === "/storytree-mac.zip") {
+    } else if (request.url === "/setup.exe" || request.url === "/storytree-mac.zip" || request.url === "/storytree-linux.AppImage") {
       state.downloads++;
       response.end(state.corrupt ? Buffer.from("broken payload") : installer);
     } else response.writeHead(404).end();
@@ -344,6 +349,14 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   t.after(() => new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
   const address = server.address();
   assert.ok(address !== null && typeof address === "object");
+  // A Linux app runs from its AppImage, which the AppImage runtime names in APPIMAGE and the install replaces.
+  const appImage = path.join(dir, "storytree-0.3");
+  if (platform === "linux") {
+    await writeFile(appImage, "the running build");
+    const environment = { APPIMAGE: process.env["APPIMAGE"], TEST_UPDATER_ARCH: process.env["TEST_UPDATER_ARCH"] };
+    t.after(() => { for (const [key, value] of Object.entries(environment)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
+    Object.assign(process.env, { APPIMAGE: appImage, TEST_UPDATER_ARCH: "x64" });
+  }
   const config = path.join(dir, "app-update.yml");
   await writeFile(config, JSON.stringify({ provider: "generic", url: `http://127.0.0.1:${address.port}`, updaterCacheDirName: "updates" }));
   // Replace only Electron's network transport, retaining its file download and digest checks.
@@ -360,6 +373,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   };
   return Object.assign(state, {
     holds: path.join(dir, "update-holds"),
+    appImage,
     updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "development") {
       if (platform === "darwin") electron.autoUpdater = state.squirrel = new Squirrel();
       const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", ...(channel ? { releaseChannel: () => channel } : {}) }, {
@@ -373,22 +387,6 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
       Object.assign(updater.base, { httpExecutor: executor(), _testOnlyOptions: { platform } });
       updater.logger = null;
       updater.base.disableDifferentialDownload = true;
-      return updater;
-    },
-    /** electron-updater's AppImage updater, which storytree does not drive yet, reading the same feeds. */
-    linux(channelFeed: string) {
-      const updater = new AppImageUpdater(null, {
-        version: "0.3.1", name: "storytree-test", isPackaged: true,
-        appUpdateConfigPath: config, userDataPath: dir, baseCachePath: path.join(dir, "linux"),
-        whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),
-        quit: () => assert.fail("separate quit"), onQuit: () => {},
-      } as never);
-      Object.assign(updater, { httpExecutor: executor(), _testOnlyOptions: { platform: "linux" } });
-      updater.logger = null;
-      updater.autoDownload = false;
-      updater.autoInstallOnAppQuit = false;
-      updater.disableDifferentialDownload = true;
-      updater.setFeedURL({ provider: "generic", url: channelFeed });
       return updater;
     },
   });

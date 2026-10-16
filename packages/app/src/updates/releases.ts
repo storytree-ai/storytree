@@ -1,7 +1,7 @@
 /** Capability 4 · Updates, contracts 4.4–4.5: installed apps follow published releases. */
 import path from "node:path";
 
-import { MacUpdater, NsisUpdater, type Logger } from "electron-updater";
+import { AppImageUpdater, MacUpdater, NsisUpdater, type Logger } from "electron-updater";
 
 import type { Launch } from "../lifecycle/background.js";
 import type { UpdateState } from "./main-updates.js";
@@ -83,6 +83,30 @@ class MacRelease extends MacUpdater {
   }
 }
 
+/**
+ * The AppImage's own install: electron-updater replaces the AppImage file (APPIMAGE) with the verified
+ * download, which needs no admin password, then starts it. That start goes through the handoff, so the
+ * database stops first; the running app keeps its mount of the replaced file until it exits.
+ */
+class AppImageRelease extends AppImageUpdater {
+  private started: Promise<void> | undefined;
+
+  constructor(private readonly handoff: Handoff, app?: AppAdapter) {
+    super(undefined, app);
+  }
+
+  /** Resolves once the handoff has stopped the app; rejects if the AppImage could not be replaced. */
+  async installRelease(): Promise<void> {
+    if (!this.install(true, true)) throw new Error("The downloaded release could not be installed");
+    await this.started;
+  }
+
+  protected override spawnLog(command: string, args: string[] = []): Promise<boolean> {
+    this.started = this.handoff({ execPath: command, args });
+    return this.started.then(() => true);
+  }
+}
+
 interface Squirrel {
   checkForUpdates(): void;
   once(event: "update-downloaded" | "error", listener: (error: Error) => void): unknown;
@@ -92,13 +116,16 @@ interface Squirrel {
 /** Waits (at most five minutes) for ShipIt to finish installing, then opens the app with any arguments the restart adds. */
 const OPEN_AFTER_SHIPIT = 'app=$1; shift; i=0; while pgrep -x ShipIt >/dev/null && [ "$i" -lt 300 ]; do sleep 1; i=$((i + 1)); done; exec /usr/bin/open "$app" --args "$@"';
 
+type Release = NsisRelease | MacRelease | AppImageRelease;
+
 /**
- * Each platform's base: Windows installs through NSIS, macOS through Squirrel.Mac. The Linux arc
- * adds AppImageUpdater here (increment_4e9232f6bd10). Elsewhere installed apps do not update.
+ * Each platform's base: Windows installs through NSIS, macOS through Squirrel.Mac, Linux by replacing
+ * its AppImage. Elsewhere installed apps do not update.
  */
-const BASES: Partial<Record<NodeJS.Platform, new (handoff: Handoff, app?: AppAdapter, bundle?: string) => NsisRelease | MacRelease>> = {
+const BASES: Partial<Record<NodeJS.Platform, new (handoff: Handoff, app?: AppAdapter, bundle?: string) => Release>> = {
   win32: NsisRelease,
   darwin: MacRelease,
+  linux: AppImageRelease,
 };
 
 /** The updater base installed apps use on `platform`, or undefined where they do not update from releases. */
@@ -113,7 +140,7 @@ export function releaseBase(platform: NodeJS.Platform) {
  */
 export class ReleaseUpdater {
   /** electron-updater's own updater for this platform. */
-  readonly base: NsisRelease | MacRelease;
+  readonly base: Release;
   private checking: Promise<Check> | undefined;
   private downloaded = false;
   private stopped = false;

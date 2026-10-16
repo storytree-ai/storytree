@@ -49,10 +49,17 @@ export interface FocusAnswer {
 export const SHOW_CEILING = 200;
 const KINDS: readonly NodeKind[] = ["story", "capability", "promise", "file", "test"];
 
+/** The library's own record names, which agents select by, and the prefix each is read as (contract 2.6). */
+const SPELLINGS = new Map([["capability", "cap"], ["contract", "promise"]]);
+const RECORDS: readonly NodeKind[] = ["story", "capability", "promise"];
+
 /** An ambiguous number is refused rather than choosing one story's identically numbered capability. */
 export function selectNode(graph: ProjectGraph, select: string): MapNode {
   const at = select.indexOf(":");
-  const prefix = select.slice(0, at);
+  // A bare record id, as the library prints it, names its story, capability or promise (contract 2.6).
+  const bare = at < 0 ? graph.nodes.find(node => node.id === select && RECORDS.includes(node.kind)) : undefined;
+  if (bare) return bare;
+  const prefix = SPELLINGS.get(select.slice(0, at)) ?? select.slice(0, at);
   const wanted = select.slice(at + 1);
   if (at < 0 || !wanted || !["file", "cap", "promise", "story"].includes(prefix)) throw new Error("Select file:<path>, cap:<id|number>, promise:<id|number>, or story:<name>.");
   const found = graph.nodes.filter(node => {

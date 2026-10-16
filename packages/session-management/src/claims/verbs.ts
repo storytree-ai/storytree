@@ -228,12 +228,34 @@ const letGoOfPr = verb({
   },
 });
 
+const redPr = verb({
+  consumers: ["agent"],
+  command: {
+    family: "workspace",
+    name: "red",
+    summary: "the watcher's: record a handed-over pull request found red as it starts its fix session, a pr-red activity line (ADR-1064 D4)",
+    usage: "workspace red <pr> --increment <id> [--conflict] [--check <name> ...]",
+  },
+  tool: { absent: "the Mint box's watcher runs it when it starts a fix session for a red pull request" },
+  inputs: {
+    pr,
+    increment: { kind: "text", describe: "the increment the pull request was handed over for" },
+    conflict: { kind: "switch", describe: "the pull request conflicts with main" },
+    check: { kind: "text", many: true, optional: true, describe: "a failed check's name" },
+  },
+  async act({ pr: typed, increment, conflict, check }, context: SessionVerbContext) {
+    const { recordRed } = await import("./claims.js");
+    await recordRed(context, prNumber(typed), increment, conflict, [...check]);
+    return { text: `Recorded PR #${typed} red${conflict ? ", conflicting with main" : ""}${check.length === 0 ? "" : `: ${check.join(", ")} failed`}.` };
+  },
+});
+
 /** The command line's `workspace` family, which the package's manifest names under `verbs` (ADR-1033): its bare name makes a workspace. */
 export const WORKSPACE_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [{
   name: "workspace",
   summary: "prepare or attach a workspace, claim or release work for this agent session, list stale claims, or allow an increment's changes to imported code",
   order: 23,
-  verbs: [attach, claimOnly, releaseClaim, stale, allow, holdForPr, letGoOfPr],
+  verbs: [attach, claimOnly, releaseClaim, stale, allow, holdForPr, letGoOfPr, redPr],
   bare: make,
 }];
 

@@ -1,6 +1,7 @@
 // Capability 12 · The Mint pool's dispatcher (ADR-0955 D2), which the box's launcher execs:
 // node --import tsx packages/agent-pool/src/launch.mjs pool            (one dispatcher over every active arc's ready increments; exits 3 to restart on its own code change)
 // node packages/agent-pool/src/launch.mjs slots                       (engines running now, and the cap)
+// node --import tsx packages/agent-pool/src/launch.mjs ready [project] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now)
 import { execFile, spawn } from "node:child_process";
 import { appendFileSync, existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
@@ -191,7 +192,20 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   };
 }
 
-/** `pool` or `slots`; `box` overrides the box's paths and processes in tests. */
+/**
+ * `ready`: what the box would do now for `project` (by default storytree), read by another dispatcher that shares the box's
+ * cap (the experiment dispatcher, ADR-1064 D3): the engines running, the cap, the lanes folder, and every increment
+ * pickPool would start, with its arc's priority when it has one. The library is the one this process's storytree home names.
+ */
+async function ready(b, project = "storytree") {
+  const found = withHandOffs(await b.survey(project), await handedOff(join(b.lanesDir, "watch")));
+  const { picks } = pickPool(found, { max: Infinity, now: b.now() });
+  const work = picks.map((one) => ({ id: one.id, title: one.title, ...(one.priority === undefined ? {} : { priority: one.priority }) }));
+  (b.out ?? console.log)(JSON.stringify({ running: await b.count(), cap: await b.maxLanes(), lanesDir: b.lanesDir, ready: work }));
+  return 0;
+}
+
+/** `pool`, `slots` or `ready`; `box` overrides the box's paths and processes in tests. */
 export async function main(args, box = {}) {
   const b = { ...boxDefaults({ home: box.home, env: box.env }), ...box };
   if (args[0] === "slots") {
@@ -199,7 +213,8 @@ export async function main(args, box = {}) {
     return 0;
   }
   if (args[0] === "pool") return pool(b);
-  (b.out ?? console.error)("usage: launch.mjs pool | slots");
+  if (args[0] === "ready") return ready(b, args[1]);
+  (b.out ?? console.error)("usage: launch.mjs pool | slots | ready [project]");
   return 2;
 }
 

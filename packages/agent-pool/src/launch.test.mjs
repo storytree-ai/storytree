@@ -324,3 +324,25 @@ test("12.17 · the dispatcher's cap is the configured session count, which the l
   assert.equal(await main(["slots"], box), 0);
   assert.deepEqual(slots, ["1 engines running, cap 3", "1 engines running, cap 7"]);
 });
+
+test("12.19 · `ready` prints, as JSON, the engines running, the cap, the lanes folder and the work the pool would start now, each with its arc's priority, for the project named", async (t) => {
+  const b = await box(t, {
+    maxLanes: async () => 4, count: async () => 2,
+    survey: async (project) => {
+      const work = poolWork(["increment_ranked", "increment_held", "increment_free"], { claims: [{ holder: "live", increment: "increment_held", session: "s1", since: "2026-10-08T00:00:00Z" }] });
+      work.increments[0].priority = 1;
+      for (const one of work.increments) one.title = `${project}: ${one.id}`;
+      return work;
+    },
+  });
+  const out = [];
+  b.out = (line) => out.push(line);
+  assert.equal(await main(["ready", "x-twin-map-reads-on"], b), 0);
+  assert.deepEqual(JSON.parse(out.join("\n")), {
+    running: 2, cap: 4, lanesDir: b.lanesDir,
+    ready: [
+      { id: "increment_ranked", title: "x-twin-map-reads-on: increment_ranked", priority: 1 },
+      { id: "increment_free", title: "x-twin-map-reads-on: increment_free" },
+    ],
+  });
+});

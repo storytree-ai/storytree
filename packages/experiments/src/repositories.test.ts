@@ -62,7 +62,7 @@ test("3.2 · making an arm's repository creates it public in storytree-ai, seede
           files: execFileSync("git", ["ls-files"], { cwd: seed, encoding: "utf8" }).trim().split("\n").sort(),
           commits: execFileSync("git", ["rev-list", "--count", "main"], { cwd: seed, encoding: "utf8" }).trim(),
         };
-        assert.equal(readFileSync(path.join(seed, ARM_WORKFLOW_PATH), "utf8"), `${JSON.stringify(armWorkflow(CI), null, 2)}\n`);
+        assert.deepEqual(JSON.parse(readFileSync(path.join(seed, ARM_WORKFLOW_PATH), "utf8")), armWorkflow(CI), "the seed carries the arm's CI");
       }
       return "";
     };

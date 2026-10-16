@@ -225,7 +225,7 @@ test("2.2 setting context guidance to 400000 writes it to settings.json in the s
   });
 });
 
-test("2.15 settings.json may name the experiment and arm a lane runs in, read back by name; with none it reads as none, and a damaged value is reported naming the file", async () => {
+test("2.15 settings.json may name the experiment and arm a lane runs in, and the verbs that arm denies, read back by name; with none it reads as none, and a damaged value is reported naming the file", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
     assert.equal(agentLink.readExperiment(home), undefined, "no settings file: no experiment");
@@ -235,8 +235,12 @@ test("2.15 settings.json may name the experiment and arm a lane runs in, read ba
     writeFileSync(file, JSON.stringify({ "idle-after": "10m", experiment: { name: "twin-build", arm: "map-reads-off" } }));
     assert.deepEqual(agentLink.readExperiment(home), { name: "twin-build", arm: "map-reads-off" });
     assert.equal(agentLink.readSettings(home)["idle-after"].value, "10m", "the other settings still read beside it");
+    const denies = { tools: ["focus"], commands: ["storytree map"] };
+    writeFileSync(file, JSON.stringify({ experiment: { name: "twin-build", arm: "map-reads-off", denies } }));
+    assert.deepEqual(agentLink.readExperiment(home), { name: "twin-build", arm: "map-reads-off", denies }, "the arm's denies, by door, read back beside it");
 
-    for (const damaged of [{ name: "twin-build" }, { arm: "map-reads-off" }, { name: "", arm: "x" }, { name: "a", arm: "b", extra: 1 }, "twin-build", null]) {
+    for (const damaged of [{ name: "twin-build" }, { arm: "map-reads-off" }, { name: "", arm: "x" }, { name: "a", arm: "b", extra: 1 }, "twin-build", null,
+      { name: "a", arm: "b", denies: { tools: ["focus"] } }, { name: "a", arm: "b", denies: { tools: [""], commands: [] } }, { name: "a", arm: "b", denies: { tools: [], commands: [], more: [] } }]) {
       writeFileSync(file, JSON.stringify({ experiment: damaged }));
       assert.throws(() => agentLink.readExperiment(home), (error: unknown) => {
         assert.ok(error instanceof Error && error.message.includes(file) && /experiment/.test(error.message), String(error));

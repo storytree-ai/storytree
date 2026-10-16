@@ -20,7 +20,7 @@ import { promisify } from "node:util";
 import type { Library, Storytree } from "@storytree/library";
 import { readExperiment, storytreeHome } from "@storytree/project-and-caller";
 
-import { ARMS } from "../arms.js";
+import { carryDenies } from "../arms.js";
 import { curves, type Curves } from "../points/points.js";
 import { ExperimentRefusal, frozenExperiment, type Experiment } from "../record/record.js";
 import { armWorkspace } from "../workspaces.js";
@@ -48,19 +48,22 @@ export interface RunState {
 }
 
 /**
- * The arm names of the frozen record `experiment`: each must be an arm the arm switch holds (arms.ts's ARMS), denying the
- * same tools and commands the record writes down, so what the doors enforce is what was pre-registered. Refused otherwise.
+ * The arms of the frozen record `experiment` as a run drives them, for its short name `name`: each arm's home, made by
+ * `experiment arm make` under `root`, is given what the record says that arm denies (none when it says none), so the
+ * doors enforce what was pre-registered. Refused, before any home is written, when an arm's home is not that arm's or
+ * it has no checkout of its repository at `<home>/repo`.
  */
-export function checkArms(experiment: Experiment): string[] {
-  const same = (a: readonly string[], b: readonly string[]) => [...a].sort().join("\n") === [...b].sort().join("\n");
-  return experiment.arms.map(({ name, denies = { tools: [], commands: [] } }) => {
-    const held = Object.hasOwn(ARMS, name) ? ARMS[name] : undefined;
-    if (held === undefined) throw new ExperimentRefusal(`the experiment's arm "${name}" is none the arm switch holds (${Object.keys(ARMS).join(", ")}): its lanes could not be switched`);
-    if (!same(held.denies.tools, denies.tools) || !same(held.denies.commands, denies.commands)) {
-      throw new ExperimentRefusal(`the experiment's arm "${name}" denies ${JSON.stringify(denies)}, but the arm switch denies ${JSON.stringify(held.denies)} for it: the doors would not enforce what was pre-registered`);
-    }
-    return name;
+export function armRuns(experiment: Experiment, name: string, root: string): ArmRun[] {
+  const runs = experiment.arms.map(({ name: arm, denies = { tools: [], commands: [] } }) => {
+    const workspace = armWorkspace(name, arm, path.join(root, `x-${name}-${arm}`));
+    const named = readExperiment(workspace.home);
+    if (named?.name !== name || named.arm !== arm) throw new ExperimentRefusal(`${workspace.home} is not the home of arm "${arm}" of experiment "${name}": make it with \`storytree experiment arm make ${name} ${arm}\` first`);
+    const checkout = path.join(workspace.home, "repo");
+    if (!existsSync(checkout)) throw new ExperimentRefusal(`arm "${arm}" has no checkout at ${checkout}: clone its repository there (\`gh repo clone storytree-ai/${workspace.project} ${checkout}\`) first`);
+    return { run: { arm, project: workspace.project, home: workspace.home, checkout }, denies };
   });
+  for (const { run, denies } of runs) carryDenies(run.home, name, run.arm, denies);
+  return runs.map(({ run }) => run);
 }
 
 /**
@@ -212,14 +215,7 @@ export async function runRecorded({ library, server, record, name, rulesFile, sa
 }): Promise<string> {
   const experiment = await frozenExperiment(library, record);
   const rules = readStopRules(experiment);
-  const arms = checkArms(experiment).map((arm): ArmRun => {
-    const workspace = armWorkspace(name, arm, path.join(storytreeHome(), "experiments", `x-${name}-${arm}`));
-    const named = readExperiment(workspace.home);
-    if (named?.name !== name || named.arm !== arm) throw new ExperimentRefusal(`${workspace.home} is not the home of arm "${arm}" of experiment "${name}": make it with \`storytree experiment arm make ${name} ${arm}\` first`);
-    const checkout = path.join(workspace.home, "repo");
-    if (!existsSync(checkout)) throw new ExperimentRefusal(`arm "${arm}" has no checkout at ${checkout}: clone its repository there (\`gh repo clone storytree-ai/${workspace.project} ${checkout}\`) first`);
-    return { arm, project: workspace.project, home: workspace.home, checkout };
-  });
+  const arms = armRuns(experiment, name, path.join(storytreeHome(), "experiments"));
   if (!existsSync(rulesFile)) throw new ExperimentRefusal(`there are no lane rules at ${rulesFile}: name the file every arm lane's brief ends with`);
   const lanesRules = readFileSync(rulesFile, "utf8");
   const { lanesDir } = await lookWith(library.name);

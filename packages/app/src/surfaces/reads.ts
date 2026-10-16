@@ -11,7 +11,7 @@
  */
 import path from "node:path";
 
-import { lookAsApp, projectFolder, openActivityLog, pruneTranscripts, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
+import { lookAsApp, projectFolder, openActivityLog, pruneTranscripts, readingLines, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
 import { idleAfterMs, importsOf, leaveAfterMs, machineOf, storytreeHome, standingDelegations } from "@storytree/project-and-caller";
 import type { FactoryLink, Library, Storytree } from "@storytree/library";
 
@@ -126,7 +126,7 @@ export function pageReads({ storytree, transcriptCacheHome, home }: PageReadsOpt
       const known = await project(name);
       if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
       const opened = await activityLog();
-      const lines = await opened.lines(known, { sessions, has: ["transcript"], latestBy: ["session"], omit: ["command", "files"] });
+      const lines = await readingLines(opened, known, sessions);
       const cache = await transcripts(known);
       return Promise.all(sessions.map((session: string) => storedContextReading(opened, known, lines, session, { cache })));
     },
@@ -136,14 +136,14 @@ export function pageReads({ storytree, transcriptCacheHome, home }: PageReadsOpt
       const known = await project(name);
       if (typeof session !== "string") throw new Error("session must be a session id");
       const opened = await activityLog();
-      const lines = await opened.lines(known, { sessions: [session], has: ["transcript"], latestBy: ["session"], omit: ["command", "files"] });
+      const lines = await readingLines(opened, known, [session]);
       return storedSessionWindow(opened, known, lines, session, { cache: await transcripts(known) });
     },
     windowReadings: async (name, sessions) => {
       const known = await project(name);
       if (!Array.isArray(sessions) || !sessions.every((one) => typeof one === "string")) throw new Error("sessions must be a list of session ids");
       const opened = await activityLog();
-      const lines = await opened.lines(known, { sessions, has: ["transcript"], latestBy: ["session"], omit: ["command", "files"] });
+      const lines = await readingLines(opened, known, sessions);
       const cache = await transcripts(known);
       return Promise.all(sessions.map((session: string) => storedSessionWindow(opened, known, lines, session, { cache })));
     },

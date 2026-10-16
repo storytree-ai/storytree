@@ -15,7 +15,8 @@ import { MARKER_FILE } from "@storytree/project-and-caller";
 import { setSetting } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
-import { claudeCodeTokens, codexTokens, contextCommand, contextReading, readContext } from "./index.js";
+import { claudeCodeTokens, codexTokens, contextCommand, contextReading, readContext, sessionWindow } from "./index.js";
+import { transcriptLines } from "./context.js";
 import { CONTEXT_READING } from "./verbs.js";
 
 /** One Claude Code assistant line: a request's usage, as the harness records it. */
@@ -132,6 +133,36 @@ test("9.5 a session's reading is worked out when asked, from the transcript last
     // Nothing recorded for a session: an absence, and no other session's transcript stands in.
     const none = await readContext(log, project, "U", { now: new Date("2026-09-28T02:00:00.000Z") });
     assert.deepEqual(none, { session: "U", absent: "no hook has named this session's transcript", at: "2026-09-28T02:00:00.000Z" });
+  });
+});
+
+test("9.17 a Claude Code subagent's reading comes from its own transcript beside its parent's, every record of it counted, and its parent's reading still leaves it out", async () => {
+  await withProject(async (log, project, dir) => {
+    const parent = path.join(dir, "P.jsonl");
+    const own = path.join(dir, "P", "subagents", "agent-a1.jsonl");
+    writeFileSync(parent, jsonl(claudeLine("req_1", { input: 100, read: 1_000, created: 0 }), claudeLine("req_s", { input: 1, read: 900_000, created: 0 }, { isSidechain: true })));
+    mkdirSync(path.dirname(own), { recursive: true });
+    // Every record of a subagent's own file is a sidechain record, as Claude Code 2.1.284 writes it.
+    writeFileSync(own, jsonl(
+      JSON.stringify({ type: "user", isSidechain: true, agentId: "a1", message: { role: "user", content: "Find the reader" } }),
+      claudeLine("req_a", { input: 2, read: 37_000, created: 1_300 }, { isSidechain: true, agentId: "a1", message: { model: "claude-sonnet-5-5", role: "assistant", content: [{ type: "tool_use", id: "t1", name: "Read", input: { file_path: "context.ts" } }], usage: { input_tokens: 2, cache_read_input_tokens: 37_000, cache_creation_input_tokens: 1_300 } } }),
+      JSON.stringify({ type: "user", isSidechain: true, agentId: "a1", message: { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "export function transcriptOf" }] } }),
+    ));
+    const common = { harness: "claude-code", source: "hook", folder: dir, transcript: parent } as const;
+    await log.append(project, { ...common, session: "P", kind: "session-started" });
+    await log.append(project, { ...common, session: "P", kind: "subagent-started", subagent: "a1", type: "explorer", task: "Find the reader" });
+
+    const sub = await readContext(log, project, "a1", { home: dir });
+    assert.ok("tokens" in sub, `the subagent has a figure: ${JSON.stringify(sub)}`);
+    assert.equal(sub.tokens, 38_302);
+    assert.equal(sub.source, own);
+    assert.deepEqual(sub.composition, { injected: 38_297, grounding: 22, implementation: 21, other: 4, unsorted: [], charsPerToken: 3.8 }, "its composition sorts its own records");
+
+    const parentReading = await readContext(log, project, "P", { home: dir });
+    assert.equal("tokens" in parentReading && parentReading.tokens, 1_100, "the parent's figure still leaves its subagents out");
+
+    const window = await sessionWindow(await transcriptLines(log, project, "a1"), "a1");
+    assert.deepEqual("inView" in window && window.inView.map((piece) => piece.tool), ["Read"], "its window holds its own reads");
   });
 });
 

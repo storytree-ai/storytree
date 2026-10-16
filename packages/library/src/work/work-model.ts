@@ -518,7 +518,7 @@ function contractNumber(title: string): string | undefined {
 /** Its section of the habits card (ADR-1021, the guidance kind): planning stories, capabilities, contracts, arcs and increments. */
 export const planGuidance: readonly string[] = [
   [
-  "Plan first.",
+  "Plan first. When the user asks you to build or change something, plan it in storytree before you build it, even when they never mention storytree and the work is small: a story for what they will be able to do, a capability for each part that makes it work, and a contract for each promise its tests will keep. The plan is how the user watches the work grow, so asking only for the work is no reason to skip it.",
   "- `focus` shows what a file, capability, promise or story depends on (up) and what depends on it (down). Start with counts, then dry_run or a narrowed show; an oversized show refuses with counts.",
   "- `show_plan` shows the plan: every story, capability and contract with its health, who holds what, and which sessions are about. `health_worklist` lists the oldest capabilities that are not healthy, with why and who moves each: route each into an increment whose capabilities list names it, held on a question when only the owner can move it.",
   `- Plan a story (something a user can do) with \`plan_story\`, the parts that make it work with \`plan_capability\`, and each testable promise with \`plan_contract\`. ${CONTRACT_DEFINITION} A story or capability starts with its founding decision: what it is for, and the one choice that shapes it. Group stories under an initiative with \`plan_arc\`. Correct any of them with \`edit_plan\`, and \`retire_from_plan\` a capability or contract no longer wanted, with the reason.`,

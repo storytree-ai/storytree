@@ -16,7 +16,8 @@
  * - Sizes are the UTF-8 bytes of each record as serialised, at {@link CHARS_PER_TOKEN}. The groups
  *   are the window's intake over its life (a compaction's dropped records included), so a surface
  *   reads them as shares of tokens used, not as a second total.
- * - Subagent (`isSidechain`) lines are another window's and are left out; the harness's own
+ * - Subagent (`isSidechain`) lines are another window's and are left out, except in a subagent's own
+ *   transcript, where every record is one and all of them are its window (9.17); the harness's own
  *   bookkeeping records (`last-prompt`, queue logs and kin) are not content and are not counted.
  */
 import { isCount, isRecord, jsonLines, SYNTHETIC, type JsonRecord } from "./transcript.js";
@@ -137,13 +138,13 @@ function composed(text: string, fold: CompositionFold): Composition | undefined 
 }
 
 /** {@link claudeCodeComposition}, a record at a time. */
-export function claudeCodeCompositionFold(): CompositionFold {
+export function claudeCodeCompositionFold({ subagent = false }: { subagent?: boolean } = {}): CompositionFold {
   const { add, unknown, seen, unsorted, composition } = tally();
   const calls = new Map<string, CompositionGroup | undefined>();
   let floor: number | undefined;
 
   const take = (record: JsonRecord): void => {
-    if (record.isSidechain === true) return;
+    if (record.isSidechain === true && !subagent) return;
     const message = isRecord(record.message) ? record.message : undefined;
     if (floor === undefined && record.type === "assistant" && message !== undefined && message.model !== SYNTHETIC && isRecord(message.usage)) {
       const { input_tokens: input, cache_read_input_tokens: read, cache_creation_input_tokens: created } = message.usage;

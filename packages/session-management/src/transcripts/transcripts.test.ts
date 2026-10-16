@@ -4,7 +4,7 @@
  * are written to the real activity log on the Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
-import { appendFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -13,6 +13,7 @@ import pg from "pg";
 import { ACTIVITY_DATABASE, openActivityLog } from "../activity/index.js";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { contextReading, readingLines } from "../context/index.js";
 import { pruneTranscripts, scrub, shipTranscript, storedContextReading, storedSessionWindow, TranscriptCache } from "./index.js";
 
 // Fakes built at run time, so no scanner mistakes this file for a leak.
@@ -105,6 +106,47 @@ test("9.14 a reading asked again over a grown transcript parses only the records
         await storedContextReading(log, project, [line], session, { now: asked, cache });
         assert.equal(cache.parsed(project, session), 4, `${session}: an ask with nothing new parses nothing`);
       }
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("9.17 a subagent's reading on another machine comes from its records stored under its parent, as its file reads, and a grown one parses only what was stored since", async () => {
+  const project = uniqueProjectName();
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (dir) => {
+      const asked = new Date("2026-10-16T00:00:00Z");
+      const parent = path.join(dir, "P.jsonl");
+      const own = path.join(dir, "P", "subagents", "agent-a1.jsonl");
+      const record = (requestId: string, cached: number) => JSON.stringify({ type: "assistant", isSidechain: true, agentId: "a1", requestId,
+        message: { model: "claude-sonnet-5-5", usage: { input_tokens: 2, cache_read_input_tokens: cached }, content: [{ type: "text", text: "Looking." }] } });
+      writeFileSync(parent, `${JSON.stringify({ type: "assistant", requestId: "p1", message: { model: "claude-opus-5-5", usage: { input_tokens: 500 } } })}\n`);
+      mkdirSync(path.dirname(own), { recursive: true });
+      writeFileSync(own, `${JSON.stringify({ type: "user", isSidechain: true, agentId: "a1", message: { content: "Find it" } })}\n${record("r1", 30_000)}\n`);
+      const common = { session: "P", harness: "claude-code", source: "hook", transcript: parent } as const;
+      await log.append(project, { ...common, kind: "session-started" });
+      await log.append(project, { ...common, kind: "subagent-started", subagent: "a1" });
+      await shipTranscript(log, project, "P", parent);
+
+      const lines = await readingLines(log, project, ["P", "a1"]);
+      const cache = new TranscriptCache();
+      const first = await storedContextReading(log, project, lines, "a1", { now: asked, cache });
+      assert.equal("tokens" in first && first.tokens, 30_002);
+      assert.equal(first.source, own);
+      assert.equal(cache.parsed(project, "P", "a1"), 2);
+
+      appendFileSync(own, `${record("r2", 41_000)}\n`);
+      await shipTranscript(log, project, "P", parent);
+      const grown = await storedContextReading(log, project, lines, "a1", { now: asked, cache });
+      assert.equal("tokens" in grown && grown.tokens, 41_002);
+      assert.equal(cache.parsed(project, "P", "a1"), 3, "a later ask parses only the subagent's records stored since");
+      assert.deepEqual(grown, await storedContextReading(log, project, lines, "a1", { now: asked }), "and reads as the whole does");
+      assert.deepEqual(grown, await contextReading(lines, "a1", { now: asked }), "and as its own file does");
+
+      const parentReading = await storedContextReading(log, project, lines, "P", { now: asked, cache });
+      assert.equal("tokens" in parentReading && parentReading.tokens, 500, "the parent reads its own records only");
     });
   } finally {
     await log.close();

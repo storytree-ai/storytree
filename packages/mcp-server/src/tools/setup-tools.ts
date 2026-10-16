@@ -43,7 +43,9 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
       const heard = callerOf(context);
       // An MCP client storytree has no hooks for is connected: nothing of its hooks is asked for (6.64).
       const connected = tierOf(heard.harness) === "connected";
-      const report = await runSetupCheck({ ...setup, folder, ...(connected ? { connected: labelOf(heard.harness) } : {}) });
+      // The session calling is signed in to its own harness, whatever the tool server's ask of its CLI says (8.11).
+      const asking = heard.harness === "claude-code" ? "claude" : heard.harness === "codex" ? "codex" : undefined;
+      const report = await runSetupCheck({ ...setup, folder, ...(connected ? { connected: labelOf(heard.harness) } : {}), ...(asking === undefined ? {} : { asking }) });
       // A note (an optional tool missing) reaches the agent neither in the text nor in the data, so it is
       // never taken as work to do; storytree doctor and the app's diagnostics still show it.
       const told = report.lines.filter((line) => line.state !== "note" && !(line.check === "gh" && line.state === "ok"));

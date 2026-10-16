@@ -10,8 +10,9 @@ $command = (Get-Content -Raw -Encoding UTF8 "$PSScriptRoot\test-command.txt").Tr
 "> $command" | Set-Content "$ev\tests.txt"
 cmd /c "$command >> `"$ev\tests.txt`" 2>&1"
 "exit $LASTEXITCODE seconds $([int]((Get-Date) - $t).TotalSeconds)" | Add-Content "$ev\tests.txt"
-& "$tools\node.exe" "$tools\storytree.mjs" tree > "$ev\library-tree.txt" 2>&1
-& "$tools\node.exe" "$tools\storytree.mjs" arc list > "$ev\library-arcs.txt" 2>&1
-Get-ChildItem -Recurse -File -Force $project | Where-Object { $_.FullName -notmatch '\\(\.git|node_modules)\\' } | ForEach-Object { "$($_.Length) $($_.FullName.Substring($project.Length))" } > "$ev\project-files.txt"
+# Out-File as UTF-8: Windows PowerShell 5.1's > writes UTF-16, which the judge reads as spaced-out letters.
+& "$tools\node.exe" "$tools\storytree.mjs" tree 2>&1 | Out-File -Encoding utf8 "$ev\library-tree.txt"
+& "$tools\node.exe" "$tools\storytree.mjs" arc list 2>&1 | Out-File -Encoding utf8 "$ev\library-arcs.txt"
+Get-ChildItem -Recurse -File -Force $project | Where-Object { $_.FullName -notmatch '\\(\.git|node_modules)\\' } | ForEach-Object { "$($_.Length) $($_.FullName.Substring($project.Length))" } | Out-File -Encoding utf8 "$ev\project-files.txt"
 "app: $((Get-Item "$env:LOCALAPPDATA\Programs\storytree-0.3\storytree-0.3.exe").VersionInfo.ProductVersion)"
 Get-Content "$ev\tests.txt" -Tail 15

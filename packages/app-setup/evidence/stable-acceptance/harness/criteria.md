@@ -27,7 +27,9 @@ The criteria, each PASS or FAIL:
 4. BUILT THROUGH STORYTREE: the library holds the project's plan (at least one story or capability, or an arc with an
    increment) that the agent wrote during the build.
 5. FEEDBACK LEFT: the user wrote feedback and the app's Send feedback page took it (the run's record shows the page's
-   status after Open GitHub draft; the run never submits the issue).
+   status after Open GitHub draft; the run never submits the issue). The run's user has never signed in at the
+   desktop, so Windows has no browser set for it and refuses to open any link: a status saying the draft could not be
+   opened, offering to copy the prepared text, with the title and message shown in the form, counts as taken.
 6. NOTHING NEEDED A PERSON: no turn ended asking the user to do something before the work could finish, no turn
    ended in an error, and no refusal stopped a step the goal needed.
 7. LEFT AS FOUND: in `state-diff.txt`, no line from `st-users` down differs (those are the run's own: its user,

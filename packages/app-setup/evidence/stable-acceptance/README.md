@@ -9,12 +9,17 @@ on the Mint box.
 
 ## Status, 2026-10-16
 
-Proven on winlap with 0.3.1464 (`20261016-trial2-0.3.1464`): a fresh user made and removed, Claude Code installed
-for it, the stable one-liner installing exactly that build as stable (88 s), the app opening on its first-run guide,
-and screenshots of the app's own window from the run. **Not yet proven:** the user's turns, the feedback page, the
-re-run of the tests and the judge. The first turn could not sign in (below); the run now takes a long-lived Claude
-Code token for its user, which only the owner can make, and the question for him is on arc_312aa103bfca. The timer
-is not installed: it runs main's copy of this folder, so it goes in after this lands and the token exists.
+The whole run works on winlap with 0.3.1474 (`20261016T042441Z-0.3.1474` on the Mint box): a fresh user installed
+exactly that build with the stable one-liner, the app opened, the user's Claude Code passed the connection check and
+built the tip calculator, its 8 tests passed again under the run's own `npm test`, its feedback went into the Send
+feedback page, cleanup left the laptop as it was, and the judge passed six of seven criteria. It failed criterion 4:
+the agent planned nothing in storytree ("you only asked for the connection check and the app"), though the first-run
+guide promises a story appears as the agent plans. That is the product's gap, not the run's, and it is
+increment_5f4c0ba16db3; until it lands, every candidate fails the run and nothing is put to the owner.
+
+One run takes about 5 minutes (the user's turns about 1) and about $0.53 at list price, the judge $0.10 of it
+(`cost.mjs`): cheap enough for the weekly cadence the owner offered (`STABLE_ACCEPTANCE_INTERVAL_DAYS=7`). The timer
+is installed on the Mint box (`stable-acceptance.timer`), counting the fortnight from this run.
 
 ## What one run does
 
@@ -22,7 +27,7 @@ is not installed: it runs main's copy of this folder, so it goes in after this l
 |---|---|---|
 | before | owner's SSH login | `state.ps1` snapshot; `user.ps1 sweep` removes any user and profile an earlier run left |
 | user | owner's SSH login | `user.ps1 create`: a standard local user `st-<build>-<MMDDHHMM>` with a random password nobody keeps, the right to log on as a batch job, and an on-demand task `st-acc-<user>` |
-| prepare | the fresh user | Claude Code from its own installer, on the user's PATH; the run's token put in the run folder |
+| prepare | the fresh user | Claude Code from its own installer and Node LTS from nodejs.org, both on the user's PATH; the run's token put in the run folder |
 | install | the fresh user | the stable one-liner with `STORYTREE_ACCEPTANCE_VERSION`, answered 1 (Claude Code) and a project folder `~\tipjar` |
 | app | the fresh user | the app reopened with a DevTools port on 127.0.0.1; a screenshot of first open |
 | turn1 | the fresh user | the first-run guide's steps: the connection check, then a small tip calculator with tests (`prompts/turn-1.txt`) |
@@ -52,7 +57,12 @@ is not installed: it runs main's copy of this folder, so it goes in after this l
 - **Never copy a Claude Code sign-in between users.** On 2026-10-16 a trial user given a copy of the laptop's
   sign-in refreshed it; the refresh rotated the token, and the laptop's own Claude Code was signed out until the
   owner signs in again. The run uses a token made for it (`claude setup-token`), kept on the Mint box at
-  `~/storytree-lanes/secrets/stable-acceptance.claude-token` (or `STABLE_ACCEPTANCE_TOKEN_FILE`).
+  `~/storytree-lanes/secrets/stable-acceptance.claude-token` (or `STABLE_ACCEPTANCE_TOKEN_FILE`). A token pasted
+  from a wrapped terminal line arrives with spaces in it, which Claude Code reads as no sign-in: the run strips them.
+- **The run's user has no browser.** It never signed in at the desktop, so Windows refuses to open any link for it, and
+  the feedback page's Open GitHub draft falls back to "copy your prepared text"; the judge counts that as taken.
+- **The user needs Node**, as a developer's laptop has: the agent's test command is `npm test`, and without Node the
+  run measured the laptop, not the build.
 
 ## The routine
 

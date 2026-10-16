@@ -84,18 +84,21 @@ export class ContextFold {
   /** A harness storytree has no reader for: its transcript is never read as another's (contract 9.15). */
   readonly #unread: boolean;
   readonly #composition: CompositionFold;
+  /** The transcript is a subagent's own file, where every record is a sidechain record and all of them are its window (9.17). */
+  readonly subagent: boolean;
   #lines = 0;
   #records = 0;
   #latest: number | undefined;
 
-  constructor(harness: string | undefined) {
+  constructor(harness: string | undefined, { subagent = false }: { subagent?: boolean } = {}) {
     this.harness = harness;
+    this.subagent = subagent;
     // A line naming no harness is from before hooks named it: Claude Code's, the only harness then.
     const reader = harness === undefined ? "claude-code" : watchedHarness(harness)?.transcript;
     this.#unread = reader === undefined;
     this.#codex = reader === "codex";
     this.#pi = reader === "pi";
-    this.#composition = this.#codex ? codexCompositionFold() : claudeCodeCompositionFold();
+    this.#composition = this.#codex ? codexCompositionFold() : claudeCodeCompositionFold({ subagent });
   }
 
   /** Take the next piece of the transcript: whole lines, following the last piece fed. */
@@ -157,25 +160,53 @@ export class ContextFold {
       return;
     }
     const message = record.message;
-    if (!isRecord(message) || !isRecord(message.usage) || record.isSidechain === true || message.model === SYNTHETIC) return;
+    if (!isRecord(message) || !isRecord(message.usage) || (record.isSidechain === true && !this.subagent) || message.model === SYNTHETIC) return;
     const { input_tokens: input, cache_read_input_tokens: read, cache_creation_input_tokens: created } = message.usage;
     if (!isCount(input)) return;
     this.#latest = input + (isCount(read) ? read : 0) + (isCount(created) ? created : 0);
   }
 }
 
-/** The transcript last recorded for `session`, and its harness: what a hook named, never a folder's guess. */
-export function transcriptOf(lines: readonly Line[], session: string): { transcript: string; harness?: string } | undefined {
+/**
+ * Where a transcript's records are stored in the shared log: under the session whose hooks shipped
+ * them, as its own (`part` '') or as one of its subagents' (`part` the subagent's id).
+ */
+export type StoredAt = { readonly session: string; readonly part: string };
+
+/** A session's transcript as the hooks named it: its path, its harness, and where its records are stored. */
+export type NamedTranscript = { transcript: string; harness?: string; stored: StoredAt };
+
+/**
+ * The transcript last recorded for `session`, and its harness: what a hook named, never a folder's guess.
+ * A Claude Code subagent's hooks name only its parent's transcript, so a subagent's is the file Claude Code
+ * writes beside it, `<parent without .jsonl>/subagents/agent-<id>.jsonl`, named by the line its parent
+ * started it with (9.17), and stored under the parent by its id (ship.ts).
+ */
+export function transcriptOf(lines: readonly Line[], session: string): NamedTranscript | undefined {
   const line = lines.findLast((one) => one.session === session && one.transcript !== undefined);
-  if (line?.transcript === undefined) return undefined;
-  return line.harness === undefined ? { transcript: line.transcript } : { transcript: line.transcript, harness: line.harness };
+  if (line?.transcript !== undefined) {
+    const stored = { session, part: "" };
+    return line.harness === undefined ? { transcript: line.transcript, stored } : { transcript: line.transcript, harness: line.harness, stored };
+  }
+  const started = lines.findLast((one) => one.kind === "subagent-started" && one.subagent === session && one.transcript !== undefined
+    && (one.harness === undefined || watchedHarness(one.harness)?.transcript === "claude-code"));
+  if (started?.transcript === undefined) return undefined;
+  const stored = { session: started.session, part: session };
+  const transcript = subagentTranscript(started.transcript, session);
+  return started.harness === undefined ? { transcript, stored } : { transcript, harness: started.harness, stored };
+}
+
+/** The file Claude Code writes `subagent`'s transcript to, beside its parent's, in the parent path's own separators. */
+function subagentTranscript(parent: string, subagent: string): string {
+  const separator = parent.lastIndexOf("\\") > parent.lastIndexOf("/") ? "\\" : "/";
+  return [parent.replace(/\.jsonl$/, ""), "subagents", `agent-${subagent}.jsonl`].join(separator);
 }
 
 /**
  * Where a transcript's text comes from: its file on this machine by default, or the records its
- * hooks streamed into the shared log (ADR-0749 D3). Undefined when none of it is there yet.
+ * hooks streamed into the shared log (ADR-0749 D3), as `stored` says where. Undefined when none of it is there yet.
  */
-export type TranscriptReader = (transcript: string) => Promise<string | undefined>;
+export type TranscriptReader = (transcript: string, stored: StoredAt) => Promise<string | undefined>;
 
 /** The transcript file itself, on the machine the session ran on. */
 export const readTranscriptFile: TranscriptReader = (transcript) => readFile(transcript, "utf8");
@@ -187,7 +218,7 @@ export const NOTHING_STORED = "none of this session's transcript has reached the
  * A transcript's reading kept up to date by whoever holds it (9.14): the fold of everything stored
  * of `transcript` so far, or undefined when none of it is there yet.
  */
-export type TranscriptFolder = (transcript: string, harness: string | undefined) => Promise<ContextFold | undefined>;
+export type TranscriptFolder = (transcript: string, harness: string | undefined, stored: StoredAt) => Promise<ContextFold | undefined>;
 
 /**
  * `session`'s reading from `lines`, its transcript read now: from its file, unless `read` says
@@ -198,15 +229,15 @@ export async function contextReading(lines: readonly Line[], session: string,
   const at = now.toISOString();
   const named = transcriptOf(lines, session);
   if (named === undefined) return { session, absent: "no hook has named this session's transcript", at };
-  const { transcript, harness } = named;
+  const { transcript, harness, stored } = named;
   const who = harness === undefined ? { session } : { session, harness };
   let folded: ContextFold | undefined;
   try {
     if (fold !== undefined) {
-      folded = await fold(transcript, harness);
+      folded = await fold(transcript, harness, stored);
     } else {
-      const text = await read(transcript);
-      folded = text === undefined ? undefined : new ContextFold(harness).feed(text);
+      const text = await read(transcript, stored);
+      folded = text === undefined ? undefined : new ContextFold(harness, { subagent: stored.part !== "" }).feed(text);
     }
   } catch {
     return { ...who, absent: "the transcript named for this session cannot be read", at, source: transcript };
@@ -225,5 +256,18 @@ export async function readContext(log: ActivityLog, project: string, session: st
 
 /** The line that names `session`'s transcript, its latest: all a reading of it needs from the log (contract 2.7). */
 export function transcriptLines(log: ActivityLog, project: string, session: string): Promise<Line[]> {
-  return log.lines(project, { sessions: [session], has: ["transcript"], newest: 1, omit: ["command", "files"] });
+  return readingLines(log, project, [session]);
+}
+
+/**
+ * The lines that name each of `sessions`' transcripts, the latest for each (contract 2.7): a session's own,
+ * and for a subagent the line its parent started it with, which names the parent's (9.17).
+ */
+export async function readingLines(log: ActivityLog, project: string, sessions: readonly string[]): Promise<Line[]> {
+  const omit = ["command", "files"];
+  const [own, started] = await Promise.all([
+    log.lines(project, { sessions, has: ["transcript"], latestBy: ["session"], omit }),
+    log.lines(project, { kinds: ["subagent-started"], where: { subagent: sessions }, has: ["transcript"], latestBy: ["subagent"], omit }),
+  ]);
+  return [...own, ...started].sort((a, b) => a.seq - b.seq);
 }

@@ -156,7 +156,7 @@ test("9.17 a Claude Code subagent's reading comes from its own transcript beside
     assert.ok("tokens" in sub, `the subagent has a figure: ${JSON.stringify(sub)}`);
     assert.equal(sub.tokens, 38_302);
     assert.equal(sub.source, own);
-    assert.ok(!("absent" in sub.composition) && sub.composition.grounding > 0, "its composition sorts its own records");
+    assert.deepEqual(sub.composition, { injected: 38_297, grounding: 22, implementation: 21, other: 4, unsorted: [], charsPerToken: 3.8 }, "its composition sorts its own records");
 
     const parentReading = await readContext(log, project, "P", { home: dir });
     assert.equal("tokens" in parentReading && parentReading.tokens, 1_100, "the parent's figure still leaves its subagents out");

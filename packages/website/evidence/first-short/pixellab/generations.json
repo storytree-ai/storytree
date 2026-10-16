@@ -1,0 +1,656 @@
+{
+  "source": "PixelLab, https://www.pixellab.ai, REST api v2 (https://api.pixellab.ai/v2)",
+  "date": "2026-10-17",
+  "plan": "subscription (Tier 1: Pixel Apprentice), no USD credits",
+  "balance_before": 2000,
+  "balance_after": 1974,
+  "generations_used": 26,
+  "route": "create-image-pixen (side view, east, 48x48) -> edit-image-pixen to remove the desk it drew -> edit-image-pixen per pose keyframe -> animate-with-text-v3 (4 frames) per pose. assemble-cast.mjs places the 48x48 frames at (4,8) in 52x56 cells.",
+  "calls": [
+    {
+      "endpoint": "POST /create-image-pixen",
+      "request": {
+        "description": "side view of a young software developer sitting on a dark navy office chair, facing right, typing at a keyboard with both arms reaching forward to the right. short brown hair, orange long-sleeve top, blue jeans, grey shoes. the chair has a tall backrest on the left, a seat, a single post and a wheeled base. full body including the chair, feet on the floor. no desk.",
+        "image_size": {
+          "width": 64,
+          "height": 64
+        },
+        "view": "side",
+        "direction": "east",
+        "outline": "single color black outline",
+        "detail": "medium detail",
+        "no_background": true,
+        "seed": 1065
+      },
+      "ids": null,
+      "outputs": [],
+      "note": "first try at 64x64; the response was lost to a bug in the scratch client (output folder missing) and the call was re-sent unchanged as the next entry. Charged 1 generation."
+    },
+    {
+      "endpoint": "POST /create-image-pixen",
+      "request": {
+        "description": "side view of a young software developer sitting on a dark navy office chair, facing right, typing at a keyboard with both arms reaching forward to the right. short brown hair, orange long-sleeve top, blue jeans, grey shoes. the chair has a tall backrest on the left, a seat, a single post and a wheeled base. full body including the chair, feet on the floor. no desk.",
+        "image_size": {
+          "width": 64,
+          "height": 64
+        },
+        "view": "side",
+        "direction": "east",
+        "outline": "single color black outline",
+        "detail": "medium detail",
+        "no_background": true,
+        "seed": 1065
+      },
+      "ids": null,
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /create-image-pixen",
+      "request": {
+        "description": "isolated pixel art character, side view: a young software developer sitting on a dark navy office chair, facing right, both forearms held forward at elbow height as if typing on an invisible keyboard. short brown hair, orange long-sleeve top, blue jeans, grey shoes. office chair with tall backrest on the left, seat, single post, five-star wheeled base. full body and whole chair visible, wheels at the bottom edge. nothing else in the picture: no desk, no table, no monitor, no keyboard, empty transparent space to the right.",
+        "image_size": {
+          "width": 48,
+          "height": 56
+        },
+        "view": "side",
+        "direction": "east",
+        "outline": "single color black outline",
+        "detail": "medium detail",
+        "no_background": true,
+        "seed": 1065
+      },
+      "ids": null,
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /create-image-pixen",
+      "request": {
+        "description": "isolated pixel art character, side view: a young software developer sitting on a dark navy office chair, facing right, both forearms held forward at elbow height as if typing on an invisible keyboard. short brown hair, orange long-sleeve top, blue jeans, grey shoes. office chair with tall backrest on the left, seat, single post, five-star wheeled base. full body and whole chair visible, wheels at the bottom edge. nothing else in the picture: no desk, no table, no monitor, no keyboard, empty transparent space to the right.",
+        "image_size": {
+          "width": 48,
+          "height": 56
+        },
+        "view": "side",
+        "direction": "east",
+        "outline": "single color black outline",
+        "detail": "medium detail",
+        "no_background": true,
+        "seed": 1066
+      },
+      "ids": null,
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /create-image-pixen",
+      "request": {
+        "description": "isolated pixel art character, side view: a young software developer sitting on a dark navy office chair, facing right, both forearms held forward at elbow height as if typing on an invisible keyboard. short brown hair, orange long-sleeve top, blue jeans, grey shoes. office chair with tall backrest on the left, seat, single post, five-star wheeled base. full body and whole chair visible, wheels at the bottom edge. nothing else in the picture: no desk, no table, no monitor, no keyboard, empty transparent space to the right.",
+        "image_size": {
+          "width": 48,
+          "height": 48
+        },
+        "view": "side",
+        "direction": "east",
+        "outline": "single color black outline",
+        "detail": "medium detail",
+        "no_background": true,
+        "seed": 1065
+      },
+      "ids": null,
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /create-image-pixen",
+      "request": {
+        "description": "isolated pixel art character, side view: a young software developer sitting on a dark navy office chair, facing right, both forearms held forward at elbow height as if typing on an invisible keyboard. short brown hair, orange long-sleeve top, blue jeans, grey shoes. office chair with tall backrest on the left, seat, single post, five-star wheeled base. full body and whole chair visible, wheels at the bottom edge. nothing else in the picture: no desk, no table, no monitor, no keyboard, empty transparent space to the right.",
+        "image_size": {
+          "width": 48,
+          "height": 48
+        },
+        "view": "side",
+        "direction": "east",
+        "outline": "single color black outline",
+        "detail": "medium detail",
+        "no_background": true,
+        "seed": 1067
+      },
+      "ids": null,
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /create-image-pixen",
+      "request": {
+        "description": "isolated pixel art character, side view: a young software developer sitting on a dark navy office chair, facing right, both forearms held forward at elbow height as if typing on an invisible keyboard. short brown hair, orange long-sleeve top, blue jeans, grey shoes. office chair with tall backrest on the left, seat, single post, five-star wheeled base. full body and whole chair visible, wheels at the bottom edge. nothing else in the picture: no desk, no table, no monitor, no keyboard, empty transparent space to the right.",
+        "image_size": {
+          "width": 48,
+          "height": 48
+        },
+        "view": "side",
+        "direction": "east",
+        "outline": "single color black outline",
+        "detail": "medium detail",
+        "no_background": true,
+        "seed": 1068
+      },
+      "ids": null,
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/keyframes/base-with-desk.png"
+      ]
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: an unused first try (seed 1065), not kept>",
+          "format": "png"
+        },
+        "description": "remove the desk, the tabletop, the keyboard and the monitor completely so only the man and his office chair remain; his hands stay in the same typing position in the air. keep the man, his face, hair, clothes and the chair exactly the same",
+        "width": 48,
+        "height": 48,
+        "seed": 7,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "3d1f5ef9-fcec-4f4e-b6eb-c67db11886db",
+        "generation_id": "c17a05e7-4d5e-4653-a213-cbd24d0ef7f5"
+      },
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base-with-desk.png>",
+          "format": "png"
+        },
+        "description": "remove the desk, the tabletop, the keyboard and the monitor completely so only the man and his office chair remain; his hands stay in the same typing position in the air. keep the man, his face, hair, clothes and the chair exactly the same",
+        "width": 48,
+        "height": 48,
+        "seed": 7,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "3ca3b459-d510-457f-8ff4-257f8512ea8c",
+        "generation_id": "5e76f497-2e07-4829-a0ad-3866b4cadc68"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/keyframes/base.png"
+      ]
+    },
+    {
+      "endpoint": "POST /animate-with-text-v3",
+      "request": {
+        "first_frame": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base.png>",
+          "format": "png"
+        },
+        "action": "typing fast on a keyboard: only the hands and fingers move up and down quickly, the body, head, legs and chair stay perfectly still",
+        "frame_count": 4,
+        "seed": 11,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "c2c95187-44aa-44e0-b68a-ddb46a676e08",
+        "generation_id": "4a8ccb81-bf9b-463a-a5f6-5aa0020020af"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/typing-0.png",
+        "pixellab/typing-1.png",
+        "pixellab/typing-2.png",
+        "pixellab/typing-3.png",
+        "pixellab/typing-4.png"
+      ],
+      "sheet_frames": {
+        "pose": "typing",
+        "frames_played": [
+          "pixellab/typing-0.png",
+          "pixellab/typing-1.png",
+          "pixellab/typing-2.png",
+          "pixellab/typing-1.png"
+        ],
+        "note": "output 0 is PixelLab's echo of first_frame; 1-4 are the generated frames"
+      }
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base.png>",
+          "format": "png"
+        },
+        "description": "he slumps forward and buries his face in both hands, elbows bent, head bowed, shoulders hunched, frustrated. Keep his face, hair, orange top, jeans, shoes and the office chair exactly the same, chair in the same place, side view facing right, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 21,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "8e4001fb-cdb4-4516-b6bc-72b3cb8cd164",
+        "generation_id": "b92497ca-3874-4cb0-8a05-adf029feaeda"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/keyframes/frustrated.png"
+      ]
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base.png>",
+          "format": "png"
+        },
+        "description": "he leans back in the chair, relaxed, arms resting low on his lap, chin up, content small smile. Keep his face, hair, orange top, jeans, shoes and the office chair exactly the same, chair in the same place, side view facing right, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 21,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "c5622bfb-d91d-41a0-9eb4-656f13dc69ab",
+        "generation_id": "ab21d17d-6bcf-4919-9388-8f433c7aa096"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/keyframes/satisfied.png"
+      ]
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base.png>",
+          "format": "png"
+        },
+        "description": "he leans his upper body and head far forward to the right, peering closely, one hand still reaching forward low. Keep his face, hair, orange top, jeans, shoes and the office chair exactly the same, chair in the same place, side view facing right, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 21,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "1476c4d3-b654-4c5f-a24a-e20b8c823f60",
+        "generation_id": "afa83585-6bb3-466f-9e8b-93bea9515695"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/keyframes/inspecting-first.png"
+      ]
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base.png>",
+          "format": "png"
+        },
+        "description": "he sits back a little and rests his chin on his right hand, elbow bent, looking slightly upward with a puzzled face, other hand on his lap. Keep his face, hair, orange top, jeans, shoes and the office chair exactly the same, chair in the same place, side view facing right, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 21,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "0dfabfbd-4929-43e2-8bc7-b74182fde205",
+        "generation_id": "27e427ee-d35a-4f86-a4d1-f8fc31f26055"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/keyframes/thinking.png"
+      ]
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base.png>",
+          "format": "png"
+        },
+        "description": "he sits upright and calm, his right hand reaches forward and one index finger presses a single key, left hand resting forward lower. Keep his face, hair, orange top, jeans, shoes and the office chair exactly the same, chair in the same place, side view facing right, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 21,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "5faef646-9971-4aba-b699-6d64fc36905c",
+        "generation_id": "babd18d5-bee9-431b-959e-d215623a9e0d"
+      },
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base.png>",
+          "format": "png"
+        },
+        "description": "same typing pose, both forearms forward at the same height, but he sits very upright with a calm focused face and lifts one index finger slightly to press a single key. Keep his face, hair, orange top, jeans, shoes and the office chair exactly the same, chair in the same place, side view facing right, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 32,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "f2a13857-52a3-4bf2-8f71-57c228050bac",
+        "generation_id": "b707188e-eb61-4880-a573-3696fd99b26f"
+      },
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base.png>",
+          "format": "png"
+        },
+        "description": "same typing pose, both forearms forward at the same height, but he sits very upright with a calm focused face and lifts one index finger slightly to press a single key. Keep his face, hair, orange top, jeans, shoes and the office chair exactly the same, chair in the same place, side view facing right, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 31,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "6685bede-7ca2-4bea-a07c-2992dde9206d",
+        "generation_id": "f11eddc5-7134-4ae7-8169-de7697b710dd"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/keyframes/typing-exact.png"
+      ]
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base.png>",
+          "format": "png"
+        },
+        "description": "he leans his upper body and head forward to the right, peering closely at something in front of his face, both forearms still held forward at the same typing height as before. Keep his face, hair, orange top, jeans, shoes and the office chair exactly the same, chair in the same place, side view facing right, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 31,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "5917c355-f1a6-41a6-a483-5fb56ca6b173",
+        "generation_id": "97b65a35-632d-4bb9-bc9f-0689956378f8"
+      },
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/base.png>",
+          "format": "png"
+        },
+        "description": "he leans his upper body and head forward to the right, peering closely at something in front of his face, both forearms still held forward at the same typing height as before. Keep his face, hair, orange top, jeans, shoes and the office chair exactly the same, chair in the same place, side view facing right, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 32,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "7863b020-5c2c-40b0-8f66-b8b86a8e07bc",
+        "generation_id": "cf984cc0-bc26-4979-8bf4-9577ce5e8e86"
+      },
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/inspecting-first.png>",
+          "format": "png"
+        },
+        "description": "keep the strong forward lean, head and face close forward peering, but his arm is bent and his hand rests forward on an invisible desk at elbow height, hand level with his lower chest, not hanging down. keep the face, hair, clothes, jeans and chair exactly the same, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 41,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "3196f162-2fd1-4735-a2fb-f516899ac8de",
+        "generation_id": "ee8bc257-5a6f-445c-8022-d9ed00cdb530"
+      },
+      "generations": 1.0,
+      "outputs": null,
+      "note": "explored, not used"
+    },
+    {
+      "endpoint": "POST /edit-image-pixen",
+      "request": {
+        "image": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/inspecting-first.png>",
+          "format": "png"
+        },
+        "description": "keep the strong forward lean, head and face close forward peering, but his arm is bent and his hand rests forward on an invisible desk at elbow height, hand level with his lower chest, not hanging down. keep the face, hair, clothes, jeans and chair exactly the same, no desk.",
+        "width": 48,
+        "height": 48,
+        "seed": 42,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "5413015e-21cc-4685-9f72-a1fd2e661c43",
+        "generation_id": "bb9fda24-f27d-4288-a7d2-b7204c967f65"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/keyframes/inspecting.png"
+      ]
+    },
+    {
+      "endpoint": "POST /animate-with-text-v3",
+      "request": {
+        "first_frame": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/typing-exact.png>",
+          "format": "png"
+        },
+        "action": "typing slowly and deliberately: he presses one key with his index finger, lifts it, then presses another, calm and upright. The chair, legs and lower body stay perfectly still in place.",
+        "frame_count": 4,
+        "seed": 51,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "4e07ef43-8c04-4cc6-9db6-2d4d40296c23",
+        "generation_id": "98942bcd-fc2a-49f7-83bb-12263c17ada9"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/typing-exact-0.png",
+        "pixellab/typing-exact-1.png",
+        "pixellab/typing-exact-2.png",
+        "pixellab/typing-exact-3.png",
+        "pixellab/typing-exact-4.png"
+      ],
+      "sheet_frames": {
+        "pose": "typing-exact",
+        "frames_played": [
+          "pixellab/typing-exact-0.png",
+          "pixellab/typing-exact-1.png"
+        ],
+        "note": "output 0 is PixelLab's echo of first_frame; 1-4 are the generated frames"
+      }
+    },
+    {
+      "endpoint": "POST /animate-with-text-v3",
+      "request": {
+        "first_frame": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/frustrated.png>",
+          "format": "png"
+        },
+        "action": "frustrated: with his face in his hands he shakes his head slowly side to side and his shoulders heave. The chair, legs and lower body stay perfectly still in place.",
+        "frame_count": 4,
+        "seed": 51,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "bd186d45-1ac0-4c60-b6e8-646598953c75",
+        "generation_id": "eda2e6b4-0e49-47ec-865c-65fc68569043"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/frustrated-0.png",
+        "pixellab/frustrated-1.png",
+        "pixellab/frustrated-2.png",
+        "pixellab/frustrated-3.png",
+        "pixellab/frustrated-4.png"
+      ],
+      "sheet_frames": {
+        "pose": "frustrated",
+        "frames_played": [
+          "pixellab/frustrated-0.png",
+          "pixellab/frustrated-1.png",
+          "pixellab/frustrated-2.png",
+          "pixellab/frustrated-1.png"
+        ],
+        "note": "output 0 is PixelLab's echo of first_frame; 1-4 are the generated frames"
+      }
+    },
+    {
+      "endpoint": "POST /animate-with-text-v3",
+      "request": {
+        "first_frame": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/satisfied.png>",
+          "format": "png"
+        },
+        "action": "satisfied: leaning back relaxed he nods slowly once with a small content smile, breathing calmly. The chair, legs and lower body stay perfectly still in place.",
+        "frame_count": 4,
+        "seed": 51,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "67b6aa58-485c-433c-a569-c6abb81b7479",
+        "generation_id": "dd9582ed-c30d-4e16-b72e-23b4552171ea"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/satisfied-0.png",
+        "pixellab/satisfied-1.png",
+        "pixellab/satisfied-2.png",
+        "pixellab/satisfied-3.png",
+        "pixellab/satisfied-4.png"
+      ],
+      "sheet_frames": {
+        "pose": "satisfied",
+        "frames_played": [
+          "pixellab/satisfied-0.png",
+          "pixellab/satisfied-1.png",
+          "pixellab/satisfied-2.png",
+          "pixellab/satisfied-3.png"
+        ],
+        "note": "output 0 is PixelLab's echo of first_frame; 1-4 are the generated frames"
+      }
+    },
+    {
+      "endpoint": "POST /animate-with-text-v3",
+      "request": {
+        "first_frame": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/thinking.png>",
+          "format": "png"
+        },
+        "action": "thinking, puzzled: he taps his chin with his fingers and tilts his head slightly, glancing upward. The chair, legs and lower body stay perfectly still in place.",
+        "frame_count": 4,
+        "seed": 51,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "05b8d8e8-661c-4d4d-9633-e54ce039ae9c",
+        "generation_id": "ea146363-2da0-4676-897e-0da2a19ecd48"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/thinking-0.png",
+        "pixellab/thinking-1.png",
+        "pixellab/thinking-2.png",
+        "pixellab/thinking-3.png",
+        "pixellab/thinking-4.png"
+      ],
+      "sheet_frames": {
+        "pose": "thinking",
+        "frames_played": [
+          "pixellab/thinking-1.png",
+          "pixellab/thinking-2.png"
+        ],
+        "note": "output 0 is PixelLab's echo of first_frame; 1-4 are the generated frames"
+      }
+    },
+    {
+      "endpoint": "POST /animate-with-text-v3",
+      "request": {
+        "first_frame": {
+          "type": "base64",
+          "base64": "<image omitted: pixellab/keyframes/inspecting.png>",
+          "format": "png"
+        },
+        "action": "inspecting: leaning in, he peers closely at a screen in front of him, moving his head a little closer and back. The chair, legs and lower body stay perfectly still in place.",
+        "frame_count": 4,
+        "seed": 51,
+        "no_background": true
+      },
+      "ids": {
+        "background_job_id": "c85fd09e-98ea-4ff2-a9ef-50853ea48201",
+        "generation_id": "9eb4cd1a-d7c3-46da-ab58-18ab12c401e4"
+      },
+      "generations": 1.0,
+      "outputs": [
+        "pixellab/inspecting-0.png",
+        "pixellab/inspecting-1.png",
+        "pixellab/inspecting-2.png",
+        "pixellab/inspecting-3.png",
+        "pixellab/inspecting-4.png"
+      ],
+      "sheet_frames": {
+        "pose": "inspecting",
+        "frames_played": [
+          "pixellab/inspecting-1.png",
+          "pixellab/inspecting-2.png",
+          "pixellab/inspecting-3.png",
+          "pixellab/inspecting-2.png"
+        ],
+        "note": "output 0 is PixelLab's echo of first_frame; 1-4 are the generated frames"
+      }
+    }
+  ]
+}

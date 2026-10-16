@@ -1,0 +1,54 @@
+name: Linux acceptance run
+
+# The automated floor of the Linux acceptance (increment_46e44175295b), the twin of mac-acceptance.yml: the published
+# one-liner on a fresh ubuntu-latest runner under a virtual display, then the app, local Postgres, the setup check,
+# hooks and a small project, recorded by packages/app-setup/evidence/linux-acceptance/harness/run.sh and kept as an
+# artifact. A push to a linux-acceptance/ branch runs it before the workflow reaches main. The release workflow calls
+# it after every publish that carries a new Linux build, and harness/judge.sh fails the job when the app, its
+# database, the setup check or the hooks do not come up. The repository is public: no secret is used or printed.
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: Release channel to install (stable or development)
+        type: string
+        default: development
+      version:
+        description: The version the one-liner must install (the release just published)
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel to install (stable or development)
+        default: development
+      version:
+        description: On stable, a 0.3.<n> build to install as a stable user would get it, before the pin moves to it; empty takes the pin
+        default: ""
+  push:
+    branches: ["linux-acceptance/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # A stuck run must not keep the next release waiting for hours.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: packages/app-setup/evidence/linux-acceptance/harness
+      - name: Install with the one-liner and record what a first user sees
+        # On development the version is only judged (the release just published is latest); on stable it is installed.
+        env:
+          VERSION: ${{ inputs.version }}
+        run: bash packages/app-setup/evidence/linux-acceptance/harness/run.sh "$RUNNER_TEMP/linux-acceptance" "${{ inputs.channel || 'development' }}" "$VERSION"
+      - name: Fail unless the app, its database, the setup check and the hooks came up
+        run: bash packages/app-setup/evidence/linux-acceptance/harness/judge.sh "$RUNNER_TEMP/linux-acceptance" "${{ inputs.version }}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: linux-acceptance
+          path: ${{ runner.temp }}/linux-acceptance

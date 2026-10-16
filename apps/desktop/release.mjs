@@ -160,6 +160,7 @@ function publish(tag, version, release) {
   editNotes(tag, (body) => platformsNote(body, carried));
   gh("release", "edit", tag, "--repo", repository, "--draft=false", "--latest");
   output("mac", String(fresh.includes("mac")));
+  output("linux", String(fresh.includes("linux")));
 }
 
 function editNotes(tag, change) {

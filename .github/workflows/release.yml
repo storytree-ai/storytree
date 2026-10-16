@@ -97,6 +97,7 @@ jobs:
       contents: write
     outputs:
       mac: ${{ steps.publish.outputs.mac }}
+      linux: ${{ steps.publish.outputs.linux }}
     env:
       STORYTREE_RELEASE_VERSION: ${{ needs.source.outputs.version }}
       RELEASE_SHA: ${{ needs.source.outputs.sha }}
@@ -122,6 +123,17 @@ jobs:
     needs: [source, publish]
     if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.mac == 'true' }}
     uses: ./.github/workflows/mac-acceptance.yml
+    with:
+      channel: development
+      version: ${{ needs.source.outputs.version }}
+
+  # The Linux twin (increment_46e44175295b): the published development one-liner on a fresh GitHub Ubuntu runner must
+  # install this very version and bring up the app, its database, the setup check and the hooks. It runs only when
+  # the release carries a new Linux build, for the same reason as the Mac's.
+  linux-acceptance:
+    needs: [source, publish]
+    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.linux == 'true' }}
+    uses: ./.github/workflows/linux-acceptance.yml
     with:
       channel: development
       version: ${{ needs.source.outputs.version }}

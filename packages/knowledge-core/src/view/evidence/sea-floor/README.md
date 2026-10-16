@@ -32,3 +32,12 @@ Before is the same seed and the same three tilts, taken by the build this one am
 desktop page, 1440 × 960, dark theme, headless Chromium (SwiftShader), from the capture kit's `code-rows` seed (storytree's
 own library), Library pressed and tilted there by a real right-drag. `measurements.json` has each view's counts; `capture.mjs`
 asserts the floor is drawn with notes on it at every tilt and that some note is pulled toward two islands.
+
+## After the librarian pass (increment_b25c1e045533)
+
+The pass linked 19 sea-floor notes to the stories they are about and left 22 there with a reason. Its table is on the increment. On a fresh
+read-only snapshot of storytree's library, 2026-10-16, the floor held 41 notes of the kinds shown at opening before the pass (117 of
+every kind) and 22 after (97). `library-below-after-pass.png` is the after picture, drawn from below (140°) by `capture.mjs` on that
+snapshot. The committed seed is unchanged, so `--retake` redraws the pictures above, not this one.
+
+![](library-below-after-pass.png)

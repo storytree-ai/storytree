@@ -9,7 +9,7 @@
  *   of a file. Nothing is inferred from timing, order or wording.
  * - A compaction (Claude Code's `compact_boundary`, Codex's `compacted`) drops what came before it,
  *   except the segment Claude Code says it kept. A subagent's (`isSidechain`) records are another
- *   window's and are left out.
+ *   window's and are left out, except from a subagent's own transcript, where they are its window (9.17).
  * - A glimpse means only that a note's id is in a result the window holds. It never says the session
  *   followed anything (ADR-0740 D3), and nothing decides anything from it (D4).
  */
@@ -169,12 +169,12 @@ function fold(steps: readonly Step[]): WindowReading {
 }
 
 /** A Claude Code transcript's window. Positions are steps, so a kept segment is named by the steps its records made. */
-export function claudeCodeWindow(text: string): WindowReading {
+export function claudeCodeWindow(text: string, { subagent = false }: { subagent?: boolean } = {}): WindowReading {
   const records = jsonLines(text);
   const steps: Step[] = [];
   const stepsOf = new Map<string, number[]>();
   for (const record of records === "empty" ? [] : records) {
-    if (record.isSidechain === true) continue;
+    if (record.isSidechain === true && !subagent) continue;
     const made: number[] = [];
     const push = (step: Step): void => { made.push(steps.length); steps.push(step); };
     if (record.type === "system" && record.subtype === "compact_boundary") {
@@ -255,7 +255,7 @@ export async function sessionWindow(lines: readonly Line[], session: string,
   const at = now.toISOString();
   const named = transcriptOf(lines, session);
   if (named === undefined) return { session, absent: "no hook has named this session's transcript", at };
-  const { transcript, harness } = named;
+  const { transcript, harness, stored } = named;
   const who = harness === undefined ? { session } : { session, harness };
   // A line naming no harness is from before hooks named it: Claude Code's. A harness with no window reader here (Pi's
   // transcript is read for its context only) is never read as another's (as 9.15's fold).
@@ -264,10 +264,10 @@ export async function sessionWindow(lines: readonly Line[], session: string,
   if (reader === undefined) return { ...who, absent: `storytree reads no transcript of ${labelOf(harness)}`, at, source: transcript };
   let text: string | undefined;
   try {
-    text = await read(transcript);
+    text = await read(transcript, stored);
   } catch {
     return { ...who, absent: "the transcript named for this session cannot be read", at, source: transcript };
   }
   if (text === undefined) return { ...who, absent: NOTHING_STORED, at, source: transcript };
-  return { ...who, ...(reader === "codex" ? codexWindow(text) : claudeCodeWindow(text)), at, source: transcript };
+  return { ...who, ...(reader === "codex" ? codexWindow(text) : claudeCodeWindow(text, { subagent: stored.part !== "" })), at, source: transcript };
 }

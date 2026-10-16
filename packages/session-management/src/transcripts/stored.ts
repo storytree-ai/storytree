@@ -10,7 +10,7 @@ import path from "node:path";
 
 import type { ActivityLog } from "../activity/index.js";
 import type { Line } from "@storytree/library";
-import { ContextFold, contextReading, transcriptLines, type ContextReading, type TranscriptReader } from "../context/context.js";
+import { ContextFold, contextReading, transcriptLines, type ContextReading, type StoredAt, type TranscriptReader } from "../context/context.js";
 import { sessionWindow, type SessionWindow } from "../context/window.js";
 
 /** How long raw transcript records are kept: 180 days (D4). */
@@ -37,6 +37,9 @@ interface Batch {
 
 const NOTHING: Held = { records: [], finish: 0 };
 
+/** What a cache holds one stored transcript under: its session's, and the part's when it is a subagent's (9.17). */
+const keyOf = (project: string, session: string, part: string): string => (part === "" ? `${project}\0${session}` : `${project}\0${session}\0${part}`);
+
 /**
  * What a reader that asks again and again (the app, every 10 seconds) already has of each session's
  * stored transcript, so each ask fetches only the records stored since. Given a folder, it also keeps
@@ -55,9 +58,9 @@ export class TranscriptCache {
     this.#dir = dir;
   }
 
-  /** `session`'s own transcript as stored in `project`'s log: what is held, and what was stored since. */
-  async read(log: ActivityLog, project: string, session: string): Promise<string | undefined> {
-    const now = await this.#advance(log, project, session);
+  /** `session`'s own transcript as stored in `project`'s log, or its subagent `part`'s: what is held, and what was stored since. */
+  async read(log: ActivityLog, project: string, session: string, part = ""): Promise<string | undefined> {
+    const now = await this.#advance(log, project, session, part);
     return now.records.length === 0 ? undefined : now.records.join("\n");
   }
 
@@ -65,11 +68,11 @@ export class TranscriptCache {
    * `session`'s context reading folded from its stored transcript, fed only the records stored since
    * the last ask, so an ask over a long session costs what it gained (9.14); undefined while none is stored.
    */
-  async fold(log: ActivityLog, project: string, session: string, harness: string | undefined): Promise<ContextFold | undefined> {
-    const key = `${project}\0${session}`;
-    const now = await this.#advance(log, project, session);
+  async fold(log: ActivityLog, project: string, session: string, harness: string | undefined, part = ""): Promise<ContextFold | undefined> {
+    const key = keyOf(project, session, part);
+    const now = await this.#advance(log, project, session, part);
     let kept = this.#folds.get(key);
-    if (kept === undefined || kept.fold.harness !== harness || kept.taken > now.records.length) kept = { fold: new ContextFold(harness), taken: 0 };
+    if (kept === undefined || kept.fold.harness !== harness || kept.taken > now.records.length) kept = { fold: new ContextFold(harness, { subagent: part !== "" }), taken: 0 };
     if (now.records.length > kept.taken) {
       kept.fold.feed(now.records.slice(kept.taken).join("\n"));
       kept.taken = now.records.length;
@@ -78,15 +81,15 @@ export class TranscriptCache {
     return now.records.length === 0 ? undefined : kept.fold;
   }
 
-  /** How many lines of `session`'s stored transcript its context reading has parsed. */
-  parsed(project: string, session: string): number {
-    return this.#folds.get(`${project}\0${session}`)?.fold.parsed ?? 0;
+  /** How many lines of `session`'s stored transcript, or its subagent `part`'s, its context reading has parsed. */
+  parsed(project: string, session: string, part = ""): number {
+    return this.#folds.get(keyOf(project, session, part))?.fold.parsed ?? 0;
   }
 
-  #advance(log: ActivityLog, project: string, session: string): Promise<Held> {
-    const key = `${project}\0${session}`;
-    const before = this.#held.get(key) ?? this.#load(log, project, session);
-    const after = before.then((had) => this.#add(log, project, session, had));
+  #advance(log: ActivityLog, project: string, session: string, part: string): Promise<Held> {
+    const key = keyOf(project, session, part);
+    const before = this.#held.get(key) ?? this.#load(log, project, session, part);
+    const after = before.then((had) => this.#add(log, project, session, part, had));
     this.#held.set(key, after.catch(() => before));
     return after;
   }
@@ -95,13 +98,13 @@ export class TranscriptCache {
   async forget(project: string, session: string): Promise<void> {
     this.#held.delete(`${project}\0${session}`);
     this.#folds.delete(`${project}\0${session}`);
-    const file = this.#file(project, session);
+    const file = this.#file(project, session, "");
     if (file !== undefined) await rm(file, { force: true }).catch(() => {});
   }
 
-  #file(project: string, session: string): string | undefined {
+  #file(project: string, session: string, part: string): string | undefined {
     if (this.#dir === undefined) return undefined;
-    return path.join(this.#dir, `${createHash("sha256").update(`${project}\0${session}`).digest("hex").slice(0, 32)}.jsonl`);
+    return path.join(this.#dir, `${createHash("sha256").update(keyOf(project, session, part)).digest("hex").slice(0, 32)}.jsonl`);
   }
 
   /**
@@ -109,8 +112,8 @@ export class TranscriptCache {
    * does not continue from the one before, is left out, and the file is written again without it.
    * A store holding less than was kept (emptied, or not the one it came from) leaves nothing kept.
    */
-  async #load(log: ActivityLog, project: string, session: string): Promise<Held> {
-    const file = this.#file(project, session);
+  async #load(log: ActivityLog, project: string, session: string, part: string): Promise<Held> {
+    const file = this.#file(project, session, part);
     if (file === undefined) return NOTHING;
     let text: string;
     try {
@@ -131,7 +134,7 @@ export class TranscriptCache {
       records.push(...batch.records);
       finish = batch.finish;
     }
-    if (finish > 0 && ((await log.transcripts.cursors(project, session)).get("") ?? 0) < finish) {
+    if (finish > 0 && ((await log.transcripts.cursors(project, session)).get(part) ?? 0) < finish) {
       await rm(file, { force: true }).catch(() => {});
       return NOTHING;
     }
@@ -140,11 +143,11 @@ export class TranscriptCache {
     return held;
   }
 
-  async #add(log: ActivityLog, project: string, session: string, had: Held): Promise<Held> {
-    const added = await log.transcripts.since(project, session, had.finish);
+  async #add(log: ActivityLog, project: string, session: string, part: string, had: Held): Promise<Held> {
+    const added = await log.transcripts.since(project, session, had.finish, part);
     if (added.records.length === 0) return had;
     const now = { records: [...had.records, ...added.records], finish: added.finish };
-    const file = this.#file(project, session);
+    const file = this.#file(project, session, part);
     if (file !== undefined) await this.#write(file, { from: had.finish, ...added }, "append");
     return now;
   }
@@ -177,10 +180,10 @@ function parseBatch(line: string): Batch | undefined {
   }
 }
 
-/** A reader of `session`'s own transcript as stored in `project`'s log, through `cache` when given. */
-function storedReader(log: ActivityLog, project: string, session: string, cache?: TranscriptCache): TranscriptReader {
-  if (cache === undefined) return () => log.transcripts.text(project, session);
-  return () => cache.read(log, project, session);
+/** A reader of a transcript as stored in `project`'s log where its line says, through `cache` when given. */
+function storedReader(log: ActivityLog, project: string, cache?: TranscriptCache): TranscriptReader {
+  if (cache === undefined) return (_transcript, { session, part }: StoredAt) => log.transcripts.text(project, session, part);
+  return (_transcript, { session, part }: StoredAt) => cache.read(log, project, session, part);
 }
 
 interface StoredOptions {
@@ -200,7 +203,7 @@ export async function storedContextReading(log: ActivityLog, project: string, li
   return contextReading(lines, session, {
     ...(now === undefined ? {} : { now }),
     ...(home === undefined ? {} : { home }),
-    ...(cache === undefined ? { read: storedReader(log, project, session) } : { fold: (_transcript, harness) => cache.fold(log, project, session, harness) }),
+    ...(cache === undefined ? { read: storedReader(log, project) } : { fold: (_transcript, harness, stored) => cache.fold(log, project, stored.session, harness, stored.part) }),
   });
 }
 
@@ -212,7 +215,7 @@ export async function storedSessionWindow(log: ActivityLog, project: string, lin
     await cache?.forget(project, session);
     return kept.window;
   }
-  return sessionWindow(lines, session, { ...(now === undefined ? {} : { now }), read: storedReader(log, project, session, cache) });
+  return sessionWindow(lines, session, { ...(now === undefined ? {} : { now }), read: storedReader(log, project, cache) });
 }
 
 /**
@@ -225,7 +228,7 @@ export async function pruneTranscripts(log: ActivityLog, { now = new Date(), hom
   for (const { project, session } of await log.transcripts.storedBefore(before)) {
     if ((await log.transcripts.kept(project, session)) !== undefined) continue;
     const own = await transcriptLines(log, project, session);
-    const read = storedReader(log, project, session);
+    const read = storedReader(log, project);
     const kept: Kept = {
       context: await contextReading(own, session, { now, ...(home === undefined ? {} : { home }), read }),
       window: await sessionWindow(own, session, { now, read }),

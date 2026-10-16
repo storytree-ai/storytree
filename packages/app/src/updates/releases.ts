@@ -21,6 +21,8 @@ export interface ReleaseOptions {
   readonly releaseChannel?: () => ReleaseChannel;
   /** On macOS, the app bundle a restart opens once Squirrel has installed into it; by default the one holding this executable. */
   readonly bundle?: string;
+  /** On Linux, this app was started with --no-sandbox (its menu entry's, where the kernel blocks the sandbox), so the replaced AppImage is too. */
+  readonly sandboxOff?: boolean;
 }
 
 type Check = "current" | "waiting" | "restarting" | "stopped";
@@ -86,12 +88,14 @@ class MacRelease extends MacUpdater {
 /**
  * The AppImage's own install: electron-updater replaces the AppImage file (APPIMAGE) with the verified
  * download, which needs no admin password, then starts it. That start goes through the handoff, so the
- * database stops first; the running app keeps its mount of the replaced file until it exits.
+ * database stops first; the running app keeps its mount of the replaced file until it exits. electron-updater
+ * starts it with no arguments, so a sandbox turned off by the menu entry is turned off again here: without it, a
+ * kernel that blocks the sandbox (stock Ubuntu 24.04) never starts the new build.
  */
 class AppImageRelease extends AppImageUpdater {
   private started: Promise<void> | undefined;
 
-  constructor(private readonly handoff: Handoff, app?: AppAdapter) {
+  constructor(private readonly handoff: Handoff, app?: AppAdapter, _bundle?: string, private readonly sandboxOff = false) {
     super(undefined, app);
   }
 
@@ -102,7 +106,7 @@ class AppImageRelease extends AppImageUpdater {
   }
 
   protected override spawnLog(command: string, args: string[] = []): Promise<boolean> {
-    this.started = this.handoff({ execPath: command, args });
+    this.started = this.handoff({ execPath: command, args: this.sandboxOff ? ["--no-sandbox", ...args] : args });
     return this.started.then(() => true);
   }
 }
@@ -122,7 +126,7 @@ type Release = NsisRelease | MacRelease | AppImageRelease;
  * Each platform's base: Windows installs through NSIS, macOS through Squirrel.Mac, Linux by replacing
  * its AppImage. Elsewhere installed apps do not update.
  */
-const BASES: Partial<Record<NodeJS.Platform, new (handoff: Handoff, app?: AppAdapter, bundle?: string) => Release>> = {
+const BASES: Partial<Record<NodeJS.Platform, new (handoff: Handoff, app?: AppAdapter, bundle?: string, sandboxOff?: boolean) => Release>> = {
   win32: NsisRelease,
   darwin: MacRelease,
   linux: AppImageRelease,
@@ -154,7 +158,7 @@ export class ReleaseUpdater {
   constructor(private readonly options: ReleaseOptions, app?: AppAdapter, platform: NodeJS.Platform = process.platform) {
     const Base = releaseBase(platform);
     if (Base === undefined) throw new Error(`Installed apps do not update from releases on ${platform}`);
-    this.base = new Base((target) => this.options.restart(target, true), app, options.bundle);
+    this.base = new Base((target) => this.options.restart(target, true), app, options.bundle, options.sandboxOff);
     this.base.autoDownload = false;
     this.base.autoInstallOnAppQuit = false;
     this.base.allowPrerelease = false;

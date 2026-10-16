@@ -77,7 +77,7 @@ exit [lindex $result 3]
 EXP
 step install expect "$OUT/answer.exp" "$ONE_LINER"
 # The version the installed AppImage's own desktop entry says it is, read without mounting it, as install.sh does.
-step version sh -c "cd \"\$(mktemp -d)\" && '$APP/storytree-0.3' --appimage-extract storytree-0.3.desktop >/dev/null && sed -n 's/^X-AppImage-Version=//p' squashfs-root/storytree-0.3.desktop"
+step version sh -c "cd \"\$(mktemp -d)\" && '$APP/storytree-0.3' --appimage-extract storytree-0.3.desktop >/dev/null && sed -n 's/^X-AppImage-Version=//p' squashfs-root/storytree-0.3.desktop | grep ."
 sleep 10
 shot first-open
 

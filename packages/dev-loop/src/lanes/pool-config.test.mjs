@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 
 import { poolConfig } from "./pool-config.mjs";
 
 /** The checkout these tests run in, as Git names it. */
-const CHECKOUT = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: import.meta.dirname, encoding: "utf8" }).trim();
+const CHECKOUT = resolve(execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: import.meta.dirname, encoding: "utf8" }).trim());
 
 async function configFile(t, fields) {
   const dir = await mkdtemp(join(tmpdir(), "pool-config-"));

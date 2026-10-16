@@ -1,9 +1,11 @@
 /**
  * Capability 4 · Experiment record and freeze. The `experiment` verbs, declared here (ADR-1033 D3) and named under `verbs`
  * in the package's manifest, so the command line mounts them as its `experiment` family: freezing a record (capability 4)
- * and reading its curves (capability 5). No tool serves them yet.
+ * and reading its curves (capability 5), with `experiment arm` within it (capability 2). No tool serves them yet.
  */
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
+
+import { ARM_FAMILY } from "../arm-verbs.js";
 
 const freezeVerb = verb({
   consumers: ["agent"],
@@ -42,7 +44,8 @@ const curvesVerb = verb({
 /** The `experiment` family. */
 export const EXPERIMENT_FAMILIES: readonly VerbFamily[] = [{
   name: "experiment",
-  summary: "write an experiment down before it runs (ADR-1064)",
+  summary: "write an experiment down before it runs, give its arms throwaway libraries, and read its curves (ADR-1064)",
   order: 27,
   verbs: [freezeVerb, curvesVerb],
+  families: [ARM_FAMILY],
 }];

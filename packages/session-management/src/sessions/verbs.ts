@@ -105,6 +105,6 @@ export const SESSION_VERBS: readonly Verb<VerbInputs, SessionVerbContext>[] = [l
 export const SESSION_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [
   { name: "noticeboard", summary: "who is on what right now (read only)", order: 5, verbs: NOTICEBOARD_VERBS, bare: NOTICEBOARD_BOARD },
   { name: "context", summary: "how full this session's context is (Session management's)", order: 31, verbs: [], bare: CONTEXT_READING },
-  { name: "session", summary: "list the running sessions, name this one, close it out, or read how long hooks took (Session management's)", order: 32, verbs: SESSION_VERBS },
-  { name: "machine", summary: "the computers that work on this project, and this one's short name (Session management's)", order: 33, verbs: MACHINE_VERBS },
+  { name: "session", summary: "list the running sessions, name this one, close it out, or read how long hooks took (Session management's)", order: 33, verbs: SESSION_VERBS },
+  { name: "machine", summary: "the computers that work on this project, and this one's short name (Session management's)", order: 34, verbs: MACHINE_VERBS },
 ];

@@ -12,7 +12,7 @@ import path from "node:path";
 import { toolPaths, verifyPayload } from "@storytree/app-setup/deliver";
 import { AUTH_SCHEME } from "@storytree/identity/desktop";
 import { checkTools } from "./check-tools.mjs";
-import { gatekeeperSkip } from "./mac-signing.mjs";
+import { gatekeeperSkip, staplerSkip } from "./mac-signing.mjs";
 import { startsCleanly } from "./src/main/start-check.ts";
 
 assert.equal(`${process.platform}-${process.arch}`, "darwin-arm64", "Run this proof on Apple Silicon macOS");
@@ -33,9 +33,19 @@ try {
   }
   // Gatekeeper accepts only a Developer ID signature that Apple has notarised (increment_9d05fb8a164b).
   const answerFile = path.join(release, "mac-notarisation.json");
-  const skip = gatekeeperSkip({ adHoc, answer: existsSync(answerFile) ? JSON.parse(readFileSync(answerFile, "utf8")) : undefined });
+  const answer = existsSync(answerFile) ? JSON.parse(readFileSync(answerFile, "utf8")) : undefined;
+  const skip = gatekeeperSkip({ adHoc, answer });
   if (skip) console.log(`Gatekeeper assessment NOT RUN: ${skip}`);
   else execFileSync("spctl", ["--assess", "--type", "execute", "--verbose=2", app], { stdio: "inherit" });
+  // A stapled ticket lets Gatekeeper accept a first open with no network: checked on the app the update zip carries.
+  const unstapled = staplerSkip({ adHoc, answer });
+  if (unstapled) console.log(`Stapled ticket NOT RUN: ${unstapled}`);
+  else {
+    const unzipped = path.join(temp, "zip");
+    execFileSync("ditto", ["-x", "-k", path.join(release, `storytree-0.3-${version}-mac-arm64.zip`), unzipped]);
+    execFileSync("xcrun", ["stapler", "validate", path.join(unzipped, "storytree-0.3.app")], { stdio: "inherit" });
+    console.log("The app in the zip carries its stapled notarisation ticket.");
+  }
 
   const resources = path.join(app, "Contents", "Resources");
   // macOS hands a sign-in's storytree-auth callback only to an app whose Info.plist declares the scheme (identity 2.5).

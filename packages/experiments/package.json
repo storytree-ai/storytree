@@ -4,15 +4,27 @@
   "type": "module",
   "description": "The Experiments story (story_c2dbcf855db2, ADR-1064): an experiment written down before it runs, its arms run in isolation, and its curves read.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./verbs": "./src/record/verbs.ts",
+    "./record": "./src/record/record.ts"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "EXPERIMENT_FAMILIES"
+      }
+    ]
   },
   "scripts": {
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@storytree/library": "workspace:*",
     "@storytree/project-and-caller": "workspace:*"
   },
   "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"

@@ -19,8 +19,9 @@ import { publishStable } from "./stable-github.js";
 import { pinStable } from "./stable-pin.js";
 
 type Platform = "win32" | "darwin" | "linux";
-/** AppImageUpdater replaces the AppImage with a POSIX `mv`, which a Windows host lacks. */
-const PLATFORMS: readonly Platform[] = ["win32", "darwin", ...(process.platform === "win32" ? [] : ["linux" as const])];
+const PLATFORMS: readonly Platform[] = ["win32", "darwin", "linux"];
+/** AppImageUpdater replaces the AppImage with a POSIX `mv`, which a Windows host lacks; Linux and macOS hosts run these. */
+const hostRuns = (platform: Platform) => ({ skip: platform === "linux" && process.platform === "win32" ? "the AppImage install needs a POSIX mv, which Windows lacks" : false });
 
 /**
  * Electron's Squirrel.Mac autoUpdater, which MacUpdater takes from require("electron"): it fetches
@@ -133,7 +134,7 @@ test("4.4 the platform picks the updater's base: NSIS on Windows, Squirrel.Mac o
 });
 
 for (const platform of PLATFORMS) {
-  test(`4.4 ${platform}: an installed app downloads a newer release, waits for a seed, stops its database and restarts through ${{ win32: "NSIS", darwin: "Squirrel.Mac", linux: "the replaced AppImage" }[platform]}`, async (t) => {
+  test(`4.4 ${platform}: an installed app downloads a newer release, waits for a seed, stops its database and restarts through ${{ win32: "NSIS", darwin: "Squirrel.Mac", linux: "the replaced AppImage" }[platform]}`, hostRuns(platform), async (t) => {
     const feed = await fixture(t, platform);
     let writing = true;
     let finishStop!: () => void;
@@ -178,7 +179,7 @@ for (const platform of PLATFORMS) {
     assert.equal(feed.downloads, 1);
   });
 
-  test(`4.4 ${platform}: a downloaded release waits for a quiet moment, says it is pending, and installs when the user asks`, async (t) => {
+  test(`4.4 ${platform}: a downloaded release waits for a quiet moment, says it is pending, and installs when the user asks`, hostRuns(platform), async (t) => {
     const feed = await fixture(t, platform);
     feed.version = "0.3.2";
     const launches: Launch[] = [];
@@ -194,7 +195,7 @@ for (const platform of PLATFORMS) {
   });
 
   for (const entry of ["automatic", "menu"] as const) {
-    test(`4.4 ${platform}: the ${entry} release restart keeps its window open while a snapshot is being written`, async (t) => {
+    test(`4.4 ${platform}: the ${entry} release restart keeps its window open while a snapshot is being written`, hostRuns(platform), async (t) => {
       const feed = await fixture(t, platform);
       feed.version = "0.3.2";
       let finishSnapshot!: () => void;
@@ -289,7 +290,7 @@ test("4.12 an explicit install overrides a run hold but still waits for a seed",
 });
 
 for (const platform of PLATFORMS) {
-  test(`4.5 ${platform}: a failed feed or corrupt download leaves the app running and can be retried; equal and older releases never restart it`, async (t) => {
+  test(`4.5 ${platform}: a failed feed or corrupt download leaves the app running and can be retried; equal and older releases never restart it`, hostRuns(platform), async (t) => {
     const feed = await fixture(t, platform);
     const launches: Launch[] = [];
     const updater = feed.updater(async (target) => { launches.push(target); }, async () => true);
@@ -307,7 +308,7 @@ for (const platform of PLATFORMS) {
     assert.equal(launches.length, 1);
   });
 
-  test(`4.5 ${platform}: repeated checks share one download and quitting prevents a pending install`, async (t) => {
+  test(`4.5 ${platform}: repeated checks share one download and quitting prevents a pending install`, hostRuns(platform), async (t) => {
     const feed = await fixture(t, platform);
     feed.version = "0.3.2";
     const updater = feed.updater(async () => { assert.fail("must not restart after stopping updates"); }, async () => false);

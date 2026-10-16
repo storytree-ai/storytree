@@ -35,6 +35,12 @@ const common = {
    * recorded", and nothing decides anything from it (D4).
    */
   causedBy: z.number().int().positive().optional(),
+  /**
+   * The experiment and arm whose lane wrote the line (ADR-1064 D2, D4), stamped by the log that wrote it as its
+   * storytree home's settings name them, so an arm's lines are read apart from the rest. A line outside any experiment names neither.
+   */
+  experiment: z.string().min(1).optional(),
+  arm: z.string().min(1).optional(),
 };
 
 /**
@@ -109,10 +115,11 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * names it (a command, `storytree arc show`, or a tool, `show_plan`), how it went, and the next steps
    * it offered, each as that door names it. `unknown` is a command the door does not have: the `word`
    * typed and the command the refusal `named`, when it named one. `refused` is a guard's or the
-   * library's "no", `failed` anything else, each with the error's `class` when one was thrown.
+   * library's "no", `failed` anything else, each with the error's `class` when one was thrown. `denied-by-arm` is a verb the
+   * experiment arm the line names denies (ADR-1064 D2): refused before it ran, logged so a denied attempt is itself a measure.
    */
   z.object({ ...common, kind: z.literal("door-answered"), door: z.enum(["command", "tool"]), verb: z.string().min(1),
-    outcome: z.enum(["answered", "unknown", "refused", "failed"]), word: z.string().optional(), named: z.string().min(1).optional(),
+    outcome: z.enum(["answered", "unknown", "refused", "failed", "denied-by-arm"]), word: z.string().optional(), named: z.string().min(1).optional(),
     class: z.string().min(1).optional(), next: z.array(z.string().min(1)) }).strict(),
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
   /**

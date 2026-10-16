@@ -6,6 +6,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { writeFileSync } from "node:fs";
+import path from "node:path";
+
+import { withTempDir } from "@storytree/project-and-caller/testing/folders";
+import { approveCheckout } from "@storytree/project-and-caller/testing/pg";
 import { VerbRefusal, type Verb } from "@storytree/library/verbs";
 import { z } from "zod";
 
@@ -52,6 +57,33 @@ test("6.60 every tool call's answer is recorded on the calling session as a door
       { door: "tool", verb: "show_thing", outcome: "answered", class: undefined, next: ["open", "storytree session list --all"] },
       { door: "tool", verb: "show_thing", outcome: "refused", class: undefined, next: [] },
       { door: "tool", verb: "break_thing", outcome: "failed", class: "TypeError", next: [] },
+    ]);
+  });
+});
+
+test("6.90 a tool the lane's experiment arm denies does nothing else: it answers refused, naming the experiment and arm, and is recorded as a door-answered line, denied-by-arm, carrying both", async () => {
+  await withProject(async ({ folder, project, log }) => {
+    await withTempDir(async (home) => {
+      // The lane's own storytree home, which names its arm, and where its checkout is approved.
+      writeFileSync(path.join(home, "settings.json"), JSON.stringify({ experiment: { name: "twin-build", arm: "map-reads-off" } }));
+      await approveCheckout(folder, project, home);
+      await withAgent(folder, claudeCode("arm-tool-1", { extensions: [fixtures], setup: { storytreeHome: home } }), async (agent) => {
+        const denied = await agent.call("focus", { select: "story:Anything" });
+        assert.equal(denied.isError, true);
+        assert.match(denied.text, /twin-build.*map-reads-off.*focus/);
+        assert.equal((await agent.call("show_thing")).isError, false, "a verb the arm leaves alone still answers");
+      });
+    });
+
+    const lines = await log.lines(project, { sessions: ["arm-tool-1"], kinds: ["door-answered", "tool-called"] });
+    assert.deepEqual(lines.map((line) => {
+      const said = line as Extract<typeof line, { kind: "door-answered" }>;
+      return { kind: line.kind, verb: said.verb, outcome: said.outcome, experiment: line.experiment, arm: line.arm };
+    }), [
+      { kind: "tool-called", verb: undefined, outcome: undefined, experiment: "twin-build", arm: "map-reads-off" },
+      { kind: "door-answered", verb: "focus", outcome: "denied-by-arm", experiment: "twin-build", arm: "map-reads-off" },
+      { kind: "tool-called", verb: undefined, outcome: undefined, experiment: "twin-build", arm: "map-reads-off" },
+      { kind: "door-answered", verb: "show_thing", outcome: "answered", experiment: "twin-build", arm: "map-reads-off" },
     ]);
   });
 });

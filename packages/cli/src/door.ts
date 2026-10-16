@@ -209,9 +209,12 @@ interface Heard {
   verb: string;
 }
 
+/** The door's "no" to a command the lane's experiment arm denies: recorded as denied-by-arm, not as a refusal. */
+class DeniedByArm extends Refusal {}
+
 /** How a command was answered, as its `door-answered` line records it. */
 interface DoorOutcome {
-  readonly outcome: "answered" | "unknown" | "refused" | "failed";
+  readonly outcome: "answered" | "unknown" | "refused" | "failed" | "denied-by-arm";
   readonly word?: string;
   readonly named?: string;
   readonly class?: string;
@@ -223,6 +226,7 @@ interface DoorOutcome {
  * "no" (a verb's included), or anything else the owning story threw, with its class, which tells a library refusal from a crash.
  */
 function outcomeOf(error: unknown): DoorOutcome {
+  if (error instanceof DeniedByArm) return { outcome: "denied-by-arm", next: [] };
   if (error instanceof UnknownCommand) {
     const named = error.named === undefined ? undefined : verbOf(`storytree ${error.named}`) ?? error.named;
     return { outcome: "unknown", word: error.word, ...(named === undefined ? {} : { named }), next: stepVerbs(error.next) };
@@ -288,10 +292,10 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   if (inner !== undefined) return dispatchIn(inner, `${path} ${inner.name}`, rest, heard, context);
   const verb = family.verbs.find((candidate) => candidate.name === second);
   if (verb !== undefined) heard.verb = `storytree ${path} ${verb.name}`;
-  if (verb !== undefined) return asksHelp(rest) ? helpOf(verb) : act(verb, parseArgs(rest, verb.switches ?? [], context.cwd), context);
+  if (verb !== undefined) return asksHelp(rest) ? helpOf(verb) : act(verb, parseArgs(rest, verb.switches ?? [], context.cwd), context, heard);
   const help = second === undefined || second === "--help" || second === "-h";
   if (family.bare !== undefined && !(help && second !== undefined)) {
-    return act(family.bare, parseArgs(words, family.bare.switches ?? [], context.cwd), context);
+    return act(family.bare, parseArgs(words, family.bare.switches ?? [], context.cwd), context, heard);
   }
   if (help) return verbsOf(family, path);
   const named = [
@@ -304,8 +308,14 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   throw unknown(`storytree ${path}`, second, guessed ?? nearest(second, named), "Its commands", named);
 }
 
-/** A successful invocation may record only the installed app version, never the command's words. */
-async function act(verb: Verb, args: Args, context: Context): Promise<Answer> {
+/**
+ * Run a verb, unless the experiment arm this storytree home names denies it (ADR-1064 D2, the Experiments story's verdict).
+ * A successful invocation may record only the installed app version, never the command's words.
+ */
+async function act(verb: Verb, args: Args, context: Context, heard: Heard): Promise<Answer> {
+  const { verdictOf } = await import("@storytree/experiments");
+  const verdict = verdictOf("command", heard.verb);
+  if (!verdict.allowed) throw new DeniedByArm(verdict.message);
   const answer = await verb.act(args, context);
   try { (await context.journey()).record("app_version"); } catch { /* Optional observation cannot fail a command. */ }
   return answer;

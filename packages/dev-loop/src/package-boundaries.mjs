@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>). */
-export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "lag-in-use", "learning-as-you-build", "knowledge-core", "librarian", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
+export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "lag-in-use", "learning-as-you-build", "knowledge-core", "librarian", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
@@ -37,6 +37,7 @@ export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "
 // project-and-caller: story_6def59292b78 (Project and caller, ADR-1025).
 // plugin-loader: story_09e58d68f87c (Plugin loader, ADR-1021).
 // learning-as-you-build: story_7d7b0ffccf55 (Learning as you build, ADR-1048).
+// experiments: story_c2dbcf855db2 (Experiments, ADR-1064 D1).
 
 /**
  * Story code the frame still holds, each with the open question on storytree-0-3-scales-arc that

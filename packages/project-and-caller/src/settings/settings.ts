@@ -110,6 +110,16 @@ interface Stored {
   "leave-after"?: string;
   library?: LibraryLocation;
   surfaces?: SurfaceChoices;
+  experiment?: ExperimentArm;
+}
+
+/**
+ * The experiment and arm a lane runs in (ADR-1064 D2), as its storytree home's settings.json names them: what the
+ * Experiments story reads for its verdict, and the labels the activity log stamps. Written by whoever makes the arm's home.
+ */
+export interface ExperimentArm {
+  readonly name: string;
+  readonly arm: string;
 }
 
 /** Read each setting with its declared default, meaning and value source. */
@@ -159,6 +169,29 @@ export function readLibrary(home: string = storytreeHome()): LibraryLocation {
     return value === undefined ? { location: "local" } : checkedLibrary(value);
   } catch (error) {
     throw new Error(`Invalid settings file "${file}": ${(error as Error).message} Repair it before storytree can say where the library is.`, { cause: error });
+  }
+}
+
+/**
+ * Only the experiment and arm this home names, none when it names none: like the library, read on its own, so damage
+ * elsewhere in settings.json never stops a lane's lines being labelled, and a damaged value is reported naming the file.
+ */
+export function readExperiment(home: string = storytreeHome()): ExperimentArm | undefined {
+  const file = path.join(home, "settings.json");
+  let text: string;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT" && lstatSync(file, { throwIfNoEntry: false }) === undefined) return undefined;
+    throw new Error(`Cannot read settings file "${file}": ${(error as Error).message}`, { cause: error });
+  }
+  try {
+    const stored: unknown = JSON.parse(text);
+    if (stored === null || typeof stored !== "object" || Array.isArray(stored)) throw new Error("expected a JSON object of setting names and values");
+    const value = (stored as Record<string, unknown>).experiment;
+    return value === undefined ? undefined : checkedExperiment(value);
+  } catch (error) {
+    throw new Error(`Invalid settings file "${file}": ${(error as Error).message} Repair it before storytree can say which experiment arm this home runs.`, { cause: error });
   }
 }
 
@@ -303,6 +336,14 @@ function checkedAddress(address: unknown): string {
   return address;
 }
 
+function checkedExperiment(value: unknown): ExperimentArm {
+  const usage = "experiment must name the experiment and the arm this home runs, and nothing else: {\"name\": \"<experiment>\", \"arm\": \"<arm>\"}.";
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return refuse(usage);
+  const { name, arm, ...rest } = value as { name?: unknown; arm?: unknown };
+  if (Object.keys(rest).length > 0 || typeof name !== "string" || name === "" || typeof arm !== "string" || arm === "") return refuse(usage);
+  return { name, arm };
+}
+
 function checkedSurfaces(value: unknown): SurfaceChoices {
   const usage = "surfaces must map each surface's id to its choices: `on` true or false, and each setting's id to the text of its choice.";
   if (value === null || typeof value !== "object" || Array.isArray(value)) return refuse(usage);
@@ -334,6 +375,10 @@ function readStored(home: string): Stored {
     for (const [name, value] of Object.entries(stored)) {
       if (name === "surfaces") {
         settings.surfaces = checkedSurfaces(value);
+        continue;
+      }
+      if (name === "experiment") {
+        settings.experiment = checkedExperiment(value);
         continue;
       }
       checkName(name);

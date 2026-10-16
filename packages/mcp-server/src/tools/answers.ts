@@ -53,7 +53,7 @@ export function refusalOf(error: unknown): string {
 
 /** How a tool's call went, as its `door-answered` line records it (ADR-0983 D1). */
 export interface DoorOutcome {
-  readonly outcome: "answered" | "refused" | "failed";
+  readonly outcome: "answered" | "refused" | "failed" | "denied-by-arm";
   readonly class?: string;
   readonly next: string[];
 }

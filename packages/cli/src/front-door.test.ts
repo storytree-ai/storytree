@@ -3,7 +3,7 @@
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
@@ -242,6 +242,40 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
     }
   });
 });
+
+test("1.32 a command the lane's experiment arm denies does nothing else: it exits 1 naming the experiment and arm, and is recorded as a door-answered line, denied-by-arm, carrying both", async () => {
+  await inWorld(command, async (world) => {
+    const settings = path.join(world.home, "settings.json");
+    writeFileSync(settings, JSON.stringify({ ...readSettingsFile(settings), experiment: { name: "twin-build", arm: "map-reads-off" } }));
+    const session = { CLAUDE_CODE_SESSION_ID: "arm-1" };
+
+    const denied = await world.run(["map", "--select", "story:Experiments"], session);
+    const allowed = await world.run(["library", "search", "Mailer"], session);
+
+    assert.equal(denied.code, 1, denied.stderr);
+    assert.equal(denied.stdout, "", "a denied command answers nothing");
+    assert.match(denied.stderr, /twin-build.*map-reads-off.*storytree map/);
+    assert.equal(allowed.code, 0, allowed.stderr);
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const lines = await log.lines(world.project, { sessions: ["arm-1"], kinds: ["door-answered"] });
+      assert.deepEqual(lines.map((line) => {
+        const { verb, outcome, experiment, arm } = line as Extract<typeof line, { kind: "door-answered" }>;
+        return { verb, outcome, experiment, arm };
+      }), [
+        { verb: "storytree map", outcome: "denied-by-arm", experiment: "twin-build", arm: "map-reads-off" },
+        { verb: "storytree library search", outcome: "answered", experiment: "twin-build", arm: "map-reads-off" },
+      ]);
+    } finally {
+      await log.close();
+    }
+  });
+});
+
+/** A settings file's object, empty when there is none. */
+function readSettingsFile(file: string): Record<string, unknown> {
+  return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown> : {};
+}
 
 test("1.18 storytree doors prints the front-door reading: every command walked from the door's own table and every tool the tool server serves, with its consumers and calls, those with none at zero, and the misses", async () => {
   await inWorld(command, async (world) => {

@@ -90,6 +90,8 @@ export interface HookInput {
   readonly locate?: LocateOptions;
   /** Which capability each edited file declares, for the gate before each edit (`--edit-gate`). Without it the gate refuses nothing. */
   readonly declaredCapabilities?: DeclaredCapabilities;
+  /** How long the hook after a shell command may wait to ask which changes a yes covers (`--shell-guard`). By default, GUARD_MS. */
+  readonly guardMs?: number;
   /** The hook process's clock, which its parts are timed on (timing.ts, ADR-1056 D1). Without it, nothing is timed. */
   readonly clock?: HookClock;
 }
@@ -175,7 +177,7 @@ export async function runHook(hook: HookInput): Promise<string | undefined> {
 /** The flag naming the event in a hook command, for a harness whose input names none (Antigravity). */
 export const EVENT = "--event=";
 
-async function answerHook({ argv, input: given, handOff: handing, merges, locate, declaredCapabilities, clock }: HookInput): Promise<string | undefined> {
+async function answerHook({ argv, input: given, handOff: handing, merges, locate, declaredCapabilities, guardMs, clock }: HookInput): Promise<string | undefined> {
   const [harness = "", ...flags] = argv;
   const read = parse(given);
   const parsed = withEvent(read, flags);
@@ -201,7 +203,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
     if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed);
     // The hook after each shell command that the harness waits for tells the agent of its changes to imported code (ADR-1015), and to capabilities its claims do not cover (ADR-0949 D3).
-    if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities);
+    if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs);
     const made = hookLines(harness, parsed);
     if (flags.includes(UPKEEP)) return void (made === undefined ? undefined : await upkeep(made, merges, locate));
     const asked = promptIn(harness, parsed);

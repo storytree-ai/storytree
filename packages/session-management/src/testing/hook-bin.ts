@@ -14,8 +14,11 @@ import { build } from "esbuild";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-/** The command's entry, with no file of its own: what it runs is Session management's, and only its tests run it so. */
-const ENTRY = 'import { hookCommand } from "../bins/storytree-hook.ts";\nimport { declaredInTests } from "./declared.ts";\n\nhookCommand({ declaredCapabilities: declaredInTests });\n';
+/**
+ * The command's entry, with no file of its own: what it runs is Session management's, and only its tests run it so.
+ * A test may set how long the shell guard waits (STORYTREE_TEST_GUARD_MS), so a slow runner's answer is not its clock's.
+ */
+const ENTRY = 'import { hookCommand } from "../bins/storytree-hook.ts";\nimport { declaredInTests } from "./declared.ts";\n\nconst guardMs = Number(process.env.STORYTREE_TEST_GUARD_MS) || undefined;\nhookCommand({ declaredCapabilities: declaredInTests, guardMs });\n';
 
 /** Build the hook command into `outdir`, and return its path. */
 export async function buildHook(outdir: string): Promise<string> {

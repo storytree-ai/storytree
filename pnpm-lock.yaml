@@ -416,6 +416,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../map
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller

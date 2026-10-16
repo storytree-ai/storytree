@@ -40,6 +40,7 @@ import { SHELL_GUARD } from "./shell-guard.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
 import { BACKGROUND, hookLines, type ReachLog } from "./hooks.js";
 import { hookTools } from "./tools.js";
+import { AFTER_TOOL, codexToolArguments } from "./codex-delivery.js";
 import { queueFolder } from "./queue.js";
 import { readSettings, setSetting } from "@storytree/project-and-caller";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
@@ -1473,6 +1474,64 @@ test("3.40 a hook event delivered through the tool server records the lines its 
         const alone = of("command-only");
         assert.equal(alone.length, 1);
         for (const session of ["tool-only", "tool-first", "command-first", "offline"]) assert.deepEqual(of(session), alone, session);
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});
+
+test("3.41 Codex hands the tool server each event its handler's template carries (ADR-1056 D2): its command hook beside it, given the whole input, keeps the event once and, finding the tool recorded it, stands down without reaching the library; with no tool's delivery it records the event itself", { timeout: 60_000 }, async () => {
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project);
+      // The tool server's process, here this one, has the machine's storytree home.
+      process.env.STORYTREE_HOME = home;
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        type Deliver = (args: { harness: string; input: Record<string, unknown> }, call: { reach: ReachLog; locate: undefined }) => Promise<{ data?: Record<string, unknown> }>;
+        let deliver: Deliver | undefined;
+        hookTools().registerHarnessTools?.((name, _description, _input, act) => { if (name === "hook_event") deliver = act as unknown as Deliver; });
+        const input = (name: string, session: string) => ({ ...JSON.parse(recorded("codex", name, folder)), session_id: `${project}-${session}` }) as Record<string, unknown>;
+        // As Codex fills a handler's template: each whole-string `${field}` is that field of the event's input.
+        const tool = async (whole: Record<string, unknown>) => {
+          const template = codexToolArguments(String(whole.hook_event_name))!;
+          const filled = Object.fromEntries(Object.entries(template.input).map(([field, placeholder]) => [field, whole[placeholder.slice(2, -1)]]));
+          return (await deliver!({ harness: template.harness, input: filled }, { reach: async () => log, locate: undefined })).data;
+        };
+        const command = async (whole: Record<string, unknown>) => assert.equal((await runHook("codex", JSON.stringify(whole), home, [AFTER_TOOL])).code, 0);
+
+        const events = ["session-start-startup", "pre-tool-use-bash", "post-tool-use-bash", "stop"];
+        for (const name of events) {
+          const whole = input(name, name);
+          assert.deepEqual(await tool(whole), { recorded: 1, waiting: 0 }, name);
+          await command(whole);
+        }
+        await command(input("post-tool-use-bash", "no-tool"));
+
+        const lines = await linesOf(project);
+        const kinds = (session: string) => lines.filter((line) => line.session === `${project}-${session}`).map((line) => line.kind);
+        assert.deepEqual(events.map(kinds), [["session-started"], ["command-started"], ["command-run"], ["turn-ended"]], "each event once, whichever way it came");
+        assert.deepEqual(kinds("no-tool"), ["command-run"], "the command hook records what no tool delivered");
+
+        // Each command hook's own reading says whether it reached the library: once a minute one takes its whole turn.
+        // A reading waits on this machine until a look around the machine, which a whole turn hands on, uploads it.
+        type Reading = { at: string; event: string; parts: Record<string, number> };
+        const times = path.join(home, "hook-times.jsonl");
+        const readings = async (): Promise<Reading[]> => [
+          ...(existsSync(times) ? readFileSync(times, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as Reading) : []),
+          ...(await linesOf(project, { starts: true })).flatMap((line) => (line.kind === "hook-times" ? line.readings : [])),
+        ].filter((reading) => reading.event.endsWith(AFTER_TOOL)).sort((one, other) => one.at.localeCompare(other.at));
+        const deadline = Date.now() + 25_000;
+        while ((await readings()).length < events.length + 1 && Date.now() < deadline) await sleep(100);
+        assert.deepEqual((await readings()).map((reading) => "connect" in reading.parts), [true, false, false, false, true]);
       } finally {
         await log.close();
       }

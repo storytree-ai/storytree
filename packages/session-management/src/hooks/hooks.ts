@@ -65,6 +65,7 @@ import { antigravityLines } from "./antigravity.js";
 import { EDIT_GATE, editGate, recordYesAfterEdit, yesSaid } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
+import { AFTER_TOOL, deliveredByTool, deliveredInput, noteDelivered } from "./codex-delivery.js";
 import { contextNudge } from "./context-nudge.js";
 import type { NewFriction } from "../capture/index.js";
 import { bigInjectionReport, definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
@@ -232,11 +233,12 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
 }
 
 /**
- * The key of a hook event from `harness` (ADR-1056 D2): its input, keys in order, hashed with the harness's name. It is
- * the same whichever way the event reaches storytree, so the log keeps its lines once.
+ * The key of a hook event from `harness` (ADR-1056 D2): its input as both ways deliver it (for Codex, the fields its tool
+ * handler sends, codex-delivery.ts), keys in order, hashed with the harness's name. It is the same whichever way the
+ * event reaches storytree, so the log keeps its lines once.
  */
 export function eventKey(harness: string, input: unknown): string {
-  return createHash("sha256").update(JSON.stringify([harness, inOrder(input)])).digest("hex");
+  return createHash("sha256").update(JSON.stringify([harness, inOrder(deliveredInput(harness, input))])).digest("hex");
 }
 
 /** `value` with every object's keys in order, so two inputs alike but for their keys' order are one. */
@@ -329,6 +331,8 @@ export async function recordHookEvent(harness: string, input: unknown, reach: Re
   const written = { count: 0 };
   try {
     await appendEvent(log, where.project, lines.lines, delivered, written);
+    // Its command hook, registered beside it, stands down (codex-delivery.ts).
+    noteDelivered(storytreeHome(), delivered.key);
     return { recorded: written.count, waiting: 0 };
   } catch (error) {
     failed("write", error);
@@ -340,6 +344,19 @@ export async function recordHookEvent(harness: string, input: unknown, reach: Re
 async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, delivered: DeliveredEvent, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock): Promise<void> {
   try {
     if (made.lines.length === 0) return;
+    // Registered beside the tool server's handler (codex-delivery.ts), an event the tool recorded is not recorded
+    // again, nor the library reached for it; but at most once a minute a project's hook takes its whole turn, so
+    // the work only a command hook does (merges, the transcript, the look around the machine) still happens.
+    if (flags.includes(AFTER_TOOL) && (await deliveredByTool(storytreeHome(), delivered.key))) {
+      const where = route(made.folder, locate);
+      const { due } = await import("../claims/merges.js");
+      if (where.status !== "routed" || !due(`${where.project}-after-tool`, UPKEEP_EVERY_MS)) {
+        const { worktreeRoot } = await import("../activity/branch.js");
+        const [root, first] = [worktreeRoot(made.folder), made.lines[0]];
+        if (guarded && root !== undefined && first !== undefined) watchWorktree(storytreeHome(), root, first, failed);
+        return;
+      }
+    }
     const ready = await prepare(made, locate, failed, guarded);
     if (ready === undefined) return;
     const { where, firstLine } = ready;

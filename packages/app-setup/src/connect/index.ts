@@ -5,7 +5,7 @@ import path from "node:path";
 import { ANTIGRAVITY_HOOKS, codexHookTrust, PI_EXTENSION } from "@storytree/session-management";
 import { HARNESS_IDS, watchedHarness } from "@storytree/project-and-caller/caller";
 
-import { CODEX_TRUST_STEP, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeHooks, removeLauncher, runsElevated } from "../setup/index.js";
+import { CODEX_TRUST_STEP, installedCodexVersion, launcherFiles, launcherRuns, markDisconnected, registerHooks, removeHooks, removeLauncher, runsElevated } from "../setup/index.js";
 import { removeCodexInstructions, writeCodexInstructions } from "./codex-agents.js";
 import { claudeSettings, codexSettings, installedToolServerCommand, read, runHarness, type Harness, type InstalledToolServerCommand, type RunHarness, type Settings } from "./harness.js";
 
@@ -136,7 +136,9 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
       else if (settings.current === undefined) await settings.add(options.installed);
       markDisconnected(where.storytree, harness, false);
       checkingFile = hooksFile;
-      const registration = registerHooks(harness === "claude-code" ? { claude: where.claude } : { [harness]: harnessHome }, hook)[harness];
+      // Codex's hooks take the shape its version runs (hooks-config.ts), asked of the Codex these settings' PATH finds.
+      const codexVersion = harness === "codex" ? installedCodexVersion({ codexHome: where.codex, ...(where.env.PATH === undefined ? {} : { path: where.env.PATH }) }) : undefined;
+      const registration = registerHooks(harness === "claude-code" ? { claude: where.claude } : { [harness]: harnessHome }, hook, undefined, codexVersion)[harness];
       if (registration !== "registered" && registration !== "already registered") throw new Error(`Hooks ${registration}`);
       // Codex shows the agent neither the tool server's instructions nor its tools until it searches, and
       // runs no hook until the user trusts it: its home's AGENTS.md is what sends its first session to check_setup.

@@ -9,7 +9,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { defaultHomes, putCommandOnPath, registerHooks, removeCommand, removeHooks } from "../setup/index.js";
+import { defaultHomes, installedCodexVersion, putCommandOnPath, registerHooks, removeCommand, removeHooks } from "../setup/index.js";
 
 /** Install or remove, as the command line says. */
 function main(): void {
@@ -32,7 +32,7 @@ function main(): void {
       console.error(`no hook command beside this one (${script}): build storytree first`);
       process.exit(1);
     }
-    const report = registerHooks(homes, { node: process.execPath, script });
+    const report = registerHooks(homes, { node: process.execPath, script }, undefined, installedCodexVersion());
     console.log(`Claude Code: ${report["claude-code"]}`);
     console.log(`Codex: ${report.codex}${report.codex === "registered" ? " (run `codex` in a terminal once and trust storytree's hooks when it asks)" : ""}`);
     console.log(`Cursor: ${report.cursor}`);

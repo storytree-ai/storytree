@@ -1,12 +1,13 @@
 /**
  * Capability 1 · The package rule (the Guardrails story, ADR-0911 D2): which parts of a checkout break
- * one package per story and roads one way (ADR-0649 D1-D3, in storytree 0.2's decision log). A user's
- * project runs it as `storytree check`; storytree's own dev loop runs the same code with its own
- * declarations (packages/dev-loop/src/package-boundaries.mjs), so the two cannot drift.
+ * each package to one story and roads one way (ADR-0649 D1-D3, in storytree 0.2's decision log, as ADR-1066 D3
+ * amends D1). A user's project runs it as `storytree check`; storytree's own dev loop runs the same code with
+ * its own declarations (packages/dev-loop/src/package-boundaries.mjs), so the two cannot drift.
  *
- * - Every story has its own package, `packages/<id>`, and every package belongs to a story or to a
- *   declared frame: no package belongs to no story (ADR-0805 D5, which narrows ADR-0649 D1). A project
- *   that declares no stories has one per package under packages/, as the habits card lays them out.
+ * - Every story has its own package, `packages/<id>`, or declares the several it owns (ADR-1066 D3), and
+ *   every package belongs to exactly one story or to a declared frame: no package belongs to no story
+ *   (ADR-0805 D5, which narrows ADR-0649 D1) and none to two. A project that declares no stories has one
+ *   per package under packages/, as the habits card lays them out.
  * - A declared frame (storytree's `packages/app` and `apps/desktop`: startup, lifecycle, updates and
  *   mounting each story's surface) holds no other story's code, and neither does a declared front door
  *   (storytree's `packages/cli`: command families that call the story package owning the work). What
@@ -54,10 +55,19 @@ export interface NotYetMoved {
   readonly question: string;
 }
 
+/** A story that owns several packages, each by its folder name under packages/ (ADR-1066 D3). */
+export interface StoryPackages {
+  readonly story: string;
+  readonly packages: readonly string[];
+}
+
+/** A story: by the folder name of its one package, or with the several it owns. */
+export type Story = string | StoryPackages;
+
 /** What a project declares to the package rule; a user's project declares nothing. */
 export interface Declarations {
-  /** The stories, each by its package's folder name; by default, every package under packages/. */
-  readonly stories?: readonly string[];
+  /** The stories; by default, one for every package under packages/. */
+  readonly stories?: readonly Story[];
   readonly frames?: readonly Frame[];
   readonly notYetMoved?: readonly NotYetMoved[];
   readonly edges?: { readonly edges: readonly Edge[] };
@@ -74,6 +84,11 @@ export function storiesOf(root: string): string[] {
   return packageDirs(root, "packages").map((dir) => dir.slice("packages/".length));
 }
 
+/** The folder names under packages/ of every package the `stories` own, each once. */
+export function packagesOf(stories: readonly Story[]): string[] {
+  return [...new Set(stories.flatMap((story) => typeof story === "string" ? [story] : story.packages))];
+}
+
 /** What in the checkout at `root` breaks the package rule, one sentence each; empty when nothing does. */
 export function packageProblems(root: string, declared: Declarations = {}): string[] {
   const stories = declared.stories ?? storiesOf(root);
@@ -83,15 +98,25 @@ export function packageProblems(root: string, declared: Declarations = {}): stri
   const problems: string[] = [];
   const packages = [...packageDirs(root, "packages"), ...packageDirs(root, "apps")];
 
+  // Each package's folder name with the stories that name it.
+  const owners = new Map<string, string[]>();
   for (const story of stories) {
-    if (!packages.includes(`packages/${story}`)) {
-      problems.push(`the story ${story} has no package: its code belongs in packages/${story}`);
+    const [id, own] = typeof story === "string" ? [story, [story]] : [story.story, story.packages];
+    for (const name of own) owners.set(name, [...owners.get(name) ?? [], id]);
+    for (const name of own.filter((name) => !packages.includes(`packages/${name}`))) {
+      problems.push(typeof story === "string"
+        ? `the story ${id} has no package: its code belongs in packages/${id}`
+        : `the story ${id} names packages/${name}, which holds no package: make it, or take it off the story's packages`);
     }
   }
+  for (const [name, ids] of owners) {
+    if (ids.length > 1) problems.push(`packages/${name} is named by the stories ${ids.join(" and ")}: each package belongs to exactly one story (ADR-1066 D3)`);
+  }
+  const storyOf = new Map([...owners].map(([name, ids]) => [name, ids[0]!] as const));
   const frameDirs = new Set(frames.flatMap((frame) => frame.dirs));
   for (const dir of packages) {
     const name = dir.slice(dir.indexOf("/") + 1);
-    const known = frameDirs.has(dir) || (dir.startsWith("packages/") && stories.includes(name));
+    const known = frameDirs.has(dir) || (dir.startsWith("packages/") && storyOf.has(name));
     if (!known) problems.push(`${dir} is neither a story's package nor the frame: every package belongs to a story (ADR-0805 D5)`);
   }
 
@@ -102,16 +127,17 @@ export function packageProblems(root: string, declared: Declarations = {}): stri
       for (const file of filesUnder(root, `${dir}/src`)) {
         const segments = file.slice(dir.length + "/src/".length).split("/");
         const named = frontDoor ? segments.slice(0, -1) : segments;
-        const story = stories.find((id) => id !== own && named.some((segment) => namedAfter(segment, id)));
-        if (story === undefined) continue;
+        const folder = [...storyOf.keys()].find((name) => storyOf.get(name) !== own && named.some((segment) => namedAfter(segment, name)));
+        if (folder === undefined) continue;
+        const story = storyOf.get(folder)!;
         const imports = CODE.test(file) ? importsOf(readFileSync(path.join(root, file), "utf8")) : [];
-        const storyName = packages.includes(`packages/${story}`) ? packageName(root, `packages/${story}`) : undefined;
+        const storyName = packages.includes(`packages/${folder}`) ? packageName(root, `packages/${folder}`) : undefined;
         if (TEST.test(file) && storyName !== undefined && imports.some((specifier) => specifier === storyName || specifier.startsWith(`${storyName}/`))) continue;
         const entry = [...moved.values()].find((held) => file.startsWith(`${held.path}/`));
         if (entry) entry.holds = true;
         else if (imports.some((specifier) => specifier.startsWith(".") || frameNames.has(packageOfSpecifier(specifier)))) {
-          problems.push(`${file} is named after the ${story} story but leans on the ${frontDoor ? "front door" : "frame"}, so moving it into packages/${story} would make that story depend on the frame (ADR-0847): a test of the frame mounting the story reaches it through ${storyName ?? `the ${story} package`}; anything else keeps a name of the frame's own, or moves its story part into packages/${story} behind its exports`);
-        } else problems.push(`${file} is the ${story} story's code in the ${frontDoor ? "front door" : "frame"}: move it into packages/${story}`);
+          problems.push(`${file} is named after the ${story} story but leans on the ${frontDoor ? "front door" : "frame"}, so moving it into packages/${folder} would make that story depend on the frame (ADR-0847): a test of the frame mounting the story reaches it through ${storyName ?? `the ${folder} package`}; anything else keeps a name of the frame's own, or moves its story part into packages/${folder} behind its exports`);
+        } else problems.push(`${file} is the ${story} story's code in the ${frontDoor ? "front door" : "frame"}: move it into packages/${folder}`);
       }
     }
   }
@@ -119,12 +145,12 @@ export function packageProblems(root: string, declared: Declarations = {}): stri
     if (!entry.holds) problems.push(`${entry.path} no longer holds story code: take it off NOT_YET_MOVED (and settle ${entry.question})`);
   }
 
-  const storyDirs = new Map(stories.filter((id) => packages.includes(`packages/${id}`)).map((id) => [`packages/${id}`, id] as const));
-  const storyByName = new Map([...storyDirs].map(([dir, id]) => [packageName(root, dir), id] as const));
+  const storyDirs = new Map([...storyOf].filter(([name]) => packages.includes(`packages/${name}`)).map(([name, id]) => [`packages/${name}`, id] as const));
+  const dirByName = new Map([...storyDirs.keys()].map((dir) => [packageName(root, dir), dir] as const));
   for (const dir of packages) {
     for (const file of filesUnder(root, `${dir}/src`).filter((name) => CODE.test(name) && name !== OWN_TEST)) {
       for (const specifier of importsOf(readFileSync(path.join(root, file), "utf8"))) {
-        const reach = reachesInto(root, dir, file, specifier, storyDirs, storyByName);
+        const reach = reachesInto(root, dir, file, specifier, storyDirs, dirByName);
         if (reach) problems.push(`${file} reaches into the ${reach} story's files with "${specifier}": import its package's exports instead`);
       }
     }
@@ -232,7 +258,7 @@ function dependencyComponents(deps: Map<string, string[]>): Map<string, string> 
 }
 
 /** The story whose files `specifier`, imported from `file` in package `dir`, reaches into; else undefined. */
-function reachesInto(root: string, dir: string, file: string, specifier: string, storyDirs: Map<string, string>, storyByName: Map<string, string>): string | undefined {
+function reachesInto(root: string, dir: string, file: string, specifier: string, storyDirs: Map<string, string>, dirByName: Map<string, string>): string | undefined {
   if (specifier.startsWith(".")) {
     const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier));
     for (const [storyDir, story] of storyDirs) {
@@ -241,11 +267,11 @@ function reachesInto(root: string, dir: string, file: string, specifier: string,
     return undefined;
   }
   const name = packageOfSpecifier(specifier);
-  const story = storyByName.get(name);
-  if (story === undefined || specifier === name) return undefined;
-  const manifest = manifestAt(root, `packages/${story}`) as { exports?: unknown };
+  const target = dirByName.get(name);
+  if (target === undefined || specifier === name) return undefined;
+  const manifest = manifestAt(root, target) as { exports?: unknown };
   const exported = typeof manifest.exports === "object" && manifest.exports !== null ? Object.keys(manifest.exports) : [];
-  return exported.includes(`./${specifier.slice(name.length + 1)}`) ? undefined : story;
+  return exported.includes(`./${specifier.slice(name.length + 1)}`) ? undefined : storyDirs.get(target);
 }
 
 /** Whether a path segment (a folder or file name, in any case style) carries the story id's words. */

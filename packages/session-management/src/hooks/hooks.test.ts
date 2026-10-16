@@ -1347,7 +1347,7 @@ test("3.35 a shell command that changes or deletes files in an imported folder w
   });
 });
 
-test("3.36 a shell command that changes files in a capability its session's increment does not list, or that another live session holds, is told to the agent at once by the hook after it that the harness waits for, as the hook before an edit tool would refuse it; a change to a listed capability, or none, says nothing (ADR-0949 D3)", async () => {
+test("3.36 a shell command that changes files in a capability its session's increment does not list, or that another live session holds, is told to the agent at once by the hook after it that the harness waits for, as the hook before an edit tool would refuse it; a change to a listed capability, or none, says nothing; past the guard's time, a slow machine's, the worktree's changes say nothing, as an edit the gate could not judge goes ahead (ADR-0949 D3)", async () => {
   await withTempDir(async (dir) => {
     const project = uniqueProjectName();
     const home = storytreeHome(dir, true);
@@ -1378,21 +1378,25 @@ test("3.36 a shell command that changes files in a capability its session's incr
         assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
         return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { hookSpecificOutput?: { hookEventName?: string; additionalContext?: string } }).hookSpecificOutput;
       };
+      // The guard is given as long as the hook itself may run, so a slow runner's answer is the gate's, not its clock's.
+      const guard = (harness: "claude-code" | "codex", name: string, guardMs = DEADLINE_MS) => runHook(harness, as(harness, name), home, [SHELL_GUARD], { STORYTREE_TEST_GUARD_MS: String(guardMs) });
 
       await runHook("claude-code", as("claude-code", "session-start-startup"), home);
-      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "nothing changed");
+      assert.equal(told(await guard("claude-code", "post-tool-use-bash")), undefined, "nothing changed");
       writeFileSync(path.join(src, "thanks.ts"), "/**\n * Capability 2 · Thanks page\n */\nexport {};\n");
-      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "the increment lists it");
+      assert.equal(told(await guard("claude-code", "post-tool-use-bash")), undefined, "the increment lists it");
 
       writeFileSync(path.join(src, "footer.ts"), "/**\n * Capability 3 · Footer\n */\nexport {};\n");
-      const unlisted = told(await runHook("claude-code", as("claude-code", "post-tool-use-failure-bash"), home, [SHELL_GUARD]));
+      const unlisted = told(await guard("claude-code", "post-tool-use-failure-bash"));
       assert.equal(unlisted?.hookEventName, "PostToolUseFailure");
       assert.match(unlisted?.additionalContext ?? "", /footer\.ts.*"3 · Footer".*does not name/s);
       assert.match(unlisted?.additionalContext ?? "", /storytree workspace claim/, "naming the way through");
-      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "told once");
+      assert.equal(told(await guard("claude-code", "post-tool-use-bash")), undefined, "told once");
+      writeFileSync(path.join(src, "footer.ts"), "/**\n * Capability 3 · Footer\n */\nexport const late = 1;\n");
+      assert.equal(told(await guard("claude-code", "post-tool-use-bash", 1)), undefined, "unjudged in time, the worktree's changes go ahead untold");
 
       writeFileSync(path.join(src, "form.ts"), "/**\n * Capability 1 · Email form\n */\nexport {};\n");
-      const heldBy = told(await runHook("codex", as("codex", "post-tool-use-bash"), home, [SHELL_GUARD]));
+      const heldBy = told(await guard("codex", "post-tool-use-bash"));
       assert.equal(heldBy?.hookEventName, "PostToolUse");
       assert.match(heldBy?.additionalContext ?? "", /form\.ts.*"1 · Email form".*session holder holds it/s);
       assert.match(heldBy?.additionalContext ?? "", /Back off/);

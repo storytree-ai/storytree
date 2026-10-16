@@ -32,6 +32,8 @@ step() {
 shot() { screencapture -x "$OUT/$1.png" && echo "screenshot $1.png" || echo "screencapture failed for $1"; }
 version() { defaults read "$APP/Contents/Info" CFBundleShortVersionString 2>/dev/null; }
 running() { pgrep -f 'storytree-0.3.app/Contents/MacOS/storytree-0.3$' > /dev/null; }
+# limit SECONDS COMMAND…: a command that may wait on a dialog nobody here can see is stopped after SECONDS.
+limit() { perl -e 'alarm shift; exec @ARGV' "$@"; }
 
 step machine sh -c 'sw_vers; uname -m; sysctl -n machdep.cpu.brand_string; id -un; echo "HOME=$HOME"'
 # The release the app should update itself to: the newest published one, whose Mac feed the development channel reads.
@@ -62,7 +64,7 @@ step version-before sh -c "defaults read '$APP/Contents/Info' CFBundleShortVersi
 # A named build installs as stable, and stable's pin is still older than any Developer ID build, so a stable app
 # would see nothing newer. Quit it and record the installation as development, whose feed is the newest release:
 # the channel N and N+1 were both published on. Setup for this run only; no user does this.
-step quit osascript -e 'quit app "storytree-0.3"'
+step quit limit 60 osascript -e 'quit app "storytree-0.3"'
 for _ in $(seq 1 30); do running || break; sleep 2; done
 step channel sh -c "cat '$HOMEDIR/release-channel.json'; echo; printf '{\"schema\":1,\"channel\":\"development\"}' > '$HOMEDIR/release-channel.json' && cat '$HOMEDIR/release-channel.json'"
 
@@ -73,13 +75,15 @@ step quarantine sh -c "find '$APP' -exec xattr -w com.apple.quarantine '$QUARANT
 step spctl spctl --assess --type execute --verbose=4 "$APP"
 step codesign codesign --display --verbose=2 "$APP"
 step stapler xcrun stapler validate "$APP"
-step open open "$APP"
+# open waits while macOS asks whether to open an app from the internet, so it runs beside the steps that answer.
+(limit 300 open "$APP" > "$OUT/open.txt" 2>&1; echo "open exit $?" >> "$OUT/open.txt") &
 sleep 20
 shot first-open-quarantined
-step windows-quarantined osascript -e 'tell application "System Events" to get {name, title of every window} of (every process whose background only is false)'
+step windows-quarantined limit 60 osascript -e 'tell application "System Events" to get {name, title of every window} of (every process whose background only is false)'
 # A notarised app downloaded from the internet still asks once whether to open it; answer Open, as its user would.
-step answer-open osascript -e 'tell application "System Events" to tell process "CoreServicesUIAgent" to click button "Open" of window 1'
+step answer-open limit 60 osascript -e 'tell application "System Events" to tell process "CoreServicesUIAgent" to click button "Open" of window 1'
 sleep 20
+step dialog-after limit 60 osascript -e 'tell application "System Events" to get {name, title of every window} of (every process whose background only is false)'
 step processes-open sh -c "pgrep -fl storytree; echo; pgrep -fl postgres"
 step gatekeeper-log sh -c "log show --last 10m --style compact --predicate 'process == \"syspolicyd\" OR subsystem == \"com.apple.syspolicy\" OR process == \"CoreServicesUIAgent\"' | grep -i -E 'storytree|assess|quarantine|notar' | head -200"
 step xattr-after-open xattr -p com.apple.quarantine "$APP"

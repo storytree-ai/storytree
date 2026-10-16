@@ -237,6 +237,16 @@ for (const platform of PLATFORMS) {
   }
 }
 
+test("4.4 linux: an AppImage its menu entry started with --no-sandbox, where the kernel blocks the sandbox, restarts the replaced AppImage with it", hostRuns("linux"), async (t) => {
+  const feed = await fixture(t, "linux");
+  feed.sandboxOff = true;
+  feed.version = "0.3.2";
+  const launches: Launch[] = [];
+  const updater = feed.updater(async (target) => { launches.push(target); }, async () => true);
+  assert.equal(await updater.check(), "restarting");
+  assert.deepEqual(launches, [{ execPath: feed.appImage, args: ["--no-sandbox"] }]);
+});
+
 test("4.12 a named run holds an automatic release install until released, without holding the download", async (t) => {
   const feed = await fixture(t);
   feed.version = "0.3.2";
@@ -324,7 +334,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-release-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const installer = Buffer.from("fixture release payload — never executed");
-  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined };
+  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false };
   const files = (base = "") => ["setup.exe", "storytree-mac.zip", "storytree-linux.AppImage"].map(url => ({ url: `${base}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
   const server = createServer((request, response) => {
     if (state.offline) { response.writeHead(404).end(); return; }
@@ -376,7 +386,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
     appImage,
     updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "development") {
       if (platform === "darwin") electron.autoUpdater = state.squirrel = new Squirrel();
-      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", ...(channel ? { releaseChannel: () => channel } : {}) }, {
+      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", sandboxOff: state.sandboxOff, ...(channel ? { releaseChannel: () => channel } : {}) }, {
         version: state.running, name: "storytree-test", isPackaged: true,
         appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),

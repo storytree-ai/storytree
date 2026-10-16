@@ -23,8 +23,8 @@ test("12.15 · the pool reads its machine, checkout, lanes, session cap, models 
     engines: { codex: { model: "codex-model" }, claude: { model: "claude-model" }, switchAt: 80 },
     watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalSeconds: 30 } });
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), {
-    machine: "box", checkout: "/home/u/src/shop", remoteCheckout: "~/src/shop", lanesDir: "/home/u/pool",
-    addDirs: ["/home/u/src/shop-wt", "/srv/shared", "/home/u/pool"], sessions: 3,
+    machine: "box", checkout: join("/home/u", "src/shop"), remoteCheckout: "~/src/shop", lanesDir: join("/home/u", "pool"),
+    addDirs: [join("/home/u", "src/shop-wt"), "/srv/shared", join("/home/u", "pool")], sessions: 3,
     models: { codex: "codex-model", claude: "claude-model" }, switchAt: 80,
     watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalMs: 30_000 },
   });
@@ -44,8 +44,8 @@ test("12.15 · the pool reads its machine, checkout, lanes, session cap, models 
 test("12.16 · with no configuration the pool runs on general defaults: this checkout, no other machine, the engines' own models, Codex until it is spent", async (t) => {
   const file = await configFile(t);
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), {
-    machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: "/home/u/.storytree/agent-pool",
-    addDirs: ["/home/u/.storytree/agent-pool"], sessions: 2, models: { codex: undefined, claude: undefined }, switchAt: 100,
+    machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: join("/home/u", ".storytree/agent-pool"),
+    addDirs: [join("/home/u", ".storytree/agent-pool")], sessions: 2, models: { codex: undefined, claude: undefined }, switchAt: 100,
     watcher: { fixesPerRed: 2, fixesPerPullRequest: 6, intervalMs: 60_000 },
   });
 });

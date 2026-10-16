@@ -32,11 +32,14 @@
  *   The edit tools are refused before an edit to work the session may not do (edit-gate.ts, ADR-0949 D3);
  *   nothing claims after the edit (ADR-0953 D5).
  */
+import { statSync } from "node:fs";
 import { uptime } from "node:os";
+import path from "node:path";
 
 import type { Hold, Holds, IncrementStatus, Library, Line, SchemaRecord, WriteOptions } from "@storytree/library";
 
 import { thisMachine, type ActivityLog } from "../activity/index.js";
+import { worktreeRoot } from "../activity/branch.js";
 import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, LogFold, LONGEST_COMMAND_MS, partOf, pullHolder, pullOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "@storytree/project-and-caller";
 import { endClaim } from "./endings.js";
@@ -124,7 +127,8 @@ export type LandAnswer =
   | { ok: false; refused: "held"; holder: Claim }
   | { ok: false; refused: "unknown-capability"; capability: string };
 
-type ClaimOptions = { readonly moveBranch?: true; readonly file?: string };
+/** `keepBranch`: a claim this session already holds stays on its branch even when claimed again from a linked worktree. */
+type ClaimOptions = { readonly moveBranch?: true; readonly keepBranch?: true; readonly file?: string };
 
 /**
  * Claim `id`, a capability or an increment, for the context's session, with a one-line reason.
@@ -132,18 +136,19 @@ type ClaimOptions = { readonly moveBranch?: true; readonly file?: string };
  * increment, if it is waiting work (waitingOn), or if another live session holds it; a holder idle
  * past the quiet time is taken over. Claiming a proposed increment starts it, through the
  * library's own `advanceIncrement` (0.2's ADR-0386). Claiming what it already holds changes nothing,
- * unless `moveBranch` is given with a new branch: then it holds it on that branch from now on.
+ * unless `moveBranch` is given with a new branch, or it is claimed from a linked worktree on another branch (5.48):
+ * then it holds it on that branch from now on.
  */
-export async function claim(context: ClaimContext, id: string, reason: string, options: ClaimOptions = {}): Promise<ClaimAnswer> {
+export async function claim(context: ClaimContext, id: string, reason: string, given: ClaimOptions = {}): Promise<ClaimAnswer> {
+  const options: ClaimOptions = given.moveBranch || given.keepBranch || !inLinkedWorktree(context.folder) ? given : { ...given, moveBranch: true };
   const file = options.file === undefined ? {} : { file: options.file };
   const tooLong = reasonRefusal(reason);
   if (tooLong !== undefined) return tooLong;
   // What this session already holds is answered before the library is read (5.23).
   // A finished holder claiming again must write an admitted claim to reopen its session.
-  if (!(options.moveBranch && context.branch !== undefined)) {
-    const standing = await readClaim(context.log, context.project, id, context);
-    if (standing?.session === context.session && standing.holder === "live") return { ok: true, claim: standing, alreadyHeld: true };
-  }
+  const standing = await readClaim(context.log, context.project, id, context);
+  const moves = options.moveBranch && context.branch !== undefined && context.branch !== standing?.branch;
+  if (standing?.session === context.session && standing.holder === "live" && !moves) return { ok: true, claim: standing, alreadyHeld: true };
   const found = await claimable(context, id);
   if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {
@@ -173,6 +178,16 @@ export async function claim(context: ClaimContext, id: string, reason: string, o
     const claimed: Claim = { ...claimOf(line.session, line.harness, found.part, reason, line.at, context.branch), holder: "live" } as Claim;
     return current === undefined || mine ? { ok: true, claim: claimed } : { ok: true, claim: claimed, takenOverFrom: current };
   });
+}
+
+/** Whether `folder` is in a linked worktree, whose `.git` is a file, not the main checkout, whose `.git` is a folder. */
+function inLinkedWorktree(folder: string | undefined): boolean {
+  const root = folder === undefined ? undefined : worktreeRoot(folder);
+  try {
+    return root !== undefined && statSync(path.join(root, ".git")).isFile();
+  } catch {
+    return false;
+  }
 }
 
 /**

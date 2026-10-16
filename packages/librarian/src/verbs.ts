@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Decision log and capability 5 · Queues. The librarian's command families, which the package's manifest
+ * Capability 22 · Decision log and capability 25 · Queues. The librarian's command families, which the package's manifest
  * names under `verbs` (ADR-1033), each at its place among `storytree`'s families: `adr` 4th, `friction` 13th and
  * `resteer` 14th.
  */

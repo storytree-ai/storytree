@@ -19,12 +19,12 @@ import { packageProblems } from "@storytree/guardrails";
 import { ALSO_OWNED } from "@storytree/map/package-of";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>); one that owns several declares the others in the map's ALSO_OWNED (ADR-1066 D3). */
-export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "lag-in-use", "learning-as-you-build", "knowledge-core", "librarian", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
+export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "lag-in-use", "learning-as-you-build", "knowledge-core", "library", "map", "mark", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
 // forest-world: story_ca702fee28cb (The world, ADR-0805 D1).
-// local-postgres: story_1d360b6227d8 (The local database, ADR-0805 D2).
+// library: story_754e87e7d531 (The library), which owns local-postgres and librarian too (ADR-1066 D4).
 // keys: story_55eb820f95c9 (Keys, ADR-0843).
 // identity: story_8040a4cc06c2 (Identity).
 // journey-events: story_9eb523952644 (Journey events).

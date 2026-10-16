@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Decision log: one test per contract 2.1-2.4 in the librarian story, each in a
+ * Capability 22 · Decision log: one test per contract 22.1-22.4 in The library story, each in a
  * fresh project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -25,7 +25,7 @@ async function textsOf(library: Library, id: string): Promise<unknown[]> {
   return (await library.changesSince(0)).changes.filter((change) => change.recordId === id).map((change) => change.record.fields.text);
 }
 
-test("2.1 supersede records an accepted successor that takes the old one's shelf and load-bearing mark, and the old one stays readable as superseded", async () => {
+test("22.1 supersede records an accepted successor that takes the old one's shelf and load-bearing mark, and the old one stays readable as superseded", async () => {
   await withLibrary(async (library) => {
     const { capability, cover } = await shelf(library);
     const other = await library.recordDecision({ title: "Log every email", text: "Every email sent is logged.", status: "accepted" });
@@ -43,7 +43,7 @@ test("2.1 supersede records an accepted successor that takes the old one's shelf
   });
 });
 
-test("2.1 supersede accepts an existing successor through the tool, preserving its history and links without making a duplicate", async () => {
+test("22.1 supersede accepts an existing successor through the tool, preserving its history and links without making a duplicate", async () => {
   await withLibrary(async (library) => {
     const { capability, cover } = await shelf(library);
     const earlier = await library.recordDecision({ title: "Send nothing", text: "No email yet.", status: "accepted" });
@@ -78,7 +78,7 @@ test("2.1 supersede accepts an existing successor through the tool, preserving i
   });
 });
 
-test("2.1 an existing successor keeps its own shelf and load-bearing mark when another decision is added", async () => {
+test("22.1 an existing successor keeps its own shelf and load-bearing mark when another decision is added", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const { capability, cover: successor } = await shelf(library);
@@ -89,7 +89,7 @@ test("2.1 an existing successor keeps its own shelf and load-bearing mark when a
   });
 });
 
-test("2.1 existing supersession refuses invalid decisions and loops before any write", async () => {
+test("22.1 existing supersession refuses invalid decisions and loops before any write", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const proposal = await library.recordDecision({ title: "Proposal", text: "Maybe.", status: "proposed" });
@@ -113,7 +113,7 @@ test("2.1 existing supersession refuses invalid decisions and loops before any w
   });
 });
 
-test("2.2 correct changes a decision in place, keeping the old wording in history, and refuses turning an accepted decision back to proposed", async () => {
+test("22.2 correct changes a decision in place, keeping the old wording in history, and refuses turning an accepted decision back to proposed", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
 
@@ -129,7 +129,7 @@ test("2.2 correct changes a decision in place, keeping the old wording in histor
   });
 });
 
-test("2.3 annotate adds a dated note to the target naming the decision that narrows it, and refuses a narrowing record that is not a live decision", async () => {
+test("22.3 annotate adds a dated note to the target naming the decision that narrows it, and refuses a narrowing record that is not a live decision", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const narrowing = await library.recordDecision({ title: "Transactional email only", text: "Mailgun sends receipts, never newsletters.", status: "accepted" });
@@ -146,7 +146,7 @@ test("2.3 annotate adds a dated note to the target naming the decision that narr
   });
 });
 
-test("2.4 the health report names each link or supersession pointing at a record no longer live, with both ends", async () => {
+test("22.4 the health report names each link or supersession pointing at a record no longer live, with both ends", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const definition = await library.defineTerm({ term: "Verified domain", meaning: "Mailgun needs a verified domain.", links: [cover.id] });

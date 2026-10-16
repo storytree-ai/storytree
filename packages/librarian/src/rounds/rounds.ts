@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Rounds (the librarian story): when the librarian's pass runs, and what it looks
+ * Capability 26 · Rounds (The library story, its librarian package): when the librarian's pass runs, and what it looks
  * at. Graduation is due at every landing, because only this session knows what it learned, and so is
  * the friction drain, because every session files friction and no curated write marks it; the
  * rest is due when the library's change feed since the session started shows a write to a curated

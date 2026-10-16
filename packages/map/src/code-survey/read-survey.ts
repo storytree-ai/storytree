@@ -37,7 +37,7 @@ import { mappedSurveyReader, type ImportedFolder } from "./mapped-survey.js";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { declaredNumberOf, declaresTitle, dependenciesOf, packageOf, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
+import { ALSO_OWNED, declaredNumberOf, declaresTitle, dependenciesOf, packageOf, packagesOf, storyEdges, surveyStory, type CoverageMap, type SourceFile, type SurveyPackage } from "./code-survey.js";
 
 /** Each story's survey, by story id; a story with no package is absent. */
 export type ProjectSurvey = Readonly<Record<string, StorySurvey>>;
@@ -47,7 +47,10 @@ const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 /** The file beside a package's src that holds its coverage map (written by the dev loop's `pnpm survey:coverage`). */
 const COVERAGE_MAP = "survey-coverage.json";
 
-export { declaredNumberOf, packageOf };
+export { declaredNumberOf, packageOf, packagesOf };
+
+/** The packages stories own beyond their own, by their own package's folder name (ADR-1066 D3). */
+type AlsoOwned = Readonly<Record<string, readonly string[]>>;
 
 /** A file's capability, and whether the survey inferred it because the file declares none. */
 export interface FileOwner {
@@ -59,25 +62,26 @@ export interface FileOwner {
  * ADR-0925 D4's lookup, shared by edit claims and the gate's capability-list check so they never place a
  * file differently: each of `files` (repo-relative to `root`) is placed by its own declaration, else by
  * the code survey's inference of `root`'s current checkout. A source file's header declares only when it names
- * the title of the capability its number does in the file's story (8.29). A file in no story's package, or one
+ * the title of the capability its number does in the file's story (8.29); a file in any package its story owns is its (8.30). A file in no story's package, or one
  * `readText` cannot read (undefined or a throw), is placed nowhere. Keys use forward slashes.
  */
 export async function capabilitiesOfFiles(root: string, files: readonly string[], tree: AnnotatedTree, {
   readText = (file: string) => readFileSync(path.join(root, file), "utf8"),
-  survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current" }).read(root, plan),
-}: { readText?(file: string): string | undefined; survey?(tree: AnnotatedTree): Promise<ProjectSurvey> } = {}): Promise<Map<string, FileOwner>> {
+  alsoOwned = ALSO_OWNED,
+  survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current", alsoOwned }).read(root, plan),
+}: { readText?(file: string): string | undefined; alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey> } = {}): Promise<Map<string, FileOwner>> {
   const owners = new Map<string, FileOwner>();
   const undeclared: string[] = [];
   for (const raw of files) {
     const file = raw.replaceAll("\\", "/");
-    const story = tree.stories.find(({ title, mapped }) => mapped === undefined && (file.startsWith(`packages/${packageOf(title)}/`) || (packageOf(title) === "app" && file.startsWith("apps/desktop/"))));
+    const story = tree.stories.find(({ title, mapped }) => mapped === undefined && (packagesOf(title, alsoOwned).some((name) => file.startsWith(`packages/${name}/`)) || (packageOf(title) === "app" && file.startsWith("apps/desktop/"))));
     if (story === undefined) continue;
     let text: string | undefined;
     try {
       text = readText(file);
     } catch {}
     if (text === undefined) continue;
-    const number = declaredNumberOf({ path: file, text }, packageOf(story.title));
+    const number = declaredNumberOf({ path: file, text }, packagesOf(story.title, alsoOwned));
     const numbered = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
     // A source file's header must name the capability its number does here; a test file's numbers carry no title.
     const declared = numbered !== undefined && (TEST_FILE.test(file) || declaresTitle(text, numbered.title)) ? numbered : undefined;
@@ -97,17 +101,18 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
 
 /**
  * The contract numbers the numbered tests in `capability`'s story package carry in `root`'s current
- * checkout, which both front doors skip when they number a new contract; none for a capability `tree`
- * lacks. A title prefixed with another package carries that package's numbers, not these.
+ * checkout, which both front doors skip when they number a new contract, from every package the story owns; none for a
+ * capability `tree` lacks. A title prefixed with another story's package carries that package's numbers, not these.
  */
 export async function testedNumbers(root: string, tree: AnnotatedTree, capability: string, {
-  survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current" }).read(root, plan),
-}: { survey?(tree: AnnotatedTree): Promise<ProjectSurvey> } = {}): Promise<string[]> {
+  alsoOwned = ALSO_OWNED,
+  survey = (plan: AnnotatedTree) => codeSurveyReader({ checkout: "current", alsoOwned }).read(root, plan),
+}: { alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey> } = {}): Promise<string[]> {
   const story = tree.stories.find((one) => one.capabilities.some((part) => part.id === capability));
   if (story === undefined) return [];
-  const own = packageOf(story.title);
+  const own = packagesOf(story.title, alsoOwned);
   const surveyed = await survey({ ...tree, stories: [story] });
-  return (surveyed[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || title.package === own).map((title) => title.number));
+  return (surveyed[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
 }
 
 /**
@@ -175,8 +180,10 @@ async function keepSurvey(file: string, key: string, survey: ProjectSurvey): Pro
   } catch {}
 }
 
-export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8"), checkout: checkoutScope = "main", keep, startFromFetched = false }: {
+export function codeSurveyReader({ readFile: readText = (file: string) => readFile(file, "utf8"), checkout: checkoutScope = "main", keep, startFromFetched = false, alsoOwned = ALSO_OWNED }: {
   readFile?(file: string): Promise<string>;
+  /** The packages stories own beyond the one named after their title (8.30); by default, those package-of.ts declares. */
+  alsoOwned?: AlsoOwned;
   /** Main reads fetched origin/main; current reads the caller's worktree. Without origin, main reads the primary folder. */
   checkout?: "main" | "current";
   /** Where surveys of a fetched main are kept between starts (8.25); without it nothing is kept. */
@@ -253,16 +260,19 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     const mapped = mappedReader.read(tree.stories, imports);
     mapped.catch(() => {}); // Awaited below; a failure there is the survey's.
     const surveys = await Promise.all(tree.stories.filter((story) => story.mapped === undefined).map(async (story) => {
-      const storyPackage = packageOf(story.title);
+      // Every package the story owns is read, each path from the one named after its title (8.30).
+      const owned = packagesOf(story.title, alsoOwned);
+      const storyPackage = owned[0]!;
       const root = path.join(checkout, "packages", storyPackage);
-      const sources = await filesUnder(source, root, path.join(root, "src"), seen);
+      const roots = owned.map((name) => path.join(checkout, "packages", name));
+      const sources = (await Promise.all(roots.map((dir) => filesUnder(source, root, path.join(dir, "src"), seen)))).flat();
       // The desktop is the app story's frame, just as plan-edges maps it (ADR-0864 D4).
       if (storyPackage === "app") sources.push(...await filesUnder(source, root, path.join(checkout, "apps", "desktop", "src"), seen));
       if (sources.length === 0) return [];
-      const beside = await codeBeside(source, root, root);
-      const manifestPaths = [path.join(root, "package.json"), ...(storyPackage === "app" ? [path.join(checkout, "apps", "desktop", "package.json")] : [])];
+      const beside = (await Promise.all(roots.map((dir) => codeBeside(source, dir, dir)))).flat();
+      const manifestPaths = [...roots.map((dir) => path.join(dir, "package.json")), ...(storyPackage === "app" ? [path.join(checkout, "apps", "desktop", "package.json")] : [])];
       const manifests = await Promise.all(manifestPaths.map((file) => fileAt(source, root, file, seen)));
-      const map = await fileAt(source, root, path.join(root, COVERAGE_MAP), seen);
+      const maps = await Promise.all(roots.map((dir) => fileAt(source, root, path.join(dir, COVERAGE_MAP), seen)));
       const capabilities = JSON.stringify(story.capabilities.map(({ id, title }) => [id, title]));
       const last = surveyed.get(story.id);
       const read = manifests.flatMap((file) => {
@@ -302,17 +312,12 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
           queue.push(dependency);
         }
       }
-      const files = map === undefined ? sources : [...sources, map];
+      const files = [...sources, ...maps.flatMap((map) => map === undefined ? [] : [map])];
       const packages = JSON.stringify(read.filter(pkg => Object.keys(pkg.exports).length > 0 || Object.keys(pkg.imports).length > 0).map(({ root, name, exports, imports }) => ({ root, name, exports, imports })));
       if (last !== undefined && last.capabilities === capabilities && last.packages === packages && last.files.length === files.length && last.files.every((file, at) => file === files[at])) return [[story.id, last.survey, read, sources.map(inRepository), base] as const];
-      const coverage = map === undefined ? {} : coverageFrom(map.text);
-      const measured = surveyStory(
-        sources.map(inRepository),
-        story.capabilities,
-        Object.fromEntries(Object.entries(coverage).map(([file, counts]) => [inCheckout(file), counts])),
-        storyPackage,
-        read,
-      );
+      // Each package's coverage map is keyed from its own folder.
+      const coverage = Object.fromEntries(maps.flatMap((map, at) => map === undefined ? [] : Object.entries(coverageFrom(map.text)).map(([file, counts]) => [path.posix.normalize(`packages/${owned[at]}/${file}`), counts] as const)));
+      const measured = surveyStory(sources.map(inRepository), story.capabilities, coverage, owned, read);
       const relativeImport = ({ from, to }: { from: string; to: string }) => ({ from: inPackage(from), to: inPackage(to) });
       const fresh: StorySurvey = {
         files: measured.files.map((file) => ({ ...file, path: inPackage(file.path) })),

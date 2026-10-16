@@ -17,14 +17,13 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { packageOf } from "@storytree/map/package-of";
+import { packageOf, packagesOf as packageNamesOf } from "@storytree/map/package-of";
 
 const FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"];
 
-/** The repo-relative folders holding a story's code, by its title. */
+/** The repo-relative folders holding a story's code, by its title: every package it owns (ADR-1066 D3). */
 function packagesOf(title) {
-  const id = packageOf(title);
-  return id === "app" ? ["packages/app", "apps/desktop"] : [`packages/${id}`];
+  return packageOf(title) === "app" ? ["packages/app", "apps/desktop"] : packageNamesOf(title).map((name) => `packages/${name}`);
 }
 
 /** A package.json's name and what it depends on, or undefined when the folder has none. */

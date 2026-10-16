@@ -9,7 +9,7 @@
  */
 import { allocationProblems, checkoutOf } from "@storytree/guardrails";
 import type { Library } from "@storytree/library";
-import { packageOf, testedNumbers as testedNumbersIn, untestedContracts as untestedIn } from "@storytree/map/code-survey";
+import { packagesOf, testedNumbers as testedNumbersIn, untestedContracts as untestedIn } from "@storytree/map/code-survey";
 import { z } from "zod";
 
 import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, staleClaims, type Claim, type ClaimAnswer, type ClaimContext, type MergeWatch, type WorkspaceRefusal } from "@storytree/session-management";
@@ -200,7 +200,7 @@ export function registerClaimTools(define: Define, extensions: readonly ToolExte
 /** The allocation problems of `capability`'s story package in the checkout the session works in; none for a capability the plan lacks. */
 async function unplacedFiles({ library, folder }: Call, capability: string): Promise<string[]> {
   const story = (await library.projectTree()).stories.find((one) => one.capabilities.some((part) => part.id === capability));
-  return story === undefined ? [] : allocationProblems(checkoutOf(folder), [packageOf(story.title)]);
+  return story === undefined ? [] : allocationProblems(checkoutOf(folder), packagesOf(story.title));
 }
 
 /**

@@ -479,3 +479,47 @@ test("5.25 making a workspace for work that already has an open pull request is 
     assert.ok(unasked.ok && unasked.status === "ready", JSON.stringify(unasked));
   });
 });
+
+test("5.47 a worktree git makes while printing to stderr is made and claimed; one git fails to make after its progress line is refused with git's own error, and leaves no claim, folder or branch behind", async () => {
+  await withWorld(async ({ log, project, site, park, as }) => {
+    const hook = path.join(site, ".git", "hooks", "post-checkout");
+    writeFileSync(hook, "#!/bin/sh\necho 'a note on stderr' >&2\n", { mode: 0o755 });
+    const increment = await park("email form");
+
+    const made = await makeWorkspace(as("A"), increment, "building the email form");
+
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+    assert.ok(worktrees(site).includes(path.resolve(made.folder)));
+    assert.deepEqual((await readClaims(log, project)).map(({ increment, branch }) => ({ increment, branch })), [{ increment, branch: made.branch }]);
+
+    writeFileSync(hook, "#!/bin/sh\necho 'fatal: the hook refuses' >&2\nexit 1\n", { mode: 0o755 });
+    const reset = await park("password reset");
+    const [before, branchesBefore] = [worktrees(site), branches(site)];
+
+    const refused = await makeWorkspace(as("A"), reset, "building the reset");
+
+    assert.ok(!refused.ok && refused.refused === "no-workspace", JSON.stringify(refused));
+    assert.match(refused.why, /fatal: the hook refuses/);
+    assert.doesNotMatch(refused.why, /Preparing worktree/);
+    assert.deepEqual(worktrees(site), before, "the half-made worktree is removed");
+    assert.deepEqual(branches(site), branchesBefore, "its branch is deleted");
+    assert.deepEqual((await readClaims(log, project)).map(({ increment }) => increment), [increment]);
+  });
+});
+
+test("5.48 a session claiming again, from a linked worktree, work it holds on another branch holds it on that worktree's branch from then on; claiming it again from the main checkout leaves it there", async () => {
+  await withWorld(async ({ dir, log, project, site, park, as }) => {
+    const increment = await park("email form");
+    assert.equal((await claim({ ...as("A"), branch: "main" }, increment, "claimed from the main checkout")).ok, true);
+    const folder = path.join(dir, "by-hand");
+    git(site, "worktree", "add", "-b", "claude/by-hand", folder, "origin/main");
+
+    const again = await claim({ ...as("A", folder), branch: "claude/by-hand" }, increment, "claimed again in its worktree");
+
+    assert.ok(again.ok && again.alreadyHeld !== true, JSON.stringify(again));
+    assert.deepEqual((await readClaims(log, project)).map(({ session, branch }) => ({ session, branch })), [{ session: "A", branch: "claude/by-hand" }]);
+    const fromMain = await claim({ ...as("A"), branch: "main" }, increment, "claimed from the main checkout");
+    assert.ok(fromMain.ok && fromMain.alreadyHeld === true, JSON.stringify(fromMain));
+    assert.deepEqual((await readClaims(log, project)).map(({ branch }) => branch), ["claude/by-hand"]);
+  });
+});

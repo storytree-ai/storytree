@@ -62,6 +62,8 @@ export interface WorkspaceOptions {
 }
 
 const FETCH_TIMEOUT_MS = 120_000;
+/** Checking out the whole tree can take minutes on a slow Windows disk: a git stopped part-way leaves a locked, half-made worktree. */
+const WORKTREE_ADD_TIMEOUT_MS = 600_000;
 const NAME_PART_MAX = 32;
 
 /** Create and claim for Claude Code; for Codex return the app's creation arguments without a claim. */
@@ -106,12 +108,14 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
   if (!claimed.ok) return claimed;
   try {
     mkdirSync(path.dirname(where.folder), { recursive: true });
-    run(repository, ["worktree", "add", "-b", where.branch, where.folder, `refs/remotes/${base}`]);
+    run(repository, ["worktree", "add", "-b", where.branch, where.folder, `refs/remotes/${base}`], WORKTREE_ADD_TIMEOUT_MS);
   } catch (error) {
+    // Only git's exit says it failed: what it printed on stderr before then is progress (5.47). What it made part-way goes.
+    unmake(repository, where);
     // A claim the session held before goes back to its branch; one taken here is let go.
     if (before?.session === context.session && before.branch !== undefined) await claim({ ...context, branch: before.branch }, id, before.reason, { moveBranch: true });
     else await release(context, id);
-    return { ok: false, refused: "no-workspace", why: `git could not make the worktree: ${firstLine(error)}` };
+    return { ok: false, refused: "no-workspace", why: `git could not make the worktree: ${failureOf(error)}` };
   }
   return { ok: true, status: "ready", claim: claimed.claim, ...where, base, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
 }
@@ -146,7 +150,7 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
   // A claim this session held from the main checkout before attaching (workspaceRefusal) moves onto the attached branch.
   const before = await readClaim(context.log, context.project, id);
   const moving = before?.session === context.session && before.holder === "live";
-  const claimed = await claim({ ...context, folder, branch }, id, reason, moving ? { moveBranch: true } : {});
+  const claimed = await claim({ ...context, folder, branch }, id, reason, moving ? { moveBranch: true } : { keepBranch: true });
   if (!claimed.ok) return claimed; // Another session may have claimed since preparation.
   // A claim this session took elsewhere while checking must not be retargeted or released.
   if (claimed.alreadyHeld) return { ok: false, refused: "yours", claim: claimed.claim };
@@ -304,6 +308,27 @@ function branchExists(repository: string, branch: string): boolean {
 /** Run git in `cwd`, and return what it printed; throws when it fails. */
 function run(cwd: string, args: readonly string[], timeout = 30_000): string {
   return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout, windowsHide: true });
+}
+
+/** Remove the worktree and branch a failed `worktree add` made part-way, as far as git can; placeFor chose names nothing had. */
+function unmake(repository: string, where: { folder: string; branch: string }): void {
+  for (const args of [["worktree", "remove", "--force", "--force", where.folder], ["worktree", "prune"], ["branch", "-D", where.branch]]) {
+    try {
+      run(repository, args);
+    } catch {
+      // Not made, or already gone.
+    }
+  }
+}
+
+/** Why git failed, by how it ended: stopped, or its exit status with its own error line, never the progress it printed first. */
+function failureOf(error: unknown): string {
+  const ended = error as { status?: number | null; signal?: string | null; code?: string };
+  if (ended.code === "ETIMEDOUT" || (ended.status === null && ended.signal)) return `git was stopped before it finished (${ended.signal ?? ended.code}), and what it had made was removed`;
+  const said = (error as { stderr?: unknown }).stderr;
+  const lines = (typeof said === "string" ? said : "").split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== "");
+  const own = lines.findLast((line) => /^(?:fatal|error):/.test(line)) ?? lines.at(-1);
+  return own ?? firstLine(error);
 }
 
 /** The first line of what a failed git said. */

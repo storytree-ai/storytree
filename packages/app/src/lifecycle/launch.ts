@@ -25,14 +25,18 @@ export interface LaunchOptions {
   readonly appPath: string;
   /** The program running it (Electron, or the packaged app). */
   readonly execPath: string;
-  /** Set when the app is a packaged build; a portable one runs from a temporary copy of `portableFile`. */
-  readonly packaged?: { readonly portableFile?: string };
+  /**
+   * Set when the app is a packaged build. A portable one runs from a temporary copy of `portableFile`; an AppImage runs
+   * from a mount of `appImage` that vanishes when it exits, started with --no-sandbox where the kernel blocks the sandbox.
+   */
+  readonly packaged?: { readonly portableFile?: string; readonly appImage?: string; readonly sandboxOff?: boolean };
   /** Whether this machine has the app that follows merged main set up (a built slot in the runtime). */
   readonly followsMainSetUp: boolean;
 }
 
 /** The record this app should leave of how to open it, or undefined when it must leave the one there alone. */
 export function launchToRecord({ runtimeDir, appPath, execPath, packaged, followsMainSetUp }: LaunchOptions): LaunchRecord | undefined {
+  if (packaged?.appImage !== undefined) return { command: packaged.appImage, args: packaged.sandboxOff === true ? ["--no-sandbox"] : [] };
   if (packaged !== undefined) return { command: packaged.portableFile ?? execPath, args: [] };
   if (slotOf(runtimeDir, appPath) === undefined && followsMainSetUp) return undefined;
   return { command: execPath, args: [appPath] };

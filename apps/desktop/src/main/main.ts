@@ -466,16 +466,22 @@ function showWindow(): void {
 
 /**
  * Record how this app was started, so that an agent's session start can open it again when it is
- * closed (the app setup's setup check). A packaged portable build runs from a temporary copy, so
- * the portable file itself is what is recorded; in development, Electron and the app's folder.
+ * closed (the app setup's setup check). A packaged portable build runs from a temporary copy, and an
+ * AppImage from a mount that vanishes when it exits, so the portable file or the AppImage itself is
+ * what is recorded; in development, Electron and the app's folder.
  */
 function recordLaunch(): void {
   const portableFile = process.env.PORTABLE_EXECUTABLE_FILE;
+  const appImage = process.env.APPIMAGE;
+  const packaged = {
+    ...(portableFile === undefined ? {} : { portableFile }),
+    ...(appImage === undefined ? {} : { appImage, sandboxOff: app.commandLine.hasSwitch("no-sandbox") }),
+  };
   const record = launchToRecord({
     runtimeDir: home.runtime,
     appPath: app.getAppPath(),
     execPath: process.execPath,
-    ...(app.isPackaged ? { packaged: portableFile === undefined ? {} : { portableFile } } : {}),
+    ...(app.isPackaged ? { packaged } : {}),
     followsMainSetUp: (["a", "b"] as const).some((name) => existsSync(path.join(appDirIn(path.join(home.runtime, name)), "node_modules", "electron", "path.txt"))),
   });
   if (record === undefined) {

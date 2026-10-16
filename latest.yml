@@ -1,1541 +1,169 @@
 {
   "schema": 1,
   "channel": "stable",
-  "version": "0.3.1430",
+  "version": "0.3.1453",
   "files": [
     {
-      "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1430/storytree-0.3-0.3.1430-setup.exe",
-      "sha512": "wlxLkCueqim/dmCHSxSsHMAOTj0MhR5wdKW/83nuVEz9xmKg17ABcis2TdvzAqSHihoqt+je3BE6k0XQDcrO1w==",
-      "size": 369129189
+      "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1453/storytree-0.3-0.3.1453-setup.exe",
+      "sha512": "ajKchx69ipdi7DIHJwmAA1tN2cNFmOD68a217qdpwmklE3bQhH/pjTcu4VDshdMboRG9fVpQAqqco4HDB/YhkQ==",
+      "size": 369164695
     }
   ],
-  "releaseNotes": "# storytree 0.3.1430\n\n- Road routing never holds the page: islands first, roads drawn on when routed ([#1253](https://github.com/storytree-ai/storytree/pull/1253))\n- The command schema moves into the library, and each host keeps its own mounting code ([#1376](https://github.com/storytree-ai/storytree/pull/1376))\n- The watcher's code version reads only the code it runs ([#1116](https://github.com/storytree-ai/storytree/pull/1116))\n- CI plan role's grants committed and checked ([#1135](https://github.com/storytree-ai/storytree/pull/1135))\n- Stories and Library are separate switches on the globe ([#1213](https://github.com/storytree-ai/storytree/pull/1213))\n- check:guidance tells a sibling lane's unlanded role edit from the branch's own drift ([#1294](https://github.com/storytree-ai/storytree/pull/1294))\n- Each story package says what it adds in a manifest, and one host mounts from it: the plugin loader, first slice ([#1316](https://github.com/storytree-ai/storytree/pull/1316))\n- An arc waiting only on an owner action gets no repeat planning lane across dispatcher restarts ([#1206](https://github.com/storytree-ai/storytree/pull/1206))\n- The activity log's line is defined in the library ([#1293](https://github.com/storytree-ai/storytree/pull/1293))\n- Without WebGL the map chapter's arcs step shows storytree's arcs, not the shop's ([#1195](https://github.com/storytree-ai/storytree/pull/1195))\n- A new lag action's first measure does not mark its contract not re-run ([#1270](https://github.com/storytree-ai/storytree/pull/1270))\n- The user gives one yes per increment for imported code, from any harness ([#1298](https://github.com/storytree-ai/storytree/pull/1298))\n- cli's front-door 1.3 bound holds under a full run's load ([#1203](https://github.com/storytree-ai/storytree/pull/1203))\n- Search chunks fit the 512 tokens the model reads ([#1398](https://github.com/storytree-ai/storytree/pull/1398))\n- Project routing and Settings move out of Session management into Project and caller ([#1319](https://github.com/storytree-ai/storytree/pull/1319))\n- A built island is drawn above the mapped island it imports, with its road, as soon as the survey has the dependency ([#1247](https://github.com/storytree-ai/storytree/pull/1247))\n- library new contract gives plan_contract's long-title advisory ([#1142](https://github.com/storytree-ai/storytree/pull/1142))\n- The command line's claim and attach take over a pull request's held claim on its own branch ([#1377](https://github.com/storytree-ai/storytree/pull/1377))\n- Resolve '#' package imports in the survey's import edges ([#1324](https://github.com/storytree-ai/storytree/pull/1324))\n- 2 · Change review: mark it built, or build what is missing ([#1124](https://github.com/storytree-ai/storytree/pull/1124))\n- A check graduated whole leaves the review brief ([#1131](https://github.com/storytree-ai/storytree/pull/1131))\n- The QA ledger is in the box's library backups ([#1389](https://github.com/storytree-ai/storytree/pull/1389))\n- The doors log a door-answered line per answer ([#1190](https://github.com/storytree-ai/storytree/pull/1190))\n- A start with main unmoved surveys nothing again ([#1256](https://github.com/storytree-ai/storytree/pull/1256))\n- The one-line install on Linux: the shared curl | sh ([#1320](https://github.com/storytree-ai/storytree/pull/1320))\n- The code survey, own health and plan-edges read one package-alias table ([#1232](https://github.com/storytree-ai/storytree/pull/1232))\n- A real open-source project is imported and built on, driven as a user on the old Windows machine ([#1241](https://github.com/storytree-ai/storytree/pull/1241))\n- The mark's master drawing, its four colour roles and its fixed-colour files ([#1146](https://github.com/storytree-ai/storytree/pull/1146))\n- A slowdown that reproduces makes its capability read not healthy ([#1234](https://github.com/storytree-ai/storytree/pull/1234))\n- A re-import moves the recorded commit and says what changed ([#1313](https://github.com/storytree-ai/storytree/pull/1313))\n- The verb contract moves into Project and caller, its context naming nothing of Session management ([#1340](https://github.com/storytree-ai/storytree/pull/1340))\n- The settings panel's page operations mount from Project and caller's manifest ([#1333](https://github.com/storytree-ai/storytree/pull/1333))\n- The Arcs drawer expands to fill the window ([#1186](https://github.com/storytree-ai/storytree/pull/1186))\n- Draw increments as flat ovals with the claim flag planted on them ([#1192](https://github.com/storytree-ai/storytree/pull/1192))\n- One road type: every road and lit lane is drawn solid ([#1185](https://github.com/storytree-ai/storytree/pull/1185))\n- A drawn diagram in the top left: decisions glued under an island, tunnelling to the core ([#1312](https://github.com/storytree-ai/storytree/pull/1312))\n- Older animation captures step the page clock, not the wall clock ([#1220](https://github.com/storytree-ai/storytree/pull/1220))\n- The Windows handoff ACL check holds on a busy CI runner ([#1351](https://github.com/storytree-ai/storytree/pull/1351))\n- quality brief diffs the increment's branch, not the folder it runs in ([#1284](https://github.com/storytree-ai/storytree/pull/1284))\n- Pending plan changes: written and listed on the increment ([#1120](https://github.com/storytree-ai/storytree/pull/1120))\n- The release signs and notarises the Mac build once Developer ID secrets exist ([#1119](https://github.com/storytree-ai/storytree/pull/1119))\n- Every host mounts the stories storytree ships from their manifests ([#1321](https://github.com/storytree-ai/storytree/pull/1321))\n- The pool stops reading a body's wording for another machine ([#1283](https://github.com/storytree-ai/storytree/pull/1283))\n- A gate test loads release.mjs under plain Node ([#1296](https://github.com/storytree-ai/storytree/pull/1296))\n- Linux keeps Chromium's sandbox wherever the kernel allows it ([#1360](https://github.com/storytree-ai/storytree/pull/1360))\n- The mark inside the desktop window, in the app theme's colours ([#1180](https://github.com/storytree-ai/storytree/pull/1180))\n- The map reads a mapped island: its files, its size and the roads among mapped islands ([#1159](https://github.com/storytree-ai/storytree/pull/1159))\n- CI names the certificate from the repository, and no build trusts it ([#1163](https://github.com/storytree-ai/storytree/pull/1163))\n- The dispatcher restarts only when the code it runs changes ([#1105](https://github.com/storytree-ai/storytree/pull/1105))\n- Provisioned worktrees fetch Electron's binary, so Electron tests run on the box ([#1249](https://github.com/storytree-ai/storytree/pull/1249))\n- A conflict red past the fix limit gets a session that can claim, not an owner wait ([#1335](https://github.com/storytree-ai/storytree/pull/1335))\n- Revive the row-detail and window captures, which wait on UI that changed ([#1141](https://github.com/storytree-ai/storytree/pull/1141))\n- An island inset: a story's parts and files play in the top right corner ([#1311](https://github.com/storytree-ai/storytree/pull/1311))\n- The whole journey's see/feel/think is re-recorded for today's tour ([#1254](https://github.com/storytree-ai/storytree/pull/1254))\n- The app's and the account's families mount from manifests: app, release, settings, sign-in, status, sign-out ([#1361](https://github.com/storytree-ai/storytree/pull/1361))\n- On a 320 phone, the health step's tag touches the Cart island ([#1282](https://github.com/storytree-ai/storytree/pull/1282))\n- Planning lanes skip arcs whose open increments all carry a live wait ([#1337](https://github.com/storytree-ai/storytree/pull/1337))\n- The map chapter in six steps: plans, islands and pathways first, then inside an island; the agents chapter goes ([#1145](https://github.com/storytree-ai/storytree/pull/1145))\n- The verb contract carries callerless and bare verbs, and refuses stray words ([#1349](https://github.com/storytree-ai/storytree/pull/1349))\n- Dev-home 2.2 waits for Postgres to exit on Windows before asserting it is gone ([#1387](https://github.com/storytree-ai/storytree/pull/1387))\n- A prefixed test title naming a number its story lacks is warned about ([#1214](https://github.com/storytree-ai/storytree/pull/1214))\n- Releases publish again: an ad-hoc Mac build passes no empty CSC_LINK ([#1199](https://github.com/storytree-ai/storytree/pull/1199))\n- The globe's roads and rows come from derived capability edges; the rings and coast-to-coast lanes go ([#1154](https://github.com/storytree-ai/storytree/pull/1154))\n- Librarian 1.3 stops depending on two decisions' creation millisecond ([#1392](https://github.com/storytree-ai/storytree/pull/1392))\n- A start's code survey does not wait on the fetch ([#1289](https://github.com/storytree-ai/storytree/pull/1289))\n- The website wears the mark: favicon, page header and share image ([#1147](https://github.com/storytree-ai/storytree/pull/1147))\n- A refused fix session is retried only once the refusing claim clears ([#1375](https://github.com/storytree-ai/storytree/pull/1375))\n- The pool holds off an increment refused on a capability while anyone holds it ([#1216](https://github.com/storytree-ai/storytree/pull/1216))\n- The lag runner's history is in the box's library backups ([#1235](https://github.com/storytree-ai/storytree/pull/1235))\n- Anchor test 6.74's f11 check to the file path ([#1323](https://github.com/storytree-ai/storytree/pull/1323))\n- Own health stops crashing on a test title with a huge contract range ([#1133](https://github.com/storytree-ai/storytree/pull/1133))\n- health ci reads each package from the newest run that scoped it ([#1100](https://github.com/storytree-ai/storytree/pull/1100))\n- A lit link reaches its capability along the territory borders, and type-only links read apart ([#1158](https://github.com/storytree-ai/storytree/pull/1158))\n- A pool lane's workspace is installed when it is made ([#1114](https://github.com/storytree-ai/storytree/pull/1114))\n- Guidance: text with a dollar-name or a line break goes to storytree as a file or through a tool ([#1174](https://github.com/storytree-ai/storytree/pull/1174))\n- The MCP server's library tools are declared in The library ([#1381](https://github.com/storytree-ai/storytree/pull/1381))\n- The test runner's deadlines and concurrency fit the machine it runs on ([#1197](https://github.com/storytree-ai/storytree/pull/1197))\n- A contract's definition: two sentences and a length warning on the habits card ([#1139](https://github.com/storytree-ai/storytree/pull/1139))\n- A lit road carries one wave, with a softer head ([#1177](https://github.com/storytree-ai/storytree/pull/1177))\n- The watcher takes a pull request whose increment already closed on an earlier one ([#1366](https://github.com/storytree-ai/storytree/pull/1366))\n- A product project reads its system from its factory, its own edits winning ([#1394](https://github.com/storytree-ai/storytree/pull/1394))\n- Reading the front doors: a command prints every command and tool with its use and its misses ([#1209](https://github.com/storytree-ai/storytree/pull/1209))\n- The caller and the harness list move into Project and caller ([#1334](https://github.com/storytree-ai/storytree/pull/1334))\n- The kept forest is drawn with its kept survey: a start lays the globe out once ([#1248](https://github.com/storytree-ai/storytree/pull/1248))\n- Imported code is changed or retired only on the user's explicit permission ([#1288](https://github.com/storytree-ai/storytree/pull/1288))\n- The dispatcher-restart test (dev-loop 12.10) holds under a full gate's load ([#1160](https://github.com/storytree-ai/storytree/pull/1160))\n- show_plan says a mapped story is mapped, and gives it no health reading ([#1252](https://github.com/storytree-ai/storytree/pull/1252))\n- heavy-lock.test.mjs names its failure, or passes, on Windows CI ([#1260](https://github.com/storytree-ai/storytree/pull/1260))\n- Reading Apple's answer to a pending submission is not a red run ([#1380](https://github.com/storytree-ai/storytree/pull/1380))\n- A shared capture seed whose package paths come from the seed ([#1140](https://github.com/storytree-ai/storytree/pull/1140))\n- Four type-only links that reached main since #1295 end at the library or become the reader's copy ([#1368](https://github.com/storytree-ai/storytree/pull/1368))\n- An installed Mac app knows it; a Developer ID build follows releases ([#1161](https://github.com/storytree-ai/storytree/pull/1161))\n- An increment can be parked already waiting on another increment ([#1171](https://github.com/storytree-ai/storytree/pull/1171))\n- A project with a repository but no origin can be reviewed and landed against its local default branch ([#1271](https://github.com/storytree-ai/storytree/pull/1271))\n- Lag in real use's capabilities read as built ([#1230](https://github.com/storytree-ai/storytree/pull/1230))\n- Health worklist holds back capabilities awaiting their merge's own-health run ([#1151](https://github.com/storytree-ai/storytree/pull/1151))\n- The Mint box measures main after merges and names the pull request that slowed an action ([#1233](https://github.com/storytree-ai/storytree/pull/1233))\n- Graduated checks' hits reach the QA ledger, and a check graduates from either front door ([#1117](https://github.com/storytree-ai/storytree/pull/1117))\n- Kind list under the Library switch: colour, count and on/off per artifact kind ([#1285](https://github.com/storytree-ai/storytree/pull/1285))\n- A week on: archive Cloud SQL's databases and delete the instance ([#1400](https://github.com/storytree-ai/storytree/pull/1400))\n- Session management's workspace family mounts from its manifest ([#1344](https://github.com/storytree-ai/storytree/pull/1344))\n- The tour shows claims as flags: the map chapter in five steps, with signing in's claims before its code lands ([#1101](https://github.com/storytree-ai/storytree/pull/1101))\n- The map counts what crosses a line in a mapped island: the callers of a part, before it is adopted ([#1258](https://github.com/storytree-ai/storytree/pull/1258))\n- A handed-over pull request keeps its claims until it merges (ADR-1037) ([#1374](https://github.com/storytree-ai/storytree/pull/1374))\n- Session management's context and noticeboard families mount from its manifest ([#1354](https://github.com/storytree-ai/storytree/pull/1354))\n- Machines in Session management: the computers that work on a project, each with a short name, hostname and id ([#1167](https://github.com/storytree-ai/storytree/pull/1167))\n- A user's yes in conversation reaches the edit guard without a prompt ([#1309](https://github.com/storytree-ai/storytree/pull/1309))\n- The globe places a new island above the mapped island it imports and draws the road between them ([#1218](https://github.com/storytree-ai/storytree/pull/1218))\n- Four once-seen merge queue flakes of 10 October are diagnosed and fixed ([#1150](https://github.com/storytree-ai/storytree/pull/1150))\n- Journey, setup help and feedback identity: mount from manifests or stay in the frame with the reason ([#1329](https://github.com/storytree-ai/storytree/pull/1329))\n- The MCP server serves a declared verb's optional input as optional ([#1346](https://github.com/storytree-ai/storytree/pull/1346))\n- Package the desktop app as an x64 Linux AppImage in the release ([#1315](https://github.com/storytree-ai/storytree/pull/1315))\n- The forest draws on a glass sheet, depth west to east, moved only by pan and zoom ([#1401](https://github.com/storytree-ai/storytree/pull/1401))\n- The grill-me process writes owner commands for PowerShell 5.1 ([#1317](https://github.com/storytree-ai/storytree/pull/1317))\n- Opening the app shows progress until settled, and is a measured action ([#1257](https://github.com/storytree-ai/storytree/pull/1257))\n- The sessions list covers the islands the claims step is about ([#1272](https://github.com/storytree-ai/storytree/pull/1272))\n- The edit gate's file-to-capability lookup stops importing the map ([#1113](https://github.com/storytree-ai/storytree/pull/1113))\n- The watcher reads every conflict as one, counts only fixes that made no progress, never sends a conflict to the owner, and shows when it runs stale code ([#1371](https://github.com/storytree-ai/storytree/pull/1371))\n- The Sessions strip expands to fill the forest pane ([#1181](https://github.com/storytree-ai/storytree/pull/1181))\n- The app records what each named action cost in real use ([#1225](https://github.com/storytree-ai/storytree/pull/1225))\n- The forest evidence harness finds its observation seams again, or retires ([#1240](https://github.com/storytree-ai/storytree/pull/1240))\n- The map's crossing count takes an explored capability in place of folders ([#1269](https://github.com/storytree-ai/storytree/pull/1269))\n- The forest's code survey mounts from its manifest ([#1330](https://github.com/storytree-ai/storytree/pull/1330))\n- Turn on CI's plan read: owner sets the credential and password ([#1110](https://github.com/storytree-ai/storytree/pull/1110))\n- Check, quality and processes families mount from their stories' manifests ([#1359](https://github.com/storytree-ai/storytree/pull/1359))\n- The shop's first four islands sit in rows, not a column ([#1191](https://github.com/storytree-ai/storytree/pull/1191))\n- The live run redone: an agent asks before changing imported code, driven as a user on the old Windows machine ([#1297](https://github.com/storytree-ai/storytree/pull/1297))\n- gate.test.mjs 7.3's cancel test fits a loaded Windows runner ([#1341](https://github.com/storytree-ai/storytree/pull/1341))\n- The implementer's guidance drops the test-quality list its checks cover ([#1107](https://github.com/storytree-ai/storytree/pull/1107))\n- A project's pipeline fetches what the project imports ([#1250](https://github.com/storytree-ai/storytree/pull/1250))\n- The capture kit bounds browser.close() after disconnect ([#1281](https://github.com/storytree-ai/storytree/pull/1281))\n- Tools print next steps, worded as tool names ([#1106](https://github.com/storytree-ai/storytree/pull/1106))\n- A stopped release retries once, then raises an alarm and gets a fix session ([#1369](https://github.com/storytree-ai/storytree/pull/1369))\n- grill-me re-reads the question list before any table ([#1305](https://github.com/storytree-ai/storytree/pull/1305))\n- The camera journey's hand-over check holds under box load ([#1224](https://github.com/storytree-ai/storytree/pull/1224))\n- Concurrent test units measured over ten Windows CI runs ([#1029](https://github.com/storytree-ai/storytree/pull/1029)) — Measurement only: ten full post-#1029 CI runs, Windows test step median 681 s vs 826 s baseline (~18% shorter), 0 failures in 10. Reading on the body.\n- Own health commits each library write instead of holding a transaction idle ([#1404](https://github.com/storytree-ai/storytree/pull/1404))\n- Antigravity CLI is a watched harness, through its shell hooks ([#1266](https://github.com/storytree-ai/storytree/pull/1266))\n- On a laptop, storytree's globe puts names under the bottom bar and past the right edge ([#1275](https://github.com/storytree-ai/storytree/pull/1275))\n- packages/cli fits its Windows CI time limit with margin ([#1165](https://github.com/storytree-ai/storytree/pull/1165))\n- The library's families mount from manifests: library, arc, question, adr, friction, resteer ([#1355](https://github.com/storytree-ai/storytree/pull/1355))\n- The knowledge chapter reshaped after the map chapter's new order ([#1149](https://github.com/storytree-ai/storytree/pull/1149))\n- The harness step moves to the intro, as its fifth step ([#1301](https://github.com/storytree-ai/storytree/pull/1301))\n- Health says a merged test awaits its recorded run, not that no test names it ([#1221](https://github.com/storytree-ai/storytree/pull/1221))\n- The forest journey proves the still without JavaScript, after context loss and after a failed start ([#1244](https://github.com/storytree-ai/storytree/pull/1244))\n- 4 · Review loop bound: mark it built, or build what is missing ([#1123](https://github.com/storytree-ai/storytree/pull/1123))\n- The globe slides left while the right-hand panel is open ([#1202](https://github.com/storytree-ai/storytree/pull/1202))\n- Releases publish again, Apple's answer is readable from CI, and a release never waits on Apple ([#1332](https://github.com/storytree-ai/storytree/pull/1332))\n- A full test run leaves nothing of its own in the temp folder ([#1350](https://github.com/storytree-ai/storytree/pull/1350))\n- Idle sessions move from the Live tab to a searchable History ([#1189](https://github.com/storytree-ai/storytree/pull/1189))\n- A step's words: no kicker, one depth link, one sentence at a time ([#1300](https://github.com/storytree-ai/storytree/pull/1300))\n- A change to the factory's system shows on its globe and reaches product projects ([#1397](https://github.com/storytree-ai/storytree/pull/1397))\n- On a short phone, the claims step hides Checkout's name ([#1276](https://github.com/storytree-ai/storytree/pull/1276))\n- The map chapter's stories and capabilities steps say one line each ([#1222](https://github.com/storytree-ai/storytree/pull/1222))\n- The first check graduates in part to a deterministic check in Guardrails ([#1102](https://github.com/storytree-ai/storytree/pull/1102))\n- Give the shop an honest WebGL fallback ([#1172](https://github.com/storytree-ai/storytree/pull/1172))\n- Agent link tool to present a question ([#1112](https://github.com/storytree-ai/storytree/pull/1112))\n- The mark at 16 pixels: the globe fills the tile, no islets, a bigger bolder tree ([#1170](https://github.com/storytree-ai/storytree/pull/1170))\n- Hooks record a no-git project's activity at its marker folder, not the subfolder ([#1255](https://github.com/storytree-ai/storytree/pull/1255))\n- Cursor is a watched harness ([#1243](https://github.com/storytree-ai/storytree/pull/1243))\n- The desktop app wears the mark: window, taskbar, tray, installer and macOS icon ([#1148](https://github.com/storytree-ai/storytree/pull/1148))\n- An agent draws what it explores on a mapped island: a named capability and its files ([#1263](https://github.com/storytree-ai/storytree/pull/1263))\n- An unmet contract in a review stands until answered ([#1391](https://github.com/storytree-ai/storytree/pull/1391))\n- The lag run reads a seeded library, at more than one size ([#1227](https://github.com/storytree-ai/storytree/pull/1227))\n- The box serves a certificate that cannot sign for other hosts, and the old key is destroyed ([#1259](https://github.com/storytree-ai/storytree/pull/1259))\n- A shell command that changes imported code is caught, not only edit tools ([#1302](https://github.com/storytree-ai/storytree/pull/1302))\n- Read the needs clause only when routing pool briefs ([#1164](https://github.com/storytree-ai/storytree/pull/1164))\n- Command-line tests stop writing door-answered lines into the real project's log ([#1210](https://github.com/storytree-ai/storytree/pull/1210))\n- Storytree's hook input is a published interface a custom harness can call ([#1251](https://github.com/storytree-ai/storytree/pull/1251))\n- Own-database set-up does not deadlock a concurrent ledger write ([#1130](https://github.com/storytree-ai/storytree/pull/1130))\n- Leaving storytree on a Mac: setup uninstall removes the .app and the .zprofile line ([#1326](https://github.com/storytree-ai/storytree/pull/1326))\n- The setup work moves out of the agent link into the app setup story ([#1095](https://github.com/storytree-ai/storytree/pull/1095))\n- Any MCP client can be connected, and the setup check says so ([#1219](https://github.com/storytree-ai/storytree/pull/1219))\n- A branch's gate reads the plan with its own pending changes ([#1127](https://github.com/storytree-ai/storytree/pull/1127))\n- check:capability-list skips import-specifier-only rewrites ([#1307](https://github.com/storytree-ai/storytree/pull/1307))\n- Setup check 8.26 reads verified from the test that names it ([#1212](https://github.com/storytree-ai/storytree/pull/1212))\n- The pool stops skipping the website arc whole ([#1157](https://github.com/storytree-ai/storytree/pull/1157))\n- Quality assurance's quality family is proved by its own 1.3 test ([#1373](https://github.com/storytree-ai/storytree/pull/1373))\n- The claim flag is a pennant at every zoom, never a dot ([#1382](https://github.com/storytree-ai/storytree/pull/1382))\n- The release updater picks NSIS or Mac per platform (Mac still off) ([#1136](https://github.com/storytree-ai/storytree/pull/1136))\n- storytree check runs the graduated self-equal assertion check ([#1384](https://github.com/storytree-ai/storytree/pull/1384))\n- A handed-over session reads unverified until its pull request merges ([#1205](https://github.com/storytree-ai/storytree/pull/1205))\n- A subagent's report gets no definitions, and a shared name brings in none ([#1385](https://github.com/storytree-ai/storytree/pull/1385))\n- library new contract skips numbers the story's tests carry ([#1122](https://github.com/storytree-ai/storytree/pull/1122))\n- A new island's road to the mapped island it imports is drawn, and agents are told how to build on existing code ([#1179](https://github.com/storytree-ai/storytree/pull/1179))\n- The habits card tells an agent to ask the user before changing imported code ([#1287](https://github.com/storytree-ai/storytree/pull/1287))\n- Quality brief judges contracts by the increment's pending changes ([#1144](https://github.com/storytree-ai/storytree/pull/1144))\n- Setting a project up with a factory seeds no copy of the system ([#1399](https://github.com/storytree-ai/storytree/pull/1399))\n- Existing projects move onto a factory, keeping their own edits ([#1396](https://github.com/storytree-ai/storytree/pull/1396))\n- The health worklist holds back capabilities a pending Own health run will record ([#1115](https://github.com/storytree-ai/storytree/pull/1115))\n- Map's families mount from its manifest: map, affected, tree, health, capability ([#1345](https://github.com/storytree-ai/storytree/pull/1345))\n- front-door 1.3 measures what it promises, not wall time beside its siblings ([#1336](https://github.com/storytree-ai/storytree/pull/1336))\n- The first short, seeing what agents built, is live on storytree.dev ([#1402](https://github.com/storytree-ai/storytree/pull/1402))\n- The code survey's shape moves into the library, and the map and the forest take it from there ([#1365](https://github.com/storytree-ai/storytree/pull/1365))\n- A session's window is never read from another harness's transcript ([#1262](https://github.com/storytree-ai/storytree/pull/1262))\n- plan_contract gives a red test's contract the test's own number ([#1118](https://github.com/storytree-ai/storytree/pull/1118))\n- Setup's families mount from its manifest: doctor, setup, project, import ([#1364](https://github.com/storytree-ai/storytree/pull/1364))\n- The journey's record shows today's tour after its fixes ([#1286](https://github.com/storytree-ai/storytree/pull/1286))\n- The pool kept dispatching an increment whose capability another lane held ([#1184](https://github.com/storytree-ai/storytree/pull/1184))\n- The website's free-play globe carries the Stories and Library switches ([#1226](https://github.com/storytree-ai/storytree/pull/1226))\n- Every other type-only link that ends outside the library becomes the reader's own copy ([#1295](https://github.com/storytree-ai/storytree/pull/1295))\n- The change-reviewer's loop is reachable from the agent link's tools ([#1108](https://github.com/storytree-ai/storytree/pull/1108))\n- The library declares its own library family ([#1379](https://github.com/storytree-ai/storytree/pull/1379))\n- A backed-off lane's list entry no longer blocks the claim holder ([#1278](https://github.com/storytree-ai/storytree/pull/1278))\n- Pi is a watched harness, through an extension storytree ships ([#1261](https://github.com/storytree-ai/storytree/pull/1261))\n- The QA ledger's table setup no longer deadlocks a review written beside it ([#1125](https://github.com/storytree-ai/storytree/pull/1125))\n- A 5-second pixel-art spike: Remotion renders a split screen with the real globe ([#1395](https://github.com/storytree-ai/storytree/pull/1395))\n- An existing project is imported into a storytree project as mapped story nodes ([#1155](https://github.com/storytree-ai/storytree/pull/1155))\n- The watcher restarts on its own code change ([#1104](https://github.com/storytree-ai/storytree/pull/1104))\n- The knowledge chapter's framing check is red on main ([#1280](https://github.com/storytree-ai/storytree/pull/1280))\n- Each map line labels the thing it is about ([#1169](https://github.com/storytree-ai/storytree/pull/1169))\n- The map chapter says storytree works with your harness, and its arcs step is small ([#1217](https://github.com/storytree-ai/storytree/pull/1217))\n- A project set up under an earlier pack can take the newer one ([#1196](https://github.com/storytree-ai/storytree/pull/1196))\n- On a phone, the cart's and checkout's names side by side both show ([#1208](https://github.com/storytree-ai/storytree/pull/1208))\n- On a 320 phone, the everything step's drift once put The command line under the compass ([#1279](https://github.com/storytree-ai/storytree/pull/1279))\n- An open survey reader no longer holds its process alive ([#1331](https://github.com/storytree-ai/storytree/pull/1331))\n- The pool dispatches an increment only when its whole capabilities list is claimable ([#1129](https://github.com/storytree-ai/storytree/pull/1129))\n- The lag instrument compares two builds in one run ([#1231](https://github.com/storytree-ai/storytree/pull/1231))\n- Bring three stale forest captures back to green ([#1215](https://github.com/storytree-ai/storytree/pull/1215))\n- A prompt whose definitions pass 8 KB files friction, and nothing is cut ([#1403](https://github.com/storytree-ai/storytree/pull/1403))\n- The change-reviewer reviews every change before the gate ([#1098](https://github.com/storytree-ai/storytree/pull/1098))\n- Pi is asked to close out at the end of a run ([#1273](https://github.com/storytree-ai/storytree/pull/1273))\n- The gate refuses a type-only import that ends at a story other than the library ([#1372](https://github.com/storytree-ai/storytree/pull/1372))\n- On a phone, storytree's globe runs under the compass and off the screen's edge ([#1265](https://github.com/storytree-ai/storytree/pull/1265))\n- The pool reads the owner's waits and questions, never the body's wording, to know work needs him ([#1103](https://github.com/storytree-ai/storytree/pull/1103))\n- Tablet width: the two-row tour bar covers the depth link ([#1303](https://github.com/storytree-ai/storytree/pull/1303))\n- The forest browser-proof file runs alone in its unit on macOS ([#1099](https://github.com/storytree-ai/storytree/pull/1099))\n- A friction report carries its state, and landing its remedy resolves it ([#1291](https://github.com/storytree-ai/storytree/pull/1291))\n- A launch opens with Stories on and Library off ([#1246](https://github.com/storytree-ai/storytree/pull/1246))\n- The command line's 4.19 reads verified: its test's result reaches the health record ([#1128](https://github.com/storytree-ai/storytree/pull/1128))\n- Pending plan changes apply at the merge, drop on a failed close ([#1137](https://github.com/storytree-ai/storytree/pull/1137))\n- storytree check reads the owner's sanctioned edges ([#1342](https://github.com/storytree-ai/storytree/pull/1342))\n- A storytree project set up in an empty folder can be reviewed and landed ([#1268](https://github.com/storytree-ai/storytree/pull/1268))\n- Lit lanes are a thread of one width, with one glow per stretch of road ([#1238](https://github.com/storytree-ai/storytree/pull/1238))\n- The release family mounts from the app's manifest ([#1362](https://github.com/storytree-ai/storytree/pull/1362))\n- Guidance names the MCP server's tools, not the agent link's ([#1121](https://github.com/storytree-ai/storytree/pull/1121))\n- Free play on storytree's own globe draws a picked session's reading path ([#1193](https://github.com/storytree-ai/storytree/pull/1193))\n- The site names storytree.dev as its own address ([#1292](https://github.com/storytree-ai/storytree/pull/1292))\n- The harness step says any agent that speaks MCP can use storytree's plan ([#1223](https://github.com/storytree-ai/storytree/pull/1223))\n- A pull request can be handed to the watcher without closing its increment ([#1239](https://github.com/storytree-ai/storytree/pull/1239))\n- The install makes the user's factory project, holding the distilled system ([#1386](https://github.com/storytree-ai/storytree/pull/1386))\n- Pipeline wiring's import fetch (11.6, 11.7) is proven by tests ([#1264](https://github.com/storytree-ai/storytree/pull/1264))\n- Heavy-lock test kills its children before removing its folder ([#1325](https://github.com/storytree-ai/storytree/pull/1325))\n- plan_contract offers an orphan test's number instead of taking it ([#1132](https://github.com/storytree-ai/storytree/pull/1132))\n- The library's public face stops being a hand-copied mirror ([#1074](https://github.com/storytree-ai/storytree/pull/1074))\n- A faced island is in view, so the lag run can click it at every size ([#1228](https://github.com/storytree-ai/storytree/pull/1228))\n- Processes' family mounts from its manifest ([#1363](https://github.com/storytree-ai/storytree/pull/1363))\n- library list refuses an unknown flag ([#1188](https://github.com/storytree-ai/storytree/pull/1188))\n- Plain words on the site: part, plan, piece of work, promise, decision ([#1304](https://github.com/storytree-ai/storytree/pull/1304))\n- The code survey derives an edge per capability from each import across story packages ([#1152](https://github.com/storytree-ai/storytree/pull/1152))\n- Bringing an imported app's whole UI into storytree and serving it from there is cheap ([#1314](https://github.com/storytree-ai/storytree/pull/1314))\n- storytree's saved reading holds whole reads, so a picked session draws a path ([#1236](https://github.com/storytree-ai/storytree/pull/1236))\n- quality brief accepts any of the increment's branches ([#1358](https://github.com/storytree-ai/storytree/pull/1358))\n- The starter pack carries every remaining role and the notes they stand on ([#1182](https://github.com/storytree-ai/storytree/pull/1182))\n- A hold on an increment clears with a spelled-out value that survives PowerShell 5.1 ([#1175](https://github.com/storytree-ai/storytree/pull/1175))\n- Guidance is a manifest kind: the habits card is composed from what each story's package declares ([#1347](https://github.com/storytree-ai/storytree/pull/1347))\n- Leaving storytree on Linux: setup uninstall removes the AppImage folder, menu entry and PATH line ([#1322](https://github.com/storytree-ai/storytree/pull/1322))\n- The edit gate reads a moved file's stale header as stale, not as a claim conflict ([#1338](https://github.com/storytree-ai/storytree/pull/1338))\n- An increment carries a machine field, set by a verb Session management declares and checks against Machines ([#1187](https://github.com/storytree-ai/storytree/pull/1187))\n- The harness step shows Pi's mark ([#1267](https://github.com/storytree-ai/storytree/pull/1267))\n- The lag instrument performs named actions and reports each against its budget ([#1207](https://github.com/storytree-ai/storytree/pull/1207))\n- The pool reads an increment's machine field to know work needs another machine ([#1198](https://github.com/storytree-ai/storytree/pull/1198))\n- Credit local-postgres 2.10 and 2.11 from a Windows run ([#1143](https://github.com/storytree-ai/storytree/pull/1143))\n- library read takes several ids in one start ([#1183](https://github.com/storytree-ai/storytree/pull/1183))\n- An installed Mac app opening at sign-in starts in the tray ([#1162](https://github.com/storytree-ai/storytree/pull/1162))\n- The signed Mac build hands the packager the identity already in the keychain ([#1318](https://github.com/storytree-ai/storytree/pull/1318))\n- A project set up on a machine with no git identity still gets its repository ([#1299](https://github.com/storytree-ai/storytree/pull/1299))\n- The starter pack carries every note the factory's contents marks in ([#1393](https://github.com/storytree-ai/storytree/pull/1393))\n- Front-door tests of quality assurance's contracts are titled so the health recorder credits them ([#1126](https://github.com/storytree-ai/storytree/pull/1126))\n- Setting up the follow-main app on a Mac refuses beside the installed Mac app ([#1166](https://github.com/storytree-ai/storytree/pull/1166))\n- The desktop app answers its stories' page reads from manifests ([#1327](https://github.com/storytree-ai/storytree/pull/1327))\n- A mapped island is drawn brown and whole on the globe, below what stands on it ([#1173](https://github.com/storytree-ai/storytree/pull/1173))\n- library:export and library:restore reach the library the setting names ([#1388](https://github.com/storytree-ai/storytree/pull/1388))\n- The command line mounts its families from manifests ([#1343](https://github.com/storytree-ai/storytree/pull/1343))\n- Panels become corner overlays: real things top right, one at a time ([#1310](https://github.com/storytree-ai/storytree/pull/1310))\n- List every listed capability's contracts by story in the quality brief ([#1201](https://github.com/storytree-ai/storytree/pull/1201))\n- Prove one laptop pull request lands through the watcher hand-over ([#1194](https://github.com/storytree-ai/storytree/pull/1194)) — Proof run from the laptop (MicksMSpro), session ce837480-5662-4818-b59f-7c1f1dcef13d, 2026-10-11. The ssh path of the hand-over works.\n- Hand-over: `node packages/dev-loop/src/lanes/watch.mjs handover 1194 increment_eab1fbe2fb2d` exited 0 and printed the box's words: \"PR #1194 handed to the watcher (/home/mickh/storytree-lanes/watch/1194.json); increment_eab1fbe2fb2d waits on it until it merges.\" The box's record carried the laptop session's id (\"session\": \"ce837480-5662-4818-b59f-7c1f1dcef13d\", \"handedAt\": \"2026-10-11T09:08:20.635Z\"), and `watch.mjs status` on the box listed \"PR #1194 increment_eab1fbe2fb2d: handed 2026-10-11T09:08:20.635Z, 0 fix sessions\".\n- Close-out, 09:08:46Z: \"Closed out: safe to close (PR #1194 open and green, handed to the watcher). Nothing of yours is running here. Released claims: increment_eab1fbe2fb2d.\" The close-out itself released the session's only claim, so the watcher had none left to release.\n- Merge: PR #1194 MERGED 2026-10-11T09:45:10Z, no fix session.\n- Watcher log (~/storytree-lanes/watch.runner.log on the box): \"2026-10-11T09:45:22Z PR #1194 merged: closed increment_eab1fbe2fb2d\". The increment read closed, landed, PR 1194, with no hand closing.\n- Sessions list: the row read \"closed out 2026-10-11T09:08:46.963Z: safe (PR #1194 open and green, handed to the watcher), verified\" with both branches resolved.\nWhat the run found:\n- The row read verified at 09:09Z, 36 minutes BEFORE the merge, against ADR-0974 D1 (unverified until the merge). Parked as increment_890664ea4ec1 with the evidence.\n- The change itself (PR #1194): over ssh the close-out line was printed twice; the laptop now relays the box's words as they are.\n- The laptop could not gate the change green: three full or rerun test runs each failed a different handful of unrelated tests on timeouts (friction_bbc5cee1fbce), and a run started from PowerShell fails a review test that spawns POSIX mkdir (friction_bf2a7f374234). The pull request was opened as a draft and flipped to ready when CI was green on Linux, macOS and Windows.\n- The laptop memory \"Enable auto-fix on every PR\" now says to hand over to the watcher, auto-fix only when the hand-over refuses (ADR-0974 D2).\n\n- The agent link is renamed Session management ([#1138](https://github.com/storytree-ai/storytree/pull/1138))\n- plan_contract names the capability's untested contracts ([#1306](https://github.com/storytree-ai/storytree/pull/1306))\n- The QA ledger reads as built: its code and tests are on main ([#1111](https://github.com/storytree-ai/storytree/pull/1111))\n- The post-shell hook checks changed files against claims ([#1308](https://github.com/storytree-ai/storytree/pull/1308))\n- Mark a question while a session is putting it to the owner ([#1062](https://github.com/storytree-ai/storytree/pull/1062))\n- The command line mounts its surfaces from manifests ([#1328](https://github.com/storytree-ai/storytree/pull/1328))\n- A successful storytree write exits 0 from PowerShell ([#1204](https://github.com/storytree-ai/storytree/pull/1204))\n- Work done at source in an imported folder is seen by the map and the review ([#1242](https://github.com/storytree-ai/storytree/pull/1242))\n- Claims 5.38 and 5.39 read verified from the tests that name them ([#1211](https://github.com/storytree-ai/storytree/pull/1211))\n- Parked capabilities are filled grey on the map, and their cards say they are parked ([#1153](https://github.com/storytree-ai/storytree/pull/1153))\n- The app reaches a library whose certificate is not a certificate authority ([#1245](https://github.com/storytree-ai/storytree/pull/1245))\n- The stories step's pathway tag covers the cart island ([#1277](https://github.com/storytree-ai/storytree/pull/1277))\n- The command line's setup test bundles with production's aliased createRequire banner ([#1353](https://github.com/storytree-ai/storytree/pull/1353))\n- Deleting a project forgets its QA ledger rows ([#1097](https://github.com/storytree-ai/storytree/pull/1097))\n- The MCP server serves a declared verb's many and fields inputs ([#1352](https://github.com/storytree-ai/storytree/pull/1352))\n- A new user's install makes their factory, and product projects inherit from it ([#1383](https://github.com/storytree-ai/storytree/pull/1383))\n- The website journeys' verify modes leave committed evidence untouched ([#1290](https://github.com/storytree-ai/storytree/pull/1290))\n- The focus tool's description says crossing takes cap:<id|number> ([#1274](https://github.com/storytree-ai/storytree/pull/1274))\n- The verb contract carries optional, repeated and open inputs, raw answers, nested families and guesses ([#1348](https://github.com/storytree-ai/storytree/pull/1348))\n- Sibling pull requests in conflict are merged in sequence, not escalated to the owner ([#1367](https://github.com/storytree-ai/storytree/pull/1367))\n- Capability territories draw on smoothly, with no flash of the island ([#1229](https://github.com/storytree-ai/storytree/pull/1229))\n- Lag and journey families mount from their stories' manifests ([#1357](https://github.com/storytree-ai/storytree/pull/1357))\n- The starter pack carries the test-quality checks and a reviewer, and the orchestrator has its work reviewed ([#1168](https://github.com/storytree-ai/storytree/pull/1168))\n- The health worklist says when a proposed capability's tests already pass, and offers switching its flag off ([#1178](https://github.com/storytree-ai/storytree/pull/1178))\n- storytree check reads the dev loop's declared frames ([#1339](https://github.com/storytree-ai/storytree/pull/1339))\n- The shared desktop capture harness marks the first-run guide seen ([#1176](https://github.com/storytree-ai/storytree/pull/1176))\n- library's code-distance tests remove their git checkout with retries ([#1200](https://github.com/storytree-ai/storytree/pull/1200))",
+  "releaseNotes": "# storytree 0.3.1453\n\n- Concurrent friction drains get different reports, and route checks inside its lock ([#1406](https://github.com/storytree-ai/storytree/pull/1406))\n- The glass sheet turns over north to south to the knowledge graph beneath ([#1407](https://github.com/storytree-ai/storytree/pull/1407))\n- Command-line tests stop writing door-answered lines into the real log, all of them ([#1409](https://github.com/storytree-ai/storytree/pull/1409))\n- Grill-me's actions table holds only steps the owner can take (ADR-1057) ([#1426](https://github.com/storytree-ai/storytree/pull/1426))\n- Every verb declares its consumers: agent, user, or both ([#1419](https://github.com/storytree-ai/storytree/pull/1419))\n- On the glass sheet a failing island past the window's edge gets an edge marker ([#1411](https://github.com/storytree-ai/storytree/pull/1411))\n- Grill-me shows the owner's actions first, questions after he confirms ([#1420](https://github.com/storytree-ai/storytree/pull/1420))\n- The definitions hook stops citing story-text mirrors ([#1417](https://github.com/storytree-ai/storytree/pull/1417))\n- CLAUDE.md names the Get-Content encoding pitfall ([#1414](https://github.com/storytree-ai/storytree/pull/1414))\n- First-encounter teaching cards on the user's globe ([#1413](https://github.com/storytree-ai/storytree/pull/1413))\n- Release machinery and its secrets are rehearsed before a real release uses them ([#1370](https://github.com/storytree-ai/storytree/pull/1370)) — Landed by PR #1370 (rehearsal workflow, environments, contract 4.22) and PR #1378 (Gatekeeper skip when Apple has not answered by the bound, contract 4.20). Proven by release rehearsal run 38682616233 (2026-10-15T04:39Z), green on Linux, macOS and Windows: macOS job 116250320294 read CSC_LINK from the rehearsal environment, signed with Developer ID 04E34AFB5EDB36D5F8EB0A8C74916DE1BA46BFFE, Apple notarised submission cac8f3d0-f6d1-41a4-bc8a-8ec094cc1277 within the bound, and spctl --assess accepted it (source=Notarized Developer ID). increment_9d05fb8a164b's owner wait now names the release environment and his commands, including moving the four repository secrets.\n- No planning lane for an arc whose next work waits on another arc ([#1423](https://github.com/storytree-ai/storytree/pull/1423))\n- A product's globe draws the system notes it reads from its factory ([#1422](https://github.com/storytree-ai/storytree/pull/1422))\n- A session's own live write does not stale its own pending edit ([#1418](https://github.com/storytree-ai/storytree/pull/1418))\n- The glass sheet seen at a fixed tabletop tilt, with thick land and the graph hanging below ([#1427](https://github.com/storytree-ai/storytree/pull/1427))\n- Editing an inherited note in a product writes the product's own copy ([#1410](https://github.com/storytree-ai/storytree/pull/1410))\n- The title lift matches whole words, exact titles first ([#1408](https://github.com/storytree-ai/storytree/pull/1408))\n- Own health's log names each failing test and its assertion ([#1424](https://github.com/storytree-ai/storytree/pull/1424))\n- The pool brief names the asset-subagent exception ([#1415](https://github.com/storytree-ai/storytree/pull/1415))\n- pnpm test runs the library host's own tests ([#1390](https://github.com/storytree-ai/storytree/pull/1390)) — PR #1390 merged 2026-10-15 02:36Z with no watcher hand-off listing it; closed by the session manager\n- Story prose folds back into its stories; no story text is a definition ([#1416](https://github.com/storytree-ai/storytree/pull/1416))\n- Contract 14.7 passes again: records named by title rank first ([#1421](https://github.com/storytree-ai/storytree/pull/1421))\n- Retire the Cloud SQL rehearsal, cutover and rollback in infra/library-host ([#1412](https://github.com/storytree-ai/storytree/pull/1412))",
+  "feeds": {
+    "mac": {
+      "version": "0.3.1453",
+      "files": [
+        {
+          "sha512": "hDQOZ5gV8nRPMWvctVXd2ikWidCnQOp7AqHdy51nALWIo4KAn8QDF2ffOSkqK1dC+WTm+jmHIoFfOqT1Pb8NRw==",
+          "size": 302340679,
+          "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1453/storytree-0.3-0.3.1453-mac-arm64.zip"
+        },
+        {
+          "sha512": "uu+/rcaZsW5Fp3nfCkSC68E4D3qLGQb/CrQMVbtEFoIZN6kNGC3jh6YZv5BlOVmxe3ao/19mJN49Ab5IlijRsA==",
+          "size": 301442072,
+          "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1453/storytree-0.3-0.3.1453-arm64.dmg"
+        }
+      ]
+    },
+    "linux": {
+      "version": "0.3.1453",
+      "files": [
+        {
+          "sha512": "GCdYa2Vqp1oFqhLQUvbHWhEH3vkGMPG+MeN5CwHMeiFfeJtnkagg55DyJZkuYibfzsm/0GW1Ddy96D4/4spN+w==",
+          "size": 224827244,
+          "blockMapSize": 235392,
+          "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1453/storytree-0.3-0.3.1453-linux-x86_64.AppImage"
+        }
+      ]
+    }
+  },
   "pin": {
-    "commit": "2b399977d16693b01169d59df4f35759dfc3e294",
-    "at": "2026-10-15T06:01:22.948Z",
-    "previous": "0.3.1122",
+    "commit": "17323c0619d93391a3d9369c6dc6bc3b486efdbc",
+    "at": "2026-10-16T03:51:20.569Z",
+    "previous": "0.3.1430",
+    "covers": [
+      "windows",
+      "mac",
+      "linux"
+    ],
     "increments": [
       {
-        "id": "increment_00af8dcb8611",
-        "title": "Road routing never holds the page: islands first, roads drawn on when routed",
-        "pr": "1253"
+        "id": "increment_06dda1a9c7df",
+        "title": "Concurrent friction drains get different reports, and route checks inside its lock",
+        "pr": "1406"
       },
       {
-        "id": "increment_00fad84485bc",
-        "title": "The command schema moves into the library, and each host keeps its own mounting code",
-        "pr": "1376"
+        "id": "increment_19e7395041b6",
+        "title": "The glass sheet turns over north to south to the knowledge graph beneath",
+        "pr": "1407"
       },
       {
-        "id": "increment_01a910c32f0c",
-        "title": "The watcher's code version reads only the code it runs",
-        "pr": "1116"
+        "id": "increment_2cc1baf2186d",
+        "title": "Command-line tests stop writing door-answered lines into the real log, all of them",
+        "pr": "1409"
       },
       {
-        "id": "increment_02141a39a4eb",
-        "title": "CI plan role's grants committed and checked",
-        "pr": "1135"
+        "id": "increment_3640b085001e",
+        "title": "Grill-me's actions table holds only steps the owner can take (ADR-1057)",
+        "pr": "1426"
       },
       {
-        "id": "increment_02d78c6e9818",
-        "title": "Stories and Library are separate switches on the globe",
-        "pr": "1213"
+        "id": "increment_3d31e5b663f3",
+        "title": "Every verb declares its consumers: agent, user, or both",
+        "pr": "1419"
       },
       {
-        "id": "increment_02f18a9306cc",
-        "title": "check:guidance tells a sibling lane's unlanded role edit from the branch's own drift",
-        "pr": "1294"
+        "id": "increment_4c9d90ab6f5d",
+        "title": "On the glass sheet a failing island past the window's edge gets an edge marker",
+        "pr": "1411"
       },
       {
-        "id": "increment_0333dc736270",
-        "title": "Each story package says what it adds in a manifest, and one host mounts from it: the plugin loader, first slice",
-        "pr": "1316"
+        "id": "increment_65037c893baa",
+        "title": "Grill-me shows the owner's actions first, questions after he confirms",
+        "pr": "1420"
       },
       {
-        "id": "increment_045b4e4377b1",
-        "title": "An arc waiting only on an owner action gets no repeat planning lane across dispatcher restarts",
-        "pr": "1206"
+        "id": "increment_65ea1af627b8",
+        "title": "The definitions hook stops citing story-text mirrors",
+        "pr": "1417"
       },
       {
-        "id": "increment_0574650ddb00",
-        "title": "The activity log's line is defined in the library",
-        "pr": "1293"
+        "id": "increment_6fe35a29ee57",
+        "title": "CLAUDE.md names the Get-Content encoding pitfall",
+        "pr": "1414"
       },
       {
-        "id": "increment_066c2586080e",
-        "title": "Without WebGL the map chapter's arcs step shows storytree's arcs, not the shop's",
-        "pr": "1195"
+        "id": "increment_796edd311a51",
+        "title": "First-encounter teaching cards on the user's globe",
+        "pr": "1413"
       },
       {
-        "id": "increment_074542a384a7",
-        "title": "A new lag action's first measure does not mark its contract not re-run",
-        "pr": "1270"
+        "id": "increment_7d3fa2be965a",
+        "title": "Release machinery and its secrets are rehearsed before a real release uses them",
+        "pr": "1370",
+        "note": "Landed by PR #1370 (rehearsal workflow, environments, contract 4.22) and PR #1378 (Gatekeeper skip when Apple has not answered by the bound, contract 4.20). Proven by release rehearsal run 38682616233 (2026-10-15T04:39Z), green on Linux, macOS and Windows: macOS job 116250320294 read CSC_LINK from the rehearsal environment, signed with Developer ID 04E34AFB5EDB36D5F8EB0A8C74916DE1BA46BFFE, Apple notarised submission cac8f3d0-f6d1-41a4-bc8a-8ec094cc1277 within the bound, and spctl --assess accepted it (source=Notarized Developer ID). increment_9d05fb8a164b's owner wait now names the release environment and his commands, including moving the four repository secrets."
       },
       {
-        "id": "increment_09bde7c34eb0",
-        "title": "The user gives one yes per increment for imported code, from any harness",
-        "pr": "1298"
+        "id": "increment_89a83410eb05",
+        "title": "No planning lane for an arc whose next work waits on another arc",
+        "pr": "1423"
       },
       {
-        "id": "increment_0a535b509393",
-        "title": "cli's front-door 1.3 bound holds under a full run's load",
-        "pr": "1203"
+        "id": "increment_a347b14b6879",
+        "title": "A product's globe draws the system notes it reads from its factory",
+        "pr": "1422"
       },
       {
-        "id": "increment_0bbf4a1331dc",
-        "title": "Search chunks fit the 512 tokens the model reads",
-        "pr": "1398"
+        "id": "increment_a39804b6faf7",
+        "title": "A session's own live write does not stale its own pending edit",
+        "pr": "1418"
       },
       {
-        "id": "increment_0c91b3a9d310",
-        "title": "Project routing and Settings move out of Session management into Project and caller",
-        "pr": "1319"
+        "id": "increment_a90998ba85f2",
+        "title": "The glass sheet seen at a fixed tabletop tilt, with thick land and the graph hanging below",
+        "pr": "1427"
       },
       {
-        "id": "increment_0da3ca81ed0a",
-        "title": "A built island is drawn above the mapped island it imports, with its road, as soon as the survey has the dependency",
-        "pr": "1247"
+        "id": "increment_b162d70aad5c",
+        "title": "Editing an inherited note in a product writes the product's own copy",
+        "pr": "1410"
       },
       {
-        "id": "increment_0e4fcf8bc618",
-        "title": "library new contract gives plan_contract's long-title advisory",
-        "pr": "1142"
+        "id": "increment_cebc7207d671",
+        "title": "The title lift matches whole words, exact titles first",
+        "pr": "1408"
       },
       {
-        "id": "increment_0f2709b3466b",
-        "title": "The command line's claim and attach take over a pull request's held claim on its own branch",
-        "pr": "1377"
+        "id": "increment_d37074ca8ec1",
+        "title": "Own health's log names each failing test and its assertion",
+        "pr": "1424"
       },
       {
-        "id": "increment_101493979523",
-        "title": "Resolve '#' package imports in the survey's import edges",
-        "pr": "1324"
+        "id": "increment_e1d421d82ba7",
+        "title": "The pool brief names the asset-subagent exception",
+        "pr": "1415"
       },
       {
-        "id": "increment_113b1ebb4da9",
-        "title": "2 · Change review: mark it built, or build what is missing",
-        "pr": "1124"
+        "id": "increment_e557d7df8a07",
+        "title": "pnpm test runs the library host's own tests",
+        "pr": "1390",
+        "note": "PR #1390 merged 2026-10-15 02:36Z with no watcher hand-off listing it; closed by the session manager"
       },
       {
-        "id": "increment_125dbb9a5ed7",
-        "title": "A check graduated whole leaves the review brief",
-        "pr": "1131"
+        "id": "increment_f032ab02831d",
+        "title": "Story prose folds back into its stories; no story text is a definition",
+        "pr": "1416"
       },
       {
-        "id": "increment_12f4800dc93e",
-        "title": "The QA ledger is in the box's library backups",
-        "pr": "1389"
+        "id": "increment_f343663245f7",
+        "title": "Contract 14.7 passes again: records named by title rank first",
+        "pr": "1421"
       },
       {
-        "id": "increment_1358a09fc149",
-        "title": "The doors log a door-answered line per answer",
-        "pr": "1190"
-      },
-      {
-        "id": "increment_136b1727585e",
-        "title": "A start with main unmoved surveys nothing again",
-        "pr": "1256"
-      },
-      {
-        "id": "increment_15c32fa27f8f",
-        "title": "The one-line install on Linux: the shared curl | sh",
-        "pr": "1320"
-      },
-      {
-        "id": "increment_162227bb14e5",
-        "title": "The code survey, own health and plan-edges read one package-alias table",
-        "pr": "1232"
-      },
-      {
-        "id": "increment_170f452bae21",
-        "title": "A real open-source project is imported and built on, driven as a user on the old Windows machine",
-        "pr": "1241"
-      },
-      {
-        "id": "increment_17ce4d20f7f6",
-        "title": "The mark's master drawing, its four colour roles and its fixed-colour files",
-        "pr": "1146"
-      },
-      {
-        "id": "increment_19ac0ceb4100",
-        "title": "A slowdown that reproduces makes its capability read not healthy",
-        "pr": "1234"
-      },
-      {
-        "id": "increment_1a0f98bd1fc4",
-        "title": "A re-import moves the recorded commit and says what changed",
-        "pr": "1313"
-      },
-      {
-        "id": "increment_1a30644e9b2e",
-        "title": "The verb contract moves into Project and caller, its context naming nothing of Session management",
-        "pr": "1340"
-      },
-      {
-        "id": "increment_1a7b354bd912",
-        "title": "The settings panel's page operations mount from Project and caller's manifest",
-        "pr": "1333"
-      },
-      {
-        "id": "increment_1c2cc961b1a1",
-        "title": "The Arcs drawer expands to fill the window",
-        "pr": "1186"
-      },
-      {
-        "id": "increment_1cccfcf809e9",
-        "title": "Draw increments as flat ovals with the claim flag planted on them",
-        "pr": "1192"
-      },
-      {
-        "id": "increment_1e72bfc61e40",
-        "title": "One road type: every road and lit lane is drawn solid",
-        "pr": "1185"
-      },
-      {
-        "id": "increment_1f02efe8af26",
-        "title": "A drawn diagram in the top left: decisions glued under an island, tunnelling to the core",
-        "pr": "1312"
-      },
-      {
-        "id": "increment_201f02e6baef",
-        "title": "Older animation captures step the page clock, not the wall clock",
-        "pr": "1220"
-      },
-      {
-        "id": "increment_206f0591fa19",
-        "title": "The Windows handoff ACL check holds on a busy CI runner",
-        "pr": "1351"
-      },
-      {
-        "id": "increment_208f541ba6cf",
-        "title": "quality brief diffs the increment's branch, not the folder it runs in",
-        "pr": "1284"
-      },
-      {
-        "id": "increment_212efb669bf2",
-        "title": "Pending plan changes: written and listed on the increment",
-        "pr": "1120"
-      },
-      {
-        "id": "increment_217249fe46e6",
-        "title": "The release signs and notarises the Mac build once Developer ID secrets exist",
-        "pr": "1119"
-      },
-      {
-        "id": "increment_23c894f066a0",
-        "title": "Every host mounts the stories storytree ships from their manifests",
-        "pr": "1321"
-      },
-      {
-        "id": "increment_23d132c505df",
-        "title": "The pool stops reading a body's wording for another machine",
-        "pr": "1283"
-      },
-      {
-        "id": "increment_25662105da47",
-        "title": "A gate test loads release.mjs under plain Node",
-        "pr": "1296"
-      },
-      {
-        "id": "increment_25b5782f7adb",
-        "title": "Linux keeps Chromium's sandbox wherever the kernel allows it",
-        "pr": "1360"
-      },
-      {
-        "id": "increment_25ee3b1efed9",
-        "title": "The mark inside the desktop window, in the app theme's colours",
-        "pr": "1180"
-      },
-      {
-        "id": "increment_26667a0dbcd7",
-        "title": "The map reads a mapped island: its files, its size and the roads among mapped islands",
-        "pr": "1159"
-      },
-      {
-        "id": "increment_267f8ea8a5d2",
-        "title": "CI names the certificate from the repository, and no build trusts it",
-        "pr": "1163"
-      },
-      {
-        "id": "increment_2754a05500b7",
-        "title": "The dispatcher restarts only when the code it runs changes",
-        "pr": "1105"
-      },
-      {
-        "id": "increment_28c3f7f3a286",
-        "title": "Provisioned worktrees fetch Electron's binary, so Electron tests run on the box",
-        "pr": "1249"
-      },
-      {
-        "id": "increment_29fc3e3daa74",
-        "title": "A conflict red past the fix limit gets a session that can claim, not an owner wait",
-        "pr": "1335"
-      },
-      {
-        "id": "increment_2a6e73fb2062",
-        "title": "Revive the row-detail and window captures, which wait on UI that changed",
-        "pr": "1141"
-      },
-      {
-        "id": "increment_2ace4fa6e477",
-        "title": "An island inset: a story's parts and files play in the top right corner",
-        "pr": "1311"
-      },
-      {
-        "id": "increment_2d56c9a17380",
-        "title": "The whole journey's see/feel/think is re-recorded for today's tour",
-        "pr": "1254"
-      },
-      {
-        "id": "increment_2dfb0a6aa47a",
-        "title": "The app's and the account's families mount from manifests: app, release, settings, sign-in, status, sign-out",
-        "pr": "1361"
-      },
-      {
-        "id": "increment_2e0c03b6252b",
-        "title": "On a 320 phone, the health step's tag touches the Cart island",
-        "pr": "1282"
-      },
-      {
-        "id": "increment_2e4af8824303",
-        "title": "Planning lanes skip arcs whose open increments all carry a live wait",
-        "pr": "1337"
-      },
-      {
-        "id": "increment_2e935aa11ba3",
-        "title": "The map chapter in six steps: plans, islands and pathways first, then inside an island; the agents chapter goes",
-        "pr": "1145"
-      },
-      {
-        "id": "increment_302728d596ed",
-        "title": "The verb contract carries callerless and bare verbs, and refuses stray words",
-        "pr": "1349"
-      },
-      {
-        "id": "increment_30a8e7a9481c",
-        "title": "Dev-home 2.2 waits for Postgres to exit on Windows before asserting it is gone",
-        "pr": "1387"
-      },
-      {
-        "id": "increment_30bb6aac2bb6",
-        "title": "A prefixed test title naming a number its story lacks is warned about",
-        "pr": "1214"
-      },
-      {
-        "id": "increment_3115c41e2f7a",
-        "title": "Releases publish again: an ad-hoc Mac build passes no empty CSC_LINK",
-        "pr": "1199"
-      },
-      {
-        "id": "increment_31ab24383a6d",
-        "title": "The globe's roads and rows come from derived capability edges; the rings and coast-to-coast lanes go",
-        "pr": "1154"
-      },
-      {
-        "id": "increment_32308f788d91",
-        "title": "Librarian 1.3 stops depending on two decisions' creation millisecond",
-        "pr": "1392"
-      },
-      {
-        "id": "increment_32ad0895e613",
-        "title": "A start's code survey does not wait on the fetch",
-        "pr": "1289"
-      },
-      {
-        "id": "increment_34eec237379e",
-        "title": "The website wears the mark: favicon, page header and share image",
-        "pr": "1147"
-      },
-      {
-        "id": "increment_34f12fa65afd",
-        "title": "A refused fix session is retried only once the refusing claim clears",
-        "pr": "1375"
-      },
-      {
-        "id": "increment_359e9805dd5a",
-        "title": "The pool holds off an increment refused on a capability while anyone holds it",
-        "pr": "1216"
-      },
-      {
-        "id": "increment_35a3540e35b2",
-        "title": "The lag runner's history is in the box's library backups",
-        "pr": "1235"
-      },
-      {
-        "id": "increment_35e874e2bfce",
-        "title": "Anchor test 6.74's f11 check to the file path",
-        "pr": "1323"
-      },
-      {
-        "id": "increment_366f75e313ee",
-        "title": "Own health stops crashing on a test title with a huge contract range",
-        "pr": "1133"
-      },
-      {
-        "id": "increment_37c8b62e6a5f",
-        "title": "health ci reads each package from the newest run that scoped it",
-        "pr": "1100"
-      },
-      {
-        "id": "increment_38704e762175",
-        "title": "A lit link reaches its capability along the territory borders, and type-only links read apart",
-        "pr": "1158"
-      },
-      {
-        "id": "increment_3a9ba82cf944",
-        "title": "A pool lane's workspace is installed when it is made",
-        "pr": "1114"
-      },
-      {
-        "id": "increment_3aa23fa408fc",
-        "title": "Guidance: text with a dollar-name or a line break goes to storytree as a file or through a tool",
-        "pr": "1174"
-      },
-      {
-        "id": "increment_3dcfe0bac63d",
-        "title": "The MCP server's library tools are declared in The library",
-        "pr": "1381"
-      },
-      {
-        "id": "increment_3f535ac2dc4e",
-        "title": "The test runner's deadlines and concurrency fit the machine it runs on",
-        "pr": "1197"
-      },
-      {
-        "id": "increment_412efdc2d4ed",
-        "title": "A contract's definition: two sentences and a length warning on the habits card",
-        "pr": "1139"
-      },
-      {
-        "id": "increment_4287031cd881",
-        "title": "A lit road carries one wave, with a softer head",
-        "pr": "1177"
-      },
-      {
-        "id": "increment_4352d5f10f31",
-        "title": "The watcher takes a pull request whose increment already closed on an earlier one",
-        "pr": "1366"
-      },
-      {
-        "id": "increment_435cf6034488",
-        "title": "A product project reads its system from its factory, its own edits winning",
-        "pr": "1394"
-      },
-      {
-        "id": "increment_43d2e4896153",
-        "title": "Reading the front doors: a command prints every command and tool with its use and its misses",
-        "pr": "1209"
-      },
-      {
-        "id": "increment_4518c4177190",
-        "title": "The caller and the harness list move into Project and caller",
-        "pr": "1334"
-      },
-      {
-        "id": "increment_465452675d14",
-        "title": "The kept forest is drawn with its kept survey: a start lays the globe out once",
-        "pr": "1248"
-      },
-      {
-        "id": "increment_483faf878c6d",
-        "title": "Imported code is changed or retired only on the user's explicit permission",
-        "pr": "1288"
-      },
-      {
-        "id": "increment_489cdf667462",
-        "title": "The dispatcher-restart test (dev-loop 12.10) holds under a full gate's load",
-        "pr": "1160"
-      },
-      {
-        "id": "increment_49ce87d66f08",
-        "title": "show_plan says a mapped story is mapped, and gives it no health reading",
-        "pr": "1252"
-      },
-      {
-        "id": "increment_4a95d2038884",
-        "title": "heavy-lock.test.mjs names its failure, or passes, on Windows CI",
-        "pr": "1260"
-      },
-      {
-        "id": "increment_4e3e1dc16491",
-        "title": "Reading Apple's answer to a pending submission is not a red run",
-        "pr": "1380"
-      },
-      {
-        "id": "increment_4ed3852f2216",
-        "title": "A shared capture seed whose package paths come from the seed",
-        "pr": "1140"
-      },
-      {
-        "id": "increment_4f78b6c24162",
-        "title": "Four type-only links that reached main since #1295 end at the library or become the reader's copy",
-        "pr": "1368"
-      },
-      {
-        "id": "increment_502d51c10586",
-        "title": "An installed Mac app knows it; a Developer ID build follows releases",
-        "pr": "1161"
-      },
-      {
-        "id": "increment_507ca47251f6",
-        "title": "An increment can be parked already waiting on another increment",
-        "pr": "1171"
-      },
-      {
-        "id": "increment_5125d2ad4cb6",
-        "title": "A project with a repository but no origin can be reviewed and landed against its local default branch",
-        "pr": "1271"
-      },
-      {
-        "id": "increment_5171fa4be5e4",
-        "title": "Lag in real use's capabilities read as built",
-        "pr": "1230"
-      },
-      {
-        "id": "increment_521a4210690b",
-        "title": "Health worklist holds back capabilities awaiting their merge's own-health run",
-        "pr": "1151"
-      },
-      {
-        "id": "increment_5437d5b09867",
-        "title": "The Mint box measures main after merges and names the pull request that slowed an action",
-        "pr": "1233"
-      },
-      {
-        "id": "increment_559d59d4cede",
-        "title": "Graduated checks' hits reach the QA ledger, and a check graduates from either front door",
-        "pr": "1117"
-      },
-      {
-        "id": "increment_55d096e5d944",
-        "title": "Kind list under the Library switch: colour, count and on/off per artifact kind",
-        "pr": "1285"
-      },
-      {
-        "id": "increment_56b41c5dc9b8",
-        "title": "A week on: archive Cloud SQL's databases and delete the instance",
-        "pr": "1400"
-      },
-      {
-        "id": "increment_56b9082e7c66",
-        "title": "Session management's workspace family mounts from its manifest",
-        "pr": "1344"
-      },
-      {
-        "id": "increment_56c04a002c2a",
-        "title": "The tour shows claims as flags: the map chapter in five steps, with signing in's claims before its code lands",
-        "pr": "1101"
-      },
-      {
-        "id": "increment_56cb93ec36e6",
-        "title": "The map counts what crosses a line in a mapped island: the callers of a part, before it is adopted",
-        "pr": "1258"
-      },
-      {
-        "id": "increment_56f5ce79ee6d",
-        "title": "A handed-over pull request keeps its claims until it merges (ADR-1037)",
-        "pr": "1374"
-      },
-      {
-        "id": "increment_572957a49b55",
-        "title": "Session management's context and noticeboard families mount from its manifest",
-        "pr": "1354"
-      },
-      {
-        "id": "increment_57356a332fee",
-        "title": "Machines in Session management: the computers that work on a project, each with a short name, hostname and id",
-        "pr": "1167"
-      },
-      {
-        "id": "increment_577a9a4bb007",
-        "title": "A user's yes in conversation reaches the edit guard without a prompt",
-        "pr": "1309"
-      },
-      {
-        "id": "increment_57835e872355",
-        "title": "The globe places a new island above the mapped island it imports and draws the road between them",
-        "pr": "1218"
-      },
-      {
-        "id": "increment_58dcb2d5c9a5",
-        "title": "Four once-seen merge queue flakes of 10 October are diagnosed and fixed",
-        "pr": "1150"
-      },
-      {
-        "id": "increment_5bc34e39a120",
-        "title": "Journey, setup help and feedback identity: mount from manifests or stay in the frame with the reason",
-        "pr": "1329"
-      },
-      {
-        "id": "increment_5d6bf8c8589a",
-        "title": "The MCP server serves a declared verb's optional input as optional",
-        "pr": "1346"
-      },
-      {
-        "id": "increment_5dd01490bd03",
-        "title": "Package the desktop app as an x64 Linux AppImage in the release",
-        "pr": "1315"
-      },
-      {
-        "id": "increment_5e1d982b32a6",
-        "title": "The forest draws on a glass sheet, depth west to east, moved only by pan and zoom",
-        "pr": "1401"
-      },
-      {
-        "id": "increment_5e63c5486d2a",
-        "title": "The grill-me process writes owner commands for PowerShell 5.1",
-        "pr": "1317"
-      },
-      {
-        "id": "increment_5ea28f356e00",
-        "title": "Opening the app shows progress until settled, and is a measured action",
-        "pr": "1257"
-      },
-      {
-        "id": "increment_5f5a7f86246d",
-        "title": "The sessions list covers the islands the claims step is about",
-        "pr": "1272"
-      },
-      {
-        "id": "increment_5ff44b68d91b",
-        "title": "The edit gate's file-to-capability lookup stops importing the map",
-        "pr": "1113"
-      },
-      {
-        "id": "increment_6090214133a4",
-        "title": "The watcher reads every conflict as one, counts only fixes that made no progress, never sends a conflict to the owner, and shows when it runs stale code",
-        "pr": "1371"
-      },
-      {
-        "id": "increment_609078039c32",
-        "title": "The Sessions strip expands to fill the forest pane",
-        "pr": "1181"
-      },
-      {
-        "id": "increment_60aa3c9a60b6",
-        "title": "The app records what each named action cost in real use",
-        "pr": "1225"
-      },
-      {
-        "id": "increment_6109b6c7039b",
-        "title": "The forest evidence harness finds its observation seams again, or retires",
-        "pr": "1240"
-      },
-      {
-        "id": "increment_61acd576d297",
-        "title": "The map's crossing count takes an explored capability in place of folders",
-        "pr": "1269"
-      },
-      {
-        "id": "increment_61d9cd7944db",
-        "title": "The forest's code survey mounts from its manifest",
-        "pr": "1330"
-      },
-      {
-        "id": "increment_63082e5e50c8",
-        "title": "Turn on CI's plan read: owner sets the credential and password",
-        "pr": "1110"
-      },
-      {
-        "id": "increment_64206aa5a90c",
-        "title": "Check, quality and processes families mount from their stories' manifests",
-        "pr": "1359"
-      },
-      {
-        "id": "increment_64de8f753567",
-        "title": "The shop's first four islands sit in rows, not a column",
-        "pr": "1191"
-      },
-      {
-        "id": "increment_64eccc7a4604",
-        "title": "The live run redone: an agent asks before changing imported code, driven as a user on the old Windows machine",
-        "pr": "1297"
-      },
-      {
-        "id": "increment_6554ebf0f0a0",
-        "title": "gate.test.mjs 7.3's cancel test fits a loaded Windows runner",
-        "pr": "1341"
-      },
-      {
-        "id": "increment_658781255d55",
-        "title": "The implementer's guidance drops the test-quality list its checks cover",
-        "pr": "1107"
-      },
-      {
-        "id": "increment_663c3b0e3143",
-        "title": "A project's pipeline fetches what the project imports",
-        "pr": "1250"
-      },
-      {
-        "id": "increment_66f2f28cda8f",
-        "title": "The capture kit bounds browser.close() after disconnect",
-        "pr": "1281"
-      },
-      {
-        "id": "increment_67065bca967b",
-        "title": "Tools print next steps, worded as tool names",
-        "pr": "1106"
-      },
-      {
-        "id": "increment_672cbfbab3b4",
-        "title": "A stopped release retries once, then raises an alarm and gets a fix session",
-        "pr": "1369"
-      },
-      {
-        "id": "increment_67de09bf8fbe",
-        "title": "grill-me re-reads the question list before any table",
-        "pr": "1305"
-      },
-      {
-        "id": "increment_681842fe040b",
-        "title": "The camera journey's hand-over check holds under box load",
-        "pr": "1224"
-      },
-      {
-        "id": "increment_698605a81262",
-        "title": "Concurrent test units measured over ten Windows CI runs",
-        "pr": "1029",
-        "note": "Measurement only: ten full post-#1029 CI runs, Windows test step median 681 s vs 826 s baseline (~18% shorter), 0 failures in 10. Reading on the body."
-      },
-      {
-        "id": "increment_6aa5c5ffee3f",
-        "title": "Own health commits each library write instead of holding a transaction idle",
-        "pr": "1404"
-      },
-      {
-        "id": "increment_6bb853f459a4",
-        "title": "Antigravity CLI is a watched harness, through its shell hooks",
-        "pr": "1266"
-      },
-      {
-        "id": "increment_6da857f8ab07",
-        "title": "On a laptop, storytree's globe puts names under the bottom bar and past the right edge",
-        "pr": "1275"
-      },
-      {
-        "id": "increment_6e8ef938708a",
-        "title": "packages/cli fits its Windows CI time limit with margin",
-        "pr": "1165"
-      },
-      {
-        "id": "increment_6fe6450f6609",
-        "title": "The library's families mount from manifests: library, arc, question, adr, friction, resteer",
-        "pr": "1355"
-      },
-      {
-        "id": "increment_70272deadf4c",
-        "title": "The knowledge chapter reshaped after the map chapter's new order",
-        "pr": "1149"
-      },
-      {
-        "id": "increment_70ab2c0f276a",
-        "title": "The harness step moves to the intro, as its fifth step",
-        "pr": "1301"
-      },
-      {
-        "id": "increment_7233ca4128f1",
-        "title": "Health says a merged test awaits its recorded run, not that no test names it",
-        "pr": "1221"
-      },
-      {
-        "id": "increment_726820719411",
-        "title": "The forest journey proves the still without JavaScript, after context loss and after a failed start",
-        "pr": "1244"
-      },
-      {
-        "id": "increment_739361b99cd2",
-        "title": "4 · Review loop bound: mark it built, or build what is missing",
-        "pr": "1123"
-      },
-      {
-        "id": "increment_73f66f36cfe3",
-        "title": "The globe slides left while the right-hand panel is open",
-        "pr": "1202"
-      },
-      {
-        "id": "increment_7460a5162816",
-        "title": "Releases publish again, Apple's answer is readable from CI, and a release never waits on Apple",
-        "pr": "1332"
-      },
-      {
-        "id": "increment_74ca830203db",
-        "title": "A full test run leaves nothing of its own in the temp folder",
-        "pr": "1350"
-      },
-      {
-        "id": "increment_750f156451d4",
-        "title": "Idle sessions move from the Live tab to a searchable History",
-        "pr": "1189"
-      },
-      {
-        "id": "increment_75835ede9678",
-        "title": "A step's words: no kicker, one depth link, one sentence at a time",
-        "pr": "1300"
-      },
-      {
-        "id": "increment_762b34c4c310",
-        "title": "A change to the factory's system shows on its globe and reaches product projects",
-        "pr": "1397"
-      },
-      {
-        "id": "increment_7841aef9f70f",
-        "title": "On a short phone, the claims step hides Checkout's name",
-        "pr": "1276"
-      },
-      {
-        "id": "increment_796f905c9276",
-        "title": "The map chapter's stories and capabilities steps say one line each",
-        "pr": "1222"
-      },
-      {
-        "id": "increment_799c788384df",
-        "title": "The first check graduates in part to a deterministic check in Guardrails",
-        "pr": "1102"
-      },
-      {
-        "id": "increment_79ffbda05255",
-        "title": "Give the shop an honest WebGL fallback",
-        "pr": "1172"
-      },
-      {
-        "id": "increment_7a53e0f7125c",
-        "title": "Agent link tool to present a question",
-        "pr": "1112"
-      },
-      {
-        "id": "increment_7c1d356152d6",
-        "title": "The mark at 16 pixels: the globe fills the tile, no islets, a bigger bolder tree",
-        "pr": "1170"
-      },
-      {
-        "id": "increment_7cb32d9f778a",
-        "title": "Hooks record a no-git project's activity at its marker folder, not the subfolder",
-        "pr": "1255"
-      },
-      {
-        "id": "increment_7cf191a666de",
-        "title": "Cursor is a watched harness",
-        "pr": "1243"
-      },
-      {
-        "id": "increment_7d2ab0a11543",
-        "title": "The desktop app wears the mark: window, taskbar, tray, installer and macOS icon",
-        "pr": "1148"
-      },
-      {
-        "id": "increment_7daa316e5cb8",
-        "title": "An agent draws what it explores on a mapped island: a named capability and its files",
-        "pr": "1263"
-      },
-      {
-        "id": "increment_7e0da587197b",
-        "title": "An unmet contract in a review stands until answered",
-        "pr": "1391"
-      },
-      {
-        "id": "increment_7f0c280cfe57",
-        "title": "The lag run reads a seeded library, at more than one size",
-        "pr": "1227"
-      },
-      {
-        "id": "increment_7f3409a42f28",
-        "title": "The box serves a certificate that cannot sign for other hosts, and the old key is destroyed",
-        "pr": "1259"
-      },
-      {
-        "id": "increment_8029e6d7b4e8",
-        "title": "A shell command that changes imported code is caught, not only edit tools",
-        "pr": "1302"
-      },
-      {
-        "id": "increment_802fee2ab602",
-        "title": "Read the needs clause only when routing pool briefs",
-        "pr": "1164"
-      },
-      {
-        "id": "increment_80ad610272fa",
-        "title": "Command-line tests stop writing door-answered lines into the real project's log",
-        "pr": "1210"
-      },
-      {
-        "id": "increment_8203dd7a4eac",
-        "title": "Storytree's hook input is a published interface a custom harness can call",
-        "pr": "1251"
-      },
-      {
-        "id": "increment_83514cb8254c",
-        "title": "Own-database set-up does not deadlock a concurrent ledger write",
-        "pr": "1130"
-      },
-      {
-        "id": "increment_836c3d40cfd4",
-        "title": "Leaving storytree on a Mac: setup uninstall removes the .app and the .zprofile line",
-        "pr": "1326"
-      },
-      {
-        "id": "increment_838444c933b8",
-        "title": "The setup work moves out of the agent link into the app setup story",
-        "pr": "1095"
-      },
-      {
-        "id": "increment_8412ba94175d",
-        "title": "Any MCP client can be connected, and the setup check says so",
-        "pr": "1219"
-      },
-      {
-        "id": "increment_8423fb964d7c",
-        "title": "A branch's gate reads the plan with its own pending changes",
-        "pr": "1127"
-      },
-      {
-        "id": "increment_84633804819e",
-        "title": "check:capability-list skips import-specifier-only rewrites",
-        "pr": "1307"
-      },
-      {
-        "id": "increment_849826ada1f1",
-        "title": "Setup check 8.26 reads verified from the test that names it",
-        "pr": "1212"
-      },
-      {
-        "id": "increment_84b94c1f40b8",
-        "title": "The pool stops skipping the website arc whole",
-        "pr": "1157"
-      },
-      {
-        "id": "increment_84b98075e88f",
-        "title": "Quality assurance's quality family is proved by its own 1.3 test",
-        "pr": "1373"
-      },
-      {
-        "id": "increment_86e6dbc3b335",
-        "title": "The claim flag is a pennant at every zoom, never a dot",
-        "pr": "1382"
-      },
-      {
-        "id": "increment_873f4f84a328",
-        "title": "The release updater picks NSIS or Mac per platform (Mac still off)",
-        "pr": "1136"
-      },
-      {
-        "id": "increment_8879e884dc52",
-        "title": "storytree check runs the graduated self-equal assertion check",
-        "pr": "1384"
-      },
-      {
-        "id": "increment_890664ea4ec1",
-        "title": "A handed-over session reads unverified until its pull request merges",
-        "pr": "1205"
-      },
-      {
-        "id": "increment_899aa0e3f852",
-        "title": "A subagent's report gets no definitions, and a shared name brings in none",
-        "pr": "1385"
-      },
-      {
-        "id": "increment_8a13f34f5f34",
-        "title": "library new contract skips numbers the story's tests carry",
-        "pr": "1122"
-      },
-      {
-        "id": "increment_8a3301a85e42",
-        "title": "A new island's road to the mapped island it imports is drawn, and agents are told how to build on existing code",
-        "pr": "1179"
-      },
-      {
-        "id": "increment_8c73fecde8f8",
-        "title": "The habits card tells an agent to ask the user before changing imported code",
-        "pr": "1287"
-      },
-      {
-        "id": "increment_8def886160f6",
-        "title": "Quality brief judges contracts by the increment's pending changes",
-        "pr": "1144"
-      },
-      {
-        "id": "increment_8e8a36a93f54",
-        "title": "Setting a project up with a factory seeds no copy of the system",
-        "pr": "1399"
-      },
-      {
-        "id": "increment_8f41253c6aff",
-        "title": "Existing projects move onto a factory, keeping their own edits",
-        "pr": "1396"
-      },
-      {
-        "id": "increment_8f996ecf7ef4",
-        "title": "The health worklist holds back capabilities a pending Own health run will record",
-        "pr": "1115"
-      },
-      {
-        "id": "increment_90482a613379",
-        "title": "Map's families mount from its manifest: map, affected, tree, health, capability",
-        "pr": "1345"
-      },
-      {
-        "id": "increment_91432979acca",
-        "title": "front-door 1.3 measures what it promises, not wall time beside its siblings",
-        "pr": "1336"
-      },
-      {
-        "id": "increment_9294d76b04cf",
-        "title": "The first short, seeing what agents built, is live on storytree.dev",
-        "pr": "1402"
-      },
-      {
-        "id": "increment_97d8c40513c1",
-        "title": "The code survey's shape moves into the library, and the map and the forest take it from there",
-        "pr": "1365"
-      },
-      {
-        "id": "increment_985a9a073e03",
-        "title": "A session's window is never read from another harness's transcript",
-        "pr": "1262"
-      },
-      {
-        "id": "increment_987528458c45",
-        "title": "plan_contract gives a red test's contract the test's own number",
-        "pr": "1118"
-      },
-      {
-        "id": "increment_99358693db3e",
-        "title": "Setup's families mount from its manifest: doctor, setup, project, import",
-        "pr": "1364"
-      },
-      {
-        "id": "increment_99c3afed81b4",
-        "title": "The journey's record shows today's tour after its fixes",
-        "pr": "1286"
-      },
-      {
-        "id": "increment_9bb5f6e26579",
-        "title": "The pool kept dispatching an increment whose capability another lane held",
-        "pr": "1184"
-      },
-      {
-        "id": "increment_9f14e9fb4e3a",
-        "title": "The website's free-play globe carries the Stories and Library switches",
-        "pr": "1226"
-      },
-      {
-        "id": "increment_a007eb85cee2",
-        "title": "Every other type-only link that ends outside the library becomes the reader's own copy",
-        "pr": "1295"
-      },
-      {
-        "id": "increment_a1ead338704d",
-        "title": "The change-reviewer's loop is reachable from the agent link's tools",
-        "pr": "1108"
-      },
-      {
-        "id": "increment_a4eb7cd297dc",
-        "title": "The library declares its own library family",
-        "pr": "1379"
-      },
-      {
-        "id": "increment_a628720602d3",
-        "title": "A backed-off lane's list entry no longer blocks the claim holder",
-        "pr": "1278"
-      },
-      {
-        "id": "increment_a70433071926",
-        "title": "Pi is a watched harness, through an extension storytree ships",
-        "pr": "1261"
-      },
-      {
-        "id": "increment_a71a01e11cc2",
-        "title": "The QA ledger's table setup no longer deadlocks a review written beside it",
-        "pr": "1125"
-      },
-      {
-        "id": "increment_a71ac162509a",
-        "title": "A 5-second pixel-art spike: Remotion renders a split screen with the real globe",
-        "pr": "1395"
-      },
-      {
-        "id": "increment_a7f6acf70a04",
-        "title": "An existing project is imported into a storytree project as mapped story nodes",
-        "pr": "1155"
-      },
-      {
-        "id": "increment_a83e97065fa5",
-        "title": "The watcher restarts on its own code change",
-        "pr": "1104"
-      },
-      {
-        "id": "increment_a895a61e4f1e",
-        "title": "The knowledge chapter's framing check is red on main",
-        "pr": "1280"
-      },
-      {
-        "id": "increment_a934963476bd",
-        "title": "Each map line labels the thing it is about",
-        "pr": "1169"
-      },
-      {
-        "id": "increment_a9477c147d25",
-        "title": "The map chapter says storytree works with your harness, and its arcs step is small",
-        "pr": "1217"
-      },
-      {
-        "id": "increment_aa6273267336",
-        "title": "A project set up under an earlier pack can take the newer one",
-        "pr": "1196"
-      },
-      {
-        "id": "increment_abb2eca3e099",
-        "title": "On a phone, the cart's and checkout's names side by side both show",
-        "pr": "1208"
-      },
-      {
-        "id": "increment_abf1779c7dd8",
-        "title": "On a 320 phone, the everything step's drift once put The command line under the compass",
-        "pr": "1279"
-      },
-      {
-        "id": "increment_b03b13c69e80",
-        "title": "An open survey reader no longer holds its process alive",
-        "pr": "1331"
-      },
-      {
-        "id": "increment_b0b17f6ac7e3",
-        "title": "The pool dispatches an increment only when its whole capabilities list is claimable",
-        "pr": "1129"
-      },
-      {
-        "id": "increment_b2620bdc0a4b",
-        "title": "The lag instrument compares two builds in one run",
-        "pr": "1231"
-      },
-      {
-        "id": "increment_b3a0ea0ee0fd",
-        "title": "Bring three stale forest captures back to green",
-        "pr": "1215"
-      },
-      {
-        "id": "increment_b511b1b0929f",
-        "title": "A prompt whose definitions pass 8 KB files friction, and nothing is cut",
-        "pr": "1403"
-      },
-      {
-        "id": "increment_b5d982cec189",
-        "title": "The change-reviewer reviews every change before the gate",
-        "pr": "1098"
-      },
-      {
-        "id": "increment_b5f2cde0915b",
-        "title": "Pi is asked to close out at the end of a run",
-        "pr": "1273"
-      },
-      {
-        "id": "increment_b694dd44842c",
-        "title": "The gate refuses a type-only import that ends at a story other than the library",
-        "pr": "1372"
-      },
-      {
-        "id": "increment_b7d9fb526564",
-        "title": "On a phone, storytree's globe runs under the compass and off the screen's edge",
-        "pr": "1265"
-      },
-      {
-        "id": "increment_b9df07617f22",
-        "title": "The pool reads the owner's waits and questions, never the body's wording, to know work needs him",
-        "pr": "1103"
-      },
-      {
-        "id": "increment_ba37a9c6e57c",
-        "title": "Tablet width: the two-row tour bar covers the depth link",
-        "pr": "1303"
-      },
-      {
-        "id": "increment_ba747f54277d",
-        "title": "The forest browser-proof file runs alone in its unit on macOS",
-        "pr": "1099"
-      },
-      {
-        "id": "increment_bb7c95345dec",
-        "title": "A friction report carries its state, and landing its remedy resolves it",
-        "pr": "1291"
-      },
-      {
-        "id": "increment_bb7f9fc09bae",
-        "title": "A launch opens with Stories on and Library off",
-        "pr": "1246"
-      },
-      {
-        "id": "increment_bd9796e5b6a5",
-        "title": "The command line's 4.19 reads verified: its test's result reaches the health record",
-        "pr": "1128"
-      },
-      {
-        "id": "increment_be43db99c52b",
-        "title": "Pending plan changes apply at the merge, drop on a failed close",
-        "pr": "1137"
-      },
-      {
-        "id": "increment_bee8106fd683",
-        "title": "storytree check reads the owner's sanctioned edges",
-        "pr": "1342"
-      },
-      {
-        "id": "increment_c270de438175",
-        "title": "A storytree project set up in an empty folder can be reviewed and landed",
-        "pr": "1268"
-      },
-      {
-        "id": "increment_c2a9c1eea763",
-        "title": "Lit lanes are a thread of one width, with one glow per stretch of road",
-        "pr": "1238"
-      },
-      {
-        "id": "increment_c3c73e50c510",
-        "title": "The release family mounts from the app's manifest",
-        "pr": "1362"
-      },
-      {
-        "id": "increment_c427e85535f1",
-        "title": "Guidance names the MCP server's tools, not the agent link's",
-        "pr": "1121"
-      },
-      {
-        "id": "increment_c684327d5381",
-        "title": "Free play on storytree's own globe draws a picked session's reading path",
-        "pr": "1193"
-      },
-      {
-        "id": "increment_c76b087a8a3c",
-        "title": "The site names storytree.dev as its own address",
-        "pr": "1292"
-      },
-      {
-        "id": "increment_c7b27b8dd435",
-        "title": "The harness step says any agent that speaks MCP can use storytree's plan",
-        "pr": "1223"
-      },
-      {
-        "id": "increment_c8a5ac21ecfb",
-        "title": "A pull request can be handed to the watcher without closing its increment",
-        "pr": "1239"
-      },
-      {
-        "id": "increment_c98b1cae14c4",
-        "title": "The install makes the user's factory project, holding the distilled system",
-        "pr": "1386"
-      },
-      {
-        "id": "increment_ce5d6cf63cc6",
-        "title": "Pipeline wiring's import fetch (11.6, 11.7) is proven by tests",
-        "pr": "1264"
-      },
-      {
-        "id": "increment_d2472a411586",
-        "title": "Heavy-lock test kills its children before removing its folder",
-        "pr": "1325"
-      },
-      {
-        "id": "increment_d2f9034ed3a8",
-        "title": "plan_contract offers an orphan test's number instead of taking it",
-        "pr": "1132"
-      },
-      {
-        "id": "increment_d3adf194c5de",
-        "title": "The library's public face stops being a hand-copied mirror",
-        "pr": "1074"
-      },
-      {
-        "id": "increment_d487818ac294",
-        "title": "A faced island is in view, so the lag run can click it at every size",
-        "pr": "1228"
-      },
-      {
-        "id": "increment_d4bc0fee2a14",
-        "title": "Processes' family mounts from its manifest",
-        "pr": "1363"
-      },
-      {
-        "id": "increment_d5a11386a29d",
-        "title": "library list refuses an unknown flag",
-        "pr": "1188"
-      },
-      {
-        "id": "increment_d62ecf825954",
-        "title": "Plain words on the site: part, plan, piece of work, promise, decision",
-        "pr": "1304"
-      },
-      {
-        "id": "increment_d630821e57ad",
-        "title": "The code survey derives an edge per capability from each import across story packages",
-        "pr": "1152"
-      },
-      {
-        "id": "increment_d751729b2f24",
-        "title": "Bringing an imported app's whole UI into storytree and serving it from there is cheap",
-        "pr": "1314"
-      },
-      {
-        "id": "increment_d8611dbb5d46",
-        "title": "storytree's saved reading holds whole reads, so a picked session draws a path",
-        "pr": "1236"
-      },
-      {
-        "id": "increment_d8ad8464733f",
-        "title": "quality brief accepts any of the increment's branches",
-        "pr": "1358"
-      },
-      {
-        "id": "increment_d90f79ab4d9e",
-        "title": "The starter pack carries every remaining role and the notes they stand on",
-        "pr": "1182"
-      },
-      {
-        "id": "increment_d9114b52c0b7",
-        "title": "A hold on an increment clears with a spelled-out value that survives PowerShell 5.1",
-        "pr": "1175"
-      },
-      {
-        "id": "increment_d94d69186ec5",
-        "title": "Guidance is a manifest kind: the habits card is composed from what each story's package declares",
-        "pr": "1347"
-      },
-      {
-        "id": "increment_d98140e7f131",
-        "title": "Leaving storytree on Linux: setup uninstall removes the AppImage folder, menu entry and PATH line",
-        "pr": "1322"
-      },
-      {
-        "id": "increment_d99a23798de9",
-        "title": "The edit gate reads a moved file's stale header as stale, not as a claim conflict",
-        "pr": "1338"
-      },
-      {
-        "id": "increment_d9addffd51d9",
-        "title": "An increment carries a machine field, set by a verb Session management declares and checks against Machines",
-        "pr": "1187"
-      },
-      {
-        "id": "increment_dcf865db5b9a",
-        "title": "The harness step shows Pi's mark",
-        "pr": "1267"
-      },
-      {
-        "id": "increment_dd06754280be",
-        "title": "The lag instrument performs named actions and reports each against its budget",
-        "pr": "1207"
-      },
-      {
-        "id": "increment_dd684fcba4e8",
-        "title": "The pool reads an increment's machine field to know work needs another machine",
-        "pr": "1198"
-      },
-      {
-        "id": "increment_dec0d11dc179",
-        "title": "Credit local-postgres 2.10 and 2.11 from a Windows run",
-        "pr": "1143"
-      },
-      {
-        "id": "increment_dedcd57ce334",
-        "title": "library read takes several ids in one start",
-        "pr": "1183"
-      },
-      {
-        "id": "increment_df36fa2eb547",
-        "title": "An installed Mac app opening at sign-in starts in the tray",
-        "pr": "1162"
-      },
-      {
-        "id": "increment_e0f8c4422da4",
-        "title": "The signed Mac build hands the packager the identity already in the keychain",
-        "pr": "1318"
-      },
-      {
-        "id": "increment_e2cb527f4320",
-        "title": "A project set up on a machine with no git identity still gets its repository",
-        "pr": "1299"
-      },
-      {
-        "id": "increment_e3895e1ac1bf",
-        "title": "The starter pack carries every note the factory's contents marks in",
-        "pr": "1393"
-      },
-      {
-        "id": "increment_e3e2fae5da37",
-        "title": "Front-door tests of quality assurance's contracts are titled so the health recorder credits them",
-        "pr": "1126"
-      },
-      {
-        "id": "increment_e52a8f51644d",
-        "title": "Setting up the follow-main app on a Mac refuses beside the installed Mac app",
-        "pr": "1166"
-      },
-      {
-        "id": "increment_e676c51a32dd",
-        "title": "The desktop app answers its stories' page reads from manifests",
-        "pr": "1327"
-      },
-      {
-        "id": "increment_e678671ed768",
-        "title": "A mapped island is drawn brown and whole on the globe, below what stands on it",
-        "pr": "1173"
-      },
-      {
-        "id": "increment_e6af76c9db5f",
-        "title": "library:export and library:restore reach the library the setting names",
-        "pr": "1388"
-      },
-      {
-        "id": "increment_e6fb07f1b7c7",
-        "title": "The command line mounts its families from manifests",
-        "pr": "1343"
-      },
-      {
-        "id": "increment_e789ceda6458",
-        "title": "Panels become corner overlays: real things top right, one at a time",
-        "pr": "1310"
-      },
-      {
-        "id": "increment_e9579ea08ca6",
-        "title": "List every listed capability's contracts by story in the quality brief",
-        "pr": "1201"
-      },
-      {
-        "id": "increment_eab1fbe2fb2d",
-        "title": "Prove one laptop pull request lands through the watcher hand-over",
-        "pr": "1194",
-        "note": "Proof run from the laptop (MicksMSpro), session ce837480-5662-4818-b59f-7c1f1dcef13d, 2026-10-11. The ssh path of the hand-over works.\n- Hand-over: `node packages/dev-loop/src/lanes/watch.mjs handover 1194 increment_eab1fbe2fb2d` exited 0 and printed the box's words: \"PR #1194 handed to the watcher (/home/mickh/storytree-lanes/watch/1194.json); increment_eab1fbe2fb2d waits on it until it merges.\" The box's record carried the laptop session's id (\"session\": \"ce837480-5662-4818-b59f-7c1f1dcef13d\", \"handedAt\": \"2026-10-11T09:08:20.635Z\"), and `watch.mjs status` on the box listed \"PR #1194 increment_eab1fbe2fb2d: handed 2026-10-11T09:08:20.635Z, 0 fix sessions\".\n- Close-out, 09:08:46Z: \"Closed out: safe to close (PR #1194 open and green, handed to the watcher). Nothing of yours is running here. Released claims: increment_eab1fbe2fb2d.\" The close-out itself released the session's only claim, so the watcher had none left to release.\n- Merge: PR #1194 MERGED 2026-10-11T09:45:10Z, no fix session.\n- Watcher log (~/storytree-lanes/watch.runner.log on the box): \"2026-10-11T09:45:22Z PR #1194 merged: closed increment_eab1fbe2fb2d\". The increment read closed, landed, PR 1194, with no hand closing.\n- Sessions list: the row read \"closed out 2026-10-11T09:08:46.963Z: safe (PR #1194 open and green, handed to the watcher), verified\" with both branches resolved.\nWhat the run found:\n- The row read verified at 09:09Z, 36 minutes BEFORE the merge, against ADR-0974 D1 (unverified until the merge). Parked as increment_890664ea4ec1 with the evidence.\n- The change itself (PR #1194): over ssh the close-out line was printed twice; the laptop now relays the box's words as they are.\n- The laptop could not gate the change green: three full or rerun test runs each failed a different handful of unrelated tests on timeouts (friction_bbc5cee1fbce), and a run started from PowerShell fails a review test that spawns POSIX mkdir (friction_bf2a7f374234). The pull request was opened as a draft and flipped to ready when CI was green on Linux, macOS and Windows.\n- The laptop memory \"Enable auto-fix on every PR\" now says to hand over to the watcher, auto-fix only when the hand-over refuses (ADR-0974 D2).\n"
-      },
-      {
-        "id": "increment_eb16bb045a94",
-        "title": "The agent link is renamed Session management",
-        "pr": "1138"
-      },
-      {
-        "id": "increment_eb548eb7c143",
-        "title": "plan_contract names the capability's untested contracts",
-        "pr": "1306"
-      },
-      {
-        "id": "increment_ec1a0e7d31d1",
-        "title": "The QA ledger reads as built: its code and tests are on main",
-        "pr": "1111"
-      },
-      {
-        "id": "increment_ec6f3699c44c",
-        "title": "The post-shell hook checks changed files against claims",
-        "pr": "1308"
-      },
-      {
-        "id": "increment_ed1c9e17eae8",
-        "title": "Mark a question while a session is putting it to the owner",
-        "pr": "1062"
-      },
-      {
-        "id": "increment_f151595f185f",
-        "title": "The command line mounts its surfaces from manifests",
-        "pr": "1328"
-      },
-      {
-        "id": "increment_f22abe5021f2",
-        "title": "A successful storytree write exits 0 from PowerShell",
-        "pr": "1204"
-      },
-      {
-        "id": "increment_f24b74206f4f",
-        "title": "Work done at source in an imported folder is seen by the map and the review",
-        "pr": "1242"
-      },
-      {
-        "id": "increment_f2cedd973fa8",
-        "title": "Claims 5.38 and 5.39 read verified from the tests that name them",
-        "pr": "1211"
-      },
-      {
-        "id": "increment_f42715b040db",
-        "title": "Parked capabilities are filled grey on the map, and their cards say they are parked",
-        "pr": "1153"
-      },
-      {
-        "id": "increment_f72ba0089367",
-        "title": "The app reaches a library whose certificate is not a certificate authority",
-        "pr": "1245"
-      },
-      {
-        "id": "increment_f7ae1afd5735",
-        "title": "The stories step's pathway tag covers the cart island",
-        "pr": "1277"
-      },
-      {
-        "id": "increment_f8e07f142808",
-        "title": "The command line's setup test bundles with production's aliased createRequire banner",
-        "pr": "1353"
-      },
-      {
-        "id": "increment_f913eebd1392",
-        "title": "Deleting a project forgets its QA ledger rows",
-        "pr": "1097"
-      },
-      {
-        "id": "increment_f918dab9db8b",
-        "title": "The MCP server serves a declared verb's many and fields inputs",
-        "pr": "1352"
-      },
-      {
-        "id": "increment_f98714a7c1a2",
-        "title": "A new user's install makes their factory, and product projects inherit from it",
-        "pr": "1383"
-      },
-      {
-        "id": "increment_f9b0c275189c",
-        "title": "The website journeys' verify modes leave committed evidence untouched",
-        "pr": "1290"
-      },
-      {
-        "id": "increment_fa297df5939b",
-        "title": "The focus tool's description says crossing takes cap:<id|number>",
-        "pr": "1274"
-      },
-      {
-        "id": "increment_fa7d8175b514",
-        "title": "The verb contract carries optional, repeated and open inputs, raw answers, nested families and guesses",
-        "pr": "1348"
-      },
-      {
-        "id": "increment_faa637d2f793",
-        "title": "Sibling pull requests in conflict are merged in sequence, not escalated to the owner",
-        "pr": "1367"
-      },
-      {
-        "id": "increment_fbfb586cfd31",
-        "title": "Capability territories draw on smoothly, with no flash of the island",
-        "pr": "1229"
-      },
-      {
-        "id": "increment_fc03cfb6f98c",
-        "title": "Lag and journey families mount from their stories' manifests",
-        "pr": "1357"
-      },
-      {
-        "id": "increment_fc1e5be1f918",
-        "title": "The starter pack carries the test-quality checks and a reviewer, and the orchestrator has its work reviewed",
-        "pr": "1168"
-      },
-      {
-        "id": "increment_fcafc13b5abb",
-        "title": "The health worklist says when a proposed capability's tests already pass, and offers switching its flag off",
-        "pr": "1178"
-      },
-      {
-        "id": "increment_fd60012011d7",
-        "title": "storytree check reads the dev loop's declared frames",
-        "pr": "1339"
-      },
-      {
-        "id": "increment_fda22ad2ec6e",
-        "title": "The shared desktop capture harness marks the first-run guide seen",
-        "pr": "1176"
-      },
-      {
-        "id": "increment_ff0bbead3d2c",
-        "title": "library's code-distance tests remove their git checkout with retries",
-        "pr": "1200"
+        "id": "increment_f371a46ecc94",
+        "title": "Retire the Cloud SQL rehearsal, cutover and rollback in infra/library-host",
+        "pr": "1412"
       }
     ],
     "includedIncrements": [
@@ -2755,7 +1383,30 @@
       "increment_fcafc13b5abb",
       "increment_fd60012011d7",
       "increment_fda22ad2ec6e",
-      "increment_ff0bbead3d2c"
+      "increment_ff0bbead3d2c",
+      "increment_06dda1a9c7df",
+      "increment_19e7395041b6",
+      "increment_2cc1baf2186d",
+      "increment_3640b085001e",
+      "increment_3d31e5b663f3",
+      "increment_4c9d90ab6f5d",
+      "increment_65037c893baa",
+      "increment_65ea1af627b8",
+      "increment_6fe35a29ee57",
+      "increment_796edd311a51",
+      "increment_7d3fa2be965a",
+      "increment_89a83410eb05",
+      "increment_a347b14b6879",
+      "increment_a39804b6faf7",
+      "increment_a90998ba85f2",
+      "increment_b162d70aad5c",
+      "increment_cebc7207d671",
+      "increment_d37074ca8ec1",
+      "increment_e1d421d82ba7",
+      "increment_e557d7df8a07",
+      "increment_f032ab02831d",
+      "increment_f343663245f7",
+      "increment_f371a46ecc94"
     ]
   }
 }

@@ -1,0 +1,15 @@
+{
+  "version": "0.3.1453",
+  "files": [
+    {
+      "sha512": "hDQOZ5gV8nRPMWvctVXd2ikWidCnQOp7AqHdy51nALWIo4KAn8QDF2ffOSkqK1dC+WTm+jmHIoFfOqT1Pb8NRw==",
+      "size": 302340679,
+      "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1453/storytree-0.3-0.3.1453-mac-arm64.zip"
+    },
+    {
+      "sha512": "uu+/rcaZsW5Fp3nfCkSC68E4D3qLGQb/CrQMVbtEFoIZN6kNGC3jh6YZv5BlOVmxe3ao/19mJN49Ab5IlijRsA==",
+      "size": 301442072,
+      "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1453/storytree-0.3-0.3.1453-arm64.dmg"
+    }
+  ]
+}

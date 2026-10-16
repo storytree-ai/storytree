@@ -1,29 +1,34 @@
-# storytree 0.3.1453
+# storytree 0.3.1482
 
-- Concurrent friction drains get different reports, and route checks inside its lock ([#1406](https://github.com/storytree-ai/storytree/pull/1406))
-- The glass sheet turns over north to south to the knowledge graph beneath ([#1407](https://github.com/storytree-ai/storytree/pull/1407))
-- Command-line tests stop writing door-answered lines into the real log, all of them ([#1409](https://github.com/storytree-ai/storytree/pull/1409))
-- Grill-me's actions table holds only steps the owner can take (ADR-1057) ([#1426](https://github.com/storytree-ai/storytree/pull/1426))
-- Every verb declares its consumers: agent, user, or both ([#1419](https://github.com/storytree-ai/storytree/pull/1419))
-- On the glass sheet a failing island past the window's edge gets an edge marker ([#1411](https://github.com/storytree-ai/storytree/pull/1411))
-- Grill-me shows the owner's actions first, questions after he confirms ([#1420](https://github.com/storytree-ai/storytree/pull/1420))
-- The definitions hook stops citing story-text mirrors ([#1417](https://github.com/storytree-ai/storytree/pull/1417))
-- CLAUDE.md names the Get-Content encoding pitfall ([#1414](https://github.com/storytree-ai/storytree/pull/1414))
-- First-encounter teaching cards on the user's globe ([#1413](https://github.com/storytree-ai/storytree/pull/1413))
-- Release machinery and its secrets are rehearsed before a real release uses them ([#1370](https://github.com/storytree-ai/storytree/pull/1370)) — Landed by PR #1370 (rehearsal workflow, environments, contract 4.22) and PR #1378 (Gatekeeper skip when Apple has not answered by the bound, contract 4.20). Proven by release rehearsal run 38682616233 (2026-10-15T04:39Z), green on Linux, macOS and Windows: macOS job 116250320294 read CSC_LINK from the rehearsal environment, signed with Developer ID 04E34AFB5EDB36D5F8EB0A8C74916DE1BA46BFFE, Apple notarised submission cac8f3d0-f6d1-41a4-bc8a-8ec094cc1277 within the bound, and spctl --assess accepted it (source=Notarized Developer ID). increment_9d05fb8a164b's owner wait now names the release environment and his commands, including moving the four repository secrets.
-- No planning lane for an arc whose next work waits on another arc ([#1423](https://github.com/storytree-ai/storytree/pull/1423))
-- A product's globe draws the system notes it reads from its factory ([#1422](https://github.com/storytree-ai/storytree/pull/1422))
-- A session's own live write does not stale its own pending edit ([#1418](https://github.com/storytree-ai/storytree/pull/1418))
-- The glass sheet seen at a fixed tabletop tilt, with thick land and the graph hanging below ([#1427](https://github.com/storytree-ai/storytree/pull/1427))
-- Editing an inherited note in a product writes the product's own copy ([#1410](https://github.com/storytree-ai/storytree/pull/1410))
-- The title lift matches whole words, exact titles first ([#1408](https://github.com/storytree-ai/storytree/pull/1408))
-- Own health's log names each failing test and its assertion ([#1424](https://github.com/storytree-ai/storytree/pull/1424))
-- The pool brief names the asset-subagent exception ([#1415](https://github.com/storytree-ai/storytree/pull/1415))
-- pnpm test runs the library host's own tests ([#1390](https://github.com/storytree-ai/storytree/pull/1390)) — PR #1390 merged 2026-10-15 02:36Z with no watcher hand-off listing it; closed by the session manager
-- Story prose folds back into its stories; no story text is a definition ([#1416](https://github.com/storytree-ai/storytree/pull/1416))
-- Contract 14.7 passes again: records named by title rank first ([#1421](https://github.com/storytree-ai/storytree/pull/1421))
-- Retire the Cloud SQL rehearsal, cutover and rollback in infra/library-host ([#1412](https://github.com/storytree-ai/storytree/pull/1412))
+- A release starts only for a merge to main and stops re-running main's tests ([#1435](https://github.com/storytree-ai/storytree/pull/1435))
+- A file the map does not carry is refused with why and where to look ([#1454](https://github.com/storytree-ai/storytree/pull/1454))
+- The tool server takes a hook event and records it once, whichever path delivers it ([#1430](https://github.com/storytree-ai/storytree/pull/1430))
+- address-tls test leaves no open handle, so its process exits ([#1447](https://github.com/storytree-ai/storytree/pull/1447))
+- Rotating the glass table keeps one direction all the way through level ([#1448](https://github.com/storytree-ai/storytree/pull/1448))
+- The Library button only clears the glass and outlines the islands; it never moves the camera ([#1444](https://github.com/storytree-ai/storytree/pull/1444))
+- The exit watch tells a blocked test from a hung exit ([#1446](https://github.com/storytree-ai/storytree/pull/1446))
+- The shorts render tests run or skip honestly on the Windows arm64 laptop ([#1443](https://github.com/storytree-ai/storytree/pull/1443))
+- The 7 research notes are refiled out of the definitions ([#1428](https://github.com/storytree-ai/storytree/pull/1428)) — PR #1428 added the research kind and refile; then the 7 research notes were refiled under their own ids (definition_04d2ef2dd305, _1900555fd5af, _57e0ee539511, _91c4d72197cd, _b0b80acc7330, _e973fa23ba63, _f8ebe1ac2144), titles, findings text, links and creation dates kept and checked byte-for-byte. Definitions before 8, after 1 (Standing delegation); research 7.
+- The dev-home removal test waits long enough for Windows' database to start ([#1436](https://github.com/storytree-ai/storytree/pull/1436))
+- One platform's failure holds only that platform ([#1440](https://github.com/storytree-ai/storytree/pull/1440))
+- A first agent plans the work it is given in storytree without being asked ([#1452](https://github.com/storytree-ai/storytree/pull/1452)) — Acceptance proof passed on 0.3.1482 (contains PR #1452): run.sh 0.3.1482, verdict PASS, criterion 4 PASS. Turn 1 unchanged left story 'Tip calculator' (story_4bd990f22ef8) with 2 capabilities and 4 contracts, via plan_story/plan_capability/plan_contract. Evidence: ~/storytree-lanes/stable-acceptance/20261016T062715Z-0.3.1482/ (verdict.txt, ev/library-tree.txt).
+- The knowledge only on the Library face, islands hollow outlines, links for the selected story ([#1432](https://github.com/storytree-ai/storytree/pull/1432))
+- The setup check counts a token sign-in as signed in ([#1453](https://github.com/storytree-ai/storytree/pull/1453))
+- A top-bar switch to the user's factory, and the factory is taught on first switch ([#1429](https://github.com/storytree-ai/storytree/pull/1429))
+- The factory's map draws its roles, notes and checks, so their cards point at them ([#1434](https://github.com/storytree-ai/storytree/pull/1434))
+- Stable covers every platform ([#1437](https://github.com/storytree-ai/storytree/pull/1437))
+- Notes pulled toward every island their links reach, unlinked notes on a sea floor ([#1445](https://github.com/storytree-ai/storytree/pull/1445))
+- Every fortnight, a model-driven user installs the stable candidate on the old laptop and builds a project, then the owner says yes ([#1451](https://github.com/storytree-ai/storytree/pull/1451))
+- The glass sheet as a perspective 3D slab the user tilts from top to underside ([#1442](https://github.com/storytree-ai/storytree/pull/1442))
+- Take the first short off the home page until it is reworked ([#1455](https://github.com/storytree-ai/storytree/pull/1455))
+- Librarian pass: link each sea-floor note to its story, or keep it there with a reason ([#1449](https://github.com/storytree-ai/storytree/pull/1449))
+- Workspace reads the exit code, and a re-claim from a worktree corrects the claim's branch ([#1456](https://github.com/storytree-ai/storytree/pull/1456))
+- Read each subagent's context from its own transcript ([#1450](https://github.com/storytree-ai/storytree/pull/1450))
+- A stopped release gets one fix session at a time ([#1438](https://github.com/storytree-ai/storytree/pull/1438))
+- The capture harness hides teaching cards ([#1433](https://github.com/storytree-ai/storytree/pull/1433))
+- A stable candidate comes with its evidence, and a bad pin can be stopped ([#1439](https://github.com/storytree-ai/storytree/pull/1439))
+- Move the glass sheet with drag and WASD, spin it with Q/E or right-drag, and a compass home ([#1431](https://github.com/storytree-ai/storytree/pull/1431))
 
-Windows, Mac and Linux take 0.3.1453.
+Windows, Mac and Linux take 0.3.1482.
 
-Pinned from 17323c0619d93391a3d9369c6dc6bc3b486efdbc. Installer bytes remain on their original development releases.
+Pinned from bb3fbc4f12994ec8e23209672fdaa1c3a59edb48. Installer bytes remain on their original development releases.

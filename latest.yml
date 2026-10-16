@@ -1,47 +1,47 @@
 {
   "schema": 1,
   "channel": "stable",
-  "version": "0.3.1453",
+  "version": "0.3.1482",
   "files": [
     {
-      "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1453/storytree-0.3-0.3.1453-setup.exe",
-      "sha512": "ajKchx69ipdi7DIHJwmAA1tN2cNFmOD68a217qdpwmklE3bQhH/pjTcu4VDshdMboRG9fVpQAqqco4HDB/YhkQ==",
-      "size": 369164695
+      "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1482/storytree-0.3-0.3.1482-setup.exe",
+      "sha512": "Wd0LCI1FxtjqT2tq+wuesub7G8eW6RjTcvKfc/7kdxEUsZqFq9Q4+u8/7Zqov6bx3tvA2tDnA/Gkz5U1jHSrVQ==",
+      "size": 369198600
     }
   ],
-  "releaseNotes": "# storytree 0.3.1453\n\n- Concurrent friction drains get different reports, and route checks inside its lock ([#1406](https://github.com/storytree-ai/storytree/pull/1406))\n- The glass sheet turns over north to south to the knowledge graph beneath ([#1407](https://github.com/storytree-ai/storytree/pull/1407))\n- Command-line tests stop writing door-answered lines into the real log, all of them ([#1409](https://github.com/storytree-ai/storytree/pull/1409))\n- Grill-me's actions table holds only steps the owner can take (ADR-1057) ([#1426](https://github.com/storytree-ai/storytree/pull/1426))\n- Every verb declares its consumers: agent, user, or both ([#1419](https://github.com/storytree-ai/storytree/pull/1419))\n- On the glass sheet a failing island past the window's edge gets an edge marker ([#1411](https://github.com/storytree-ai/storytree/pull/1411))\n- Grill-me shows the owner's actions first, questions after he confirms ([#1420](https://github.com/storytree-ai/storytree/pull/1420))\n- The definitions hook stops citing story-text mirrors ([#1417](https://github.com/storytree-ai/storytree/pull/1417))\n- CLAUDE.md names the Get-Content encoding pitfall ([#1414](https://github.com/storytree-ai/storytree/pull/1414))\n- First-encounter teaching cards on the user's globe ([#1413](https://github.com/storytree-ai/storytree/pull/1413))\n- Release machinery and its secrets are rehearsed before a real release uses them ([#1370](https://github.com/storytree-ai/storytree/pull/1370)) — Landed by PR #1370 (rehearsal workflow, environments, contract 4.22) and PR #1378 (Gatekeeper skip when Apple has not answered by the bound, contract 4.20). Proven by release rehearsal run 38682616233 (2026-10-15T04:39Z), green on Linux, macOS and Windows: macOS job 116250320294 read CSC_LINK from the rehearsal environment, signed with Developer ID 04E34AFB5EDB36D5F8EB0A8C74916DE1BA46BFFE, Apple notarised submission cac8f3d0-f6d1-41a4-bc8a-8ec094cc1277 within the bound, and spctl --assess accepted it (source=Notarized Developer ID). increment_9d05fb8a164b's owner wait now names the release environment and his commands, including moving the four repository secrets.\n- No planning lane for an arc whose next work waits on another arc ([#1423](https://github.com/storytree-ai/storytree/pull/1423))\n- A product's globe draws the system notes it reads from its factory ([#1422](https://github.com/storytree-ai/storytree/pull/1422))\n- A session's own live write does not stale its own pending edit ([#1418](https://github.com/storytree-ai/storytree/pull/1418))\n- The glass sheet seen at a fixed tabletop tilt, with thick land and the graph hanging below ([#1427](https://github.com/storytree-ai/storytree/pull/1427))\n- Editing an inherited note in a product writes the product's own copy ([#1410](https://github.com/storytree-ai/storytree/pull/1410))\n- The title lift matches whole words, exact titles first ([#1408](https://github.com/storytree-ai/storytree/pull/1408))\n- Own health's log names each failing test and its assertion ([#1424](https://github.com/storytree-ai/storytree/pull/1424))\n- The pool brief names the asset-subagent exception ([#1415](https://github.com/storytree-ai/storytree/pull/1415))\n- pnpm test runs the library host's own tests ([#1390](https://github.com/storytree-ai/storytree/pull/1390)) — PR #1390 merged 2026-10-15 02:36Z with no watcher hand-off listing it; closed by the session manager\n- Story prose folds back into its stories; no story text is a definition ([#1416](https://github.com/storytree-ai/storytree/pull/1416))\n- Contract 14.7 passes again: records named by title rank first ([#1421](https://github.com/storytree-ai/storytree/pull/1421))\n- Retire the Cloud SQL rehearsal, cutover and rollback in infra/library-host ([#1412](https://github.com/storytree-ai/storytree/pull/1412))",
+  "releaseNotes": "# storytree 0.3.1482\n\n- A release starts only for a merge to main and stops re-running main's tests ([#1435](https://github.com/storytree-ai/storytree/pull/1435))\n- A file the map does not carry is refused with why and where to look ([#1454](https://github.com/storytree-ai/storytree/pull/1454))\n- The tool server takes a hook event and records it once, whichever path delivers it ([#1430](https://github.com/storytree-ai/storytree/pull/1430))\n- address-tls test leaves no open handle, so its process exits ([#1447](https://github.com/storytree-ai/storytree/pull/1447))\n- Rotating the glass table keeps one direction all the way through level ([#1448](https://github.com/storytree-ai/storytree/pull/1448))\n- The Library button only clears the glass and outlines the islands; it never moves the camera ([#1444](https://github.com/storytree-ai/storytree/pull/1444))\n- The exit watch tells a blocked test from a hung exit ([#1446](https://github.com/storytree-ai/storytree/pull/1446))\n- The shorts render tests run or skip honestly on the Windows arm64 laptop ([#1443](https://github.com/storytree-ai/storytree/pull/1443))\n- The 7 research notes are refiled out of the definitions ([#1428](https://github.com/storytree-ai/storytree/pull/1428)) — PR #1428 added the research kind and refile; then the 7 research notes were refiled under their own ids (definition_04d2ef2dd305, _1900555fd5af, _57e0ee539511, _91c4d72197cd, _b0b80acc7330, _e973fa23ba63, _f8ebe1ac2144), titles, findings text, links and creation dates kept and checked byte-for-byte. Definitions before 8, after 1 (Standing delegation); research 7.\n- The dev-home removal test waits long enough for Windows' database to start ([#1436](https://github.com/storytree-ai/storytree/pull/1436))\n- One platform's failure holds only that platform ([#1440](https://github.com/storytree-ai/storytree/pull/1440))\n- A first agent plans the work it is given in storytree without being asked ([#1452](https://github.com/storytree-ai/storytree/pull/1452)) — Acceptance proof passed on 0.3.1482 (contains PR #1452): run.sh 0.3.1482, verdict PASS, criterion 4 PASS. Turn 1 unchanged left story 'Tip calculator' (story_4bd990f22ef8) with 2 capabilities and 4 contracts, via plan_story/plan_capability/plan_contract. Evidence: ~/storytree-lanes/stable-acceptance/20261016T062715Z-0.3.1482/ (verdict.txt, ev/library-tree.txt).\n- The knowledge only on the Library face, islands hollow outlines, links for the selected story ([#1432](https://github.com/storytree-ai/storytree/pull/1432))\n- The setup check counts a token sign-in as signed in ([#1453](https://github.com/storytree-ai/storytree/pull/1453))\n- A top-bar switch to the user's factory, and the factory is taught on first switch ([#1429](https://github.com/storytree-ai/storytree/pull/1429))\n- The factory's map draws its roles, notes and checks, so their cards point at them ([#1434](https://github.com/storytree-ai/storytree/pull/1434))\n- Stable covers every platform ([#1437](https://github.com/storytree-ai/storytree/pull/1437))\n- Notes pulled toward every island their links reach, unlinked notes on a sea floor ([#1445](https://github.com/storytree-ai/storytree/pull/1445))\n- Every fortnight, a model-driven user installs the stable candidate on the old laptop and builds a project, then the owner says yes ([#1451](https://github.com/storytree-ai/storytree/pull/1451))\n- The glass sheet as a perspective 3D slab the user tilts from top to underside ([#1442](https://github.com/storytree-ai/storytree/pull/1442))\n- Take the first short off the home page until it is reworked ([#1455](https://github.com/storytree-ai/storytree/pull/1455))\n- Librarian pass: link each sea-floor note to its story, or keep it there with a reason ([#1449](https://github.com/storytree-ai/storytree/pull/1449))\n- Workspace reads the exit code, and a re-claim from a worktree corrects the claim's branch ([#1456](https://github.com/storytree-ai/storytree/pull/1456))\n- Read each subagent's context from its own transcript ([#1450](https://github.com/storytree-ai/storytree/pull/1450))\n- A stopped release gets one fix session at a time ([#1438](https://github.com/storytree-ai/storytree/pull/1438))\n- The capture harness hides teaching cards ([#1433](https://github.com/storytree-ai/storytree/pull/1433))\n- A stable candidate comes with its evidence, and a bad pin can be stopped ([#1439](https://github.com/storytree-ai/storytree/pull/1439))\n- Move the glass sheet with drag and WASD, spin it with Q/E or right-drag, and a compass home ([#1431](https://github.com/storytree-ai/storytree/pull/1431))",
   "feeds": {
     "mac": {
-      "version": "0.3.1453",
+      "version": "0.3.1482",
       "files": [
         {
-          "sha512": "hDQOZ5gV8nRPMWvctVXd2ikWidCnQOp7AqHdy51nALWIo4KAn8QDF2ffOSkqK1dC+WTm+jmHIoFfOqT1Pb8NRw==",
-          "size": 302340679,
-          "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1453/storytree-0.3-0.3.1453-mac-arm64.zip"
+          "sha512": "pSUzVcLz5K7H8OpxPO6gSS3bdUo2H1WdJmXjUsxarUKuhDpBCduRvdRjjAG2d2u8/PwMBK9REQSDNeqQ0O/HmA==",
+          "size": 302285400,
+          "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1482/storytree-0.3-0.3.1482-mac-arm64.zip"
         },
         {
-          "sha512": "uu+/rcaZsW5Fp3nfCkSC68E4D3qLGQb/CrQMVbtEFoIZN6kNGC3jh6YZv5BlOVmxe3ao/19mJN49Ab5IlijRsA==",
-          "size": 301442072,
-          "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1453/storytree-0.3-0.3.1453-arm64.dmg"
+          "sha512": "bJRpUVd/RA+mL9WWnFrKa+/M3kAF1ZO7aoEM4Qbjt5LUwsqb1FJV+f/vYBnNe9ee0PBNbAUTPnFQWopKeOwqPg==",
+          "size": 302631747,
+          "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1482/storytree-0.3-0.3.1482-arm64.dmg"
         }
       ]
     },
     "linux": {
-      "version": "0.3.1453",
+      "version": "0.3.1482",
       "files": [
         {
-          "sha512": "GCdYa2Vqp1oFqhLQUvbHWhEH3vkGMPG+MeN5CwHMeiFfeJtnkagg55DyJZkuYibfzsm/0GW1Ddy96D4/4spN+w==",
-          "size": 224827244,
-          "blockMapSize": 235392,
-          "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1453/storytree-0.3-0.3.1453-linux-x86_64.AppImage"
+          "sha512": "6mpArKONEj08WoLJWAhJe96UFbR2KLe3CHCWq3vtkELeQDXvodlz5tE8fAEKQZmDY700xfn7VGUqVNTQvwVmzA==",
+          "size": 224843791,
+          "blockMapSize": 235555,
+          "url": "https://github.com/storytree-ai/storytree/releases/download/v0.3.1482/storytree-0.3-0.3.1482-linux-x86_64.AppImage"
         }
       ]
     }
   },
   "pin": {
-    "commit": "17323c0619d93391a3d9369c6dc6bc3b486efdbc",
-    "at": "2026-10-16T03:51:20.569Z",
-    "previous": "0.3.1430",
+    "commit": "bb3fbc4f12994ec8e23209672fdaa1c3a59edb48",
+    "at": "2026-10-16T21:19:58.279Z",
+    "previous": "0.3.1453",
     "covers": [
       "windows",
       "mac",
@@ -49,121 +49,146 @@
     ],
     "increments": [
       {
-        "id": "increment_06dda1a9c7df",
-        "title": "Concurrent friction drains get different reports, and route checks inside its lock",
-        "pr": "1406"
+        "id": "increment_0bbe447cc966",
+        "title": "A release starts only for a merge to main and stops re-running main's tests",
+        "pr": "1435"
       },
       {
-        "id": "increment_19e7395041b6",
-        "title": "The glass sheet turns over north to south to the knowledge graph beneath",
-        "pr": "1407"
+        "id": "increment_168dc4eeaf66",
+        "title": "A file the map does not carry is refused with why and where to look",
+        "pr": "1454"
       },
       {
-        "id": "increment_2cc1baf2186d",
-        "title": "Command-line tests stop writing door-answered lines into the real log, all of them",
-        "pr": "1409"
+        "id": "increment_1ea8a5dadebc",
+        "title": "The tool server takes a hook event and records it once, whichever path delivers it",
+        "pr": "1430"
       },
       {
-        "id": "increment_3640b085001e",
-        "title": "Grill-me's actions table holds only steps the owner can take (ADR-1057)",
-        "pr": "1426"
+        "id": "increment_25ccc26cec50",
+        "title": "address-tls test leaves no open handle, so its process exits",
+        "pr": "1447"
       },
       {
-        "id": "increment_3d31e5b663f3",
-        "title": "Every verb declares its consumers: agent, user, or both",
-        "pr": "1419"
+        "id": "increment_293a37334470",
+        "title": "Rotating the glass table keeps one direction all the way through level",
+        "pr": "1448"
       },
       {
-        "id": "increment_4c9d90ab6f5d",
-        "title": "On the glass sheet a failing island past the window's edge gets an edge marker",
-        "pr": "1411"
+        "id": "increment_30faf3e3c7fb",
+        "title": "The Library button only clears the glass and outlines the islands; it never moves the camera",
+        "pr": "1444"
       },
       {
-        "id": "increment_65037c893baa",
-        "title": "Grill-me shows the owner's actions first, questions after he confirms",
-        "pr": "1420"
+        "id": "increment_41ec433d5f79",
+        "title": "The exit watch tells a blocked test from a hung exit",
+        "pr": "1446"
       },
       {
-        "id": "increment_65ea1af627b8",
-        "title": "The definitions hook stops citing story-text mirrors",
-        "pr": "1417"
+        "id": "increment_4692c87b9c48",
+        "title": "The shorts render tests run or skip honestly on the Windows arm64 laptop",
+        "pr": "1443"
       },
       {
-        "id": "increment_6fe35a29ee57",
-        "title": "CLAUDE.md names the Get-Content encoding pitfall",
-        "pr": "1414"
+        "id": "increment_46eacd6a5e4f",
+        "title": "The 7 research notes are refiled out of the definitions",
+        "pr": "1428",
+        "note": "PR #1428 added the research kind and refile; then the 7 research notes were refiled under their own ids (definition_04d2ef2dd305, _1900555fd5af, _57e0ee539511, _91c4d72197cd, _b0b80acc7330, _e973fa23ba63, _f8ebe1ac2144), titles, findings text, links and creation dates kept and checked byte-for-byte. Definitions before 8, after 1 (Standing delegation); research 7."
       },
       {
-        "id": "increment_796edd311a51",
-        "title": "First-encounter teaching cards on the user's globe",
-        "pr": "1413"
+        "id": "increment_59af7d34e656",
+        "title": "The dev-home removal test waits long enough for Windows' database to start",
+        "pr": "1436"
       },
       {
-        "id": "increment_7d3fa2be965a",
-        "title": "Release machinery and its secrets are rehearsed before a real release uses them",
-        "pr": "1370",
-        "note": "Landed by PR #1370 (rehearsal workflow, environments, contract 4.22) and PR #1378 (Gatekeeper skip when Apple has not answered by the bound, contract 4.20). Proven by release rehearsal run 38682616233 (2026-10-15T04:39Z), green on Linux, macOS and Windows: macOS job 116250320294 read CSC_LINK from the rehearsal environment, signed with Developer ID 04E34AFB5EDB36D5F8EB0A8C74916DE1BA46BFFE, Apple notarised submission cac8f3d0-f6d1-41a4-bc8a-8ec094cc1277 within the bound, and spctl --assess accepted it (source=Notarized Developer ID). increment_9d05fb8a164b's owner wait now names the release environment and his commands, including moving the four repository secrets."
+        "id": "increment_5baffb18c887",
+        "title": "One platform's failure holds only that platform",
+        "pr": "1440"
       },
       {
-        "id": "increment_89a83410eb05",
-        "title": "No planning lane for an arc whose next work waits on another arc",
-        "pr": "1423"
+        "id": "increment_5f4c0ba16db3",
+        "title": "A first agent plans the work it is given in storytree without being asked",
+        "pr": "1452",
+        "note": "Acceptance proof passed on 0.3.1482 (contains PR #1452): run.sh 0.3.1482, verdict PASS, criterion 4 PASS. Turn 1 unchanged left story 'Tip calculator' (story_4bd990f22ef8) with 2 capabilities and 4 contracts, via plan_story/plan_capability/plan_contract. Evidence: ~/storytree-lanes/stable-acceptance/20261016T062715Z-0.3.1482/ (verdict.txt, ev/library-tree.txt)."
       },
       {
-        "id": "increment_a347b14b6879",
-        "title": "A product's globe draws the system notes it reads from its factory",
-        "pr": "1422"
+        "id": "increment_6d39e6e22ce1",
+        "title": "The knowledge only on the Library face, islands hollow outlines, links for the selected story",
+        "pr": "1432"
       },
       {
-        "id": "increment_a39804b6faf7",
-        "title": "A session's own live write does not stale its own pending edit",
-        "pr": "1418"
+        "id": "increment_6d7b3cf0e415",
+        "title": "The setup check counts a token sign-in as signed in",
+        "pr": "1453"
       },
       {
-        "id": "increment_a90998ba85f2",
-        "title": "The glass sheet seen at a fixed tabletop tilt, with thick land and the graph hanging below",
-        "pr": "1427"
+        "id": "increment_71474a1acd30",
+        "title": "A top-bar switch to the user's factory, and the factory is taught on first switch",
+        "pr": "1429"
       },
       {
-        "id": "increment_b162d70aad5c",
-        "title": "Editing an inherited note in a product writes the product's own copy",
-        "pr": "1410"
+        "id": "increment_7d0eac3c3fd4",
+        "title": "The factory's map draws its roles, notes and checks, so their cards point at them",
+        "pr": "1434"
       },
       {
-        "id": "increment_cebc7207d671",
-        "title": "The title lift matches whole words, exact titles first",
-        "pr": "1408"
+        "id": "increment_80c05a689552",
+        "title": "Stable covers every platform",
+        "pr": "1437"
       },
       {
-        "id": "increment_d37074ca8ec1",
-        "title": "Own health's log names each failing test and its assertion",
-        "pr": "1424"
+        "id": "increment_80d5beb81cff",
+        "title": "Notes pulled toward every island their links reach, unlinked notes on a sea floor",
+        "pr": "1445"
       },
       {
-        "id": "increment_e1d421d82ba7",
-        "title": "The pool brief names the asset-subagent exception",
-        "pr": "1415"
+        "id": "increment_82ef0ee2a9c9",
+        "title": "Every fortnight, a model-driven user installs the stable candidate on the old laptop and builds a project, then the owner says yes",
+        "pr": "1451"
       },
       {
-        "id": "increment_e557d7df8a07",
-        "title": "pnpm test runs the library host's own tests",
-        "pr": "1390",
-        "note": "PR #1390 merged 2026-10-15 02:36Z with no watcher hand-off listing it; closed by the session manager"
+        "id": "increment_9922ecd7a56a",
+        "title": "The glass sheet as a perspective 3D slab the user tilts from top to underside",
+        "pr": "1442"
       },
       {
-        "id": "increment_f032ab02831d",
-        "title": "Story prose folds back into its stories; no story text is a definition",
-        "pr": "1416"
+        "id": "increment_a27f061ca35c",
+        "title": "Take the first short off the home page until it is reworked",
+        "pr": "1455"
       },
       {
-        "id": "increment_f343663245f7",
-        "title": "Contract 14.7 passes again: records named by title rank first",
-        "pr": "1421"
+        "id": "increment_b25c1e045533",
+        "title": "Librarian pass: link each sea-floor note to its story, or keep it there with a reason",
+        "pr": "1449"
       },
       {
-        "id": "increment_f371a46ecc94",
-        "title": "Retire the Cloud SQL rehearsal, cutover and rollback in infra/library-host",
-        "pr": "1412"
+        "id": "increment_bda41ab91080",
+        "title": "Workspace reads the exit code, and a re-claim from a worktree corrects the claim's branch",
+        "pr": "1456"
+      },
+      {
+        "id": "increment_c0b7832e991c",
+        "title": "Read each subagent's context from its own transcript",
+        "pr": "1450"
+      },
+      {
+        "id": "increment_c2a7dc5c129e",
+        "title": "A stopped release gets one fix session at a time",
+        "pr": "1438"
+      },
+      {
+        "id": "increment_d34988bc6c69",
+        "title": "The capture harness hides teaching cards",
+        "pr": "1433"
+      },
+      {
+        "id": "increment_eddead0e5ef2",
+        "title": "A stable candidate comes with its evidence, and a bad pin can be stopped",
+        "pr": "1439"
+      },
+      {
+        "id": "increment_f9d799c44ac5",
+        "title": "Move the glass sheet with drag and WASD, spin it with Q/E or right-drag, and a compass home",
+        "pr": "1431"
       }
     ],
     "includedIncrements": [
@@ -1406,7 +1431,35 @@
       "increment_e557d7df8a07",
       "increment_f032ab02831d",
       "increment_f343663245f7",
-      "increment_f371a46ecc94"
+      "increment_f371a46ecc94",
+      "increment_0bbe447cc966",
+      "increment_168dc4eeaf66",
+      "increment_1ea8a5dadebc",
+      "increment_25ccc26cec50",
+      "increment_293a37334470",
+      "increment_30faf3e3c7fb",
+      "increment_41ec433d5f79",
+      "increment_4692c87b9c48",
+      "increment_46eacd6a5e4f",
+      "increment_59af7d34e656",
+      "increment_5baffb18c887",
+      "increment_5f4c0ba16db3",
+      "increment_6d39e6e22ce1",
+      "increment_6d7b3cf0e415",
+      "increment_71474a1acd30",
+      "increment_7d0eac3c3fd4",
+      "increment_80c05a689552",
+      "increment_80d5beb81cff",
+      "increment_82ef0ee2a9c9",
+      "increment_9922ecd7a56a",
+      "increment_a27f061ca35c",
+      "increment_b25c1e045533",
+      "increment_bda41ab91080",
+      "increment_c0b7832e991c",
+      "increment_c2a7dc5c129e",
+      "increment_d34988bc6c69",
+      "increment_eddead0e5ef2",
+      "increment_f9d799c44ac5"
     ]
   }
 }

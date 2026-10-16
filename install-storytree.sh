@@ -124,18 +124,24 @@ st_download() {
 }
 
 # st_release CHANNEL ARCH FILE: reads the channel's delivery manifest into FILE and sets ST_PAYLOAD_URL, _SHA and _NAME
-# for this system's app: the Mac's zip, or Linux's AppImage.
+# for this system's app: the Mac's zip, or Linux's AppImage. An acceptance run names the build to install as stable,
+# before the pin moves to it, in STORYTREE_ACCEPTANCE_VERSION; the published one-liner never sets it.
 st_release() {
   st_pinned=
-  if [ "$1" = stable ]; then
+  if [ -n "${STORYTREE_ACCEPTANCE_VERSION:-}" ]; then
+    [ "$1" = stable ] || { st_fail 'An acceptance version installs as stable; this installation uses development'; return; }
+    st_pinned=$STORYTREE_ACCEPTANCE_VERSION
+    st_bad='STORYTREE_ACCEPTANCE_VERSION must name a 0.3.<n> release'
+  elif [ "$1" = stable ]; then
     st_fetch "https://raw.githubusercontent.com/$ST_REPO/release-channel-stable/latest.yml" "$3" || { st_fail 'the stable release pin could not be read'; return; }
     st_pinned=$(st_json version < "$3")
-    case "$(st_json schema < "$3")/$(st_json channel < "$3")/$st_pinned" in
-      1/stable/0.3.*) ;;
-      *) st_fail 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired'; return ;;
-    esac
-    case "${st_pinned#0.3.}" in 0 | [1-9] | [1-9]*[0-9]) ;; *) st_fail 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired'; return ;; esac
-    case "${st_pinned#0.3.}" in *[!0-9]*) st_fail 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired'; return ;; esac
+    st_bad='The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired'
+    case "$(st_json schema < "$3")/$(st_json channel < "$3")" in 1/stable) ;; *) st_fail "$st_bad"; return ;; esac
+  fi
+  if [ "$1" = stable ]; then
+    case "$st_pinned" in 0.3.*) ;; *) st_fail "$st_bad"; return ;; esac
+    case "${st_pinned#0.3.}" in 0 | [1-9] | [1-9]*[0-9]) ;; *) st_fail "$st_bad"; return ;; esac
+    case "${st_pinned#0.3.}" in *[!0-9]*) st_fail "$st_bad"; return ;; esac
     st_manifest="https://github.com/$ST_REPO/releases/download/v$st_pinned/storytree-delivery.json"
   else
     st_manifest="https://github.com/$ST_REPO/releases/latest/download/storytree-delivery.json"
@@ -149,8 +155,13 @@ st_release() {
   if [ "$1" = stable ] && [ "$(st_json channelSchema < "$3")" != 1 ]; then
     st_fail 'The pinned release cannot preserve the stable release channel'; return
   fi
-  if [ "$ST_SYSTEM" = linux ]; then st_key=linux; st_expected="storytree-0.3-$st_version-linux-x86_64.AppImage"; st_label='Linux app'
-  else st_key=macos; st_expected="storytree-0.3-$st_version-mac-$2.zip"; st_label='Mac app'; fi
+  if [ "$ST_SYSTEM" = linux ]; then st_key=linux; st_label='Linux app'; else st_key=macos; st_label='Mac app'; fi
+  # A release without this system's new build names the last good one, with that build's version and release (4.6).
+  st_build=$(st_json "$st_key.$2.version" < "$3") || st_build=$st_version
+  case "$st_build" in 0.3.0 | 0.3.[1-9] | 0.3.[1-9]*[0-9]) ;; *) st_fail "the release manifest names no valid $st_label build"; return ;; esac
+  case "${st_build#0.3.}" in *[!0-9]*) st_fail "the release manifest names no valid $st_label build"; return ;; esac
+  if [ "$ST_SYSTEM" = linux ]; then st_expected="storytree-0.3-$st_build-linux-x86_64.AppImage"
+  else st_expected="storytree-0.3-$st_build-mac-$2.zip"; fi
   ST_PAYLOAD_NAME=$(st_json "$st_key.$2.name" < "$3")
   ST_PAYLOAD_SHA=$(st_json "$st_key.$2.sha256" < "$3")
   if [ "$ST_PAYLOAD_NAME" != "$st_expected" ]; then
@@ -160,7 +171,7 @@ st_release() {
     *[!0-9a-fA-F]*) st_fail "the release manifest has no valid checksum for the $st_label"; return ;;
   esac
   [ "${#ST_PAYLOAD_SHA}" -eq 64 ] || { st_fail "the release manifest has no valid checksum for the $st_label"; return; }
-  ST_PAYLOAD_URL="https://github.com/$ST_REPO/releases/download/v$st_version/$ST_PAYLOAD_NAME"
+  ST_PAYLOAD_URL="https://github.com/$ST_REPO/releases/download/v$st_build/$ST_PAYLOAD_NAME"
 }
 
 # st_profile_add FILE ENTRY: one marked PATH line for a login shell, written once; an older line of ours is replaced.

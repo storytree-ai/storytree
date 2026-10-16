@@ -7,8 +7,8 @@
 // prepare imports the certificate into a temporary keychain, writes Apple's key to a file for notarytool
 // and exports STORYTREE_MAC_IDENTITY (tools.mjs signs the payload with it); with no certificate it does nothing.
 // cleanup deletes the keychain and the key file. Notarisation is ours, not electron-builder's (dist.mjs's afterSign
-// hook calls notariseApp on the signed .app, before the zip and dmg are made, so an accepted build's ticket is stapled
-// to the app both carry): Apple's answer is waited for only until a bound, so a release never waits on Apple; a build
+// hook calls notariseApp on the signed .app, before the zip is made, so an accepted build's ticket is stapled
+// to the app it carries): Apple's answer is waited for only until a bound, so a release never waits on Apple; a build
 // Apple has not accepted by then ships signed but not notarised, and its release note says so. `history` prints
 // Apple's answers to past submissions (the notary workflow), and one submission's log when given its id.
 import { execFileSync, spawnSync } from "node:child_process";
@@ -48,7 +48,7 @@ export function macBuilderConfig(signing) {
   return signing.mode === "ad-hoc" ? { identity: signing.identity, notarize: false } : { notarize: false };
 }
 
-/** electron-builder's afterSign hook for a Developer ID build: notarises the signed .app before the zip and dmg are
+/** electron-builder's afterSign hook for a Developer ID build: notarises the signed .app before the zip is
  * made from it (run 38914897950's zip, notarised after it was made, carried no ticket). None for an ad-hoc build. */
 export function macNotarisation(signing, outcomeFile, notariseApp_ = notariseApp) {
   if (!signing.notarize) return {};
@@ -110,9 +110,9 @@ export function identityFrom(listing) {
 }
 
 const MAC_NOTES = {
-  "ad-hoc": "The macOS (Apple Silicon) zip and dmg are built and ad-hoc signed on the same commit, but not yet notarised: macOS refuses to open them until a release that is.",
-  notarised: "The macOS (Apple Silicon) zip and dmg are built on the same commit, signed with storytree's Developer ID and notarised by Apple.",
-  pending: "The macOS (Apple Silicon) zip and dmg are built on the same commit and signed with storytree's Developer ID, but not yet notarised: Apple had not accepted them when this release was made, and macOS opens them once it does.",
+  "ad-hoc": "The macOS (Apple Silicon) zip is built and ad-hoc signed on the same commit, but not yet notarised: macOS refuses to open it until a release that is.",
+  notarised: "The macOS (Apple Silicon) zip is built on the same commit, signed with storytree's Developer ID and notarised by Apple.",
+  pending: "The macOS (Apple Silicon) zip is built on the same commit and signed with storytree's Developer ID, but not yet notarised: Apple had not accepted it when this release was made, and macOS opens it once Apple does.",
 };
 
 /** The release page's sentence about the Mac build: "ad-hoc", "notarised" or "pending" (signed, Apple not yet accepted). */

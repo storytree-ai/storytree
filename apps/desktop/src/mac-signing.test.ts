@@ -65,7 +65,7 @@ test("4.20 the release notes' Mac sentence says what the build is: ad-hoc, notar
   assert.equal(withMacNote(body, "notarised"), [
     "## Install",
     "",
-    "The macOS (Apple Silicon) zip and dmg are built on the same commit, signed with storytree's Developer ID and notarised by Apple.",
+    "The macOS (Apple Silicon) zip is built on the same commit, signed with storytree's Developer ID and notarised by Apple.",
     "",
     "Development installations follow every published build.",
   ].join("\n"));
@@ -104,7 +104,7 @@ test("4.20 Apple's answer is waited for only until the bound: accepted is notari
   assert.deepEqual(refused.stapled, []);
 });
 
-test("4.20 a Developer ID build is notarised and stapled once signed, before electron-builder makes its zip and dmg, so both carry the ticket", async () => {
+test("4.20 a Developer ID build is notarised and stapled once signed, before electron-builder makes its zip, so it carries the ticket", async () => {
   // Run 38914897950: notarising the finished zip left the shipped app with no ticket stapled to it.
   const asked: string[][] = [];
   const hooks = macNotarisation(macSigning({ CSC_LINK: "base64p12", ...apple }), "/release/mac-notarisation.json", async (app: string, outcome: string) => { asked.push([app, outcome]); });

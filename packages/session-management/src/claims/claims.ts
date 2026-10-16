@@ -279,6 +279,14 @@ export async function letGo(context: ClaimContext, pr: number, reason: string): 
 }
 
 /**
+ * The watcher found pull request `pr`, handed over for `increment`, red and starts its fix session (ADR-1064 D4): a pr-red
+ * line on the pull request's holder, as holdForPull writes, so it makes no session read live; `checks` names its failed checks.
+ */
+export async function recordRed(context: ClaimContext, pr: number, increment: string, conflict: boolean, checks: string[]): Promise<void> {
+  await context.log.append(context.project, { session: pullHolder(pr), harness: "watcher", source: context.source ?? "tool", kind: "pr-red", pr, increment, conflict, checks });
+}
+
+/**
  * Asking the owner about `increment` releases the work it holds (ADR-0944 D4): when the context's session holds it,
  * its claim ends, and so do the session's capability claims taken under it; an active increment is a proposal again,
  * as any release returns it (5.29), and reads held on the owner. Claims on other work stand, and an increment the

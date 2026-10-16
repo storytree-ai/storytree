@@ -21,7 +21,7 @@ import { countingStore } from "@storytree/project-and-caller/testing/egress";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions } from "../sessions/index.js";
-import { claim, claimRefusal, closed, holdForPull, land, letGo, readAttribution, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { claim, claimRefusal, closed, holdForPull, land, letGo, readAttribution, recordRed, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { boardClaims, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
 import { staleClaims } from "./stale-claims.js";
 
@@ -983,5 +983,18 @@ test("5.46 letting go of a pull request ends every claim held for it, capabiliti
     assert.deepEqual(released.map((line) => line.kind === "released" && [line.holder, line.reason]), [
       ["pull-request-12", "PR #12 still red after 2 fix sessions"], ["pull-request-12", "PR #12 still red after 2 fix sessions"]]);
     assert.deepEqual(await letGo(as("C"), 12, "again"), [], "nothing is left to let go");
+  });
+});
+
+test("5.49 a red the watcher handles is a pr-red line on its pull request's holder, with its increment, whether it conflicts and its failed checks, and makes no session read live (ADR-1064 D4)", async () => {
+  await withWorld(async ({ log, project, as }) => {
+    await recordRed(as("C"), 12, "increment_signup", false, ["verify on Windows"]);
+    await recordRed(as("C"), 12, "increment_signup", true, []);
+    const reds = (await log.since(project, 0)).lines.filter((line) => line.kind === "pr-red");
+    assert.deepEqual(reds.map((line) => line.kind === "pr-red" && [line.session, line.harness, line.pr, line.increment, line.conflict, line.checks]), [
+      ["pull-request-12", "watcher", 12, "increment_signup", false, ["verify on Windows"]],
+      ["pull-request-12", "watcher", 12, "increment_signup", true, []],
+    ]);
+    assert.deepEqual((await readSessions(log, project)).map((session) => session.session), [], "a pull request's holder is no session");
   });
 });

@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 
 import { countEngines } from "./queue.mjs";
-import { ensureWatcher, hand, handOver, main, readPull, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { ensureWatcher, hand, handOver, main, projectOf, readPull, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -37,7 +37,7 @@ const pull = ({ state = "OPEN", head = "h1", checks = [], removed = [], queued =
 });
 const failed = { __typename: "CheckRun", name: "verify on Windows", status: "COMPLETED", conclusion: "FAILURE", detailsUrl: "https://ci/run/9" };
 const passed = { __typename: "CheckRun", name: "verify", status: "COMPLETED", conclusion: "SUCCESS", detailsUrl: "https://ci/run/8" };
-const red = { state: "red", head: "h1", why: "verify on Windows failed", logs: ["https://ci/run/9"] };
+const red = { state: "red", head: "h1", why: "verify on Windows failed", logs: ["https://ci/run/9"], checks: ["verify on Windows"] };
 const handOff = (b, pr = 41, increment = "increment_one") => hand({ ...b.options, pr, increment, session: SESSION, startWatcher: async () => {} });
 const saved = async (b, pr = 41) => JSON.parse(await readFile(join(b.dir, `${pr}.json`), "utf8"));
 
@@ -71,7 +71,7 @@ test("13.2 · a red check, or the queue's ejection the requeue left out, is red;
   assert.equal(readPull(pull({ checks: [passed, { ...failed, status: "IN_PROGRESS", conclusion: null }] }), options).state, "pending");
   const ejected = { createdAt: minutes(-20), reason: "failed_checks" };
   assert.deepEqual(readPull(pull({ checks: [passed], removed: [ejected] }), options),
-    { state: "red", head: "h1", why: "the merge queue removed it (failed_checks) and did not take it back", logs: [] });
+    { state: "red", head: "h1", why: "the merge queue removed it (failed_checks) and did not take it back", logs: [], checks: [] });
   assert.equal(readPull(pull({ checks: [passed], removed: [ejected], queued: true }), options).state, "pending", "requeued");
   assert.equal(readPull(pull({ checks: [passed], removed: [{ ...ejected, createdAt: minutes(-5) }] }), options).state, "pending", "the requeue's grace");
   assert.equal(readPull(pull({ checks: [passed], removed: [{ ...ejected, createdAt: minutes(-90) }] }), options).state, "pending", "before the hand-off");
@@ -574,4 +574,32 @@ test("13.24 · a hand-over from another machine runs on the configured machine, 
   assert.equal(await main(["handover", "41", "increment_one"], { home, env: { AGENT_POOL_CONFIG: join(home, "agent-pool.json") }, onBox: false, session: SESSION,
     out: (line) => lines.push(line) }), 1);
   assert.match(lines.join("\n"), /names no machine to hand over to/);
+});
+
+test("13.25 · each red the watcher handles writes one pr-red line as its fix session starts, with its conflict and failed checks, in the hand-off's own project", async (t) => {
+  const b = await box(t);
+  const where = [];
+  b.options.storytree = async (args, project) => { b.calls.push(args); where.push(project); return ""; };
+  const arm = { folder: "/arms/a", home: "/arms/a/.home" };
+  await hand({ ...b.options, pr: 41, increment: "increment_one", session: SESSION, project: arm, startWatcher: async () => {} });
+  await handOff(b, 42, "increment_two");
+  b.looks[41] = red;
+  b.looks[42] = readPull(pull({ checks: [passed], mergeable: "CONFLICTING" }), { since: minutes(-60), now: at, graceMs: 0 });
+  await watchOnce(b.options);
+  await watchOnce(b.options);
+  const reds = b.calls.map((args, i) => [args, where[i]]).filter(([[family, verb]]) => family === "workspace" && verb === "red");
+  assert.deepEqual(reds, [
+    [["workspace", "red", "41", "--increment", "increment_one", "--check", "verify on Windows"], arm],
+    [["workspace", "red", "42", "--increment", "increment_two", "--conflict"], undefined],
+  ], "one line per fix session started, none while it runs");
+  assert.equal(b.fixes.length, 2);
+
+  const top = await mkdtemp(join(tmpdir(), "lane-watch-project-"));
+  t.after(() => rm(top, { recursive: true, force: true }));
+  for (const [folder, name] of [["repo", "storytree"], ["arm", "arm-a"]]) {
+    await mkdir(join(top, folder, "deep"), { recursive: true });
+    await writeFile(join(top, folder, ".storytree.json"), JSON.stringify({ project: name }));
+  }
+  assert.deepEqual(await projectOf({ cwd: join(top, "arm", "deep"), repo: join(top, "repo"), home: "/h" }), { folder: join(top, "arm"), home: "/h" });
+  assert.equal(await projectOf({ cwd: join(top, "repo", "deep"), repo: join(top, "repo"), home: "/h" }), undefined, "the watcher's own project needs no routing");
 });

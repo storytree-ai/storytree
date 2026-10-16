@@ -160,6 +160,12 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    */
   z.object({ ...common, kind: z.literal("merged"), ...part, holder: z.string().min(1), branch: z.string().min(1), pr: z.number().int().positive() }).strict().refine(onePart, ONE_PART),
   /**
+   * A handed-over pull request (`pr`) the watcher found red and started a fix session for (ADR-1064 D4), for its
+   * increment: whether it conflicts with main, and the names of its failed checks (none for a bare conflict or an
+   * ejection from the merge queue). Written on the pull request's holder (pullHolder), never on a live session.
+   */
+  z.object({ ...common, kind: z.literal("pr-red"), pr: z.number().int().positive(), increment: z.string().min(1), conflict: z.boolean(), checks: z.array(z.string().min(1)) }).strict(),
+  /**
    * Whether a branch (`of`) still holds open work (ADR-0754 D4): resolved once a pull request from
    * it merged, it has nothing ahead of the default branch, or it was deleted; open again when work
    * is added after. Written by whichever session saw it, never on the sessions that worked on it,

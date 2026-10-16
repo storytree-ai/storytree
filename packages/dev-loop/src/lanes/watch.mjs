@@ -14,7 +14,7 @@ import { execFile, spawn as spawnChild } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -58,15 +58,16 @@ export function readPull(pull, { since, now, graceMs }) {
   const failed = checks.filter((check) => RED.has(check.conclusion ?? check.state));
   const why = failed.map((check) => `${check.name ?? check.context} failed`).join("; ");
   const logs = failed.map((check) => check.detailsUrl ?? check.targetUrl).filter(Boolean);
+  const names = failed.map((check) => check.name ?? check.context).filter(Boolean);
   if (pull.mergeable === "CONFLICTING") {
     return { state: "red", head, why: `it conflicts with main: merge origin/main and resolve the conflicts${why ? `; also ${why}` : ""}`, logs,
-      conflict: true, branch: pull.headRefName };
+      checks: names, conflict: true, branch: pull.headRefName };
   }
-  if (failed.length) return { state: "red", head, why, logs };
+  if (failed.length) return { state: "red", head, why, logs, checks: names };
   const removal = pull.timelineItems?.nodes?.at(-1);
   const removedAt = Date.parse(removal?.createdAt);
   if (!pull.mergeQueueEntry && EJECTED.has(removal?.reason?.toUpperCase()) && removedAt > Date.parse(since) && now - removedAt > graceMs) {
-    return { state: "red", head, why: `the merge queue removed it (${removal.reason}) and did not take it back`, logs: [] };
+    return { state: "red", head, why: `the merge queue removed it (${removal.reason}) and did not take it back`, logs: [], checks: [] };
   }
   return { state: "pending", head };
 }
@@ -150,8 +151,10 @@ export async function handedOff(dir) {
  * wait is no refusal of the hand-off: the record is marked `closed`, and the watcher still watches and fixes it (13.13).
  * The handing session's claims are held for the pull request, on its `branch`, until it merges or closes (ADR-1037 D1,
  * 13.22): its close-out then releases nothing. With no session or branch to hold them by, `held` says why none are.
+ * `project` is where the hand-off's own storytree project lives when it is not the watcher's (an experiment arm's
+ * throwaway library: its folder and storytree home), so the reds it records land there (ADR-1064 D4, 13.25).
  */
-export async function hand({ dir, pr, increment, session, branch, keepOpen = false, refused = false, holder, storytree, startWatcher, now = Date.now }) {
+export async function hand({ dir, pr, increment, session, branch, keepOpen = false, refused = false, holder, project, storytree, startWatcher, now = Date.now }) {
   await mkdir(dir, { recursive: true });
   const old = (await records(dir)).find((record) => record.pr === pr);
   let closed = false;
@@ -165,7 +168,7 @@ export async function hand({ dir, pr, increment, session, branch, keepOpen = fal
     : !branch ? "its branch could not be read, so no claims are held for it"
     : (await storytree(["workspace", "hold", String(pr), "--holder", session, "--branch", branch])
       .catch((error) => `its claims could not be held (${error.message.split("\n")[0]}), so its close-out releases them`)).trim();
-  await save(dir, { fixes: [], fixing: null, ...old, pr, increment, session, keepOpen, closed, handedAt: new Date(now()).toISOString() });
+  await save(dir, { fixes: [], fixing: null, ...old, pr, increment, session, keepOpen, closed, ...(project ? { project } : {}), handedAt: new Date(now()).toISOString() });
   await startWatcher();
   return { closed, held };
 }
@@ -238,7 +241,7 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
 export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
-  const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
+  const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
   // The claims held for a pull request end with its watch (ADR-1037 D1, D3).
   const letGo = (pr, reason) => tell(["workspace", "let-go", String(pr), "--reason", reason]);
   // A pull request given up goes back on its arc as ready work, its body naming the pull request and its branch, never to the owner (13.20, 13.23).
@@ -325,6 +328,9 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
       : running.size || now() < Date.parse(last.refusedAt ?? last.at) + backoff)) continue;
     if (pull.conflict && [...running.values()].some(Boolean)) continue;
     if (!(await room())) continue;
+    // Each red it handles is a pr-red activity line in the hand-off's project, written as its fix session starts (ADR-1064 D4, 13.25).
+    await tell(["workspace", "red", String(pr), "--increment", increment, ...(pull.conflict ? ["--conflict"] : []),
+      ...(pull.checks ?? []).flatMap((check) => ["--check", check])], record.project);
     if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
     const n = record.fixes.length + 1;
     const fix = await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed }) });
@@ -355,6 +361,25 @@ export function remoteCommand(config, args) {
     `cd ${config.remoteCheckout} && node packages/dev-loop/src/lanes/watch.mjs ${args.join(" ")}`]];
 }
 
+/** The nearest storytree marker at or above `folder`: its folder and the project it names, or nothing. */
+async function markerAt(folder) {
+  for (let at = resolve(folder); ; at = dirname(at)) {
+    const text = await readFile(join(at, ".storytree.json"), "utf8").catch(() => undefined);
+    if (text !== undefined) { try { return { folder: at, name: JSON.parse(text).project }; } catch { return undefined; } }
+    if (dirname(at) === at) return undefined;
+  }
+}
+
+/**
+ * The project a hand-off from `cwd` belongs to when it is not the watcher's own (13.25): the nearest marker's folder,
+ * and the storytree `home` it ran under, so an experiment arm's reds land in its throwaway library. The repository's own project is nothing.
+ */
+export async function projectOf({ cwd, repo, home }) {
+  const here = await markerAt(cwd);
+  if (!here?.name || here.name === (await markerAt(repo))?.name) return undefined;
+  return { folder: here.folder, home };
+}
+
 /** The box's paths, limits and processes, from the pool's configuration (pool-config.mjs). */
 function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const config = poolConfig({ home, env });
@@ -376,7 +401,12 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), status: join(lanesDir, "watch.status"), argsOf,
     limit: config.watcher.fixesPerRed, cap: config.watcher.fixesPerPullRequest, intervalMs: config.watcher.intervalMs, now: Date.now,
     session: env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim() || "",
-    storytree: async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout,
+    // The command line routes by its folder's marker: a hand-off's own project runs it there, under its own home (13.25).
+    storytree: async (args, project) => (project
+      ? await run(process.execPath, ["--import", import.meta.resolve("tsx"), join(repo, "packages", "cli", "src", "bins", "storytree.ts"), ...args],
+        { cwd: project.folder, env: { ...env, STORYTREE_HOME: project.home }, maxBuffer: 16 * 1024 * 1024 })
+      : await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout,
+    project: () => projectOf({ cwd: process.cwd(), repo, home: env.STORYTREE_HOME || join(home, ".storytree", "0.3") }),
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt }),
     branchOf: async (pr) => (await run("gh", ["pr", "view", String(pr), "--json", "headRefName", "-q", ".headRefName"], { cwd: repo })).stdout.trim(),
     alive: async (pid) => /lanes\/runner\.mjs run /.test(await argsOf(pid)),
@@ -448,7 +478,8 @@ export async function main(args, box = {}) {
     const session = at > 0 ? args[at + 1] ?? "" : b.session;
     const holder = args.includes("--holder") ? args[args.indexOf("--holder") + 1] : undefined;
     const branch = await b.branchOf(Number(args[1])).catch(() => "");
-    const { closed, held } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, branch, keepOpen, refused, holder, storytree: b.storytree, now: b.now,
+    const project = await b.project();
+    const { closed, held } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, branch, keepOpen, refused, holder, project, storytree: b.storytree, now: b.now,
       startWatcher: () => ensureWatcher({ pidFile: b.pidFile, argsOf: b.argsOf, spawn: b.startWatcher }) });
     out(`PR #${args[1]} handed to the watcher (${join(b.dir, `${args[1]}.json`)}); `
       + (closed ? `${args[2]} had already closed, so the watcher watches and fixes it to its merge and closes nothing.`

@@ -39,7 +39,7 @@ jobs:
       - name: Install the starting build, make an arc, and leave it idle until it updates itself
         run: bash packages/app-setup/evidence/linux-acceptance/harness/self-update.sh "$RUNNER_TEMP/linux-self-update" "${{ matrix.from }}"
       - name: Fail unless it took a newer release with its arc kept and the setup check passing
-        run: bash packages/app-setup/evidence/linux-acceptance/harness/judge-self-update.sh "$RUNNER_TEMP/linux-self-update" "${{ matrix.require }}" "${{ matrix.from }}"
+        run: bash packages/app-setup/evidence/linux-acceptance/harness/judge-self-update.sh "$RUNNER_TEMP/linux-self-update" "${{ matrix.require }}"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 
 import { countEngines } from "./queue.mjs";
-import { ensureWatcher, hand, handOver, main, readPull, RESTART, watchOnce } from "./watch.mjs";
+import { ensureWatcher, hand, handOver, main, readPull, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -561,4 +561,17 @@ test("13.17 · a watch loop on a folder other than the box's own reads no releas
   assert.equal(await main(["watch"], { ...b.options, home, loopPidFile: join(b.dir, "watch-loop.pid"), pid: 7, argsOf: async () => "",
     codeVersion: async () => version, sleep: async () => { version = "tree-b"; } }), RESTART);
   assert.doesNotMatch(b.lines.join("\n"), /release/);
+});
+
+test("13.24 · a hand-over from another machine runs on the configured machine, in its checkout as written there; with none configured it is refused", async (t) => {
+  assert.deepEqual(remoteCommand({ machine: "box", remoteCheckout: "~/src/shop" }, ["hand", "41", "increment_one", "--session", SESSION]),
+    ["ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "box", `cd ~/src/shop && node packages/dev-loop/src/lanes/watch.mjs hand 41 increment_one --session ${SESSION}`]]);
+
+  const home = await mkdtemp(join(tmpdir(), "lane-watch-nobox-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  await writeFile(join(home, "agent-pool.json"), JSON.stringify({ lanes: join(home, "lanes") }));
+  const lines = [];
+  assert.equal(await main(["handover", "41", "increment_one"], { home, env: { AGENT_POOL_CONFIG: join(home, "agent-pool.json") }, onBox: false, session: SESSION,
+    out: (line) => lines.push(line) }), 1);
+  assert.match(lines.join("\n"), /names no machine to hand over to/);
 });

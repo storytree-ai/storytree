@@ -25,14 +25,15 @@ async function loginEnvironment(home, env) {
 
 const run = promisify(execFile);
 
-function argumentsFor(engine, brief, addDirs, resume) {
+function argumentsFor(engine, brief, addDirs, resume, model) {
   const adds = addDirs.flatMap((directory) => ["--add-dir", directory]);
+  const models = model ? ["--model", model] : [];
   if (resume) return engine === "codex"
-    ? ["exec", "resume", resume, brief, "--model", "gpt-6-astra", "--dangerously-bypass-approvals-and-sandbox", "--dangerously-bypass-hook-trust", "--json"]
-    : ["-p", brief, "--resume", resume, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"];
+    ? ["exec", "resume", resume, brief, ...models, "--dangerously-bypass-approvals-and-sandbox", "--dangerously-bypass-hook-trust", "--json"]
+    : ["-p", brief, "--resume", resume, ...models, "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"];
   return engine === "codex"
-    ? ["exec", brief, "--model", "gpt-6-astra", "--sandbox", "danger-full-access", "--dangerously-bypass-hook-trust", ...adds, "--json"]
-    : ["-p", brief, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"];
+    ? ["exec", brief, ...models, "--sandbox", "danger-full-access", "--dangerously-bypass-hook-trust", ...adds, "--json"]
+    : ["-p", brief, ...models, "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"];
 }
 
 /** Await the child and its output files; no shell, background launch or real engine in tests. */
@@ -61,11 +62,11 @@ async function runEngine(command, args, { cwd, env, log, err }) {
 const PROBE = "Reply with the single word OK. Do not run any command or read any file.";
 
 /** One tiny Codex turn, so Codex writes a fresh allowance reading into its session files. */
-async function probeCodex(command, { cwd, env, log, timeoutMs = 180_000 }) {
+async function probeCodex(command, { cwd, env, log, model, timeoutMs = 180_000 }) {
   const output = await open(log, "w");
   try {
     await new Promise((done, fail) => {
-      const child = spawn(command[0], [...command.slice(1), ...argumentsFor("codex", PROBE, [])], { cwd, env, stdio: ["ignore", output.fd, output.fd] });
+      const child = spawn(command[0], [...command.slice(1), ...argumentsFor("codex", PROBE, [], undefined, model)], { cwd, env, stdio: ["ignore", output.fd, output.fd] });
       const timer = setTimeout(() => child.kill("SIGTERM"), timeoutMs);
       child.on("error", (error) => { clearTimeout(timer); fail(error); });
       child.on("close", () => { clearTimeout(timer); done(); });
@@ -149,13 +150,13 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   const settings = laneSettings({ home, env });
   const login = await loginEnvironment(home, env);
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
-  const refresh = () => probeCodex(commands.codex, { cwd, env: login, log: `${log.replace(/\.log$/, "")}.probe.log` });
+  const refresh = () => probeCodex(commands.codex, { cwd, env: login, model: settings.models.codex, log: `${log.replace(/\.log$/, "")}.probe.log` });
   const picked = await pickFresh({ ...settings, now: now() / 1000, refresh });
   dated(`engine ${picked.engine} ${picked.reason}`);
   const before = increment ? await traces({ increment, lanesDir: settings.lanesDir, heads }) : null;
   let last = { engine: picked.engine, log, err };
   let started = now();
-  let result = await runEngine(commands[picked.engine], argumentsFor(picked.engine, original, addDirs), { cwd, env: login, log, err });
+  let result = await runEngine(commands[picked.engine], argumentsFor(picked.engine, original, addDirs, undefined, settings.models[picked.engine]), { cwd, env: login, log, err });
   dated(`engine ${picked.engine} exit ${result.code}`);
   // Read again: the just-finished Codex run can have spent the allowance since we picked it.
   if (picked.engine === "codex" && !result.interrupted && await detectLimitHit({ ...settings, log, err,
@@ -166,7 +167,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     dated(`engine claude (Codex stopped on its usage limit; handing over, log ${base}.claude.log)`);
     last = { engine: "claude", log: `${base}.claude.log`, err: `${base}.claude.err` };
     started = now();
-    result = await runEngine(commands.claude, argumentsFor("claude", handover, addDirs), { cwd, env: login, log: last.log, err: last.err });
+    result = await runEngine(commands.claude, argumentsFor("claude", handover, addDirs, undefined, settings.models.claude), { cwd, env: login, log: last.log, err: last.err });
     dated(`engine claude exit ${result.code}`);
   }
   if (result.interrupted) {
@@ -179,7 +180,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     const base = last.log.replace(/\.log$/, "");
     const resumed = { log: `${base}.resume.log`, err: `${base}.resume.err` };
     dated(`engine ${last.engine} exit 0 having left no report or push for ${increment}: ${session ? `resuming session ${session}` : "restarting"} once, log ${resumed.log}`);
-    result = await runEngine(commands[last.engine], argumentsFor(last.engine, session ? CONTINUE : `${CONTINUE}\n\n${original}`, addDirs, session), { cwd, env: login, ...resumed });
+    result = await runEngine(commands[last.engine], argumentsFor(last.engine, session ? CONTINUE : `${CONTINUE}\n\n${original}`, addDirs, session, settings.models[last.engine]), { cwd, env: login, ...resumed });
     dated(`engine ${last.engine} exit ${result.code}`);
     if (result.interrupted) {
       dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);

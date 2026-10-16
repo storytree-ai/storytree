@@ -231,3 +231,20 @@ test("10.11 · a lane that exits 0 having left no report or push is resumed once
   assert.equal((await calls()).length, 1);
   assert.deepEqual(told, []);
 });
+
+test("10.12 · each engine runs the model the pool's configuration names, and its own default when it names none", async (t) => {
+  const options = await lane(t);
+  const config = join(options.home, "agent-pool.json");
+  options.env.AGENT_POOL_CONFIG = config;
+  for (const [engines, models] of [[{ codex: { model: "codex-x" }, claude: { model: "claude-y" } }, { codex: ["--model", "codex-x"], claude: ["--model", "claude-y"] }],
+    [{}, { codex: [], claude: [] }]]) {
+    await writeFile(config, JSON.stringify({ lanes: options.lanesDir, engines }));
+    for (const engine of ["codex", "claude"]) {
+      await writeFile(join(options.lanesDir, "engine-override"), engine);
+      assert.equal(await runLane(options), 0);
+      const { args } = JSON.parse(await readFile(options.log, "utf8"));
+      const at = args.indexOf("--model");
+      assert.deepEqual(at < 0 ? [] : args.slice(at, at + 2), models[engine], `${engine}: ${args.join(" ")}`);
+    }
+  }
+});

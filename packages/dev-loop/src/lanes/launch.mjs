@@ -13,6 +13,7 @@ import { promisify } from "node:util";
 import { blind, pickPlan, pickPool, readOnly, surveyLibrary } from "./feed.mjs";
 import { codeVersion, composeBrief, countEngines, holdRunner, waitForSlot } from "./queue.mjs";
 import { runLane as runEngineLane } from "./runner.mjs";
+import { poolConfig } from "./pool-config.mjs";
 import { handedOff } from "./watch.mjs";
 
 const run = promisify(execFile);
@@ -176,12 +177,13 @@ async function argsOf(pid) {
   return (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").join(" ").trim();
 }
 
+/** The box's paths, cap and processes, from the pool's configuration (pool-config.mjs). */
 function boxDefaults({ home = homedir(), env = process.env } = {}) {
-  const lanesDir = env.LANES_DIR || join(home, "storytree-lanes");
-  const repo = join(home, "code", "storytree03");
+  const config = poolConfig({ home, env });
+  const { lanesDir, checkout: repo, addDirs } = config;
   return {
-    lanesDir, repo, addDirs: [join(home, "code", "storytree03-wt"), lanesDir],
-    maxLanes: async () => Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || 5,
+    lanesDir, repo, addDirs,
+    maxLanes: async () => Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || config.sessions,
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     lock: (fn) => withFlock(join(lanesDir, "night-checkout.lock"), fn),
     prepare: () => prepareCheckout({ repo }),
@@ -191,7 +193,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
 
 /** `pool` or `slots`; `box` overrides the box's paths and processes in tests. */
 export async function main(args, box = {}) {
-  const b = { ...boxDefaults(), ...box };
+  const b = { ...boxDefaults({ home: box.home, env: box.env }), ...box };
   if (args[0] === "slots") {
     (b.out ?? console.log)(`${await b.count()} engines running, cap ${await b.maxLanes()}`);
     return 0;

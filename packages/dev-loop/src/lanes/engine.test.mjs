@@ -97,7 +97,7 @@ test("10.5 · only Codex's own usage-limit stop writes a marker, using the reset
     await rm(marker, { force: true });
     await writeFile(log, ["not JSON", "null", ...events.map((event) => JSON.stringify(event))].join("\n"));
     await writeFile(err, stderr);
-    const hit = await detectLimitHit({ log, err, lanesDir, reading: allowance, now });
+    const hit = await detectLimitHit({ log, err, lanesDir, reading: allowance, now, stopAt: 95 });
     if (!hit) await assert.rejects(readFile(marker), { code: "ENOENT" });
     return hit;
   };
@@ -125,7 +125,7 @@ test("10.10 · a Claude pick resting on a reading over an hour old takes a fresh
   const write = (name, at, used, extra = {}) => writeFile(join(day, `rollout-${name}.jsonl`), JSON.stringify({ timestamp: new Date(at * 1000).toISOString(),
     payload: { rate_limits: { secondary: { used_percent: used, window_minutes: 10080, resets_at: now + 86400 }, ...extra } } }));
   let probes = 0;
-  const pick = (refresh) => pickFresh({ lanesDir, sessionsDir, now, refresh: async () => { probes++; await refresh?.(); } });
+  const pick = (refresh) => pickFresh({ lanesDir, sessionsDir, now, stopAt: 95, refresh: async () => { probes++; await refresh?.(); } });
 
   await write("old", now - 2 * 3600, 96);
   const fresh = await pick(() => write("fresh", now, 0));
@@ -137,7 +137,7 @@ test("10.10 · a Claude pick resting on a reading over an hour old takes a fresh
   const silent = await pick();
   assert.equal(silent.engine, "claude");
   assert.match(silent.reason, /no fresh reading came back/);
-  assert.equal((await pickFresh({ lanesDir, sessionsDir, now, refresh: async () => { throw new Error("codex missing"); } })).engine, "claude");
+  assert.equal((await pickFresh({ lanesDir, sessionsDir, now, stopAt: 95, refresh: async () => { throw new Error("codex missing"); } })).engine, "claude");
 
   probes = 0;
   for (const [at, used, extra] of [[now - 600, 96, {}], [now - 2 * 3600, 50, {}], [now - 2 * 3600, 100, { rate_limit_reached_type: "weekly" }]]) {

@@ -52,7 +52,7 @@ export function macBuilderConfig(signing) {
  * made from it (run 38914897950's zip, notarised after it was made, carried no ticket). None for an ad-hoc build. */
 export function macNotarisation(signing, outcomeFile, notariseApp_ = notariseApp) {
   if (!signing.notarize) return {};
-  return { afterSign: (context) => notariseApp_(path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`), outcomeFile) };
+  return { afterSign: (context) => notariseApp_(path.posix.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`), outcomeFile) };
 }
 
 /** Submits the build and asks Apple for its answer every pollMs until waitMs has passed. Only "Accepted" is

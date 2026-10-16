@@ -1,0 +1,6 @@
+total 593920
+drwx------+  5 runner  staff        160 Oct 16 14:20 .
+drwxr-x---+ 44 runner  staff       1408 Oct 16 14:20 ..
+-rw-r--r--   1 runner  staff          0 Sep 14 04:03 .localized
+-rw-r--r--   1 runner  staff  302285400 Oct 16 14:20 storytree-0.3-0.3.1482-mac-arm64.zip
+drwxr-xr-x   3 runner  staff         96 Oct 16 06:18 storytree-0.3.app

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Mac acceptance check (b) of decision_b0a98e971a05 D4 (increment_dcaf0f58fcf0), run on a fresh GitHub macos-latest
 # runner by .github/workflows/mac-acceptance.yml: what a first user's Apple Silicon Mac sees from the published
-# one-liner, without the self-update step (that waits for Apple's approval, increment_4dcfabc58d92).
+# one-liner; the signed first open and self-update are self-update.sh's (increment_e9ed21b673a3).
 # Every step records its output and exit code in $OUT and carries on, so one failure still leaves the rest observed.
 # The repository is public, so nothing here prints a secret, and no agent is signed in.
 set -u

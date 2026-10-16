@@ -1,0 +1,14 @@
+Executable=/Users/runner/Downloads/storytree-0.3.app/Contents/MacOS/storytree-0.3
+Identifier=ai.storytree.desktop-0-3
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20500 size=452 flags=0x10000(runtime) hashes=3+7 location=embedded
+Signature size=9050
+Authority=Developer ID Application: Hsiao Thong Hua (YTUG339DCT)
+Authority=Developer ID Certification Authority
+Authority=Apple Root CA
+Timestamp=Oct 16, 2026 at 6:22:04 AM
+Info.plist entries=33
+TeamIdentifier=YTUG339DCT
+Runtime Version=26.5.0
+Sealed Resources version=2 rules=13 files=1467
+Internal requirements count=1 size=184

@@ -1,7 +1,8 @@
 # App setup: Mac acceptance, check (b), on a GitHub Apple Silicon runner (increment_dcaf0f58fcf0)
 
-Check (b) of decision_b0a98e971a05 D4, without the self-update step (that waits for Apple's approval of the
-Developer ID, increment_4dcfabc58d92). `harness/run.sh` runs on a fresh `macos-latest` runner, started by
+Check (b) of decision_b0a98e971a05 D4. Its first half, first open and a project build, is `harness/run.sh`; its
+second half, the signed first open and one self-update, is `harness/self-update.sh` (runs of 2026-10-16, below).
+`harness/run.sh` runs on a fresh `macos-latest` runner, started by
 `.github/workflows/mac-acceptance.yml` (dispatch it, or push to a `mac-acceptance/` branch; its `hold` input keeps
 the runner open afterwards for a remote session only the dispatcher's GitHub keys can open). It runs the release
 page's one-liner in a pseudo-terminal (`expect`), answering as a person would: 1 (connect Claude Code, installed
@@ -47,3 +48,37 @@ Runner: macOS 26.6.2 (25G83), image macos-26-arm64 20260907.0351.1, Apple M1 (Vi
   the app, moving `~/Applications/storytree-0.3.app` to the Bin and running the one-liner again reinstalls it in
   14 s, keeping the project and its story (`reinstall.txt`, `tree-after.txt`). Both runs installed 0.3.1045, so
   this proves that the reinstall keeps the project, not a move from one version to the next.
+
+## Runs of 2026-10-16: the signed app passes Gatekeeper and updates itself (increment_e9ed21b673a3)
+
+`harness/self-update.sh`, started by `.github/workflows/mac-self-update.yml` (dispatch it with the release to
+start from, or push to a `mac-self-update/` branch), and judged by `harness/judge-self-update.sh`. Runner: macOS
+26.6.2 (25G83), Apple M1 (Virtual). No agent connected, no secret used.
+
+- `2026-10-16-self-update/` (run 38914897950): **PASS** on all eleven checks (`verdict.tsv`).
+  - Release N is 0.3.1482, the first Developer ID release, installed by its own release's one-liner
+    (`STORYTREE_ACCEPTANCE_VERSION`, as `run.sh` installs a named build). A named build installs as stable, whose
+    pin (0.3.1453) is older than any Developer ID build, so the run quits the app and records the installation as
+    development (`channel.txt`), the channel N and N+1 were both published on. That is setup only; no user does it.
+  - **Signed first open, quarantined.** The release's zip, downloaded into `~/Downloads` with the quarantine
+    attribute a browser and Archive Utility put on every file (`quarantine.txt`): `spctl --assess` says
+    `accepted, source=Notarized Developer ID` (`spctl.txt`). Opened as Finder opens it, macOS asks once whether to
+    open "an app downloaded from the Internet", adding "Apple checked it for malicious software and none was
+    detected" (`first-open-quarantined.png`). Answering Open brings the window up on 0.3.1482 (`dialog-after.txt`,
+    `first-open.png`), and the attribute is marked approved (`00c1`, `xattr-after-open.txt`). No ticket is stapled
+    (`stapler.txt`), so this first open fetches notarisation from Apple online.
+  - **One self-update.** The one-liner's install, opened and left untouched, found 0.3.1485 at its first check
+    and downloaded it in 2 s, then waited at each three-minute check for a quiet moment (contract 4.4) until ten
+    minutes after its launch, installed it and reopened by itself 12 minutes after launch, with no re-run of the
+    one-liner (`releases-log.txt`, `update-wait.txt`). It reopened at the same path on 0.3.1485
+    (`version-after.txt`, `processes-after.txt`, `after-update.png`), still `Notarized Developer ID`
+    (`spctl-after.txt`), with its local Postgres up and the story grown before the update still in the project
+    (`tree-before.txt`, `tree-after.txt`, contract 1.5). The setup check passes from a new login shell
+    (`doctor.txt`).
+- `2026-10-16-translocated/` (run 38909094131): the same, but with the quarantine put on the app the one-liner had
+  installed in `~/Applications`. Gatekeeper accepts it, and macOS runs it through App Translocation, from a
+  read-only copy at a random path (`processes-open.txt`). That copy is not the bundle the delivery record names,
+  so the app rightly does not count itself installed and never starts its updater: `releases-log.txt` has only
+  the first, stable check from before the quarantine, and the 40-minute wait saw 0.3.1482 throughout. The
+  one-liner never meets this (curl sets no quarantine attribute), which is why the passing run opens the
+  quarantined copy from `~/Downloads` and updates the one-liner's install.

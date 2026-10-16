@@ -1,0 +1,13 @@
+storytree is running.
+Hooks for Claude Code: not installed on this machine.
+Hooks for Codex: not installed on this machine.
+Hooks for Cursor: not installed on this machine.
+Hooks for Pi: not installed on this machine.
+Hooks for Antigravity CLI: not installed on this machine.
+This folder is storytree project "st-mac-acceptance".
+No hook has reached storytree in this project yet: start an agent session here.
+The storytree command: on your path.
+GitHub's gh command is not signed in. storytree works without it: only a claim ending by itself when its pull request merges needs it.
+storytree watches sessions in Claude Code, Codex, Cursor, Pi or Antigravity CLI, and none is ready: Claude Code is not installed; Codex is not installed; Cursor is not installed; Pi is not installed; Antigravity CLI is not installed. Fix: Install Claude Code (https://claude.com/claude-code), Codex (https://developers.openai.com/codex) , Cursor (https://cursor.com), Pi (https://github.com/earendil-works/pi) or Antigravity CLI (https://antigravity.google/cli), sign in, then run the setup check again. Any other harness with an MCP client can connect to storytree: add this server entry to its MCP settings by hand, then start a new session there and call check_setup: {"mcpServers":{"storytree":{"type":"stdio","command":"/Users/runner/Applications/storytree-0.3.app/Contents/Resources/agent-tools/node","args":["/Users/runner/Applications/storytree-0.3.app/Contents/Resources/agent-tools/storytree-mcp.mjs"]}}}
+git is installed.
+Node v24.21.0 is installed.

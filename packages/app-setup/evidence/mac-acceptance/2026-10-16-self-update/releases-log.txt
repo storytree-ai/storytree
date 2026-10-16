@@ -1,0 +1,22 @@
+2026-10-16T14:20:23.527Z Following the stable release channel
+2026-10-16T14:20:23.527Z Checking for update
+2026-10-16T14:20:23.562Z Generated new staging user ID: 99a0d1be-7a37-51d4-afd8-f625d4b6ed11
+2026-10-16T14:20:23.947Z Update for version 0.3.1482 is not available (latest version: 0.3.1453, downgrade is disallowed).
+2026-10-16T14:21:24.161Z Following the development release channel
+2026-10-16T14:21:24.162Z Checking for update
+2026-10-16T14:21:25.717Z Found version 0.3.1485 (url: storytree-0.3-0.3.1485-mac-arm64.zip, storytree-0.3-0.3.1485-arm64.dmg)
+2026-10-16T14:21:25.718Z Downloading update from storytree-0.3-0.3.1485-mac-arm64.zip, storytree-0.3-0.3.1485-arm64.dmg
+2026-10-16T14:21:25.749Z Checked for macOS Rosetta environment (isRosetta=false)
+2026-10-16T14:21:25.766Z Checked 'uname -a': arm64=true
+2026-10-16T14:21:25.770Z Unable to locate previous update.zip for differential download (is this first install?), falling back to full download
+2026-10-16T14:21:27.805Z New version 0.3.1485 has been downloaded to /Users/runner/Library/Caches/@storytreedesktop-updater/pending/storytree-0.3-0.3.1485-mac-arm64.zip
+2026-10-16T14:21:28.379Z downloaded; waiting for a quiet moment (no seed writing, no one using the window or an agent working) or the user's say-so
+2026-10-16T14:24:24.266Z downloaded; waiting for a quiet moment (no seed writing, no one using the window or an agent working) or the user's say-so
+2026-10-16T14:27:24.369Z downloaded; waiting for a quiet moment (no seed writing, no one using the window or an agent working) or the user's say-so
+2026-10-16T14:30:24.456Z downloaded; waiting for a quiet moment (no seed writing, no one using the window or an agent working) or the user's say-so
+2026-10-16T14:33:24.634Z / requested
+2026-10-16T14:33:24.654Z /0b3d24f357517f2674a766f5e7d8fd2919013c7e84fb62447c275fb4c2e0afeac3eafae60e8f3466e4cc26a0b9e193f90a69a55056f62ecf803b2012bfa3fe34.zip requested
+2026-10-16T14:33:24.654Z /0b3d24f357517f2674a766f5e7d8fd2919013c7e84fb62447c275fb4c2e0afeac3eafae60e8f3466e4cc26a0b9e193f90a69a55056f62ecf803b2012bfa3fe34.zip requested by Squirrel.Mac, pipe /Users/runner/Library/Caches/@storytreedesktop-updater/pending/storytree-0.3-0.3.1485-mac-arm64.zip
+2026-10-16T14:33:36.139Z Following the development release channel
+2026-10-16T14:33:36.140Z Checking for update
+2026-10-16T14:33:37.485Z Update for version 0.3.1485 is not available (latest version: 0.3.1485, downgrade is disallowed).

@@ -1,0 +1,12 @@
+check	result
+installed-n	PASS
+quarantined	PASS
+spctl-notarised	PASS
+first-open-running	PASS
+updated-itself	PASS
+newer-version	PASS
+installed-running	PASS
+running-after	PASS
+postgres-after	PASS
+project-kept	PASS
+spctl-after	PASS

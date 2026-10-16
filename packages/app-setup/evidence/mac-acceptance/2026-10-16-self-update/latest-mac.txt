@@ -1,0 +1,11 @@
+version: 0.3.1485
+files:
+  - url: storytree-0.3-0.3.1485-mac-arm64.zip
+    sha512: QqkhSflH8dqB6KNSaYqrXKO2Ev8awixoXMuGxuyiJIG4/mVhn4HbYDHEhSYKFzrHX+/R/r2ah7n+KUhnnZmF0w==
+    size: 302285804
+  - url: storytree-0.3-0.3.1485-arm64.dmg
+    sha512: fpP911740snIsEr4nZjmOdU05saImlblTv/iu+9eyZOWa/YU+ZKL2wKFK03FtFhMtPya5xPHpYHK9Oum6HAGnw==
+    size: 302627017
+path: storytree-0.3-0.3.1485-mac-arm64.zip
+sha512: QqkhSflH8dqB6KNSaYqrXKO2Ev8awixoXMuGxuyiJIG4/mVhn4HbYDHEhSYKFzrHX+/R/r2ah7n+KUhnnZmF0w==
+releaseDate: '2026-10-16T13:55:19.042Z'

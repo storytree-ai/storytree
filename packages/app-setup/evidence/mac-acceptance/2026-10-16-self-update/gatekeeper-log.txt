@@ -1,0 +1,12 @@
+2026-10-16 14:19:09.423 Df CoreServicesUIAgent[339:7e4] [com.apple.xpc:connection] [0x8f6c6c500] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.quarantine-resolver
+2026-10-16 14:19:09.889 Df CoreServicesUIAgent[339:7d8] [com.apple.xpc:connection] [0x8f6c6cc80] activating connection: mach=true listener=true peer=false name=com.apple.coreservices.quarantine-resolver
+2026-10-16 14:19:09.939 Df CoreServicesUIAgent[339:7e4] [com.apple.xpc:connection] [0x8f6c98f00] activating connection: mach=false listener=false peer=true name=com.apple.coreservices.quarantine-resolver.peer[156].0x8f6c98f00
+2026-10-16 14:19:09.939 Df CoreServicesUIAgent[339:7e4] [com.apple.xpc:connection] [0x8f6c99380] activating connection: mach=false listener=false peer=true name=com.apple.coreservices.quarantine-resolver.peer[156].0x8f6c99380
+2026-10-16 14:19:40.707 Df CoreServicesUIAgent[339:1203] [com.apple.xpc:connection] [0x8f6c98780] activating connection: mach=false listener=false peer=true name=com.apple.coreservices.quarantine-resolver.peer[703].0x8f6c98780
+2026-10-16 14:20:36.692 Df CoreServicesUIAgent[339:1c2d] [com.apple.xpc:connection] [0x8f6c99080] activating connection: mach=false listener=false peer=true name=com.apple.coreservices.quarantine-resolver.peer[1792].0x8f6c99080
+2026-10-16 14:20:36.776 Df CoreServicesUIAgent[339:1c2d] [com.apple.xpc:connection] [0x8f6c6d540] activating connection: mach=true listener=false peer=false name=com.apple.security.translocation
+2026-10-16 14:20:36.913 Df CoreServicesUIAgent[339:1c2d] [com.apple.xpc:connection] [0x8f6c6d900] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.quarantine-resolver
+2026-10-16 14:20:36.913 Df CoreServicesUIAgent[339:21c8] [com.apple.xpc:connection] [0x8f6c99980] activating connection: mach=false listener=false peer=true name=com.apple.coreservices.quarantine-resolver.peer[339].0x8f6c99980
+2026-10-16 14:20:36.914 Df CoreServicesUIAgent[339:21c8] [com.apple.launchservices:uiagent] GKQuarantineResolver initWithProperties: <private>
+2026-10-16 14:20:43.980 Df CoreServicesUIAgent[339:7d8] [com.apple.launchservices:uiagent] -[GKQuarantineResolver malwareChecksFinished]_block_invoke: XProtect suppress first launch warning: false
+2026-10-16 14:20:57.055 Df CoreServicesUIAgent[339:2207] [com.apple.xpc:connection] [0x8f699de00] activating connection: mach=false listener=false peer=true name=com.apple.coreservices.quarantine-resolver.peer[1958].0x8f699de00

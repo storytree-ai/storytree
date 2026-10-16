@@ -390,6 +390,29 @@ test("app-setup 8.8 with gh missing, signed out or signed in, the agent is never
   });
 });
 
+test("app-setup 8.11 a Claude Code or Codex session calling check_setup is signed in to its own harness, though the tool server's ask says signed out (a CLAUDE_CODE_OAUTH_TOKEN sign-in it never sees)", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    const agentLine = async (agent: typeof claudeCode, signedOut: "claude" | "codex") => {
+      const other = signedOut === "claude" ? "codex" : "claude";
+      const machine = async () => ({ ...(await ANSWERED.machine()), [signedOut]: "signed out", [other]: "missing" }) as const;
+      const setup = { ...ANSWERED, machine, homes: home.homes, storytreeHome: home.storytreeHome };
+      let line: unknown;
+      await withAgent(dir, agent(`${signedOut}-1`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup }), async (session) => {
+        const checked = await session.call("check_setup");
+        line = (checked.data.lines as { check: string }[]).find((each) => each.check === "agent-cli");
+      });
+      return line as { state: string; message: string };
+    };
+    const claudeLine = await agentLine(claudeCode, "claude");
+    assert.equal(claudeLine.state, "ok", JSON.stringify(claudeLine));
+    assert.match(claudeLine.message, /Claude Code is installed and signed in/);
+    const codexLine = await agentLine(codex, "codex");
+    assert.equal(codexLine.state, "ok", JSON.stringify(codexLine));
+    assert.match(codexLine.message, /Codex is installed and signed in/);
+  });
+});
+
 test("app-setup 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them is told of none", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

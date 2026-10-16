@@ -62,6 +62,11 @@ export interface SetupOptions {
   readonly latestRelease?: LatestRelease;
   /** The harness of the session asking, when it is an MCP client storytree has no hooks for (6.64). */
   readonly connected?: string;
+  /**
+   * The agent CLI of the session asking, which is signed in, since its session is calling: a sign-in the tool
+   * server cannot see (CLAUDE_CODE_OAUTH_TOKEN, held by the session, not its children) is not reported as signed out (8.11).
+   */
+  readonly asking?: "claude" | "codex";
 }
 
 export interface SetupReport {
@@ -132,7 +137,7 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   const command = options.hook === undefined || options.command === undefined ? undefined : putCommandOnPath(options.command, options.hook.node, path.join(path.dirname(options.hook.script), "storytree.mjs"));
   const [gh, machine, archives, released] = await Promise.all([
     (options.gh ?? ghState)(),
-    (options.machine ?? (() => machineState(homes.codex === undefined ? {} : { codexHome: homes.codex })))(),
+    (options.machine ?? (() => machineState(homes.codex === undefined ? {} : { codexHome: homes.codex })))().then((state) => signedInAsking(state, options.asking)),
     readAppRecords(options.appPlaces),
     hooksRelease(registeredHookScripts(homes), options.latestRelease),
   ]);
@@ -145,6 +150,11 @@ export async function runSetupCheck(options: SetupOptions): Promise<SetupReport>
   return { ...report, lines: setupLines(report) };
 }
 
+
+/** `machine`, with the asking session's own agent CLI signed in where its ask said signed out (8.11). */
+function signedInAsking(machine: MachineState, asking: SetupOptions["asking"]): MachineState {
+  return asking !== undefined && machine[asking] === "signed out" ? { ...machine, [asking]: "signed in" } : machine;
+}
 
 /**
  * What `folder`, a project's, lacks that review, landing and verified health read (8.31): quality_brief diffs against

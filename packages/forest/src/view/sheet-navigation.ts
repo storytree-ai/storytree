@@ -230,11 +230,12 @@ export const SPIN_PER_PIXEL = Math.PI / 600;
 
 /**
  * The heading and tilt after a rotating drag of `drag` CSS pixels (a right-drag, a Ctrl+drag, or two fingers): across the
- * window it spins the sheet, clockwise for a drag right, and up the window it tilts it toward the underside, a drag down
- * toward looking down on the islands, stopping at either end. Neither part moves the other.
+ * window it spins the sheet like a table, the edge nearest the eye following the hand, and up the window it tilts it toward
+ * the underside, a drag down toward looking down on the islands, stopping at either end. Neither part moves the other.
+ * The nearest edge is the sheet's south one at every tilt, so the spin keeps one way as the tilt passes level (3.65).
  */
 export function sheetSpinTilt(heading: number, tilt: number, drag: { x: number; y: number }): { heading: number; tilt: number } {
-  return { heading: sheetSpin(heading, drag.x * SPIN_PER_PIXEL, seesUnderside(tilt)), tilt: sheetTiltBy(tilt, -drag.y * TILT_PER_PIXEL) };
+  return { heading: heading + drag.x * SPIN_PER_PIXEL, tilt: sheetTiltBy(tilt, -drag.y * TILT_PER_PIXEL) };
 }
 
 /**

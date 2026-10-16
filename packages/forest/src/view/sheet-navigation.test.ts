@@ -291,6 +291,25 @@ test("3.59 a plain drag pans the glass sheet; a right-drag or a Ctrl+drag spins 
   assert.ok(Math.abs(sheetTwist([{ x: 0, y: 0 }, { x: -1, y: 0.01 }], [{ x: 0, y: 0 }, { x: -1, y: -0.01 }]) - 0.02) < 1e-3, "and across the half-turn without a jump");
 });
 
+test("3.65 a rotating drag turns the glass sheet like a table, one way all through the tilt: its sideways part carries the edge nearest the eye with the hand above level and below it, and the picture never rolls, at the stops included", () => {
+  const { extent } = sheet(12), opening = sheetOpening(extent, size), held = sheetCentre(opening.turn);
+  const step = { x: 30, y: 0 }, turned: number[] = [];
+  for (const tilt of [0.3, 1.4, 1.75, 2.8]) {
+    // The south edge stays nearest the eye at every tilt, as the eye passes from above it to below it.
+    const next = sheetSpinTilt(0, tilt, step), south = { x: held.x, y: held.y - 40 };
+    const before = eye(opening, extent, tilt, 0).screen(south), after = eye(opening, extent, tilt, next.heading).screen(south);
+    assert.ok(after.x > before.x, `a drag right carries the near edge right at a tilt of ${tilt} (${(after.x - before.x).toFixed(1)} px)`);
+    turned.push(Math.sign(next.heading));
+  }
+  assert.ok(turned.every(sign => sign === turned[0]), "the spin keeps one way as the tilt passes level");
+  // At the stops, looking straight down or straight up, the sheet's east still runs along the window and its north up or down it.
+  for (const tilt of [0, 1e-3, Math.PI - 1e-3, Math.PI]) {
+    const face = eye(opening, extent, tilt), at = face.screen(held), east = face.screen({ x: held.x + 30, y: held.y }), north = face.screen({ x: held.x, y: held.y + 30 });
+    assert.ok(east.x - at.x > 1 && Math.abs(east.y - at.y) < 1e-3, `east runs right along the window at a tilt of ${tilt}`);
+    assert.ok(Math.abs(north.x - at.x) < 1e-3 && Math.abs(north.y - at.y) > 1, `north runs straight up or down the window at a tilt of ${tilt}`);
+  }
+});
+
 test("3.60 the compass points to the glass sheet's starting north on the window, and a click on it or the Home key spins it back, tilts it to the top resting view and returns to the opening view", () => {
   const { extent } = sheet(12), opening = sheetOpening(extent, size), held = sheetCentre(opening.turn);
   assert.deepEqual(keyed("Home"), { kind: "home" });

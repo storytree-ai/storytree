@@ -95,7 +95,7 @@ test("6.4 Windows protection failures retain only safe diagnostics and leave the
   }
 });
 
-test("6.4 native Windows protection survives an eleven-second startup delay and still decrypts after reopening", { skip: process.platform !== "win32" }, async t => {
+test("6.4 native Windows protection survives an eleven-second startup delay and still decrypts after reopening", { skip: process.platform !== "win32" && "platform:win32: DPAPI protection runs only in Windows PowerShell" }, async t => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
   const spawn = childProcess.spawn;
   const delayed = t.mock.method(childProcess, "spawn", (command: string, args: readonly string[], options: SpawnOptionsWithoutStdio) => {
@@ -163,7 +163,7 @@ test("6.4 session operations exclude competing commands and release their lock a
   } finally { await rm(home, { recursive: true, force: true }); }
 });
 
-test("6.4 unsafe POSIX permissions or symlinks refuse token storage without following them", { skip: process.platform === "win32" }, async () => {
+test("6.4 unsafe POSIX permissions or symlinks refuse token storage without following them", { skip: process.platform === "win32" && "platform:posix: POSIX file modes and symlink refusal have no Windows equivalent" }, async () => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
   const directory = path.join(home, "identity");
   const config = { directory, ...context };

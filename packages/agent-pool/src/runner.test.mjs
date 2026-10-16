@@ -7,6 +7,8 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { PLUGIN_FOLDER } from "@storytree/claude-code-mod";
+
 import { main, runLane } from "./runner.mjs";
 
 const exec = promisify(execFile);
@@ -38,7 +40,7 @@ test("10.6 · foreground engines receive the exact brief, model, directories and
     const brief = await readFile(options.brief, "utf8");
     assert.deepEqual(result.args, engine === "codex"
       ? ["exec", brief, "--model", "gpt-6-astra", "--sandbox", "danger-full-access", "--dangerously-bypass-hook-trust", ...adds, "--json"]
-      : ["-p", brief, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"]);
+      : ["-p", brief, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--plugin-dir", PLUGIN_FOLDER, "--output-format", "stream-json", "--verbose"]);
     assert.equal(await realpath(result.cwd), await realpath(options.cwd));
     assert.equal(result.token, "test-login");
     assert.deepEqual(result.keys, []); assert.equal(result.stdin, "");
@@ -52,6 +54,23 @@ test("10.6 · foreground engines receive the exact brief, model, directories and
   const result = JSON.parse(await readFile(options.log, "utf8"));
   assert.equal(result.token, "existing-login");
   assert.equal(options.env.OPENAI_API_KEY, "test-api", "the caller's environment is not mutated");
+});
+
+test("10.14 · A Claude lane loads the Claude Code mod from its plugin folder with function hooks turned on; a Codex lane is given neither", async (t) => {
+  const options = await lane(t);
+  const told = `console.log(JSON.stringify({args:process.argv.slice(1),hooks:process.env.CLAUDE_CODE_ENABLE_FUNCTION_HOOKS??null}));`;
+  options.commands = { codex: command(told), claude: command(told) };
+  const ran = {};
+  for (const engine of ["codex", "claude"]) {
+    await writeFile(join(options.lanesDir, "engine-override"), engine);
+    assert.equal(await runLane(options), 0);
+    ran[engine] = JSON.parse(await readFile(options.log, "utf8"));
+  }
+  const folder = ran.claude.args[ran.claude.args.indexOf("--plugin-dir") + 1];
+  assert.equal(JSON.parse(await readFile(join(folder, ".claude-plugin", "plugin.json"), "utf8")).name, "storytree", "the folder is the mod's");
+  assert.equal(ran.claude.hooks, "1");
+  assert.equal(ran.codex.args.includes("--plugin-dir"), false);
+  assert.equal(ran.codex.hooks, null);
 });
 
 test("10.7 · a Codex limit stop hands over once, preserving the original brief and separate logs", async (t) => {

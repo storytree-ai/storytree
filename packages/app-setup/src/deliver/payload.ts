@@ -1,6 +1,6 @@
 /** Capability 1 · Get storytree. */
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 export type Architecture = "x64" | "arm64";
@@ -72,4 +72,27 @@ export function verifyPayload(installDir: string, arch: Architecture, platform: 
   }
   if (!existsSync(tools.app)) throw new Error(`Missing app executable: ${tools.app}`);
   return tools;
+}
+
+/**
+ * On Linux the agent tools sit beside the AppImage, extracted by the one-liner: the hooks and MCP server need a
+ * Node whose path stays put, and a running AppImage's mount moves. An AppImage that replaced itself still has the
+ * old build's tools there, so its next start copies its own (`bundled`, its resources/agent-tools) over them,
+ * keeping their paths (contract 1.5). True when it replaced them; tools that already match are left alone.
+ */
+export function refreshTools(installDir: string, bundled: string): boolean {
+  const { dir } = toolPaths(installDir, "linux");
+  const manifest = (from: string): string | undefined => {
+    try { return readFileSync(path.join(from, "payload.json"), "utf8"); } catch { return undefined; }
+  };
+  const wanted = manifest(bundled);
+  if (wanted === undefined || wanted === manifest(dir)) return false;
+  // Copied beside, then swapped in: a hook never starts from a half-copied folder, nor one mixing two builds.
+  const next = `${dir}.next-${process.pid}`, old = `${dir}.old-${process.pid}`;
+  rmSync(next, { recursive: true, force: true });
+  cpSync(bundled, next, { recursive: true });
+  if (existsSync(dir)) renameSync(dir, old);
+  renameSync(next, dir);
+  rmSync(old, { recursive: true, force: true });
+  return true;
 }

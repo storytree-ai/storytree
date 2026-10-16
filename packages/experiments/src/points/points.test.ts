@@ -4,11 +4,10 @@
  */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
 
 import type { Library, Storytree } from "@storytree/library";
-import { openActivityLog } from "@storytree/session-management";
+import { ACTIVITY_DATABASE, openActivityLog } from "@storytree/session-management";
 
 import { mounted, type DoorWords, type VerbContext } from "@storytree/library/verbs";
 
@@ -143,12 +142,11 @@ test("5.3 · experiment curves prints each arm's points as a series, and --json 
 /** An experiment of a test's own, as an arm's project in the shared activity log is named after it. */
 const experimentName = () => `t${randomBytes(4).toString("hex")}`;
 
-/** A moment strictly after everything written so far, and strictly before anything written next. */
-async function moment(): Promise<string> {
-  await sleep(20);
-  const at = new Date().toISOString();
-  await sleep(20);
-  return at;
+/** Say what the log holds of `project` was written at `at`: its lines of `kinds` (pull request `pr`'s only, given one) and its stored records from byte `from` on. */
+async function writtenAt(server: Storytree, project: string, at: string, { kinds = [], pr, from }: { kinds?: string[]; pr?: number; from?: number }): Promise<void> {
+  const pool = await server.ownDatabase(ACTIVITY_DATABASE);
+  await pool.query("UPDATE activity SET at = $2 WHERE project = $1 AND kind = ANY($3::text[]) AND ($4::int IS NULL OR (detail->>'pr')::int = $4)", [project, at, kinds, pr ?? null]);
+  if (from !== undefined) await pool.query("UPDATE transcript_records SET at = $2 WHERE project = $1 AND start >= $3", [project, at, from]);
 }
 
 /** `experiment curves` as the command door answers it, as text or, with `json`, its data per arm. */
@@ -179,10 +177,13 @@ test("5.4 · each point carries the tokens the arm's sessions had spent by its m
     const log = await openActivityLog(server);
     await log.append(armProject, { session: "L1", harness: "claude-code", source: "hook", kind: "session-started", transcript: "/lanes/L1.jsonl" });
     await log.transcripts.store(armProject, "L1", [{ part: "", start: 0, finish: 99, record: request("r1", 1_000, 200) }]);
-    await log.transcripts.store(`x-${experimentName()}-map-reads-on`, "L9", [{ part: "", start: 0, finish: 99, record: request("r9", 50_000, 1) }]);
-    const first = await moment();
+    const elsewhere = `x-${experimentName()}-map-reads-on`;
+    await log.transcripts.store(elsewhere, "L9", [{ part: "", start: 0, finish: 99, record: request("r9", 50_000, 1) }]);
     await log.transcripts.store(armProject, "L1", [{ part: "", start: 100, finish: 199, record: request("r2", 3_000, 300) }]);
-    const second = await moment();
+    await writtenAt(server, armProject, "2026-10-17T09:00:00Z", { from: 0 });
+    await writtenAt(server, elsewhere, "2026-10-17T09:00:00Z", { from: 0 });
+    await writtenAt(server, armProject, "2026-10-17T11:00:00Z", { from: 100 });
+    const [first, second] = ["2026-10-17T10:00:00Z", "2026-10-17T12:00:00Z"];
     const merges: Merge[] = [
       { number: 1, mergedAt: first, sha: "aaa", passed: 1, total: 370, files: [1] },
       { number: 2, mergedAt: second, sha: "bbb", passed: 2, total: 370, files: [1] },
@@ -203,11 +204,15 @@ test("5.5 · each point carries the arm's collisions by its merge: claims refuse
     const log = await openActivityLog(server);
     const lane = { session: "L1", harness: "claude-code", source: "tool" } as const;
     await log.append(armProject, { ...lane, kind: "claim-refused", capability: "capability_a", holder: "L2", reason: "build the router" });
-    await log.append(`x-${experimentName()}-map-reads-on`, { ...lane, kind: "claim-refused", capability: "capability_a", holder: "L2", reason: "elsewhere" });
-    const first = await moment();
+    const elsewhere = `x-${experimentName()}-map-reads-on`;
+    await log.append(elsewhere, { ...lane, kind: "claim-refused", capability: "capability_a", holder: "L2", reason: "elsewhere" });
     await log.append(armProject, { ...lane, harness: "watcher", kind: "pr-red", pr: 5, increment: "increment_a", conflict: true, checks: [] });
     await log.append(armProject, { ...lane, harness: "watcher", kind: "pr-red", pr: 6, increment: "increment_b", conflict: false, checks: ["verify"] });
-    const second = await moment();
+    await log.append(armProject, { ...lane, harness: "watcher", kind: "pr-red", pr: 7, increment: "increment_c", conflict: true, checks: [] });
+    for (const project of [armProject, elsewhere]) await writtenAt(server, project, "2026-10-17T09:00:00Z", { kinds: ["claim-refused"] });
+    await writtenAt(server, armProject, "2026-10-17T11:00:00Z", { kinds: ["pr-red"] });
+    await writtenAt(server, armProject, "2026-10-17T13:00:00Z", { kinds: ["pr-red"], pr: 7 });
+    const [first, second] = ["2026-10-17T10:00:00Z", "2026-10-17T12:00:00Z"];
     const merges: Merge[] = [
       { number: 1, mergedAt: first, sha: "aaa", passed: 1, total: 370, files: [1] },
       { number: 2, mergedAt: second, sha: "bbb", passed: 2, total: 370, files: [1] },

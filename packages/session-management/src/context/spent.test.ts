@@ -3,10 +3,11 @@
  * stored in the real agent activity log on the Postgres `pnpm test` provides, in the shapes Claude Code and Codex write.
  */
 import assert from "node:assert/strict";
-import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
 
-import { openActivityLog } from "../activity/index.js";
+import pg from "pg";
+
+import { ACTIVITY_DATABASE, openActivityLog } from "../activity/index.js";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { tokensSpent } from "./index.js";
 
@@ -22,6 +23,19 @@ function claudeLine(requestId: string, input: number, read: number, output: numb
 /** A Codex token count carrying its running total. */
 function codexLine(last: number, total: number): string {
   return JSON.stringify({ type: "event_msg", payload: { type: "token_count", info: { last_token_usage: { input_tokens: last, output_tokens: 10 }, total_token_usage: { total_tokens: total } } } });
+}
+
+/** Say `session`'s records in `project` from byte `from` on were stored at `at`, as the log stamps them when they arrive. */
+async function storedAt(project: string, session: string, from: number, at: string): Promise<void> {
+  const url = new URL(testServerUrl());
+  url.pathname = `/${ACTIVITY_DATABASE}`;
+  const client = new pg.Client({ connectionString: url.href });
+  await client.connect();
+  try {
+    await client.query("UPDATE transcript_records SET at = $4 WHERE project = $1 AND session = $2 AND start >= $3", [project, session, from, at]);
+  } finally {
+    await client.end();
+  }
 }
 
 const records = (lines: string[], from = 0) => lines.map((record, index) => ({ part: "", start: from + index * 1_000, finish: from + index * 1_000 + 999, record }));
@@ -42,15 +56,16 @@ test("9.18 a project's sessions' spend adds every own request's input, cache and
     ]);
     await log.transcripts.store(project, "C", records([codexLine(400, 5_000)]));
     await log.transcripts.store(other, "S", records([claudeLine("req_o", 7, 7, 7)]));
-    await sleep(20);
-    const middle = new Date();
-    await sleep(20);
     await log.transcripts.store(project, "S", records([claudeLine("req_2", 10, 2_000, 40)], 10_000));
     await log.transcripts.store(project, "C", records([codexLine(900, 9_000)], 10_000));
+    for (const [where, session] of [[project, "S"], [project, "C"], [other, "S"]] as const) await storedAt(where, session, 0, "2026-10-17T01:00:00Z");
+    for (const session of ["S", "C"]) await storedAt(project, session, 10_000, "2026-10-17T03:00:00Z");
+    const middle = new Date("2026-10-17T02:00:00Z");
+    const end = new Date("2026-10-17T04:00:00Z");
 
     assert.equal(await tokensSpent(log, project, { upTo: middle }), 1_140 + 3_010 + 5_000, "by the middle: S's one request, its subagent's and C's running total");
-    assert.equal(await tokensSpent(log, project, { after: middle, upTo: new Date() }), 2_050 + 4_000, "after the middle: only what each grew by");
-    assert.equal(await tokensSpent(log, project, { upTo: new Date() }), 1_140 + 3_010 + 5_000 + 2_050 + 4_000);
+    assert.equal(await tokensSpent(log, project, { after: middle, upTo: end }), 2_050 + 4_000, "after the middle: only what each grew by");
+    assert.equal(await tokensSpent(log, project, { upTo: end }), 1_140 + 3_010 + 5_000 + 2_050 + 4_000);
   } finally {
     await log.close();
   }

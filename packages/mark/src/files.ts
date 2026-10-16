@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Fixed-colour icon files: PNG, Windows .ico and macOS .icns written and read with node:zlib alone. Both icon
+ * Capability 8 · Fixed-colour icon files: PNG, Windows .ico and macOS .icns written and read with node:zlib alone. Both icon
  * containers hold PNG entries, the form Windows (since Vista) and macOS (since 10.7) read.
  */
 import { crc32, deflateSync, inflateSync } from "node:zlib";

@@ -1,4 +1,4 @@
-/** The mark 1.1–2.2: the master drawing in the caller's colours, its named colourways, and the fixed-colour files generated from it. */
+/** Website 7.1–8.2, the mark: the master drawing in the caller's colours, its named colourways, and the fixed-colour files generated from it. */
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -22,7 +22,7 @@ function painted(svg: string): { tag: string; colour: string }[] {
   return out;
 }
 
-test("1.1 · given four role colours, the SVG fills each role's shapes with its colour and carries no other colour", () => {
+test("7.1 · given four role colours, the SVG fills each role's shapes with its colour and carries no other colour", () => {
   const svg = markSvg(roles);
   assert.match(svg, /viewBox="0 0 104 104"/);
   const shapes = painted(svg);
@@ -40,7 +40,7 @@ test("1.1 · given four role colours, the SVG fills each role's shapes with its 
   assert.throws(() => markSvg({ ocean: "#000", land: "#111", tree: "#222" } as never), /leaf/);
 });
 
-test("1.2 · given a canvas or a named colourway, the SVG draws the tile in the canvas colour and the mark in that colourway's roles", () => {
+test("7.2 · given a canvas or a named colourway, the SVG draws the tile in the canvas colour and the mark in that colourway's roles", () => {
   const tiled = painted(markSvg({ ...roles, canvas: "var(--c)" }));
   assert.equal(tiled.length, 15);
   assert.deepEqual(tiled[0], { tag: "rect", colour: "var(--c)" }, "the tile is drawn first, behind the mark");
@@ -56,7 +56,7 @@ test("1.2 · given a canvas or a named colourway, the SVG draws the tile in the 
   assert.throws(() => markSvg("dusk"), /day.*night/);
 });
 
-test("2.1 · each committed PNG holds the mark rendered at its size in its colourway: the small-size drawing at 16, the master at every other size", () => {
+test("8.1 · each committed PNG holds the mark rendered at its size in its colourway: the small-size drawing at 16, the master at every other size", () => {
   assert.deepEqual(PNG_SIZES, [16, 32, 48, 64, 128, 256, 512, 1024]);
   for (const name of Object.keys(COLOURWAYS)) {
     const way = COLOURWAYS[name]!;
@@ -83,7 +83,7 @@ test("2.1 · each committed PNG holds the mark rendered at its size in its colou
   }
 });
 
-test("2.2 · each colourway's .ico and .icns hold the committed PNGs at the sizes Windows and macOS read", () => {
+test("8.2 · each colourway's .ico and .icns hold the committed PNGs at the sizes Windows and macOS read", () => {
   assert.deepEqual(ICO_SIZES, [16, 32, 48, 64, 128, 256]);
   assert.deepEqual({ ...ICNS_TYPES }, { icp4: 16, icp5: 32, icp6: 64, ic07: 128, ic08: 256, ic09: 512, ic10: 1024 });
   for (const name of Object.keys(COLOURWAYS)) {
@@ -99,7 +99,7 @@ test("2.2 · each colourway's .ico and .icns hold the committed PNGs at the size
   }
 });
 
-test("2.1 · the small-size drawing is the master's own shapes: the globe fills the tile, the islets go, the island and tree grow 1.75 times and the tree is bolder", () => {
+test("8.1 · the small-size drawing is the master's own shapes: the globe fills the tile, the islets go, the island and tree grow 1.75 times and the tree is bolder", () => {
   const globe = (shapes: readonly (typeof SHAPES)[number][]) => shapes.find((s) => s.role === "ocean")!;
   assert.deepEqual(globe(SMALL_SHAPES), { kind: "circle", role: "ocean", cx: 52, cy: 52, r: 50 }, "the globe fills the 104 tile");
   assert.equal(SMALL_SHAPES.filter((s) => s.kind === "ellipse").length, 0, "no islets");

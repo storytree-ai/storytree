@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Fixed-colour icon files: the mark rendered to pixels from the master's shapes (the small-size drawing's at
+ * Capability 8 · Fixed-colour icon files: the mark rendered to pixels from the master's shapes (the small-size drawing's at
  * 16 pixels, ADR-0999), by supersampled coverage over the canvas tile. Only + - * / and square roots, so the pixels are the same on every platform.
  */
 import { BOX, TILE_RADIUS, shapesAt, resolveColours, type MarkColours, type Shape } from "./drawing.js";

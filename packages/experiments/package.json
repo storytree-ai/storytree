@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./verbs": "./src/record/verbs.ts",
-    "./record": "./src/record/record.ts"
+    "./record": "./src/record/record.ts",
+    "./points": "./src/points/points.ts"
   },
   "storytree": {
     "verbs": [

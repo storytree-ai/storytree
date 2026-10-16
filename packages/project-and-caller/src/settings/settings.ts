@@ -114,12 +114,14 @@ interface Stored {
 }
 
 /**
- * The experiment and arm a lane runs in (ADR-1064 D2), as its storytree home's settings.json names them: what the
- * Experiments story reads for its verdict, and the labels the activity log stamps. Written by whoever makes the arm's home.
+ * The experiment and arm a lane runs in (ADR-1064 D2), as its storytree home's settings.json names them, with the verbs
+ * that arm denies by door once its run has copied them from the experiment's record: what the Experiments story reads
+ * for its verdict, and the labels the activity log stamps. Written by whoever makes the arm's home and runs it.
  */
 export interface ExperimentArm {
   readonly name: string;
   readonly arm: string;
+  readonly denies?: { readonly tools: readonly string[]; readonly commands: readonly string[] };
 }
 
 /** Read each setting with its declared default, meaning and value source. */
@@ -337,11 +339,16 @@ function checkedAddress(address: unknown): string {
 }
 
 function checkedExperiment(value: unknown): ExperimentArm {
-  const usage = "experiment must name the experiment and the arm this home runs, and nothing else: {\"name\": \"<experiment>\", \"arm\": \"<arm>\"}.";
+  const usage = "experiment must name the experiment and the arm this home runs, and at most what that arm denies, by door: {\"name\": \"<experiment>\", \"arm\": \"<arm>\", \"denies\": {\"tools\": [...], \"commands\": [...]}}.";
   if (value === null || typeof value !== "object" || Array.isArray(value)) return refuse(usage);
-  const { name, arm, ...rest } = value as { name?: unknown; arm?: unknown };
+  const { name, arm, denies, ...rest } = value as { name?: unknown; arm?: unknown; denies?: unknown };
   if (Object.keys(rest).length > 0 || typeof name !== "string" || name === "" || typeof arm !== "string" || arm === "") return refuse(usage);
-  return { name, arm };
+  if (denies === undefined) return { name, arm };
+  const names = (list: unknown): list is string[] => Array.isArray(list) && list.every((one) => typeof one === "string" && one !== "");
+  if (denies === null || typeof denies !== "object" || Array.isArray(denies)) return refuse(usage);
+  const { tools, commands, ...more } = denies as { tools?: unknown; commands?: unknown };
+  if (Object.keys(more).length > 0 || !names(tools) || !names(commands)) return refuse(usage);
+  return { name, arm, denies: { tools, commands } };
 }
 
 function checkedSurfaces(value: unknown): SurfaceChoices {

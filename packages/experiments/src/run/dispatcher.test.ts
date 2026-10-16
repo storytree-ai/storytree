@@ -1,14 +1,16 @@
 /** Capability 7 · Experiment dispatcher: a fake box (engines, cap, the real pool's ready work, each arm's) and fake lanes. */
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { readExperiment } from "@storytree/project-and-caller";
+
 import type { Experiment } from "../record/record.js";
 import type { Curves } from "../points/points.js";
 import { ExperimentRefusal } from "../record/record.js";
-import { armLaneCommand, checkArms, runExperiment, stateFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
+import { armLaneCommand, armRuns, runExperiment, stateFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
 
 const RULES = { flatMerges: 2, wallClockMs: 3600_000, wallClock: "1 hour" };
 const ARMS: ArmRun[] = [
@@ -55,16 +57,38 @@ function fakeBox({ rounds, real, arms, points = async () => ({}), state = { arms
 
 const idle = (running = 0, cap = 4): Look => ({ running, cap, lanesDir: "/l", ready: [] });
 
-test("7.1 · a run reads the frozen record's arms: each must be one the arm switch holds, denying the same verbs, or the run is refused", () => {
+test("7.1 · a run carries each arm's denies from the frozen record into the arm's home, none when it names none; an arm whose home is not its own, or has no checkout, refuses the run before any home is written", () => {
   const record = (arms: Experiment["arms"]) => ({ arms } as Experiment);
-  assert.deepEqual(checkArms(record([
-    { name: "map-reads-on", description: "on" },
-    { name: "map-reads-off", description: "off", denies: { tools: ["focus"], commands: ["storytree map"] } },
-  ])), ["map-reads-on", "map-reads-off"]);
-  assert.throws(() => checkArms(record([{ name: "map-reads-on", description: "on" }, { name: "map-reads-off", description: "off" }])),
-    (error: Error) => error instanceof ExperimentRefusal && /map-reads-off/.test(error.message));
-  assert.throws(() => checkArms(record([{ name: "map-reads-on", description: "on" }, { name: "reviewer-off", description: "off" }])),
-    (error: Error) => error instanceof ExperimentRefusal && /reviewer-off/.test(error.message));
+  const root = mkdtempSync(path.join(tmpdir(), "arm-runs-"));
+  const make = (arm: string, named = arm) => {
+    const home = path.join(root, `x-twin-${arm}`);
+    mkdirSync(path.join(home, "repo"), { recursive: true });
+    writeFileSync(path.join(home, "settings.json"), JSON.stringify({ experiment: { name: "twin", arm: named } }));
+    return home;
+  };
+  try {
+    const on = make("map-reads-on"), off = make("reviewer-off");
+    const arms = record([
+      { name: "map-reads-on", description: "on" },
+      { name: "reviewer-off", description: "off", denies: { tools: ["quality_brief"], commands: ["storytree quality"] } },
+    ]);
+    assert.deepEqual(armRuns(arms, "twin", root), [
+      { arm: "map-reads-on", project: "x-twin-map-reads-on", home: on, checkout: path.join(on, "repo") },
+      { arm: "reviewer-off", project: "x-twin-reviewer-off", home: off, checkout: path.join(off, "repo") },
+    ]);
+    assert.deepEqual(readExperiment(on), { name: "twin", arm: "map-reads-on", denies: { tools: [], commands: [] } });
+    assert.deepEqual(readExperiment(off), { name: "twin", arm: "reviewer-off", denies: { tools: ["quality_brief"], commands: ["storytree quality"] } });
+
+    const fresh = make("map-reads-off");
+    make("misnamed", "map-reads-on");
+    const before = readFileSync(path.join(fresh, "settings.json"), "utf8");
+    assert.throws(() => armRuns(record([{ name: "map-reads-off", description: "off", denies: { tools: ["focus"], commands: [] } }, { name: "misnamed", description: "x" }]), "twin", root),
+      (error: Error) => error instanceof ExperimentRefusal && /not the home of arm "misnamed"/.test(error.message));
+    assert.equal(readFileSync(path.join(fresh, "settings.json"), "utf8"), before, "no home is written when another arm refuses the run");
+    rmSync(path.join(fresh, "repo"), { recursive: true });
+    assert.throws(() => armRuns(record([{ name: "map-reads-off", description: "off" }]), "twin", root),
+      (error: Error) => error instanceof ExperimentRefusal && /no checkout/.test(error.message));
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test("7.2 · it takes a slot only while the real pool has no ranked work waiting and leaves one slot free for real work; ranked work pauses it, never stops it", async () => {

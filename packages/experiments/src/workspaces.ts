@@ -16,8 +16,6 @@ import path from "node:path";
 import { saveKey } from "@storytree/keys";
 import { readExperiment } from "@storytree/project-and-caller";
 
-import { ARMS } from "./arms.js";
-
 /** Something SQL can be run on, with values: a pg Client or Pool signed in as the cluster's admin. */
 export interface Admin {
   query<R extends object = Record<string, unknown>>(text: string, values?: unknown[]): Promise<{ rows: R[] }>;
@@ -41,12 +39,12 @@ export interface MadeArm extends ArmWorkspace {
 const WORDS = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
- * The names of `arm`'s workspace for `experiment`, its home at `home`. Refused when the kit does not hold the arm, the
- * experiment is not lower-case words joined by hyphens, or the name would break the library's 40-character project names.
+ * The names of `arm`'s workspace for `experiment`, its home at `home`. Refused when the experiment or the arm is not
+ * lower-case words joined by hyphens, or the name would break the library's 40-character project names.
  */
 export function armWorkspace(experiment: string, arm: string, home: string): ArmWorkspace {
-  if (!Object.hasOwn(ARMS, arm)) throw new Error(`The experiment kit holds no arm "${arm}": its arms are ${Object.keys(ARMS).join(", ")}.`);
   if (!WORDS.test(experiment)) throw new Error(`An experiment's name is lower-case letters and digits, in words joined by single hyphens: "${experiment}" is not.`);
+  if (!WORDS.test(arm)) throw new Error(`An arm's name is lower-case letters and digits, in words joined by single hyphens: "${arm}" is not.`);
   const role = `x-${experiment}-${arm}`;
   if (role.length > 40) throw new Error(`An arm's name, x-<experiment>-<arm>, is a project's name, of at most 40 characters: "${role}" has ${role.length}. Shorten the experiment's name.`);
   return { role, project: role, database: `storytree_${role}`, home: path.resolve(home) };

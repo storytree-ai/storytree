@@ -5,13 +5,12 @@
  * tokens CI holds are keys the caller saves once, so neither is typed on a command line. No tool serves it: a task is
  * imported by whoever runs the experiment, not by a lane.
  */
+import { readdirSync } from "node:fs";
 import path from "node:path";
 
 import { resolveKey } from "@storytree/keys";
 import { verb, VerbRefusal, type VerbFamilies, type VerbPlace } from "@storytree/library/verbs";
-import { storytreeHome } from "@storytree/project-and-caller";
-
-import { ARMS } from "../arms.js";
+import { readExperiment, storytreeHome } from "@storytree/project-and-caller";
 
 /** The keys the import reads: the hidden tests' reader, and the merge queue's enqueuer. */
 export const TESTS_TOKEN_KEY = "experiment-tests-token";
@@ -30,7 +29,7 @@ const importVerb = verb({
   inputs: {
     task: { kind: "text", word: 0, describe: "the Harbor task's folder: task.toml, instruction.md, environment/ and tests/" },
     experiment: { kind: "text", describe: "the experiment, in lower-case words joined by hyphens, whose arms are made" },
-    arms: { kind: "text", optional: true, describe: "the arms to import into, comma-separated; every arm the kit holds by default" },
+    arms: { kind: "text", optional: true, describe: "the arms to import into, comma-separated; every arm made for the experiment in this storytree home by default" },
     checks: { kind: "text", optional: true, describe: "the shell command every arm pull request must pass; ci/checks.sh, which the arm's lanes keep, by default" },
     "starting-tree": { kind: "text", optional: true, describe: "the folder the arms start from; the task's environment/ without its Dockerfile by default" },
     workdir: { kind: "text", optional: true, describe: "where the merged tree sits in the task image when the verifier runs; /app by default" },
@@ -44,7 +43,7 @@ const importVerb = verb({
       .filter(([, value]) => value === undefined)
       .map(([name, , what]) => `${name} (${what}): save it with \`storytree auth set ${name}\``);
     if (unsaved.length > 0) throw new VerbRefusal(`The import needs two keys CI will hold, and ${unsaved.length === 2 ? "neither is" : "one is not"} saved: ${unsaved.join("; ")}.`);
-    const names = arms === undefined ? Object.keys(ARMS) : arms.split(",").map((arm) => arm.trim()).filter((arm) => arm !== "");
+    const names = arms === undefined ? madeArms(experiment) : arms.split(",").map((arm) => arm.trim()).filter((arm) => arm !== "");
     const { importHarborTask } = await import("./harbor.js");
     let imported;
     try {
@@ -65,6 +64,16 @@ const importVerb = verb({
     return { text: lines.join("\n"), data: { ...imported } };
   },
 });
+
+/** The arms `storytree experiment arm make` made for `experiment` in this storytree home: each home that names one of its arms. */
+function madeArms(experiment: string): string[] {
+  const folder = path.join(storytreeHome(), "experiments");
+  const prefix = `x-${experiment}-`;
+  let homes: string[];
+  try { homes = readdirSync(folder).filter((home) => home.startsWith(prefix)).sort(); }
+  catch { return []; }
+  return homes.map((home) => home.slice(prefix.length)).filter((arm) => readExperiment(path.join(folder, `${prefix}${arm}`))?.name === experiment);
+}
 
 /** `experiment task`, an inner family of the command line's `experiment` family. */
 export const TASK_FAMILY: VerbFamilies<VerbPlace> = { name: "task", summary: "import a Harbor task as an experiment's work", verbs: [importVerb] };

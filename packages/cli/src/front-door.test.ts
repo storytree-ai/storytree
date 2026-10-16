@@ -247,7 +247,7 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
 test("1.32 a command the lane's experiment arm denies does nothing else: it exits 1 naming the experiment and arm, and is recorded as a door-answered line, denied-by-arm, carrying both", async () => {
   await inWorld(command, async (world) => {
     const settings = path.join(world.home, "settings.json");
-    writeFileSync(settings, JSON.stringify({ ...readSettingsFile(settings), experiment: { name: "twin-build", arm: "map-reads-off" } }));
+    writeFileSync(settings, JSON.stringify({ ...readSettingsFile(settings), experiment: { name: "twin-build", arm: "map-reads-off", denies: { tools: ["focus"], commands: ["storytree map"] } } }));
     const session = { CLAUDE_CODE_SESSION_ID: "arm-1" };
 
     const denied = await world.run(["map", "--select", "story:Experiments"], session);

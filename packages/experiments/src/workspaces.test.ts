@@ -116,8 +116,9 @@ test("2.2 · dropping an arm drops its database, role and home, and leaves the r
   });
 });
 
-test("2.3 · an arm the kit does not hold, a name that is not lower-case words and hyphens, or one too long is refused before anything is made; a home naming another arm is never removed", async () => {
-  assert.throws(() => armWorkspace("twin-build", "map-reads-of", "home"), /map-reads-of.*map-reads-on, map-reads-off/);
+test("2.3 · an experiment or arm name that is not lower-case words and hyphens, or one too long, is refused before anything is made; a home naming another arm is never removed", async () => {
+  assert.equal(armWorkspace("twin-build", "reviewer-off", "home").role, "x-twin-build-reviewer-off", "any arm an experiment names, none held in code");
+  assert.throws(() => armWorkspace("twin-build", "Map_Reads", "home"), /arm's name.*lower-case.*Map_Reads/);
   assert.throws(() => armWorkspace("Twin_Build", "map-reads-off", "home"), /lower-case/);
   assert.throws(() => armWorkspace("a-very-long-experiment-name-indeed", "map-reads-off", "home"), /40 characters/);
   await onCluster(async (admin, server, _real, experiment) => {

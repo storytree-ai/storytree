@@ -1,5 +1,5 @@
 /** Capability 1 · Arm switch: the Experiments story's public API (ADR-1064). */
-export { ARMS, verdictOf, type ArmRecord, type Verdict } from "./arms.js";
+export { carryDenies, verdictOf, type Denies, type Verdict } from "./arms.js";
 /** Capability 2 · Arm workspaces. */
 export { armWorkspace, dropArm, makeArm, type ArmWorkspace, type MadeArm } from "./workspaces.js";
 /** Capability 3 · Arm repositories. */

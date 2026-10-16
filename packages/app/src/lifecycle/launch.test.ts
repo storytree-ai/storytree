@@ -38,6 +38,20 @@ test("1.6 the app that follows merged main records how to open it, and a develop
   );
 });
 
+test("1.6 a packaged build run from an AppImage records the AppImage file, not the mount it vanishes from", () => {
+  const mounted = "/tmp/.mount_storyt3x/storytree";
+  assert.deepEqual(
+    launchToRecord({ runtimeDir, appPath: "ignored", execPath: mounted, packaged: { appImage: "/home/u/Applications/storytree.AppImage" }, followsMainSetUp: false }),
+    { command: "/home/u/Applications/storytree.AppImage", args: [] },
+    "the AppImage file outlives the run; its mount does not",
+  );
+  assert.deepEqual(
+    launchToRecord({ runtimeDir, appPath: "ignored", execPath: mounted, packaged: { appImage: "/home/u/Applications/storytree.AppImage", sandboxOff: true }, followsMainSetUp: false }),
+    { command: "/home/u/Applications/storytree.AppImage", args: ["--no-sandbox"] },
+    "where the kernel blocks the sandbox, the AppImage reopens as it was started, with --no-sandbox",
+  );
+});
+
 test("1.6 the app says which build it is: main's commit when it follows merged main, else the development checkout it runs from", () => {
   assert.equal(buildLabel({ runtimeDir, appPath: slotApp, sha: "80bcc63a1b2c" }), "main 80bcc63");
   assert.equal(

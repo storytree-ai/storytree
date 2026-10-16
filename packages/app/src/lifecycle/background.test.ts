@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { background, TRAY_MENU } from "./background.js";
+import { background, thisBuild, TRAY_MENU } from "./background.js";
 import { followProjects } from "../projects/follow.js";
 
 test("1.7 smoke teardown stops page polling before closing the library, without logging a closed-library error", async (t) => {
@@ -130,4 +130,18 @@ test("1.7 asking the app to quit from outside stops it as the tray's Quit does: 
   finishStopping();
   await app.quit();
   assert.deepEqual(done, ["database stopping", "exit 0"], "the database is stopped once, the app exits, and nothing is started again");
+});
+
+test("1.7 a self-restart inside an AppImage starts the AppImage file, not the mount it vanishes from", () => {
+  const argv = ["/tmp/.mount_storyt3x/storytree", "--no-sandbox", "--background"];
+  assert.deepEqual(
+    thisBuild({ execPath: argv[0]!, argv, appImage: "/home/u/Applications/storytree.AppImage" }),
+    { execPath: "/home/u/Applications/storytree.AppImage", args: ["--no-sandbox"] },
+    "the AppImage file outlives this run; its mount does not",
+  );
+  assert.deepEqual(
+    thisBuild({ execPath: "/opt/electron", argv: ["/opt/electron", "/repo/apps/desktop", "--background"] }),
+    { execPath: "/opt/electron", args: ["/repo/apps/desktop"] },
+    "outside an AppImage, the same program starts again with its own arguments",
+  );
 });

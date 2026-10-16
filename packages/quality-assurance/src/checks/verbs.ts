@@ -133,12 +133,12 @@ const standingVerb = verb({
 
 const graduateVerb = verb({
   consumers: ["agent"],
-  command: { family: "quality", name: "graduate", summary: "record that a part of a check, or with --whole all of it, is now enforced by a deterministic check in Guardrails", usage: "quality graduate <check> --part … --enforced-by <guardrails check> [--whole]" },
+  command: { family: "quality", name: "graduate", summary: "record that a part of a check, or with --whole all of it, is now enforced by a deterministic check in Architecture checks", usage: "quality graduate <check> --part … --enforced-by <guardrails check> [--whole]" },
   tool: NO_TOOL,
   inputs: {
     check: { kind: "text", word: 0, describe: "the check that graduates" },
-    part: { kind: "text", describe: "the part of the check Guardrails now enforces" },
-    "enforced-by": { kind: "text", describe: "the Guardrails graduated check that enforces it" },
+    part: { kind: "text", describe: "the part of the check Architecture checks now enforces" },
+    "enforced-by": { kind: "text", describe: "the graduated check in Architecture checks that enforces it" },
     whole: { kind: "switch", describe: "the part is all of the check, so it leaves the review brief" },
   },
   async act({ check, part, "enforced-by": enforcedBy, whole }, context: QualityVerbContext) {

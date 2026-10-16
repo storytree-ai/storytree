@@ -6,7 +6,12 @@
  */
 
 /** Stories whose package is not named after their title. */
-const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = { "command-line": "cli", "world": "forest-world", "local-database": "local-postgres", "process-ledger": "processes", "lag-in-real-use": "lag-in-use" };
+const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
+  "command-line": "cli", "world": "forest-world", "local-database": "local-postgres", "process-ledger": "processes", "lag-in-real-use": "lag-in-use",
+  // ADR-1066 D4's developer-first names: the stories were renamed and their packages kept their names.
+  "context": "project-and-caller", "architecture-checks": "guardrails", "code-review": "quality-assurance", "code-map": "map", "map-view": "forest",
+  "knowledge-graph": "knowledge-core", "work-board": "arc-surface", "desktop-app": "app", "setup": "app-setup", "in-app-guidance": "learning-as-you-build",
+};
 
 /**
  * The packages a story owns beyond its own (ADR-1066 D3), by its own package's folder name under packages/,

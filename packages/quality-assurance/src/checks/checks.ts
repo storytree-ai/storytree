@@ -18,11 +18,11 @@ export interface Check {
   readonly title: string;
   readonly question: string;
   readonly enforces: readonly Enforced[];
-  /** Each part graduated to a deterministic check in Guardrails, with that check's name (ADR-0956 D5); absent when none has. */
+  /** Each part graduated to a deterministic check in Architecture checks, with that check's name (ADR-0956 D5); absent when none has. */
   readonly graduated?: readonly Graduated[];
 }
 
-/** A part of a check that graduated, and the Guardrails check that now enforces it; `whole` when the part is all of the check. */
+/** A part of a check that graduated, and the check in Architecture checks that now enforces it; `whole` when the part is all of the check. */
 export interface Graduated {
   readonly part: string;
   readonly enforcedBy: string;
@@ -58,7 +58,7 @@ export function checksText(reading: readonly Check[]): string {
       `  ${check.id}  ${check.title}`,
       `    ${check.question}`,
       ...check.enforces.map((note) => `    enforces ${note.id}${note.kind === undefined ? "  (no longer live)" : `  [${note.kind}]  ${note.title}`}`),
-      ...(check.graduated ?? []).map((part) => `    graduated${part.whole ? " whole" : ""} to Guardrails' ${part.enforcedBy}: ${part.part}`),
+      ...(check.graduated ?? []).map((part) => `    graduated${part.whole ? " whole" : ""} to Architecture checks' ${part.enforcedBy}: ${part.part}`),
     ]),
   ].join("\n");
 }

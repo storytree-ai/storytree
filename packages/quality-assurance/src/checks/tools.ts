@@ -70,10 +70,10 @@ export function qualityTools(): ToolExtension {
         const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? branchDiff(worktree!), diff === undefined ? branchBase(worktree!) : undefined);
         return { text: briefText(brief), data: { brief } };
       }, AGENT);
-      define("quality_take", "Take the change-reviewer's return on an increment's brief into the QA ledger, or refuse it naming what it leaves out, recording nothing. Give the worktree whose branch is the change, and what Guardrails' graduated checks find there is recorded with it.", z.object({
+      define("quality_take", "Take the change-reviewer's return on an increment's brief into the QA ledger, or refuse it naming what it leaves out, recording nothing. Give the worktree whose branch is the change, and what Architecture checks' graduated checks find there is recorded with it.", z.object({
         increment: z.string().min(1).describe("The increment whose change was reviewed"),
         return: reviewReturn,
-        worktree: z.string().optional().describe("The worktree whose branch is the change, for Guardrails' graduated checks to run on"),
+        worktree: z.string().optional().describe("The worktree whose branch is the change, for Architecture checks' graduated checks to run on"),
       }), async ({ increment, return: review, worktree }, { library, storytree, project }) => {
         const graduated = worktree === undefined
           ? { ran: false as const, reason: "no worktree was given, and this server's folder is not the branch." }
@@ -99,10 +99,10 @@ export function qualityTools(): ToolExtension {
         return { text: standingText(standing, unmet), data: { standing, unmet } };
       }, AGENT);
       // "graduate" is the librarian's tool, so this one names what graduates.
-      define("graduate_check", "Record that a part of a quality control check, or with whole all of it, is now enforced by a deterministic check in Guardrails; the reviewer judges only the rest, and a check graduated whole leaves the review brief.", z.object({
+      define("graduate_check", "Record that a part of a quality control check, or with whole all of it, is now enforced by a deterministic check in Architecture checks; the reviewer judges only the rest, and a check graduated whole leaves the review brief.", z.object({
         check: z.string().min(1).describe("The check that graduates"),
-        part: z.string().min(1).describe("The part of the check Guardrails now enforces"),
-        enforced_by: z.string().min(1).describe("The Guardrails graduated check that enforces it"),
+        part: z.string().min(1).describe("The part of the check Architecture checks now enforces"),
+        enforced_by: z.string().min(1).describe("The graduated check in Architecture checks that enforces it"),
         whole: z.boolean().optional().describe("True when the part is all of the check, so it leaves the review brief"),
       }), async ({ check, part, enforced_by, whole }, { library }) => {
         await graduate(library, check, { part, enforcedBy: enforced_by, ...(whole ? { whole: true as const } : {}) });

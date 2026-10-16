@@ -78,7 +78,7 @@ test("quality-assurance 2.1, 2.2 and 4.1 · `quality brief`, `take`, `answer` an
     writeFileSync(path.join(world.folder, "return.json"), JSON.stringify({ checks: [{ check: check.id, tripped: true, hits: [{ file: "packages/forms/src/email.test.ts", line: 2, found: "compares the code with itself" }] }], contracts: [{ contract: contract.id, met: true }] }));
     const taken = await world.run(["quality", "take", increment.id, "--return", "@return.json"]);
     assert.equal(taken.code, 0, taken.stderr);
-    assert.match(taken.stdout, /Guardrails' graduated checks did not run, so nothing of theirs is recorded/);
+    assert.match(taken.stdout, /Architecture checks' graduated checks did not run, so nothing of theirs is recorded/);
     const storytree = await connect({ url: testServerUrl() });
     try {
       const [hit] = await (await openReviews(storytree)).standing(world.project, increment.id);
@@ -130,7 +130,7 @@ test("quality-assurance 2.8 · `quality brief` run from another checkout reads t
   });
 });
 
-test("quality-assurance 5.1 · `quality graduate` writes the part and the Guardrails check that enforces it on the check, marked whole with --whole, and the checks reading shows both; an unknown Guardrails check is refused, writing nothing", async () => {
+test("quality-assurance 5.1 · `quality graduate` writes the part and the check in Architecture checks that enforces it on the check, marked whole with --whole, and the checks reading shows both; an unknown check in Architecture checks is refused, writing nothing", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const principle = await library.writeKnowledge("principle", { title: "Test creation principles", description: "How a test earns its place.", statement: "A test fails if its behaviour is removed.", why: "A test that cannot fail protects nothing.", howToApply: "Delete the behaviour and watch the test fail." });

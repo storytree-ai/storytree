@@ -84,10 +84,11 @@ shot first-open
 step menu-entry cat "$HOME/.local/share/applications/storytree-0.3.desktop"
 step windows sh -c "xwininfo -root -tree | grep -i -E 'storytree|\"' | head -40"
 step processes sh -c "pgrep -fa storytree; echo; pgrep -fa postgres"
-step profile cat "$HOME/.profile"
-# A new terminal window on a desktop is a login shell's child, which has read ~/.profile.
-st() { bash -lc "cd '$PROJECT' && storytree $*"; }
-step command-path bash -lc 'command -v storytree'
+# A desktop session's login reads ~/.profile, and every terminal opened in it inherits that PATH. A runner's login bash
+# reads ~/.bash_profile instead when the image has one, so the desktop's login is done here by reading ~/.profile.
+step profile sh -c "ls -la '$HOME'/.profile '$HOME'/.bash_profile '$HOME'/.bash_login 2>&1; cat '$HOME/.profile'"
+st() { bash -c ". '$HOME/.profile' && cd '$PROJECT' && storytree $*"; }
+step command-path bash -c ". '$HOME/.profile' && command -v storytree"
 step doctor st doctor
 step hooks sh -c "cat '$HOME/.claude/settings.json'; echo; ls -la '$HOME/.claude'"
 step project-files sh -c "ls -la '$PROJECT'; cat '$PROJECT/.storytree.json'"
@@ -101,7 +102,7 @@ sleep 5
 shot after-grow
 
 step processes-after sh -c "pgrep -fa storytree; echo; pgrep -fa postgres"
-step app-logs sh -c "ls -la '$HOME/.storytree/0.3' '$HOME/.config/storytree-0.3' 2>&1; tail -n 80 '$HOME/.config/storytree-0.3/logs/main.log' 2>&1"
+step app-logs sh -c "ls -la '$HOME/.storytree/0.3' 2>&1; tail -n 40 '$HOME/.storytree/0.3/pgdata.log' 2>&1"
 
 echo "== steps"
 cat "$STEPS"

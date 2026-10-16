@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { VerbRefusal } from "@storytree/library/verbs";
+import { mounted, VerbRefusal, type DoorWords, type VerbContext } from "@storytree/library/verbs";
 
 import { withLibrary } from "../testing/pg.js";
 import { frozenExperiment } from "./record.js";
@@ -25,9 +25,9 @@ const TWIN_BUILD = {
 test("4.1 · freezing an experiment stamps the time once, and a run reads only a frozen one", async () => {
   await withLibrary(async (library) => {
     const [family] = EXPERIMENT_FAMILIES;
-    const freeze = family!.verbs.find((one) => one.command !== undefined && "name" in one.command && one.command.name === "freeze")!;
-    const context = { library, project: "storytree", session: "s", folder: process.cwd(), writer: { actor: "session:s" } } as never;
-    const words = { door: "command" as const, say: (step: { command?: string }) => `storytree ${step.command}` };
+    const freeze = family!.verbs.find((one) => mounted(one.command) && one.command.name === "freeze")!;
+    const context: VerbContext = { library, project: "storytree", session: "s", folder: process.cwd(), writer: { actor: "session:s" } };
+    const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
     const experiment = await library.writeKnowledge("experiment", TWIN_BUILD);
 
     await assert.rejects(frozenExperiment(library, experiment.id), (error: unknown) => error instanceof Error && error.message.includes(experiment.id) && /not frozen/.test(error.message), "a run refuses an unfrozen record");

@@ -167,13 +167,14 @@ export async function readProjectCi({ library, git, github }: { library: Library
     const { verdicts, unmatched } = judgeRun(proofs, results);
     newest ??= { run, tests: results.length, unmatched: unmatched.length };
     const at = `at commit ${run.head_sha.slice(0, 12)}, run ${run.html_url}`;
-    for (const story of proofs.filter(({ package: own }) => !done.has(own) && (scoped === undefined || scoped.has(`packages/${own}`)))) {
+    // A story is judged by a run that scoped in every package it owns.
+    for (const story of proofs.filter(({ package: own, packages }) => !done.has(own) && (scoped === undefined || packages.every((name) => scoped.has(`packages/${name}`))))) {
       done.add(story.package);
       for (const id of story.contracts.values()) if (verdicts.has(id)) judged.set(id, { verdict: verdicts.get(id)!, at });
     }
     // A story whose package the commit does not hold has no tests to wait for.
     const held = new Set(files.map(({ path }) => path.split("/")[1]));
-    if (scoped === undefined || proofs.every(({ package: own }) => done.has(own) || !held.has(own))) break;
+    if (scoped === undefined || proofs.every(({ package: own, packages }) => done.has(own) || !packages.some((name) => held.has(name)))) break;
   }
   if (newest === undefined) return { written: false, why: `${repository}'s last ${finished.length} finished push runs on ${branch}, and the merge queue's runs of their commits, were all cancelled before they ran to their end, so there are no whole CI results to read; its health stands as it was.` };
   const { run } = newest;

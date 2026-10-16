@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { AnnotatedTree, ChangedOnMain, Library, NamedOnMain } from "@storytree/library";
-import { packageOf } from "./code-survey/code-survey.js";
+import { packageOf, packagesOf } from "./code-survey/code-survey.js";
 import { codeSurveyReader } from "./code-survey/read-survey.js";
 import { buildGraph, type ChangeLabel, type MapEdge, type MapNode, type ProjectGraph } from "./graph.js";
 import { impact } from "./impact.js";
@@ -173,7 +173,7 @@ export async function affectedProject(library: Pick<Library, "projectTree">, fol
 const ALSO_IN: Readonly<Record<string, readonly string[]>> = { app: ["apps/desktop/"] };
 
 /**
- * For each story whose package (packages/<name>/, with any folder ALSO_IN names) fetched origin/main
+ * For each story one of whose packages (packages/<name>/ for each it owns, with any folder ALSO_IN names) fetched origin/main
  * changed in a commit made within `within` milliseconds before `now`, the newest such commit and when
  * it was committed, by story id; a story whose package did not change then is absent. Nothing is
  * fetched: with no origin/main there are none.
@@ -187,7 +187,7 @@ export async function changedOnMain(stories: readonly { readonly id: string; rea
   } catch {
     return changed;
   }
-  const folders = stories.map(story => ({ id: story.id, under: [`packages/${packageOf(story.title)}/`, ...ALSO_IN[packageOf(story.title)] ?? []] }));
+  const folders = stories.map(story => ({ id: story.id, under: [...packagesOf(story.title).map(name => `packages/${name}/`), ...ALSO_IN[packageOf(story.title)] ?? []] }));
   for (const entry of log.split("\x01").slice(1)) {
     const [head = "", ...files] = entry.split("\n").filter(Boolean);
     const [commit = "", at = ""] = head.split(" ");
@@ -199,7 +199,7 @@ export async function changedOnMain(stories: readonly { readonly id: string; rea
 }
 
 /**
- * Which of `contracts` (ids) a numbered test title in its story's package on fetched origin/main names
+ * Which of `contracts` (ids) a numbered test title in its story's packages on fetched origin/main names
  * by its number, with main's newest commit and when it was committed (friction_c7a7e6754c54). A
  * title prefixed with another package names that package's numbers. Fetches origin/main as the code
  * survey does; undefined when there is no origin/main to read.
@@ -217,8 +217,8 @@ export async function namedOnMain(tree: AnnotatedTree, folder: string, contracts
   const [commit = "", at = ""] = head.split(" ");
   const named: string[] = [];
   for (const story of stories) {
-    const own = packageOf(story.title);
-    const numbers = new Set((surveyed[story.id]?.tests ?? []).flatMap(test => test.titles.filter(title => title.package === undefined || title.package === own).map(title => title.number)));
+    const own = packagesOf(story.title);
+    const numbers = new Set((surveyed[story.id]?.tests ?? []).flatMap(test => test.titles.filter(title => title.package === undefined || own.includes(title.package)).map(title => title.number)));
     for (const capability of story.capabilities) {
       for (const { id, title } of capability.contracts) {
         const number = /^(\d+\.\d+) · /.exec(title)?.[1];

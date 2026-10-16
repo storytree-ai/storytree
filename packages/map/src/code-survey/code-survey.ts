@@ -34,9 +34,13 @@ import { parse } from "@babel/parser";
 
 import type { CodeEdge, EdgeFile, StorySurvey, SurveyedFile, SurveyedTest } from "@storytree/library";
 
-import { packageOf } from "./package-of.js";
+import { ALSO_OWNED, packageOf, packagesOf } from "./package-of.js";
 
-export { packageOf };
+export { ALSO_OWNED, packageOf, packagesOf };
+
+/** Whether a test title's package prefix, when it has one, names one of `own`: the story's packages, or its one. */
+const ownPrefix = (named: string | undefined, own: string | readonly string[] | undefined): boolean =>
+  named === undefined || (typeof own === "string" ? named === own : own?.includes(named) === true);
 
 /** A file of a story's package; the disk reader tags helpers outside src as test support. */
 export type SourceFile = { readonly path: string; readonly text: string; readonly testSupport?: boolean };
@@ -162,12 +166,12 @@ export const declaresTitle = (text: string, title: string): boolean => {
  * The capability number a file declares itself (ADR-0925 D1, D4): a test file, the one number its own
  * numbered titles carry (none when they carry several); a source file, its opening comment's. Not code, none.
  */
-export function declaredNumberOf(file: SourceFile, ownPackage?: string): number | undefined {
+export function declaredNumberOf(file: SourceFile, ownPackage?: string | readonly string[]): number | undefined {
   if (!CODE_FILE.test(file.path) || DECLARATION.test(file.path)) return undefined;
   if (!TEST_FILE.test(file.path)) return declarationOf(file.text);
   const numbers = new Set(calledTitles(file).flatMap((title) => {
     const named = NUMBERED_TITLE.exec(title);
-    return named === null || (named[1] !== undefined && named[1] !== ownPackage) ? [] : [Number(named[2])];
+    return named === null || !ownPrefix(named[1], ownPackage) ? [] : [Number(named[2])];
   }));
   return numbers.size === 1 ? [...numbers][0] : undefined;
 }
@@ -360,8 +364,8 @@ function reached(test: SourceFile, byPath: ReadonlyMap<string, SourceFile>, path
   return new Map([...[...taken].map(([path, { depth }]) => [path, depth] as const), ...typed]);
 }
 
-/** Survey one story's package: source files, ownership and imports. `ownPackage` also accepts its own prefixed proofs. */
-export function surveyStory(tree: readonly SourceFile[], capabilities: readonly SurveyCapability[], coverage: CoverageMap = {}, ownPackage?: string, packages: readonly SurveyPackage[] = []): StorySurvey {
+/** Survey one story's packages: source files, ownership and imports. `ownPackage` (or each of a story's several) also accepts its own prefixed proofs. */
+export function surveyStory(tree: readonly SourceFile[], capabilities: readonly SurveyCapability[], coverage: CoverageMap = {}, ownPackage?: string | readonly string[], packages: readonly SurveyPackage[] = []): StorySurvey {
   const code = tree.filter((file) => CODE_FILE.test(file.path) && !DECLARATION.test(file.path));
   const paths = new Set(code.map((file) => file.path));
   const byPath = new Map(code.map((file) => [file.path, file]));
@@ -380,7 +384,7 @@ export function surveyStory(tree: readonly SourceFile[], capabilities: readonly 
     const counts = new Map<number, number>();
     for (const title of calls.get(test.path) ?? []) {
       const named = NUMBERED_TITLE.exec(title);
-      if (named === null || (named[1] !== undefined && named[1] !== ownPackage)) continue;
+      if (named === null || !ownPrefix(named[1], ownPackage)) continue;
       const number = Number(named[2]);
       if (byNumber.has(number)) counts.set(number, (counts.get(number) ?? 0) + 1);
     }

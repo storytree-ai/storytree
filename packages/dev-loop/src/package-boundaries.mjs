@@ -16,8 +16,9 @@
 
 import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
+import { ALSO_OWNED } from "@storytree/map/package-of";
 
-/** 0.3's own stories, each by the id its package has (packages/<id>). */
+/** 0.3's own stories, each by the id its package has (packages/<id>); one that owns several declares the others in the map's ALSO_OWNED (ADR-1066 D3). */
 export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "lag-in-use", "learning-as-you-build", "knowledge-core", "librarian", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
@@ -59,5 +60,6 @@ export const EDGES = { edges: DECLARED.edges };
 
 /** What in the repo at `root` breaks the boundaries, one sentence each; empty when nothing does. */
 export function boundaryProblems(root) {
-  return packageProblems(root, { stories: STORIES, frames: FRAMES, notYetMoved: NOT_YET_MOVED, edges: EDGES });
+  const stories = STORIES.map((story) => Object.hasOwn(ALSO_OWNED, story) ? { story, packages: [story, ...ALSO_OWNED[story]] } : story);
+  return packageProblems(root, { stories, frames: FRAMES, notYetMoved: NOT_YET_MOVED, edges: EDGES });
 }

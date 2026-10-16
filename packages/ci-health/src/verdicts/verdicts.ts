@@ -20,7 +20,7 @@
  * platform one names, else `other`.
  */
 import type { SkipKind } from "@storytree/library";
-import { packageOf, surveyStory, type SourceFile } from "@storytree/map";
+import { packagesOf, surveyStory, type SourceFile } from "@storytree/map";
 import type { TestResult } from "../run-results/run-results.js";
 
 /** The plan as judging needs it: stories, their numbered capabilities and contracts ("1.2 · …"). */
@@ -31,7 +31,10 @@ export type PlanTree = {
 /** A story's proofs at one commit: its contracts by number, and each numbered test title its package holds. */
 export type StoryProofs = {
   readonly story: string;
+  /** The package named after its title. */
   readonly package: string;
+  /** Every package it owns, its own first (ADR-1066 D3). */
+  readonly packages: readonly string[];
   readonly contracts: ReadonlyMap<string, string>;
   /** Title -> the contract numbers it names, and the package a prefixed title names (`cart 1.2 …`). */
   readonly titles: ReadonlyMap<string, { readonly numbers: readonly string[]; readonly package?: string }>;
@@ -42,17 +45,18 @@ export type StoryProofs = {
 export type Verdict = { state: "passing" | "failing" | "not-checked"; passed: number; failed: number; skipped: number; total: number; note: string; skip?: SkipKind };
 
 /**
- * Each story's proofs, from the files at the run's commit (repository paths): its package's tests wherever they sit in
- * it, under `src/` or in a test folder beside it (`packages/<package>/test/…`), as users' projects lay them out.
+ * Each story's proofs, from the files at the run's commit (repository paths): the tests of every package it owns, wherever they sit in
+ * one, under `src/` or in a test folder beside it (`packages/<package>/test/…`), as users' projects lay them out.
  */
 export function proofsAt(tree: PlanTree, files: readonly SourceFile[]): StoryProofs[] {
   return tree.stories.map((story) => {
-    const own = packageOf(story.title);
-    const sources = files.filter((file) => file.path.startsWith(`packages/${own}/`));
+    const packages = packagesOf(story.title);
+    const own = packages[0]!;
+    const sources = files.filter((file) => packages.some((name) => file.path.startsWith(`packages/${name}/`)));
     const titles = new Map<string, { numbers: string[]; package?: string }>();
     const helped: { number: string; title: string }[] = [];
     if (sources.length > 0) {
-      for (const test of surveyStory(sources, story.capabilities, {}, own).tests ?? []) {
+      for (const test of surveyStory(sources, story.capabilities, {}, packages).tests ?? []) {
         const text = sources.find(({ path }) => path === test.path)?.text ?? "";
         for (const [, , number, quote, title] of text.matchAll(/[\w$.]\(\s*(["'`])(\d+\.\d+)\1\s*,\s*(["'`])((?:\\.|(?!\3)[^\\])+)\3/g)) {
           if (quote !== "`" || !title!.includes("${")) helped.push({ number: number!, title: asRun(title!) });
@@ -72,7 +76,7 @@ export function proofsAt(tree: PlanTree, files: readonly SourceFile[]): StoryPro
         if (number !== undefined) contracts.set(number, contract.id);
       }
     }
-    return { story: story.id, package: own, contracts, titles, helped };
+    return { story: story.id, package: own, packages, contracts, titles, helped };
   });
 }
 
@@ -121,7 +125,7 @@ function skipKind(reasons: readonly string[]): SkipKind {
 /** Each contract's verdict from a run's results, and the results that credit no contract. */
 export function judgeRun(proofs: readonly StoryProofs[], reported: readonly TestResult[]): { verdicts: Map<string, Verdict>; unmatched: TestResult[] } {
   const results = creditPlatformSkips(reported);
-  const byPackage = new Map(proofs.map((story) => [story.package, story]));
+  const byPackage = new Map(proofs.flatMap((story) => story.packages.map((name) => [name, story] as const)));
   const tests = new Map<string, TestResult[]>(proofs.flatMap((story) => [...story.contracts.values()].map((id) => [id, []] as [string, TestResult[]])));
   const unmatched: TestResult[] = [];
   for (const result of results) {

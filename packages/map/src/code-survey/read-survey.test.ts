@@ -12,7 +12,7 @@ import { test } from "node:test";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { capabilitiesOfFiles, codeSurveyReader, offThreadSurveyReader, readCodeSurvey } from "./read-survey.js";
+import { capabilitiesOfFiles, codeSurveyReader, offThreadSurveyReader, readCodeSurvey, testedNumbers } from "./read-survey.js";
 import { focusProject } from "../read.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
 import "./survey-worker.js";
@@ -768,4 +768,31 @@ test("8.29 a source file whose header's title is not its number's capability in 
     survey: async () => ({ "story-shop": { files: [{ path: "src/caller.ts", lines: 1, capability: "cap-caller" }] } }) as never,
   });
   assert.deepEqual([...surveyed], [["packages/shop/src/caller.ts", { capability: "cap-caller", inferred: true }]]);
+});
+
+test("8.30 a story that owns several packages has each package's files surveyed under its capabilities, and its claims and tested numbers read from every one", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-packages-"));
+  const plan = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-cart", title: "1 · Cart" }, { id: "cap-store", title: "2 · Store" }] }] } as unknown as AnnotatedTree;
+  const alsoOwned = { shop: ["shop-store"] };
+  try {
+    await mkdir(path.join(folder, "packages/shop/src"), { recursive: true });
+    await mkdir(path.join(folder, "packages/shop-store/src"), { recursive: true });
+    await writeFile(path.join(folder, "packages/shop/src/cart.ts"), "// Capability 1 · Cart.\nexport const cart = 1;\n");
+    await writeFile(path.join(folder, "packages/shop-store/src/store.ts"), "export const store = 1;\n");
+    await writeFile(path.join(folder, "packages/shop-store/src/store.test.ts"), 'import { store } from "./store.js";\ntest("2.1 a store", () => store);\ntest("shop-store 2.2 a store, named by its package", () => store);\n');
+    const survey = await codeSurveyReader({ alsoOwned }).read(folder, plan);
+    assert.deepEqual([...survey["story-shop"]!.files].sort((a, b) => a.path.localeCompare(b.path)), [
+      { path: "../shop-store/src/store.ts", lines: 1, capability: "cap-store" },
+      { path: "src/cart.ts", lines: 2, declared: 1, reachedBy: [] },
+    ]);
+    assert.deepEqual(survey["story-shop"]!.tests?.map((test) => [test.path, test.titles.map((title) => title.number)]), [["../shop-store/src/store.test.ts", ["2.1", "2.2"]]]);
+    const owners = await capabilitiesOfFiles(folder, ["packages/shop-store/src/store.ts", "packages/shop-store/src/store.test.ts"], plan, { alsoOwned });
+    assert.deepEqual([...owners], [
+      ["packages/shop-store/src/store.test.ts", { capability: "cap-store", inferred: false }],
+      ["packages/shop-store/src/store.ts", { capability: "cap-store", inferred: true }],
+    ]);
+    assert.deepEqual(await testedNumbers(folder, plan, "cap-store", { alsoOwned }), ["2.1", "2.2"]);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
 });

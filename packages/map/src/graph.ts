@@ -1,7 +1,7 @@
 /** Capability 1 · Joined graph: dependencies point from the dependent to its prerequisite. */
 import type { AnnotatedTree, NodeHealth, SurveyedTest } from "@storytree/library";
 
-import { packageOf } from "./code-survey/code-survey.js";
+import { packageOf, packagesOf } from "./code-survey/code-survey.js";
 import type { ProjectSurvey } from "./code-survey/read-survey.js";
 
 export type SnapshotOrigin = "base" | "target" | "both";
@@ -58,10 +58,14 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
   const nodes = new Map<string, MapNode>();
   const edges = new Map<string, MapEdge>();
   const healthSource = tree.unverified ? "reported" : "verified";
-  const promisesByPackage = new Map(tree.stories.filter(story => story.mapped === undefined).map(story => [packageOf(story.title), new Map(story.capabilities.flatMap(cap => cap.contracts.flatMap(contract => {
-    const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
-    return number === undefined ? [] : [[number, contract] as const];
-  })))]));
+  // A prefixed title names a package, and every package a story owns holds its promises (ADR-1066 D3).
+  const promisesByPackage = new Map(tree.stories.filter(story => story.mapped === undefined).flatMap(story => {
+    const promises = new Map(story.capabilities.flatMap(cap => cap.contracts.flatMap(contract => {
+      const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
+      return number === undefined ? [] : [[number, contract] as const];
+    })));
+    return packagesOf(story.title).map(name => [name, promises] as const);
+  }));
   const add = (node: MapNode): void => { nodes.set(node.id, node); };
   const edge = (from: string, to: string, kind: MapEdge["kind"], provenance: MapEdge["provenance"]): void => {
     const value = { from, to, kind, provenance };

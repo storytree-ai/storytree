@@ -17,7 +17,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { packageOf } from "@storytree/map/package-of";
+import { ALSO_OWNED, packageOf } from "@storytree/map/package-of";
 
 /** The package whose tests prove a story, by its title (packages/map/src/code-survey/package-of.ts): its tests are in packages/<name>/src. */
 export { packageOf };
@@ -214,7 +214,7 @@ function titlesIn(text, prefix) {
 }
 
 /**
- * The test files of the packages other than a story's own (`packages/<own>/src`) whose titles name
+ * The test files of the packages other than those a story owns (`packages/<own>/src` and any other it owns) whose titles name
  * its contracts with its package's name first (a title like cli 1.3: …): a dependant's tests that prove the
  * story's contracts through the dependant's front door. Paths relative to `root`, with forward slashes.
  * @param {string} own the story's package
@@ -230,7 +230,8 @@ export function dependantTestsNaming(own, { root }) {
     return [];
   }
   const files = [];
-  for (const name of names.filter((name) => name !== own).sort()) {
+  const owned = ownedBy(own);
+  for (const name of names.filter((name) => !owned.includes(name)).sort()) {
     const source = path.join(packages, name, "src");
     let entries;
     try {
@@ -424,12 +425,17 @@ export function contractsOf(story) {
 }
 
 /**
- * The repo-relative folders holding a story's own tests, by its package: packages/<name>/src, and
- * for the app story also the desktop app's, the other half of its frame (ADR-0649).
+ * The repo-relative folders holding a story's own tests, by its package: packages/<name>/src and that of each
+ * other package it owns (ADR-1066 D3), and for the app story also the desktop app's, the other half of its frame (ADR-0649).
  * @param {string} name
  */
 export function sourcesOf(name) {
-  return name === "app" ? ["packages/app/src", "apps/desktop/src"] : [`packages/${name}/src`];
+  return name === "app" ? ["packages/app/src", "apps/desktop/src"] : ownedBy(name).map((owned) => `packages/${owned}/src`);
+}
+
+/** Every package the story whose own package is `name` owns, its own first (ADR-1066 D3). */
+function ownedBy(name) {
+  return [name, ...(Object.hasOwn(ALSO_OWNED, name) ? ALSO_OWNED[name] : [])];
 }
 
 // --- writing to the library -------------------------------------------------------------------

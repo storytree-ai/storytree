@@ -4,20 +4,26 @@ import { once } from "node:events";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { test } from "node:test";
+import { after, before, test } from "node:test";
 
-import { findBinaries } from "@storytree/local-postgres";
+import { ensureCluster, findBinaries } from "@storytree/local-postgres";
 import pg from "pg";
+
+const home = mkdtempSync(path.join(tmpdir(), "storytree dev database "));
+const dataDir = path.join(home, "pgdata");
+const ownerFile = `${dataDir}.owner.json`;
+const pgCtl = (...args: string[]) => spawnSync(
+  path.join(findBinaries(), process.platform === "win32" ? "pg_ctl.exe" : "pg_ctl"),
+  ["-D", dataDir, ...args], { encoding: "utf8", timeout: 15_000, windowsHide: true },
+);
+// The cluster is made once, outside each case's deadline, which then times only the entry: on a
+// loaded Windows runner initdb alone took 6-24 s, and one stall held every server ~18 s at once
+// (run 38933803186), so two fresh clusters inside two 60 s cases timed one out (run 38929066683).
+before(() => ensureCluster(dataDir), { timeout: 180_000 });
+after(() => rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }));
 
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   test(`2.2 a dev home's database answers queries and releases its server on ${signal}`, { timeout: 60_000 }, async (t) => {
-    const home = mkdtempSync(path.join(tmpdir(), "storytree dev database "));
-    const dataDir = path.join(home, "pgdata");
-    const ownerFile = `${dataDir}.owner.json`;
-    const pgCtl = (...args: string[]) => spawnSync(
-      path.join(findBinaries(), process.platform === "win32" ? "pg_ctl.exe" : "pg_ctl"),
-      ["-D", dataDir, ...args], { encoding: "utf8", timeout: 15_000, windowsHide: true },
-    );
     // Import completion means start() returned and the entry installed its handlers. The owner
     // record alone is not readiness: local-postgres writes it before it starts the server.
     const bootstrap = `
@@ -41,7 +47,6 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
         const stopped = pgCtl("-m", "immediate", "-w", "stop");
         assert.equal(stopped.status, 0, stopped.stderr);
       }
-      rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     });
     const ready = await Promise.race([
       once(child, "message", { signal: t.signal }),
@@ -52,7 +57,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
     assert.equal(owner.pid, child.pid);
     // It asks for the home's password, which it hands over privately while it runs.
     const handoff = JSON.parse(readFileSync(path.join(`${dataDir}.auth`, "connection.json"), "utf8")) as { user: string; password: string };
-    const client = new pg.Client({ host: "127.0.0.1", port: owner.port, user: handoff.user, password: handoff.password, database: "postgres", connectionTimeoutMillis: 5_000 });
+    const client = new pg.Client({ host: "127.0.0.1", port: owner.port, user: handoff.user, password: handoff.password, database: "postgres", connectionTimeoutMillis: 30_000 });
     try {
       await client.connect();
       assert.deepEqual((await client.query("SELECT 1 AS ready")).rows, [{ ready: 1 }]);

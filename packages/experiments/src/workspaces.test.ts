@@ -14,7 +14,7 @@ import { readExperiment, readLibrary } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import pg from "pg";
 
-import { armWorkspace, dropArm, makeArm } from "./index.js";
+import { armWorkspace, dropArm, makeArm } from "./workspaces.js";
 import { testAdminUrl, withAdmin } from "./testing/pg.js";
 
 /** A fresh experiment's name: `t-` and 8 hex digits, so every database it names is a test database. */

@@ -18,7 +18,7 @@ import path from "node:path";
 
 import { codeSurveyReader, type CodeSurveyReader, type ProjectSurvey } from "@storytree/map/code-survey";
 
-import { storiesOf } from "../package-rule/package-rule.js";
+import { packagesOf, storiesOf, type Story } from "../package-rule/package-rule.js";
 
 type SurveyedFile = ProjectSurvey[string]["files"][number];
 
@@ -38,9 +38,9 @@ export interface Misdeclared {
   readonly reachedBy: readonly number[];
 }
 
-/** The source files of the `stories` packages at `root` as the code survey allocates them, repo-relative. */
-async function surveyed(root: string, stories: readonly string[]): Promise<SurveyedFile[]> {
-  const tree = { arcs: [], stories: stories.map((id) => ({ id, title: id, capabilities: NUMBERS.map((n) => ({ id: `${id}#${n}`, title: `${n} · ${n}` })) })) };
+/** The source files of every package the `stories` own at `root` as the code survey allocates them, repo-relative. */
+async function surveyed(root: string, stories: readonly Story[]): Promise<SurveyedFile[]> {
+  const tree = { arcs: [], stories: packagesOf(stories).map((id) => ({ id, title: id, capabilities: NUMBERS.map((n) => ({ id: `${id}#${n}`, title: `${n} · ${n}` })) })) };
   const survey = await codeSurveyReader({ checkout: "current" }).read(root, tree as unknown as Parameters<CodeSurveyReader["read"]>[1]);
   return Object.entries(survey).flatMap(([id, { files }]) => files.map((file) => ({ ...file, path: path.posix.normalize(`packages/${id}/${file.path}`) })))
     .sort((a, b) => a.path.localeCompare(b.path));
@@ -69,23 +69,23 @@ export interface AllocationOptions {
 const undeclaredOf = (files: readonly SurveyedFile[]): Undeclared[] =>
   files.flatMap(({ path: file, declared, capability }) => declared !== undefined || !capability ? [] : [{ file, suggested: Number(capability.slice(capability.lastIndexOf("#") + 1)) }]);
 
-/** Each source file of the `stories` packages (packages/<id>) at `root` that no numbered test reaches; by default, of every package under packages/. */
-export async function unallocatedCode(root: string, stories: readonly string[] = storiesOf(root)): Promise<Unallocated[]> {
+/** Each source file of the packages the `stories` own at `root` that no numbered test reaches; by default, of every package under packages/. */
+export async function unallocatedCode(root: string, stories: readonly Story[] = storiesOf(root)): Promise<Unallocated[]> {
   return unallocatedOf(await surveyed(root, stories));
 }
 
 /** Each source file of the `stories` packages at `root` whose declared capability's numbered tests do not reach it (ADR-0925 D2). */
-export async function misdeclaredCode(root: string, stories: readonly string[] = storiesOf(root)): Promise<Misdeclared[]> {
+export async function misdeclaredCode(root: string, stories: readonly Story[] = storiesOf(root)): Promise<Misdeclared[]> {
   return misdeclaredOf(await surveyed(root, stories));
 }
 
 /** Each reached source file of the `stories` packages at `root` whose opening comment declares no capability, with the survey's suggestion. */
-export async function undeclaredCode(root: string, stories: readonly string[] = storiesOf(root)): Promise<Undeclared[]> {
+export async function undeclaredCode(root: string, stories: readonly Story[] = storiesOf(root)): Promise<Undeclared[]> {
   return undeclaredOf(await surveyed(root, stories));
 }
 
 /** One sentence per unallocated, misdeclared or (asked to) undeclared source file, each with its ways out; empty when every file is allocated as it says. */
-export async function allocationProblems(root: string, stories: readonly string[] = storiesOf(root), options: AllocationOptions = {}): Promise<string[]> {
+export async function allocationProblems(root: string, stories: readonly Story[] = storiesOf(root), options: AllocationOptions = {}): Promise<string[]> {
   const files = await surveyed(root, stories);
   return [
     ...unallocatedOf(files).map(({ file, lines }) =>

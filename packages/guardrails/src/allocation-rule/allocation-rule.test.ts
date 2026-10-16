@@ -46,6 +46,14 @@ test("2.1 · a story package's source file no numbered test reaches fails, named
   assert.deepEqual(await unallocatedCode(unnumbered, ["shop"]), [{ file: "packages/shop/src/refund.ts", lines: 2 }], "a test with no number allocates nothing");
 });
 
+test("2.1 · a story that owns several packages has each of them checked", async (t: TestContext) => {
+  const both = plant(t, { ...SHOP, "packages/till/package.json": JSON.stringify({ name: "@x/till" }), "packages/till/src/drawer.ts": "export const open = () => true;\n" });
+  assert.deepEqual(await unallocatedCode(both, [{ story: "shop", packages: ["shop", "till"] }]), [
+    { file: "packages/shop/src/refund.ts", lines: 2 },
+    { file: "packages/till/src/drawer.ts", lines: 1 },
+  ]);
+});
+
 test("2.1 · a project that names no stories has its every package under packages/ checked", async (t: TestContext) => {
   assert.deepEqual(await unallocatedCode(plant(t, SHOP)), [{ file: "packages/shop/src/refund.ts", lines: 2 }]);
 });

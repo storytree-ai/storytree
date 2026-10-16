@@ -1,0 +1,2 @@
+{"schema":1,"channel":"stable"}
+{"schema":1,"channel":"development"}

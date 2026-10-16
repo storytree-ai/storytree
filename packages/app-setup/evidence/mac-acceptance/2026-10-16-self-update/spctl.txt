@@ -1,0 +1,2 @@
+/Users/runner/Downloads/storytree-0.3.app: accepted
+source=Notarized Developer ID

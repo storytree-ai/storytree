@@ -1,5 +1,7 @@
 /** Capability 3 · Counts before detail. The map's Node entry point: a live library reading joined to the caller's checkout. */
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { affectedProject, changedOnMain, namedOnMain, type AffectedOptions } from "./affected.js";
 import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library";
 import { codeSurveyReader, type ImportedFolder } from "./code-survey/read-survey.js";
@@ -54,7 +56,8 @@ export async function readMap(library: PlanReader, folder: string, imports: read
 
 export async function focusProject(library: PlanReader, folder: string, options: FocusOptions, imports: readonly ImportedFolder[] = []): Promise<FocusAnswer> {
   if (options.select.startsWith("diff:")) return affectedProject(onBranch(library, folder), folder, { ...options, range: options.select.slice(5) });
-  return focus(await readMap(library, folder, imports), options);
+  const top = await topOf(folder);
+  return focus(await readMap(library, folder, imports), options, { exists: file => existsSync(path.join(top, file)) });
 }
 
 export async function mapCommand(library: PlanReader, folder: string, options: FocusOptions, json = false, imports: readonly ImportedFolder[] = []): Promise<string> {

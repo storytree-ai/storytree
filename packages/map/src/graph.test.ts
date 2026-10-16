@@ -59,6 +59,17 @@ test("2.2 selects story, capability or promise by identity or unambiguous number
   assert.throws(() => focus(ambiguous, { select: "cap:2" }), /ambiguous/i);
 });
 
+test("2.2 a file the map does not carry is refused with why and what to select instead", () => {
+  const built = graph();
+  const onDisk = () => true;
+  assert.throws(() => focus(built, { select: "file:packages/app/package.json" }, { exists: onDisk }),
+    /not a source or test file the code survey reads.*story:app \(The app\)/s);
+  assert.throws(() => focus(built, { select: "file:apps/desktop/build.mjs" }, { exists: onDisk }), /story:app \(The app\)/);
+  assert.throws(() => focus(built, { select: "file:infra/host.mjs" }, { exists: onDisk }), /no story's package holds it/i);
+  assert.throws(() => focus(built, { select: "file:packages/app/src/old/projects.ts" }, { exists: () => false }),
+    /no such file is on disk.*file:packages\/app\/src\/projects\.ts/s);
+});
+
 test("2.3 the desktop view up one exposes Projects and its 2.5 promise from the supplied plan", () => {
   const answer = focus(graph(), { select: `file:${view}`, up: 1, mode: "show" });
   assert.ok(answer.rows?.some(row => row.id === "projects" && row.depth === 1));

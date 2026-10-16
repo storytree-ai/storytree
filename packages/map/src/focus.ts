@@ -49,8 +49,40 @@ export interface FocusAnswer {
 export const SHOW_CEILING = 200;
 const KINDS: readonly NodeKind[] = ["story", "capability", "promise", "file", "test"];
 
+/** Whether a repository path is on disk in the checkout the map was read from; the map's graph cannot say. */
+export type OnDisk = (path: string) => boolean;
+
+/**
+ * Why a file the map has no node for is refused, and what to select instead. Such a file is refused, not answered
+ * as its story's node: an agent asking about one file would otherwise get its whole story's neighbourhood unasked.
+ */
+function unmappedFile(graph: ProjectGraph, select: string, wanted: string, exists: OnDisk | undefined): string {
+  const files = graph.nodes.filter(node => node.kind === "file" || node.kind === "test");
+  // A file or test node's id is its full repository path after a five-character "file:" or "test:".
+  const full = (node: MapNode): string => normalizePath(node.id.slice(5));
+  const head = `Map selection not found: ${select}`;
+  if (exists?.(wanted) === false) {
+    const name = wanted.split("/").at(-1);
+    const moved = files.filter(node => full(node).split("/").at(-1) === name).map(node => `file:${full(node)}`);
+    return `${head}: no such file is on disk in this checkout (moved, deleted, or only on another branch).${moved.length === 0 ? "" : ` Did you mean ${moved.join(", ")}?`}`;
+  }
+  const folders = wanted.split("/").slice(0, -1);
+  const shared = (node: MapNode): number => {
+    const parts = full(node).split("/");
+    let at = 0;
+    while (at < folders.length && at < parts.length - 1 && parts[at] === folders[at]) at++;
+    return at;
+  };
+  // A story holds the file when its own files share at least the file's package folder (packages/<name>, apps/<name>).
+  const best = Math.max(2, ...files.map(shared));
+  const owners = [...new Set(files.filter(node => shared(node) === best).map(node => node.story))]
+    .flatMap(id => graph.nodes.filter(node => node.kind === "story" && node.id === id));
+  const why = exists === undefined ? "the map carries only the source and test files the code survey reads" : "it is on disk, but it is not a source or test file the code survey reads, and the map carries only those";
+  return `${head}: ${why}. ${owners.length === 0 ? "No story's package holds it." : `It is in the package of ${owners.map(story => `story:${story.id} (${story.title})`).join(", ")}: select that instead.`}`;
+}
+
 /** An ambiguous number is refused rather than choosing one story's identically numbered capability. */
-export function selectNode(graph: ProjectGraph, select: string): MapNode {
+export function selectNode(graph: ProjectGraph, select: string, exists?: OnDisk): MapNode {
   const at = select.indexOf(":");
   const prefix = select.slice(0, at);
   const wanted = select.slice(at + 1);
@@ -62,7 +94,7 @@ export function selectNode(graph: ProjectGraph, select: string): MapNode {
     if (prefix === "promise") return node.kind === "promise" && (node.id === wanted || node.number === wanted);
     return node.kind === "story" && (node.id === wanted || node.title.toLowerCase() === wanted.toLowerCase());
   });
-  if (found.length === 0) throw new Error(`Map selection not found: ${select}`);
+  if (found.length === 0) throw new Error(prefix === "file" ? unmappedFile(graph, select, normalizePath(wanted), exists) : `Map selection not found: ${select}`);
   if (found.length > 1) throw new Error(`Ambiguous map selection ${select}; use an id: ${found.map(node => `${node.id} (${node.story})`).join(", ")}`);
   return found[0]!;
 }
@@ -73,8 +105,8 @@ export function mapDepth(value: number | undefined, fallback: number): number {
   return result;
 }
 
-export function focus(graph: ProjectGraph, options: FocusOptions, limits: { ceiling?: number } = {}): FocusAnswer {
-  return focusNodes(graph, [selectNode(graph, options.select).id], options, limits);
+export function focus(graph: ProjectGraph, options: FocusOptions, limits: { ceiling?: number; exists?: OnDisk } = {}): FocusAnswer {
+  return focusNodes(graph, [selectNode(graph, options.select, limits.exists).id], options, limits);
 }
 
 /** Shared traversal for one focused node or the changed nodes of a diff. Filters never block traversal. */

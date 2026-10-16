@@ -20,8 +20,8 @@
  * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1). With
  *   one standing after the tenth review, the eleventh brief is refused, naming the arc for the session's
  *   question (4.3); the refusal itself writes nothing.
- * - Capability 5 · Graduation (ADR-0956 D5): a check graduated whole leaves the brief, and one graduated in part stays in the brief with the part Guardrails
- *   now enforces named (5.2), and what Guardrails' graduated checks find on the change is taken with the return,
+ * - Capability 5 · Graduation (ADR-0956 D5): a check graduated whole leaves the brief, and one graduated in part stays in the brief with the part Architecture checks
+ *   now enforces named (5.2), and what Architecture checks' graduated checks find on the change is taken with the return,
  *   recorded as theirs under the check each graduated from (5.3).
  */
 import { execFileSync } from "node:child_process";
@@ -56,7 +56,7 @@ export interface Brief {
   readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string; readonly pending?: true; readonly capability?: string }[];
   /** The contracts the increment retires pending its merge, with the reason: not judged (contract 2.4). Absent from briefs issued before 2.4. */
   readonly retired?: readonly { readonly id: string; readonly title: string; readonly reason: string }[];
-  /** Each live check not graduated whole; one graduated in part names the parts Guardrails now enforces, which the reviewer does not judge (contract 5.2). */
+  /** Each live check not graduated whole; one graduated in part names the parts Architecture checks now enforces, which the reviewer does not judge (contract 5.2). */
   readonly checks: readonly { readonly id: string; readonly title: string; readonly question: string; readonly graduated?: readonly Graduated[] }[];
   /** Each hit earlier reviews of this change made, with the implementer's answer. */
   readonly earlier: readonly HitRow[];
@@ -89,7 +89,7 @@ export interface Taken {
   readonly hits: readonly HitRow[];
   readonly unmet: readonly Unmet[];
   readonly standing: readonly HitRow[];
-  /** Why Guardrails' graduated checks did not run on the change, when they did not: none of their findings is recorded. */
+  /** Why Architecture checks' graduated checks did not run on the change, when they did not: none of their findings is recorded. */
   readonly graduatedNotRun?: string;
 }
 
@@ -102,7 +102,7 @@ export interface Reviews {
   brief(library: Library, change: string, diff: string, base?: Base): Promise<Brief>;
   /**
    * Take the reviewer's return on `change`'s brief awaiting one, or refuse it naming what it gets wrong, writing nothing.
-   * What Guardrails' graduated checks found on the change, when given, is recorded with it as theirs (contract 5.3).
+   * What Architecture checks' graduated checks found on the change, when given, is recorded with it as theirs (contract 5.3).
    */
   take(project: string, change: string, review: ReviewReturn, graduated?: GraduatedFindings): Promise<Taken>;
   /** `change`'s standing findings, oldest first: none, with no contract `unmet`, means it is ready for the gate. */
@@ -393,7 +393,7 @@ export function briefText(brief: Brief): string {
     `Checks (${brief.checks.length}): for each, say whether the change trips it, and where (file, line, what you found).`,
     ...brief.checks.map((check) => [
       `  ${check.id}  ${check.title}\n    ${check.question}`,
-      ...(check.graduated ?? []).map((part) => `    Not yours to judge: Guardrails' ${part.enforcedBy} checks ${part.part}.`),
+      ...(check.graduated ?? []).map((part) => `    Not yours to judge: Architecture checks' ${part.enforcedBy} checks ${part.part}.`),
     ].join("\n")),
     "",
     `Contracts (${brief.contracts.length}): for each, say whether the change does what it says, and why not.`,
@@ -427,7 +427,7 @@ export function takenText(taken: Taken): string {
   return [
     `Recorded review ${taken.review}: ${taken.hits.length === 0 ? "no hits" : `${taken.hits.length} hit${taken.hits.length === 1 ? "" : "s"}`}.`,
     ...taken.hits.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.found ?? ""}`),
-    ...(taken.graduatedNotRun === undefined ? [] : [`  Guardrails' graduated checks did not run, so nothing of theirs is recorded: ${taken.graduatedNotRun}`]),
+    ...(taken.graduatedNotRun === undefined ? [] : [`  Architecture checks' graduated checks did not run, so nothing of theirs is recorded: ${taken.graduatedNotRun}`]),
     standingText(taken.standing, taken.unmet),
   ].join("\n");
 }

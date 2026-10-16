@@ -21,7 +21,11 @@ const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabiliti
 
 test("8.1, 8.5 Constructor stories survey alongside ordinary stories and package aliases", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-titles-"));
-  const fixtures = [["Shop", "shop"], ["The command line", "cli"], ["The world", "forest-world"], ["Lag in real use", "lag-in-use"], ["Constructor", "constructor"]] as const;
+  const fixtures = [["Shop", "shop"], ["The command line", "cli"], ["The world", "forest-world"], ["Lag in real use", "lag-in-use"],
+    // ADR-1066 D4's developer-first names, whose packages kept their names.
+    ["Context", "project-and-caller"], ["Architecture checks", "guardrails"], ["Code review", "quality-assurance"], ["Code map", "map"],
+    ["Map view", "forest"], ["Knowledge graph", "knowledge-core"], ["Work board", "arc-surface"], ["Desktop app", "app"], ["Setup", "app-setup"],
+    ["In-app guidance", "learning-as-you-build"], ["Website", "website"], ["Constructor", "constructor"]] as const;
   const stories = fixtures.map(([title, name]) => ({ id: `story-${name}`, title, capabilities: [{ id: `cap-${name}`, title: "1 · Value" }] }));
   const ordinary = { arcs: [], stories: stories.slice(0, -1) } as unknown as AnnotatedTree;
   const reader = codeSurveyReader();

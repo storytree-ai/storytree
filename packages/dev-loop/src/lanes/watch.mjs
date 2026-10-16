@@ -19,6 +19,7 @@ import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { poolConfig } from "./pool-config.mjs";
 import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
 import { attempted, failedJob, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, watchReleases } from "./release-watch.mjs";
 
@@ -26,9 +27,10 @@ import { attempted, failedJob, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EV
  * The code the watcher runs (13.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
  * (runner.mjs and its engine.mjs; their brief is written here). A change to one of these restarts the look loop; a
  * change anywhere else in the dev loop leaves it looking. When one of these files comes to import another file, name
- * that file here.
+ * that file here; the pool's configuration, read once at start, is here too.
  */
-export const WATCH_CODE = ["watch.mjs", "release-watch.mjs", "queue.mjs", "runner.mjs", "engine.mjs"].map((name) => `packages/dev-loop/src/lanes/${name}`);
+export const WATCH_CODE = [...["watch.mjs", "release-watch.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "pool-config.mjs"]
+  .map((name) => `packages/dev-loop/src/lanes/${name}`), "agent-pool.json"];
 
 const run = promisify(execFile);
 const RED = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"]);
@@ -347,9 +349,16 @@ async function argsOf(pid) {
   return (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").join(" ").trim();
 }
 
+/** The ssh command that runs the watcher's `args` on the pool's machine, in its checkout as configured there. */
+export function remoteCommand(config, args) {
+  return ["ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", config.machine,
+    `cd ${config.remoteCheckout} && node packages/dev-loop/src/lanes/watch.mjs ${args.join(" ")}`]];
+}
+
+/** The box's paths, limits and processes, from the pool's configuration (pool-config.mjs). */
 function boxDefaults({ home = homedir(), env = process.env } = {}) {
-  const lanesDir = env.LANES_DIR || join(home, "storytree-lanes");
-  const repo = join(home, "code", "storytree03");
+  const config = poolConfig({ home, env });
+  const { lanesDir, checkout: repo } = config;
   const dir = join(lanesDir, "watch");
   const script = fileURLToPath(import.meta.url);
   // The watcher and its fix sessions belong to no agent session: they outlive the one that handed over.
@@ -365,19 +374,19 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   };
   return {
     lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), status: join(lanesDir, "watch.status"), argsOf,
-    limit: Number(env.WATCH_FIX_LIMIT) || 2, cap: Number(env.WATCH_FIX_CAP) || 6, intervalMs: Number(env.WATCH_INTERVAL_S ?? 60) * 1000, now: Date.now,
+    limit: config.watcher.fixesPerRed, cap: config.watcher.fixesPerPullRequest, intervalMs: config.watcher.intervalMs, now: Date.now,
     session: env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim() || "",
     storytree: async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout,
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt }),
     branchOf: async (pr) => (await run("gh", ["pr", "view", String(pr), "--json", "headRefName", "-q", ".headRefName"], { cwd: repo })).stdout.trim(),
     alive: async (pid) => /lanes\/runner\.mjs run /.test(await argsOf(pid)),
     room: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout)
-      < (Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || 5),
+      < (Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || config.sessions),
     startFix: async ({ pr, n, brief }) => {
       const base = join(dir, `fix-${pr}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
       const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
-        join(home, "code", "storytree03-wt"), lanesDir], `${base}.runner.log`, repo);
+        ...config.addDirs], `${base}.runner.log`, repo);
       return { pid, log: `${base}.log` };
     },
     // Started from the shared checkout's copy, whichever worktree handed over, so it runs the code it watches for changes.
@@ -388,10 +397,12 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       child.once("error", () => ended(1));
       child.once("exit", (code) => ended(code ?? 1));
     }),
-    // The box is the machine whose lanes folder has the lane runner; any other reaches it as `ssh mint`.
+    // The box is the machine whose lanes folder has the lane runner; any other reaches it over ssh as the configured machine.
     onBox,
-    remote: async (args) => (await run("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", env.WATCH_BOX_HOST || "mint",
-      `cd ~/code/storytree03 && node packages/dev-loop/src/lanes/watch.mjs ${args.join(" ")}`], { timeout: 120_000 })).stdout,
+    remote: async (args) => {
+      if (!config.machine) throw new Error("the agent pool's configuration names no machine to hand over to");
+      return (await run(...remoteCommand(config, args), { timeout: 120_000 })).stdout;
+    },
     sleep: (ms) => wait(ms),
     // Only the box's watcher reads releases; a watcher a test starts under another home never reruns or alarms.
     readReleases: onBox ? () => releasesOnGitHub({ repo }) : undefined,
@@ -410,7 +421,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       const base = join(dir, `release-fix-${Date.now()}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
       const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
-        join(home, "code", "storytree03-wt"), lanesDir], `${base}.runner.log`, repo);
+        ...config.addDirs], `${base}.runner.log`, repo);
       return { pid, log: `${base}.log` };
     },
   };
@@ -418,7 +429,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
 
 /** `handover <pr> <increment> [--keep-open]`, `hand <pr> <increment> [--session <id>] [--keep-open]`, `run` or `status`; `box` overrides the box's home, paths and processes in tests. */
 export async function main(args, box = {}) {
-  const defaults = boxDefaults({ home: box.home });
+  const defaults = boxDefaults({ home: box.home, env: box.env });
   const b = { ...defaults, ...box };
   // The box's releases are its own folder's: a loop given another folder (a test on the box) would keep its stop
   // there, forget it each run and start the box a real fix session every time, unless it brings its own reader.

@@ -10,10 +10,10 @@ import { promisify } from "node:util";
  * The code the dispatcher runs (12.10, ADR-0981): what launch.mjs loads, each lane's runner loads, and the briefs it
  * composes. A change to one of these restarts the dispatcher; a change anywhere else in the dev loop (the test runner,
  * the gate, the health readers, a test) leaves it starting work. When one of these files comes to import another file,
- * name that file here.
+ * name that file here. The pool's configuration (agent-pool.json, pool-config.mjs) is read once at start, so it is here too.
  */
-export const POOL_CODE = ["launch.mjs", "feed.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "watch.mjs",
-  "pool-brief.md", "pool-brief-plan.md", "pool-brief-read-only.md"].map((name) => `packages/dev-loop/src/lanes/${name}`);
+export const POOL_CODE = [...["launch.mjs", "feed.mjs", "queue.mjs", "runner.mjs", "engine.mjs", "watch.mjs", "pool-config.mjs",
+  "pool-brief.md", "pool-brief-plan.md", "pool-brief-read-only.md"].map((name) => `packages/dev-loop/src/lanes/${name}`), "agent-pool.json"];
 
 /**
  * The version of `paths` (repository-relative) at the checkout's HEAD: one hash of their blob ids, so it moves only

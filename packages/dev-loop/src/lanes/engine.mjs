@@ -5,12 +5,16 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
-export function laneSettings({ home = homedir(), env = process.env } = {}) {
+import { poolConfig } from "./pool-config.mjs";
+
+/** A lane's settings: the pool's lanes folder, switch point and models (pool-config.mjs), and where Codex keeps its sessions. */
+export function laneSettings({ home = homedir(), env = process.env, config = poolConfig({ home, env }) } = {}) {
   return {
     home,
-    lanesDir: env.LANES_DIR || join(home, "storytree-lanes"),
+    lanesDir: config.lanesDir,
     sessionsDir: join(home, ".codex", "sessions"),
-    stopAt: Number(env.CODEX_STOP_AT ?? 95),
+    stopAt: config.switchAt,
+    models: config.models,
   };
 }
 
@@ -106,7 +110,7 @@ export async function engineControls(lanesDir, now) {
   return { override, until: Number.isInteger(marker) && marker > now ? marker : null };
 }
 
-export async function pickEngine({ lanesDir, reading, now, stopAt = 95 }) {
+export async function pickEngine({ lanesDir, reading, now, stopAt = 100 }) {
   const { override, until } = await engineControls(lanesDir, now);
   const forced = override.toLowerCase();
   if (["codex", "claude"].includes(forced)) return { engine: forced, basis: "override", reason: `forced by ${join(lanesDir, "engine-override")}` };
@@ -123,7 +127,7 @@ export async function pickEngine({ lanesDir, reading, now, stopAt = 95 }) {
  * would otherwise go unseen until the old reading's reset time (increment_892b871d0b7d). A reading that says the
  * limit was reached is never probed, so Codex credits are never touched.
  */
-export async function pickFresh({ lanesDir, sessionsDir, stopAt = 95, now, refresh, staleAfter = 3600 }) {
+export async function pickFresh({ lanesDir, sessionsDir, stopAt = 100, now, refresh, staleAfter = 3600 }) {
   const reading = await readLatestAllowance(sessionsDir);
   const picked = await pickEngine({ lanesDir, reading, now, stopAt });
   const age = now - Date.parse(reading?.at) / 1000;
@@ -152,7 +156,7 @@ async function stderrTail(path) {
   } finally { await file?.close(); }
 }
 
-export async function detectLimitHit({ log, err, lanesDir, reading, now, stopAt = 95 }) {
+export async function detectLimitHit({ log, err, lanesDir, reading, now, stopAt = 100 }) {
   let lastTurn, failed = false, worded = false;
   const limitWords = /usage limit|usage_limit|hit your usage|hit your limit/i;
   for await (const event of events(log)) {

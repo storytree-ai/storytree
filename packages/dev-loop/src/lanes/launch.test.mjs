@@ -232,6 +232,8 @@ test("12.10 · its own code is the code it runs: a merge touching only other dev
   assert.deepEqual(elsewhere, { code: 0, started: ["a", "b"] }, "the test runner changed: no restart, and b starts after the merge");
   const own = await dispatch(() => commit("packages/dev-loop/src/lanes/launch.mjs", "pool v2"));
   assert.deepEqual(own, { code: 3, started: ["a"] }, "the dispatcher's code changed: it restarts, starting nothing more");
+  const configured = await dispatch(() => commit("agent-pool.json", "{\"sessions\": 4}"));
+  assert.deepEqual(configured, { code: 3, started: ["a"] }, "the pool's configuration changed: it restarts to read it");
 });
 
 test("12.11 · with free slots and nothing ready, one planning session starts for a qualifying arc, never two at once", async (t) => {
@@ -307,4 +309,18 @@ test("12.13 · with free slots and nothing ready the dispatcher looks again with
     },
   });
   assert.deepEqual(pauses, [2 * 60_000, 60_000, 15 * 60_000], "idle with free slots: two minutes; every slot busy: a minute without a survey; survey failed: fifteen");
+});
+
+test("12.17 · the dispatcher's cap is the configured session count, which the lanes folder's night-max-lanes overrides live", async (t) => {
+  const home = await mkdtemp(join(tmpdir(), "lane-pool-config-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  const config = join(home, "agent-pool.json"), lanes = join(home, "lanes");
+  await mkdir(lanes);
+  await writeFile(config, JSON.stringify({ lanes, sessions: 3 }));
+  const slots = [];
+  const box = { home, env: { AGENT_POOL_CONFIG: config }, count: async () => 1, out: (line) => slots.push(line) };
+  assert.equal(await main(["slots"], box), 0);
+  await writeFile(join(lanes, "night-max-lanes"), "7\n");
+  assert.equal(await main(["slots"], box), 0);
+  assert.deepEqual(slots, ["1 engines running, cap 3", "1 engines running, cap 7"]);
 });

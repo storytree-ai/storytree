@@ -350,10 +350,15 @@ async function run(): Promise<void> {
   // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12). An installed Mac app
   // (updates 4.21) does too, through its LaunchAgent; its start refusal and the journey's desktopStarted use installedApp
   // as Windows does. The install choice is offered only where releases install themselves, which an ad-hoc Mac build does not.
+  // On Linux the autostart entry starts the AppImage itself (APPIMAGE), not the executable inside its mount, which is gone
+  // once it quits, and keeps the menu entry's --no-sandbox where the kernel blocks the sandbox; appData there is
+  // $XDG_CONFIG_HOME, or ~/.config.
   const signingIn = signIn({ installed: !args.smoke && installedApp(), file: path.join(home.dir, "sign-in.json"), loginItems: loginItemsFor(process.platform, {
     electron: { set: (item) => app.setLoginItemSettings(item) },
-    execPath: process.execPath,
+    execPath: process.env.APPIMAGE ?? process.execPath,
     launchAgents: path.join(app.getPath("home"), "Library", "LaunchAgents"),
+    autostart: path.join(app.getPath("appData"), "autostart"),
+    sandboxOff: app.commandLine.hasSwitch("no-sandbox"),
   }) });
   answerPage(ipcMain, LIFECYCLE_CHANNELS, { readSignIn: () => signingIn.read(), setSignIn: (on: unknown) => signingIn.set(on) });
   // When a downloaded release may install itself (updates 4.13): meaningful only where releases install.

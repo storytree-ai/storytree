@@ -8,7 +8,9 @@
  *
  * Electron's login item passes `args` only on Windows; on a Mac it would open the window at every
  * sign-in, and its `wasOpenedAtLogin` cannot tell such a start apart from macOS 13 on. So on a Mac
- * the app registers a per-user LaunchAgent instead, which starts it with `--background` itself.
+ * the app registers a per-user LaunchAgent instead, which starts it with `--background` itself. On Linux
+ * Electron's login item does nothing at all, so the app writes an XDG autostart entry, which the desktop
+ * session reads at sign-in, starting the installed AppImage with `--background`.
  */
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -28,13 +30,51 @@ export interface LoginItem {
 export const SIGN_IN_NAME = "storytree 0.3";
 /** The Mac LaunchAgent's label and file name: the app's bundle id. */
 export const SIGN_IN_LABEL = "ai.storytree.desktop-0-3";
+/** The Linux autostart entry's file name, in `$XDG_CONFIG_HOME/autostart`. */
+export const SIGN_IN_DESKTOP_FILE = "storytree-0.3.desktop";
 
 interface LoginItems { set(item: LoginItem): void }
 
 const xml = (text: string): string => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** Where the platform keeps a login item: Electron's on Windows, a LaunchAgent in `launchAgents` on a Mac. */
-export function loginItemsFor(platform: NodeJS.Platform, options: { electron: LoginItems; execPath: string; launchAgents: string }): LoginItems {
+/** One argument of a desktop entry's Exec key: quoted when it holds a reserved character, its `%` doubled. */
+const execArg = (arg: string): string => {
+  const quoted = /[\s"'\\><~|&;$*?#()`]/.test(arg) ? `"${arg.replace(/(["`$\\])/g, "\\$1")}"` : arg;
+  // The key's value is itself an escaped string, so each backslash the quoting left is doubled again.
+  return quoted.replace(/\\/g, "\\\\").replace(/%/g, "%%");
+};
+
+/**
+ * The Linux login item: an XDG autostart entry in `autostart`, written when on and removed when off. Where the kernel
+ * blocks Chromium's sandbox the installer's menu entry starts the app with `--no-sandbox` (decision_624dbe5bcddb), so an
+ * app started that way (`sandboxOff`) writes it into the autostart entry too, or its sign-in start would fail.
+ */
+function autostartEntry(options: { execPath: string; autostart: string; sandboxOff?: boolean }): LoginItems {
+  const file = path.join(options.autostart, SIGN_IN_DESKTOP_FILE);
+  return {
+    set(item) {
+      if (!item.openAtLogin) {
+        rmSync(file, { force: true });
+        return;
+      }
+      mkdirSync(options.autostart, { recursive: true });
+      writeFileSync(file, `[Desktop Entry]
+Type=Application
+Name=${SIGN_IN_NAME}
+Exec=${[options.execPath, ...(options.sandboxOff ? ["--no-sandbox"] : []), ...item.args].map(execArg).join(" ")}
+Terminal=false
+X-GNOME-Autostart-enabled=true
+`);
+    },
+  };
+}
+
+/**
+ * Where the platform keeps a login item: Electron's on Windows, a LaunchAgent in `launchAgents` on a Mac,
+ * an autostart entry in `autostart` on Linux.
+ */
+export function loginItemsFor(platform: NodeJS.Platform, options: { electron: LoginItems; execPath: string; launchAgents: string; autostart: string; sandboxOff?: boolean }): LoginItems {
+  if (platform === "linux") return autostartEntry(options);
   if (platform !== "darwin") return options.electron;
   const file = path.join(options.launchAgents, `${SIGN_IN_LABEL}.plist`);
   return {

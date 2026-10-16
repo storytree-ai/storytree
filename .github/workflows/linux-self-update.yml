@@ -1,0 +1,35 @@
+name: Linux self-update run
+
+# The update over the previous stable on Linux (increment_9184e6e6e3fe), the twin of mac-self-update.yml: on a fresh
+# ubuntu-latest runner under a virtual display, the stable one-liner's install, with a project and an arc made on it,
+# takes the newest release by its own AppImage update, keeping the arc, with the setup check passing before and after.
+# Recorded by packages/app-setup/evidence/linux-acceptance/harness/self-update.sh and kept as an artifact; a push to a
+# linux-self-update/ branch runs it before the workflow reaches main. It is not called by every release: its ten
+# minutes' settle and three-minute checks would hold each release about half an hour. The repository is public: no
+# secret is used.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["linux-self-update/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # Ten minutes' settle after the launch, three-minute checks, a forty-minute wait and the fallback fit inside.
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: packages/app-setup/evidence/linux-acceptance/harness
+      - name: Install the stable build, make an arc, and leave it idle until it updates itself
+        run: bash packages/app-setup/evidence/linux-acceptance/harness/self-update.sh "$RUNNER_TEMP/linux-self-update"
+      - name: Fail unless it updated itself to a newer release with its arc kept and the setup check passing
+        run: bash packages/app-setup/evidence/linux-acceptance/harness/judge-self-update.sh "$RUNNER_TEMP/linux-self-update"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: linux-self-update
+          path: ${{ runner.temp }}/linux-self-update

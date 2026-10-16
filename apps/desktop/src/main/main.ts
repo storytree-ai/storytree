@@ -47,6 +47,7 @@ import {
   agentActiveAt,
   appDirIn,
   background,
+  thisBuild,
   keepBackups,
   buildLabel,
   electronIn,
@@ -523,14 +524,12 @@ function addStartMenuShortcut(): void {
 
 /**
  * Start the app again once this one has stopped (a restart into a newer build, or a start that
- * arrived while it was quitting): `target`, or this same build.
+ * arrived while it was quitting): `target`, or this same build (from an AppImage, the AppImage file).
  */
 function relaunch(target: Launch | undefined, inBackground: boolean): void {
-  const own = process.argv.slice(1).filter((arg) => arg !== "--background");
-  app.relaunch({
-    ...(target === undefined ? {} : { execPath: target.execPath }),
-    args: [...(target === undefined ? own : target.args), ...(inBackground ? ["--background"] : [])],
-  });
+  const appImage = process.env.APPIMAGE;
+  const launch = target ?? thisBuild({ execPath: process.execPath, argv: process.argv, ...(appImage === undefined ? {} : { appImage }) });
+  app.relaunch({ execPath: launch.execPath, args: [...launch.args, ...(inBackground ? ["--background"] : [])] });
 }
 
 /** Also append everything the app says to `file`, stamped with the time. */

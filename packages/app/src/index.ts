@@ -10,7 +10,7 @@ export { readSurfaces, setSurface, surfacesActions } from "./surfaces/switches.j
 export { PAGE_READS_CHANNELS, SURFACES_CHANNELS, surfaceOn, type PageReadsBridge, type SurfacesBridge, type SurfacesResult } from "./surfaces/bridge.js";
 export type { SurfaceChoice, SurfaceDeclaration, SurfaceReading, SurfaceSettingDeclaration, SurfaceSettingReading } from "./surfaces/switches.js";
 export type { Drawn } from "./surfaces/smoke.js";
-export { background, TRAY_MENU } from "./lifecycle/background.js";
+export { background, thisBuild, TRAY_MENU } from "./lifecycle/background.js";
 export type { Background, Launch, TrayItem } from "./lifecycle/background.js";
 export { BACKUP_EVERY_MS, BACKUPS_KEPT, backUp, keepBackups } from "./lifecycle/backups.js";
 export type { BackUpOptions } from "./lifecycle/backups.js";

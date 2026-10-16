@@ -39,7 +39,7 @@ function desktop(protectedStorage = true) {
     signInAs: (make: typeof next) => { next = make; } };
 }
 
-test("2.3 a restarted desktop restores its verified account for feedback with only id and email, and sign-out leaves status signed out", async () => {
+test("6.3 a restarted desktop restores its verified account for feedback with only id and email, and sign-out leaves status signed out", async () => {
   const app = desktop();
   assert.equal(await app.open().status(), null, "signed out until the user chooses to sign in");
   assert.equal(app.requests.length, 0, "no account, no network");
@@ -56,7 +56,7 @@ test("2.3 a restarted desktop restores its verified account for feedback with on
   assert.equal(await app.open().status(), null);
 });
 
-test("2.3 unprotected storage refuses sign-in and reads no token; a token or account that does not verify signs the desktop out", async () => {
+test("6.3 unprotected storage refuses sign-in and reads no token; a token or account that does not verify signs the desktop out", async () => {
   const exposed = desktop(false);
   await assert.rejects(exposed.open().signIn(), /cannot protect/i);
   assert.equal(await exposed.open().status(), null);
@@ -103,14 +103,14 @@ function fakeEngine(): SignInEngine & { calls: string[]; token: string | null; f
   return engine;
 }
 
-test("2.5 desktop sign-in is offered only with a public WorkOS client ID, and needs no identity server", () => {
+test("6.5 desktop sign-in is offered only with a public WorkOS client ID, and needs no identity server", () => {
   assert.deepEqual(feedbackIdentityConfig("client_01ABC"), { clientId: "client_01ABC" });
   assert.equal(feedbackIdentityConfig(undefined), undefined);
   assert.equal(feedbackIdentityConfig(""), undefined);
   assert.equal(feedbackIdentityConfig("sk_live_secret"), undefined);
 });
 
-test("2.5 a desktop sign-in waits for the storytree-auth callback and completes on it; the token stays with the session", async () => {
+test("6.5 a desktop sign-in waits for the storytree-auth callback and completes on it; the token stays with the session", async () => {
   const engine = fakeEngine();
   const session = callbackSession(engine, () => true);
   let settled = false;
@@ -126,7 +126,7 @@ test("2.5 a desktop sign-in waits for the storytree-auth callback and completes 
   assert.equal((await session.current())?.accessToken, "access-token");
 });
 
-test("2.5 a refused or failed callback refuses the desktop sign-in, and a stray link is ignored", async () => {
+test("6.5 a refused or failed callback refuses the desktop sign-in, and a stray link is ignored", async () => {
   const engine = fakeEngine();
   const session = callbackSession(engine, () => true);
   const refused = session.signIn();
@@ -143,7 +143,7 @@ test("2.5 a refused or failed callback refuses the desktop sign-in, and a stray 
   assert.equal(await session.current(), undefined);
 });
 
-test("2.5 a desktop sign-in the browser never returns from is given up; sign-out ends a pending one and the session", async () => {
+test("6.5 a desktop sign-in the browser never returns from is given up; sign-out ends a pending one and the session", async () => {
   const engine = fakeEngine();
   await assert.rejects(callbackSession(engine, () => true, 5).signIn(), /did not come back/);
 
@@ -154,7 +154,7 @@ test("2.5 a desktop sign-in the browser never returns from is given up; sign-out
   assert.ok(engine.calls.includes("sign-out"));
 });
 
-test("2.5 a callback that started the desktop is completed with no sign-in waiting, and is found among its arguments", async () => {
+test("6.5 a callback that started the desktop is completed with no sign-in waiting, and is found among its arguments", async () => {
   assert.deepEqual(callbackUrls(["electron.exe", ".", "--background", "storytree-auth://callback?code=c&state=s"]), ["storytree-auth://callback?code=c&state=s"]);
   assert.deepEqual(callbackUrls(["electron.exe", "--quit"]), []);
   const engine = fakeEngine();

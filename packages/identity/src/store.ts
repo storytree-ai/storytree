@@ -1,4 +1,4 @@
-/** Capability 1 · Portable user identity. */
+/** Capability 5 · Portable user identity. */
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 

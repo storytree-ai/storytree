@@ -1,4 +1,4 @@
-/** Capability 2 · Social sign-in and session. */
+/** Capability 6 · Social sign-in and session. */
 import type { SignedInUser } from "./client.js";
 import { TokenRefused, workosTokenVerifier, type WorkosAccount } from "./workos-token.js";
 
@@ -61,7 +61,7 @@ export function createFeedbackIdentity(config: DesktopIdentityConfiguration) {
 }
 
 /**
- * Capability 2 · Social sign-in and session, contract 2.5: the desktop's sign-in through WorkOS's official Electron SDK.
+ * Capability 6 · Social sign-in and session, contract 6.5: the desktop's sign-in through WorkOS's official Electron SDK.
  * Offered only when a build carries a public WorkOS client ID; otherwise there is no sign-in at all. Sign-in goes through the system browser and returns on the storytree-auth://callback deep
  * link, which callbackSession completes. Every token stays in the main process with the SDK's session manager.
  */

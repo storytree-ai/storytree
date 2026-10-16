@@ -1,4 +1,4 @@
-/** Capability 2 · Social sign-in and session. */
+/** Capability 6 · Social sign-in and session. */
 import { setTimeout } from "node:timers/promises";
 import { TokenRefused, workosTokenVerifier } from "./workos-token.js";
 

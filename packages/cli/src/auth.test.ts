@@ -11,7 +11,7 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
-test("keys 1.5: auth set reads the value from standard input, auth list names each key and where it resolves from, auth remove deletes it", async (t) => {
+test("project-and-caller 4.5: auth set reads the value from standard input, auth list names each key and where it resolves from, auth remove deletes it", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-auth-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");

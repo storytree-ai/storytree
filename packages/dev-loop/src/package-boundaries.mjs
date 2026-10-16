@@ -19,14 +19,12 @@ import { packageProblems } from "@storytree/guardrails";
 import { ALSO_OWNED } from "@storytree/map/package-of";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>); one that owns several declares the others in the map's ALSO_OWNED (ADR-1066 D3). */
-export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "identity", "journey-events", "keys", "lag-in-use", "learning-as-you-build", "knowledge-core", "librarian", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
+export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "journey-events", "lag-in-use", "learning-as-you-build", "knowledge-core", "librarian", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
 // forest-world: story_ca702fee28cb (The world, ADR-0805 D1).
 // local-postgres: story_1d360b6227d8 (The local database, ADR-0805 D2).
-// keys: story_55eb820f95c9 (Keys, ADR-0843).
-// identity: story_8040a4cc06c2 (Identity).
 // journey-events: story_9eb523952644 (Journey events).
 // ci-health: story_5c212e7a9a6c (CI health, ADR-0902).
 // guardrails: Guardrails, ADR-0911 D2.
@@ -35,7 +33,7 @@ export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "
 // mark: story_b846911f0fc9 (The mark).
 // reading-the-front-doors: story_f8cd75d15d57 (Reading the front doors, ADR-0998).
 // lag-in-use: story_1c73ed7506ca (Lag in real use, ADR-1001 D4).
-// project-and-caller: story_6def59292b78 (Project and caller, ADR-1025).
+// project-and-caller: story_6def59292b78 (Context, ADR-1025), which owns keys and identity too (ADR-1066 D4).
 // plugin-loader: story_09e58d68f87c (Plugin loader, ADR-1021).
 // learning-as-you-build: story_7d7b0ffccf55 (Learning as you build, ADR-1048).
 // experiments: story_c2dbcf855db2 (Experiments, ADR-1064 D1).

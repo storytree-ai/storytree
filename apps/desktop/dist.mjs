@@ -1,9 +1,9 @@
 // Package the host's platform. On Windows: x64/arm64 in one NSIS installer, keeping win-arm64-unpacked/
 // and the arm64 portable exe for existing development uses. On macOS: an Apple Silicon .app as a zip
-// (the update feed's) and a dmg, ad-hoc signed until a Developer ID is configured (then signed as the
+// (the update feed's and install.sh's), ad-hoc signed until a Developer ID is configured (then signed as the
 // identity mac-signing.mjs prepare put in a keychain, and once signed submitted to Apple, whose answer is waited for
 // only until a bound and written to release/mac-notarisation.json for the upload's release note; an accepted ticket
-// is stapled to the app before the zip and dmg are made from it). On Linux: an x64 AppImage, whose update
+// is stapled to the app before the zip is made from it). On Linux: an x64 AppImage, whose update
 // feed is latest-linux.yml; its one-command delivery is the curl install's. Only the release workflow publishes:
 // even with GH_TOKEN or a tag in the environment, this command only builds artifacts and update metadata.
 //

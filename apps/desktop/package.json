@@ -126,12 +126,6 @@
           "arch": [
             "arm64"
           ]
-        },
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64"
-          ]
         }
       ],
       "icon": "../../packages/mark/icons/day/mark.icns",
@@ -181,9 +175,6 @@
     },
     "portable": {
       "artifactName": "storytree-0.3-${version}-portable-${arch}.${ext}"
-    },
-    "dmg": {
-      "artifactName": "storytree-0.3-${version}-${arch}.${ext}"
     }
   }
 }

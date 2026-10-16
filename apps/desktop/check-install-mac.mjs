@@ -77,9 +77,9 @@ try {
   await checkTools(tools.node, tools.dir, path.join(temp, "fresh user"));
 
   const built = readdirSync(release);
-  for (const name of [`storytree-0.3-${version}-mac-arm64.zip`, `storytree-0.3-${version}-arm64.dmg`, "latest-mac.yml"]) assert.ok(built.includes(name), `${name} was not built`);
+  for (const name of [`storytree-0.3-${version}-mac-arm64.zip`, "latest-mac.yml"]) assert.ok(built.includes(name), `${name} was not built`);
   assert.match(readFileSync(path.join(release, "latest-mac.yml"), "utf8"), new RegExp(`version: ${version.replaceAll(".", "\\.")}(?:\\s|$)`));
-  console.log(`4.4 PASS (macOS arm64): built ${version} as a zip and dmg; its Electron, Postgres and update configuration work; signature ${adHoc ? "ad-hoc" : "Developer ID"}, hardened runtime, verified deep and strict`);
+  console.log(`4.4 PASS (macOS arm64): built ${version} as a zip; its Electron, Postgres and update configuration work; signature ${adHoc ? "ad-hoc" : "Developer ID"}, hardened runtime, verified deep and strict`);
   console.log("4.17 PASS (macOS arm64): the app's main process started with a throwaway home, reached its handlers and exited 0");
   console.log(`identity 2.5 PASS (macOS arm64): the app's Info.plist declares the ${AUTH_SCHEME} scheme, so sign-in callbacks reach it`);
   console.log("app setup 4.2 PASS (macOS arm64): the app carries the repository license");

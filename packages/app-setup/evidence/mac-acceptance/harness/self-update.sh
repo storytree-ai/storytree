@@ -31,7 +31,7 @@ step() {
 
 shot() { screencapture -x "$OUT/$1.png" && echo "screenshot $1.png" || echo "screencapture failed for $1"; }
 version() { defaults read "$APP/Contents/Info" CFBundleShortVersionString 2>/dev/null; }
-running() { pgrep -f 'storytree-0.3.app/Contents/MacOS/storytree-0.3$' > /dev/null; }
+running() { pgrep -f "^$APP/Contents/MacOS/storytree-0.3\$" > /dev/null; }
 # limit SECONDS COMMAND…: a command that may wait on a dialog nobody here can see is stopped after SECONDS.
 limit() { perl -e 'alarm shift; exec @ARGV' "$@"; }
 
@@ -68,15 +68,21 @@ step quit limit 60 osascript -e 'quit app "storytree-0.3"'
 for _ in $(seq 1 30); do running || break; sleep 2; done
 step channel sh -c "cat '$HOMEDIR/release-channel.json'; echo; printf '{\"schema\":1,\"channel\":\"development\"}' > '$HOMEDIR/release-channel.json' && cat '$HOMEDIR/release-channel.json'"
 
-# Gatekeeper's first open: curl sets no quarantine attribute, so give every file the one a browser download and
-# Archive Utility would, then assess it and open it the way Finder does.
+# Gatekeeper's first open, as a browser download meets it: the release's zip in ~/Downloads with the quarantine
+# attribute a browser and Archive Utility put on every file, assessed, then opened the way Finder does. macOS runs
+# a quarantined app from where it was downloaded through App Translocation (a read-only copy at a random path),
+# which is not the installed app, so this copy is quit afterwards and the update below runs on the one-liner's
+# install, which curl leaves unquarantined.
+DOWNLOAD="$HOME/Downloads/storytree-0.3.app"
+ZIP="storytree-0.3-$FROM-mac-arm64.zip"
 QUARANTINE="0081;$(printf '%x' "$(date +%s)");Safari;$(uuidgen)"
-step quarantine sh -c "find '$APP' -exec xattr -w com.apple.quarantine '$QUARANTINE' {} + && xattr -l '$APP'"
-step spctl spctl --assess --type execute --verbose=4 "$APP"
-step codesign codesign --display --verbose=2 "$APP"
-step stapler xcrun stapler validate "$APP"
+step download sh -c "mkdir -p '$HOME/Downloads' && curl -fsSL -o '$HOME/Downloads/$ZIP' 'https://github.com/storytree-ai/storytree/releases/download/v$FROM/$ZIP' && ditto -x -k '$HOME/Downloads/$ZIP' '$HOME/Downloads' && ls -la '$HOME/Downloads'"
+step quarantine sh -c "find '$DOWNLOAD' -exec xattr -w com.apple.quarantine '$QUARANTINE' {} + && xattr -l '$DOWNLOAD'"
+step spctl spctl --assess --type execute --verbose=4 "$DOWNLOAD"
+step codesign codesign --display --verbose=2 "$DOWNLOAD"
+step stapler xcrun stapler validate "$DOWNLOAD"
 # open waits while macOS asks whether to open an app from the internet, so it runs beside the steps that answer.
-(limit 300 open "$APP" > "$OUT/open.txt" 2>&1; echo "open exit $?" >> "$OUT/open.txt") &
+(limit 300 open "$DOWNLOAD" > "$OUT/open.txt" 2>&1; echo "open exit $?" >> "$OUT/open.txt") &
 sleep 20
 shot first-open-quarantined
 step windows-quarantined limit 60 osascript -e 'tell application "System Events" to get {name, title of every window} of (every process whose background only is false)'
@@ -85,9 +91,17 @@ step answer-open limit 60 osascript -e 'tell application "System Events" to tell
 sleep 20
 step dialog-after limit 60 osascript -e 'tell application "System Events" to get {name, title of every window} of (every process whose background only is false)'
 step processes-open sh -c "pgrep -fl storytree; echo; pgrep -fl postgres"
-step gatekeeper-log sh -c "log show --last 10m --style compact --predicate 'process == \"syspolicyd\" OR subsystem == \"com.apple.syspolicy\" OR process == \"CoreServicesUIAgent\"' | grep -i -E 'storytree|assess|quarantine|notar' | head -200"
-step xattr-after-open xattr -p com.apple.quarantine "$APP"
+step gatekeeper-log sh -c "log show --last 10m --style compact --predicate 'process == \"syspolicyd\" OR subsystem == \"com.apple.syspolicy\" OR process == \"CoreServicesUIAgent\"' | grep -i -E 'storytree|assess|quarantine|notar|translocat' | head -200"
+step xattr-after-open xattr -p com.apple.quarantine "$DOWNLOAD"
 shot first-open
+step quit-download limit 60 osascript -e 'quit app "storytree-0.3"'
+for _ in $(seq 1 30); do pgrep -f 'storytree-0.3.app/Contents/MacOS/storytree-0.3$' > /dev/null || break; sleep 2; done
+step remove-download sh -c "rm -rf '$DOWNLOAD' '$HOME/Downloads/$ZIP'; pgrep -fl storytree; true"
+
+# The one-liner's install, opened as its user would, then left to update itself.
+step open-installed limit 120 open "$APP"
+sleep 20
+step processes-installed sh -c "pgrep -fl storytree; echo; pgrep -fl postgres"
 
 # Something to keep: an arc and a story in the project's database, read back before and after the update.
 st() { zsh -lc "cd '$PROJECT' && storytree $*"; }
@@ -97,7 +111,7 @@ step tree-before st tree
 
 # Leave it running and untouched. It waits ten minutes after a launch and for an idle window (4.4), checks every
 # three minutes, then installs by itself and reopens. Poll the bundle's version, never the app, for 40 minutes.
-step update-wait sh -c "start=\$(date +%s); while [ \$((\$(date +%s) - start)) -lt 2400 ]; do v=\$(defaults read '$APP/Contents/Info' CFBundleShortVersionString 2>/dev/null); r=\$(pgrep -f 'storytree-0.3.app/Contents/MacOS/storytree-0.3\$' > /dev/null && echo running || echo stopped); echo \"\$(date -u +%H:%M:%S) \$v \$r\"; if [ -n \"\$v\" ] && [ \"\$v\" != '$FROM' ] && [ \$r = running ]; then exit 0; fi; sleep 30; done; exit 1"
+step update-wait sh -c "start=\$(date +%s); while [ \$((\$(date +%s) - start)) -lt 2400 ]; do v=\$(defaults read '$APP/Contents/Info' CFBundleShortVersionString 2>/dev/null); r=\$(pgrep -f '^$APP/Contents/MacOS/storytree-0.3\$' > /dev/null && echo running || echo stopped); echo \"\$(date -u +%H:%M:%S) \$v \$r\"; if [ -n \"\$v\" ] && [ \"\$v\" != '$FROM' ] && [ \$r = running ]; then exit 0; fi; sleep 30; done; exit 1"
 sleep 30
 step version-after sh -c "defaults read '$APP/Contents/Info' CFBundleShortVersionString"
 step processes-after sh -c "pgrep -fl storytree; echo; pgrep -fl postgres"

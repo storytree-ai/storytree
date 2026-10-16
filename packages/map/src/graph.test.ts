@@ -59,6 +59,18 @@ test("2.2 selects story, capability or promise by identity or unambiguous number
   assert.throws(() => focus(ambiguous, { select: "cap:2" }), /ambiguous/i);
 });
 
+test("2.6 a selection in the library's record names, or a bare record id, selects its node", () => {
+  const built = graph();
+  const selected = (select: string) => focus(built, { select, up: 0, down: 0, mode: "show" }).rows?.[0]?.id;
+  assert.equal(selected("capability:projects"), "projects");
+  assert.equal(selected("capability:2"), "projects");
+  assert.equal(selected("contract:projects-empty"), promise.id);
+  assert.equal(selected("projects"), "projects");
+  assert.equal(selected("projects-empty"), promise.id);
+  assert.equal(selected("app"), "app");
+  assert.throws(() => focus(built, { select: "package:app" }), /Select file:<path>, cap:<id\|number>/);
+});
+
 test("2.2 a file the map does not carry is refused with why and what to select instead", () => {
   const built = graph();
   const onDisk = () => true;

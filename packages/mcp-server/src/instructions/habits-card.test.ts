@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.10 in
+ * Capability 7 · Instructions, the habits card: one test per contract 7.1-7.3, 7.5 and 7.8 to 7.11 in
  * the MCP server story. The card names each tool in backticks, and uses backticks for nothing
  * else, so the tools it teaches are exactly the backticked words in it. Whether real agents follow
  * it is the app setup's setup check.
@@ -139,6 +139,19 @@ test("7.10 the card handed at session start is composed from the guidance each s
         after = at + section.length;
       }
     }
+  } finally {
+    await session.close();
+  }
+});
+
+test("7.11 the part of the card Claude Code keeps, its first 2,048 characters, tells the agent to plan work the user asks for in storytree before building it, even when the user never mentions storytree (regression: the stable acceptance run's first builds planned nothing, 2026-10-16)", async () => {
+  const session = await sessionStart();
+  try {
+    const kept = (session.client.getInstructions() ?? "").slice(0, 2048);
+    for (const said of [
+      "When the user asks you to build or change something, plan it in storytree before you build it",
+      "even when they never mention storytree and the work is small",
+    ]) assert.ok(kept.includes(said), `the card's first 2,048 characters lack: ${said}`);
   } finally {
     await session.close();
   }

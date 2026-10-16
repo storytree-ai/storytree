@@ -4,7 +4,9 @@ name: Linux self-update run
 # ubuntu-latest runner under a virtual display, the stable one-liner's install, with a project and an arc made on it,
 # takes the newest release by its own AppImage update, keeping the arc, with the setup check passing before and after.
 # Recorded by packages/app-setup/evidence/linux-acceptance/harness/self-update.sh and kept as an artifact; a push to a
-# linux-self-update/ branch runs it before the workflow reaches main. It is not called by every release: its ten
+# linux-self-update/ branch runs it before the workflow reaches main. Two legs: stable's, which may fall back to the
+# newest one-liner run over the install while stable (0.3.1482) predates the AppImage self-update and says which it
+# proved; and a build after PR #1464's restart fix, which must update itself. It is not called by every release: its ten
 # minutes' settle and three-minute checks would hold each release about half an hour. The repository is public: no
 # secret is used.
 on:
@@ -17,6 +19,16 @@ permissions:
 
 jobs:
   run:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: stable
+            from: ""
+            require: either
+          - leg: from-0.3.1496
+            from: "0.3.1496"
+            require: self-update
     runs-on: ubuntu-latest
     # Ten minutes' settle after the launch, three-minute checks, a forty-minute wait and the fallback fit inside.
     timeout-minutes: 75
@@ -24,12 +36,12 @@ jobs:
       - uses: actions/checkout@v6
         with:
           sparse-checkout: packages/app-setup/evidence/linux-acceptance/harness
-      - name: Install the stable build, make an arc, and leave it idle until it updates itself
-        run: bash packages/app-setup/evidence/linux-acceptance/harness/self-update.sh "$RUNNER_TEMP/linux-self-update"
-      - name: Fail unless it updated itself to a newer release with its arc kept and the setup check passing
-        run: bash packages/app-setup/evidence/linux-acceptance/harness/judge-self-update.sh "$RUNNER_TEMP/linux-self-update"
+      - name: Install the starting build, make an arc, and leave it idle until it updates itself
+        run: bash packages/app-setup/evidence/linux-acceptance/harness/self-update.sh "$RUNNER_TEMP/linux-self-update" "${{ matrix.from }}"
+      - name: Fail unless it took a newer release with its arc kept and the setup check passing
+        run: bash packages/app-setup/evidence/linux-acceptance/harness/judge-self-update.sh "$RUNNER_TEMP/linux-self-update" "${{ matrix.require }}" "${{ matrix.from }}"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: linux-self-update
+          name: linux-self-update-${{ matrix.leg }}
           path: ${{ runner.temp }}/linux-self-update

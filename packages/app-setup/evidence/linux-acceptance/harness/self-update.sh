@@ -8,7 +8,9 @@
 # Every step records its output and exit code in $OUT and carries on, so one failure still leaves the rest observed.
 # The repository is public, so nothing here prints a secret, and no agent is signed in.
 set -u
-OUT=${1:?usage: self-update.sh <output folder>}
+OUT=${1:?usage: self-update.sh <output folder> [0.3.n to start from instead of stable]}
+FROM_BUILD=${2:-}
+case "${FROM_BUILD#0.3.}" in *[!0-9]*) echo "self-update.sh: $FROM_BUILD is not a 0.3.<n> build" >&2; exit 2 ;; esac
 mkdir -p "$OUT"
 OUT=$(cd "$OUT" && pwd)
 APP="$HOME/.local/share/storytree-0.3"
@@ -50,7 +52,7 @@ step claude-install sh -c 'npm install -g @anthropic-ai/claude-code >/dev/null 2
 
 mkdir -p "$PROJECT"
 cd "$PROJECT" || exit 1
-# The previous stable: the stable one-liner exactly as the release page gives it, its questions answered as a person
+# The previous stable: the stable one-liner exactly as the release page gives it (or the named build's own), its questions answered as a person
 # would: 1 connects Claude Code, Enter takes this folder and the suggested project name.
 cat > "$OUT/answer.exp" <<'EXP'
 set timeout 900
@@ -65,9 +67,14 @@ expect {
 catch wait result
 exit [lindex $result 3]
 EXP
-STABLE_ONE_LINER="curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh"
-echo "$STABLE_ONE_LINER" > "$OUT/one-liner.txt"
-step install expect "$OUT/answer.exp" "$STABLE_ONE_LINER"
+if [ -n "$FROM_BUILD" ]; then
+  # How run.sh installs a named build: its own release's one-liner, told the build; it installs as stable.
+  FIRST_ONE_LINER="curl -fsSL https://github.com/storytree-ai/storytree/releases/download/v$FROM_BUILD/install-storytree.sh | STORYTREE_ACCEPTANCE_VERSION=$FROM_BUILD sh"
+else
+  FIRST_ONE_LINER="curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh"
+fi
+echo "$FIRST_ONE_LINER" > "$OUT/one-liner.txt"
+step install expect "$OUT/answer.exp" "$FIRST_ONE_LINER"
 step version-before appversion
 sleep 10
 step processes-installed sh -c "pgrep -fa storytree; echo; pgrep -fa postgres"
@@ -81,7 +88,7 @@ step grow-story st library new story --title "'Keep a to-do list'" --description
 step arcs-before st arc list
 step tree-before st tree
 
-# Stable's pin is the build just installed, so a stable app would see nothing newer. Record the installation as
+# Stable's pin is the build just installed or older, so a stable app would see nothing newer. Record the installation as
 # development, whose feed is the newest release, and restart it so it reads the channel from its launch. Setup for
 # this run only; no user does this.
 step channel sh -c "cat '$HOMEDIR/release-channel.json'; echo; printf '{\"schema\":1,\"channel\":\"development\"}' > '$HOMEDIR/release-channel.json' && cat '$HOMEDIR/release-channel.json'"

@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { connect, type Line } from "@storytree/library";
 
-import { AFTER_TOOL, BACKGROUND, CODEX_TOOL_EVENTS, noteCodexHookRan, registeredHookScripts, SHELL_GUARD } from "@storytree/session-management";
+import { AFTER_TOOL, BACKGROUND, noteCodexHookRan, registeredHookScripts, SHELL_GUARD } from "@storytree/session-management";
 import { locateStorytree, MARKER_FILE } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
@@ -1120,11 +1120,18 @@ test("8.32 with a Codex that runs tool handlers (0.148 or later), each event the
     const { home, events } = await registered("0.153.4");
     const tool = (group: Group | undefined) => group?.hooks.find((hook) => hook.type === "mcp_tool");
     const delivered = { SessionStart: events.SessionStart?.[0], PreToolUse: events.PreToolUse?.find((group) => group.matcher === "^Bash$"), PostToolUse: events.PostToolUse?.[0], Stop: events.Stop?.[0] };
-    assert.deepEqual(Object.keys(delivered).sort(), Object.keys(CODEX_TOOL_EVENTS).sort());
+    // Only fields every input of the event carries (Codex 0.155's recorded inputs, Session management's fixtures): a missing one fails the handler.
+    const common = ["session_id", "cwd", "hook_event_name", "transcript_path"];
+    const fields: Record<string, string[]> = {
+      SessionStart: [...common, "source"],
+      PreToolUse: [...common, "tool_name", "tool_input", "tool_use_id"],
+      PostToolUse: [...common, "tool_name", "tool_input", "tool_response", "tool_use_id"],
+      Stop: common,
+    };
     for (const [event, group] of Object.entries(delivered)) {
       const handler = tool(group);
       assert.deepEqual([handler?.server, handler?.tool, handler?.input?.harness], ["storytree", "hook_event", "codex"], event);
-      assert.deepEqual(Object.entries(handler?.input?.input ?? {}), CODEX_TOOL_EVENTS[event]!.map((field) => [field, `\${${field}}`]), `${event}: each field it carries, as Codex fills a template`);
+      assert.deepEqual(handler?.input?.input, Object.fromEntries(fields[event]!.map((field) => [field, "${" + field + "}"])), `${event}: each field it carries, as Codex fills a template`);
       const command = group?.hooks.find((hook) => hook.type === "command");
       assert.ok(command?.async === true && command.command?.endsWith(` codex ${AFTER_TOOL}`), `${event}: the command hook beside it, in the background, standing down when the tool recorded the event`);
     }

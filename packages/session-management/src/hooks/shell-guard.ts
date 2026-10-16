@@ -35,7 +35,7 @@ import { shellEdits } from "./shell-edits.js";
 export const SHELL_GUARD = "--shell-guard";
 
 /** How long the guard may take to ask which changes a yes covers: the harness waits on it. */
-const GUARD_MS = 3_000;
+export const GUARD_MS = 3_000;
 
 /** The most changed files a notice names one by one. */
 const NAMED = 20;
@@ -73,7 +73,7 @@ export async function watchImports(storytree: Storytree, project: string, machin
  * The guard's answer after a shell command, for the agent; undefined for nothing to say. Each imported folder's changes
  * are recorded (queued for the next hook to upload); those no yes covers are told. Never throws.
  */
-export async function shellGuard(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined, machineHome: string, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, declared?: DeclaredCapabilities): Promise<string | undefined> {
+export async function shellGuard(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined, machineHome: string, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, declared?: DeclaredCapabilities, guardMs = GUARD_MS): Promise<string | undefined> {
   try {
     const line = made?.lines[0];
     if (made === undefined || line?.kind !== "command-run") return undefined;
@@ -95,7 +95,7 @@ export async function shellGuard(harness: string, input: unknown, made: HookLine
     }).catch((error: unknown) => {
       failed("hook", error);
       return undefined;
-    }));
+    }), guardMs);
     // Imported changes storytree could not judge in time are all told; the worktree's, like an edit the gate could not judge, go ahead.
     const told = answer?.told ?? changed;
     const refused = answer?.refused ?? [];
@@ -145,9 +145,9 @@ function importsFile(home: string, project: string): string {
   return path.join(home, "imported-folders", `${encodeURIComponent(project)}.json`);
 }
 
-/** `work`'s answer, or undefined if it takes longer than the guard may. */
-function withinTime<T>(work: Promise<T | undefined>): Promise<T | undefined> {
+/** `work`'s answer, or undefined if it takes longer than `ms`, the time the guard may. */
+function withinTime<T>(work: Promise<T | undefined>, ms: number): Promise<T | undefined> {
   let timer: NodeJS.Timeout | undefined;
-  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), GUARD_MS)));
+  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), ms)));
   return Promise.race([work, late]).finally(() => clearTimeout(timer));
 }

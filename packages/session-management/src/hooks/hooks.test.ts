@@ -35,6 +35,7 @@ import { readContext } from "../context/index.js";
 import { machineOf, MARKER_FILE, recordImport } from "@storytree/project-and-caller";
 import { claim, readClaims } from "../claims/index.js";
 import { EDIT_GATE } from "./edit-gate.js";
+import { DEADLINE_MS } from "./deadlines.js";
 import { SHELL_GUARD } from "./shell-guard.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
 import { BACKGROUND, hookLines, type ReachLog } from "./hooks.js";
@@ -1278,7 +1279,7 @@ test("3.37 a user who replies with the allow command on its own line of their ow
   });
 });
 
-test("3.35 a shell command that changes or deletes files in an imported folder without the user's yes is told to the agent at once, by the hook after it that the harness waits for (Claude Code, also after a failed command, and Codex), and recorded as an edit there; a command that changes nothing there, or only what the user's yes covers, says nothing (ADR-1015)", async () => {
+test("3.35 a shell command that changes or deletes files in an imported folder without the user's yes is told to the agent at once, by the hook after it that the harness waits for (Claude Code, also after a failed command, and Codex), and recorded as an edit there; a command that changes nothing there, or only what the user's yes covers, says nothing; past the guard's time, a slow machine's, every change there is told (ADR-1015)", async () => {
   await withTempDir(async (dir) => {
     const project = uniqueProjectName();
     const home = storytreeHome(dir, true);
@@ -1306,18 +1307,20 @@ test("3.35 a shell command that changes or deletes files in an imported folder w
         assert.deepEqual({ code: ran.code, stderr: ran.stderr }, { code: 0, stderr: "" });
         return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { hookSpecificOutput?: { hookEventName?: string; additionalContext?: string } }).hookSpecificOutput;
       };
+      // The guard is given as long as the hook itself may run, so a slow runner's answer is the gate's, not its clock's.
+      const guard = (harness: "claude-code" | "codex", name: string, guardMs = DEADLINE_MS) => runHook(harness, as(harness, name), home, [SHELL_GUARD], { STORYTREE_TEST_GUARD_MS: String(guardMs) });
 
       await runHook("claude-code", as("claude-code", "session-start-startup"), home);
-      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "nothing changed there");
+      assert.equal(told(await guard("claude-code", "post-tool-use-bash")), undefined, "nothing changed there");
 
       writeFileSync(path.join(viewer, "app", "page.tsx"), "export default 2;\n");
       rmSync(path.join(viewer, "README.md"));
-      const after = told(await runHook("claude-code", as("claude-code", "post-tool-use-failure-bash"), home, [SHELL_GUARD]));
+      const after = told(await guard("claude-code", "post-tool-use-failure-bash"));
       assert.equal(after?.hookEventName, "PostToolUseFailure");
       assert.match(after?.additionalContext ?? "", /README\.md.*app\/page\.tsx/s);
       assert.ok(after?.additionalContext?.includes(viewer), "naming the imported folder");
       assert.match(after?.additionalContext ?? "", /ask the user/, "and asking the user, never restoring on its own: they may have changed it themselves");
-      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "told once");
+      assert.equal(told(await guard("claude-code", "post-tool-use-bash")), undefined, "told once");
       await runHook("claude-code", as("claude-code", "user-prompt-submit"), home);
       const edits = (await linesOf(project)).filter((line) => line.kind === "file-edited" && line.folder === viewer);
       assert.deepEqual(edits.map((line) => line.kind === "file-edited" && line.files), [["README.md", "app/page.tsx"]], "recorded where the user sees it");
@@ -1327,10 +1330,12 @@ test("3.35 a shell command that changes or deletes files in an imported folder w
       writeFileSync(path.join(viewer, "app", "stats", "page.tsx"), "export {};\n");
       await runHook("claude-code", write, home);
       writeFileSync(path.join(viewer, "app", "stats", "chart.tsx"), "export {};\n");
-      assert.equal(told(await runHook("claude-code", as("claude-code", "post-tool-use-bash"), home, [SHELL_GUARD])), undefined, "what the yes covers");
+      assert.equal(told(await guard("claude-code", "post-tool-use-bash")), undefined, "what the yes covers");
+      writeFileSync(path.join(viewer, "app", "stats", "table.tsx"), "export {};\n");
+      assert.match(told(await guard("claude-code", "post-tool-use-bash", 1))?.additionalContext ?? "", /table\.tsx/, "unjudged in time, even what the yes covers is told");
 
       writeFileSync(path.join(viewer, "package.json"), "{}\n");
-      const codex = told(await runHook("codex", as("codex", "post-tool-use-bash"), home, [SHELL_GUARD]));
+      const codex = told(await guard("codex", "post-tool-use-bash"));
       assert.equal(codex?.hookEventName, "PostToolUse");
       assert.match(codex?.additionalContext ?? "", /package\.json/);
       assert.doesNotMatch(codex?.additionalContext ?? "", /chart\.tsx/);

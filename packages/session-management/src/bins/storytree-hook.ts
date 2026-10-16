@@ -31,7 +31,7 @@ import { DEADLINE_MS, HANDED, HookClock, recordHookTime, runHook, statusLine, UP
 export type { DeclaredCapabilities };
 
 /** Run the hook command for this process: its harness and flags in argv, the hook's input on stdin. */
-export function hookCommand({ declaredCapabilities }: { declaredCapabilities?: DeclaredCapabilities } = {}): void {
+export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabilities?: DeclaredCapabilities; guardMs?: number } = {}): void {
   const clock = new HookClock();
   if (process.argv[2] !== "statusline") process.on("exit", () => recordHookTime(storytreeHome(), clock.reading(process.argv[2] ?? "", process.argv.slice(3))));
   setTimeout(() => process.exit(0), process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : DEADLINE_MS).unref();
@@ -49,7 +49,7 @@ export function hookCommand({ declaredCapabilities }: { declaredCapabilities?: D
       void statusLine(input).then((line) => process.stdout.write(line, () => process.exit(0)));
       return;
     }
-    runHook({ argv: process.argv.slice(2), input, handOff, clock, ...(declaredCapabilities === undefined ? {} : { declaredCapabilities }) }).then(
+    runHook({ argv: process.argv.slice(2), input, handOff, clock, ...(declaredCapabilities === undefined ? {} : { declaredCapabilities }), ...(guardMs === undefined ? {} : { guardMs }) }).then(
       (added) => (added === undefined ? process.exit(0) : process.stdout.write(added, () => process.exit(0))),
       () => process.exit(0),
     );

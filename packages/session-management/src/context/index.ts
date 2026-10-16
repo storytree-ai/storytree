@@ -1,5 +1,6 @@
 /** Capability 9 · Context readings. */
 export { claudeCodeTokens, codexTokens, contextReading, NOTHING_STORED, readContext, readingLines, readTranscriptFile, transcriptOf } from "./context.js";
+export { tokensSpent } from "./spent.js";
 export type { ContextReading, NamedTranscript, StoredAt, TokenCount, TranscriptReader } from "./context.js";
 export { CHARS_PER_TOKEN, callGroup, claudeCodeComposition, codexComposition, readsOnly } from "./composition.js";
 export type { Composition, CompositionGroup } from "./composition.js";

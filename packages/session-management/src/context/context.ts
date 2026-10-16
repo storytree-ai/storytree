@@ -89,6 +89,10 @@ export class ContextFold {
   #lines = 0;
   #records = 0;
   #latest: number | undefined;
+  /** Each own request's spend, by its `requestId`, a request written across several lines counted once (a Claude Code transcript). */
+  readonly #requests = new Map<string, number>();
+  /** What a Codex rollout's running total says it has spent, or a Pi session's messages summed. */
+  #total = 0;
 
   constructor(harness: string | undefined, { subagent = false }: { subagent?: boolean } = {}) {
     this.harness = harness;
@@ -138,6 +142,18 @@ export class ContextFold {
     return this.#latest === undefined ? { absent: "the transcript holds only subagent or synthetic requests" } : { tokens: this.#latest };
   }
 
+  /**
+   * The tokens the transcript has spent so far, every own request's added up: a Claude Code request's input, cache
+   * reads, cache writes and output, once per `requestId`; a Codex rollout's latest running total; a Pi session's
+   * messages, each counted as its context figure is. 0 for a transcript holding none; what the window holds is `count`.
+   */
+  spent(): number {
+    if (this.#codex || this.#pi) return this.#total;
+    let sum = 0;
+    for (const tokens of this.#requests.values()) sum += tokens;
+    return sum;
+  }
+
   composition(): Composition | undefined {
     return this.#lines === 0 || this.#pi ? undefined : this.#composition.composition();
   }
@@ -149,21 +165,27 @@ export class ContextFold {
 
   #take(record: JsonRecord): void {
     if (this.#pi) {
-      this.#latest = piContextTokens(record) ?? this.#latest;
+      const tokens = piContextTokens(record);
+      if (tokens === undefined) return;
+      this.#latest = tokens;
+      this.#total += tokens;
       return;
     }
     if (this.#codex) {
       const payload = record.payload;
       if (record.type !== "event_msg" || !isRecord(payload) || payload.type !== "token_count" || !isRecord(payload.info)) return;
+      const total = payload.info.total_token_usage;
+      if (isRecord(total) && isCount(total.total_tokens)) this.#total = total.total_tokens;
       const usage = payload.info.last_token_usage;
       if (isRecord(usage) && isCount(usage.input_tokens)) this.#latest = usage.input_tokens;
       return;
     }
     const message = record.message;
     if (!isRecord(message) || !isRecord(message.usage) || (record.isSidechain === true && !this.subagent) || message.model === SYNTHETIC) return;
-    const { input_tokens: input, cache_read_input_tokens: read, cache_creation_input_tokens: created } = message.usage;
+    const { input_tokens: input, cache_read_input_tokens: read, cache_creation_input_tokens: created, output_tokens: output } = message.usage;
     if (!isCount(input)) return;
     this.#latest = input + (isCount(read) ? read : 0) + (isCount(created) ? created : 0);
+    this.#requests.set(typeof record.requestId === "string" ? record.requestId : `line ${this.#lines}`, this.#latest + (isCount(output) ? output : 0));
   }
 }
 

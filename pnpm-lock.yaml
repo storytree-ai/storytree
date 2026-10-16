@@ -404,6 +404,9 @@ importers:
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
+      '@storytree/session-management':
+        specifier: workspace:*
+        version: link:../session-management
       pg:
         specifier: ^8.23.0
         version: 8.23.0

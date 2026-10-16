@@ -1523,7 +1523,7 @@ test("3.41 Codex hands the tool server each event its handler's template carries
 
         // Each command hook's own reading says whether it reached the library: once a minute one takes its whole turn.
         // A reading waits on this machine until a look around the machine, which a whole turn hands on, uploads it.
-        type Reading = { at: string; event: string; parts: Record<string, number> };
+        type Reading = { at: string; event: string; parts: Record<string, number | undefined> };
         const times = path.join(home, "hook-times.jsonl");
         const readings = async (): Promise<Reading[]> => [
           ...(existsSync(times) ? readFileSync(times, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as Reading) : []),

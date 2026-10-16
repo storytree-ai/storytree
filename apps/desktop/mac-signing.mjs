@@ -6,13 +6,15 @@
 // The release workflow's macOS job runs `prepare` before desktop:dist and `cleanup` at its end:
 // prepare imports the certificate into a temporary keychain, writes Apple's key to a file for notarytool
 // and exports STORYTREE_MAC_IDENTITY (tools.mjs signs the payload with it); with no certificate it does nothing.
-// cleanup deletes the keychain and the key file. Notarisation is ours, not electron-builder's (dist.mjs calls
-// notariseApp): Apple's answer is waited for only until a bound, so a release never waits on Apple; a build Apple
-// has not accepted by then ships signed but not notarised, and its release note says so. `history` prints
+// cleanup deletes the keychain and the key file. Notarisation is ours, not electron-builder's (dist.mjs's afterSign
+// hook calls notariseApp on the signed .app, before the zip and dmg are made, so an accepted build's ticket is stapled
+// to the app both carry): Apple's answer is waited for only until a bound, so a release never waits on Apple; a build
+// Apple has not accepted by then ships signed but not notarised, and its release note says so. `history` prints
 // Apple's answers to past submissions (the notary workflow), and one submission's log when given its id.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { appendFileSync, existsSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -46,10 +48,19 @@ export function macBuilderConfig(signing) {
   return signing.mode === "ad-hoc" ? { identity: signing.identity, notarize: false } : { notarize: false };
 }
 
+/** electron-builder's afterSign hook for a Developer ID build: notarises the signed .app before the zip and dmg are
+ * made from it (run 38914897950's zip, notarised after it was made, carried no ticket). None for an ad-hoc build. */
+export function macNotarisation(signing, outcomeFile, notariseApp_ = notariseApp) {
+  if (!signing.notarize) return {};
+  return { afterSign: (context) => notariseApp_(path.posix.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`), outcomeFile) };
+}
+
 /** Submits the build and asks Apple for its answer every pollMs until waitMs has passed. Only "Accepted" is
- * notarised; "In Progress" at the bound, or a refusal ("Invalid", "Rejected"), leaves the build signed but not
- * notarised. A later acceptance of the same submission still notarises this very build: Gatekeeper asks Apple online. */
-export async function notarise({ submit, info, sleep, now, waitMs, pollMs }) {
+ * notarised, and its ticket is then stapled to the app, so Gatekeeper accepts it offline; a ticket that will not
+ * staple leaves it notarised, Gatekeeper asking Apple online. "In Progress" at the bound, or a refusal ("Invalid",
+ * "Rejected"), leaves the build signed but not notarised. A later acceptance of the same submission still
+ * notarises this very build, unstapled: Gatekeeper asks Apple online. */
+export async function notarise({ submit, info, staple, sleep, now, waitMs, pollMs }) {
   const id = submit();
   const deadline = now() + waitMs;
   let status = info(id);
@@ -57,7 +68,8 @@ export async function notarise({ submit, info, sleep, now, waitMs, pollMs }) {
     await sleep(pollMs);
     status = info(id);
   }
-  return { id, status, notarised: status === "Accepted" };
+  const notarised = status === "Accepted";
+  return { id, status, notarised, stapled: notarised && staple() };
 }
 
 /** Why the install check skips Gatekeeper's assessment, or undefined when it runs: Gatekeeper refuses an ad-hoc build and a
@@ -66,6 +78,15 @@ export async function notarise({ submit, info, sleep, now, waitMs, pollMs }) {
 export function gatekeeperSkip({ adHoc, answer }) {
   if (adHoc) return "the app is ad-hoc signed, so not notarised";
   if (answer && !answer.notarised) return `Apple's answer to submission ${answer.id} was "${answer.status}" at the bound, so the build ships signed but not notarised`;
+  return undefined;
+}
+
+/** Why the install check skips `stapler validate`, or undefined when it runs: only a notarised build whose ticket was
+ * stapled carries one. answer is release/mac-notarisation.json, absent for ad-hoc. */
+export function staplerSkip({ adHoc, answer }) {
+  const unasked = gatekeeperSkip({ adHoc, answer });
+  if (unasked) return unasked;
+  if (answer && !answer.stapled) return `Apple accepted submission ${answer.id} but its ticket did not staple, so Gatekeeper confirms it online`;
   return undefined;
 }
 
@@ -108,18 +129,29 @@ function notarytool(env, ...args) {
   return execFileSync("xcrun", ["notarytool", ...args, "--key", env.APPLE_API_KEY, "--key-id", env.APPLE_API_KEY_ID, "--issuer", env.APPLE_API_ISSUER, "--output-format", "json"], { encoding: "utf8" });
 }
 
-/** Notarises a Developer ID build's zip within the bound, writing Apple's answer beside it for the upload. */
-export async function notariseApp(zip, outcomeFile, env = process.env) {
-  const outcome = await notarise({
-    submit: () => JSON.parse(notarytool(env, "submit", zip)).id,
-    info: (id) => JSON.parse(notarytool(env, "info", id)).status,
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    now: () => Date.now(),
-    waitMs: 10 * 60_000,
-    pollMs: 30_000,
-  });
+/** Notarises a Developer ID build's signed .app within the bound, submitted as a zip of it, and staples the ticket
+ * to the app once Apple accepts; Apple's answer is written to outcomeFile for the upload. */
+export async function notariseApp(app, outcomeFile, env = process.env) {
+  const submitted = mkdtempSync(path.join(tmpdir(), "storytree-notarise-"));
+  const zip = path.join(submitted, `${path.basename(app)}.zip`);
+  let outcome;
+  try {
+    execFileSync("ditto", ["-c", "-k", "--keepParent", app, zip]);
+    outcome = await notarise({
+      submit: () => JSON.parse(notarytool(env, "submit", zip)).id,
+      info: (id) => JSON.parse(notarytool(env, "info", id)).status,
+      staple: () => spawnSync("xcrun", ["stapler", "staple", app], { stdio: "inherit" }).status === 0,
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      now: () => Date.now(),
+      waitMs: 10 * 60_000,
+      pollMs: 30_000,
+    });
+  } finally {
+    rmSync(submitted, { recursive: true, force: true });
+  }
   writeFileSync(outcomeFile, JSON.stringify(outcome) + "\n");
-  if (outcome.notarised) console.log(`Apple notarised submission ${outcome.id}.`);
+  if (outcome.stapled) console.log(`Apple notarised submission ${outcome.id}; its ticket is stapled to the app.`);
+  else if (outcome.notarised) console.log(`::warning::Apple notarised submission ${outcome.id} but its ticket did not staple: Gatekeeper confirms the Mac build online.`);
   else console.log(`::warning::Apple's answer to submission ${outcome.id} is "${outcome.status}": the Mac build ships signed but not notarised. Read it with the notary workflow.`);
   return outcome;
 }

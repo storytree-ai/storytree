@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { VerbRefusal } from "@storytree/library/verbs";
 
 import { withLibrary } from "../testing/pg.js";
-import { frozenExperiment } from "../index.js";
+import { frozenExperiment } from "./record.js";
 import { EXPERIMENT_FAMILIES } from "./verbs.js";
 
 const TWIN_BUILD = {

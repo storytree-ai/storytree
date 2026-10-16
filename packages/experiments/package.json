@@ -5,7 +5,8 @@
   "description": "The Experiments story (story_c2dbcf855db2, ADR-1064): an experiment written down before it runs, its arms run in isolation, and its curves read.",
   "exports": {
     ".": "./src/index.ts",
-    "./verbs": "./src/record/verbs.ts"
+    "./verbs": "./src/record/verbs.ts",
+    "./record": "./src/record/record.ts"
   },
   "storytree": {
     "verbs": [

@@ -45,6 +45,14 @@ export interface StoredSession {
   readonly session: string;
 }
 
+/** A stored record, where it is stored and when it was. */
+export interface StampedRecord {
+  readonly session: string;
+  readonly part: string;
+  readonly at: Date;
+  readonly record: string;
+}
+
 /** The transcript records of every project's sessions. */
 export interface TranscriptRecords {
   /** How far each part of a session's transcript is stored: the byte its next record starts at. */
@@ -55,6 +63,11 @@ export interface TranscriptRecords {
   text(project: string, session: string, part?: string): Promise<string | undefined>;
   /** The records of a part of a session's transcript (by default its own) that start at or after byte `from`, in file order, and the byte past the last. */
   since(project: string, session: string, from: number, part?: string): Promise<{ records: string[]; finish: number }>;
+  /**
+   * `project`'s records stored at or before `upTo`, of every part of a session that had one stored then, or, given
+   * `after`, only of the parts that had one stored after it too: one row per record, in file order within each part.
+   */
+  storedUpTo(project: string, upTo: Date, after?: Date): Promise<StampedRecord[]>;
   /** The sessions with a record stored before `before`. */
   storedBefore(before: Date): Promise<StoredSession[]>;
   /** Delete every record stored before `before`, and say how many went. */
@@ -104,6 +117,17 @@ export class PgTranscriptRecords implements TranscriptRecords {
       [project, session, from, part],
     );
     return { records: rows.map((row) => row.record), finish: rows.length === 0 ? from : Number(rows.at(-1)!.finish) };
+  }
+
+  async storedUpTo(project: string, upTo: Date, after?: Date): Promise<StampedRecord[]> {
+    const { rows } = await this.#pool.query<StampedRecord>(
+      `SELECT session, part, at, record FROM transcript_records t WHERE project = $1 AND at <= $2
+        AND ($3::timestamptz IS NULL OR EXISTS (SELECT 1 FROM transcript_records n
+          WHERE n.project = t.project AND n.session = t.session AND n.part = t.part AND n.at > $3 AND n.at <= $2))
+        ORDER BY session, part, start`,
+      [project, upTo, after ?? null],
+    );
+    return rows;
   }
 
   async storedBefore(before: Date): Promise<StoredSession[]> {

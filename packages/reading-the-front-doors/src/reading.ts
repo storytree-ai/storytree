@@ -30,7 +30,7 @@ export interface DoorLine {
   readonly door: Door;
   /** The verb as its door names it: `storytree arc show`, `show_plan`. */
   readonly verb: string;
-  readonly outcome: "answered" | "unknown" | "refused" | "failed";
+  readonly outcome: "answered" | "unknown" | "refused" | "failed" | "denied-by-arm";
   readonly word?: string;
   readonly named?: string;
   readonly class?: string;

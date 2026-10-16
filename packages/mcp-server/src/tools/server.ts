@@ -40,6 +40,7 @@ import path from "node:path";
 import { McpServer, type CallToolResult, type ServerContext } from "@modelcontextprotocol/server";
 import { callLines, endMergedClaims, type ActivityLog, type MergeWatch } from "@storytree/session-management";
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
+import { verdictOf } from "@storytree/experiments";
 import { findProject, idleAfterMs, locateStorytree, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
@@ -221,6 +222,12 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
         await log.append(where.project, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: name, ...cause });
         // How the call was answered, after the tool has answered and never in its way (ADR-0983 D1).
         const answeredLine = (outcome: DoorOutcome) => log.append(where.project, { ...lineOf(caller), source: "tool", folder, kind: "door-answered", door: "tool", verb: name, ...outcome, ...cause }).catch(() => {});
+        // A tool the lane's experiment arm denies is refused before it runs, and logged so the attempt is a measure (ADR-1064 D2).
+        const verdict = verdictOf("tool", name, home);
+        if (!verdict.allowed) {
+          await answeredLine({ outcome: "denied-by-arm", next: [] });
+          return result({ text: verdict.message, refused: true });
+        }
         // A claim whose pull request has merged ends before the tool sees who holds what (ADR-0643 D3).
         await endMergedClaims({ log, project: where.project, folder, ...lineOf(caller), source: "tool", library: async () => library }, options.merges).catch(() => []);
         const answered = await act(args as never, {

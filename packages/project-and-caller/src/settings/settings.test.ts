@@ -224,3 +224,24 @@ test("2.2 setting context guidance to 400000 writes it to settings.json in the s
     assert.equal(reading.source, "set");
   });
 });
+
+test("2.15 settings.json may name the experiment and arm a lane runs in, read back by name; with none it reads as none, and a damaged value is reported naming the file", async () => {
+  await withTempDir((home) => {
+    const file = path.join(home, "settings.json");
+    assert.equal(agentLink.readExperiment(home), undefined, "no settings file: no experiment");
+    writeFileSync(file, JSON.stringify({ "idle-after": "10m" }));
+    assert.equal(agentLink.readExperiment(home), undefined, "a file naming none: no experiment");
+
+    writeFileSync(file, JSON.stringify({ "idle-after": "10m", experiment: { name: "twin-build", arm: "map-reads-off" } }));
+    assert.deepEqual(agentLink.readExperiment(home), { name: "twin-build", arm: "map-reads-off" });
+    assert.equal(agentLink.readSettings(home)["idle-after"].value, "10m", "the other settings still read beside it");
+
+    for (const damaged of [{ name: "twin-build" }, { arm: "map-reads-off" }, { name: "", arm: "x" }, { name: "a", arm: "b", extra: 1 }, "twin-build", null]) {
+      writeFileSync(file, JSON.stringify({ experiment: damaged }));
+      assert.throws(() => agentLink.readExperiment(home), (error: unknown) => {
+        assert.ok(error instanceof Error && error.message.includes(file) && /experiment/.test(error.message), String(error));
+        return true;
+      }, JSON.stringify(damaged));
+    }
+  });
+});

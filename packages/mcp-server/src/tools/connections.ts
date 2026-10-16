@@ -52,7 +52,8 @@ export class Connections {
       this.#approved.add(asked);
     }
     const machine = thisMachine();
-    const opened = () => openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) });
+    // Its lines carry the experiment and arm the home names, when it names one (ADR-1064 D2).
+    const opened = () => openActivityLog(storytree, { connectTimeoutMs: CONNECT_TIMEOUT_MS, branchOf: currentBranch, home: checkout.home, ...(machine === undefined ? {} : { machine }) });
     const log = (this.#log ??= forgetOnFailure(opened(), () => (this.#log = undefined)));
     let opening = this.#libraries.get(project);
     if (opening === undefined) {

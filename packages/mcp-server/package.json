@@ -26,7 +26,8 @@
     "@storytree/app-setup": "workspace:*",
     "zod": "^4.6.5",
     "@storytree/plugin-loader": "workspace:*",
-    "@storytree/project-and-caller": "workspace:*"
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/experiments": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.1.0",

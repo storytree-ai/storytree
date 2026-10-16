@@ -23,6 +23,7 @@
   "dependencies": {
     "@storytree/keys": "workspace:*",
     "@storytree/library": "workspace:*",
+    "@storytree/map": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
     "@storytree/session-management": "workspace:*",
     "pg": "^8.23.0"

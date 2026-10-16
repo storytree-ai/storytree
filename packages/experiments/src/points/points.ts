@@ -9,7 +9,8 @@
  * (`x-<experiment>-<arm>`) in the agent activity log: the tokens its sessions' stored transcripts say they spent, as
  * Session management's context reading folds them, and its collisions, the claim-refused and pr-red lines written by
  * then. And it carries the merge's rework: the lines it removes that one of the five merges before it added
- * (REWORK_WINDOW, the experiment record's measure), matched by file and text in each pull request's patches.
+ * (REWORK_WINDOW, the experiment record's measure), matched by file and text in each pull request's patches. And it
+ * carries the tree's structure at the merge: its imports crossing capability lines and its source lines (structure.ts).
  *
  * A lane can merge a change to `.github/workflows/arm.yml`, which would let it see or fake the hidden tests' results,
  * and nothing else catches that: so each point says whether the workflow at its commit still equals `armWorkflowText`.
@@ -17,7 +18,10 @@
 import type { Storytree } from "@storytree/library";
 import { openActivityLog, tokensSpent } from "@storytree/session-management";
 
+import { armStructure, type Structure } from "./structure.js";
 import { ARM_WORKFLOW_PATH, ORGANISATION, armRepositoryName, armWorkflowText, ghCli, type ArmCi, type Gh } from "../repositories.js";
+
+export type { Structure };
 
 /** The database the points live in, beside the projects' libraries on the same server. */
 export const POINTS_DATABASE = "storytree-experiments";
@@ -49,6 +53,9 @@ const SCHEMA: readonly string[] = [
   `ALTER TABLE experiment_points ADD COLUMN IF NOT EXISTS reds integer`,
   `ALTER TABLE experiment_points ADD COLUMN IF NOT EXISTS conflicts integer`,
   `ALTER TABLE experiment_points ADD COLUMN IF NOT EXISTS rework integer`,
+  // The tree's structure at the merge: imports crossing capability lines, and the source lines they are counted over.
+  `ALTER TABLE experiment_points ADD COLUMN IF NOT EXISTS cross_imports integer`,
+  `ALTER TABLE experiment_points ADD COLUMN IF NOT EXISTS lines integer`,
 ];
 
 /** How many merges back a removed line counts as rework when one of them added it: the twin build's measure, "within 5 merges". */
@@ -76,6 +83,9 @@ export interface Point {
   readonly conflicts?: number;
   /** The lines this merge removed that one of the REWORK_WINDOW merges before it added. */
   readonly rework?: number;
+  /** The imports in the tree at the merge whose two files the Map's survey places in different capabilities, and its source lines. */
+  readonly crossImports?: number;
+  readonly lines?: number;
 }
 
 /** What `recordPoints` did: the points it wrote, and the merge it stopped at because its run has not finished. */
@@ -182,11 +192,21 @@ function pointOf(gh: Gh, repository: string, ci: ArmCi, merge: number, pr: Merge
 /**
  * Writes a point for each merge to the arm's main not yet recorded, in merge order, and returns what it wrote. A merge
  * whose `hidden-tests` run has not finished stops it there, so points are always written in order; run it again later.
+ * `structure` reads the tree at each merge; by default it clones the arm's repository and reads the arm's library.
  */
-export async function recordPoints(server: Storytree, project: string, { experiment, arm, ci }: ArmOfExperiment, gh: Gh = ghCli): Promise<Recorded> {
+export async function recordPoints(server: Storytree, project: string, { experiment, arm, ci }: ArmOfExperiment, gh: Gh = ghCli, structure?: Structure): Promise<Recorded> {
   // The arm's repository and its throwaway library share one name, `x-<experiment>-<arm>`.
   const armProject = armRepositoryName(experiment, arm);
   const repository = `${ORGANISATION}/${armProject}`;
+  const trees = structure ?? armStructure(server, armProject, repository, gh);
+  try {
+    return await recordFrom(server, project, { experiment, arm, ci }, gh, trees, armProject, repository);
+  } finally {
+    await trees.close();
+  }
+}
+
+async function recordFrom(server: Storytree, project: string, { experiment, arm, ci }: ArmOfExperiment, gh: Gh, trees: Structure, armProject: string, repository: string): Promise<Recorded> {
   const pool = await database(server);
   const { rows } = await pool.query<{ pr: number }>("SELECT pr FROM experiment_points WHERE project = $1 AND experiment = $2 AND arm = $3", [project, experiment, arm]);
   const recorded = new Set(rows.map((row) => row.pr));
@@ -231,12 +251,13 @@ export async function recordPoints(server: Storytree, project: string, { experim
       ...(Number.isNaN(tokens) ? {} : { tokens }),
       ...collisionsBy(at.getTime()),
       rework: reworkOf(filesOf(pr.number), earlier),
+      ...await trees.at(pr.mergeCommit.oid),
     };
     await pool.query(
-      `INSERT INTO experiment_points (project, experiment, arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) ON CONFLICT DO NOTHING`,
+      `INSERT INTO experiment_points (project, experiment, arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework, cross_imports, lines)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) ON CONFLICT DO NOTHING`,
       [project, experiment, arm, point.merge, point.pr, point.mergedAt, point.commit, point.passed ?? null, point.total ?? null, point.files, point.bytes, point.workflowIntact,
-        point.tokens ?? null, point.claimRefusals, point.reds, point.conflicts, point.rework],
+        point.tokens ?? null, point.claimRefusals, point.reds, point.conflicts, point.rework, point.crossImports, point.lines],
     );
     written.push(point);
   }
@@ -250,13 +271,14 @@ interface PointRow {
   arm: string; merge: number; pr: number; merged_at: Date; sha: string; passed: number | null; total: number | null;
   files: number; bytes: string; workflow_intact: boolean;
   tokens: string | null; claim_refusals: number | null; reds: number | null; conflicts: number | null; rework: number | null;
+  cross_imports: number | null; lines: number | null;
 }
 
 /** The experiment's curves in `project`: every point it has, grouped by arm. */
 export async function curves(server: Server, project: string, experiment: string): Promise<Curves> {
   const pool = await database(server);
   const { rows } = await pool.query<PointRow>(
-    "SELECT arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework FROM experiment_points WHERE project = $1 AND experiment = $2 ORDER BY arm, merge",
+    "SELECT arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework, cross_imports, lines FROM experiment_points WHERE project = $1 AND experiment = $2 ORDER BY arm, merge",
     [project, experiment],
   );
   const series: Record<string, Point[]> = {};
@@ -273,6 +295,7 @@ export async function curves(server: Server, project: string, experiment: string
       ...(row.tokens === null ? {} : { tokens: Number(row.tokens) }),
       ...(row.claim_refusals === null || row.reds === null || row.conflicts === null ? {} : { claimRefusals: row.claim_refusals, reds: row.reds, conflicts: row.conflicts }),
       ...(row.rework === null ? {} : { rework: row.rework }),
+      ...(row.cross_imports === null || row.lines === null ? {} : { crossImports: row.cross_imports, lines: row.lines }),
     });
   }
   return series;
@@ -286,13 +309,13 @@ export function curvesText(experiment: string, series: Curves): string {
   for (const arm of arms) {
     const points = series[arm]!;
     lines.push(`${arm}: ${points.length} merge${points.length === 1 ? "" : "s"}`);
-    lines.push("  merge  pr     merged at             passed/total  share   files  bytes       tokens       refused  red  conflicts  rework");
+    lines.push("  merge  pr     merged at             passed/total  share   files  bytes       tokens       refused  red  conflicts  rework  crossings  lines");
     for (const point of points) {
       const counts = point.passed === undefined ? "no result" : `${point.passed}/${point.total}`;
       const share = point.passed === undefined || point.total === 0 ? "-" : `${((100 * point.passed) / point.total!).toFixed(1)}%`;
       const flag = point.workflowIntact ? "" : "  WORKFLOW CHANGED: counts not to be trusted";
       const measure = (value: number | undefined, width: number) => (value === undefined ? "-" : String(value)).padEnd(width);
-      lines.push(`  ${String(point.merge).padEnd(5)}  #${String(point.pr).padEnd(5)} ${point.mergedAt.slice(0, 19).padEnd(20)}  ${counts.padEnd(12)}  ${share.padEnd(6)}  ${String(point.files).padEnd(5)}  ${String(point.bytes).padEnd(10)}  ${measure(point.tokens, 11)}  ${measure(point.claimRefusals, 7)}  ${measure(point.reds, 3)}  ${measure(point.conflicts, 9)}  ${measure(point.rework, 6)}`.trimEnd() + flag);
+      lines.push(`  ${String(point.merge).padEnd(5)}  #${String(point.pr).padEnd(5)} ${point.mergedAt.slice(0, 19).padEnd(20)}  ${counts.padEnd(12)}  ${share.padEnd(6)}  ${String(point.files).padEnd(5)}  ${String(point.bytes).padEnd(10)}  ${measure(point.tokens, 11)}  ${measure(point.claimRefusals, 7)}  ${measure(point.reds, 3)}  ${measure(point.conflicts, 9)}  ${measure(point.rework, 6)}  ${measure(point.crossImports, 9)}  ${measure(point.lines, 5)}`.trimEnd() + flag);
     }
   }
   return lines.join("\n");

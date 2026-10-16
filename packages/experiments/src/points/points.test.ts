@@ -3,10 +3,15 @@
  * `pnpm test` provides. Each test works in a project of its own, as the points' one database is shared by every project.
  */
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import type { Library, Storytree } from "@storytree/library";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { ACTIVITY_DATABASE, openActivityLog } from "@storytree/session-management";
 
 import { mounted, type DoorWords, type VerbContext } from "@storytree/library/verbs";
@@ -14,10 +19,13 @@ import { mounted, type DoorWords, type VerbContext } from "@storytree/library/ve
 import { EXPERIMENT_FAMILIES } from "../record/verbs.js";
 import { armWorkflowText, type ArmCi, type Gh } from "../repositories.js";
 import { withLibrary } from "../testing/pg.js";
-import { curves, recordPoints } from "./points.js";
+import { curves, recordPoints, type Structure } from "./points.js";
+
+/** The arm's tree as no survey sees it: tests about other measures read no repository. */
+const NO_STRUCTURE: Structure = { at: async () => ({ crossImports: 0, lines: 0 }), close: async () => {} };
 
 /** The measures of a point in an arm whose lanes have spent, run into and reworked nothing. */
-const NOTHING_YET = { tokens: 0, claimRefusals: 0, reds: 0, conflicts: 0, rework: 0 };
+const NOTHING_YET = { tokens: 0, claimRefusals: 0, reds: 0, conflicts: 0, rework: 0, crossImports: 0, lines: 0 };
 
 const CI: ArmCi = { checks: "npm test", verifier: { testsRepository: "storytree-ai/hidden", command: "./verify.sh" } };
 
@@ -27,11 +35,19 @@ interface Merge {
   changed?: { filename: string; previous_filename?: string; patch?: string }[];
 }
 
-/** GitHub as `gh` answers for one arm's repository holding `merges`; it counts the job logs it is asked for. */
-function github(merges: Merge[], repository = "storytree-ai/x-twin-map-reads-on"): Gh & { logs: number } {
+/**
+ * GitHub as `gh` answers for one arm's repository holding `merges`, its code cloned from the folder `origin` when one is
+ * given; it counts the job logs it is asked for.
+ */
+function github(merges: Merge[], repository = "storytree-ai/x-twin-map-reads-on", origin?: string): Gh & { logs: number } {
   const of = (sha: string) => merges.find((merge) => merge.sha === sha)!;
   const gh = ((args: readonly string[]) => {
     const [first, second] = args;
+    if (first === "repo" && second === "clone" && origin !== undefined) {
+      assert.equal(args[2], repository, "the arm's own repository is cloned");
+      execFileSync("git", ["clone", ...args.slice(args.indexOf("--") + 1), origin, args[3]!], { stdio: "ignore" });
+      return "";
+    }
     if (first === "pr" && second === "list") {
       assert.ok(args.includes(repository), `the arm's own repository is read: ${args.join(" ")}`);
       return JSON.stringify(merges.map((merge) => ({ number: merge.number, mergedAt: merge.mergedAt, mergeCommit: { oid: merge.sha } })).reverse());
@@ -76,7 +92,7 @@ test("5.1 · recording an arm writes one point per merge to main, in merge order
       { number: 2, mergedAt: "2026-10-17T10:00:00Z", sha: "bbb", files: [100, 200, 50] },
       { number: 7, mergedAt: "2026-10-17T11:00:00Z", sha: "ccc", passed: 31, total: 370, running: true, files: [100] },
     ];
-    const first = await recordPoints(server, library.name, arm, github(merges));
+    const first = await recordPoints(server, library.name, arm, github(merges), NO_STRUCTURE);
     assert.deepEqual(first, {
       written: [
         { merge: 1, pr: 4, mergedAt: "2026-10-17T09:00:00Z", commit: "aaa", passed: 10, total: 370, files: 2, bytes: 300, workflowIntact: true, ...NOTHING_YET },
@@ -87,7 +103,7 @@ test("5.1 · recording an arm writes one point per merge to main, in merge order
 
     delete merges[2]!.running;
     const again = github(merges);
-    const second = await recordPoints(server, library.name, arm, again);
+    const second = await recordPoints(server, library.name, arm, again, NO_STRUCTURE);
     assert.deepEqual(second.written.map(({ merge, pr, passed }) => ({ merge, pr, passed })), [{ merge: 3, pr: 7, passed: 31 }]);
     assert.equal(again.logs, 1, "merges already recorded are not read again");
     assert.deepEqual((await curves(server, library.name, "twin"))["map-reads-on"]?.map(({ merge }) => merge), [1, 2, 3], "each merge has one point");
@@ -100,7 +116,7 @@ test("5.2 · a merge whose arm workflow differs from the one the repository was 
       { number: 1, mergedAt: "2026-10-17T09:00:00Z", sha: "aaa", passed: 10, total: 370, files: [1] },
       { number: 2, mergedAt: "2026-10-17T10:00:00Z", sha: "bbb", passed: 370, total: 370, workflow: armWorkflowText({ ...CI, verifier: { ...CI.verifier, command: "echo '{\"passed\":370,\"total\":370}' > $VERIFIER_RESULT" } }), files: [1] },
     ];
-    const { written } = await recordPoints(server, library.name, { experiment: "twin", arm: "map-reads-on", ci: CI }, github(merges));
+    const { written } = await recordPoints(server, library.name, { experiment: "twin", arm: "map-reads-on", ci: CI }, github(merges), NO_STRUCTURE);
     assert.deepEqual(written.map(({ workflowIntact }) => workflowIntact), [true, false]);
     const [family] = EXPERIMENT_FAMILIES;
     const curvesVerb = family!.verbs.find((one) => mounted(one.command) && one.command.name === "curves")!;
@@ -116,7 +132,7 @@ test("5.2 · a merge whose arm workflow differs from the one the repository was 
 test("5.3 · experiment curves prints each arm's points as a series, and --json gives them as data per arm", async () => {
   await withLibrary(async (library, server) => {
     for (const [arm, passed] of [["map-reads-on", 40], ["map-reads-off", 25]] as const) {
-      await recordPoints(server, library.name, { experiment: "twin", arm, ci: CI }, github([{ number: 1, mergedAt: "2026-10-17T09:00:00Z", sha: "aaa", passed, total: 370, files: [5] }], `storytree-ai/x-twin-${arm}`));
+      await recordPoints(server, library.name, { experiment: "twin", arm, ci: CI }, github([{ number: 1, mergedAt: "2026-10-17T09:00:00Z", sha: "aaa", passed, total: 370, files: [5] }], `storytree-ai/x-twin-${arm}`), NO_STRUCTURE);
     }
     const [family] = EXPERIMENT_FAMILIES;
     const curvesVerb = family!.verbs.find((one) => mounted(one.command) && one.command.name === "curves")!;
@@ -188,7 +204,7 @@ test("5.4 · each point carries the tokens the arm's sessions had spent by its m
       { number: 1, mergedAt: first, sha: "aaa", passed: 1, total: 370, files: [1] },
       { number: 2, mergedAt: second, sha: "bbb", passed: 2, total: 370, files: [1] },
     ];
-    const { written } = await recordPoints(server, library.name, { experiment, arm: "map-reads-on", ci: CI }, github(merges, `storytree-ai/${armProject}`));
+    const { written } = await recordPoints(server, library.name, { experiment, arm: "map-reads-on", ci: CI }, github(merges, `storytree-ai/${armProject}`), NO_STRUCTURE);
     assert.deepEqual(written.map(({ tokens }) => tokens), [1_200, 4_500], "tokens to date, never another project's");
 
     const json = JSON.parse(await curvesAnswer(library, server, experiment, true)) as { arms: Record<string, { tokens: number }[]> };
@@ -217,7 +233,7 @@ test("5.5 · each point carries the arm's collisions by its merge: claims refuse
       { number: 1, mergedAt: first, sha: "aaa", passed: 1, total: 370, files: [1] },
       { number: 2, mergedAt: second, sha: "bbb", passed: 2, total: 370, files: [1] },
     ];
-    const { written } = await recordPoints(server, library.name, { experiment, arm: "map-reads-on", ci: CI }, github(merges, `storytree-ai/${armProject}`));
+    const { written } = await recordPoints(server, library.name, { experiment, arm: "map-reads-on", ci: CI }, github(merges, `storytree-ai/${armProject}`), NO_STRUCTURE);
     assert.deepEqual(written.map(({ claimRefusals, reds, conflicts }) => [claimRefusals, reds, conflicts]), [[1, 0, 0], [1, 2, 1]]);
 
     const json = JSON.parse(await curvesAnswer(library, server, experiment, true)) as { arms: Record<string, { claimRefusals: number; reds: number; conflicts: number }[]> };
@@ -241,11 +257,65 @@ test("5.6 · each point carries its rework: the lines its merge removed that one
       { filename: "src/a.ts", patch: "@@ -1,5 +1,1 @@\n-old();\n-keep();\n-redo();\n--- note\n-\n+new();" },
       { filename: "src/c.ts", previous_filename: "src/b.ts", patch: "@@ -1,1 +1,1 @@\n-b6();\n+c();" },
     ] });
-    const { written } = await recordPoints(server, library.name, { experiment, arm: "map-reads-on", ci: CI }, github(merges, `storytree-ai/${armProject}`));
+    const { written } = await recordPoints(server, library.name, { experiment, arm: "map-reads-on", ci: CI }, github(merges, `storytree-ai/${armProject}`), NO_STRUCTURE);
     assert.deepEqual(written.map(({ rework }) => rework), [0, 0, 0, 0, 0, 0, 4], "redo(), keep(), a line reading `-- note` and b6() are reworked; old() was added six merges back, and a blank line is no line");
 
     const json = JSON.parse(await curvesAnswer(library, server, experiment, true)) as { arms: Record<string, { rework: number }[]> };
     assert.equal(json.arms["map-reads-on"]!.at(-1)!.rework, 4);
     assert.equal(column(await curvesAnswer(library, server, experiment, false), "rework", 7), "4");
+  });
+});
+
+/** Commit `files` to the repository at `folder`, as its next commit, and give that commit. */
+function commit(folder: string, files: Record<string, string>): Promise<string> {
+  return (async () => {
+    for (const [file, text] of Object.entries(files)) {
+      await mkdir(path.dirname(path.join(folder, file)), { recursive: true });
+      await writeFile(path.join(folder, file), text);
+    }
+    const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: folder, encoding: "utf8" }).trim();
+    git("add", "-A");
+    git("commit", "--quiet", "-m", "next");
+    return git("rev-parse", "HEAD");
+  })();
+}
+
+test("5.7 · each point carries the imports crossing capability lines in the arm's tree at its merge, by the Map's survey against the arm's own library, and the source lines they are counted over", async () => {
+  await withLibrary(async (library, server) => {
+    // The arm's library is a database of its own here, named so the test databases' drop takes it.
+    const experiment = `t-${randomBytes(4).toString("hex")}`;
+    const armProject = `x-${experiment}-map-reads-on`;
+    const arm = await server.openProject(armProject);
+    const repository = await mkdtemp(path.join(tmpdir(), "arm-repository-"));
+    try {
+      const shop = await arm.addStory({ title: "Shop" });
+      await arm.addCapability({ title: "1 · Cart", story: shop.id });
+      await arm.addCapability({ title: "2 · Pay", story: shop.id });
+      execFileSync("git", ["init", "--quiet", "--initial-branch=main", repository]);
+      const shopFiles = {
+        "packages/shop/package.json": JSON.stringify({ name: "shop", type: "module" }),
+        "packages/shop/src/pay.ts": "// Capability 2 · Pay\nexport const pay = (total: number) => total;\n",
+        "packages/shop/src/pay.test.ts": "import { test } from \"node:test\";\nimport { pay } from \"./pay.js\";\ntest(\"2.1 · pays\", () => { pay(1); });\n",
+        "packages/shop/src/cart.test.ts": "import { test } from \"node:test\";\nimport { cart } from \"./cart.js\";\ntest(\"1.1 · holds\", () => { cart(); });\n",
+      };
+      const first = await commit(repository, { ...shopFiles, "packages/shop/src/cart.ts": "// Capability 1 · Cart\nexport const cart = () => [];\n" });
+      // The cart now pays: one import across the line between Cart and Pay, made twice over, which is still one.
+      const second = await commit(repository, { "packages/shop/src/cart.ts": "// Capability 1 · Cart\nimport { pay } from \"./pay.js\";\nimport type { } from \"./pay.js\";\nexport const cart = () => [pay(0)];\n" });
+      const merges: Merge[] = [
+        { number: 1, mergedAt: "2026-10-17T09:00:00Z", sha: first, passed: 1, total: 370, files: [1] },
+        { number: 2, mergedAt: "2026-10-17T10:00:00Z", sha: second, passed: 2, total: 370, files: [1] },
+      ];
+      const { written } = await recordPoints(server, library.name, { experiment, arm: "map-reads-on", ci: CI }, github(merges, `storytree-ai/${armProject}`, repository));
+      assert.deepEqual(written.map(({ crossImports, lines }) => [crossImports, lines]), [[0, 4], [1, 6]], "the cart's import of pay crosses from Cart into Pay; a test's imports are no crossing");
+
+      const json = JSON.parse(await curvesAnswer(library, server, experiment, true)) as { arms: Record<string, { crossImports: number; lines: number }[]> };
+      assert.deepEqual(json.arms["map-reads-on"]!.map(({ crossImports, lines }) => [crossImports, lines]), [[0, 4], [1, 6]]);
+      const text = await curvesAnswer(library, server, experiment, false);
+      assert.deepEqual(["crossings", "lines"].map((name) => column(text, name, 2)), ["1", "6"]);
+    } finally {
+      await arm.close();
+      await dropTestDatabases([`storytree_${armProject}`]);
+      await rm(repository, { recursive: true, force: true });
+    }
   });
 });

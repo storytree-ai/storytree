@@ -235,17 +235,17 @@ test("5.6 · each point carries its rework: the lines its merge removed that one
     const at = (hour: number) => `2026-10-17T${String(hour).padStart(2, "0")}:00:00Z`;
     // Merge 1 adds `old();`, merge 2 adds `keep();` and `redo();`, merges 3 to 6 touch another file, and merge 7 removes all three.
     merges.push({ number: 1, mergedAt: at(1), sha: "s1", files: [1], changed: [{ filename: "src/a.ts", patch: "@@ -0,0 +1,1 @@\n+old();" }] });
-    merges.push({ number: 2, mergedAt: at(2), sha: "s2", files: [1], changed: [{ filename: "src/a.ts", patch: "@@ -1,0 +2,3 @@\n+keep();\n+redo();\n+" }] });
+    merges.push({ number: 2, mergedAt: at(2), sha: "s2", files: [1], changed: [{ filename: "src/a.ts", patch: "@@ -1,0 +2,4 @@\n+keep();\n+redo();\n+-- note\n+" }] });
     for (let number = 3; number <= 6; number += 1) merges.push({ number, mergedAt: at(number), sha: `s${number}`, files: [1], changed: [{ filename: "src/b.ts", patch: `@@ -0,0 +1,1 @@\n+b${number}();` }] });
     merges.push({ number: 7, mergedAt: at(7), sha: "s7", files: [1], changed: [
-      { filename: "src/a.ts", patch: "@@ -1,4 +1,1 @@\n-old();\n-keep();\n-redo();\n-\n+new();" },
+      { filename: "src/a.ts", patch: "@@ -1,5 +1,1 @@\n-old();\n-keep();\n-redo();\n--- note\n-\n+new();" },
       { filename: "src/c.ts", previous_filename: "src/b.ts", patch: "@@ -1,1 +1,1 @@\n-b6();\n+c();" },
     ] });
     const { written } = await recordPoints(server, library.name, { experiment, arm: "map-reads-on", ci: CI }, github(merges, `storytree-ai/${armProject}`));
-    assert.deepEqual(written.map(({ rework }) => rework), [0, 0, 0, 0, 0, 0, 3], "redo(), keep() and b6() are reworked; old() was added six merges back, and a blank line is no line");
+    assert.deepEqual(written.map(({ rework }) => rework), [0, 0, 0, 0, 0, 0, 4], "redo(), keep(), a line reading `-- note` and b6() are reworked; old() was added six merges back, and a blank line is no line");
 
     const json = JSON.parse(await curvesAnswer(library, server, experiment, true)) as { arms: Record<string, { rework: number }[]> };
-    assert.equal(json.arms["map-reads-on"]!.at(-1)!.rework, 3);
-    assert.equal(column(await curvesAnswer(library, server, experiment, false), "rework", 7), "3");
+    assert.equal(json.arms["map-reads-on"]!.at(-1)!.rework, 4);
+    assert.equal(column(await curvesAnswer(library, server, experiment, false), "rework", 7), "4");
   });
 });

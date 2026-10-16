@@ -127,7 +127,8 @@ function changedLines(files: readonly ChangedFile[], removed: boolean): string[]
   const keys: string[] = [];
   for (const file of files) {
     for (const line of (file.patch ?? "").split("\n")) {
-      if (line.startsWith(removed ? "-" : "+") && !line.startsWith(removed ? "---" : "+++")) {
+      // A per-file patch holds hunks only, no file headers, so every line led by the sign is a changed line.
+      if (line.startsWith(removed ? "-" : "+")) {
         const key = lineKey(removed ? (file.previous_filename ?? file.filename) : file.filename, line.slice(1));
         if (key !== undefined) keys.push(key);
       }

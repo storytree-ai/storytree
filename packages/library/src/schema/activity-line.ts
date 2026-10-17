@@ -216,15 +216,15 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * once a response reported it, the fill (tokens, whole percent); each rate-limit window's use; its cost. A reading takes its figure
    * from here before the transcript (Session management 9.19). Never makes its session read live: its heartbeat does that.
    */
-  z.object({ ...common, kind: z.literal("usage"),
+  z.object({ ...common, kind: z.literal("usage-measured"),
     context: z.object({ tokens: z.number().int().nonnegative().optional(), window: z.number().int().positive(), percent: z.number().min(0).max(100).optional() }).strict(),
     rateLimits: z.array(z.object({ kind: z.string().min(1), percentUsed: z.number().nonnegative(), resetsAt: z.string().min(1).optional() }).strict()).max(20),
     cost: z.object({ usd: z.number().nonnegative() }).strict().optional() }).strict(),
   /**
-   * A main-loop turn of a Claude Code session ended by an API error or a refusal (ADR-1056 D3), as its mod saw it; `rateLimited` when
-   * a rate-limit window was used up as it ended. Read by a lane's runner and the pool (Session management 9.20).
+   * A main-loop turn of a Claude Code session ended by an API error or a refusal (ADR-1056 D3), as its mod saw it; `limits` names the
+   * rate-limit windows it ended at or past their limit, when any was. Read by a lane's runner and the pool (Session management 9.20).
    */
-  z.object({ ...common, kind: z.literal("turn-failed"), reason: z.enum(["error", "refusal"]), rateLimited: z.literal(true).optional() }).strict(),
+  z.object({ ...common, kind: z.literal("turn-failed"), reason: z.enum(["error", "refusal"]), limits: z.array(z.string().min(1)).min(1).max(20).optional() }).strict(),
 ]);
 
 /** A line as it is written. */

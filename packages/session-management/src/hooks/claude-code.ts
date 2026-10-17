@@ -21,7 +21,7 @@
  * - SessionEnd carries `reason`.
  * - Two events only Claude Code's mod sends (ADR-1056 D3), each with the session's `usage` as its status line has it
  *   (`context`, `rateLimits`, `cost`): UsageMeasured, while the figures move, and TurnComplete, at a main-loop turn's end, with
- *   its `reason` (answer, aborted, refusal or error). An error ends a rate-limited turn too: a window at 100% or past says so.
+ *   its `reason` (answer, aborted, refusal or error). An error ends a rate-limited turn too: the windows at 100% or past name the limits it hit.
  */
 import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
@@ -61,10 +61,10 @@ export function claudeCodeLines(input: Record<string, unknown>): HookLines | und
       const failed = event === "TurnComplete" && (input.reason === "error" || input.reason === "refusal") ? input.reason : undefined;
       const { transcript: _none, ...plain } = common;
       const lines: NewLine[] = [];
-      if (usage !== undefined) lines.push({ ...plain, kind: "usage", ...usage });
+      if (usage !== undefined) lines.push({ ...plain, kind: "usage-measured", ...usage });
       if (failed !== undefined) {
-        const rateLimited = usage?.rateLimits.some((window) => window.percentUsed >= 100) === true;
-        lines.push({ ...plain, kind: "turn-failed", reason: failed, ...(rateLimited ? { rateLimited: true as const } : {}) });
+        const limits = (usage?.rateLimits ?? []).filter((window) => window.percentUsed >= 100).map((window) => window.kind);
+        lines.push({ ...plain, kind: "turn-failed", reason: failed, ...(limits.length === 0 ? {} : { limits }) });
       }
       return lines.length === 0 ? undefined : { folder, lines };
     }
@@ -73,7 +73,7 @@ export function claudeCodeLines(input: Record<string, unknown>): HookLines | und
   }
 }
 
-type UsageFields = Pick<Extract<NewLine, { kind: "usage" }>, "context" | "rateLimits" | "cost">;
+type UsageFields = Pick<Extract<NewLine, { kind: "usage-measured" }>, "context" | "rateLimits" | "cost">;
 
 /** The figures of a mod's `usage` that a usage line keeps, or undefined when it names no context window. */
 function usageOf(usage: unknown): UsageFields | undefined {

@@ -176,7 +176,7 @@ test("9.19 · A reading takes its tokens, window and percentage from the session
     const now = new Date("2026-10-17T10:00:00.000Z");
 
     // The mod's figure, newer than the transcript's: its tokens, window and percent; what they are made of, still the transcript's.
-    await log.append(project, { ...common, session: "S", kind: "usage", context: { tokens: 50_000, window: 200_000, percent: 25 }, rateLimits: [] });
+    await log.append(project, { ...common, session: "S", kind: "usage-measured", context: { tokens: 50_000, window: 200_000, percent: 25 }, rateLimits: [] });
     const live = await readContext(log, project, "S", { now, home: dir });
     assert.ok("tokens" in live);
     assert.deepEqual([live.tokens, live.window, live.percent, live.source], [50_000, 200_000, 25, transcript]);
@@ -184,7 +184,7 @@ test("9.19 · A reading takes its tokens, window and percentage from the session
     assert.deepEqual(live.guidance, { value: 600_000, source: "default", position: "under" }, "judged on the mod's tokens");
 
     // Before a response reported the fill: the transcript's tokens, as a share of the window the mod named.
-    await log.append(project, { ...common, session: "S", kind: "usage", context: { window: 200_000 }, rateLimits: [] });
+    await log.append(project, { ...common, session: "S", kind: "usage-measured", context: { window: 200_000 }, rateLimits: [] });
     const windowOnly = await readContext(log, project, "S", { now, home: dir });
     assert.ok("tokens" in windowOnly);
     assert.deepEqual([windowOnly.tokens, windowOnly.window, windowOnly.percent], [1_100, 200_000, 1]);
@@ -197,7 +197,7 @@ test("9.19 · A reading takes its tokens, window and percentage from the session
     // A mod that stopped reporting: its last figure, older than the transcript's latest line by more than two report periods, gives way.
     const at = (iso: string, line: Record<string, unknown>, seq: number) => ({ ...common, ...line, session: "U", project, seq, at: iso }) as unknown as Line;
     const stale = [
-      at("2026-10-17T09:00:00.000Z", { kind: "usage", context: { tokens: 90_000, window: 200_000, percent: 45 }, rateLimits: [] }, 1),
+      at("2026-10-17T09:00:00.000Z", { kind: "usage-measured", context: { tokens: 90_000, window: 200_000, percent: 45 }, rateLimits: [] }, 1),
       at("2026-10-17T09:30:00.000Z", { kind: "command-run", command: "ls", transcript }, 2),
     ];
     const fallen = await contextReading(stale, "U", { now, home: dir });
@@ -213,16 +213,16 @@ test("9.20 · Each session's latest reported usage and latest failed turn are re
   await withProject(async (log, project, dir) => {
     const common = { harness: "claude-code", source: "hook", folder: dir } as const;
     const window = (percentUsed: number) => ({ context: { window: 200_000 }, rateLimits: [{ kind: "five_hour", percentUsed }] });
-    await log.append(project, { ...common, session: "A", kind: "usage", ...window(40) });
-    await log.append(project, { ...common, session: "A", kind: "turn-failed", reason: "error", rateLimited: true });
-    await log.append(project, { ...common, session: "A", kind: "usage", ...window(100) });
-    await log.append(project, { ...common, session: "B", kind: "usage", ...window(5) });
+    await log.append(project, { ...common, session: "A", kind: "usage-measured", ...window(40) });
+    await log.append(project, { ...common, session: "A", kind: "turn-failed", reason: "error", limits: ["five_hour"] });
+    await log.append(project, { ...common, session: "A", kind: "usage-measured", ...window(100) });
+    await log.append(project, { ...common, session: "B", kind: "usage-measured", ...window(5) });
     await log.append(project, { ...common, session: "C", kind: "session-started" });
 
     const read = await reportedUsageOf(log, project, ["A", "B", "C"]);
     assert.deepEqual([...read.keys()].sort(), ["A", "B"]);
     assert.equal(read.get("A")?.usage?.rateLimits[0]?.percentUsed, 100, "the latest usage");
-    assert.deepEqual([read.get("A")?.failed?.reason, read.get("A")?.failed?.rateLimited], ["error", true]);
+    assert.deepEqual([read.get("A")?.failed?.reason, read.get("A")?.failed?.limits], ["error", ["five_hour"]]);
     assert.equal(read.get("B")?.failed, undefined);
     assert.equal((await reportedUsageOf(log, project, [])).size, 0);
   });

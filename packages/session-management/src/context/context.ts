@@ -286,7 +286,7 @@ export async function contextReading(lines: readonly Line[], session: string,
   return { ...who, ...figure(tokens, usage, live !== undefined), composition: composition ?? { absent: folded.compositionAbsent }, guidance: contextGuidance(tokens, home), at, source: transcript };
 }
 
-type UsageLine = Extract<Line, { kind: "usage" }>;
+type UsageLine = Extract<Line, { kind: "usage-measured" }>;
 
 /** How long a usage line stays current behind the session's latest transcript-naming line: two of the mod's report periods. */
 const USAGE_CURRENT_MS = 120_000;
@@ -296,7 +296,7 @@ const USAGE_CURRENT_MS = 120_000;
  * `USAGE_CURRENT_MS`): undefined for a session whose mod never reported, or stopped.
  */
 function reportedUsage(lines: readonly Line[], session: string): UsageLine | undefined {
-  const usage = lines.findLast((one): one is UsageLine => one.kind === "usage" && one.session === session);
+  const usage = lines.findLast((one): one is UsageLine => one.kind === "usage-measured" && one.session === session);
   if (usage === undefined) return undefined;
   const named = lines.findLast((one) => one.session === session && one.transcript !== undefined);
   return named !== undefined && Date.parse(named.at) - Date.parse(usage.at) > USAGE_CURRENT_MS ? undefined : usage;
@@ -329,7 +329,7 @@ export async function readingLines(log: ActivityLog, project: string, sessions: 
     log.lines(project, { sessions, has: ["transcript"], latestBy: ["session"], omit }),
     log.lines(project, { kinds: ["subagent-started"], where: { subagent: sessions }, has: ["transcript"], latestBy: ["subagent"], omit }),
     // And each session's latest usage its mod reported, which a reading takes before the transcript's figure (9.19).
-    log.lines(project, { sessions, kinds: ["usage"], latestBy: ["session"] }),
+    log.lines(project, { sessions, kinds: ["usage-measured"], latestBy: ["session"] }),
   ]);
   return [...own, ...started, ...usage].sort((a, b) => a.seq - b.seq);
 }
@@ -344,11 +344,11 @@ export interface ReportedUsage {
 export async function reportedUsageOf(log: ActivityLog, project: string, sessions: readonly string[]): Promise<Map<string, ReportedUsage>> {
   const found = new Map<string, ReportedUsage>();
   if (sessions.length === 0) return found;
-  const lines = await log.lines(project, { sessions, kinds: ["usage", "turn-failed"], latestBy: ["session", "kind"] });
+  const lines = await log.lines(project, { sessions, kinds: ["usage-measured", "turn-failed"], latestBy: ["session", "kind"] });
   for (const line of lines) {
-    if (line.kind !== "usage" && line.kind !== "turn-failed") continue;
+    if (line.kind !== "usage-measured" && line.kind !== "turn-failed") continue;
     const seen = found.get(line.session) ?? {};
-    found.set(line.session, line.kind === "usage" ? { ...seen, usage: line } : { ...seen, failed: line });
+    found.set(line.session, line.kind === "usage-measured" ? { ...seen, usage: line } : { ...seen, failed: line });
   }
   return found;
 }

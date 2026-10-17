@@ -1604,7 +1604,7 @@ test("3.44 the tool server's heartbeat tool records a session's beat for the pro
   }
 });
 
-test("3.46 the mod's own events through hook_event (ADR-1056 D3): UsageMeasured records the session's usage; TurnComplete its usage and, ended by an API error or a refusal, a failed turn, rate-limited when a window was used up; neither names a transcript, and a figure with no window records nothing", async () => {
+test("3.43 · The Claude Code mod's usage becomes a usage-measured line, and its failed turn a turn-failed line naming the rate-limit windows it ended at or past their limit; neither names a transcript, and a figure with no window records nothing", async () => {
   const project = uniqueProjectName();
   const was = process.env.STORYTREE_HOME;
   try {
@@ -1628,13 +1628,13 @@ test("3.46 the mod's own events through hook_event (ADR-1056 D3): UsageMeasured 
         assert.deepEqual(await send({ hook_event_name: "UsageMeasured", usage: { context: { tokens: 5 }, rateLimits: [] } }), { recorded: 0, waiting: 0 });
 
         const lines = (await log.since(project, 0)).lines.filter((line) => line.session === session);
-        assert.deepEqual(lines.map((line) => line.kind), ["usage", "usage", "usage", "turn-failed", "usage", "turn-failed"]);
+        assert.deepEqual(lines.map((line) => line.kind), ["usage-measured", "usage-measured", "usage-measured", "turn-failed", "usage-measured", "turn-failed"]);
         assert.ok(lines.every((line) => line.transcript === undefined && line.harness === "claude-code"));
         const [first] = lines;
-        assert.ok(first?.kind === "usage");
+        assert.ok(first?.kind === "usage-measured");
         assert.deepEqual([first.context, first.rateLimits, first.cost], [usage(40).context, usage(40).rateLimits, usage(40).cost]);
-        const failed = lines.filter((line) => line.kind === "turn-failed").map((line) => line.kind === "turn-failed" && [line.reason, line.rateLimited]);
-        assert.deepEqual(failed, [["error", true], ["refusal", undefined]]);
+        const failed = lines.filter((line) => line.kind === "turn-failed").map((line) => line.kind === "turn-failed" && [line.reason, line.limits]);
+        assert.deepEqual(failed, [["error", ["five_hour"]], ["refusal", undefined]]);
       } finally {
         await log.close();
       }

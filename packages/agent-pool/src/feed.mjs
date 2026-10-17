@@ -160,7 +160,7 @@ export async function readSurvey({ library, claims, refusals = async () => [], h
   return { arcs, increments, holds, claims: held, here: name, refusals: capabilities.length ? await refusals(capabilities) : [] };
 }
 
-async function withLibrary(project, use) {
+export async function withLibrary(project, use) {
   const { locateLibrary } = await import("@storytree/project-and-caller");
   const { connect } = await import("@storytree/library");
   const where = locateLibrary();

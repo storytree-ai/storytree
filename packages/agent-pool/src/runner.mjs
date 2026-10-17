@@ -29,11 +29,18 @@ const run = promisify(execFile);
 
 /**
  * A Claude lane loads storytree's Claude Code mod from the checkout (ADR-1056 D3), its hooks module switched on while that is early access,
- * and is told the file beside its log where the mod writes the session's id at start.
+ * and is told the file beside its log where the mod writes the session's id at start. A Codex lane is given none of the mod's
+ * variables, even when the runner itself was started from a Claude Code session that carries them.
  */
 const MOD = ["--plugin-dir", PLUGIN_FOLDER];
+const MOD_VARIABLES = [...Object.keys(FUNCTION_HOOKS), "CLAUDE_CODE_PLUGIN_DIRS", SESSION_FILE];
 const sessionFile = (log) => `${log.replace(/\.log$/, "")}.session`;
-const engineEnvironment = (engine, login, log) => (engine === "claude" ? { ...login, ...FUNCTION_HOOKS, [SESSION_FILE]: sessionFile(log) } : login);
+function engineEnvironment(engine, login, log) {
+  if (engine === "claude") return { ...login, ...FUNCTION_HOOKS, [SESSION_FILE]: sessionFile(log) };
+  const codex = { ...login };
+  for (const name of MOD_VARIABLES) delete codex[name];
+  return codex;
+}
 
 function argumentsFor(engine, brief, addDirs, resume, model) {
   const adds = [...addDirs.flatMap((directory) => ["--add-dir", directory]), ...(engine === "claude" ? MOD : [])];
@@ -160,7 +167,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   const settings = laneSettings({ home, env });
   const login = await loginEnvironment(home, env);
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
-  const refresh = () => probeCodex(commands.codex, { cwd, env: login, model: settings.models.codex, log: `${log.replace(/\.log$/, "")}.probe.log` });
+  const refresh = () => probeCodex(commands.codex, { cwd, env: engineEnvironment("codex", login, log), model: settings.models.codex, log: `${log.replace(/\.log$/, "")}.probe.log` });
   const picked = await pickFresh({ ...settings, now: now() / 1000, refresh });
   dated(`engine ${picked.engine} ${picked.reason}`);
   const before = increment ? await traces({ increment, lanesDir: settings.lanesDir, heads }) : null;

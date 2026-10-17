@@ -116,4 +116,4 @@ check("1.6", "an existing unrelated storytree command is preserved and the confl
   check("2.7", "every claim they took ended: storytree's board says nobody holds anything", board === undefined ? undefined : board.includes("Nobody holds anything right now."), `claimed units ${units.length}, ended by a release, landing or closing line ${ended.length}`);
 }
 
-console.log(JSON.stringify({ story: "The app setup", release: values.release, commit: values.commit, evidence: values.evidence, note: `Run on the old Windows test laptop (MicksOldLaptop) against the installed app ${before}, Claude Code with the laptop's own sign-in.`, checks }, null, 2));
+console.log(JSON.stringify({ story: "story_b91056a06337", release: values.release, commit: values.commit, evidence: values.evidence, note: `Run on the old Windows test laptop (MicksOldLaptop) against the installed app ${before}, Claude Code with the laptop's own sign-in.`, checks }, null, 2));

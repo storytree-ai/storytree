@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Master drawing and colour roles. The mark (Website's brand, packages/mark): storytree's mark, one master drawing in four
+ * Capability 1 · Master drawing and colour roles. The mark (Marketing artifacts' package, packages/mark): storytree's mark, one master drawing in four
  * colour roles, its named colourways, and (capability 8) the fixed-colour icon files generated from it. Placing it on a
  * surface belongs to that surface's story.
  */

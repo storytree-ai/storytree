@@ -32,7 +32,6 @@
     "@storytree/lag-in-use": "workspace:*",
     "@storytree/learning-as-you-build": "workspace:*",
     "@storytree/library": "workspace:*",
-    "@storytree/local-postgres": "workspace:*",
     "@storytree/map": "workspace:*",
     "@types/node": "^24.13.6",
     "@workos-inc/node": "^10.4.0",

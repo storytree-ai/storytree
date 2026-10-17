@@ -14,7 +14,7 @@
  *   appended or read. Setting the folder up approves it, and so does joining on purpose, which is
  *   also how a trunk recorded before approval, or one that moved, is approved.
  * - Where storytree is: the running 0.3 app's Postgres, found from the owner record
- *   @storytree/local-postgres keeps beside the app's data directory (`<dataDir>.owner.json`, holding
+ *   @storytree/library/local-postgres keeps beside the app's data directory (`<dataDir>.owner.json`, holding
  *   the owner's pid and the server's port) while the app holds it. Authenticated installations
  *   hand credentials over separately in a private `<dataDir>.auth/connection.json`; only old
  *   installations with no authentication metadata keep the legacy passwordless URL during staging.

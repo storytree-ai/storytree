@@ -6,26 +6,34 @@
     ".": "./src/index.ts",
     "./verbs": "./src/verbs/verb.ts",
     "./commands": "./src/commands/index.ts",
-    "./whole-words": "./src/knowledge/whole-words.ts"
+    "./whole-words": "./src/knowledge/whole-words.ts",
+    "./keys": "./src/keys/index.ts",
+    "./local-postgres": "./src/local-postgres/index.ts",
+    "./local-postgres/testing": "./src/local-postgres/testing/drop.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
   },
   "dependencies": {
     "@google-cloud/cloud-sql-connector": "^1.11.1",
-    "@storytree/keys": "workspace:*",
     "@huggingface/transformers": "^4.3.0",
     "google-auth-library": "^10.6.2",
     "pg": "^8.23.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
     "electron": "44.4.5",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
+  },
+  "optionalDependencies": {
+    "@embedded-postgres/darwin-arm64": "17.10.0-beta.17",
+    "@embedded-postgres/darwin-x64": "17.10.0-beta.17",
+    "@embedded-postgres/linux-arm64": "17.10.0-beta.17",
+    "@embedded-postgres/linux-x64": "17.10.0-beta.17",
+    "@embedded-postgres/windows-x64": "17.10.0-beta.17"
   },
   "storytree": {
     "guidance": [

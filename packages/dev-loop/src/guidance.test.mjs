@@ -25,7 +25,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
 
 import { syncGuidance } from "./build-guidance.mjs";
 import { BUDGETS, driftOf, expectedFiles, judgeDrift, overBudget, readRoles, REGION_END, REGION_START, sourcesOf } from "./guidance.mjs";

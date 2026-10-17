@@ -84,7 +84,7 @@ import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
 import { sourceVersion } from "@storytree/app/version";
 import { connect, type AnnotatedTree, type Storytree } from "@storytree/library";
-import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@storytree/local-postgres";
+import { DataDirInUseError, findBinaries, start, type LocalPostgres } from "@storytree/library/local-postgres";
 import {
   AUTH_CALLBACK,
   AUTH_SCHEME,

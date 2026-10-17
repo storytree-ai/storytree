@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { DataDirInUseError } from "@storytree/local-postgres";
+import { DataDirInUseError } from "@storytree/library/local-postgres";
 
 import { holdSeedLock, libraryServer } from "./library-server.mjs";
 

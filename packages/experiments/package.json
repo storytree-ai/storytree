@@ -21,7 +21,6 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@storytree/keys": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
@@ -29,7 +28,6 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
-    "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15",

@@ -9,7 +9,9 @@
     "./whole-words": "./src/knowledge/whole-words.ts",
     "./keys": "./src/keys/index.ts",
     "./local-postgres": "./src/local-postgres/index.ts",
-    "./local-postgres/testing": "./src/local-postgres/testing/drop.ts"
+    "./local-postgres/testing": "./src/local-postgres/testing/drop.ts",
+    "./librarian": "./src/librarian/index.ts",
+    "./librarian/verbs": "./src/librarian/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -52,6 +54,17 @@
       {
         "from": "./commands",
         "export": "LIBRARY_FAMILIES"
+      },
+      {
+        "from": "./librarian/verbs",
+        "export": "LIBRARIAN_FAMILIES"
+      }
+    ],
+    "tools": [
+      {
+        "from": "./librarian",
+        "export": "librarianToolParts",
+        "order": 1
       }
     ]
   }

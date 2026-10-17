@@ -4,7 +4,7 @@
  * these tools, and no story may depend on the MCP server (ADR-0969 D1). The MCP server checks the two still
  * fit where it mounts its tool parts (its test 6.75); where the verb's own types live is ADR-0969 D2's work.
  */
-import type { Library, WriteOptions } from "@storytree/library";
+import type { Library, WriteOptions } from "../../index.js";
 import type { z } from "zod";
 
 /** One line of the agent activity log, as far as a session's start is read from it. */

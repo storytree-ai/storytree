@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { Library } from "@storytree/library";
+import type { Library } from "../../index.js";
 
 import { withLibrary } from "../testing/pg.js";
 import { worklist } from "../rounds/index.js";

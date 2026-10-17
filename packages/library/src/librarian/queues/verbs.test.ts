@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import type { DoorWords, VerbContext } from "@storytree/library/verbs";
+import type { DoorWords, VerbContext } from "../../verbs/verb.js";
 
 import { withLibrary } from "../testing/pg.js";
 import { LIBRARIAN_FAMILIES } from "../verbs.js";

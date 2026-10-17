@@ -3,7 +3,7 @@
  * library's public API alone (a plain search for nothing returns every live note), and the refusal
  * the librarian's own rules end in.
  */
-import type { Library, Note } from "@storytree/library";
+import type { Library, Note } from "../index.js";
 
 /** A write the librarian refuses, because it breaks one of its rules; its message names the rule. */
 export class LibrarianRefusal extends Error {

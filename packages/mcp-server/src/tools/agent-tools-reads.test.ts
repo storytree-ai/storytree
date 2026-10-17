@@ -21,7 +21,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { Client } from "@modelcontextprotocol/client";
 import { connect, type Library, type Line } from "@storytree/library";
-import { worklist } from "@storytree/librarian";
+import { worklist } from "@storytree/library/librarian";
 import pg from "pg";
 
 import { openActivityLog } from "@storytree/session-management";

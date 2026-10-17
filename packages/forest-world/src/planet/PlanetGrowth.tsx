@@ -1,4 +1,4 @@
-/** Capability 6 · The planet. The globe's growth clock (world 7.4): what the canvas and the host's marks read to draw a growth as it stands. */
+/** Capability 11 · The planet. The globe's growth clock (Map view 12.4): what the canvas and the host's marks read to draw a growth as it stands. */
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { fileKey, growthMoment, growthProgress, type GrowthPlan } from './growth.js';
@@ -14,7 +14,7 @@ export interface GrowthReader {
   island(story: string): number;
   capability(capability: string): number;
   file(story: string, path: string): number;
-  /** Where a recorded date falls in the growth, in its seconds (world 7.5); 0 when there is none. */
+  /** Where a recorded date falls in the growth, in its seconds (Map view 12.5); 0 when there is none. */
   moment(date: string): number;
 }
 

@@ -1,4 +1,4 @@
-// World 6.17: a host reveals roads after leaving them hidden, including over a recorded timeline.
+// Map view 11.17: a host reveals roads after leaving them hidden, including over a recorded timeline.
 // Run: node --import tsx packages/forest-world/evidence/globe-exterior/reveal.mjs [--check]
 import assert from 'node:assert/strict';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -11,7 +11,7 @@ import { recordBrowserCoverage } from '../../../dev-loop/src/browser-coverage.mj
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgDir = path.resolve(here, '../..');
 const dist = path.join(here, 'out');
-const PROOF = 'forest-world 6.17 showing hidden roads draws them by distance without advancing recorded arrivals';
+const PROOF = 'forest-world 11.17 showing hidden roads draws them by distance without advancing recorded arrivals';
 const smoke = process.argv.includes('--smoke');
 const results = {};
 let traces;

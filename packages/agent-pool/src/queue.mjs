@@ -1,4 +1,4 @@
-// Capability 12 · The Mint pool runs its lanes under the box's cap (ADR-0955 D2): one dispatcher at a time, at most
+// Capability 3 · The Mint pool runs its lanes under the box's cap (ADR-0955 D2): one dispatcher at a time, at most
 // the box's cap of engines at once, each lane's brief composed from its header, notes and the pool's rules.
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -7,7 +7,7 @@ import { posix } from "node:path";
 import { promisify } from "node:util";
 
 /**
- * The code the dispatcher runs (12.10, ADR-0981): what launch.mjs loads, each lane's runner loads, and the briefs it
+ * The code the dispatcher runs (3.10, ADR-0981): what launch.mjs loads, each lane's runner loads, and the briefs it
  * composes. A change to one of these restarts the dispatcher; a change anywhere else in the dev loop (the test runner,
  * the gate, the health readers, a test) leaves it starting work. When one of these files comes to import another file,
  * name that file here. The pool's configuration (agent-pool.json, pool-config.mjs) is read once at start, so it is here too.

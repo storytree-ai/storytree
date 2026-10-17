@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 import { openActivityLog } from "@storytree/session-management";
 import { connect } from "@storytree/library";
-import { start } from "@storytree/local-postgres";
+import { start } from "@storytree/library/local-postgres";
 import pg from "pg";
 
 import { acquireHeavyLock } from "./heavy-lock.mjs";

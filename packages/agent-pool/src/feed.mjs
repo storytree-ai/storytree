@@ -1,4 +1,4 @@
-// Capability 11 · The Mint pool keeps its lanes fed (ADR-0955 D2): one survey of the library names every active
+// Capability 2 · The Mint pool keeps its lanes fed (ADR-0955 D2): one survey of the library names every active
 // arc's ready increments, under the manager's skip rules, and claims are the only conflict guard.
 
 /** The body's leading needs clause: its first needs label, up to that sentence's full stop or the line's end. Later wording, and a needs label quoted later, are not its need. */
@@ -122,7 +122,7 @@ export function planState(survey, arcId) {
 
 /**
  * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
- * none of them waiting on the owner, a question or work that can still land (planning has nothing to add there: the waits name what releases them, 11.21), oldest first, skipping an arc whose own wait holds on work that can still land (11.22) and an arc whose entry in `planned` (arc to the planState it was last planned in, kept across the dispatcher's restarts)
+ * none of them waiting on the owner, a question or work that can still land (planning has nothing to add there: the waits name what releases them, 2.21), oldest first, skipping an arc whose own wait holds on work that can still land (2.22) and an arc whose entry in `planned` (arc to the planState it was last planned in, kept across the dispatcher's restarts)
  * is its present state: an arc waiting on the owner is planned once until something on it changes. The arc comes with its `state`, for `planned`.
  * Undefined when none qualifies. Work handed to the watcher, or waiting on work that is (at any depth), is in flight like claimed work, not stalled.
  */

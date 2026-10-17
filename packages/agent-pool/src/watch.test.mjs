@@ -41,7 +41,7 @@ const red = { state: "red", head: "h1", why: "verify on Windows failed", logs: [
 const handOff = (b, pr = 41, increment = "increment_one") => hand({ ...b.options, pr, increment, session: SESSION, startWatcher: async () => {} });
 const saved = async (b, pr = 41) => JSON.parse(await readFile(join(b.dir, `${pr}.json`), "utf8"));
 
-test("13.1 · a handed-over pull request that merges closes its increment, releases its session's claims and is forgotten", async (t) => {
+test("4.1 · a handed-over pull request that merges closes its increment, releases its session's claims and is forgotten", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.calls.length = 0;
@@ -63,7 +63,7 @@ test("13.1 · a handed-over pull request that merges closes its increment, relea
   assert.ok(b.lines.some((line) => line.includes("refused: increment_two is already closed")));
 });
 
-test("13.2 · a red check, or the queue's ejection the requeue left out, is red; a pending, queued or older ejection is not", () => {
+test("4.2 · a red check, or the queue's ejection the requeue left out, is red; a pending, queued or older ejection is not", () => {
   const options = { since: minutes(-60), now: at, graceMs: 10 * 60_000 };
   assert.deepEqual(readPull(pull({ state: "MERGED" }), options), { state: "merged", head: "h1" });
   assert.deepEqual(readPull(pull({ state: "CLOSED" }), options), { state: "closed", head: "h1" });
@@ -78,7 +78,7 @@ test("13.2 · a red check, or the queue's ejection the requeue left out, is red;
   assert.equal(readPull(pull({ checks: [passed], removed: [{ ...ejected, reason: "merged" }] }), options).state, "pending");
 });
 
-test("13.2 · a red pull request starts exactly one fix session at a time, and only with an engine slot free", async (t) => {
+test("4.2 · a red pull request starts exactly one fix session at a time, and only with an engine slot free", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = red;
@@ -104,7 +104,7 @@ test("13.2 · a red pull request starts exactly one fix session at a time, and o
   assert.equal(b.fixes.length, 2);
 });
 
-test("13.8 · a pull request that conflicts with main is red with every check green, and its fix session is told to merge main", async (t) => {
+test("4.8 · a pull request that conflicts with main is red with every check green, and its fix session is told to merge main", async (t) => {
   const options = { since: minutes(-60), now: at, graceMs: 10 * 60_000 };
   const conflicting = readPull(pull({ checks: [passed], mergeable: "CONFLICTING" }), options);
   assert.equal(conflicting.state, "red");
@@ -121,7 +121,7 @@ test("13.8 · a pull request that conflicts with main is red with every check gr
   assert.match(b.fixes[0].brief, /merge\s+origin\/main/);
 });
 
-test("13.3 · after its fix limit the watcher writes an owner wait with the PR and the logs", async (t) => {
+test("4.3 · after its fix limit the watcher writes an owner wait with the PR and the logs", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = red;
@@ -134,7 +134,7 @@ test("13.3 · after its fix limit the watcher writes an owner wait with the PR a
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is forgotten once the owner has it");
 });
 
-test("13.12 · a pull request that conflicts with main past the fix limit gets one more fix session, and no owner wait", async (t) => {
+test("4.12 · a pull request that conflicts with main past the fix limit gets one more fix session, and no owner wait", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = red;
@@ -150,10 +150,10 @@ test("13.12 · a pull request that conflicts with main past the fix limit gets o
   b.live.clear();
   await watchOnce(b.options);
   assert.equal(b.fixes.length, 3, "and only one more");
-  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "a merge never waits on the owner (13.20)");
+  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "a merge never waits on the owner (4.20)");
 });
 
-test("13.4 · a hand-off on disk survives a watcher restart, and handing back keeps its fix count", async (t) => {
+test("4.4 · a hand-off on disk survives a watcher restart, and handing back keeps its fix count", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = red;
@@ -170,7 +170,7 @@ test("13.4 · a hand-off on disk survives a watcher restart, and handing back ke
   assert.equal(b.fixes[1].n, 2);
 });
 
-test("13.5 · a hand-off parks the increment on an event wait and starts the watcher only when none runs; the watcher is no engine", async (t) => {
+test("4.5 · a hand-off parks the increment on an event wait and starts the watcher only when none runs; the watcher is no engine", async (t) => {
   const b = await box(t);
   let started = 0;
   await hand({ ...b.options, pr: 41, increment: "increment_one", session: SESSION, startWatcher: async () => { started++; } });
@@ -194,7 +194,7 @@ test("13.5 · a hand-off parks the increment on an event wait and starts the wat
   assert.equal(countEngines(`  7     1 ${procs[7]}`), 0, "it takes no engine slot");
 });
 
-test("13.7 · a session on any machine hands over: on the box directly, elsewhere over ssh with its own session id, refusing plainly when the box is out of reach", async () => {
+test("4.7 · a session on any machine hands over: on the box directly, elsewhere over ssh with its own session id, refusing plainly when the box is out of reach", async () => {
   const handed = [], sshed = [];
   const local = async (args) => { handed.push(args); };
   const ok = async (args) => { sshed.push(args); return "PR #41 handed to the watcher\nClose out with: pnpm storytree session close-out --safe yes --why \"PR #41 open and green, handed to the watcher\"\n"; };
@@ -218,7 +218,7 @@ test("13.7 · a session on any machine hands over: on the box directly, elsewher
   assert.equal(sshed.length, 1);
 });
 
-test("13.10 · a watcher whose code changes between two looks ends with the restart code, starting no fix session, and its keeper starts it again", async (t) => {
+test("4.10 · a watcher whose code changes between two looks ends with the restart code, starting no fix session, and its keeper starts it again", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = { state: "pending", head: "h1" };
@@ -266,7 +266,7 @@ test("13.10 · a watcher whose code changes between two looks ends with the rest
   assert.equal(looks, 2, "the test runner changed: it looked again; then its own code changed: it restarted");
 });
 
-test("13.11 · a pull request handed over to keep its increment open is watched and fixed, and on MERGED leaves the increment open", async (t) => {
+test("4.11 · a pull request handed over to keep its increment open is watched and fixed, and on MERGED leaves the increment open", async (t) => {
   const b = await box(t);
   await hand({ ...b.options, pr: 41, increment: "increment_one", session: SESSION, keepOpen: true, startWatcher: async () => {} });
   assert.doesNotMatch(b.calls[0][7], /closes this/, "its wait does not promise to close the increment");
@@ -296,7 +296,7 @@ test("13.11 · a pull request handed over to keep its increment open is watched 
   assert.match(outs[0], /stays open/);
 });
 
-test("13.14 · a fix session refused by another session's claim hands back without counting, and is retried once the holder's session ends", async (t) => {
+test("4.14 · a fix session refused by another session's claim hands back without counting, and is retried once the holder's session ends", async (t) => {
   const b = await box(t);
   await handOff(b, 41, "increment_one");
   await handOff(b, 42, "increment_two");
@@ -326,7 +326,7 @@ test("13.14 · a fix session refused by another session's claim hands back witho
   assert.equal(b.fixes.filter((fix) => fix.pr === 42).length, 3);
 });
 
-test("13.14 · a refused fix session is not started again while the session its refusal names still holds a claim, and is once that claim clears", async (t) => {
+test("4.14 · a refused fix session is not started again while the session its refusal names still holds a claim, and is once that claim clears", async (t) => {
   const holding = `  - capability capability_shared  Claude Code bbbb-other (live, on claude/y), since 2026-10-10T11:00:00Z: other`;
   const b = await box(t, { board: `1 claim now:\n${holding}` });
   await handOff(b, 42, "increment_two");
@@ -345,7 +345,7 @@ test("13.14 · a refused fix session is not started again while the session its 
   assert.match(b.fixes[1].brief, /Fix session 1 of 2/, "the refusal is not counted");
 });
 
-test("13.14 · a refusal that names no holder is retried only after a back-off, not at the next look", async (t) => {
+test("4.14 · a refusal that names no holder is retried only after a back-off, not at the next look", async (t) => {
   const b = await box(t);
   await handOff(b, 42, "increment_two");
   b.looks[42] = red;
@@ -359,7 +359,7 @@ test("13.14 · a refusal that names no holder is retried only after a back-off, 
   assert.equal(b.fixes.length, 2, "retried once the back-off has passed");
 });
 
-test("13.15 · pull requests that conflict with main are merged one at a time, lowest first, and none waits on the owner for it", async (t) => {
+test("4.15 · pull requests that conflict with main are merged one at a time, lowest first, and none waits on the owner for it", async (t) => {
   const b = await box(t);
   const conflict = readPull(pull({ checks: [passed], mergeable: "CONFLICTING" }), { since: minutes(-60), now: at, graceMs: 0 });
   for (const pr of [43, 41, 42]) { await handOff(b, pr, `increment_${pr}`); b.looks[pr] = conflict; }
@@ -382,7 +382,7 @@ test("13.15 · pull requests that conflict with main are merged one at a time, l
   assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"));
 });
 
-test("13.13 · a pull request handed over after its increment closed on an earlier one is watched, fixed and released, with no wait or close", async (t) => {
+test("4.13 · a pull request handed over after its increment closed on an earlier one is watched, fixed and released, with no wait or close", async (t) => {
   const b = await box(t);
   const storytree = b.options.storytree;
   b.options.storytree = async (args) => {
@@ -413,7 +413,7 @@ test("13.13 · a pull request handed over after its increment closed on an earli
 
 const conflictOn = (head, checks = [passed]) => readPull(pull({ head, checks, mergeable: "CONFLICTING" }), { since: minutes(-60), now: at, graceMs: 0 });
 
-test("13.18 · a pull request that conflicts with main reads as a conflict even when a check failed too, so its merges run one at a time", async (t) => {
+test("4.18 · a pull request that conflicts with main reads as a conflict even when a check failed too, so its merges run one at a time", async (t) => {
   const both = conflictOn("h1", [passed, failed]);
   assert.equal(both.state, "red");
   assert.equal(both.conflict, true, "the conflict is not hidden by the failed check");
@@ -426,7 +426,7 @@ test("13.18 · a pull request that conflicts with main reads as a conflict even 
   assert.deepEqual(b.fixes.map((fix) => fix.pr), [41], "the second conflict waits for the first merge session");
 });
 
-test("13.19 · a fix session that pushed is not counted when a newer main conflicts its branch again, and a cap on all sessions stops a loop", async (t) => {
+test("4.19 · a fix session that pushed is not counted when a newer main conflicts its branch again, and a cap on all sessions stops a loop", async (t) => {
   const b = await box(t);
   await handOff(b);
   let head = 0;
@@ -452,7 +452,7 @@ test("13.19 · a fix session that pushed is not counted when a newer main confli
   assert.equal(plain.fixes.length, 2, "a red that is no conflict counts every fix");
 });
 
-test("13.20 · a conflict past the limit goes back on its arc as ready work, naming its pull request and branch, never to the owner", async (t) => {
+test("4.20 · a conflict past the limit goes back on its arc as ready work, naming its pull request and branch, never to the owner", async (t) => {
   const b = await box(t);
   b.options.storytree = async (args) => {
     b.calls.push(args);
@@ -476,7 +476,7 @@ test("13.20 · a conflict past the limit goes back on its arc as ready work, nam
   assert.match(b.lines.at(-1), /PR #41.*back on its arc/);
 });
 
-test("13.22 · a hand-over holds the session's claims for its pull request on its branch until it merges or closes, says when it could not, and a pull request closed unmerged lets them go", async (t) => {
+test("4.22 · a hand-over holds the session's claims for its pull request on its branch until it merges or closes, says when it could not, and a pull request closed unmerged lets them go", async (t) => {
   const b = await box(t);
   const outs = [];
   await main(["hand", "41", "increment_one", "--session", SESSION], { ...b.options, dir: b.dir, out: (line) => outs.push(line),
@@ -500,7 +500,7 @@ test("13.22 · a hand-over holds the session's claims for its pull request on it
   assert.deepEqual(b.calls.filter(([, verb]) => verb === "let-go"), [["workspace", "let-go", "41", "--reason", "PR #41 closed without merging; released by the watcher"]]);
 });
 
-test("13.23 · a pull request open past three days since it was handed over gives its claims up and goes back on its arc as ready work; a red past its limit lets them go too", async (t) => {
+test("4.23 · a pull request open past three days since it was handed over gives its claims up and goes back on its arc as ready work; a red past its limit lets them go too", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = { state: "pending", head: "h1", branch: "claude/increment-one" };
@@ -522,7 +522,7 @@ test("13.23 · a pull request open past three days since it was handed over give
   assert.deepEqual(spent.calls.at(-1).slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "owner"]);
 });
 
-test("13.21 · the watcher's status says when its look loop runs code other than the checkout's", async (t) => {
+test("4.21 · the watcher's status says when its look loop runs code other than the checkout's", async (t) => {
   const b = await box(t);
   const procs = { 7: "node /repo/packages/agent-pool/src/watch.mjs run", 8: "node /repo/packages/agent-pool/src/watch.mjs watch" };
   let checkout = "tree-a";
@@ -550,7 +550,7 @@ test("13.21 · the watcher's status says when its look loop runs code other than
   assert.match(await status(), /look loop: not running/);
 });
 
-test("13.17 · a watch loop on a folder other than the box's own reads no releases, so it starts no release fix session", async (t) => {
+test("4.17 · a watch loop on a folder other than the box's own reads no releases, so it starts no release fix session", async (t) => {
   const b = await box(t);
   // A home with the lane runner is the box's; the loop is given another folder, as a test on the box gives it.
   const home = await mkdtemp(join(tmpdir(), "lane-watch-box-"));
@@ -563,7 +563,7 @@ test("13.17 · a watch loop on a folder other than the box's own reads no releas
   assert.doesNotMatch(b.lines.join("\n"), /release/);
 });
 
-test("13.24 · a hand-over from another machine runs on the configured machine, in its checkout as written there; with none configured it is refused", async (t) => {
+test("4.24 · a hand-over from another machine runs on the configured machine, in its checkout as written there; with none configured it is refused", async (t) => {
   assert.deepEqual(remoteCommand({ machine: "box", remoteCheckout: "~/src/shop" }, ["hand", "41", "increment_one", "--session", SESSION]),
     ["ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "box", `cd ~/src/shop && node packages/agent-pool/src/watch.mjs hand 41 increment_one --session ${SESSION}`]]);
 
@@ -576,7 +576,7 @@ test("13.24 · a hand-over from another machine runs on the configured machine, 
   assert.match(lines.join("\n"), /names no machine to hand over to/);
 });
 
-test("13.26 · a fix session counts as running whether its runner was started from the agent pool's package or from the dev loop's old lanes path", () => {
+test("4.26 · a fix session counts as running whether its runner was started from the agent pool's package or from the dev loop's old lanes path", () => {
   assert.ok(isFixSession("/usr/bin/node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs run /l/watch/fix-41-1-brief.md log err"));
   assert.ok(isFixSession("/usr/bin/node /home/m/code/storytree03/packages/dev-loop/src/lanes/runner.mjs run /l/watch/fix-41-1-brief.md log err"),
     "one started before the move still holds its pull request's fix slot");
@@ -585,7 +585,7 @@ test("13.26 · a fix session counts as running whether its runner was started fr
   assert.ok(!isFixSession(""), "a process that is gone");
 });
 
-test("13.25 · each red the watcher handles writes one pr-red line as its fix session starts, with its conflict and failed checks, in the hand-off's own project", async (t) => {
+test("4.25 · each red the watcher handles writes one pr-red line as its fix session starts, with its conflict and failed checks, in the hand-off's own project", async (t) => {
   const b = await box(t);
   const where = [];
   b.options.storytree = async (args, project) => { b.calls.push(args); where.push(project); return ""; };

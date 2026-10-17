@@ -34,7 +34,6 @@
     "@storytree/session-management": "workspace:*",
     "@storytree/dev-loop": "workspace:*",
     "@storytree/library": "workspace:*",
-    "@storytree/local-postgres": "workspace:*",
     "pg": "^8.23.0",
     "tsx": "^4.23.15"
   },

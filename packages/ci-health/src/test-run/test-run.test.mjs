@@ -11,7 +11,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
 
 import { checkStory } from "./record-run.mjs";
 import { contractsCoveredBy, contractsOf, judge, markPending, packageOf, parseJunit, readCiEvidence, recordHealth, recordingTarget } from "./test-run.mjs";
@@ -240,7 +240,6 @@ test("own health reads a story's contracts from the library, each number from it
   assert.equal(packageOf({ id: "story-b", title: "The arc surface" }), "arc-surface");
   assert.equal(packageOf({ id: "story-c", title: "The library" }), "library");
   assert.equal(packageOf({ id: "story_f9fb5136c28f", title: "The command line" }), "cli", "a package named otherwise");
-  assert.equal(packageOf({ id: "story_1d360b6227d8", title: "The local database" }), "local-postgres");
   assert.equal(packageOf({ id: "story_9abd84ab493f", title: "Process ledger" }), "processes");
   assert.equal(packageOf({ id: "story_1c73ed7506ca", title: "Lag in real use" }), "lag-in-use");
 });

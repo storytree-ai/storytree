@@ -15,7 +15,7 @@ import path from "node:path";
  */
 export function placeTestServer(dataDir: string): void {
   const server = process.env.STORYTREE_TEST_PG_DATA;
-  if (server === undefined || server === "") throw new Error("STORYTREE_TEST_PG_DATA is not set: run the tests via `pnpm test`, which starts the test Postgres through @storytree/local-postgres.");
+  if (server === undefined || server === "") throw new Error("STORYTREE_TEST_PG_DATA is not set: run the tests via `pnpm test`, which starts the test Postgres through @storytree/library/local-postgres.");
   writeFileSync(`${dataDir}.owner.json`, readFileSync(`${server}.owner.json`));
   const handoff = path.join(`${server}.auth`, "connection.json");
   if (!existsSync(handoff)) return;

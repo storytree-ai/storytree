@@ -12,7 +12,7 @@ function survey(increments, extra = {}) {
   return { increments, holds: { waits: {}, heldOn: {} }, claims: [], ...extra };
 }
 
-test("11.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, machine field, the arc's state, this machine's name, the standing claims and the refusals of the capabilities live sessions hold", async () => {
+test("2.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, machine field, the arc's state, this machine's name, the standing claims and the refusals of the capabilities live sessions hold", async () => {
   let reads = 0;
   const record = (id, arc, body, extra = {}) => ({ id, createdAt: new Date(now), fields: { arc, title: id, body, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
   const library = {
@@ -46,7 +46,7 @@ test("11.2 · the survey reads arcs and holds once, with every increment's arc, 
   assert.deepEqual((await readSurvey({ library, claims: async () => [claims[0], claims[1]], refusals: async () => assert.fail("no live capability, no read") })).refusals, []);
 });
 
-test("11.8 · the pool picks ready work from every package by claims alone, oldest first, an arc nobody is on before a busy one", () => {
+test("2.8 · the pool picks ready work from every package by claims alone, oldest first, an arc nobody is on before a busy one", () => {
   const work = survey([
     increment("library-work", "Build it in packages/library.", { arc: "arc_busy", parked: "2026-10-01T00:00:00Z" }),
     increment("app-work", "Build it in packages/app.", { arc: "arc_idle", parked: "2026-10-02T00:00:00Z" }),
@@ -88,7 +88,7 @@ test("11.8 · the pool picks ready work from every package by claims alone, olde
     "the website arc's ready work is picked like any other arc's");
 });
 
-test("11.15 · only a wait for the owner or a held-on question keeps work from the pool as his; no wording in its body does", () => {
+test("2.15 · only a wait for the owner or a held-on question keeps work from the pool as his; no wording in its body does", () => {
   const work = survey([
     increment("worded", "needs: the owner's sign-in. An owner action names the build.", { parked: "2026-09-01T00:00:00Z" }),
     increment("waited", "Build it in packages/app.", { parked: "2026-09-02T00:00:00Z" }),
@@ -98,7 +98,7 @@ test("11.15 · only a wait for the owner or a held-on question keeps work from t
   assert.deepEqual(skipped, [{ id: "waited", why: "waits for the owner: sign in to the store" }]);
 });
 
-test("11.10 · the pool takes ready work by its arc's priority, then by when it was parked", async () => {
+test("2.10 · the pool takes ready work by its arc's priority, then by when it was parked", async () => {
   const work = survey([
     increment("old-unranked", "x", { arc: "arc_none", parked: "2026-09-01T00:00:00Z" }),
     increment("old-second", "x", { arc: "arc_two", parked: "2026-09-02T00:00:00Z", priority: 2 }),
@@ -122,7 +122,7 @@ test("11.10 · the pool takes ready work by its arc's priority, then by when it 
   assert.deepEqual(read.increments.map((one) => one.priority), [3, undefined], "the survey carries each increment's arc priority");
 });
 
-test("11.9 · an active arc whose open work all waits on an event, or has none, with no open question, is offered for planning, oldest first, and not again in the state it was planned in", () => {
+test("2.9 · an active arc whose open work all waits on an event, or has none, with no open question, is offered for planning, oldest first, and not again in the state it was planned in", () => {
   const arc = (id, created, extra = {}) => ({ id, state: "active", title: id, created, openQuestions: 0, ...extra });
   const work = survey([
     increment("waiting", "x", { arc: "arc_waits" }), increment("done", "x", { arc: "arc_waits", status: "closed" }),
@@ -146,7 +146,7 @@ test("11.9 · an active arc whose open work all waits on an event, or has none, 
   assert.equal(pickPlan(survey([])), undefined, "a survey without arcs offers none");
 });
 
-test("11.13 · an arc whose open work waits on its own handed-over pull requests is in flight, not offered for planning", () => {
+test("2.13 · an arc whose open work waits on its own handed-over pull requests is in flight, not offered for planning", () => {
   const arc = (id, created) => ({ id, state: "active", title: id, created, openQuestions: 0 });
   const handed = (pr) => [{ releaser: "event", note: `PR #${pr} is open and green and handed to the Mint box's watcher, which closes this on its merge or starts a fix session on a red.`, holds: true }];
   const work = survey([
@@ -163,7 +163,7 @@ test("11.13 · an arc whose open work waits on its own handed-over pull requests
   assert.equal(pickPlan(work)?.id, "arc_stalled", "a hand-over wait, its watcher record, and a wait on an increment holding one are in flight");
 });
 
-test("11.20 · an arc planned while its open work waits on an event is offered again only once that work changes", () => {
+test("2.20 · an arc planned while its open work waits on an event is offered again only once that work changes", () => {
   const arcs = [{ id: "arc_owner", state: "active", title: "Owner", created: "2026-10-01T00:00:00Z", openQuestions: 0 }];
   const owner = { releaser: "event", note: "Apple renews the certificate", holds: true };
   const work = (increments, waitsFor) => survey(increments, { arcs, holds: { waits: {}, heldOn: {}, waitsFor } });
@@ -181,7 +181,7 @@ test("11.20 · an arc planned while its open work waits on an event is offered a
     "its work closing is a change");
 });
 
-test("11.21 · an arc whose open work all waits on the owner, a question or other live work is not offered for planning; one with an event wait or a dead blocker still is", () => {
+test("2.21 · an arc whose open work all waits on the owner, a question or other live work is not offered for planning; one with an event wait or a dead blocker still is", () => {
   const arc = (id, created) => ({ id, state: "active", title: id, created, openQuestions: 0 });
   const owner = { releaser: "owner", note: "the owner sets CSC_LINK", holds: true };
   const work = survey([
@@ -203,7 +203,7 @@ test("11.21 · an arc whose open work all waits on the owner, a question or othe
   assert.equal(plan("arc_event", "arc_dead"), undefined);
 });
 
-test("11.22 · an arc whose own wait holds is not offered for planning; one whose blocker can never land still is", () => {
+test("2.22 · an arc whose own wait holds is not offered for planning; one whose blocker can never land still is", () => {
   const arc = (id, created) => ({ id, state: "active", title: id, created, openQuestions: 0 });
   const work = survey([increment("learner", "x", { arc: "arc_learn" })], {
     arcs: [arc("arc_prune", "2026-09-01T00:00:00Z"), arc("arc_stale", "2026-09-02T00:00:00Z")],
@@ -216,7 +216,7 @@ test("11.22 · an arc whose own wait holds is not offered for planning; one whos
   assert.equal(pickPlan(work, { planned: new Map([["arc_stale", planState(work, "arc_stale")]]) }), undefined);
 });
 
-test("11.11 · work whose session ended without a hand-off is offered again after a back-off, and not before", () => {
+test("2.11 · work whose session ended without a hand-off is offered again after a back-off, and not before", () => {
   const ran = Date.parse("2026-10-07T01:00:00Z"), minute = 60_000;
   const attempts = new Map([["bounced", { at: ran }], ["handed", { at: ran }]]);
   const work = survey([increment("bounced", "x"), increment("handed", "x")], { holds: { waits: {}, heldOn: {}, waitsFor: { handed: [{ releaser: "event", note: "PR", holds: true }] } } });
@@ -227,7 +227,7 @@ test("11.11 · work whose session ended without a hand-off is offered again afte
   assert.deepEqual(pick(ran + 35 * minute), ["bounced"], "offered again once it passes; work handed to the watcher still waits");
 });
 
-test("11.12 · work whose listed capability a live session holds is left out, and offered again once that claim clears", () => {
+test("2.12 · work whose listed capability a live session holds is left out, and offered again once that claim clears", () => {
   const ran = Date.parse("2026-10-07T01:00:00Z");
   const attempts = new Map([["bounced", { at: ran }]]);
   const held = [
@@ -249,7 +249,7 @@ test("11.12 · work whose listed capability a live session holds is left out, an
     "offered again as soon as the claim clears, with no back-off");
 });
 
-test("11.18 · work whose lane was refused a capability not yet on its list is left out while any live session holds it, whoever it passed to (increment_8a3301a85e42, increment_201f02e6baef dispatched six times on 2026-10-11)", () => {
+test("2.18 · work whose lane was refused a capability not yet on its list is left out while any live session holds it, whoever it passed to (increment_8a3301a85e42, increment_201f02e6baef dispatched six times on 2026-10-11)", () => {
   const work = (claims, refusals) => survey([
     increment("bounced", "x", { parked: "2026-10-01T00:00:00Z" }),
     increment("passed", "x", { parked: "2026-10-02T00:00:00Z" }),
@@ -265,7 +265,7 @@ test("11.18 · work whose lane was refused a capability not yet on its list is l
     "offered again once no live session holds it");
 });
 
-test("11.16 · work is left out while a capability on its list is on the list of an increment another live session holds", () => {
+test("2.16 · work is left out while a capability on its list is on the list of an increment another live session holds", () => {
   const work = (claims) => survey([
     increment("driven", "x", { parked: "2026-10-01T00:00:00Z", capabilities: ["capability_shared", "capability_own"] }),
     increment("wide", "y", { arc: "arc_b", parked: "2026-10-02T00:00:00Z", capabilities: ["capability_free", "capability_shared"] }),
@@ -279,7 +279,7 @@ test("11.16 · work is left out while a capability on its list is on the list of
     "offered again once the holder's claim is no longer live");
 });
 
-test("11.17 · only the body's leading needs clause routes work: read-only or blind said later is not its need", () => {
+test("2.17 · only the body's leading needs clause routes work: read-only or blind said later is not its need", () => {
   const sameLine = "Needs: packages/website; Mint-capable. Build the panels and retain usable read-only panels for a blind reviewer on the laptop.";
   const quoted = "Needs: packages/dev-loop.\nThe bug: a label reading needs: read-only, blind, or needs: the laptop, later in a body.";
   for (const body of [sameLine, quoted]) {
@@ -293,7 +293,7 @@ test("11.17 · only the body's leading needs clause routes work: read-only or bl
   assert.deepEqual(pickPool(survey([increment("build", quoted)]), { now }).picks.map((one) => one.id), ["build"]);
 });
 
-test("11.19 · work whose machine field names another machine is left out, with that machine's name; work naming this one, or none, is picked, whatever its body says", () => {
+test("2.19 · work whose machine field names another machine is left out, with that machine's name; work naming this one, or none, is picked, whatever its body says", () => {
   const work = survey([
     increment("laptop", "Build it in packages/app.", { machine: "laptop" }),
     increment("mint", "Build it in packages/app.", { machine: "mint" }),

@@ -9,7 +9,8 @@
     "./machines": "./src/machines/machines.ts",
     "./verbs": "./src/sessions/verbs.ts",
     "./workspace-verbs": "./src/claims/verbs.ts",
-    "./hook-command": "./src/bins/storytree-hook.ts"
+    "./hook-command": "./src/bins/storytree-hook.ts",
+    "./hook-start": "./src/hooks/at-once.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

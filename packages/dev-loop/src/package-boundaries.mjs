@@ -19,7 +19,7 @@ import { packageProblems } from "@storytree/guardrails";
 import { ALSO_OWNED } from "@storytree/map/package-of";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>); one that owns several declares the others in the map's ALSO_OWNED (ADR-1066 D3). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-health", "claude-code-mod", "cli", "dev-loop", "experiments", "forest", "guardrails", "journey-events", "lag-in-use", "learning-as-you-build", "knowledge-core", "library", "map", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "session-management", "website"];
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-health", "claude-code-mod", "cli", "dev-loop", "experiments", "forest", "guardrails", "journey-events", "lag-in-use", "learning-as-you-build", "knowledge-core", "library", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "session-management", "website"];
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3); the dev loop depends on it one way, for the forwarders at its old lanes paths.
 // app-setup: story_b91056a06337 (The app setup).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
@@ -36,6 +36,7 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-hea
 // learning-as-you-build: story_7d7b0ffccf55 (Learning as you build, ADR-1048).
 // experiments: story_c2dbcf855db2 (Experiments, ADR-1064 D1).
 // claude-code-mod: story_3def3732e802 (The Claude Code mod, ADR-1056 D3).
+// mark: story_08790ee19bbf (Marketing artifacts, ADR-1071 D3), out of Website again.
 
 /** STORIES with the packages each owns beyond its own (ADR-1066 D3), as the package and allocation rules take them. */
 export const OWNED = STORIES.map((story) => Object.hasOwn(ALSO_OWNED, story) ? { story, packages: [story, ...ALSO_OWNED[story]] } : story);

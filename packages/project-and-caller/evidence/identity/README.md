@@ -1,6 +1,6 @@
 # Portable identity proof — 2026-10-03
 
-Contracts 1.1–1.5 of Identity's portable user capability are exercised through the public service boundary in `src/identity.test.ts`.
+Contracts 1.1–1.5 of Identity's portable user capability are exercised through the public service boundary in `src/identity/identity.test.ts`.
 
 - Real ephemeral Postgres, isolated schema per test; signed RSA JWTs; a real loopback HTTP stand-in serving WorkOS-shaped JWKS, user and identity responses.
 - First sign-in persists an independent UUID, first verified email, replaceable WorkOS pointer and all three supported provider identities. Reopening keeps it.
@@ -11,7 +11,7 @@ Contracts 1.1–1.5 of Identity's portable user capability are exercised through
 
 Red witnessed: the initial named-file run failed because the identity module did not exist. After implementation all five tests passed. Review then exposed an unsanitized database-pool acquisition error: the new assertion failed with `Cannot use a pool after calling end on the pool`; the service boundary fix made it pass.
 
-Run: `pnpm run test packages/identity/src/identity.test.ts`. Full repository verification uses `pnpm gate`; its actual result is in the pull request and session report.
+Run: `pnpm run test packages/project-and-caller/src/identity/identity.test.ts`. Full repository verification uses `pnpm gate`; its actual result is in the pull request and session report.
 
 ## Historical live-staging check — 2026-10-03: NOT RUN
 
@@ -34,7 +34,7 @@ The client and session-store tests first failed with missing modules, the HTTP t
 - A real loopback HTTP request into the identity handler, real signed JWT validation against WorkOS-shaped HTTP responses, and an isolated ephemeral Postgres schema. Only the portable ID and first verified email are returned. Refused HTTP requests do not mutate identity rows; server errors do not expose secrets.
 - Feedback's optional identity bridge, no first-run identity request, explicit insertion into the editable message, removal before sharing, and normal feedback after sign-in failure. [Chromium captures](../../app-setup/evidence/identity/README.md) use a fixture account and submit nothing.
 
-Run the behavior tests with `pnpm run test packages/identity/src/identity.test.ts packages/identity/src/client.test.ts packages/identity/src/session-store.test.ts packages/identity/src/command.test.ts packages/app-setup/src/view/mount.test.ts`. The PR and lane report carry the final gate table and three-platform CI results.
+Run the behavior tests with `pnpm run test packages/project-and-caller/src/identity/identity.test.ts packages/identity/src/client.test.ts packages/identity/src/session-store.test.ts packages/identity/src/command.test.ts packages/app-setup/src/view/mount.test.ts`. The PR and lane report carry the final gate table and three-platform CI results.
 
 ## Read-only staging check — 2026-10-06, about 02:11 UTC
 

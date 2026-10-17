@@ -104,7 +104,7 @@ async function buildPhase<T>(name: string, run: () => T | Promise<T>): Promise<T
 /** Stage the exact native target beside CLI and MCP; packaging calls this again for each payload. */
 export async function stageNativeProbes(outdir: string, platform = process.platform, arch = process.arch): Promise<void> {
   const require = createRequire(import.meta.url);
-  const ownRequire = createRequire(require.resolve('@storytree/processes/process'));
+  const ownRequire = createRequire(require.resolve('@storytree/session-management/processes/process'));
   const koffi = ownRequire.resolve('koffi');
   const nativeName = `@koromix/koffi-${platform}-${arch}`;
   // pnpm installs both Windows targets as well as the host (root supportedArchitectures).

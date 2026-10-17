@@ -12,7 +12,7 @@ const descriptors = forestDescriptors({ islands: [{ story: 's', title: 'S', x: 0
 const cells = clipToCoast(descriptors.filter((d): d is InstanceDescriptor => d.kind === 'cell-ground' && d.points !== undefined), SHIPPED_COAST);
 const coast = rimLoops(cells.map(c => c.points!));
 
-test('6.5 an island on the globe is one ground surface and a coast line per rim, lying on the globe, with marks laid on it', () => {
+test('11.5 an island on the globe is one ground surface and a coast line per rim, lying on the globe, with marks laid on it', () => {
   const surface = islandSurface(coast, R, 's');
   const parts: Object3D[] = [];
   surface.traverse(o => { if (o !== surface) parts.push(o); });
@@ -27,7 +27,7 @@ test('6.5 an island on the globe is one ground surface and a coast line per rim,
   assert.ok(Math.abs(mark.distanceTo(centre) - (R + PLATE_CLEARANCE)) < 1e-6, 'a mark laid on the land sits on its surface');
 });
 
-test('6.11 an island facing the viewer hides what lies behind it, and nothing laid on its land', () => {
+test('11.11 an island facing the viewer hides what lies behind it, and nothing laid on its land', () => {
   const surface = islandSurface(coast, R, 's');
   const depth = surface.getObjectByName('island-depth') as Mesh;
   assert.ok(depth, 'the island has a depth layer');

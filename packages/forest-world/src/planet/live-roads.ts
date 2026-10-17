@@ -1,11 +1,11 @@
-/** Capability 6 · The planet. Live dependency roads (world 6.16). */
+/** Capability 11 · The planet. Live dependency roads (Map view 11.16). */
 import { crossingLength, linkKey, type GrowthWindow } from './growth.js';
 import { roadDrawSeconds, roadProgress } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
 
 /** Arrivals follow real links, so rerouting or a poll cannot restart an existing road.
  * Removing a link forgets its arrival; adding it again gives it a new one. While the plan's roads are still being
- * routed (world 6.21) it keeps every road that finished drawing, so those are not drawn on again when they arrive;
+ * routed (Map view 11.21) it keeps every road that finished drawing, so those are not drawn on again when they arrive;
  * one still drawing when its roads were taken away draws on afresh. */
 export function nextLiveRoads(previous: ReadonlyMap<string, GrowthWindow>, plan: PlanetPathways, elapsed: number, routing = false): ReadonlyMap<string, GrowthWindow> {
   if (routing) {

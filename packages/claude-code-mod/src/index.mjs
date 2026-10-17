@@ -7,3 +7,6 @@ export const PLUGIN_FOLDER = fileURLToPath(new URL("../plugin", import.meta.url)
 
 /** The environment Claude Code needs to load a plugin's hooks module while they are early access (seen in 2.1.284). */
 export const FUNCTION_HOOKS = { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: "1" };
+
+/** The variable naming the file the mod writes its session id in at start, which a Mint lane's runner reads (ADR-1056 D3). */
+export const SESSION_FILE = "STORYTREE_SESSION_FILE";

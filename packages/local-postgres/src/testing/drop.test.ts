@@ -1,4 +1,4 @@
-// Capability 3: dropping a throwaway test database, against the server `pnpm test` starts.
+// Capability 20: dropping a throwaway test database, against the server `pnpm test` starts.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
@@ -15,7 +15,7 @@ function adminUrl(database?: string): string {
   return url.href;
 }
 
-test("3.1 only a database named with a test token is dropped; any other name is refused before anything is sent to the server", async () => {
+test("20.1 only a database named with a test token is dropped; any other name is refused before anything is sent to the server", async () => {
   let sent = 0;
   const server = { query: async () => { sent++; } };
   await assert.rejects(dropTestDatabases([testName(), "storytree_storytree"], server), /refusing to drop database "storytree_storytree"/);
@@ -24,7 +24,7 @@ test("3.1 only a database named with a test token is dropped; any other name is 
   assert.equal(sent, 1);
 });
 
-test("3.2 a drop ends the connections still open to the database, and a missing one is skipped", async () => {
+test("20.2 a drop ends the connections still open to the database, and a missing one is skipped", async () => {
   const name = testName();
   const admin = new pg.Client({ connectionString: adminUrl() });
   await admin.connect();
@@ -42,7 +42,7 @@ test("3.2 a drop ends the connections still open to the database, and a missing 
   }
 });
 
-test("3.2 a drop falls back to a plain DROP when Postgres refuses to end another backend, and propagates a database still in use after a bounded number of tries", async () => {
+test("20.2 a drop falls back to a plain DROP when Postgres refuses to end another backend, and propagates a database still in use after a bounded number of tries", async () => {
   const termination = Object.assign(new Error("permission denied to terminate process"), {
     code: "42501", routine: "TerminateOtherDBBackends",
   });
@@ -56,7 +56,7 @@ test("3.2 a drop falls back to a plain DROP when Postgres refuses to end another
   assert.doesNotMatch(statements[1]!, /FORCE/);
 });
 
-test("3.2 a drop propagates every other error at once", async () => {
+test("20.2 a drop propagates every other error at once", async () => {
   for (const error of [
     Object.assign(new Error("must be owner of database"), { code: "42501", routine: "dropdb" }),
     Object.assign(new Error("database has prepared transactions"), { code: "55006", routine: "TerminateOtherDBBackends" }),

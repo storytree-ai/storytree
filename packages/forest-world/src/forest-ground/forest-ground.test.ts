@@ -14,11 +14,13 @@ const forest = (): ForestScene => ({
   ],
 });
 
-test("1.1 the same forest always builds byte-identical ground", () => {
-  assert.equal(JSON.stringify(forestDescriptors(forest())), JSON.stringify(forestDescriptors(forest())));
+test("8.1 the same forest always builds byte-identical ground", () => {
+  const first = JSON.stringify(forestDescriptors(forest()));
+  const second = JSON.stringify(forestDescriptors(forest()));
+  assert.equal(second, first);
 });
 
-test("1.3 every ground cell names its island, and a capability's cells name its parcel and wear its status", () => {
+test("8.3 every ground cell names its island, and a capability's cells name its parcel and wear its status", () => {
   const cells = forestDescriptors(forest());
   assert.ok(cells.every((cell) => cell.kind === "cell-ground" && cell.points!.length >= 3));
   const parcels = new Map<string | undefined, Set<string | undefined>>();

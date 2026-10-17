@@ -1,5 +1,5 @@
 /**
- * Dropping a throwaway test database: the one place every package's tests do it (capability 3).
+ * Dropping a throwaway test database: the one place every package's tests do it (capability 20).
  *
  * The test server is the one `pnpm test` starts (packages/dev-loop/src/test.mjs), or the one
  * STORYTREE_TEST_PG_URL names. Databases are dropped as the harness's superuser,

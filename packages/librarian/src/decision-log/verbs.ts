@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Decision log. The `adr` verbs, declared here (ADR-0969 D2) and mounted by the command line as its `adr`
+ * Capability 22 · Decision log. The `adr` verbs, declared here (ADR-0969 D2) and mounted by the command line as its `adr`
  * family (ADR-1033): record a new decision with the next number, its status, who decided it in their own words, and what
  * it supersedes; pull a decision out as a markdown file, edit it, push it back; write its composed statement; list them.
  * None is a tool: an agent reads a decision with the MCP server's `open` and records one with its `write_note`.

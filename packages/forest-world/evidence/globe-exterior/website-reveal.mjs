@@ -1,4 +1,4 @@
-// The unchanged website's step 3 consuming world 6.17. Build and evidence stay inside the engine's lane.
+// The unchanged website's step 3 consuming Map view 11.17. Build and evidence stay inside the engine's lane.
 import assert from 'node:assert/strict';
 import { rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

@@ -1543,6 +1543,43 @@ test("3.41 Codex hands the tool server each event its handler's template carries
   }
 });
 
+test("3.44 the tool server's heartbeat tool records a session's beat for the project its folder belongs to, and with ended its end; a folder in no project, or a library out of reach, records nothing and answers so (ADR-1056 D3)", async () => {
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      process.env.STORYTREE_HOME = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project);
+      const elsewhere = path.join(dir, "elsewhere");
+      mkdirSync(elsewhere);
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        type Beat = (args: { session: string; cwd: string; ended?: boolean }, call: { reach: ReachLog; locate: undefined }) => Promise<{ data?: Record<string, unknown> }>;
+        let heartbeat: Beat | undefined;
+        hookTools().registerHarnessTools?.((name, _description, _input, act) => { if (name === "heartbeat") heartbeat = act as unknown as Beat; });
+        const session = `${project}-beating`;
+        const beat = async (args: { cwd: string; ended?: boolean }, reach: ReachLog = async () => log) => (await heartbeat!({ session, ...args }, { reach, locate: undefined })).data;
+
+        assert.deepEqual(await beat({ cwd: folder }), { recorded: true });
+        const first = (await log.beats.of(project, [session])).get(session);
+        assert.ok(first !== undefined && first.ended === undefined);
+        assert.deepEqual(await beat({ cwd: folder, ended: true }), { recorded: true });
+        assert.ok((await log.beats.of(project, [session])).get(session)?.ended !== undefined, "its end");
+        assert.deepEqual(await beat({ cwd: elsewhere }), { recorded: false });
+        assert.deepEqual(await beat({ cwd: folder }, async () => { throw new Error("storytree is not answering"); }), { recorded: false });
+        assert.ok((await log.beats.of(project, [session])).get(session)?.ended !== undefined, "neither touched the session's beat");
+        assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.session === session), [], "a beat is no line of the log");
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});
+
 test("3.42 A Claude Code command hook, finding the tool server's note of its event (the mod delivered it), stands down without reaching the library; with no note it records the event as before; the PreToolUse of the mod's own hook_event call records nothing", { timeout: 60_000 }, async () => {
   // Claude Code's mod reaches the tool server as a tool call, which raises a PreToolUse of its own: no agent asked for it.
   const delivering = { ...JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work")), tool_name: "mcp__storytree__hook_event" };

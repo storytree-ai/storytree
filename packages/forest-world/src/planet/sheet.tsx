@@ -1,4 +1,4 @@
-/** Capability 6 · The planet. The world as a flat sheet of glass, not a globe (ADR-1043 D1).
+/** Capability 11 · The planet. The world as a flat sheet of glass, not a globe (ADR-1043 D1).
  *
  * The sheet is drawn as the near pole of a sphere so large that it is flat to the eye: every island keeps its plate, coast,
  * territories and nameplate, and the roads are routed and raised exactly as on the globe, by the same code. The sphere's

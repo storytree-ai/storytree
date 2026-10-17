@@ -1,2 +1,2 @@
-/** Capability 1 · Links. */
+/** Capability 21 · Links. */
 export { link, relatedUnlinked, unrestedDecisions } from "./links.js";

@@ -5,8 +5,8 @@ import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { DELIVERY_WAIT_MS, register, type Engine, type Input } from "../plugin/hooks/storytree.js";
-import { FUNCTION_HOOKS, PLUGIN_FOLDER } from "./index.mjs";
+import { BEAT_MS, DELIVERY_WAIT_MS, register, type Engine, type Input } from "../plugin/hooks/storytree.js";
+import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./index.mjs";
 
 type Hook = (engine: Engine, e: Input, next: (e: Input) => Promise<unknown>) => Promise<unknown>;
 
@@ -19,6 +19,11 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
   register((event, hook) => void hooks.set(event, hook));
   const happened: string[] = [];
   const sent: { server: string; tool: string; args: Record<string, unknown> | undefined }[] = [];
+  // The engine's own timers, its environment and the files the module wrote, standing in.
+  const timers: { ms: number; fn: () => void; cancelled: boolean }[] = [];
+  const env = new Map<string, string>();
+  const written = new Map<string, string>();
+  let id = "session-1";
   const engine: Engine = {
     mcp: {
       call: async (server, tool, args) => {
@@ -27,8 +32,17 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
         return answer();
       },
     },
-    session: { id: async () => "session-1", cwd: async () => "/work/start" },
-    clock: { after },
+    session: { id: async () => id, cwd: async () => "/work/start" },
+    clock: {
+      after,
+      every: (ms, fn) => {
+        const timer = { ms, fn, cancelled: false };
+        timers.push(timer);
+        return { cancel: () => void (timer.cancelled = true) };
+      },
+    },
+    env: { get: async (name) => env.get(name) },
+    fs: { write: async (file, text) => void written.set(file, text) },
   };
   /** Raise `event` with `e`; resolves with what the hooks beneath were given. */
   const raise = async (event: string, e: Input) => {
@@ -44,7 +58,19 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
     await new Promise((resolve) => setImmediate(resolve));
     return beneath;
   };
-  return { raise, happened, sent };
+  /** Raise one of the engine's own events, `session.start` or `session.end`. */
+  const own = async (event: string, e: Input) => {
+    const hook = hooks.get(event);
+    assert.ok(hook, `the module hooks ${event}`);
+    await hook(engine, e, async () => ({}));
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  /** Let a period of every live timer pass. */
+  const tick = async () => {
+    for (const timer of timers.filter((one) => !one.cancelled)) timer.fn();
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  return { raise, own, tick, happened, sent, timers, env, written, become: (next: string) => void (id = next) };
 }
 
 const base = { session_id: "session-1", transcript_path: "/home/dev/.claude/projects/p/session-1.jsonl", cwd: "/work/site", permission_mode: "default" };
@@ -112,6 +138,43 @@ test("1.1 · Each recorded classic event reaches the tool server's hook_event to
     assert.deepEqual(happened, ["delivered", "beneath"]);
     assert.deepEqual(asked, [DELIVERY_WAIT_MS], "the chain waits no longer than the delivery's bound");
   }
+});
+
+test("1.2 · From session.start the mod beats on its own timer for the session's current id, writes that id where STORYTREE_SESSION_FILE names, and at session.end reports the end; a /clear beats on under the new id, and a failed beat never fails the chain", async () => {
+  const { own, tick, sent, timers, env, written, become } = loaded();
+  const beats = () => sent.filter((one) => one.tool === "heartbeat").map((one) => one.args);
+  env.set(SESSION_FILE, "/lanes/lane.session");
+  await own("session.start", { cwd: "/work/start" });
+  assert.deepEqual(written, new Map([["/lanes/lane.session", "session-1\n"]]), "its id, where the lane's runner reads it");
+  assert.deepEqual(beats(), [{ session: "session-1", cwd: "/work/start" }], "a beat at once");
+  assert.deepEqual(timers.map((one) => one.ms), [BEAT_MS], "then one on the engine's timer, whatever the session does");
+  await tick();
+  await tick();
+  assert.equal(beats().length, 3);
+
+  // A /clear ends the session's id, and the process beats on under the new one.
+  await own("session.end", { reason: "clear", sessionId: "session-1" });
+  assert.deepEqual(beats().at(-1), { session: "session-1", cwd: "/work/start", ended: true });
+  become("session-2");
+  await tick();
+  assert.deepEqual(beats().at(-1), { session: "session-2", cwd: "/work/start" });
+
+  // Its real end: the last word, and no beat after it.
+  await own("session.end", { reason: "prompt_input_exit", sessionId: "session-2" });
+  assert.deepEqual(beats().at(-1), { session: "session-2", cwd: "/work/start", ended: true });
+  const count = beats().length;
+  await tick();
+  assert.equal(beats().length, count);
+
+  // A reload starts the beat again with no second timer left running, and without the variable writes no file.
+  const again = loaded(async () => {
+    throw new Error("no tool heartbeat on a server named storytree");
+  });
+  await again.own("session.start", { cwd: "/work/start" });
+  await again.own("session.start", { cwd: "/work/start" });
+  await again.tick();
+  assert.equal(again.timers.filter((one) => !one.cancelled).length, 1);
+  assert.equal(again.written.size, 0);
 });
 
 test("2.1 · The package names a plugin folder Claude Code accepts: its manifest, and hooks.json naming the hooks module that exports register", async () => {

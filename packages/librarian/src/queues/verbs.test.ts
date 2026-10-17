@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Queues: contract 5.7, the `friction` and `resteer` verbs the librarian declares for the command line,
+ * Capability 25 · Queues: contract 25.7, the `friction` and `resteer` verbs the librarian declares for the command line,
  * run with a context of a fresh project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -16,7 +16,7 @@ import { LIBRARIAN_FAMILIES } from "../verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("5.7 · the librarian declares the `friction` and `resteer` families the command line lists 13th and 14th: friction filed on one branch, with its links and the writer, is drained on another", async () => {
+test("25.7 · the librarian declares the `friction` and `resteer` families the command line lists 13th and 14th: friction filed on one branch, with its links and the writer, is drained on another", async () => {
   await withLibrary(async (library) => {
     const [friction, resteer] = ["friction", "resteer"].map((name) => LIBRARIAN_FAMILIES.find((family) => family.name === name)!);
     assert.deepEqual([friction!.order, resteer!.order], [13, 14]);

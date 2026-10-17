@@ -60,9 +60,6 @@ importers:
       '@storytree/forest':
         specifier: workspace:^
         version: link:../../packages/forest
-      '@storytree/identity':
-        specifier: workspace:*
-        version: link:../../packages/identity
       '@storytree/journey-events':
         specifier: workspace:*
         version: link:../../packages/journey-events
@@ -307,9 +304,6 @@ importers:
       '@storytree/guardrails':
         specifier: workspace:*
         version: link:../guardrails
-      '@storytree/identity':
-        specifier: workspace:*
-        version: link:../identity
       '@storytree/journey-events':
         specifier: workspace:*
         version: link:../journey-events
@@ -512,34 +506,6 @@ importers:
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
-      typescript:
-        specifier: ~7.0.2
-        version: 7.0.2
-
-  packages/identity:
-    dependencies:
-      '@storytree/library':
-        specifier: workspace:*
-        version: link:../library
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
-      jose:
-        specifier: 6.2.12
-        version: 6.2.12
-      pg:
-        specifier: ^8.23.0
-        version: 8.23.0
-    devDependencies:
-      '@types/node':
-        specifier: ^24.13.6
-        version: 24.13.6
-      '@types/pg':
-        specifier: ^8.23.1
-        version: 8.23.1
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
       typescript:
         specifier: ~7.0.2
         version: 7.0.2
@@ -858,6 +824,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
       koffi:
         specifier: ^3.3.2
         version: 3.3.2

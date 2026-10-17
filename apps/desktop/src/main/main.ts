@@ -94,7 +94,7 @@ import {
   feedbackIdentityConfig,
   type CallbackSession,
   type FeedbackIdentityConfig,
-} from "@storytree/identity/desktop";
+} from "@storytree/project-and-caller/identity/desktop";
 import { createDefaultStorage } from "@workos/authkit-electron";
 import { createCeremony, createPublicWorkOS, createSessionManager, registerProtocol, toAuthKitConfig } from "@workos/authkit-electron/internals";
 import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-session";

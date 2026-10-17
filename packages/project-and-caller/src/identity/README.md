@@ -3,7 +3,7 @@
 The server resolves a verified WorkOS session to a Storytree-owned UUID. It fetches the user and all linked social identities from WorkOS, then matches only normalized provider + provider subject. The first verified email is retained as contact information; it is never a lookup key. Google, GitHub and Microsoft are accepted. Conflicting established users are refused, never merged automatically.
 
 ```ts
-import { createIdentityService } from "@storytree/identity";
+import { createIdentityService } from "@storytree/project-and-caller/identity";
 
 const identity = createIdentityService({
   pool, // server-owned pg Pool in the identity database
@@ -31,10 +31,10 @@ See [validation evidence](evidence/README.md) for the distinction between local 
 
 ## Public client and command handler
 
-Import `@storytree/identity/client` or `@storytree/identity/command` in clients, never the server entry point. The command-line story will parse `sign-in`, status and sign-out and delegate to `identityCommand`. Its registration is not shipped by this foundation.
+Import `@storytree/project-and-caller/identity/client` or `@storytree/project-and-caller/identity/command` in clients, never the server entry point. The command-line story will parse `sign-in`, status and sign-out and delegate to `identityCommand`. Its registration is not shipped by this foundation.
 
 ```ts
-import { identityCommand } from "@storytree/identity/command";
+import { identityCommand } from "@storytree/project-and-caller/identity/command";
 
 const answer = await identityCommand("sign-in", {
   clientId, // public, configured for this environment
@@ -59,7 +59,7 @@ An interrupted process may leave `command-lock/pid`. Inspect that PID before rem
 
 The app-setup feedback surface accepts an optional `feedbackIdentity` bridge with `status`, `signIn` and `signOut`. It consults identity only on the feedback page. Adding an account is a separate explicit action which inserts the verified email and id into the ordinary editable message. Copy and the GitHub draft use exactly that message. Feedback continues to work without it.
 
-## Desktop sign-in (`@storytree/identity/desktop`)
+## Desktop sign-in (`@storytree/project-and-caller/identity/desktop`)
 
 The desktop's main process composes the official `@workos/authkit-electron` SDK (system-browser PKCE, protected storage, refresh) and hands its session manager to `callbackSession`, which completes the `storytree-auth://callback` deep link. `createFeedbackIdentity({ clientId, session })` answers the bridge. With no identity server yet (the owner's choice D on question_10f89f734427), it checks the access token itself: RS256 against `https://api.workos.com/sso/jwks/<clientId>`, audience `storytree-identity` (the JWT template's), a `user_` subject, and the client if the token names one. The email is the one the same sign-in's code exchange returned to the SDK, used only when that user is the token's subject and WorkOS marks the email verified; so the JWT template needs no email claim. The id is therefore the WorkOS user id until a server gives users portable Storytree ids. A token or account that does not verify signs the desktop out; keys that cannot be fetched keep the session. Only `{id, email}` leaves the main process. A build offers sign-in only when it stamps `STORYTREE_WORKOS_CLIENT_ID`; no identity endpoint is needed.
 

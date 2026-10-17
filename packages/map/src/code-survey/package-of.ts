@@ -31,13 +31,14 @@ const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
   story_b91056a06337: "app-setup", // Setup
   story_7d7b0ffccf55: "learning-as-you-build", // Onboarding overlays
   story_b2051c0f7372: "agent-pool", // Agent runner (ADR-1071 D3): the package kept its name, so the box's live paths did not move.
+  story_08790ee19bbf: "mark", // Marketing artifacts (ADR-1071 D3): The mark renamed, its package kept.
 };
 
 /**
  * The packages a story owns beyond its own (ADR-1066 D3), by its own package's folder name under packages/,
  * each by its folder name: a story that folds another in names the folded story's package here.
  */
-export const ALSO_OWNED: Readonly<Record<string, readonly string[]>> = { library: ["librarian"], "session-management": ["processes"], website: ["mark"] };
+export const ALSO_OWNED: Readonly<Record<string, readonly string[]>> = { library: ["librarian"], "session-management": ["processes"] };
 
 /** The package a story's code lives in: named after its title ("Session management" is packages/session-management), but for a few of storytree's own named otherwise. */
 export function packageOf(story: StoryNamed): string {

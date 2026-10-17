@@ -1,7 +1,7 @@
 # Process ledger
 
-`@storytree/processes` owns local process ownership and observation. This foundation implements
-capabilities 1 and 2 of `story_9abd84ab493f`. It requires neither a running app/database nor a
+`@storytree/session-management/processes` owns local process ownership and observation: Session
+management's capabilities 12 to 16, folded in from the retired Process ledger story (ADR-1071 D3). It requires neither a running app/database nor a
 claim. Listing, stopping and closing have exported empty homes (`/listing`, `/stopping`,
 `/closing`) for the following lanes.
 
@@ -12,7 +12,7 @@ Both harness adapters pass Session management's already resolved `ToolCall.calle
 command text, PID adoption or session-age heuristic supplies ownership.
 
 ```ts
-import { launchOwned, ownerFromCall, observeRuns, recordRequestOutcome } from '@storytree/processes';
+import { launchOwned, ownerFromCall, observeRuns, recordRequestOutcome } from '@storytree/session-management/processes';
 
 const result = await launchOwned({
   owner: ownerFromCall(call), // or { session: boundSession, harness: 'manual' }

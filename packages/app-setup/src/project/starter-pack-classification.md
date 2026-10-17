@@ -28,7 +28,7 @@ setup check and projects set up earlier keep recognising them.
 | librarian-curator | librarian | ADAPT | Grown from the v1 slim role to the six jobs: links, decision log, catalogue, graduation, queues, rounds, on the tools the server already serves (`worklist`, `link`, `correct`, `supersede`, `annotate`, `retire`, `park`, `graduate`, `route`, `settle_question`). Dropped: the question review lease and `renew` (no tool serves it), `storytree adr …` and `build:guidance` (storytree's own generated files), the 60-day memory lease detail, partition-by-target-decision (a storytree multi-lane hazard). |
 | change-reviewer | change-reviewer | BRING | Already adapted in pack v2 (increment_fc1e5be1f918); unchanged text, and it now also carries its rule (A compliance gate …). |
 | explorer | explorer | BRING | Tools named as the user's server serves them (`search_notes`, `open`, `show_plan`, `focus`); "a stale generated copy of a library note" dropped from step 3 (a user's project has no generated guidance). Dropped: `model: sonnet`, `effort` (they configure storytree's own generated agent files; role files in a user's agent folders are arc_4e3323a6b963's open point, ADR-0996 D3). |
-| story-author | story-author | ADAPT | ADR-0649's three rules become one: one package per story (`packages/<story>/src`, where storytree draws it), and a story that only puts the others together holds no other story's logic. storytree's own `packages/app`, `apps/desktop`, `packages/cli` dropped. `storytree tree` / `library new` replaced by the plan tools. model/effort dropped (as explorer). |
+| story-author | story-author | ADAPT | ADR-0649's three rules become one: one package per story (`packages/<story>/src`, where storytree draws it), and a story that only puts the others together holds no other story's logic. storytree's own `packages/app`, `apps/desktop`, `packages/cli` dropped. `storytree tree` / `library new` replaced by the plan tools. model/effort dropped (as explorer). Step 1 states ADR-1071's five story rules with a generalised example (pack v6). |
 | frontend-builder | frontend-builder | ADAPT | Its description named storytree's own surfaces (forest planet, arc surface, desktop app): now "the project's visual surfaces". Seeded Chromium/Electron capture kit becomes the project's committed capture harness. "One drawn element per signal" dropped with its note (below). model/effort dropped. |
 | blind-reviewer | blind-reviewer | ADAPT | Kept: verdict recorded first with everything read, never reading another reviewer's evidence, HELD on exposure. Dropped: the Mint dispatcher, `arc show | sed` filter and `adr list --load-bearing` (storytree commands), `bwrap` by name (now "a disposable network-isolated sandbox"), SHA-256 of the evidence, clearing a parent's wait (storytree's review fan-out). model/effort dropped. |
 | corpus-investigator | corpus-investigator | ADAPT | `storytree library …` / `question list` / `adr list` replaced by the server's read tools; "the local Postgres is not running" becomes "storytree unreachable". model/effort dropped. |
@@ -63,7 +63,7 @@ FB frontend-builder, BR blind-reviewer, CI corpus-investigator; c = required rea
 | Reference, don't restate (principle) | SO r, EX c+r, LC r | ADAPT | "generated guidance" and `storytree library search` replaced by search_notes. |
 | The owner-fork bar: escalate ownership, not uncertainty (principle) | SO r | ADAPT | Retitled "The user-fork bar …"; the "Standing delegation" definition and ADR-0794 dropped (storytree's own). |
 | Register follows audience (principle) | SO r | ADAPT | The owner becomes the user; 0.2 anecdote dropped. |
-| The splitting rule (principle) | SA r | BRING | |
+| The splitting rule (principle) | SA r | BRING | ADR-1071 wording (pack v6): capabilities and contracts only; stories follow the journey principle. |
 | Route structural forks to story-author, not the owner (principle) | FB r | ADAPT | Retitled "… not the user". |
 | An awaited notification is never a turn-ending state (principle) | LC r | BRING | |
 | The author of the work is not its only witness (principle) | BR r | ADAPT | "CI verifying the merge with main" becomes the project's pipeline and the fresh-context review. |
@@ -79,7 +79,7 @@ FB frontend-builder, BR blind-reviewer, CI corpus-investigator; c = required rea
 | Guidance quality: structure over emphasis (principle) | LC r | BRING | |
 | Plain language first (principle) | SO r, EX c+r | ADAPT | Owner becomes user. |
 | A check that could not run is unverified, not refuted (principle) | BR c, CI r | BRING | 0.2 incidents generalised. |
-| The journey principle (principle) | SA r | BRING | |
+| The journey principle (principle) | SA r | ADAPT | ADR-1071's five story rules (pack v6); storytree's worked examples generalised to a shop and a map with its drawing engine. |
 | Mechanical waiting never pays context rent (principle) | SO r | BRING | |
 | Verify an edit persisted, or escalate (principle) | FB r, SO r, SA r | BRING | |
 | Citing a document is not reading it (principle) | CI r, LC r | BRING | |

@@ -1547,7 +1547,9 @@ test("3.42 A Claude Code command hook, finding the tool server's note of its eve
   // Claude Code's mod reaches the tool server as a tool call, which raises a PreToolUse of its own: no agent asked for it.
   const delivering = { ...JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work")), tool_name: "mcp__storytree__hook_event" };
   assert.equal(hookLines("claude-code", delivering), undefined);
-  assert.ok(hookLines("claude-code", JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work"))), "another storytree tool's request still makes its line");
+  const asking = JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work")) as { tool_name: string };
+  const made = hookLines("claude-code", asking)?.lines.map((line) => ({ kind: line.kind, tool: (line as { tool?: string }).tool }));
+  assert.deepEqual(made, [{ kind: "tool-requested", tool: asking.tool_name.slice("mcp__storytree__".length) }], "another storytree tool's request still makes its line");
   const project = uniqueProjectName();
   const was = process.env.STORYTREE_HOME;
   try {

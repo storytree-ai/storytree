@@ -7,8 +7,6 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { PLUGIN_FOLDER } from "@storytree/claude-code-mod";
-
 import { main, runLane } from "./runner.mjs";
 
 const exec = promisify(execFile);
@@ -40,7 +38,7 @@ test("10.6 · foreground engines receive the exact brief, model, directories and
     const brief = await readFile(options.brief, "utf8");
     assert.deepEqual(result.args, engine === "codex"
       ? ["exec", brief, "--model", "gpt-6-astra", "--sandbox", "danger-full-access", "--dangerously-bypass-hook-trust", ...adds, "--json"]
-      : ["-p", brief, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--plugin-dir", PLUGIN_FOLDER, "--output-format", "stream-json", "--verbose"]);
+      : ["-p", brief, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--plugin-dir", fileURLToPath(new URL("../../claude-code-mod/plugin", import.meta.url)), "--output-format", "stream-json", "--verbose"]);
     assert.equal(await realpath(result.cwd), await realpath(options.cwd));
     assert.equal(result.token, "test-login");
     assert.deepEqual(result.keys, []); assert.equal(result.stdin, "");

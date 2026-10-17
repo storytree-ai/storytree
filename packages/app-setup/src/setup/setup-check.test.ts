@@ -1164,8 +1164,8 @@ test("8.33 Claude Code's registration leaves the tool server's hook_event call o
     assert.ok(runs(tools.matcher, "mcp__storytree__claim") && !runs(tools.matcher, "mcp__storytree__hook_event"), "before every storytree tool but hook_event");
     assert.ok(runs(tools.matcher, "mcp__storytree__hook_events"), "a tool whose name only starts like it is still one");
     // Every background hook that records a line stands down when the tool recorded its event; the foreground ones look for the note at once.
-    const background = Object.keys(groups).flatMap(ours).filter(({ hook }) => hook.async === true);
-    assert.ok(background.length >= 4, "the background hooks");
+    const background = Object.keys(groups).flatMap((event) => ours(event).map((one) => ({ event, ...one }))).filter(({ hook }) => hook.async === true);
+    assert.deepEqual([...new Set(background.map(({ event }) => event))].sort(), ["PostToolUse", "PostToolUseFailure", "PreToolUse", "SessionStart", "Stop"], "the background hooks");
     for (const { hook } of background) assert.ok(hook.args?.includes(AFTER_TOOL), hook.args?.join(" "));
     for (const { hook } of Object.keys(groups).flatMap(ours).filter(({ hook }) => hook.async !== true)) assert.ok(!hook.args?.includes(AFTER_TOOL), hook.args?.join(" "));
   });

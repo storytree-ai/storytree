@@ -11,7 +11,10 @@ import { FUNCTION_HOOKS, PLUGIN_FOLDER } from "./index.mjs";
 type Hook = (engine: Engine, e: Input, next: (e: Input) => Promise<unknown>) => Promise<unknown>;
 
 /** The module registered, with an engine whose tool server answers as `answer` does, and what happened, in order. */
-function loaded(answer: () => Promise<unknown> = async () => ({ content: [] })) {
+function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), after: Engine["clock"]["after"] = (ms, fn) => {
+  const timer = setTimeout(fn, ms);
+  return { cancel: () => clearTimeout(timer) };
+}) {
   const hooks = new Map<string, Hook>();
   register((event, hook) => void hooks.set(event, hook));
   const happened: string[] = [];
@@ -25,12 +28,7 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] })) 
       },
     },
     session: { id: async () => "session-1", cwd: async () => "/work/start" },
-    clock: {
-      after: (ms, fn) => {
-        const timer = setTimeout(fn, ms);
-        return { cancel: () => clearTimeout(timer) };
-      },
-    },
+    clock: { after },
   };
   /** Raise `event` with `e`; resolves with what the hooks beneath were given. */
   const raise = async (event: string, e: Input) => {
@@ -103,11 +101,16 @@ test("1.1 · Each recorded classic event reaches the tool server's hook_event to
     assert.deepEqual(happened, ["delivered", "beneath"]);
   }
   {
-    const { raise, happened } = loaded(() => new Promise(() => undefined));
-    const started = performance.now();
+    // The engine's clock, standing in: the bound it is asked for passes at once.
+    const asked: number[] = [];
+    const { raise, happened } = loaded(() => new Promise(() => undefined), (ms, fn) => {
+      asked.push(ms);
+      queueMicrotask(fn);
+      return { cancel: () => undefined };
+    });
     await raise("UserPromptSubmit", { ...base, hook_event_name: "UserPromptSubmit", prompt: "b" });
     assert.deepEqual(happened, ["delivered", "beneath"]);
-    assert.ok(performance.now() - started < DELIVERY_WAIT_MS + 1_000, "the chain waits no longer than the delivery's bound");
+    assert.deepEqual(asked, [DELIVERY_WAIT_MS], "the chain waits no longer than the delivery's bound");
   }
 });
 

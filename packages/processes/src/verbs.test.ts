@@ -8,7 +8,7 @@ import { PROCESSES_FAMILIES } from './verbs.js';
 
 const WORDS: DoorWords = { door: 'command', say: step => `storytree ${step.command}` };
 
-test('3.3 the declared processes verbs refuse a place with no session, pointing to --all, and read every session with --all offline', async t => {
+test('14.3 the declared processes verbs refuse a place with no session, pointing to --all, and read every session with --all offline', async t => {
   const folder = await mkdtemp(path.join(tmpdir(), 'processes-verbs-'));
   t.after(() => rm(folder, { recursive: true, force: true }));
   const [family] = PROCESSES_FAMILIES;

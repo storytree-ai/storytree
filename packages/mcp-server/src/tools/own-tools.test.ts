@@ -17,7 +17,7 @@ import { connect, ConnectionError } from '@storytree/library';
 import { libraryDown } from './answers.js';
 import { approveCheckout, placeTestServer, testServerUrl, uniqueProjectName, dropTestProjects } from '@storytree/project-and-caller/testing/pg';
 
-for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: own tools, ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
+for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/16.1: own tools, ${installed ? 'installed' : 'source'} MCP reads and clears the offline ledger and stops only its caller scope`, async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-tools-'));
   const client = new Client({ name: 'codex-mcp-client', version: 'test' });
   const children: RunRecord[] = [];
@@ -102,7 +102,7 @@ for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: own tool
 });
 
 // A Claude MCP server is shared with subagents; its startup environment cannot identify a call.
-test('processes 3.6: own tools, offline Claude MCP refuses self authority from a stale server environment', async t => {
+test('session-management 14.6: own tools, offline Claude MCP refuses self authority from a stale server environment', async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-claude-'));
   const tools = createAgentTools({ folder: home, dataDir: path.join(home, 'pgdata'), env: { CLAUDE_CODE_SESSION_ID: 'stale' } });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
@@ -121,7 +121,7 @@ test('processes 3.6: own tools, offline Claude MCP refuses self authority from a
 });
 
 // The caller lookup falls back when the library is down, whichever way it is down.
-test('processes 3.6: own tools fall back on a stopped Cloud SQL library as on an unreachable or timed-out one', () => {
+test('session-management 14.6: own tools fall back on a stopped Cloud SQL library as on an unreachable or timed-out one', () => {
   assert.equal(libraryDown(new ConnectionError('stopped', 'The shared library is unreachable: its Cloud SQL instance is not running.')), true);
   assert.equal(libraryDown(new ConnectionError('timeout', 'did not answer within 3 seconds')), true);
   assert.equal(libraryDown(Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' })), true);
@@ -129,7 +129,7 @@ test('processes 3.6: own tools fall back on a stopped Cloud SQL library as on an
   assert.equal(libraryDown(new Error('a defect')), false);
 });
 
-test('processes 3.6/4.1: own tools online, Claude hook identity selects only its named subagent, after a session reset', async t => {
+test('session-management 14.6/15.1: own tools online, Claude hook identity selects only its named subagent, after a session reset', async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'own-hook-'));
   const project = uniqueProjectName();
   const children: RunRecord[] = [];

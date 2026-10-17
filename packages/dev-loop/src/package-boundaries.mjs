@@ -19,9 +19,8 @@ import { packageProblems } from "@storytree/guardrails";
 import { ALSO_OWNED } from "@storytree/map/package-of";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>); one that owns several declares the others in the map's ALSO_OWNED (ADR-1066 D3). */
-export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "claude-code-mod", "cli", "dev-loop", "experiments", "forest", "guardrails", "journey-events", "lag-in-use", "learning-as-you-build", "knowledge-core", "library", "map", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
+export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "claude-code-mod", "cli", "dev-loop", "experiments", "forest", "guardrails", "journey-events", "lag-in-use", "learning-as-you-build", "knowledge-core", "library", "map", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
 // app-setup: story_b91056a06337 (The app setup).
-// processes: story_9abd84ab493f (Process ledger).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
 // forest: story_deee4230348c (Map view), which owns forest-world too (ADR-1066 D4).
 // library: story_754e87e7d531 (The library), which owns local-postgres and librarian too (ADR-1066 D4).

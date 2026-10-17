@@ -19,7 +19,7 @@ import { contractsCoveredBy, contractsOf, creditPlatforms, dependantTestsNaming,
  */
 export async function checkStory(library, story, writer, { root, evidence = [], runTests, log = (line) => console.log(line), error = (line) => console.error(line) }) {
   const { numbers, contractIds } = contractsOf(story);
-  const name = packageOf(story.title);
+  const name = packageOf(story);
   const sources = sourcesOf(name).map((dir) => path.join(root, dir));
   if (!existsSync(sources[0])) {
     log(`\n"${story.title}" has no tests yet (no packages/${name}), so its ${numbers.length} contracts are left not checked.`);

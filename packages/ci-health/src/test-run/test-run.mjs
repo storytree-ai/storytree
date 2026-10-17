@@ -429,7 +429,7 @@ function optional(field, value) {
  * @returns {Promise<string[]>}
  */
 export async function markPending(library, story, writer, { root }) {
-  const name = packageOf(story.title);
+  const name = packageOf(story);
   const named = new Set();
   for (const dir of sourcesOf(name)) {
     const source = path.join(root, dir);

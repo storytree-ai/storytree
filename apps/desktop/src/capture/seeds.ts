@@ -40,5 +40,5 @@ export function captureSeed(name: CaptureSeedName): { seed: CaptureSeed; survey:
 export function seedFile(seed: { tree: { stories: readonly { id: string; title: string }[] } }, story: string, pathInPackage: string): string {
   const found = seed.tree.stories.find(one => one.id === story || one.title === story);
   if (found === undefined) throw new Error(`The capture seed has no story ${story}; its stories are ${seed.tree.stories.map(one => one.title).join(", ")}.`);
-  return `packages/${packageOf(found.title)}/${pathInPackage}`;
+  return `packages/${packageOf(found)}/${pathInPackage}`;
 }

@@ -19,18 +19,22 @@ import "./survey-worker.js";
 
 const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }] }] } as unknown as AnnotatedTree;
 
-test("8.1, 8.5 Constructor stories survey alongside ordinary stories and package aliases", async () => {
+test("8.1, 8.5 Constructor stories survey alongside ordinary stories and storytree's package aliases, which a user's story of the same title does not take", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-titles-"));
-  const fixtures = [["Shop", "shop"], ["The command line", "cli"], ["Lag in real use", "lag-in-use"],
-    // ADR-1066 D4's developer-first names, whose packages kept their names.
-    ["Context", "project-and-caller"], ["Architecture checks", "guardrails"], ["Code review", "quality-assurance"], ["Code map", "map"],
-    ["Map view", "forest"], ["Knowledge graph", "knowledge-core"], ["Work board", "arc-surface"], ["Desktop app", "app"], ["Setup", "app-setup"],
-    ["In-app guidance", "learning-as-you-build"], ["Website", "website"], ["Constructor", "constructor"]] as const;
-  const stories = fixtures.map(([title, name]) => ({ id: `story-${name}`, title, capabilities: [{ id: `cap-${name}`, title: "1 · Value" }] }));
+  const fixtures = [["story-shop", "Shop", "shop"], ["story_f9fb5136c28f", "The command line", "cli"], ["story_1c73ed7506ca", "Lag in real use", "lag-in-use"],
+    // ADR-1066 D4's developer-first names, whose packages kept their names: storytree's own stories, by id.
+    ["story_6def59292b78", "Context", "project-and-caller"], ["story_e50347f0388e", "Architecture checks", "guardrails"], ["story_421e473f0a99", "Code review", "quality-assurance"],
+    ["story_73dad81ba7a7", "Code map", "map"], ["story_deee4230348c", "Map view", "forest"], ["story_d754d997f22a", "Knowledge graph", "knowledge-core"],
+    ["story_7722ddb5461e", "Work board", "arc-surface"], ["story_a93c6fb1a257", "Desktop app", "app"], ["story_b91056a06337", "Setup", "app-setup"],
+    ["story_7d7b0ffccf55", "In-app guidance", "learning-as-you-build"],
+    // A user's stories of the same titles keep the title rule.
+    ["story-user-setup", "Setup", "setup"], ["story-user-context", "Context", "context"], ["story-user-command-line", "The command line", "command-line"],
+    ["story-website", "Website", "website"], ["story-constructor", "Constructor", "constructor"]] as const;
+  const stories = fixtures.map(([id, title, name]) => ({ id, title, capabilities: [{ id: `cap-${name}`, title: "1 · Value" }] }));
   const ordinary = { arcs: [], stories: stories.slice(0, -1) } as unknown as AnnotatedTree;
   const reader = codeSurveyReader();
   try {
-    for (const [, name] of fixtures) {
+    for (const [, , name] of fixtures) {
       const src = path.join(folder, "packages", name, "src");
       await mkdir(src, { recursive: true });
       await writeFile(path.join(src, "value.ts"), "export const value = 1;\n");
@@ -41,15 +45,15 @@ test("8.1, 8.5 Constructor stories survey alongside ordinary stories and package
       const plan = { arcs: [], stories: stories.map(story => story.id === "story-constructor" ? { ...story, title } : story) } as unknown as AnnotatedTree;
       const survey = await reader.read(folder, plan);
       assert.deepEqual(Object.keys(survey).sort(), stories.map(story => story.id).sort());
-      for (const [, name] of fixtures) {
-        assert.deepEqual(survey[`story-${name}`]?.files, [{ path: "src/value.ts", lines: 1, capability: `cap-${name}` }]);
+      for (const [id, , name] of fixtures) {
+        assert.deepEqual(survey[id]?.files, [{ path: "src/value.ts", lines: 1, capability: `cap-${name}` }]);
       }
     }
     await writeFile(path.join(folder, "packages/shop/src/value.ts"), "export const value = 1;\nexport const another = 2;\n");
     const after = await reader.read(folder, ordinary);
     assert.equal(after["story-shop"]?.files[0]?.lines, 2);
     assert.equal(after["story-constructor"], undefined);
-    assert.equal(after["story-cli"], before["story-cli"]);
+    assert.equal(after["story_f9fb5136c28f"], before["story_f9fb5136c28f"]);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

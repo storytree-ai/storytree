@@ -34,22 +34,22 @@ function plan(dependsOn) {
 
 test("3.7 a capability depending on another story's against the code's direction is refused; with it, directly or not, it passes", (t) => {
   const root = plant(t);
-  assert.deepEqual(planEdgeProblems(root, plan({ "The shop": ["The till", "The bank"], "The till": [], "The bank": [], "The app": ["Process ledger"], "Process ledger": [] })), []);
-  const problems = planEdgeProblems(root, plan({ "The shop": [], "The till": [], "The bank": ["The shop"], "The app": [], "Process ledger": ["The app"] }));
+  assert.deepEqual(planEdgeProblems(root, plan({ "The shop": ["The till", "The bank"], "The till": [], "The bank": [], "The app": ["The processes"], "The processes": [] })), []);
+  const problems = planEdgeProblems(root, plan({ "The shop": [], "The till": [], "The bank": ["The shop"], "The app": [], "The processes": ["The app"] }));
   assert.equal(problems.length, 2, problems.join("\n"));
   assert.match(problems.join("\n"), /The bank.*The shop.*@storytree\/bank.*@storytree\/shop/);
-  assert.match(problems.join("\n"), /Process ledger.*The app/);
+  assert.match(problems.join("\n"), /The processes.*The app/);
 });
 
 // increment_dbe087a55e1b: another lane's plan edge, mid-way to its code, does not fail a branch that touches neither story.
 test("3.7 a branch fails only on edges between stories whose packages it changes; any other edge is a note naming it", (t) => {
   const root = plant(t);
-  const tree = plan({ "The shop": [], "The till": [], "The bank": ["The shop"], "The app": [], "Process ledger": ["The app"] });
+  const tree = plan({ "The shop": [], "The till": [], "The bank": ["The shop"], "The app": [], "The processes": ["The app"] });
   const verdict = planEdgeVerdict(root, tree, ["packages/bank/src/vault.ts", "packages/shop/package.json", "README.md"]);
   assert.equal(verdict.failing.length, 1, verdict.failing.join("\n"));
   assert.match(verdict.failing[0], /The bank.*The shop/);
   assert.equal(verdict.notes.length, 1, verdict.notes.join("\n"));
-  assert.match(verdict.notes[0], /Process ledger.*The app/);
+  assert.match(verdict.notes[0], /The processes.*The app/);
   const elsewhere = planEdgeVerdict(root, tree, ["packages/till/src/drawer.ts"]);
   assert.deepEqual(elsewhere.failing, []);
   assert.equal(elsewhere.notes.length, 2);

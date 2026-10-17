@@ -221,7 +221,7 @@ test("contractsCoveredBy finds the contract numbers a test file names, in itself
 
 /** A story in `lib` with one capability and four contracts, as `projectTree()` hands it back. */
 async function kettle(lib) {
-  const story = await lib.addStory({ title: "The command line" });
+  const story = await lib.addStory({ title: "The cli" });
   const capability = await lib.addCapability({ story: story.id, title: "1 · Front door" });
   for (const [number, words] of [[1, "a"], [2, "b"], [3, "c"], [4, "d"]]) {
     await lib.addContract({ capability: capability.id, title: `1.${number} · It does ${words}` });
@@ -236,14 +236,13 @@ test("own health reads a story's contracts from the library, each number from it
     assert.deepEqual(numbers, ["1.1", "1.2", "1.3", "1.4"]);
     assert.deepEqual([...contractIds.values()], story.capabilities[0].contracts.map(({ id }) => id));
   });
-  assert.equal(packageOf("Session management"), "session-management");
-  assert.equal(packageOf("The arc surface"), "arc-surface");
-  assert.equal(packageOf("The library"), "library");
-  assert.equal(packageOf("The command line"), "cli", "a package named otherwise");
-  assert.equal(packageOf("The world"), "forest-world");
-  assert.equal(packageOf("The local database"), "local-postgres");
-  assert.equal(packageOf("Process ledger"), "processes");
-  assert.equal(packageOf("Lag in real use"), "lag-in-use");
+  assert.equal(packageOf({ id: "story-a", title: "Session management" }), "session-management");
+  assert.equal(packageOf({ id: "story-b", title: "The arc surface" }), "arc-surface");
+  assert.equal(packageOf({ id: "story-c", title: "The library" }), "library");
+  assert.equal(packageOf({ id: "story_f9fb5136c28f", title: "The command line" }), "cli", "a package named otherwise");
+  assert.equal(packageOf({ id: "story_1d360b6227d8", title: "The local database" }), "local-postgres");
+  assert.equal(packageOf({ id: "story_9abd84ab493f", title: "Process ledger" }), "processes");
+  assert.equal(packageOf({ id: "story_1c73ed7506ca", title: "Lag in real use" }), "lag-in-use");
 });
 
 test("4.1 checking a story runs its own package's tests and records each contract's verified health from them; a run with no report, or a story with no package, records nothing", async (t) => {
@@ -382,7 +381,7 @@ test("4.5 a dependant's test titled with the story's package and a number the st
     const output = lines.join("\n");
     assert.match(output, /8\.4/, "the stray number is named");
     assert.ok(output.includes(stray), "the stray title is named");
-    assert.ok(output.includes("The command line"), "the story it points at is named");
+    assert.ok(output.includes("The cli"), "the story it points at is named");
     assert.ok(output.includes("packages/app-setup/src/setup.test.ts"), "its file is named");
     assert.ok(!output.includes(proving), "a title the story has is not named");
     assert.equal((await lib.health(contractIds.get("1.3"))).verified.state, "passing");
@@ -453,7 +452,7 @@ test("4.1 Windows CI at the same commit verifies Get storytree 1.9 and Front doo
   const quiet = { log: () => {}, error: () => {} };
   for (const [title, pkg, number, file] of [
     ["The app setup", "app-setup", "1.9", "deliver/delivery.test.ts"],
-    ["The command line", "cli", "1.12", "launched.test.ts"],
+    ["The cli", "cli", "1.12", "launched.test.ts"],
   ]) {
     mkdirSync(path.join(root, "packages", pkg, "src"), { recursive: true });
     await withLibrary(async (lib) => {

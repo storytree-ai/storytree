@@ -62,7 +62,7 @@ try {
     }
     finally {
       await writeFile(path.join(output, "opening-frames-observations.json"), JSON.stringify({
-        story: "The website", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
+        story: "story_769e230c466d", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
         evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
         note: "Locally built website served from packages/website/dist, SwiftShader", checks,
       }, null, 2) + "\n");
@@ -91,7 +91,7 @@ try {
     finally {
       await drawing.close();
       await writeFile(path.join(output, "own-globe-observations.json"), JSON.stringify({
-        story: "The website", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
+        story: "story_769e230c466d", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
         evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
         note: "Locally built website served from packages/website/dist, SwiftShader", checks,
       }, null, 2) + "\n");
@@ -105,7 +105,7 @@ try {
     catch (error) { if (error.contract === "2.19") { check.observed = "fail"; check.detail = error.message; } throw error; }
     finally {
       await writeFile(path.join(output, "immersive-observations.json"), JSON.stringify({
-        story: "The website", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
+        story: "story_769e230c466d", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
         evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
         note: "Locally built website served from packages/website/dist", checks: [check],
       }, null, 2) + "\n");
@@ -126,7 +126,7 @@ try {
     } finally {
       await forestBrowser.close();
       await writeFile(path.join(output, "forest-observations.json"), JSON.stringify({
-        story: "The website", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
+        story: "story_769e230c466d", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
         evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
         note: "Locally built website served from packages/website/dist", checks,
       }, null, 2) + "\n");
@@ -154,7 +154,7 @@ try {
       throw error;
     } finally {
       await writeFile(path.join(output, "opening-observations.json"), JSON.stringify({
-        story: "The website",
+        story: "story_769e230c466d",
         commit: openingCommit,
         evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
         note: "Locally built website served from packages/website/dist",

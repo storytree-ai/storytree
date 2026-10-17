@@ -51,4 +51,4 @@ check("1.6", "with the user's command gone, a fresh PowerShell finds storytree's
 const exit = read("doctor-after-exit.txt");
 check("1.6", "storytree doctor, run from that fresh PowerShell, exits 0", exit === undefined ? undefined : exit === "0", exit && `exit ${exit}`);
 
-console.log(JSON.stringify({ story: "The app setup", release: values.release, commit: values.commit, evidence: values.evidence, checks }, null, 2));
+console.log(JSON.stringify({ story: "story_b91056a06337", release: values.release, commit: values.commit, evidence: values.evidence, checks }, null, 2));

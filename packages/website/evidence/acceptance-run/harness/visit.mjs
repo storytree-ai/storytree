@@ -262,4 +262,4 @@ try {
 }
 await writeFile(path.join(out, "measurements.json"), JSON.stringify(measured, null, 2) + "\n");
 const where = values.url === undefined ? "the locally built site (packages/website/dist), with waitlist writes intercepted locally" : `the published site, ${values.url}`;
-console.log(JSON.stringify({ story: "The website", commit: values.commit, evidence: values.evidence, note: `visited ${where}`, checks }, null, 2));
+console.log(JSON.stringify({ story: "story_769e230c466d", commit: values.commit, evidence: values.evidence, note: `visited ${where}`, checks }, null, 2));

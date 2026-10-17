@@ -65,6 +65,7 @@ import { antigravityLines } from "./antigravity.js";
 import { EDIT_GATE, editGate, recordYesAfterEdit, yesSaid } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
+import { BACKGROUND } from "./at-once.js";
 import { AFTER_TOOL, deliveredByTool, deliveredInput, noteDelivered, TOOL_GRACE_MS } from "./codex-delivery.js";
 import { contextNudge } from "./context-nudge.js";
 import type { NewFriction } from "../capture/index.js";
@@ -97,8 +98,7 @@ export interface HookInput {
   readonly clock?: HookClock;
 }
 
-/** The flag that makes a hook hand its writing to the background instead of doing it. */
-export const BACKGROUND = "--background";
+export { BACKGROUND };
 /** The flag that makes a hook take only the once-a-minute look around the machine, which may run longer than a hook. */
 export const UPKEEP = "--upkeep";
 /** The flag that makes a hook file only the friction report a prompt hook handed it (ADR-1049 D2), so the prompt never waits on it. */

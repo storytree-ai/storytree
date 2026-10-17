@@ -11,7 +11,7 @@ import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 import type { AnnotatedTree } from "@storytree/library";
-import { hookCommand } from "@storytree/session-management/hook-command";
+import { deafIfHandingOffAtOnce } from "@storytree/session-management/hook-start";
 
 /**
  * The capability each file declares, by the map's rule, its survey's inference never read. Typed here, not
@@ -23,5 +23,10 @@ export const declaredCapabilities = async (checkout: string, files: readonly str
   return new Map([...placed].flatMap(([file, { capability, inferred }]) => (inferred ? [] : [[file, capability] as const])));
 };
 
-// Run only as the built command, never when a test imports the lookup. Node loads the command by its real path.
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) hookCommand({ declaredCapabilities });
+// Run only as the built command, never when a test imports the lookup. Node loads the command by its real path. A hook
+// Claude Code stops by SIGTERM is deaf to it before the rest of the command loads (a separate chunk, imported after).
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
+  deafIfHandingOffAtOnce();
+  const { hookCommand } = await import("@storytree/session-management/hook-command");
+  hookCommand({ declaredCapabilities });
+}

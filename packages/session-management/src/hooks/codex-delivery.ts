@@ -22,8 +22,7 @@ import path from "node:path";
 /** The first Codex whose hooks run `mcp_tool` handlers and `async` command hooks (both from openai/codex 0.148.0). */
 export const CODEX_DELIVERS_FROM = "0.148.0";
 
-/** The flag of a command hook registered beside a tool server's handler for the same event: it stands down when the tool recorded it. */
-export const AFTER_TOOL = "--after-tool";
+export { AFTER_TOOL } from "./at-once.js";
 
 /** Every input's fields that make its lines (codex.ts), shared by every event. */
 const COMMON = ["session_id", "cwd", "hook_event_name", "transcript_path"] as const;

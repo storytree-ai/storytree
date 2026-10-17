@@ -965,6 +965,25 @@ test("5.45 a session on a handed-over pull request's branch, its fix session, ta
   });
 });
 
+test("5.50 a hand-over holds only the claims taken on the pull request's branch: a session driving a second increment on another branch keeps it, and claims it again without refusal (ADR-1037 D1)", async () => {
+  await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const signup = await park("email form", [emailForm]);
+    const reset = await park("password reset", [passwordReset]);
+    assert.ok((await claim(as("A", { branch: "feature/signup" }), signup, "driving the email form")).ok);
+    assert.ok((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok);
+    assert.ok((await claim(as("A", { branch: "feature/reset" }), reset, "driving the password reset")).ok);
+    assert.ok((await claim(as("A", { branch: "feature/reset" }), passwordReset, "building the password reset")).ok);
+
+    assert.deepEqual(await holdForPull(as("C"), "A", 12, "feature/signup"), [signup, emailForm]);
+    assert.deepEqual((await readClaims(log, project)).map(({ increment, capability, session }) => [increment ?? capability, session]), [
+      [reset, "A"], [passwordReset, "A"], [signup, "pull-request-12"], [emailForm, "pull-request-12"],
+    ], "the other branch's claims stay the session's own");
+    const again = await claim(as("A", { branch: "feature/reset" }), reset, "driving the password reset");
+    assert.ok(again.ok && again.alreadyHeld);
+  });
+});
+
 test("5.46 letting go of a pull request ends every claim held for it, capabilities first, each a release naming its holder and why, so its unclosed increment is a proposal again; another pull request's held claims stand (ADR-1037 D1, D3)", async () => {
   await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
     const { arc, park } = await arcOf(library);

@@ -245,16 +245,16 @@ export async function release(context: ClaimContext, id: string): Promise<Releas
 }
 
 /**
- * A hand-over keeps its claims (ADR-1037 D1): every claim `session` holds moves to pull request `pr`'s holder
- * (pullHolder), on the pull request's `branch`, so that its merge ends them, each capability still under its increment.
- * Nothing is released, so no increment returns to proposal, and the session's close-out or end leaves them standing.
+ * A hand-over keeps its claims (ADR-1037 D1): every claim `session` took on the pull request's `branch` moves to pull
+ * request `pr`'s holder (pullHolder), so that its merge ends them, each capability still under its increment; its claims
+ * on other branches stay its own (5.50). Nothing is released, so no increment returns to proposal, and the session's close-out or end leaves them standing.
  * The ids moved.
  */
 export async function holdForPull(context: ClaimContext, session: string, pr: number, branch: string): Promise<string[]> {
   return context.log.locked(context.project, async (log) => {
     const moved: string[] = [];
     for (const claim of (await heldNow(log, context)).values()) {
-      if (claim.session !== session) continue;
+      if (claim.session !== session || claim.branch !== branch) continue;
       await log.append({ session: pullHolder(pr), harness: "watcher", source: context.source ?? "tool", kind: "claimed", ...partOf(claim),
         reason: claim.reason, takenOverFrom: session, branch, ...(claim.under === undefined ? {} : { under: claim.under }) });
       moved.push(claim.increment ?? claim.capability!);

@@ -60,7 +60,7 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
       ...(status === undefined ? {} : { status }),
       contracts: capability === undefined ? 0 : (contractsOf.get(capability) ?? 0),
     }));
-    const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id], packageOf(story.title), tree.unverified !== true) : mappedLand(story.capabilities, survey[story.id]);
+    const land = story.mapped === undefined ? landOf(story.capabilities, survey[story.id], packageOf(story), tree.unverified !== true) : mappedLand(story.capabilities, survey[story.id]);
     // ADR-0993 D3: a mapped island's land follows its lines, capped; before its survey, it is the least an island has.
     // ADR-0804 D3, D7: a surveyed story's land follows its lines of code, grown where its files' circles need more room; unsurveyed, it follows its capabilities, a one-capability floor's worth of land each, so it grows in step with the surveyed ones.
     const area = story.mapped !== undefined ? mappedArea(land!.territories.reduce((sum, { lines }) => sum + lines, 0)) : land === undefined || land.files.length === 0 ? unsurveyedArea(story.capabilities.length) : landForCircles(land.territories, land.files, islandArea(land.territories.reduce((sum, { lines }) => sum + lines, 0)));

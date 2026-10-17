@@ -64,7 +64,7 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
       const number = /^\s*(\d+\.\d+)\b/.exec(contract.title)?.[1];
       return number === undefined ? [] : [[number, contract] as const];
     })));
-    return packagesOf(story.title).map(name => [name, promises] as const);
+    return packagesOf(story).map(name => [name, promises] as const);
   }));
   const add = (node: MapNode): void => { nodes.set(node.id, node); };
   const edge = (from: string, to: string, kind: MapEdge["kind"], provenance: MapEdge["provenance"]): void => {
@@ -104,7 +104,7 @@ export function buildGraph(tree: AnnotatedTree, survey: ProjectSurvey): ProjectG
       for (const dependency of read.dependsOn ?? []) edge(story.id, dependency, "depends-on", "inferred");
       continue;
     }
-    const ownPackage = packageOf(story.title);
+    const ownPackage = packageOf(story);
     const pathname = (file: string): string => normalizePath(`packages/${ownPackage}/${file}`);
     const fileId = (file: string): string => `${read.tests?.some(test => test.path === file) ? "test" : "file"}:${pathname(file)}`;
     const caps = new Map(story.capabilities.map(cap => [cap.id, cap]));

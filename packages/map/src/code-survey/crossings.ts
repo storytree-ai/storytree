@@ -195,7 +195,7 @@ export async function crossingsOf(
     if (story.mapped !== undefined || read === undefined) continue;
     // A built story's paths are from its package's folder (packages/<package>); rows show them from the checkout.
     for (const file of [...read.files, ...read.tests ?? []]) {
-      const shown = path.posix.normalize(`packages/${packageOf(story.title)}/${file.path}`);
+      const shown = path.posix.normalize(`packages/${packageOf(story)}/${file.path}`);
       known.set(`${root}/${shown}`, { full: `${root}/${shown}`, side: "built", shown, story: story.id });
     }
   }

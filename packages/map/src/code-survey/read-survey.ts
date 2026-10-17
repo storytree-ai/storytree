@@ -74,14 +74,14 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
   const undeclared: string[] = [];
   for (const raw of files) {
     const file = raw.replaceAll("\\", "/");
-    const story = tree.stories.find(({ title, mapped }) => mapped === undefined && (packagesOf(title, alsoOwned).some((name) => file.startsWith(`packages/${name}/`)) || (packageOf(title) === "app" && file.startsWith("apps/desktop/"))));
+    const story = tree.stories.find((candidate) => candidate.mapped === undefined && (packagesOf(candidate, alsoOwned).some((name) => file.startsWith(`packages/${name}/`)) || (packageOf(candidate) === "app" && file.startsWith("apps/desktop/"))));
     if (story === undefined) continue;
     let text: string | undefined;
     try {
       text = readText(file);
     } catch {}
     if (text === undefined) continue;
-    const number = declaredNumberOf({ path: file, text }, packagesOf(story.title, alsoOwned));
+    const number = declaredNumberOf({ path: file, text }, packagesOf(story, alsoOwned));
     const numbered = number === undefined ? undefined : story.capabilities.find(({ title }) => Number(/^\s*(\d+)\s*·/.exec(title)?.[1]) === number);
     // A source file's header must name the capability its number does here; a test file's numbers carry no title.
     const declared = numbered !== undefined && (TEST_FILE.test(file) || declaresTitle(text, numbered.title)) ? numbered : undefined;
@@ -92,7 +92,7 @@ export async function capabilitiesOfFiles(root: string, files: readonly string[]
   const surveyed = await survey(tree);
   const inferred = new Map<string, string>();
   for (const story of tree.stories) {
-    const base = `packages/${packageOf(story.title)}`;
+    const base = `packages/${packageOf(story)}`;
     for (const found of surveyed[story.id]?.files ?? []) if (found.capability !== undefined) inferred.set(path.posix.join(base, found.path), found.capability);
   }
   for (const file of undeclared) if (inferred.has(file)) owners.set(file, { capability: inferred.get(file)!, inferred: true });
@@ -110,7 +110,7 @@ export async function testedNumbers(root: string, tree: AnnotatedTree, capabilit
 }: { alsoOwned?: AlsoOwned; survey?(tree: AnnotatedTree): Promise<ProjectSurvey> } = {}): Promise<string[]> {
   const story = tree.stories.find((one) => one.capabilities.some((part) => part.id === capability));
   if (story === undefined) return [];
-  const own = packagesOf(story.title, alsoOwned);
+  const own = packagesOf(story, alsoOwned);
   const surveyed = await survey({ ...tree, stories: [story] });
   return (surveyed[story.id]?.tests ?? []).flatMap((test) => test.titles.filter((title) => title.package === undefined || own.includes(title.package)).map((title) => title.number));
 }
@@ -261,7 +261,7 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     mapped.catch(() => {}); // Awaited below; a failure there is the survey's.
     const surveys = await Promise.all(tree.stories.filter((story) => story.mapped === undefined).map(async (story) => {
       // Every package the story owns is read, each path from the one named after its title (8.30).
-      const owned = packagesOf(story.title, alsoOwned);
+      const owned = packagesOf(story, alsoOwned);
       const storyPackage = owned[0]!;
       const root = path.join(checkout, "packages", storyPackage);
       const roots = owned.map((name) => path.join(checkout, "packages", name));

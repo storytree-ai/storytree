@@ -72,20 +72,24 @@ async function main(args) {
 
 /**
  * Write `run`'s verdicts to the verified column of its story's contracts in `library`, or with
- * `dryRun` only print them. 1 when the library has no story by the run's name, else 0.
+ * `dryRun` only print them. The run names its story by id, which a rename leaves alone, or by the
+ * title it had when the file was written. 1 when the library has no story by either, naming the
+ * stories it has, else 0.
  */
 export async function acceptRun(library, run, { dryRun, log = (line) => console.log(line), error = (line) => console.error(line) }) {
-  const story = (await library.projectTree()).stories.find(({ title }) => title === run.story);
+  const { stories } = await library.projectTree();
+  const story = stories.find(({ id }) => id === run.story) ?? stories.find(({ title }) => title === run.story);
   if (story === undefined) {
-    error(`\nThe library's project has no story "${run.story}".`);
+    error(`\nThe library's project has no story "${run.story}"; name one by its id in the observations file:`);
+    for (const { id, title } of stories) error(`  ${id}  ${title}`);
     return 1;
   }
   const { numbers, contractIds } = contractsOf(story);
   const verdicts = mintAcceptance({ contracts: numbers, checks: run.checks });
   const unknown = [...new Set(run.checks.map(({ contract }) => contract).filter((number) => !contractIds.has(number)))];
-  if (unknown.length > 0) log(`checks for contracts "${run.story}" does not have count for none: ${unknown.join(", ")}`);
+  if (unknown.length > 0) log(`checks for contracts "${story.title}" does not have count for none: ${unknown.join(", ")}`);
 
-  log(`\nacceptance of "${run.story}" at commit ${run.commit}, evidence ${run.evidence}, by "${ACCEPTED_BY}":`);
+  log(`\nacceptance of "${story.title}" at commit ${run.commit}, evidence ${run.evidence}, by "${ACCEPTED_BY}":`);
   for (const verdict of verdicts.values()) {
     if (verdict.total === 0) continue;
     log(`  ${verdict.number.padEnd(5)} ${verdict.state.padEnd(12)} ${verdict.note ?? verdict.reason}`);

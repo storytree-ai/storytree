@@ -26,7 +26,7 @@ test("8.1, 8.5 Constructor stories survey alongside ordinary stories and storytr
     ["story_6def59292b78", "Context", "project-and-caller"], ["story_e50347f0388e", "Architecture checks", "guardrails"], ["story_421e473f0a99", "Code review", "quality-assurance"],
     ["story_73dad81ba7a7", "Code map", "map"], ["story_deee4230348c", "Map view", "forest"], ["story_d754d997f22a", "Knowledge graph", "knowledge-core"],
     ["story_7722ddb5461e", "Work board", "arc-surface"], ["story_a93c6fb1a257", "Desktop app", "app"], ["story_b91056a06337", "Setup", "app-setup"],
-    ["story_7d7b0ffccf55", "In-app guidance", "learning-as-you-build"],
+    ["story_7d7b0ffccf55", "Onboarding overlays", "learning-as-you-build"],
     // A user's stories of the same titles keep the title rule.
     ["story-user-setup", "Setup", "setup"], ["story-user-context", "Context", "context"], ["story-user-command-line", "The command line", "command-line"],
     ["story-website", "Website", "website"], ["story-constructor", "Constructor", "constructor"]] as const;

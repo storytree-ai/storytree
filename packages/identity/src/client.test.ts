@@ -52,7 +52,7 @@ function journey() {
   };
 }
 
-test("2.2 device authorization exposes only the user code, obeys pending and slow_down, and verifies WorkOS's token itself", async () => {
+test("6.2 device authorization exposes only the user code, obeys pending and slow_down, and verifies WorkOS's token itself", async () => {
   const j = journey();
   j.answers.push(j.device(), response({ error: "authorization_pending" }, 400), response({ error: "slow_down" }, 400), await exchange());
   assert.deepEqual(await j.open().signIn(j.show), user);
@@ -73,7 +73,7 @@ test("2.2 device authorization exposes only the user code, obeys pending and slo
   assert.deepEqual(j.keyRequests, [jwksUrl], "checked against the client's own published keys");
 });
 
-test("2.2 denied, expired, cancelled, malformed or unverified device flows leave no saved session or leaked upstream text", async () => {
+test("6.2 denied, expired, cancelled, malformed or unverified device flows leave no saved session or leaked upstream text", async () => {
   for (const code of ["access_denied", "expired_token", "unknown_error"]) {
     const j = journey();
     j.answers.push(j.device(), response({ error: code, error_description: "device-private refresh-private access-private" }, 400));
@@ -99,7 +99,7 @@ test("2.2 denied, expired, cancelled, malformed or unverified device flows leave
   }
 });
 
-test("2.2 a token or user that does not verify never claims signed in and saves nothing", async () => {
+test("6.2 a token or user that does not verify never claims signed in and saves nothing", async () => {
   const refusals = [
     () => exchange({ refresh_token: "" }),
     () => exchange({}, {}, strangerKey),
@@ -119,7 +119,7 @@ test("2.2 a token or user that does not verify never claims signed in and saves 
   }
 });
 
-test("2.4 status is account-free until sign-in, rotates a restarted session, and local sign-out removes it", async () => {
+test("6.4 status is account-free until sign-in, rotates a restarted session, and local sign-out removes it", async () => {
   const j = journey();
   assert.equal(await j.open().status(), null);
   assert.equal(j.requests.length, 0);
@@ -133,7 +133,7 @@ test("2.4 status is account-free until sign-in, rotates a restarted session, and
   assert.equal(j.requests.length, 1);
 });
 
-test("2.4 revoked or unverifiable sessions are discarded; temporary failures keep the latest rotated refresh token without claiming signed in", async () => {
+test("6.4 revoked or unverifiable sessions are discarded; temporary failures keep the latest rotated refresh token without claiming signed in", async () => {
   const j = journey();
   await j.store.write("old-refresh");
   j.answers.push(response({ error: "invalid_grant", error_description: "private" }, 400));
@@ -152,7 +152,7 @@ test("2.4 revoked or unverifiable sessions are discarded; temporary failures kee
   assert.equal(j.saved(), undefined);
 });
 
-test("2.4 sign-in needs only a public WorkOS client ID", async () => {
+test("6.4 sign-in needs only a public WorkOS client ID", async () => {
   const j = journey();
   for (const id of ["", "sk_live_secret"]) assert.throws(() => createIdentityClient({ clientId: id, store: j.store }));
   assert.doesNotThrow(() => createIdentityClient({ clientId, store: j.store }));

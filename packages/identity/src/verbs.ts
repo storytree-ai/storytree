@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Social sign-in and session. `storytree sign-in`, `status` and `sign-out`, declared once (ADR-0969 D2,
+ * Capability 6 · Social sign-in and session. `storytree sign-in`, `status` and `sign-out`, declared once (ADR-0969 D2,
  * ADR-1033), each the bare verb of its own family, handing the command to identityCommand, which owns the flow and its
  * words (2.4). The deployment names its public WorkOS client ID in STORYTREE_WORKOS_CLIENT_ID; without it sign-in is not
  * configured, and every command still answers, signed out. They need no caller; sign-in prints its code on the door's

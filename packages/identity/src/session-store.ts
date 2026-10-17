@@ -1,4 +1,4 @@
-/** Capability 2 · Social sign-in and session. */
+/** Capability 6 · Social sign-in and session. */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";

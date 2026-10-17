@@ -1,4 +1,4 @@
-/** Capability 2 · Social sign-in and session. */
+/** Capability 6 · Social sign-in and session. */
 import { createRemoteJWKSet, customFetch, jwtVerify } from "jose";
 import type { SignedInUser } from "./client.js";
 

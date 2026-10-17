@@ -13,7 +13,7 @@ after(() => command.remove());
 
 const unconfigured = { STORYTREE_WORKOS_CLIENT_ID: "", STORYTREE_IDENTITY_URL: "https://identity.invalid/v1/identity" };
 
-test("identity 2.4: without a client ID, sign-in, status and sign-out each say sign-in is not configured and exit cleanly, outside any project", async (t) => {
+test("project-and-caller 6.4: without a client ID, sign-in, status and sign-out each say sign-in is not configured and exit cleanly, outside any project", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-identity-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
@@ -28,7 +28,7 @@ test("identity 2.4: without a client ID, sign-in, status and sign-out each say s
   assert.equal((await storytree(command.script, ["status", "extra"], { cwd: dir, home, env: unconfigured })).code, 2);
 });
 
-test("identity 2.4: configured by the client ID alone, status and sign-out reach identity's private session store under the storytree home, signed out; a malformed configuration is refused", async (t) => {
+test("project-and-caller 6.4: configured by the client ID alone, status and sign-out reach identity's private session store under the storytree home, signed out; a malformed configuration is refused", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-identity-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");

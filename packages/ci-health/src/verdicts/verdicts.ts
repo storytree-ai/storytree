@@ -50,7 +50,7 @@ export type Verdict = { state: "passing" | "failing" | "not-checked"; passed: nu
  */
 export function proofsAt(tree: PlanTree, files: readonly SourceFile[]): StoryProofs[] {
   return tree.stories.map((story) => {
-    const packages = packagesOf(story.title);
+    const packages = packagesOf(story);
     const own = packages[0]!;
     const sources = files.filter((file) => packages.some((name) => file.path.startsWith(`packages/${name}/`)));
     const titles = new Map<string, { numbers: string[]; package?: string }>();

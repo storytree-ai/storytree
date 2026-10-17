@@ -22,7 +22,7 @@ test("2.10 · a capture names a seed story's file by the package the seed's own 
   let checked = 0;
   for (const story of seed.tree.stories) {
     for (const file of (survey?.[story.id]?.files ?? []).filter(one => one.path.startsWith("src/"))) {
-      assert.equal(codeKey(seedFile(seed, story.id, file.path)), codePathKey(packageOf(story.title), file.path));
+      assert.equal(codeKey(seedFile(seed, story.id, file.path)), codePathKey(packageOf(story), file.path));
       checked += 1;
     }
   }

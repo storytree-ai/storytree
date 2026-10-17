@@ -187,7 +187,7 @@ export async function changedOnMain(stories: readonly { readonly id: string; rea
   } catch {
     return changed;
   }
-  const folders = stories.map(story => ({ id: story.id, under: [...packagesOf(story.title).map(name => `packages/${name}/`), ...ALSO_IN[packageOf(story.title)] ?? []] }));
+  const folders = stories.map(story => ({ id: story.id, under: [...packagesOf(story).map(name => `packages/${name}/`), ...ALSO_IN[packageOf(story)] ?? []] }));
   for (const entry of log.split("\x01").slice(1)) {
     const [head = "", ...files] = entry.split("\n").filter(Boolean);
     const [commit = "", at = ""] = head.split(" ");
@@ -217,7 +217,7 @@ export async function namedOnMain(tree: AnnotatedTree, folder: string, contracts
   const [commit = "", at = ""] = head.split(" ");
   const named: string[] = [];
   for (const story of stories) {
-    const own = packagesOf(story.title);
+    const own = packagesOf(story);
     const numbers = new Set((surveyed[story.id]?.tests ?? []).flatMap(test => test.titles.filter(title => title.package === undefined || own.includes(title.package)).map(title => title.number)));
     for (const capability of story.capabilities) {
       for (const { id, title } of capability.contracts) {

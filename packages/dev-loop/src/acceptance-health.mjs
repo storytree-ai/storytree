@@ -23,7 +23,7 @@ const OBSERVED = ["pass", "fail", "not-observed"];
  */
 
 /**
- * Read an acceptance run's observations file: the story it accepts, the commit the product was
+ * Read an acceptance run's observations file: the story it accepts (its id, or its title), the commit the product was
  * built from, the evidence path, and each check the harness observed. Anything the harness could not
  * have minted is refused, naming what is wrong: a check observed as something other than pass, fail
  * or not-observed, or a run with no commit or evidence path to write beside its verdicts.

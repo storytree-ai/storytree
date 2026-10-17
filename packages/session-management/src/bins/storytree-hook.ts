@@ -9,7 +9,9 @@
  * project, the setup question for the agent to ask: whatever happens, the agent it runs beside is untouched. It
  * also never outlives DEADLINE_MS, whatever it is waiting on. With `--background` (Codex's hooks
  * before a shell command and at the end of a turn) it hands the writing to a copy of itself that it
- * leaves running, detached and with nothing of the harness's open, and exits at once. The look around
+ * leaves running, detached and with nothing of the harness's open, and exits at once. Claude Code's end hook, and in a
+ * `claude -p` session each of its hooks after a tool, hand off so before anything else, deaf to the SIGTERM Claude Code
+ * stops them with as its process exits (handsOffAtOnce). The look around
  * the machine a hook hands on, once a minute, goes the same way, to a copy run with `--upkeep` that
  * may run for UPKEEP_DEADLINE_MS. Every copy is started with `--handed`, so its time is read apart.
  *

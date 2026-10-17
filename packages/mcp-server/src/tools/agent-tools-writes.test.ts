@@ -499,7 +499,7 @@ test("6.17 another story registers its tools on this server, sharing routing, th
       const instructions = agent.instructions()!;
       assert.ok(instructions.includes(extension.instructions!));
       // The card names every tool but a harness's own (ADR-1056 D2).
-      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event"));
+      assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event" && tool !== "heartbeat"));
       assert.ok(instructions.split("\n").length <= 60);
     });
   });

@@ -9,7 +9,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
 import pg from "pg";
 
 import { branchTree, branchVerdict, capabilitiesOf, capabilityListFor, importRewritesOnly, incrementOfBranch, staleProblems, unlistedCapabilities } from "./capability-list.mjs";

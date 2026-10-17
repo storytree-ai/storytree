@@ -11,7 +11,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
 
 import { BACKUP_EVERY_MS, BACKUPS_KEPT, backUp, keepBackups } from "./backups.js";
 

@@ -27,7 +27,6 @@
     "@storytree/identity": "workspace:*",
     "@storytree/journey-events": "workspace:*",
     "@storytree/lag-in-use": "workspace:*",
-    "@storytree/keys": "workspace:*",
     "@storytree/librarian": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
@@ -39,7 +38,6 @@
     "@storytree/experiments": "workspace:*"
   },
   "devDependencies": {
-    "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "esbuild": "^0.28.2",
     "pg": "^8.23.0",

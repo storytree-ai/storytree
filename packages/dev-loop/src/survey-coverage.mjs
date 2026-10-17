@@ -212,7 +212,7 @@ export async function coverageOf({ root, pkgDir: given, env, log = () => {} }) {
 }
 
 async function main() {
-  const { start } = await import("@storytree/local-postgres");
+  const { start } = await import("@storytree/library/local-postgres");
   const { acquireHeavyLock } = await import("./heavy-lock.mjs");
   const root = fileURLToPath(new URL("../../..", import.meta.url));
   const named = process.argv.slice(2).filter((arg) => arg !== "--");

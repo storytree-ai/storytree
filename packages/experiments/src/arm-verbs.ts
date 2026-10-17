@@ -8,7 +8,7 @@
  */
 import path from "node:path";
 
-import { resolveKey } from "@storytree/keys";
+import { resolveKey } from "@storytree/library/keys";
 import { verb, VerbRefusal, type VerbFamilies, type VerbPlace } from "@storytree/library/verbs";
 import { readLibrary, storytreeHome } from "@storytree/project-and-caller";
 

@@ -11,7 +11,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
 
 import { actionStates, decide, lagVerdicts, openHistory, recordLagVerdicts, runBounded, statusText } from "./lag-box.mjs";
 

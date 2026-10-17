@@ -19,7 +19,7 @@ import { isIP } from "node:net";
 import { X509Certificate } from "node:crypto";
 import { checkServerIdentity, rootCertificates, type ConnectionOptions, type TLSSocket } from "node:tls";
 
-import { resolveKey } from "@storytree/keys";
+import { resolveKey } from "../keys/index.js";
 import pg from "pg";
 
 import { ConnectionError, sqlState } from "./connection-error.js";

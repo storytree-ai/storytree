@@ -20,7 +20,7 @@ export const auth: Family = {
         throw new Refusal("usage: storytree auth set <name>, with the key on standard input (never as an argument, which shells keep in their history)", { code: 2 });
       }
       const name = args.word(0, "a key name", "auth set <name>");
-      const { authFile, saveKey } = await import("@storytree/keys");
+      const { authFile, saveKey } = await import("@storytree/library/keys");
       saveKey(name, (await readSecret(`Key for ${name}: `)).trim());
       return { text: `Saved key ${name} in ${authFile()}.`, next: [{ command: "storytree auth list", why: "the keys storytree has" }] };
     },
@@ -31,7 +31,7 @@ export const auth: Family = {
     consumers: USER,
     async act(args) {
       if (args.words.length || args.names.length) throw new Refusal("usage: storytree auth list", { code: 2 });
-      const { listKeys } = await import("@storytree/keys");
+      const { listKeys } = await import("@storytree/library/keys");
       const keys = listKeys();
       if (!keys.length) return { text: "No keys saved.", next: [{ command: "storytree auth set <name>", why: "save one" }] };
       const said = { file: "from the file", command: "from its command, run when needed", environment: "from the environment" } as const;
@@ -45,7 +45,7 @@ export const auth: Family = {
     async act(args) {
       if (args.words.length !== 1 || args.names.length) throw new Refusal("usage: storytree auth remove <name>", { code: 2 });
       const name = args.word(0, "a key name", "auth remove <name>");
-      const { removeKey } = await import("@storytree/keys");
+      const { removeKey } = await import("@storytree/library/keys");
       if (!removeKey(name)) throw new Refusal(`No key ${name} is saved.`, { next: [{ command: "storytree auth list", why: "the keys storytree has" }] });
       return { text: `Removed key ${name}.` };
     },

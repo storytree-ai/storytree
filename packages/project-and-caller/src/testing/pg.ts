@@ -1,7 +1,7 @@
 /**
  * Helpers for the tests that need a real Postgres, for Project and caller and every story that stands on it.
  *
- * `pnpm test` (packages/dev-loop/src/test.mjs) starts a throwaway local server through @storytree/local-postgres
+ * `pnpm test` (packages/dev-loop/src/test.mjs) starts a throwaway local server through @storytree/library/local-postgres
  * and hands it to the tests as STORYTREE_TEST_PG_URL, with its data directory as
  * STORYTREE_TEST_PG_DATA. A Postgres test must never skip silently, so asking for either when it is
  * missing throws.
@@ -15,7 +15,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFile
 import path from "node:path";
 
 import { connect, type Storytree } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
 
 import pg from "pg";
 
@@ -31,11 +31,11 @@ export function testServerUrl(): string {
 }
 
 /**
- * The test server's data directory, as @storytree/local-postgres started it: its owner record
+ * The test server's data directory, as @storytree/library/local-postgres started it: its owner record
  * (`<dataDir>.owner.json`) is the real thing project routing reads. Throws when there is none.
  */
 export function testServerDataDir(): string {
-  return required("STORYTREE_TEST_PG_DATA", "run the tests via `pnpm test`, which starts the test Postgres through @storytree/local-postgres");
+  return required("STORYTREE_TEST_PG_DATA", "run the tests via `pnpm test`, which starts the test Postgres through @storytree/library/local-postgres");
 }
 
 /**

@@ -8,7 +8,7 @@ import { chmodSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSyn
 import path from "node:path";
 import { test } from "node:test";
 
-import { resolveKey, saveKey } from "@storytree/keys";
+import { resolveKey, saveKey } from "@storytree/library/keys";
 import { connect } from "@storytree/library";
 import { VerbRefusal, type DoorWords } from "@storytree/library/verbs";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";

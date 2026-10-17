@@ -17,7 +17,6 @@ export interface StoryNamed {
  */
 const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
   story_f9fb5136c28f: "cli", // The command line
-  story_1d360b6227d8: "local-postgres", // The local database
   story_9abd84ab493f: "processes", // Process ledger
   story_1c73ed7506ca: "lag-in-use", // Lag in real use
   // ADR-1066 D4's developer-first names: the stories were renamed and their packages kept their names.
@@ -37,7 +36,7 @@ const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
  * The packages a story owns beyond its own (ADR-1066 D3), by its own package's folder name under packages/,
  * each by its folder name: a story that folds another in names the folded story's package here.
  */
-export const ALSO_OWNED: Readonly<Record<string, readonly string[]>> = { "dev-loop": ["agent-pool"], library: ["local-postgres", "librarian"], "project-and-caller": ["keys", "identity"], "session-management": ["processes"], website: ["mark"], forest: ["forest-world"] };
+export const ALSO_OWNED: Readonly<Record<string, readonly string[]>> = { "dev-loop": ["agent-pool"], library: ["librarian"], "project-and-caller": ["identity"], "session-management": ["processes"], website: ["mark"], forest: ["forest-world"] };
 
 /** The package a story's code lives in: named after its title ("Session management" is packages/session-management), but for a few of storytree's own named otherwise. */
 export function packageOf(story: StoryNamed): string {

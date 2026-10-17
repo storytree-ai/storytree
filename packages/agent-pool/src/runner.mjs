@@ -1,4 +1,4 @@
-// Capability 10 · A Mint lane runs on the engine its allowance allows. node packages/agent-pool/src/runner.mjs run <brief-file> <log> <err> [add-dir ...]
+// Capability 1 · A Mint lane runs on the engine its allowance allows. node packages/agent-pool/src/runner.mjs run <brief-file> <log> <err> [add-dir ...]
 // node packages/agent-pool/src/runner.mjs status
 import { execFile, spawn } from "node:child_process";
 import { constants, homedir } from "node:os";

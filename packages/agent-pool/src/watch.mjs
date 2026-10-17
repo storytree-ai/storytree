@@ -1,11 +1,11 @@
-// Capability 13 · A watcher lands a handed-over pull request (ADR-0955 D3). A Mint session ends once its pull request
+// Capability 4 · A watcher lands a handed-over pull request (ADR-0955 D3). A Mint session ends once its pull request
 // is open and its gate is green, and hands the pull request here; this script, not a model, watches CI and the merge
 // queue: on MERGED it closes the increment and releases the session's claims, on a red it starts one fix session.
 // node packages/agent-pool/src/watch.mjs hand <pr> <increment> [--session <id>] [--keep-open] [--refused [--holder <session>]]   (records it and starts the watcher)
 // node packages/agent-pool/src/watch.mjs handover <pr> <increment> [--keep-open]               (from any machine: `hand` on the box, else over ssh)
-// --keep-open: one of several pull requests for its increment, so on MERGED the watcher leaves the increment open (13.11).
-// --refused: a fix session hands back untouched because a claim refused it, so it does not count against the limit (13.14);
-// --holder names the session the refusal said holds the work, and the retry waits until that session holds no claim (13.14).
+// --keep-open: one of several pull requests for its increment, so on MERGED the watcher leaves the increment open (4.11).
+// --refused: a fix session hands back untouched because a claim refused it, so it does not count against the limit (4.14);
+// --holder names the session the refusal said holds the work, and the retry waits until that session holds no claim (4.14).
 // node packages/agent-pool/src/watch.mjs run                                     (the watcher: one per box; keeps `watch` running)
 // node packages/agent-pool/src/watch.mjs watch                                   (its look loop, which `run` starts; exits 3 on its own code change)
 // node packages/agent-pool/src/watch.mjs status
@@ -24,7 +24,7 @@ import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
 import { attempted, failedJob, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, watchReleases } from "./release-watch.mjs";
 
 /**
- * The code the watcher runs (13.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
+ * The code the watcher runs (4.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
  * (runner.mjs and its engine.mjs; their brief is written here). A change to one of these restarts the look loop; a
  * change anywhere else in the dev loop leaves it looking. When one of these files comes to import another file, name
  * that file here; the pool's configuration, read once at start, is here too.
@@ -39,11 +39,11 @@ const EJECTED = new Set(["FAILED_CHECKS", "BRANCH_PROTECTION_FAILURE"]);
 const MARKS = [/watch\.mjs run( |$)/];
 const LOOP_MARKS = [/watch\.mjs watch( |$)/];
 
-/** Whether a process's command line is a fix session's runner (13.26): this package's, or one started from the dev loop's old lanes path before the move. */
+/** Whether a process's command line is a fix session's runner (4.26): this package's, or one started from the dev loop's old lanes path before the move. */
 export const isFixSession = (args) => /(?:agent-pool\/src|lanes)\/runner\.mjs run /.test(args);
 /** The look loop's exit when the dev loop's code in the shared checkout changed: `run` starts it again, on the new code. */
 export const RESTART = 3;
-/** How long a handed-over pull request holds its claims while open: then it is given up and its increment is back on its arc (ADR-1037 D3, 13.23). Its event wait checks back then too. */
+/** How long a handed-over pull request holds its claims while open: then it is given up and its increment is back on its arc (ADR-1037 D3, 4.23). Its event wait checks back then too. */
 const HELD_DAYS = 3;
 const HELD_MS = HELD_DAYS * 86_400_000;
 
@@ -51,7 +51,7 @@ const HELD_MS = HELD_DAYS * 86_400_000;
  * A pull request, as GitHub's GraphQL returns it, read as merged, closed, red or pending. Red is a failed check on
  * its head, a conflict with main (no check fails on one, so it would otherwise wait out its check-back), or a removal
  * from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`. A conflict is marked as
- * one whatever else failed: a conflict often fails the landing check too, and it still needs a merge (13.18).
+ * one whatever else failed: a conflict often fails the landing check too, and it still needs a merge (4.18).
  */
 export function readPull(pull, { since, now, graceMs }) {
   const head = pull.headRefOid;
@@ -104,7 +104,7 @@ async function jobsOf(repo, run) {
 const asRun = (run, jobs) => ({ id: run.id, sha: run.head_sha, created: run.created_at, updated: run.updated_at, status: run.status,
   conclusion: run.conclusion, attempt: run.run_attempt, url: run.html_url, job: jobs && failedJob(jobs) });
 
-/** The latest published release, the release runs since it that attempted one, and main's push CI runs, judged (13.16). */
+/** The latest published release, the release runs since it that attempted one, and main's push CI runs, judged (4.16). */
 export async function releasesOnGitHub({ repo, now = Date.now }) {
   const latest = await ghJson(repo, `${REPO}/releases/latest`);
   const release = { tag: latest.tag_name, sha: latest.target_commitish, at: latest.published_at };
@@ -121,7 +121,7 @@ export async function releasesOnGitHub({ repo, now = Date.now }) {
 }
 
 const recordPath = (dir, pr) => join(dir, `${pr}.json`);
-/** The look loop's pid and the code version it started on, for `status` (13.21). */
+/** The look loop's pid and the code version it started on, for `status` (4.21). */
 const versionPath = (dir) => join(dir, "watch-loop.version");
 const save = (dir, record) => writeFile(recordPath(dir, record.pr), `${JSON.stringify(record, null, 2)}\n`);
 
@@ -149,13 +149,13 @@ export async function handedOff(dir) {
  * (checking back in three days, after which the pool may take it again: an event wait needs that day), record the hand-off (one per pull request; handing back keeps its fix sessions), and start the watcher.
  * `keepOpen` marks one of several pull requests for the increment: its merge releases the session's claims but closes nothing.
  * `refused` is a fix session handing back untouched because another session's claim refused it: its fix is marked
- * refused, so it does not count against the limit, with the `holder` its refusal named, if any, and when (13.14).
+ * refused, so it does not count against the limit, with the `holder` its refusal named, if any, and when (4.14).
  * An increment that already closed (on an earlier pull request of a stack) waits for nothing, so its refusal of the
- * wait is no refusal of the hand-off: the record is marked `closed`, and the watcher still watches and fixes it (13.13).
+ * wait is no refusal of the hand-off: the record is marked `closed`, and the watcher still watches and fixes it (4.13).
  * The handing session's claims are held for the pull request, on its `branch`, until it merges or closes (ADR-1037 D1,
- * 13.22): its close-out then releases nothing. With no session or branch to hold them by, `held` says why none are.
+ * 4.22): its close-out then releases nothing. With no session or branch to hold them by, `held` says why none are.
  * `project` is where the hand-off's own storytree project lives when it is not the watcher's (an experiment arm's
- * throwaway library: its folder and storytree home), so the reds it records land there (ADR-1064 D4, 13.25).
+ * throwaway library: its folder and storytree home), so the reds it records land there (ADR-1064 D4, 4.25).
  */
 export async function hand({ dir, pr, increment, session, branch, keepOpen = false, refused = false, holder, project, storytree, startWatcher, now = Date.now }) {
   await mkdir(dir, { recursive: true });
@@ -228,18 +228,18 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * One look at every hand-off. MERGED: clear the wait, close the increment landed (unless it was handed over to stay
  * open), let go of the claims held for it and forget it. CLOSED: clear the wait, let go of its claims and forget it.
  * Open past HELD_DAYS since it was handed over, it is given up: back on its arc as ready work, as a conflict past its
- * limit is, its claims let go (13.23). Every end of a watch lets go of its claims (ADR-1037 D3). Red: with no fix session running and an engine slot
+ * limit is, its claims let go (4.23). Every end of a watch lets go of its claims (ADR-1037 D3). Red: with no fix session running and an engine slot
  * free, clear the wait and start one; once `limit` have run, put the increment on an owner wait instead. A conflict
- * with main needs a session, not the owner's call, so it gets one more fix session (13.12), and past that it is never
+ * with main needs a session, not the owner's call, so it gets one more fix session (4.12), and past that it is never
  * an owner wait: the hand-off is dropped and the increment goes back on its arc as ready work, its body naming the
- * pull request and its branch (13.20). A fix session whose branch moved while it ran made progress, so it counts for
- * nothing when the next red is a conflict, since a newer main made that one (13.19); `cap` sessions on one pull
+ * pull request and its branch (4.20). A fix session whose branch moved while it ran made progress, so it counts for
+ * nothing when the next red is a conflict, since a newer main made that one (4.19); `cap` sessions on one pull
  * request, counted or not, end it as the limit does. A fix
- * session refused by another's claim counts for nothing (13.14). Its retry waits until the session its refusal named
- * holds no claim on the noticeboard; a refusal that named none waits `backoff` after it and for no other fix session to run (13.14).
+ * session refused by another's claim counts for nothing (4.14). Its retry waits until the session its refusal named
+ * holds no claim on the noticeboard; a refusal that named none waits `backoff` after it and for no other fix session to run (4.14).
  * Conflicts are merged one at a time, lowest pull request first: siblings that conflict on one file would refuse
- * each other's claims if their merge sessions ran together (13.15). A hand-off on an increment that had already
- * closed has no wait to clear and nothing to close, and past its limit is only said (13.13).
+ * each other's claims if their merge sessions ran together (4.15). A hand-off on an increment that had already
+ * closed has no wait to clear and nothing to close, and past its limit is only said (4.13).
  */
 export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
@@ -247,7 +247,7 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
   // The claims held for a pull request end with its watch (ADR-1037 D1, D3).
   const letGo = (pr, reason) => tell(["workspace", "let-go", String(pr), "--reason", reason]);
-  // A pull request given up goes back on its arc as ready work, its body naming the pull request and its branch, never to the owner (13.20, 13.23).
+  // A pull request given up goes back on its arc as ready work, its body naming the pull request and its branch, never to the owner (4.20, 4.23).
   const backOnArc = async (record, pull, why) => {
     const { pr, increment } = record;
     if (!record.closed) {
@@ -331,7 +331,7 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
       : running.size || now() < Date.parse(last.refusedAt ?? last.at) + backoff)) continue;
     if (pull.conflict && [...running.values()].some(Boolean)) continue;
     if (!(await room())) continue;
-    // Each red it handles is a pr-red activity line in the hand-off's project, written as its fix session starts (ADR-1064 D4, 13.25).
+    // Each red it handles is a pr-red activity line in the hand-off's project, written as its fix session starts (ADR-1064 D4, 4.25).
     await tell(["workspace", "red", String(pr), "--increment", increment, ...(pull.conflict ? ["--conflict"] : []),
       ...(pull.checks ?? []).flatMap((check) => ["--check", check])], record.project);
     if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
@@ -374,7 +374,7 @@ async function markerAt(folder) {
 }
 
 /**
- * The project a hand-off from `cwd` belongs to when it is not the watcher's own (13.25): the nearest marker's folder,
+ * The project a hand-off from `cwd` belongs to when it is not the watcher's own (4.25): the nearest marker's folder,
  * and the storytree `home` it ran under, so an experiment arm's reds land in its throwaway library. The repository's own project is nothing.
  */
 export async function projectOf({ cwd, repo, home }) {
@@ -404,7 +404,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), status: join(lanesDir, "watch.status"), argsOf,
     limit: config.watcher.fixesPerRed, cap: config.watcher.fixesPerPullRequest, intervalMs: config.watcher.intervalMs, now: Date.now,
     session: env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim() || "",
-    // The command line routes by its folder's marker: a hand-off's own project runs it there, under its own home (13.25).
+    // The command line routes by its folder's marker: a hand-off's own project runs it there, under its own home (4.25).
     storytree: async (args, project) => (project
       ? await run(process.execPath, ["--import", import.meta.resolve("tsx"), join(repo, "packages", "cli", "src", "bins", "storytree.ts"), ...args],
         { cwd: project.folder, env: { ...env, STORYTREE_HOME: project.home }, maxBuffer: 16 * 1024 * 1024 })
@@ -502,7 +502,7 @@ export async function main(args, box = {}) {
     const pid = (await readFile(b.pidFile, "utf8").catch(() => "")).trim();
     const live = pid && MARKS[0].test(await b.argsOf(pid));
     out(`watcher: ${live ? `running (pid ${pid})` : "not running"}`);
-    // 13.21: a look loop on code other than the checkout's shows, even one older than the version it records.
+    // 4.21: a look loop on code other than the checkout's shows, even one older than the version it records.
     const loopPid = (await readFile(b.loopPidFile, "utf8").catch(() => "")).trim();
     if (loopPid && LOOP_MARKS[0].test(await b.argsOf(loopPid))) {
       const [by, began] = (await readFile(versionPath(b.dir), "utf8").catch(() => "")).trim().split(" ");

@@ -1,4 +1,4 @@
-// Capability 12 · The Mint pool's dispatcher (ADR-0955 D2), which the box's launcher execs:
+// Capability 3 · The Mint pool's dispatcher (ADR-0955 D2), which the box's launcher execs:
 // node --import tsx packages/agent-pool/src/launch.mjs pool            (one dispatcher over every active arc's ready increments; exits 3 to restart on its own code change)
 // node packages/agent-pool/src/launch.mjs slots                       (engines running now, and the cap)
 // node --import tsx packages/agent-pool/src/launch.mjs ready [project] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now)

@@ -1,4 +1,4 @@
-// Capability 12 · The dispatcher's pace (ADR-1056 D3): it reads the rate-limit windows the lanes' Claude Code mod reports,
+// Capability 3 · The dispatcher's pace (ADR-1056 D3): it reads the rate-limit windows the lanes' Claude Code mod reports,
 // and slows or pauses dispatch while the lanes near a limit, resuming when the window resets. Lanes without readings dispatch as before.
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";

@@ -27,9 +27,9 @@ The first merge-queue Linux run exposed a capture-clock race after the three PR 
 From the checkout:
 
 ```sh
-node --import tsx --test packages/forest-world/src/planet/road-reveal.test.ts
-node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest-world/evidence/globe-exterior/reveal.mjs --retake
-node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest-world/evidence/globe-exterior/website-reveal.mjs --retake
+node --import tsx --test packages/forest/src/world/planet/road-reveal.test.ts
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/evidence/world/globe-exterior/reveal.mjs --retake
+node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/evidence/world/globe-exterior/website-reveal.mjs --retake
 ```
 
 Omit `--retake` for pictures in the capture kit's scratch folder. The full renderer capture updates its measured source coverage; the CI `--smoke` path does not.

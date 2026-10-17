@@ -1,5 +1,5 @@
 /** Capability 3 · Story node render. Capability 3's planet book: face failures on opening and keep hidden ones reachable at the rim. */
-import type { CapabilityWord } from "@storytree/forest-world/scene";
+import type { CapabilityWord } from "../world/scene.js";
 
 /** A finite, nonzero direction from the globe's centre (+y is north). Need not be unit length. */
 export interface GlobeDirection {

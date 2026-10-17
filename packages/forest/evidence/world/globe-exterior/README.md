@@ -11,6 +11,6 @@ without any Node test loading React, fiber, drei and three. A test process that 
 that deadlocks in Node's exit teardown (increment_67a3090c077c, increment_8b38cdfb7adb). After changing the
 canvas, rerun the capture, then `pnpm survey:coverage forest-world`.
 
-    node --import tsx packages/forest-world/evidence/globe-exterior/capture.mjs
+    node --import tsx packages/forest/evidence/world/globe-exterior/capture.mjs
 
 `whole.png`: every layer. `no-grounds.png`: the grounds hidden, the road kept.

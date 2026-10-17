@@ -2,10 +2,10 @@
 // ?stage=<id> draws that saved stage within the full plan's frame; ?play=1 plays the whole growth (&seconds=<length>).
 // ?before=1 draws the same growth exported without CI health (the file the capture passes in as `before-snapshot`).
 import { createRoot } from 'react-dom/client';
-import { growthPlan, crossingLength, type PlanetSpot } from '@storytree/forest-world/planet';
+import { growthPlan, crossingLength, type PlanetSpot } from '@storytree/forest/world/planet';
 import { createKnowledgeCore } from '@storytree/knowledge-core/view';
 import { PlanetView } from '@storytree/forest/view';
-import { buildPlanetPathways } from '@storytree/forest-world/geometry';
+import { buildPlanetPathways } from '@storytree/forest/world/geometry';
 import after from '../../src/shop-snapshot.json' with { type: 'json' };
 import before from 'before-snapshot' with { type: 'json' };
 

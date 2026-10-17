@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { workStates } from "@storytree/arc-surface";
-import type { InstanceDescriptor } from "@storytree/forest-world";
-import { buildPlanetPathways, islandCoastReach } from "@storytree/forest-world/geometry";
+import type { InstanceDescriptor } from "../world/index.js";
+import { buildPlanetPathways, islandCoastReach } from "../world/geometry.js";
 
 import { forestScene, growPlanet, PLANET_RADIUS, storyNodes } from "../index.js";
 import { islandArea, LAND_PER_LINE, MIN_ISLAND_AREA } from "../planet-places/island-growth.js";

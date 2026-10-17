@@ -18,7 +18,7 @@ import { fakeBridge, launchPlan, outputFolder, seedWorkStates, visibleGlobeTarge
 const checkout = path.resolve(import.meta.dirname, "../../../..");
 
 test("a capture finds front-facing dots and islands in canvas coordinates, excluding hidden and off-screen targets", async () => {
-  const { Scene, Group, Object3D, OrthographicCamera } = createRequire(path.join(checkout, "packages/forest-world/package.json"))("three");
+  const { Scene, Group, Object3D, OrthographicCamera } = createRequire(path.join(checkout, "packages/forest/package.json"))("three");
   const scene = new Scene(), globe = new Group();
   globe.name = "globe";
   scene.add(globe);

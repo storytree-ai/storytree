@@ -11,7 +11,7 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildCapture, captureSeed, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
-import { SHEET_TILT } from '@storytree/forest-world/planet';
+import { SHEET_TILT } from '@storytree/forest/world/planet';
 
 const smoke = process.argv.includes('--smoke');
 const resting = Math.round(SHEET_TILT * 1800 / Math.PI) / 10;

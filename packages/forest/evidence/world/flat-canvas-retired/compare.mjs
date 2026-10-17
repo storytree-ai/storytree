@@ -1,7 +1,7 @@
 // Pixel-compare two captures, decoded in the capture kit's Chromium: node --import tsx compare.mjs <a.png> <b.png> [diff.png].
 // Prints the pixels that differ at all, those off by more than 8 of 255 in any channel, and the largest difference.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { launch } from '../../../../apps/desktop/src/capture/index.ts';
+import { launch } from '../../../../../apps/desktop/src/capture/index.ts';
 const [a, b, out] = process.argv.slice(2);
 const browser = await launch();
 const page = await browser.newPage();

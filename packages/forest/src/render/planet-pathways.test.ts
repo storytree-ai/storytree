@@ -6,8 +6,8 @@ import { forestScene, growPlanet, PLANET_RADIUS, selectionLanes, storyNodes } fr
 import { workStates } from '@storytree/arc-surface';
 import { planetLayout } from '../view/planet-navigation.js';
 import { territories, territoryAt } from '../territories/territories.js';
-import type { InstanceDescriptor } from '@storytree/forest-world';
-import { buildPlanetPathways, clipToCoast, islandCoastReach, plateTransform, RIBBON_GROUND_SCALE, rimLoops, routeTrails, SHIPPED_COAST, trailFillWidth } from '@storytree/forest-world/geometry';
+import type { InstanceDescriptor } from '../world/index.js';
+import { buildPlanetPathways, clipToCoast, islandCoastReach, plateTransform, RIBBON_GROUND_SCALE, rimLoops, routeTrails, SHIPPED_COAST, trailFillWidth } from '../world/geometry.js';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 const capability = (id: string, dependsOn: string[]) => ({ id, title: id, dependsOn, proposed: true, status: "proposed" as const, contracts: [], health });
@@ -78,7 +78,7 @@ test('3.7 cross-story chains land at both actual clipped shores', () => {
 
 // Routing errors must never take a failing island off the page (ADR-0646 D4).
 test('3.6 routing failure is visible while every island and its failing trees still draw', async () => {
-  const { planetPathwayDrawing } = await import('@storytree/forest-world/geometry');
+  const { planetPathwayDrawing } = await import('../world/geometry.js');
   const broken = { ...scene, links: [{ from: 'a1', to: 'missing-capability' }],
     islands: scene.islands.map(island => ({ ...island, trees: island.trees.map(t => ({ ...t, form: 'dead' as const })) })) };
   const drawing = planetPathwayDrawing(broken, spots, PLANET_RADIUS);

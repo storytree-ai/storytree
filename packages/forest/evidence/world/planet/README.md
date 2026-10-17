@@ -33,7 +33,7 @@ Run from the repository root after `pnpm install`, with Playwright Chromium inst
 machine's heavy-run lock:
 
 ```sh
-node --input-type=module -e 'import { acquireHeavyLock } from "./packages/dev-loop/src/heavy-lock.mjs"; const release = await acquireHeavyLock({ root: process.cwd(), what: "World planet browser proof" }); try { await import("./packages/forest-world/evidence/planet/capture.mjs"); } finally { release(); }'
+node --input-type=module -e 'import { acquireHeavyLock } from "./packages/dev-loop/src/heavy-lock.mjs"; const release = await acquireHeavyLock({ root: process.cwd(), what: "World planet browser proof" }); try { await import("./packages/forest/evidence/world/planet/capture.mjs"); } finally { release(); }'
 ```
 
 # The globe draws itself again when its drawing context comes back (World 6.15)

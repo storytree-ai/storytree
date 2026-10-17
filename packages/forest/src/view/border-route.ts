@@ -4,8 +4,8 @@
  * shortest such way, and enters its capability's territory along that territory's own border. It never crosses land:
  * ADR-0951 stopped lanes at the coast because the free inland routes of the time "split up randomly into the island".
  */
-import { islandCoast } from "@storytree/forest-world/geometry";
-import type { Island } from "@storytree/forest-world/scene";
+import { islandCoast } from "../world/geometry.js";
+import type { Island } from "../world/scene.js";
 import { islandTerritories, type Point, type TerritoryMap } from "../territories/territories.js";
 import { insideOf } from "./territory-land.js";
 

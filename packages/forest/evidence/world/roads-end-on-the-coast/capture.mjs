@@ -1,6 +1,6 @@
 // Map view 11.12: on the website's own globe (packages/website/src/own-snapshot.json), turn the globe so a road's end
 // sits just behind its left edge, and picture it in real Chromium from two checkouts at the same turn.
-// node packages/forest-world/evidence/roads-end-on-the-coast/capture.mjs <before-checkout> [after-checkout]
+// node packages/forest/evidence/world/roads-end-on-the-coast/capture.mjs <before-checkout> [after-checkout]
 import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +10,7 @@ import { chromium } from 'playwright-core';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = path.join(here, 'out');
-const after = path.resolve(process.argv[3] ?? path.join(here, '../../../..'));
+const after = path.resolve(process.argv[3] ?? path.join(here, '../../../../..'));
 const before = path.resolve(process.argv[2] ?? after);
 const snapshot = path.join(after, 'packages/website/src/own-snapshot.json');
 const VIEW = { width: 1200, height: 800 };
@@ -57,7 +57,7 @@ createRoot(document.getElementById('globe')).render(<PlanetWorldCanvas scene={sa
 async function bundle(root, label) {
   mkdirSync(path.join(out, label), { recursive: true });
   await build({
-    stdin: { contents: page(root), resolveDir: path.join(root, 'packages/forest-world/src'), loader: 'tsx', sourcefile: 'page.tsx' },
+    stdin: { contents: page(root), resolveDir: path.join(root, 'packages/forest/src/world'), loader: 'tsx', sourcefile: 'page.tsx' },
     outfile: path.join(out, label, 'bundle.js'), bundle: true, format: 'iife', platform: 'browser', jsx: 'automatic',
     loader: { '.json': 'json' }, define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'error',
   });

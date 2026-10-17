@@ -23,7 +23,7 @@ import { SESSION_FAMILIES } from "@storytree/session-management/verbs";
 import { WORKSPACE_FAMILIES } from "@storytree/session-management/workspace-verbs";
 import { LIBRARIAN_FAMILIES } from "@storytree/librarian/verbs";
 import { SETUP_FAMILIES } from "@storytree/app-setup/verbs";
-import { PROCESSES_FAMILIES } from "@storytree/processes/verbs";
+import { PROCESSES_FAMILIES } from "@storytree/session-management/processes/verbs";
 import { ARC_FAMILIES } from "@storytree/arc-surface/verbs";
 import { LIBRARY_FAMILIES } from "@storytree/library/commands";
 import type { Reading } from "./usage/reading.js";

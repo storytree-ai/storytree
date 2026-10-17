@@ -4,7 +4,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./verbs": "./src/verbs.ts"
+    "./verbs": "./src/verbs.ts",
+    "./test-run": "./src/test-run/test-run.mjs",
+    "./record-run": "./src/test-run/record-run.mjs"
   },
   "scripts": {
     "typecheck": "tsc -p ."

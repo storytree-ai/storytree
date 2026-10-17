@@ -22,14 +22,16 @@
  * - A skipped job is passed over; a cancelled job's log is read if available, passed over only on 404.
  * - Each job's results are its platform's, read from its runner labels or its name, so a test one platform skips
  *   for another is credited from the jobs of the platform it needs.
- * - Passing and failing are written by the project's CI; a skip writes not checked with its reason and kind;
- *   a contract no test ran for is left as it stands. The agent's reported column is never written.
+ * - Passing and failing are written by the project's CI; a skip writes not checked with its reason and kind, marking
+ *   an earlier verdict it did not reproduce as not re-run, as a test run's are (../test-run/record.ts); a contract no test
+ *   ran for is left as it stands. The agent's reported column is never written.
  * - A project with no GitHub origin, or no finished push run, writes nothing and says why.
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Library } from "@storytree/library";
 import { parseTestLog, scopeOfLog } from "../run-results/run-results.js";
+import { recordHealth } from "../test-run/record.js";
 import { judgeRun, proofsAt, type Verdict } from "../verdicts/verdicts.js";
 
 /** The Actions API: a route's JSON, or its text (a job's log). */
@@ -148,7 +150,8 @@ export async function readProjectCi({ library, git, github }: { library: Library
   // Each run is scoped to the packages its merge could reach: a contract whose package it left out is judged from the
   // newest older run that scoped it in, until a run that scoped everything in.
   const tree = await library.projectTree();
-  const judged = new Map<string, { verdict: Verdict; at: string }>();
+  // Each run's verdicts, by the run they were judged from.
+  const byRun = new Map<number, { commit: string; run: string; verdicts: Map<string, Verdict> }>();
   const done = new Set<string>();
   let newest: { run: Run; tests: number; unmatched: number } | undefined;
   for (const run of candidates.filter(({ conclusion }) => conclusion !== "cancelled")) {
@@ -166,11 +169,12 @@ export async function readProjectCi({ library, git, github }: { library: Library
     const proofs = proofsAt(tree, files);
     const { verdicts, unmatched } = judgeRun(proofs, results);
     newest ??= { run, tests: results.length, unmatched: unmatched.length };
-    const at = `at commit ${run.head_sha.slice(0, 12)}, run ${run.html_url}`;
+    const fromRun = byRun.get(run.id) ?? { commit: run.head_sha.slice(0, 12), run: run.html_url, verdicts: new Map<string, Verdict>() };
+    byRun.set(run.id, fromRun);
     // A story is judged by a run that scoped in every package it owns.
     for (const story of proofs.filter(({ package: own, packages }) => !done.has(own) && (scoped === undefined || packages.every((name) => scoped.has(`packages/${name}`))))) {
       done.add(story.package);
-      for (const id of story.contracts.values()) if (verdicts.has(id)) judged.set(id, { verdict: verdicts.get(id)!, at });
+      for (const id of story.contracts.values()) if (verdicts.has(id)) fromRun.verdicts.set(id, verdicts.get(id)!);
     }
     // A story whose package the commit does not hold has no tests to wait for.
     const held = new Set(files.map(({ path }) => path.split("/")[1]));
@@ -180,16 +184,13 @@ export async function readProjectCi({ library, git, github }: { library: Library
   const { run } = newest;
   const commit: string = run.head_sha;
 
+  // Each run's verdicts are written as a test run's are (record.ts), naming the commit and the run they were seen at.
   const counts = { passing: 0, failing: 0, notChecked: 0 };
-  for (const [id, { verdict, at }] of judged) {
-    if (verdict.state === "not-checked") {
-      if (verdict.skipped === 0) continue;
-      await library.recordVerified(id, "not-checked", { by: VERIFIED_BY_PROJECT_CI, note: `${verdict.note}, ${at}`, ...(verdict.skip === undefined ? {} : { skip: verdict.skip }) });
-      counts.notChecked++;
-      continue;
-    }
-    await library.recordVerified(id, verdict.state, { by: VERIFIED_BY_PROJECT_CI, note: `${verdict.note}, ${at}` });
-    counts[verdict.state]++;
+  for (const { commit: seen, run: url, verdicts } of byRun.values()) {
+    const written = await recordHealth(library, new Map([...verdicts.keys()].map((id) => [id, id])), verdicts, { by: VERIFIED_BY_PROJECT_CI, commit: seen, run: url });
+    counts.passing += written.passing;
+    counts.failing += written.failing;
+    counts.notChecked += [...verdicts.values()].filter(({ state, skipped }) => state === "not-checked" && skipped > 0).length;
   }
   return { written: true, repository, run: run.html_url, commit, tests: newest.tests, unmatched: newest.unmatched, ...counts };
 }

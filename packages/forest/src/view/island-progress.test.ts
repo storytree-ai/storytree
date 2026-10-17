@@ -12,9 +12,10 @@ const project = (reported: HealthState): AnnotatedTree => ({
     capabilities: ["write", "publish"].map(id => ({ id, title: id, dependsOn: [], proposed: false, status: "untested", contracts: [],
       health: { reported: { state: reported }, verified: { state: "not-checked" } } })) }],
 });
-const line = (kind: "claimed" | "landed", capability: string, seq: number): Line => ({
-  kind, capability, seq, project: "example", session: "agent", source: "tool", at: new Date(seq).toISOString(), reason: "building",
-});
+const line = (kind: "claimed" | "landed", capability: string, seq: number): Line => {
+  const common = { capability, seq, project: "example", session: "agent", source: "tool", at: new Date(seq).toISOString() } as const;
+  return kind === "claimed" ? { ...common, kind, reason: "building" } : { ...common, kind };
+};
 
 test("3.29 unsurveyed island progress follows recorded landings, independently of reported health", () => {
   for (const reported of ["not-checked", "passing", "failing"] as const) {

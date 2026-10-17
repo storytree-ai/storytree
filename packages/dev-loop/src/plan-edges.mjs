@@ -3,7 +3,7 @@
 // workspace dependencies (every field of package.json counts, as in package-boundaries.mjs). The
 // library holds the plan and CI cannot read it, so `pnpm gate` runs this as check:plan-edges.
 //
-// A story's package is named after its title, as the map's code survey names it (packageOf in
+// A story's package is named after its title, or for storytree's own by its id, as the map's code survey names it (packageOf in
 // packages/map/src/code-survey/package-of.ts); the app story's code is the frame, packages/app and
 // apps/desktop. A story with no package has no code edges, so nothing it plans is checked.
 //
@@ -21,9 +21,9 @@ import { packageOf, packagesOf as packageNamesOf } from "@storytree/map/package-
 
 const FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"];
 
-/** The repo-relative folders holding a story's code, by its title: every package it owns (ADR-1066 D3). */
-function packagesOf(title) {
-  return packageOf(title) === "app" ? ["packages/app", "apps/desktop"] : packageNamesOf(title).map((name) => `packages/${name}`);
+/** The repo-relative folders holding a story's code, by its id and title: every package it owns (ADR-1066 D3). */
+function packagesOf(story) {
+  return packageOf(story) === "app" ? ["packages/app", "apps/desktop"] : packageNamesOf(story).map((name) => `packages/${name}`);
 }
 
 /** A package.json's name and what it depends on, or undefined when the folder has none. */
@@ -57,7 +57,7 @@ export function planEdgeVerdict(root, tree, changed) {
 function edgeProblems(root, tree) {
   const manifests = new Map();
   for (const story of tree.stories) {
-    const found = packagesOf(story.title).map((dir) => ({ dir, ...manifestAt(root, dir) })).filter((at) => at.name !== undefined);
+    const found = packagesOf(story).map((dir) => ({ dir, ...manifestAt(root, dir) })).filter((at) => at.name !== undefined);
     if (found.length > 0) manifests.set(story.id, found);
   }
   // Every story package by name; every workspace package is a story's (ADR-0805 D5), so following them reaches all.

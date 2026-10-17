@@ -17,7 +17,6 @@ export interface StoryNamed {
  */
 const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
   story_f9fb5136c28f: "cli", // The command line
-  story_ca702fee28cb: "forest-world", // The world
   story_1d360b6227d8: "local-postgres", // The local database
   story_9abd84ab493f: "processes", // Process ledger
   story_1c73ed7506ca: "lag-in-use", // Lag in real use

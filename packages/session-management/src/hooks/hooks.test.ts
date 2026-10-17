@@ -1604,6 +1604,48 @@ test("3.44 the tool server's heartbeat tool records a session's beat for the pro
   }
 });
 
+test("3.46 the mod's own events through hook_event (ADR-1056 D3): UsageMeasured records the session's usage; TurnComplete its usage and, ended by an API error or a refusal, a failed turn, rate-limited when a window was used up; neither names a transcript, and a figure with no window records nothing", async () => {
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      process.env.STORYTREE_HOME = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project);
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        type Deliver = (args: { harness: string; input: Record<string, unknown> }, call: { reach: ReachLog; locate: undefined }) => Promise<{ data?: Record<string, unknown> }>;
+        let deliver: Deliver | undefined;
+        hookTools().registerHarnessTools?.((name, _description, _input, act) => { if (name === "hook_event") deliver = act as unknown as Deliver; });
+        const session = `${project}-mod`;
+        const usage = (percentUsed: number) => ({ context: { tokens: 50_000, window: 200_000, percent: 25 }, rateLimits: [{ kind: "five_hour", percentUsed, resetsAt: "2026-10-17T15:00:00.000Z" }], cost: { usd: 1.5 } });
+        let measured = 0;
+        const send = async (input: Record<string, unknown>) => (await deliver!({ harness: "claude-code", input: { session_id: session, cwd: folder, measured_at: (measured += 1), ...input } }, { reach: async () => log, locate: undefined })).data;
+
+        assert.deepEqual(await send({ hook_event_name: "UsageMeasured", usage: usage(40) }), { recorded: 1, waiting: 0 });
+        assert.deepEqual(await send({ hook_event_name: "TurnComplete", turn_id: "t1", reason: "answer", usage: usage(41) }), { recorded: 1, waiting: 0 });
+        assert.deepEqual(await send({ hook_event_name: "TurnComplete", turn_id: "t2", reason: "error", usage: usage(100) }), { recorded: 2, waiting: 0 });
+        assert.deepEqual(await send({ hook_event_name: "TurnComplete", turn_id: "t3", reason: "refusal", usage: usage(50) }), { recorded: 2, waiting: 0 });
+        assert.deepEqual(await send({ hook_event_name: "UsageMeasured", usage: { context: { tokens: 5 }, rateLimits: [] } }), { recorded: 0, waiting: 0 });
+
+        const lines = (await log.since(project, 0)).lines.filter((line) => line.session === session);
+        assert.deepEqual(lines.map((line) => line.kind), ["usage", "usage", "usage", "turn-failed", "usage", "turn-failed"]);
+        assert.ok(lines.every((line) => line.transcript === undefined && line.harness === "claude-code"));
+        const [first] = lines;
+        assert.ok(first?.kind === "usage");
+        assert.deepEqual([first.context, first.rateLimits, first.cost], [usage(40).context, usage(40).rateLimits, usage(40).cost]);
+        const failed = lines.filter((line) => line.kind === "turn-failed").map((line) => line.kind === "turn-failed" && [line.reason, line.rateLimited]);
+        assert.deepEqual(failed, [["error", true], ["refusal", undefined]]);
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});
+
 test("3.42 A Claude Code command hook, finding the tool server's note of its event (the mod delivered it), stands down without reaching the library; with no note it records the event as before; the PreToolUse of the mod's own hook_event call records nothing", { timeout: 60_000 }, async () => {
   // Claude Code's mod reaches the tool server as a tool call, which raises a PreToolUse of its own: no agent asked for it.
   const delivering = { ...JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work")), tool_name: "mcp__storytree__hook_event" };

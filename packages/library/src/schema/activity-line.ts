@@ -211,6 +211,20 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("hook-times"), readings: z.array(z.object({ at: z.string().datetime({ offset: true }), harness: z.string().min(1), event: z.string().min(1),
     total: z.number().nonnegative(), parts: z.object({ startup: z.number().nonnegative().optional(), connect: z.number().nonnegative().optional(),
       write: z.number().nonnegative().optional(), handoff: z.number().nonnegative().optional() }).strict() }).strict()).min(1).max(500) }).strict(),
+  /**
+   * A Claude Code session's usage as its mod measured it (ADR-1056 D3), Claude Code's status line's figures: its context window and,
+   * once a response reported it, the fill (tokens, whole percent); each rate-limit window's use; its cost. A reading takes its figure
+   * from here before the transcript (Session management 9.19). Never makes its session read live: its heartbeat does that.
+   */
+  z.object({ ...common, kind: z.literal("usage"),
+    context: z.object({ tokens: z.number().int().nonnegative().optional(), window: z.number().int().positive(), percent: z.number().min(0).max(100).optional() }).strict(),
+    rateLimits: z.array(z.object({ kind: z.string().min(1), percentUsed: z.number().nonnegative(), resetsAt: z.string().min(1).optional() }).strict()).max(20),
+    cost: z.object({ usd: z.number().nonnegative() }).strict().optional() }).strict(),
+  /**
+   * A main-loop turn of a Claude Code session ended by an API error or a refusal (ADR-1056 D3), as its mod saw it; `rateLimited` when
+   * a rate-limit window was used up as it ended. Read by a lane's runner and the pool (Session management 9.20).
+   */
+  z.object({ ...common, kind: z.literal("turn-failed"), reason: z.enum(["error", "refusal"]), rateLimited: z.literal(true).optional() }).strict(),
 ]);
 
 /** A line as it is written. */

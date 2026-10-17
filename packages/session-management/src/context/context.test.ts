@@ -15,7 +15,8 @@ import { MARKER_FILE } from "@storytree/project-and-caller";
 import { setSetting } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
-import { claudeCodeTokens, codexTokens, contextCommand, contextReading, readContext, sessionWindow } from "./index.js";
+import { claudeCodeTokens, codexTokens, contextCommand, contextReading, readContext, reportedUsageOf, sessionWindow } from "./index.js";
+import type { Line } from "@storytree/library";
 import { transcriptLines } from "./context.js";
 import { CONTEXT_READING } from "./verbs.js";
 
@@ -163,6 +164,67 @@ test("9.17 a Claude Code subagent's reading comes from its own transcript beside
 
     const window = await sessionWindow(await transcriptLines(log, project, "a1"), "a1");
     assert.deepEqual("inView" in window && window.inView.map((piece) => piece.tool), ["Read"], "its window holds its own reads");
+  });
+});
+
+test("9.19 · A reading takes its tokens, window and percentage from the session's latest reported usage, the transcript kept as the fallback when there is none or it carries no figure", async () => {
+  await withProject(async (log, project, dir) => {
+    const transcript = path.join(dir, "s.jsonl");
+    writeFileSync(transcript, jsonl(claudeLine("req_1", { input: 100, read: 1_000, created: 0 })));
+    const common = { harness: "claude-code", source: "hook", folder: dir } as const;
+    await log.append(project, { ...common, session: "S", kind: "session-started", transcript });
+    const now = new Date("2026-10-17T10:00:00.000Z");
+
+    // The mod's figure, newer than the transcript's: its tokens, window and percent; what they are made of, still the transcript's.
+    await log.append(project, { ...common, session: "S", kind: "usage", context: { tokens: 50_000, window: 200_000, percent: 25 }, rateLimits: [] });
+    const live = await readContext(log, project, "S", { now, home: dir });
+    assert.ok("tokens" in live);
+    assert.deepEqual([live.tokens, live.window, live.percent, live.source], [50_000, 200_000, 25, transcript]);
+    assert.ok(!("absent" in live.composition), "the composition is the transcript's");
+    assert.deepEqual(live.guidance, { value: 600_000, source: "default", position: "under" }, "judged on the mod's tokens");
+
+    // Before a response reported the fill: the transcript's tokens, as a share of the window the mod named.
+    await log.append(project, { ...common, session: "S", kind: "usage", context: { window: 200_000 }, rateLimits: [] });
+    const windowOnly = await readContext(log, project, "S", { now, home: dir });
+    assert.ok("tokens" in windowOnly);
+    assert.deepEqual([windowOnly.tokens, windowOnly.window, windowOnly.percent], [1_100, 200_000, 1]);
+
+    // A session no mod reported for reads as before: no window, no percent (9.5).
+    await log.append(project, { ...common, session: "T", kind: "session-started", transcript });
+    const plain = await readContext(log, project, "T", { now, home: dir });
+    assert.ok("tokens" in plain && plain.tokens === 1_100 && !("window" in plain) && !("percent" in plain));
+
+    // A mod that stopped reporting: its last figure, older than the transcript's latest line by more than two report periods, gives way.
+    const at = (iso: string, line: Record<string, unknown>, seq: number) => ({ ...common, ...line, session: "U", project, seq, at: iso }) as unknown as Line;
+    const stale = [
+      at("2026-10-17T09:00:00.000Z", { kind: "usage", context: { tokens: 90_000, window: 200_000, percent: 45 }, rateLimits: [] }, 1),
+      at("2026-10-17T09:30:00.000Z", { kind: "command-run", command: "ls", transcript }, 2),
+    ];
+    const fallen = await contextReading(stale, "U", { now, home: dir });
+    assert.ok("tokens" in fallen && fallen.tokens === 1_100 && !("window" in fallen));
+    // While current, it stands even with no transcript to read.
+    const unread = await contextReading([stale[0]!], "U", { now, home: dir });
+    assert.ok("tokens" in unread);
+    assert.deepEqual([unread.tokens, unread.percent, unread.composition], [90_000, 45, { absent: "no hook has named this session's transcript" }]);
+  });
+});
+
+test("9.20 · Each session's latest reported usage and latest failed turn are read together, for a lane's runner and the pool; a session with neither is left out", async () => {
+  await withProject(async (log, project, dir) => {
+    const common = { harness: "claude-code", source: "hook", folder: dir } as const;
+    const window = (percentUsed: number) => ({ context: { window: 200_000 }, rateLimits: [{ kind: "five_hour", percentUsed }] });
+    await log.append(project, { ...common, session: "A", kind: "usage", ...window(40) });
+    await log.append(project, { ...common, session: "A", kind: "turn-failed", reason: "error", rateLimited: true });
+    await log.append(project, { ...common, session: "A", kind: "usage", ...window(100) });
+    await log.append(project, { ...common, session: "B", kind: "usage", ...window(5) });
+    await log.append(project, { ...common, session: "C", kind: "session-started" });
+
+    const read = await reportedUsageOf(log, project, ["A", "B", "C"]);
+    assert.deepEqual([...read.keys()].sort(), ["A", "B"]);
+    assert.equal(read.get("A")?.usage?.rateLimits[0]?.percentUsed, 100, "the latest usage");
+    assert.deepEqual([read.get("A")?.failed?.reason, read.get("A")?.failed?.rateLimited], ["error", true]);
+    assert.equal(read.get("B")?.failed, undefined);
+    assert.equal((await reportedUsageOf(log, project, [])).size, 0);
   });
 });
 

@@ -8,8 +8,10 @@
  * mid-turn and in a `claude -p` run whose turn has not ended. Nothing ever looks for a transcript
  * by folder: that is what blinded 0.2 for batch sessions and for sessions that moved worktrees.
  *
- * A reading is tokens used, with no window size and no fraction (ADR-0728 D1): the guidance a
- * session judges against is a token figure from the per-user settings (9.7). It reads and
+ * A reading is tokens used (ADR-0728 D1), and, when the session's Claude Code mod reported its usage (ADR-1056 D3,
+ * which narrows D1), the window and the share of it in use: the mod's figure is taken before the transcript's
+ * while it is current (9.19). The guidance a session judges against is still a token figure from the per-user
+ * settings (9.7). It reads and
  * never enforces. Any session's reading can be worked out this way without that session asking,
  * which is how a board can show one per session.
  */
@@ -36,6 +38,9 @@ export type ContextReading = {
   readonly source?: string;
 } & ({
   readonly tokens: number;
+  /** The context window's size and the whole percent of it the tokens fill, when the session's mod reported its window (9.19). */
+  readonly window?: number;
+  readonly percent?: number;
   /** What those tokens are made of (9.8), or why that is not known. */
   readonly composition: Composition | { readonly absent: string };
   /** The user's current context guidance and where this count sits, or why it could not be read (9.7). */
@@ -249,8 +254,16 @@ export type TranscriptFolder = (transcript: string, harness: string | undefined,
 export async function contextReading(lines: readonly Line[], session: string,
   { now = new Date(), home, read = readTranscriptFile, fold }: { now?: Date; home?: string; read?: TranscriptReader; fold?: TranscriptFolder } = {}): Promise<ContextReading> {
   const at = now.toISOString();
+  const usage = reportedUsage(lines, session);
+  const live = usage?.context.tokens === undefined ? undefined : usage;
   const named = transcriptOf(lines, session);
-  if (named === undefined) return { session, absent: "no hook has named this session's transcript", at };
+  /** The reading from the mod's figure alone, its composition absent for `why`. */
+  const reported = (why: string, base: { harness?: string; source?: string }): ContextReading | undefined =>
+    live?.context.tokens === undefined ? undefined : { session, ...base, ...figure(live.context.tokens, live), composition: { absent: why }, guidance: contextGuidance(live.context.tokens, home), at };
+  if (named === undefined) {
+    const why = "no hook has named this session's transcript";
+    return reported(why, usage?.harness === undefined ? {} : { harness: usage.harness }) ?? { session, absent: why, at };
+  }
   const { transcript, harness, stored } = named;
   const who = harness === undefined ? { session } : { session, harness };
   let folded: ContextFold | undefined;
@@ -262,13 +275,38 @@ export async function contextReading(lines: readonly Line[], session: string,
       folded = text === undefined ? undefined : new ContextFold(harness, { subagent: stored.part !== "" }).feed(text);
     }
   } catch {
-    return { ...who, absent: "the transcript named for this session cannot be read", at, source: transcript };
+    const why = "the transcript named for this session cannot be read";
+    return reported(why, { ...who, source: transcript }) ?? { ...who, absent: why, at, source: transcript };
   }
-  if (folded === undefined) return { ...who, absent: NOTHING_STORED, at, source: transcript };
+  if (folded === undefined) return reported(NOTHING_STORED, { ...who, source: transcript }) ?? { ...who, absent: NOTHING_STORED, at, source: transcript };
   const count = folded.count();
-  if ("absent" in count) return { ...who, ...count, at, source: transcript };
+  if ("absent" in count) return reported(count.absent, { ...who, source: transcript }) ?? { ...who, ...count, at, source: transcript };
+  const tokens = live?.context.tokens ?? count.tokens;
   const composition = folded.composition();
-  return { ...who, tokens: count.tokens, composition: composition ?? { absent: folded.compositionAbsent }, guidance: contextGuidance(count.tokens, home), at, source: transcript };
+  return { ...who, ...figure(tokens, usage, live !== undefined), composition: composition ?? { absent: folded.compositionAbsent }, guidance: contextGuidance(tokens, home), at, source: transcript };
+}
+
+type UsageLine = Extract<Line, { kind: "usage" }>;
+
+/** How long a usage line stays current behind the session's latest transcript-naming line: two of the mod's report periods. */
+const USAGE_CURRENT_MS = 120_000;
+
+/**
+ * `session`'s latest usage line, while it is current (no older than its latest transcript-naming line by more than
+ * `USAGE_CURRENT_MS`): undefined for a session whose mod never reported, or stopped.
+ */
+function reportedUsage(lines: readonly Line[], session: string): UsageLine | undefined {
+  const usage = lines.findLast((one): one is UsageLine => one.kind === "usage" && one.session === session);
+  if (usage === undefined) return undefined;
+  const named = lines.findLast((one) => one.session === session && one.transcript !== undefined);
+  return named !== undefined && Date.parse(named.at) - Date.parse(usage.at) > USAGE_CURRENT_MS ? undefined : usage;
+}
+
+/** `tokens` with the window `usage` names and the share of it they fill: the mod's own percent when `own` it is the mod's figure. */
+function figure(tokens: number, usage: UsageLine | undefined, own = true): { tokens: number; window?: number; percent?: number } {
+  if (usage === undefined) return { tokens };
+  const { window, percent } = usage.context;
+  return { tokens, window, percent: own && percent !== undefined ? percent : Math.min(100, Math.round((tokens / window) * 100)) };
 }
 
 /** `session`'s reading in `project`, worked out now from what the hooks recorded. */
@@ -287,9 +325,30 @@ export function transcriptLines(log: ActivityLog, project: string, session: stri
  */
 export async function readingLines(log: ActivityLog, project: string, sessions: readonly string[]): Promise<Line[]> {
   const omit = ["command", "files"];
-  const [own, started] = await Promise.all([
+  const [own, started, usage] = await Promise.all([
     log.lines(project, { sessions, has: ["transcript"], latestBy: ["session"], omit }),
     log.lines(project, { kinds: ["subagent-started"], where: { subagent: sessions }, has: ["transcript"], latestBy: ["subagent"], omit }),
+    // And each session's latest usage its mod reported, which a reading takes before the transcript's figure (9.19).
+    log.lines(project, { sessions, kinds: ["usage"], latestBy: ["session"] }),
   ]);
-  return [...own, ...started].sort((a, b) => a.seq - b.seq);
+  return [...own, ...started, ...usage].sort((a, b) => a.seq - b.seq);
+}
+
+/** A session's latest usage and latest failed turn, as its Claude Code mod reported them (ADR-1056 D3). */
+export interface ReportedUsage {
+  readonly usage?: UsageLine;
+  readonly failed?: Extract<Line, { kind: "turn-failed" }>;
+}
+
+/** Each of `sessions`' latest reported usage and failed turn, for a lane's runner and the pool (9.20); a session with neither is left out. */
+export async function reportedUsageOf(log: ActivityLog, project: string, sessions: readonly string[]): Promise<Map<string, ReportedUsage>> {
+  const found = new Map<string, ReportedUsage>();
+  if (sessions.length === 0) return found;
+  const lines = await log.lines(project, { sessions, kinds: ["usage", "turn-failed"], latestBy: ["session", "kind"] });
+  for (const line of lines) {
+    if (line.kind !== "usage" && line.kind !== "turn-failed") continue;
+    const seen = found.get(line.session) ?? {};
+    found.set(line.session, line.kind === "usage" ? { ...seen, usage: line } : { ...seen, failed: line });
+  }
+  return found;
 }

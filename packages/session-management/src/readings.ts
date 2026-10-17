@@ -183,7 +183,7 @@ export function labelOf(harness: string | undefined): string {
 }
 
 /** The kinds of line whose writer only looked at others' work: a claim's merge, a branch's or a folder's state, what an app keeps, a machine's start. */
-const ABOUT_OTHERS: ReadonlySet<Line["kind"]> = new Set(["merged", "branch-state", "main-state", "session-archived", "session-unarchived", "session-described", "machine-started", "hook-times"]);
+const ABOUT_OTHERS: ReadonlySet<Line["kind"]> = new Set(["merged", "branch-state", "main-state", "session-archived", "session-unarchived", "session-described", "machine-started", "hook-times", "usage", "turn-failed"]);
 
 /** The sessions `lines` show, in the order they started, each judged at `options.now`. */
 export function sessionsFrom(lines: readonly Line[], options: SessionOptions = {}): Session[] {

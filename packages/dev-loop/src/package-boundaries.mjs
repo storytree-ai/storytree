@@ -23,7 +23,7 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-hea
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3); the dev loop depends on it one way, for the forwarders at its old lanes paths.
 // app-setup: story_b91056a06337 (The app setup).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
-// forest: story_deee4230348c (Map view), which owns forest-world too (ADR-1066 D4).
+// forest: story_deee4230348c (Map view), which holds its drawing engine in src/world (ADR-1071 D3).
 // library: story_754e87e7d531 (The library), which holds Keys and the local database in its own package (ADR-1071 D3) and owns librarian too (ADR-1066 D4).
 // journey-events: story_9eb523952644 (Journey events).
 // ci-health: story_5c212e7a9a6c (CI health, ADR-0902).

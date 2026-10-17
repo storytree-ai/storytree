@@ -16,7 +16,7 @@ with WebGL unavailable the map has a still from the same scene.
 
 **Build choice: esbuild.** Use the builder already present in this workspace. The site needs
 static HTML, CSS and a separately bundled browser scene, without server rendering or a router.
-Generate HTML at build time, consume `@storytree/forest-world` through its public workspace
+Generate HTML at build time, consume `@storytree/forest/world` through its public workspace
 entry, and emit the deployable folder `packages/website/dist`. This keeps a single engine and
 a small build surface; it does not vendor the engine or copy the desktop forest story's code.
 The agent-level choice is permitted by the planning increment under ADR-0798 D4.
@@ -119,11 +119,11 @@ that scene remains available if WebGL cannot run.
 - **Library:** `capability_18562ff0841c`.
 - **Depends on:** 3. The first increment supplies the mount before site-b starts.
 - **Founding shelf:** ADR-0798 D4, through `decision_e79353e8bc70` (ADR-0801).
-- **Package:** `packages/website`; shared engine work remains in `packages/forest-world`.
+- **Package:** `packages/website`; shared engine work remains in `packages/forest` (`src/world`).
 
 **Contracts:**
 
-1. The saved snapshot produces its story islands using the workspace forest-world engine's
+1. The saved snapshot produces its story islands using the workspace drawing engine's
    current representation (`contract_fe2f95cea55d`). Render a small known snapshot and observe
    its scene nodes. Attribution of agent-reported health is checked in review.
 2. Unavailable WebGL or failed scene initialization shows the still while the page remains

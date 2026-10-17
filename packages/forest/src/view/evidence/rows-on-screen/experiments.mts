@@ -7,7 +7,7 @@ import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { workStates } from '@storytree/arc-surface';
-import { islandCoastReach } from '@storytree/forest-world/geometry';
+import { islandCoastReach } from '@storytree/forest/world/geometry';
 import { forestScene, storyNodes } from '../../../index.js';
 import { rowOf } from '../../../planet-places/planet-places.js';
 

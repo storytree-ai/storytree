@@ -19,7 +19,7 @@ import { packageProblems } from "@storytree/guardrails";
 import { ALSO_OWNED } from "@storytree/map/package-of";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>); one that owns several declares the others in the map's ALSO_OWNED (ADR-1066 D3). */
-export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "journey-events", "lag-in-use", "learning-as-you-build", "knowledge-core", "librarian", "library", "local-postgres", "map", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
+export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "claude-code-mod", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "journey-events", "lag-in-use", "learning-as-you-build", "knowledge-core", "librarian", "library", "local-postgres", "map", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
@@ -36,6 +36,7 @@ export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "
 // plugin-loader: story_09e58d68f87c (Plugin loader, ADR-1021).
 // learning-as-you-build: story_7d7b0ffccf55 (Learning as you build, ADR-1048).
 // experiments: story_c2dbcf855db2 (Experiments, ADR-1064 D1).
+// claude-code-mod: story_3def3732e802 (The Claude Code mod, ADR-1056 D3).
 
 /** STORIES with the packages each owns beyond its own (ADR-1066 D3), as the package and allocation rules take them. */
 export const OWNED = STORIES.map((story) => Object.hasOwn(ALSO_OWNED, story) ? { story, packages: [story, ...ALSO_OWNED[story]] } : story);

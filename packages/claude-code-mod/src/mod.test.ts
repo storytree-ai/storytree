@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { BEAT_MS, DELIVERY_WAIT_MS, register, type Engine, type Input } from "../plugin/hooks/storytree.js";
+import { BEAT_MS, DELIVERY_WAIT_MS, register, USAGE_MS, type Engine, type Input, type Usage } from "../plugin/hooks/storytree.js";
 import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./index.mjs";
 
 type Hook = (engine: Engine, e: Input, next: (e: Input) => Promise<unknown>) => Promise<unknown>;
@@ -24,6 +24,9 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
   const env = new Map<string, string>();
   const written = new Map<string, string>();
   let id = "session-1";
+  // The session's figures as the status line has them, and the engine's time.
+  let usage: Usage = { startedAt: 1_000, context: { window: 200_000 }, rateLimits: [] };
+  let now = 5_000;
   const engine: Engine = {
     mcp: {
       call: async (server, tool, args) => {
@@ -32,8 +35,9 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
         return answer();
       },
     },
-    session: { id: async () => id, cwd: async () => "/work/start" },
+    session: { id: async () => id, cwd: async () => "/work/start", usage: async () => usage },
     clock: {
+      now: async () => (now += 1),
       after,
       every: (ms, fn) => {
         const timer = { ms, fn, cancelled: false };
@@ -70,7 +74,7 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
     for (const timer of timers.filter((one) => !one.cancelled)) timer.fn();
     await new Promise((resolve) => setImmediate(resolve));
   };
-  return { raise, own, tick, happened, sent, timers, env, written, become: (next: string) => void (id = next) };
+  return { raise, own, tick, happened, sent, timers, env, written, become: (next: string) => void (id = next), measure: (next: Usage) => void (usage = next) };
 }
 
 const base = { session_id: "session-1", transcript_path: "/home/dev/.claude/projects/p/session-1.jsonl", cwd: "/work/site", permission_mode: "default" };
@@ -147,7 +151,7 @@ test("1.2 · From session.start the mod beats on its own timer for the session's
   await own("session.start", { cwd: "/work/start" });
   assert.deepEqual(written, new Map([["/lanes/lane.session", "session-1\n"]]), "its id, where the lane's runner reads it");
   assert.deepEqual(beats(), [{ session: "session-1", cwd: "/work/start" }], "a beat at once");
-  assert.deepEqual(timers.map((one) => one.ms), [BEAT_MS], "then one on the engine's timer, whatever the session does");
+  assert.deepEqual(timers.filter((one) => one.ms === BEAT_MS).length, 1, "then one on the engine's timer, whatever the session does");
   await tick();
   await tick();
   assert.equal(beats().length, 3);
@@ -173,8 +177,55 @@ test("1.2 · From session.start the mod beats on its own timer for the session's
   await again.own("session.start", { cwd: "/work/start" });
   await again.own("session.start", { cwd: "/work/start" });
   await again.tick();
-  assert.equal(again.timers.filter((one) => !one.cancelled).length, 1);
+  assert.equal(again.timers.filter((one) => !one.cancelled && one.ms === BEAT_MS).length, 1);
   assert.equal(again.written.size, 0);
+});
+
+/** A main-loop turn's end, as the engine raises it, or a subagent's with `agentId`. */
+const turn = (turnId: string, reason: string, extra: Input = {}): Input => ({ answer: "", durationMs: 10, isAborted: reason === "aborted", turnId, reason, ...extra });
+
+test("3.1 · At each main-loop turn's end, and each minute while a turn runs when a figure moved, the session's usage reaches hook_event; an idle or ended session sends none", async () => {
+  const { own, tick, sent, timers, measure } = loaded();
+  const reports = () => sent.filter((one) => one.tool === "hook_event").map((one) => one.args?.input as Input);
+  await own("session.start", { cwd: "/work/start" });
+  assert.deepEqual(timers.map((one) => one.ms), [BEAT_MS, USAGE_MS], "the usage is looked at on the engine's timer");
+  const figures: Usage = { startedAt: 1_000, context: { tokens: 50_000, window: 200_000, percent: 25 }, rateLimits: [{ kind: "five_hour", percentUsed: 12.5, resetsAt: "2026-10-17T09:00:00.000Z" }], cost: { usd: 0.42 } };
+  measure(figures);
+
+  // A turn's end: its usage and why it ended, delivered before the chain goes on.
+  await own("turn.complete", turn("turn-1", "answer"));
+  const [first] = reports();
+  assert.deepEqual({ ...first, measured_at: 0 }, { session_id: "session-1", cwd: "/work/start", measured_at: 0, usage: { context: figures.context, rateLimits: figures.rateLimits, cost: figures.cost },
+    hook_event_name: "TurnComplete", turn_id: "turn-1", reason: "answer" });
+
+  // A minute with nothing moved sends nothing; a figure that moved is sent.
+  await tick();
+  assert.equal(reports().length, 1, "an idle session sends none");
+  measure({ ...figures, context: { tokens: 90_000, window: 200_000, percent: 45 } });
+  await tick();
+  assert.equal(reports().length, 2);
+  assert.equal(reports()[1]?.hook_event_name, "UsageMeasured");
+  assert.deepEqual((reports()[1]?.usage as Usage).context, { tokens: 90_000, window: 200_000, percent: 45 });
+  assert.notEqual(reports()[1]?.measured_at, first?.measured_at, "each measurement is its own event");
+  await tick();
+  assert.equal(reports().length, 2);
+
+  // Ended: no timer left to send.
+  await own("session.end", { reason: "prompt_input_exit", sessionId: "session-1" });
+  measure({ ...figures, cost: { usd: 9 } });
+  await tick();
+  assert.equal(reports().length, 2, "an ended session sends none");
+});
+
+test("3.2 · A main-loop turn ended by an API error or a refusal is reported with its reason; an answered or interrupted one as usage alone, and a subagent's turn sends nothing of its own", async () => {
+  const { own, sent } = loaded();
+  const reports = () => sent.filter((one) => one.tool === "hook_event").map((one) => one.args?.input as Input);
+  const end = (e: Input) => own("turn.complete", e);
+  await end(turn("t-error", "error"));
+  await end(turn("t-refusal", "refusal", { refusal: { explanation: "no" } }));
+  await end(turn("t-aborted", "aborted"));
+  await end(turn("t-sub", "error", { agentId: "agent-1" }));
+  assert.deepEqual(reports().map((one) => [one.hook_event_name, one.turn_id, one.reason]), [["TurnComplete", "t-error", "error"], ["TurnComplete", "t-refusal", "refusal"], ["TurnComplete", "t-aborted", "aborted"]]);
 });
 
 test("2.1 · The package names a plugin folder Claude Code accepts: its manifest, and hooks.json naming the hooks module that exports register", async () => {

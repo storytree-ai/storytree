@@ -19,6 +19,9 @@
  * - UserPromptSubmit carries the `prompt`: its line says the session's turn began, without the words.
  * - Stop fires when the agent finishes its turn, and lists the `background_tasks` still running.
  * - SessionEnd carries `reason`.
+ * - Two events only Claude Code's mod sends (ADR-1056 D3), each with the session's `usage` as its status line has it
+ *   (`context`, `rateLimits`, `cost`): UsageMeasured, while the figures move, and TurnComplete, at a main-loop turn's end, with
+ *   its `reason` (answer, aborted, refusal or error). An error ends a rate-limited turn too: the windows at 100% or past name the limits it hit.
  */
 import type { NewLine } from "@storytree/library";
 import type { HookLines } from "./hooks.js";
@@ -52,9 +55,41 @@ export function claudeCodeLines(input: Record<string, unknown>): HookLines | und
     case "Stop":
       // A turn that leaves tasks running in the background may leave a command of theirs running too: its line says how many.
       return line({ ...common, kind: "turn-ended", ...(Array.isArray(input.background_tasks) ? { background: input.background_tasks.length } : {}) });
+    case "UsageMeasured":
+    case "TurnComplete": {
+      const usage = usageOf(input.usage);
+      const failed = event === "TurnComplete" && (input.reason === "error" || input.reason === "refusal") ? input.reason : undefined;
+      const { transcript: _none, ...plain } = common;
+      const lines: NewLine[] = [];
+      if (usage !== undefined) lines.push({ ...plain, kind: "usage-measured", ...usage });
+      if (failed !== undefined) {
+        const limits = (usage?.rateLimits ?? []).filter((window) => window.percentUsed >= 100).map((window) => window.kind);
+        lines.push({ ...plain, kind: "turn-failed", reason: failed, ...(limits.length === 0 ? {} : { limits }) });
+      }
+      return lines.length === 0 ? undefined : { folder, lines };
+    }
     default:
       return undefined;
   }
+}
+
+type UsageFields = Pick<Extract<NewLine, { kind: "usage-measured" }>, "context" | "rateLimits" | "cost">;
+
+/** The figures of a mod's `usage` that a usage line keeps, or undefined when it names no context window. */
+function usageOf(usage: unknown): UsageFields | undefined {
+  if (!isRecord(usage) || !isRecord(usage.context) || !isCount(usage.context.window) || usage.context.window === 0) return undefined;
+  const { tokens, window, percent } = usage.context;
+  const context = { window, ...(isCount(tokens) ? { tokens } : {}), ...(typeof percent === "number" && percent >= 0 && percent <= 100 ? { percent } : {}) };
+  const rateLimits = (Array.isArray(usage.rateLimits) ? usage.rateLimits : []).filter(isRecord)
+    .filter((one) => isText(one.kind) && typeof one.percentUsed === "number" && one.percentUsed >= 0)
+    .map((one) => ({ kind: one.kind as string, percentUsed: one.percentUsed as number, ...(isText(one.resetsAt) ? { resetsAt: one.resetsAt } : {}) }))
+    .slice(0, 20);
+  const cost = isRecord(usage.cost) && typeof usage.cost.usd === "number" && usage.cost.usd >= 0 ? { cost: { usd: usage.cost.usd } } : {};
+  return { context, rateLimits, ...cost };
+}
+
+function isCount(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
 }
 
 function subagentLine(common: Pick<NewLine, "session" | "harness" | "source" | "folder">, tool: unknown, toolInput: unknown, toolResponse: unknown): NewLine | undefined {

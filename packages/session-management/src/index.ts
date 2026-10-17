@@ -18,7 +18,7 @@ export type { AppPlaces, AppReading } from "./sessions/app-records.js";
 export { hookFailures, noteHookFailure } from "./hooks/failures.js";
 export type { HookFailure } from "./hooks/failures.js";
 export type { CodexHookTrust } from "./hooks/index.js";
-export { contextCommand, contextReading, readContext, readingLines, sessionWindow, tokensSpent } from "./context/index.js";
+export { contextCommand, contextReading, readContext, readingLines, reportedUsageOf, sessionWindow, tokensSpent, type ReportedUsage } from "./context/index.js";
 export { guidanceSentence } from "./context/guidance.js";
 export { pruneTranscripts, RETAIN_MS, scrub, shipTranscript, storedContextReading, storedSessionWindow } from "./transcripts/index.js";
 export { TranscriptCache } from "./transcripts/index.js";

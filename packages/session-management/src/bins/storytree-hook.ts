@@ -9,7 +9,9 @@
  * project, the setup question for the agent to ask: whatever happens, the agent it runs beside is untouched. It
  * also never outlives DEADLINE_MS, whatever it is waiting on. With `--background` (Codex's hooks
  * before a shell command and at the end of a turn) it hands the writing to a copy of itself that it
- * leaves running, detached and with nothing of the harness's open, and exits at once. The look around
+ * leaves running, detached and with nothing of the harness's open, and exits at once. Claude Code's end hook, and in a
+ * `claude -p` session each of its hooks after a tool, hand off so before anything else, deaf to the SIGTERM Claude Code
+ * stops them with as its process exits (handsOffAtOnce). The look around
  * the machine a hook hands on, once a minute, goes the same way, to a copy run with `--upkeep` that
  * may run for UPKEEP_DEADLINE_MS. Every copy is started with `--handed`, so its time is read apart.
  *
@@ -26,7 +28,7 @@ import { spawn } from "node:child_process";
 import { storytreeHome } from "@storytree/project-and-caller";
 
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
-import { DEADLINE_MS, HANDED, HookClock, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
+import { AFTER_TOOL, BACKGROUND, DEADLINE_MS, HANDED, HookClock, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
 
 export type { DeclaredCapabilities };
 
@@ -37,6 +39,10 @@ export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabil
   setTimeout(() => process.exit(0), process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : DEADLINE_MS).unref();
   process.on("uncaughtException", () => process.exit(0));
   process.on("unhandledRejection", () => process.exit(0));
+  const [harness = "", ...flags] = process.argv.slice(2);
+  const atOnce = handsOffAtOnce(harness, flags, process.env);
+  // Claude Code stops such a hook by SIGTERM before it is done; it is not done until its copy has the input.
+  if (atOnce) process.on("SIGTERM", () => undefined);
 
   let input = "";
   process.stdin.setEncoding("utf8");
@@ -49,11 +55,26 @@ export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabil
       void statusLine(input).then((line) => process.stdout.write(line, () => process.exit(0)));
       return;
     }
+    if (atOnce) {
+      void handOff(harness, input, flags.filter((flag) => flag !== BACKGROUND)).then(() => process.exit(0));
+      return;
+    }
     runHook({ argv: process.argv.slice(2), input, handOff, clock, ...(declaredCapabilities === undefined ? {} : { declaredCapabilities }), ...(guardMs === undefined ? {} : { guardMs }) }).then(
       (added) => (added === undefined ? process.exit(0) : process.stdout.write(added, () => process.exit(0))),
       () => process.exit(0),
     );
   });
+}
+
+/**
+ * Whether Claude Code's hook hands its input to a copy of itself at once, deciding nothing first: its end hook, which
+ * Claude Code cuts short at 1.5 s, and in a `claude -p` session (CLAUDE_CODE_ENTRYPOINT "sdk-…") every hook run after
+ * a tool, which Claude Code stops by SIGTERM when the turn ends and its process exits, some 60 ms into its end-of-turn
+ * hook. The copy, detached, outlives it and waits for the mod's note as the hook would have.
+ */
+function handsOffAtOnce(harness: string, flags: readonly string[], env: NodeJS.ProcessEnv): boolean {
+  if (harness !== "claude-code" || flags.includes(HANDED)) return false;
+  return flags.includes(BACKGROUND) || (flags.includes(AFTER_TOOL) && (env.CLAUDE_CODE_ENTRYPOINT ?? "").startsWith("sdk"));
 }
 
 /** Start this script again for `harness` with `flags`, detached, with `input` on its stdin, and resolve once it has the input. */

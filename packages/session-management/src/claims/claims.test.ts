@@ -14,7 +14,7 @@ import { connect, type Library, type NewLine } from "@storytree/library";
 
 import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog } from "../activity/index.js";
 import { lineText, readClaim, readClaims } from "../index.js";
-import { claimFrom, claimsFrom, LONGEST_COMMAND_MS } from "../readings.js";
+import { claimFrom, claimsFrom, LONGEST_COMMAND_MS, STOPPED_MS } from "../readings.js";
 import { runHook } from "../hooks/index.js";
 import { MARKER_FILE } from "@storytree/project-and-caller";
 import { countingStore } from "@storytree/project-and-caller/testing/egress";
@@ -236,6 +236,42 @@ test("5.34 a takeover's claimed line names the holder, when it was last seen and
     const later = { ...idle, at: new Date(Date.parse(idle.quietSince ?? "") + 13.5 * 60 * 60_000).toISOString(), takenBecause: "gone" as const };
     assert.match(lineText(later), /taken over from A after 13\.5 h quiet \(gone\)/);
     assert.match(lineText({ ...later, at: new Date(Date.parse(idle.quietSince ?? "") + 42 * 60_000).toISOString(), takenBecause: "closed-out" }), /after 42 min quiet \(closed out\)/);
+  });
+});
+
+test("5.51 a holder whose heartbeat stopped a minute ago, or whose session ended, reads idle (stopped) and is taken over at once; one still beating, one with no beats, or one that wrote after its beats stopped keeps the quiet-time rule (ADR-1056 D3)", async () => {
+  await withWorld(async ({ log, project, emailForm, passwordReset, as }) => {
+    assert.ok((await claim(as("A"), emailForm, "building the email form")).ok);
+    assert.ok((await claim(as("B"), passwordReset, "password reset")).ok);
+    await log.beats.beat(project, "A");
+    const beat = (await log.beats.of(project, ["A", "B"])).get("A");
+    assert.ok(beat !== undefined && beat.ended === undefined);
+    assert.deepEqual([...(await log.beats.of(project, ["A", "B"])).keys()], ["A"], "a session that never beat has none");
+    const at = (ms: number) => new Date(Date.parse(beat.at) + ms);
+    const holders = async (now: Date) => new Map((await readClaims(log, project, { now })).map((one) => [one.session, one]));
+
+    // Beating, however quiet: the quiet rule alone judges it. Its beats stopped past a minute: stopped, while B, which never beat, is still live.
+    assert.equal((await holders(at(30_000))).get("A")?.holder, "live");
+    const stopped = await holders(at(STOPPED_MS + 5_000));
+    assert.deepEqual(stopped.get("A")?.quiet?.because, "stopped");
+    assert.equal(stopped.get("B")?.holder, "live", "a holder without beats keeps the idle window");
+
+    // A line written after its beats stopped: it lives without them, so the quiet rule judges it.
+    await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "prompt-submitted" }, { at: at(2 * STOPPED_MS).toISOString() });
+    assert.equal((await holders(at(2 * STOPPED_MS + 5_000))).get("A")?.holder, "live");
+
+    // Its session's end: stopped at once, and another session takes the work over saying so.
+    await log.beats.beat(project, "B", { ended: true });
+    assert.ok((await log.beats.of(project, ["B"])).get("B")?.ended);
+    const taken = await claim(as("C"), passwordReset, "B ended; taking over");
+    assert.ok(taken.ok && taken.takenOverFrom?.session === "B");
+    const line = (await log.since(project, 0)).lines.findLast((one) => one.kind === "claimed");
+    assert.ok(line?.kind === "claimed" && line.takenBecause === "stopped");
+    assert.match(lineText(line), /\(heartbeat stopped\)/);
+
+    // A beat after an end opens the session again.
+    await log.beats.beat(project, "B");
+    assert.equal((await log.beats.of(project, ["B"])).get("B")?.ended, undefined);
   });
 });
 

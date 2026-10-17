@@ -23,8 +23,10 @@ async function lane(t) {
   const brief = join(home, "brief.md"), log = join(lanesDir, "lane.log"), err = join(lanesDir, "lane.err");
   await writeFile(brief, "Build this increment. Preserve `literal` $text and \"quotes\".\n");
   const lines = [];
+  // Run from a Claude lane, the runner's own environment already carries what it gives a Claude engine.
+  const { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: _hooks, STORYTREE_SESSION_FILE: _file, ...inherited } = process.env;
   return { home, lanesDir, cwd, brief, log, err, addDirs: [join(home, "directory with spaces"), "another"],
-    env: { ...process.env, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
+    env: { ...inherited, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
     commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines };
 }
 
@@ -38,7 +40,7 @@ test("10.6 · foreground engines receive the exact brief, model, directories and
     const brief = await readFile(options.brief, "utf8");
     assert.deepEqual(result.args, engine === "codex"
       ? ["exec", brief, "--model", "gpt-6-astra", "--sandbox", "danger-full-access", "--dangerously-bypass-hook-trust", ...adds, "--json"]
-      : ["-p", brief, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--output-format", "stream-json", "--verbose"]);
+      : ["-p", brief, "--model", "claude-opus-5-5", "--permission-mode", "bypassPermissions", ...adds, "--plugin-dir", fileURLToPath(new URL("../../claude-code-mod/plugin", import.meta.url)), "--output-format", "stream-json", "--verbose"]);
     assert.equal(await realpath(result.cwd), await realpath(options.cwd));
     assert.equal(result.token, "test-login");
     assert.deepEqual(result.keys, []); assert.equal(result.stdin, "");
@@ -52,6 +54,27 @@ test("10.6 · foreground engines receive the exact brief, model, directories and
   const result = JSON.parse(await readFile(options.log, "utf8"));
   assert.equal(result.token, "existing-login");
   assert.equal(options.env.OPENAI_API_KEY, "test-api", "the caller's environment is not mutated");
+});
+
+test("10.14 · A Claude lane loads the Claude Code mod from its plugin folder with function hooks turned on; a Codex lane is given neither", async (t) => {
+  const options = await lane(t);
+  // Started from a Claude Code session with the mod loaded, as a dispatcher on the Mint box may be.
+  Object.assign(options.env, { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: "1", CLAUDE_CODE_PLUGIN_DIRS: "/parent/plugin", STORYTREE_SESSION_FILE: "/parent.session" });
+  const told = `console.log(JSON.stringify({args:process.argv.slice(1),hooks:process.env.CLAUDE_CODE_ENABLE_FUNCTION_HOOKS??null,plugins:process.env.CLAUDE_CODE_PLUGIN_DIRS??null,file:process.env.STORYTREE_SESSION_FILE??null}));`;
+  options.commands = { codex: command(told), claude: command(told) };
+  const ran = {};
+  for (const engine of ["codex", "claude"]) {
+    await writeFile(join(options.lanesDir, "engine-override"), engine);
+    assert.equal(await runLane(options), 0);
+    ran[engine] = JSON.parse(await readFile(options.log, "utf8"));
+  }
+  const folder = ran.claude.args[ran.claude.args.indexOf("--plugin-dir") + 1];
+  assert.equal(JSON.parse(await readFile(join(folder, ".claude-plugin", "plugin.json"), "utf8")).name, "storytree", "the folder is the mod's");
+  assert.equal(ran.claude.hooks, "1");
+  assert.equal(ran.codex.args.includes("--plugin-dir"), false);
+  assert.equal(ran.codex.hooks, null);
+  assert.equal(ran.codex.plugins, null);
+  assert.equal(ran.codex.file, null);
 });
 
 test("10.7 · a Codex limit stop hands over once, preserving the original brief and separate logs", async (t) => {
@@ -169,13 +192,15 @@ test("10.10 · a lane whose newest reading is stale and spent runs one Codex pro
   await mkdir(day, { recursive: true });
   const event = (at, used) => JSON.stringify({ timestamp: new Date(at).toISOString(), payload: { rate_limits: { secondary: { used_percent: used, window_minutes: 10080, resets_at: start / 1000 + 86400 } } } });
   await writeFile(join(day, "rollout-old.jsonl"), event(start - 3 * 3_600_000, 97));
-  const fresh = join(day, "rollout-fresh.jsonl");
-  options.commands.codex = command(`const fs=require('node:fs'); if (process.argv.some(a=>a.startsWith('Reply with the single word OK.'))) fs.writeFileSync(${JSON.stringify(fresh)}, ${JSON.stringify(event(start, 1))}); else console.log('lane ran');`);
+  const fresh = join(day, "rollout-fresh.jsonl"), hooks = join(options.home, "probe-hooks");
+  options.env.CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = "1";
+  options.commands.codex = command(`const fs=require('node:fs'); if (process.argv.some(a=>a.startsWith('Reply with the single word OK.'))) { fs.writeFileSync(${JSON.stringify(fresh)}, ${JSON.stringify(event(start, 1))}); fs.writeFileSync(${JSON.stringify(hooks)}, String(process.env.CLAUDE_CODE_ENABLE_FUNCTION_HOOKS ?? null)); } else console.log('lane ran');`);
   options.commands.claude = command("process.exit(9)");
   assert.equal(await runLane(options), 0);
   assert.match(options.lines[0], /engine codex Codex weekly allowance 1% used, resets .* \(refreshed a reading 3h old\)$/);
   assert.equal((await readFile(options.log, "utf8")).trim(), "lane ran");
   await assert.doesNotReject(readFile(options.log.replace(/\.log$/, ".probe.log")));
+  assert.equal(await readFile(hooks, "utf8"), "null", "the probe is a Codex run, so it is given no Claude Code function hooks either");
   options.lines.length = 0;
   await main(["status"], options);
   assert.doesNotMatch(options.lines.join("\n"), /over an hour old/, "a fresh Codex reading needs no refresh");
@@ -230,6 +255,37 @@ test("10.11 · a lane that exits 0 having left no report or push is resumed once
   assert.equal(await runLane(options), 0, "a lane that pushed a branch for its increment is done at once");
   assert.equal((await calls()).length, 1);
   assert.deepEqual(told, []);
+});
+
+test("10.16 · A Claude lane is told a file beside its log to write its session id in; the runner resumes the session that file names, and searches the log only when the file is absent", async (t) => {
+  const options = await lane(t);
+  const runs = join(options.home, "runs");
+  // A Claude engine that writes its session id where it is told, as the mod does, and names a different one in its log.
+  options.commands.claude = command(`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(runs)}, JSON.stringify({args:process.argv.slice(1),file:process.env.STORYTREE_SESSION_FILE??null})+'\\n');`
+    + ` if (process.env.STORYTREE_SESSION_FILE && !process.env.NO_FILE) fs.writeFileSync(process.env.STORYTREE_SESSION_FILE, 'from-the-mod\\n');`
+    + ` console.log(JSON.stringify({type:'system',subtype:'init',session_id:'from-the-log'}));`);
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  options.increment = "increment_abc";
+  options.heads = async () => ({});
+  options.storytree = async () => "";
+  const calls = async () => (await readFile(runs, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+
+  assert.equal(await runLane(options), 1);
+  const [first, second] = await calls();
+  assert.equal(first.file, join(options.lanesDir, "lane.session"), "the file is the log's, beside it");
+  assert.deepEqual(second.args.slice(2, 4), ["--resume", "from-the-mod"], "the mod's own word wins over the log");
+
+  await rm(runs);
+  await rm(join(options.lanesDir, "lane.session"));
+  options.env.NO_FILE = "1";
+  assert.equal(await runLane(options), 1);
+  assert.deepEqual((await calls())[1].args.slice(2, 4), ["--resume", "from-the-log"], "without the file, the log's first session id");
+
+  await rm(runs);
+  await writeFile(join(options.lanesDir, "engine-override"), "codex");
+  options.commands.codex = command(`require('node:fs').appendFileSync(${JSON.stringify(runs)}, JSON.stringify({file:process.env.STORYTREE_SESSION_FILE??null})+'\\n');`);
+  await runLane(options);
+  assert.equal((await calls())[0].file, null, "a Codex lane is told no file");
 });
 
 test("10.12 · each engine runs the model the pool's configuration names, and its own default when it names none", async (t) => {

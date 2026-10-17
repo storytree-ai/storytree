@@ -1,4 +1,4 @@
-/** Capability 7 · Growth. The globe's growth (world contracts 7.1–7.4): a recorded sequence of plan states replayed as islands rising
+/** Capability 12 · Growth. The globe's growth (contracts 12.1–12.4): a recorded sequence of plan states replayed as islands rising
  * and roads drawing on, choreographed the way 0.2's arrival was (ADR-0639: its behaviour, not its code). */
 import type { ForestScene } from '../scene.js';
 import { roadDrawSeconds } from './lanes.js';
@@ -8,7 +8,7 @@ import type { PlanetPathways } from './pathways.js';
 export interface GrowthWindow { start: number; seconds: number }
 
 /** One recorded plan state, and when it was recorded; stages run in the order given. `hold` keeps the replay on it for
- * that many seconds at its natural pace, even when it adds nothing, for what it carries beyond the plan (world 7.6). */
+ * that many seconds at its natural pace, even when it adds nothing, for what it carries beyond the plan (Map view 12.6). */
 export interface GrowthStage { id?: string; at?: string; scene: ForestScene; hold?: number }
 
 export interface GrowthOptions {
@@ -129,7 +129,7 @@ function scale(plan: GrowthPlan, k: number) {
   plan.seconds *= k;
 }
 
-/** Where a recorded date falls in the replay (world 7.5): between the two dated stages around it, in proportion,
+/** Where a recorded date falls in the replay (Map view 12.5): between the two dated stages around it, in proportion,
  * then toward the recording's end; held at the first stage before them, and at the end after it. Something dated
  * (a note, a claim) shows up beside the plan states recorded around it, and a later date is never earlier. */
 export function growthMoment(plan: GrowthPlan, date: string): number {

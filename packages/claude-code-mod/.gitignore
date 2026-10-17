@@ -1,0 +1,3 @@
+# Claude Code writes its types for the hooks module here each time it loads the mod from this folder (regenerated, never edited).
+plugin/tsconfig.json
+plugin/.claude-plugin/types/

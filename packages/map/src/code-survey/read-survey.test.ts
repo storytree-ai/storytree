@@ -21,7 +21,7 @@ const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabiliti
 
 test("8.1, 8.5 Constructor stories survey alongside ordinary stories and package aliases", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-titles-"));
-  const fixtures = [["Shop", "shop"], ["The command line", "cli"], ["The world", "forest-world"], ["Lag in real use", "lag-in-use"],
+  const fixtures = [["Shop", "shop"], ["The command line", "cli"], ["Lag in real use", "lag-in-use"],
     // ADR-1066 D4's developer-first names, whose packages kept their names.
     ["Context", "project-and-caller"], ["Architecture checks", "guardrails"], ["Code review", "quality-assurance"], ["Code map", "map"],
     ["Map view", "forest"], ["Knowledge graph", "knowledge-core"], ["Work board", "arc-surface"], ["Desktop app", "app"], ["Setup", "app-setup"],

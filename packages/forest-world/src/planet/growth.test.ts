@@ -18,7 +18,7 @@ const stages: { id: string; scene: ForestScene }[] = [
     links: [{ from: 'b1', to: 'a1' }, { from: 'c1', to: 'b1' }] } },
 ];
 
-test('7.1 a growth replays only what the recording holds, in its stages\' order, and roads only leave risen islands', () => {
+test('12.1 a growth replays only what the recording holds, in its stages\' order, and roads only leave risen islands', () => {
   const plan = growthPlan(stages);
   assert.deepEqual([...plan.islands.keys()].sort(), ['a', 'b', 'c']);
   assert.deepEqual([...plan.roads.keys()].sort(), ['b1->a1', 'c1->b1']);
@@ -38,7 +38,7 @@ test('7.1 a growth replays only what the recording holds, in its stages\' order,
   assert.deepEqual([...orphan.roads.keys()], []);
 });
 
-test('7.1 within one saved reading, islands nothing reaches start spread over a beat, and the rest arrive along their roads', () => {
+test('12.1 within one saved reading, islands nothing reaches start spread over a beat, and the rest arrive along their roads', () => {
   const plan = growthPlan([stages[2]!]);
   const [a, b, c] = ['a', 'b', 'c'].map(s => plan.islands.get(s)!);
   assert.ok(b!.start >= end(plan.roads.get('b1->a1')!) - 1e-9 && c!.start >= end(plan.roads.get('c1->b1')!) - 1e-9);
@@ -51,7 +51,7 @@ test('7.1 within one saved reading, islands nothing reaches start spread over a 
   assert.deepEqual([...cycle.islands.keys()].sort(), ['a', 'p', 'q']);
 });
 
-test('7.2 a whole globe grows from a point of light to its full form in the length asked for, keeping order and pacing', () => {
+test('12.2 a whole globe grows from a point of light to its full form in the length asked for, keeping order and pacing', () => {
   const natural = growthPlan(stages, { fromPoint: true });
   const globe = natural.globe!;
   assert.equal(globe.start, 0);
@@ -66,7 +66,7 @@ test('7.2 a whole globe grows from a point of light to its full form in the leng
   for (const w of [...fitted.islands.values(), ...fitted.roads.values(), ...fitted.capabilities.values()]) assert.ok(end(w) <= 15 + 1e-9);
 });
 
-test('7.2 a road draws on at constant speed from its built-on end, split by length across the segments it crosses, a shared one drawn by its earliest road', () => {
+test('12.2 a road draws on at constant speed from its built-on end, split by length across the segments it crosses, a shared one drawn by its earliest road', () => {
   const scene: ForestScene = { islands: [island('a', ['a1', 'a2']), island('b', ['b1', 'b2'])],
     links: [{ from: 'b1', to: 'a1' }, { from: 'b2', to: 'a2' }] };
   const spots = new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['b', { x: -R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }]]);
@@ -93,7 +93,7 @@ test('7.2 a road draws on at constant speed from its built-on end, split by leng
   for (const s of shared) assert.ok(windows.get(s.id)!.start < 3, 'a shared segment keeps its earliest road');
 });
 
-test('7.3 an island rises from its middle without overshoot, its parts and files filling in behind it; reduced motion shows the end at once', () => {
+test('12.3 an island rises from its middle without overshoot, its parts and files filling in behind it; reduced motion shows the end at once', () => {
   const w = { start: 2, seconds: 1 };
   let last = 0;
   for (let t = 0; t <= 4; t += 0.01) {
@@ -113,7 +113,7 @@ test('7.3 an island rises from its middle without overshoot, its parts and files
   }
 });
 
-test('7.4 the globe given a growth hides what has not risen, draws roads on from their built-on end, and ends as the globe without one', () => {
+test('12.4 the globe given a growth hides what has not risen, draws roads on from their built-on end, and ends as the globe without one', () => {
   assert.deepEqual(plateGrowth(0), { visible: false, scale: 0, sink: 1 });
   const half = plateGrowth(0.5);
   assert.ok(half.visible && half.scale > 0 && half.scale < 1 && half.sink > 0 && half.sink < 1);
@@ -127,7 +127,7 @@ test('7.4 the globe given a growth hides what has not risen, draws roads on from
   for (const w of [plan.globe!, ...plan.islands.values(), ...plan.roads.values()]) assert.equal(growthProgress(w, plan.seconds, false), 1);
 });
 
-test('7.5 a recorded date falls in the replay where it fell between the dated stages, so dates keep their order', () => {
+test('12.5 a recorded date falls in the replay where it fell between the dated stages, so dates keep their order', () => {
   const dated = [
     { id: 'stories', at: '2026-10-01T10:00:00.000Z', scene: stages[0]!.scene },
     { id: 'same', at: '2026-10-01T11:00:00.000Z', scene: stages[1]!.scene },
@@ -152,7 +152,7 @@ test('7.5 a recorded date falls in the replay where it fell between the dated st
   assert.equal(growthMoment(growthPlan(stages), '2026-10-01T13:00:00.000Z'), 0);
 });
 
-test('7.6 a stage that holds a beat for what it carries beyond the plan takes that beat, even when it adds nothing', () => {
+test('12.6 a stage that holds a beat for what it carries beyond the plan takes that beat, even when it adds nothing', () => {
   const dated = [
     { id: 'stories', at: '2026-10-01T10:00:00.000Z', scene: stages[0]!.scene },
     { id: 'claimed', at: '2026-10-01T10:05:00.000Z', scene: stages[1]!.scene, hold: 1 },
@@ -171,7 +171,7 @@ test('7.6 a stage that holds a beat for what it carries beyond the plan takes th
   assert.ok(plan.seconds - unheld.seconds >= 1, 'the hold adds its beat');
 });
 
-test('7.1 a road ending on an island as a whole grows like any other: it leaves the island it builds on once that has risen', () => {
+test('12.1 a road ending on an island as a whole grows like any other: it leaves the island it builds on once that has risen', () => {
   const plan = growthPlan([{ id: 'whole', scene: { islands: [island('old', []), island('new', ['n1'])], links: [{ from: 'new', to: 'old' }] } }]);
   const road = plan.roads.get('new->old');
   assert.ok(road, 'the road is drawn');

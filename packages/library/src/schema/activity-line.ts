@@ -75,7 +75,7 @@ const part = { capability: z.string().min(1).optional(), increment: z.string().m
 const onePart = (line: { capability?: string | undefined; increment?: string | undefined }) => (line.capability === undefined) !== (line.increment === undefined);
 const ONE_PART = { message: "a claim is on a capability or an increment, exactly one" };
 /** Why a taken-over holder no longer bound (ADR-0953 D2). */
-const QUIET_BECAUSE = ["idle", "gone", "restart", "closed-out"] as const;
+const QUIET_BECAUSE = ["idle", "gone", "restart", "closed-out", "stopped"] as const;
 
 /** A line as it is written: what happened, without the number and time the log gives it. */
 export const NEW_LINE = z.discriminatedUnion("kind", [

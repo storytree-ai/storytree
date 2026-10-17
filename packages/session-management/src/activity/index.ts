@@ -7,4 +7,5 @@ export type { LinesCache } from "./lines-cache.js";
 export type { ActivityLog, AppendOptions, BranchFacts, DeliveredEvent, LockedLog, OpenOptions } from "./activity-log.js";
 export type { LineFilter } from "./bounded.js";
 export type { StampedRecord, StoredSession, TranscriptRecord, TranscriptRecords } from "./transcript-records.js";
+export type { SessionBeats } from "./session-beats.js";
 export { fullLineText, lineText } from "./text.js";

@@ -10,9 +10,13 @@ import type { Agent, NewLine } from "@storytree/library";
 /** How both harnesses name storytree's own tools: its tool server is registered under the name `storytree`. */
 export const STORYTREE_TOOLS = "mcp__storytree__";
 
+/** The tool server's tool a harness hands a hook event to (tools.ts), as both harnesses name it. */
+export const HOOK_EVENT_TOOL = `${STORYTREE_TOOLS}hook_event`;
+
 export function toolRequestedLine(common: Pick<NewLine, "session" | "harness" | "source" | "folder">, input: Record<string, unknown>): NewLine | undefined {
   const { tool_name: tool, tool_use_id: call, agent_id: subagent, agent_type: type } = input;
-  if (!isText(tool) || !tool.startsWith(STORYTREE_TOOLS) || !isText(call)) return undefined;
+  // The tool server's hook_event call is a harness delivering an event (Claude Code's mod calls it as a tool), never an agent's request.
+  if (!isText(tool) || !tool.startsWith(STORYTREE_TOOLS) || tool === HOOK_EVENT_TOOL || !isText(call)) return undefined;
   const agent: Agent = isText(subagent) ? { subagent, ...(isText(type) ? { type } : {}) } : "orchestrator";
   return { ...common, kind: "tool-requested", tool: tool.slice(STORYTREE_TOOLS.length), call, agent };
 }

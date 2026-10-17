@@ -1,4 +1,4 @@
-/** Capability 6 · The planet. */
+/** Capability 11 · The planet. */
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BufferGeometry, CircleGeometry, Color, DoubleSide, Float32BufferAttribute, type Mesh, Quaternion, ShaderMaterial, Vector3 } from 'three';
@@ -148,11 +148,11 @@ const ROAD_COLOUR = '#c7bba1';
 // Neither the road nor its light can occlude a name, claim marker or island selection ray.
 const ignoreRay = () => {};
 
-/** The roads between islands: a recorded growth (7.4), or the live host's real arrivals (6.16). */
+/** The roads between islands: a recorded growth (12.4), or the live host's real arrivals (11.16). */
 export function Pathways({ plan, reveal, live = false, visible = true, routing = false }: { plan: PlanetPathways; reveal?: ReadonlyMap<string, GrowthWindow & { fromEnd: boolean }> | undefined; live?: boolean; visible?: boolean;
-  /** The plan's roads are still being routed (world 6.21): the live arrivals are kept for them. */
+  /** The plan's roads are still being routed (Map view 11.21): the live arrivals are kept for them. */
   routing?: boolean }) {
-  // Showing a surface is independent of the host's arrival clock (6.17). Mounting an already
+  // Showing a surface is independent of the host's arrival clock (11.17). Mounting an already
   // visible globe keeps its usual view; only a hidden-to-visible transition starts this reveal.
   const showing = useRef({ visible, elapsed: undefined as number | undefined, started: false, reduced: reducedMotion() });
   if (showing.current.visible !== visible) showing.current = { visible, elapsed: visible ? 0 : undefined, started: false, reduced: reducedMotion() };
@@ -214,7 +214,7 @@ export function Pathways({ plan, reveal, live = false, visible = true, routing =
         for (const strip of [geometry, halo]) strip.setDrawRange(range.start, range.count);
       }
     }
-    // Run the clock until every arrival's own time ends, not only until its spans draw whole (6.16).
+    // Run the clock until every arrival's own time ends, not only until its spans draw whole (11.16).
     if (live) drawing ||= liveRoadsGrowing(state.roads, now, state.reduced);
     if (drawing) invalidate();
   });
@@ -237,7 +237,7 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 /** A mark's disc faces out from the globe, like the ground it lies on. */
 const pip = new CircleGeometry(1, 24), up = new Vector3(0, 0, 1);
 
-/** A selected story's lit links (world 6.8–6.9): each lane is a thread down the middle of its road between islands, with a glow
+/** A selected story's lit links (Map view 11.8–11.9): each lane is a thread down the middle of its road between islands, with a glow
  * in its colour that lanes sharing a stretch lay once between them,
  * runs on inland along `inland`'s way to its capability's territory at each end, and draws on from the island built on,
  * every lane starting together at one pace, with a warm head at the front of each stretch it leads. It marks each end as

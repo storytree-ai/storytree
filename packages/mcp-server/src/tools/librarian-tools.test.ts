@@ -1,5 +1,5 @@
 /**
- * The librarian story's rounds 6.3–6.4: the real shared server serves curation and gives the session
+ * The library story's rounds 26.3–26.4: the real shared server serves curation and gives the session
  * its next step. Kept here, beside the server, because the librarian cannot depend back on Session management.
  */
 import assert from "node:assert/strict";
@@ -74,7 +74,7 @@ async function fields(library: Library, id: string): Promise<Record<string, unkn
   return record.fields;
 }
 
-test("(the librarian's 6.4) the shared server lists and calls every librarian verb, attributes writes and preserves refusals", async () => {
+test("library 26.4 the shared server lists and calls every librarian verb, attributes writes and preserves refusals", async () => {
   await withClient(async ({ client, library, log, folder }) => {
     const names = (await client.listTools()).tools.map((tool) => tool.name);
     assert.ok(names.includes("land") && VERBS.every((name) => names.includes(name)));
@@ -151,7 +151,7 @@ test("(the librarian's 6.4) the shared server lists and calls every librarian ve
   });
 });
 
-test("6.3 land and worklist use the calling session's start, including resumed and unknown sessions", async () => {
+test("library 26.3 land and worklist use the calling session's start, including resumed and unknown sessions", async () => {
   await withClient(async ({ client, library, log }) => {
     const story = await library.addStory({ title: "Library" });
     const capability = await library.addCapability({ story: story.id, title: "Rounds" });
@@ -176,7 +176,7 @@ test("6.3 land and worklist use the calling session's start, including resumed a
   });
 });
 
-test("(the librarian's 6.4) the installed server enables the librarian for storytree's own library first", async () => {
+test("library 26.4 the installed server enables the librarian for storytree's own library first", async () => {
   const folder = mkdtempSync(path.join(tmpdir(), "librarian-install-"));
   try {
     for (const project of ["storytree", "another-project"]) {

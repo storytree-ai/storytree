@@ -19,7 +19,7 @@ function screen(point: Vector3, camera: OrthographicCamera, width: number, heigh
   return { x: (projected.x + 1) * width / 2, y: (1 - projected.y) * height / 2 };
 }
 
-test('6.6 framing delivers the requested globe radii on the short side without changing the eye', () => {
+test('11.6 framing delivers the requested globe radii on the short side without changing the eye', () => {
   for (const [width, height] of [[1000, 600], [450, 900], [800, 800]] as const) {
     const camera = cameraFor(width, height);
     const position = camera.position.clone(), orientation = camera.quaternion.clone();
@@ -35,7 +35,7 @@ test('6.6 framing delivers the requested globe radii on the short side without c
   }
 });
 
-test('6.6 the sideways projection moves by CSS pixels while preserving user zoom and the eye', () => {
+test('11.6 the sideways projection moves by CSS pixels while preserving user zoom and the eye', () => {
   const width = 1000, height = 600;
   const camera = cameraFor(width, height);
   const position = camera.position.clone(), orientation = camera.quaternion.clone();
@@ -55,7 +55,7 @@ test('6.6 the sideways projection moves by CSS pixels while preserving user zoom
   }
 });
 
-test('6.6 framing and sideways offset still land at the same requested positions after resize', () => {
+test('11.6 framing and sideways offset still land at the same requested positions after resize', () => {
   const camera = cameraFor(1000, 600);
   for (const [width, height] of [[1000, 600], [420, 850], [900, 500]] as const) {
     // R3F updates its CSS-pixel orthographic frustum when the canvas resizes.
@@ -71,7 +71,7 @@ test('6.6 framing and sideways offset still land at the same requested positions
   }
 });
 
-test('6.18 the wheel floor is half the framed size: at it, the globe spans half the radii its framing gives it', () => {
+test('11.18 the wheel floor is half the framed size: at it, the globe spans half the radii its framing gives it', () => {
   for (const [width, height] of [[1000, 600], [450, 900]] as const) {
     const camera = cameraFor(width, height);
     const radius = 210, framing = 1.18;
@@ -83,7 +83,7 @@ test('6.18 the wheel floor is half the framed size: at it, the globe spans half 
   }
 });
 
-test('6.20 a globe that grows past the eye keeps its near side drawn: the eye backs away along its view, the picture unmoved', () => {
+test('11.20 a globe that grows past the eye keeps its near side drawn: the eye backs away along its view, the picture unmoved', () => {
   const width = 1440, height = 960, made = 218, grown = 945;
   // The canvas makes its camera for the globe it first draws: 4 radii out, the far plane at 10.
   const camera = new OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2, 0.1, made * 10);

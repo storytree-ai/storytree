@@ -1,4 +1,4 @@
-/** Capability 6 · The planet. */
+/** Capability 11 · The planet. */
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree, type RootState } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
@@ -67,7 +67,7 @@ export interface PlanetWorldCanvasProps {
   /** The way inland from a dock on `story`'s island to `capability`'s territory, in the island's own ground coordinates
    * and starting on the dock, along lines the host has drawn there (ADR-0991 D4); without it a lane ends at its docks. */
   laneWays?: ((story: string, capability: string, dock: CoastPoint) => readonly CoastPoint[] | undefined) | undefined;
-  /** A recorded growth to replay (world 7): islands rise, roads draw on, and plate children read `usePlanetGrowth`. */
+  /** A recorded growth to replay (capability 12): islands rise, roads draw on, and plate children read `usePlanetGrowth`. */
   growth?: PlanetGrowth | undefined;
   /** Draw first and newly arriving roads on in a live host; recorded growth takes precedence. */
   liveRoads?: boolean | undefined;
@@ -100,7 +100,7 @@ const Plate = memo(function Plate({ island, spot, radius, plate, visible, ground
   // Hollowed and filled in again in place, so turning the sheet over rebuilds no island.
   const invalidate = useThree(state => state.invalidate);
   useLayoutEffect(() => { hollowIsland(ground, hollow); invalidate(); }, [ground, hollow, invalidate]);
-  // World 7.4: an island not yet risen is hidden with its marks; a rising one swells from its middle out of the glass.
+  // Map view 12.4: an island not yet risen is hidden with its marks; a rising one swells from its middle out of the glass.
   const growth = usePlanetGrowth();
   const group = useRef<Group>(null);
   const [risen, setRisen] = useState(() => growth.island(island.story) > 0);
@@ -125,7 +125,7 @@ const Plate = memo(function Plate({ island, spot, radius, plate, visible, ground
 function Surface({ radius, visible }: { radius: number; visible: boolean }) {
   const surface = useMemo(() => createPlanetSurface(radius), [radius]);
   useEffect(() => () => { surface.geometry.dispose(); for (const face of surface.material) face.dispose(); }, [surface]);
-  // World 7.2: a growth from a point of light swells the glass first.
+  // Map view 12.2: a growth from a point of light swells the glass first.
   const growth = usePlanetGrowth();
   useFrame(() => surface.scale.setScalar(Math.max(growth.globe(), 0.01)));
   return <primitive object={surface} visible={visible} />;
@@ -149,7 +149,7 @@ function Framing({ radius, framing, sideOffset, sheet }: { radius: number; frami
   return null;
 }
 
-/** The wheel and pinch zoom the eye; zooming out stops at half the framed size (6.18). On the sheet they move the perspective
+/** The wheel and pinch zoom the eye; zooming out stops at half the framed size (11.18). On the sheet they move the perspective
  * eye toward or away from the middle of the view, between the same zooms (ADR-1062 D1). */
 function Wheel({ radius, framing, orbit, sheet }: { radius: number; framing: number; orbit: boolean; sheet: boolean }) {
   const size = useThree(state => state.size), camera = useThree(state => state.camera);
@@ -160,17 +160,17 @@ function Wheel({ radius, framing, orbit, sheet }: { radius: number; framing: num
   return <OrbitControls makeDefault enablePan={false} enableRotate={false} target={middle} minDistance={unit / 30} maxDistance={unit / wheelFloor(radius, framing, size)} />;
 }
 
-/** World 6.10: the globe draws only while some of its canvas is on screen, however busy its animations are. */
+/** Map view 11.10: the globe draws only while some of its canvas is on screen, however busy its animations are. */
 function PaintWhileSeen({ watch }: { watch: ViewportWatch | undefined }) {
   const get = useThree(state => state.get);
   const canvas = useThree(state => state.gl.domElement);
   useEffect(() => paintWhileSeen(get, canvas, watch), [get, canvas, watch]);
-  // World 6.15: a context the browser hands back is drawn again, not left blank until something moves.
+  // Map view 11.15: a context the browser hands back is drawn again, not left blank until something moves.
   useEffect(() => redrawOnRestore(get, canvas), [get, canvas]);
   return null;
 }
 
-/** World 6.21: the islands are drawn at once and the roads when routed, off the page's main thread where the page
+/** Map view 11.21: the islands are drawn at once and the roads when routed, off the page's main thread where the page
  * offers a road worker; a routing its layout has overtaken draws nothing. */
 function useRoadsWhenRouted(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number): PathwayDrawing & { routing: boolean } {
   const router = useMemo(() => pageRoadRouter(), []);

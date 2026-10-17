@@ -1,3 +1,3 @@
-/** Capability 6 · Rounds. */
+/** Capability 26 · Rounds. */
 export { CURATED, roundDue, worklist } from "./rounds.js";
 export type { RoundDue, Worklist, WorklistOptions } from "./rounds.js";

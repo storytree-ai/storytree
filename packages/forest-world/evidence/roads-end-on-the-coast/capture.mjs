@@ -1,4 +1,4 @@
-// The world 6.12: on the website's own globe (packages/website/src/own-snapshot.json), turn the globe so a road's end
+// Map view 11.12: on the website's own globe (packages/website/src/own-snapshot.json), turn the globe so a road's end
 // sits just behind its left edge, and picture it in real Chromium from two checkouts at the same turn.
 // node packages/forest-world/evidence/roads-end-on-the-coast/capture.mjs <before-checkout> [after-checkout]
 import { createServer } from 'node:http';

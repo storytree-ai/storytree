@@ -1,10 +1,10 @@
-// The globe's half of world 6.15 that a headless test can reach: what it asks of its R3F root when the
+// The globe's half of Map view 11.15 that a headless test can reach: what it asks of its R3F root when the
 // browser hands its canvas's WebGL context back. The browser half is evidence/planet/context-loss.mjs.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { redrawOnRestore } from './redraw-on-restore.js';
 
-test('6.15 a globe asks for a frame when its drawing context comes back, and stops listening when unmounted', () => {
+test('11.15 a globe asks for a frame when its drawing context comes back, and stops listening when unmounted', () => {
   const canvas = new EventTarget();
   let asked = 0;
   const stop = redrawOnRestore(() => ({ invalidate: () => { asked++; } }), canvas);

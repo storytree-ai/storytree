@@ -1,4 +1,4 @@
-/** Capability 6 · The planet. */
+/** Capability 11 · The planet. */
 import type { OrthographicCamera } from 'three';
 
 /** The elevation the islands' light and tilt were signed at: the owner's 50° (ADR-0517 D2). */
@@ -17,7 +17,7 @@ export function orthographicZoomFor(halfHeight: number, shortSideCssPx: number):
   return Math.max(shortSideCssPx, 1) / (2 * Math.max(halfHeight, Number.EPSILON));
 }
 
-/** The globe's framing is the number of radii covered by half the viewport's shorter side. 6.20: the canvas makes its eye for
+/** The globe's framing is the number of radii covered by half the viewport's shorter side. 11.20: the canvas makes its eye for
  *  the globe it first draws, so a globe that grows past it (a bigger library arriving) would lose its near side to the near
  *  plane; the eye then backs away along its view, which moves nothing on an orthographic screen, and the far plane follows. */
 export function applyPlanetFraming(camera: OrthographicCamera, radius: number, framing: number, size: FramingViewport): void {
@@ -28,7 +28,7 @@ export function applyPlanetFraming(camera: OrthographicCamera, radius: number, f
   camera.updateProjectionMatrix();
 }
 
-/** 6.18 (ADR-0977): the least zoom the wheel may reach, where the globe is half the size `framing` gives it.
+/** 11.18 (ADR-0977): the least zoom the wheel may reach, where the globe is half the size `framing` gives it.
  *  The wheel alone is held to it; a host's own framing sets the zoom directly. */
 export function wheelFloor(radius: number, framing: number, size: FramingViewport): number {
   return orthographicZoomFor(radius * framing, Math.min(size.width, size.height)) / 2;

@@ -1,0 +1,6 @@
+{
+  "name": "storytree",
+  "version": "0.3.0",
+  "description": "storytree's Claude Code mod: hands the session's hook events to storytree's tool server, so they are recorded with no process started for them (ADR-1056).",
+  "author": { "name": "storytree" }
+}

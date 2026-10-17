@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { probeProcess, readProcess } from "./index.js";
 import { readLinuxProcess } from "./linux.js";
 
-test("2.3/2.4 native observation identifies one live process lifetime consistently", async () => {
+test("13.3/13.4 native observation identifies one live process lifetime consistently", async () => {
   const reading = await readProcess(process.pid);
   assert.equal(reading.state, "live", JSON.stringify(reading));
   if (reading.state !== "live") return;
@@ -18,7 +18,7 @@ test("2.3/2.4 native observation identifies one live process lifetime consistent
   assert.deepEqual(await probeProcess({ ...reading.identity, boot: `${reading.identity.boot}-another-boot` }), { state: "gone" });
 });
 
-test("2.3 confirms an owned process has ended, including Windows exit code STILL_ACTIVE", async () => {
+test("13.3 confirms an owned process has ended, including Windows exit code STILL_ACTIVE", async () => {
   const child = spawn(process.execPath, ["-e", "process.on('message', () => process.exit(259)); process.send('ready');"], {
     stdio: ["ignore", "ignore", "ignore", "ipc"],
   });
@@ -38,14 +38,14 @@ test("2.3 confirms an owned process has ended, including Windows exit code STILL
   }
 });
 
-test("2.3 invalid process identifiers remain uncertain", async () => {
+test("13.3 invalid process identifiers remain uncertain", async () => {
   for (const pid of [0, -1, 1.5, Number.NaN, 2 ** 32]) {
     const reading = await readProcess(pid);
     assert.equal(reading.state, "unknown");
   }
 });
 
-test("2.3 Linux distinguishes absent processes from unreadable or malformed evidence", async () => {
+test("13.3 Linux distinguishes absent processes from unreadable or malformed evidence", async () => {
   for (const code of ["EACCES", "EIO"]) {
     const reading = await readLinuxProcess(42, async () => { throw Object.assign(new Error(code), { code }); });
     assert.equal(reading.state, "unknown");
@@ -62,7 +62,7 @@ test("2.3 Linux distinguishes absent processes from unreadable or malformed evid
   assert.equal((await readLinuxProcess(42, async () => "broken proc data")).state, "unknown");
 });
 
-test("2.3/2.4 Linux uses exact boot and start ticks even with spaces and parentheses in command", async () => {
+test("13.3/13.4 Linux uses exact boot and start ticks even with spaces and parentheses in command", async () => {
   // Fields 3 through 21 precede starttime (22); the command is permitted to contain ')'.
   const stat = `42 (a tricky ) command) S ${Array.from({ length: 18 }, () => "0").join(" ")} 9007199254740993 0`;
   const read = async (file: string): Promise<string> => file.endsWith("/stat") ? stat : "boot-identity\n";

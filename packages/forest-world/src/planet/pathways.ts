@@ -1,4 +1,4 @@
-/** Capability 6 · The planet. Capability trails over the glass between tangent islands, dock to dock (forest contracts 3.6–3.7).
+/** Capability 11 · The planet. Capability trails over the glass between tangent islands, dock to dock (forest contracts 3.6–3.7).
  * The existing cost-grid router owns routing, merging and width; this adapter only changes spaces. */
 import type { ForestScene, Island } from '../scene.js';
 import { Quaternion, Vector3 } from 'three';

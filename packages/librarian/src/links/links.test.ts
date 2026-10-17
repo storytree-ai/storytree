@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Links: one test per contract 1.1-1.4 in the librarian story, each in a fresh
+ * Capability 21 · Links: one test per contract 21.1-21.4 in The library story, each in a fresh
  * project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -24,7 +24,7 @@ function wholeProject(library: Library, title: string) {
   return library.recordDecision({ title, text: `${title}, for every part of the project.`, status: "accepted" });
 }
 
-test("1.1 link makes a note rest on another, keeping its other links, and linking again writes nothing", async () => {
+test("21.1 link makes a note rest on another, keeping its other links, and linking again writes nothing", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const tdd = await wholeProject(library, "Minimal viable TDD");
@@ -40,7 +40,7 @@ test("1.1 link makes a note rest on another, keeping its other links, and linkin
   });
 });
 
-test("1.2 a definition rests only on a decision, and friction or a re-steer on nothing: other links are refused, naming the rule", async () => {
+test("21.2 a definition rests only on a decision, and friction or a re-steer on nothing: other links are refused, naming the rule", async () => {
   await withLibrary(async (library) => {
     const decision = await wholeProject(library, "Arcs hold increments");
     const term = await library.defineTerm({ term: "increment", meaning: "One slice of work on an arc." });
@@ -63,7 +63,7 @@ test("1.2 a definition rests only on a decision, and friction or a re-steer on n
   });
 });
 
-test("1.3 the worklist names each accepted decision on no shelf that no note rests on, and drops it once one does", async () => {
+test("21.3 the worklist names each accepted decision on no shelf that no note rests on, and drops it once one does", async () => {
   await withLibrary(async (library) => {
     const { cover } = await shelf(library);
     const spec = await wholeProject(library, "The MVP spec");
@@ -78,7 +78,7 @@ test("1.3 the worklist names each accepted decision on no shelf that no note res
   });
 });
 
-test("1.4 the worklist finds related but unlinked neighbours for live notes written since the cursor, including edits", async () => {
+test("21.4 the worklist finds related but unlinked neighbours for live notes written since the cursor, including edits", async () => {
   await withLibrary(async (library) => {
     const source = await wholeProject(library, "Verify Mailgun confirmation domains");
     const outgoing = await wholeProject(library, "Mailgun confirmation delivery");

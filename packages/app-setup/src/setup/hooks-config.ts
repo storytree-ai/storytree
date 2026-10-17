@@ -47,7 +47,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { AFTER_TOOL, ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, CODEX_DELIVERS_FROM, codexDelivers, codexToolArguments, defaultHomes, EDIT_GATE, EVENT, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, SHELL_GUARD, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
+import { AFTER_TOOL, ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, CODEX_DELIVERS_FROM, codexDelivers, codexToolArguments, defaultHomes, EDIT_GATE, EVENT, HOOK_EVENT_TOOL, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, SHELL_GUARD, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
 import { HARNESS_IDS } from "@storytree/project-and-caller/caller";
 
 import { piExtension } from "./pi-extension.js";
@@ -217,12 +217,14 @@ function isStorytreesStatusLine(statusLine: unknown): boolean {
 
 /** Claude Code's entries: the hook script run with arguments, no shell. */
 function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[]> {
-  const run = (background: boolean) => ({ type: "command", command: node, args: [script, "claude-code"], ...(background ? { async: true } : {}) });
+  // A background hook waits a moment for the tool server's note that Claude Code's mod delivered its event, and finding it stands down (ADR-1056 D3).
+  const run = (background: boolean) => ({ type: "command", command: node, args: [script, "claude-code", ...(background ? [AFTER_TOOL] : [])], ...(background ? { async: true } : {}) });
   const guard = { type: "command", command: node, args: [script, "claude-code", SHELL_GUARD] };
   return {
     SessionStart: [{ hooks: [run(true)] }],
     PreToolUse: [
-      { matcher: `${STORYTREE_TOOLS}.*`, hooks: [run(false)] },
+      // Every storytree tool but hook_event, which Claude Code's mod calls to deliver an event: no agent asks for it.
+      { matcher: `${STORYTREE_TOOLS}(?!${HOOK_EVENT_TOOL.slice(STORYTREE_TOOLS.length)}$).*`, hooks: [run(false)] },
       { matcher: "Bash|PowerShell", hooks: [run(true)] },
       // Before each file edit, in the foreground: an edit to a capability the session may not write is refused (ADR-0949 D3).
       { matcher: "Write|Edit|MultiEdit|NotebookEdit", hooks: [{ type: "command", command: node, args: [script, "claude-code", EDIT_GATE] }] },

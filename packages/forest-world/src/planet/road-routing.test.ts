@@ -26,7 +26,7 @@ function heldRouter() {
   return { router, asked };
 }
 
-test('6.21 a layout draws every island before its roads are routed, then the same roads routing on the page draws', async () => {
+test('11.21 a layout draws every island before its roads are routed, then the same roads routing on the page draws', async () => {
   const spots = layout(0.61);
   const now = drawnAtOnce(scene, spots, R);
   assert.ok(now.routing, 'the roads wait on a routing');
@@ -43,7 +43,7 @@ test('6.21 a layout draws every island before its roads are routed, then the sam
   assert.equal(roads(planetPathwayDrawing(scene, spots, R)), roads(routed), 'the roads are the ones routing on the page draws');
 });
 
-test('6.21 a layout is routed once: drawn again with nothing moved, its roads are drawn at once', async () => {
+test('11.21 a layout is routed once: drawn again with nothing moved, its roads are drawn at once', async () => {
   const spots = layout(0.63);
   const { router, asked } = heldRouter();
   const first = drawnAtOnce(scene, spots, R);
@@ -58,7 +58,7 @@ test('6.21 a layout is routed once: drawn again with nothing moved, its roads ar
   assert.equal(asked.length, 1, 'the router was asked once');
 });
 
-test('6.21 a routing overtaken by a new layout draws nothing, and its worker is stopped', async () => {
+test('11.21 a routing overtaken by a new layout draws nothing, and its worker is stopped', async () => {
   const spots = layout(0.65);
   const pending = drawnAtOnce(scene, spots, R).routing!;
   const { router, asked } = heldRouter();
@@ -78,7 +78,7 @@ test('6.21 a routing overtaken by a new layout draws nothing, and its worker is 
   assert.equal(stopped, 1, 'the worker routing it is stopped');
 });
 
-test('6.21 a road worker routes the roads off the page; a page whose worker cannot load still gets its roads', async () => {
+test('11.21 a road worker routes the roads off the page; a page whose worker cannot load still gets its roads', async () => {
   const spots = layout(0.69);
   const pending = drawnAtOnce(scene, spots, R).routing!;
   let posted: CrossRouting | undefined;
@@ -102,7 +102,7 @@ test('6.21 a road worker routes the roads off the page; a page whose worker cann
   assert.equal(routedOnThePage, 2, 'a worker that fails to load, or to start, leaves the routing to the page');
 });
 
-test('6.21 a routing that fails leaves the islands on show with the notice that roads could not be drawn', async () => {
+test('11.21 a routing that fails leaves the islands on show with the notice that roads could not be drawn', async () => {
   const spots = layout(0.71);
   const pending = drawnAtOnce(scene, spots, R).routing!;
   const failing: RoadRouter = async () => { throw new Error('the router gave up'); };
@@ -112,7 +112,7 @@ test('6.21 a routing that fails leaves the islands on show with the notice that 
   assert.match(drawing.issue ?? '', /the router gave up/);
 });
 
-test('6.21 a dependency added with no island moved keeps every road on show while the new one is routed', async () => {
+test('11.21 a dependency added with no island moved keeps every road on show while the new one is routed', async () => {
   const spots = layout(0.73);
   const one: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }] };
   const { router, asked } = heldRouter();
@@ -126,7 +126,7 @@ test('6.21 a dependency added with no island moved keeps every road on show whil
   assert.equal(moved.drawing.plan.segments.length, 0, 'roads drawn for islands that have since moved are not');
 });
 
-test('6.21 while a moved layout\'s roads are routed, a live globe forgets no road it drew, and draws on only the new one', async () => {
+test('11.21 while a moved layout\'s roads are routed, a live globe forgets no road it drew, and draws on only the new one', async () => {
   const one: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }] };
   const { router, asked } = heldRouter();
   const before = drawnAtOnce(one, layout(0.77), R);

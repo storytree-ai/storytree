@@ -85,7 +85,8 @@ function runHook(harness: string, input: string, storytreeHome: string, flags: r
   return new Promise((resolve, reject) => {
     const started = performance.now();
     const child = spawn(process.execPath, [hook, harness, ...flags], {
-      env: { ...process.env, ...env, STORYTREE_HOME: storytreeHome },
+      // As an interactive session runs it, unless `env` says otherwise, though the tests run under `claude -p`.
+      env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: undefined, ...env, STORYTREE_HOME: storytreeHome },
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
     });
@@ -1049,6 +1050,29 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
   }
 });
 
+test("3.45 a `claude -p` session's last turn is recorded without the mod though Claude Code stops its async hooks as the process exits: the hook, run as setup registers it, hands its line to one that outlives it", { skip: process.platform === "win32" && "platform:posix: Claude Code stops a hook by SIGTERM, which Windows does not deliver" }, async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = storytreeHome(dir, true);
+    const folder = await projectFolder(dir, project, home);
+    // As setup registers Claude Code's end-of-turn hook (the app setup's hooks-config.ts): async, with --after-tool.
+    const child = spawn(process.execPath, [hook, "claude-code", AFTER_TOOL], { env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_ENTRYPOINT: "sdk-cli" }, stdio: ["pipe", "ignore", "ignore"], shell: false });
+    // As `claude -p` does at its turn's end (2.1.284, measured on the Mint box): SIGTERM soon after the hook starts, then gone when it exits.
+    const term = setTimeout(() => child.kill("SIGTERM"), 100);
+    const kill = setTimeout(() => child.kill("SIGKILL"), 400);
+    await new Promise<void>((resolve) => {
+      child.on("exit", () => resolve());
+      child.stdin.end(recorded("claude-code", "stop", folder));
+    });
+    clearTimeout(term);
+    clearTimeout(kill);
+
+    const deadline = Date.now() + 8_000;
+    while (!(await linesOf(project)).some((line) => line.kind === "turn-ended") && Date.now() < deadline) await sleep(100);
+    assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"]);
+  });
+});
+
 test("4.10 a pull request's merge is recorded on its branch by the hooks though GitHub takes longer to answer than a hook may run (regression: no hook had ever recorded one, 2026-09-30)", { skip: process.platform === "win32" && "platform:posix: a stand-in gh on PATH must be an .exe on Windows", timeout: 30_000 }, async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
@@ -1532,6 +1556,109 @@ test("3.41 Codex hands the tool server each event its handler's template carries
         const deadline = Date.now() + 25_000;
         while ((await readings()).length < events.length + 1 && Date.now() < deadline) await sleep(100);
         assert.deepEqual((await readings()).map((reading) => "connect" in reading.parts), [true, false, false, false, true]);
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});
+
+test("3.44 the tool server's heartbeat tool records a session's beat for the project its folder belongs to, and with ended its end; a folder in no project, or a library out of reach, records nothing and answers so (ADR-1056 D3)", async () => {
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      process.env.STORYTREE_HOME = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project);
+      const elsewhere = path.join(dir, "elsewhere");
+      mkdirSync(elsewhere);
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        type Beat = (args: { session: string; cwd: string; ended?: boolean }, call: { reach: ReachLog; locate: undefined }) => Promise<{ data?: Record<string, unknown> }>;
+        let heartbeat: Beat | undefined;
+        hookTools().registerHarnessTools?.((name, _description, _input, act) => { if (name === "heartbeat") heartbeat = act as unknown as Beat; });
+        const session = `${project}-beating`;
+        const beat = async (args: { cwd: string; ended?: boolean }, reach: ReachLog = async () => log) => (await heartbeat!({ session, ...args }, { reach, locate: undefined })).data;
+
+        assert.deepEqual(await beat({ cwd: folder }), { recorded: true });
+        const first = (await log.beats.of(project, [session])).get(session);
+        assert.ok(first !== undefined && first.ended === undefined);
+        assert.deepEqual(await beat({ cwd: folder, ended: true }), { recorded: true });
+        assert.ok((await log.beats.of(project, [session])).get(session)?.ended !== undefined, "its end");
+        assert.deepEqual(await beat({ cwd: elsewhere }), { recorded: false });
+        assert.deepEqual(await beat({ cwd: folder }, async () => { throw new Error("storytree is not answering"); }), { recorded: false });
+        assert.ok((await log.beats.of(project, [session])).get(session)?.ended !== undefined, "neither touched the session's beat");
+        assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.session === session), [], "a beat is no line of the log");
+      } finally {
+        await log.close();
+      }
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});
+
+test("3.42 A Claude Code command hook, finding the tool server's note of its event (the mod delivered it), stands down without reaching the library; with no note it records the event as before; the PreToolUse of the mod's own hook_event call records nothing", { timeout: 60_000 }, async () => {
+  // Claude Code's mod reaches the tool server as a tool call, which raises a PreToolUse of its own: no agent asked for it.
+  const delivering = { ...JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work")), tool_name: "mcp__storytree__hook_event" };
+  assert.equal(hookLines("claude-code", delivering), undefined);
+  const asking = JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work")) as { tool_name: string };
+  const made = hookLines("claude-code", asking)?.lines.map((line) => ({ kind: line.kind, tool: (line as { tool?: string }).tool }));
+  assert.deepEqual(made, [{ kind: "tool-requested", tool: asking.tool_name.slice("mcp__storytree__".length) }], "another storytree tool's request still makes its line");
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, true);
+      const folder = await projectFolder(dir, project);
+      // The tool server's process, here this one, has the machine's storytree home.
+      process.env.STORYTREE_HOME = home;
+      const log = await openActivityLog(testServerUrl(), { machine: MACHINE });
+      try {
+        type Deliver = (args: { harness: string; input: Record<string, unknown> }, call: { reach: ReachLog; locate: undefined }) => Promise<{ data?: Record<string, unknown> }>;
+        let deliver: Deliver | undefined;
+        hookTools().registerHarnessTools?.((name, _description, _input, act) => { if (name === "hook_event") deliver = act as unknown as Deliver; });
+        const input = (name: string, session: string) => ({ ...JSON.parse(recorded("claude-code", name, folder)), session_id: `${project}-${session}` }) as Record<string, unknown>;
+        // As the mod sends it: the event's whole input, but a PreToolUse rebuilt from the call's envelope, without the stdin's prompt id, permission mode or transcript.
+        const sent = (whole: Record<string, unknown>) => {
+          if (whole.hook_event_name !== "PreToolUse") return whole;
+          const { prompt_id: _prompt, permission_mode: _mode, transcript_path: _transcript, ...rebuilt } = whole;
+          return rebuilt;
+        };
+        const tool = async (whole: Record<string, unknown>) => (await deliver!({ harness: "claude-code", input: sent(whole) }, { reach: async () => log, locate: undefined })).data;
+        // As setup registers each: the prompt's in the foreground, the rest in the background, waiting a moment for the tool's note.
+        const flags = (name: string) => (name === "user-prompt-submit" ? [] : [AFTER_TOOL]);
+        const command = async (name: string, whole: Record<string, unknown>) => assert.equal((await runHook("claude-code", JSON.stringify(whole), home, flags(name))).code, 0);
+
+        const events = ["user-prompt-submit", "pre-tool-use-bash", "post-tool-use-bash", "stop"];
+        for (const name of events) {
+          const whole = input(name, name);
+          assert.deepEqual(await tool(whole), { recorded: 1, waiting: 0 }, name);
+          await command(name, whole);
+        }
+        for (const name of ["user-prompt-submit", "post-tool-use-bash"]) await command(name, input(name, `no-tool-${name}`));
+
+        const lines = await linesOf(project);
+        const kinds = (session: string) => lines.filter((line) => line.session === `${project}-${session}`).map((line) => line.kind);
+        assert.deepEqual(events.map(kinds), [["prompt-submitted"], ["command-started"], ["command-run"], ["turn-ended"]], "each event once, whichever way it came");
+        assert.deepEqual([kinds("no-tool-user-prompt-submit"), kinds("no-tool-post-tool-use-bash")], [["prompt-submitted"], ["command-run"]], "the command hook records what no tool delivered");
+
+        // Each command hook's own reading says whether it reached the library: once a minute one takes its whole turn.
+        type Reading = { at: string; harness: string; event: string; parts: Record<string, number | undefined> };
+        const times = path.join(home, "hook-times.jsonl");
+        const readings = async (): Promise<Reading[]> => [
+          ...(existsSync(times) ? readFileSync(times, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as Reading) : []),
+          ...(await linesOf(project, { starts: true })).flatMap((line) => (line.kind === "hook-times" ? line.readings : [])),
+        ].filter((reading) => reading.harness === "claude-code" && !reading.event.includes("--upkeep")).sort((one, other) => one.at.localeCompare(other.at));
+        const deadline = Date.now() + 25_000;
+        while ((await readings()).length < events.length + 2 && Date.now() < deadline) await sleep(100);
+        assert.deepEqual((await readings()).map((reading) => "connect" in reading.parts), [true, false, false, false, true, true]);
       } finally {
         await log.close();
       }

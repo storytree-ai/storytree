@@ -1,0 +1,17 @@
+{
+  "name": "@storytree/claude-code-mod",
+  "private": true,
+  "type": "module",
+  "description": "The Claude Code mod (story_3def3732e802, ADR-1056 D3): storytree's plugin of function hooks, in plugin/, which hands a Claude Code session's hook events to the session's tool server. Its entry names the plugin folder for the hosts that load it.",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

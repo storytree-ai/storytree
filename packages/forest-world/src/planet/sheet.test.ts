@@ -15,7 +15,7 @@ function sheetEye(zoom: number, reach: number, size = { width: 1440, height: 960
   return camera;
 }
 
-test('6.22 on the glass sheet each island stands where it is placed and faces the eye square-on, within a degree, and the eye keeps a tight depth range round the sheet', () => {
+test('11.22 on the glass sheet each island stands where it is placed and faces the eye square-on, within a degree, and the eye keeps a tight depth range round the sheet', () => {
   // The globe turned to face the eye, as the page does: its own +z toward the eye, which looks straight down at the sheet.
   const reach = Math.hypot(3200, 900), camera = sheetEye(0.5, reach);
   const toEye = new Vector3(0, 0, 1).applyQuaternion(camera.quaternion);
@@ -34,7 +34,7 @@ test('6.22 on the glass sheet each island stands where it is placed and faces th
   assert.ok(camera.far - camera.near <= 8 * reach, `the depth range is ${camera.far - camera.near} units, not the whole sphere's`);
 });
 
-test('6.26 the glass sheet is seen in perspective: nearer is drawn bigger, a zoom moves the eye toward the middle of the view and reads back as the zoom asked for, and the sheet stays between the near and far planes (ADR-1062 D1)', () => {
+test('11.26 the glass sheet is seen in perspective: nearer is drawn bigger, a zoom moves the eye toward the middle of the view and reads back as the zoom asked for, and the sheet stays between the near and far planes (ADR-1062 D1)', () => {
   const size = { width: 1440, height: 960 }, reach = Math.hypot(3000, 1200);
   for (const zoom of [0.4, 1, 3]) {
     const camera = sheetEye(zoom, reach, size);
@@ -53,7 +53,7 @@ test('6.26 the glass sheet is seen in perspective: nearer is drawn bigger, a zoo
   assert.ok(Math.abs(off(1) / off(2) - 2) < 1e-9 && sheetEye(2, reach, size).zoom === 1, 'twice the zoom, half the distance, the lens unchanged');
 });
 
-test('6.27 the glass sheet is a lit slab: the glass has a visible thickness with a rim round both faces, and its edge and every island\'s sides are shaded by the scene\'s lights (ADR-1062 D1)', () => {
+test('11.27 the glass sheet is a lit slab: the glass has a visible thickness with a rim round both faces, and its edge and every island\'s sides are shaded by the scene\'s lights (ADR-1062 D1)', () => {
   const glass = sheetGlass({ width: 1200, height: 600 });
   const top = glass.getObjectByName('sheet:pane') as Mesh, bottom = glass.getObjectByName('sheet:pane-under') as Mesh, edge = glass.getObjectByName('sheet:edge') as Mesh;
   assert.ok(top !== undefined && bottom !== undefined && edge !== undefined, 'a top face, an underside and an edge');
@@ -77,7 +77,7 @@ test('6.27 the glass sheet is a lit slab: the glass has a visible thickness with
   assert.ok(lights.some(light => light instanceof DirectionalLight) && lights.some(light => light instanceof AmbientLight), 'a lamp and soft light all round');
 });
 
-test('6.23 on the glass sheet every island is a raised plate of one shared thickness, its sides running from its land down to the glass', () => {
+test('11.23 on the glass sheet every island is a raised plate of one shared thickness, its sides running from its land down to the glass', () => {
   const square = [[{ x: -20, z: -20 }, { x: 20, z: -20 }, { x: 20, z: 20 }, { x: -20, z: 20 }]];
   const wide = [[{ x: -45, z: -10 }, { x: 45, z: -30 }, { x: 10, z: 40 }]];
   for (const [story, coast] of [['square', square], ['wide', wide]] as const) {
@@ -106,7 +106,7 @@ test('6.23 on the glass sheet every island is a raised plate of one shared thick
   assert.ok(SHEET_LAND_THICKNESS >= 6, `thick enough to be seen at the tilt (${SHEET_LAND_THICKNESS} units)`);
 });
 
-test('6.24 on the glass sheet a hollow island is its coast line alone, hiding nothing beneath it, and turns solid again (ADR-1061 D2)', () => {
+test('11.24 on the glass sheet a hollow island is its coast line alone, hiding nothing beneath it, and turns solid again (ADR-1061 D2)', () => {
   const coast = [[{ x: -20, z: -20 }, { x: 20, z: -20 }, { x: 20, z: 20 }, { x: -20, z: 20 }]];
   const island = islandSurface(coast, SHEET_RADIUS, 'hollow', SHEET_LAND_THICKNESS);
   const shown = () => {
@@ -128,7 +128,7 @@ test('6.24 on the glass sheet a hollow island is its coast line alone, hiding no
   assert.deepEqual(shown().map(o => o.name).sort(), solid, 'turned back, it is whole again');
 });
 
-test('6.25 what hangs under the glass sheet shows by the angle: hidden from well above, at the top resting tilt, in view from near level and from below, drawn behind the glass from above and over it from below (ADR-1062 D4)', () => {
+test('11.25 what hangs under the glass sheet shows by the angle: hidden from well above, at the top resting tilt, in view from near level and from below, drawn behind the glass from above and over it from below (ADR-1062 D4)', () => {
   const sheet = new Group(), under = new Group();
   sheet.add(under);
   under.add(new ThreeMesh());
@@ -154,7 +154,7 @@ test('6.25 what hangs under the glass sheet shows by the angle: hidden from well
   }
 });
 
-test('6.28 under clear glass (the Library look) what hangs beneath shows at every angle, from straight above to straight below, and the glass clears and smokes again without moving (ADR-1062 D3, D4)', () => {
+test('11.28 under clear glass (the Library look) what hangs beneath shows at every angle, from straight above to straight below, and the glass clears and smokes again without moving (ADR-1062 D3, D4)', () => {
   const sheet = new Group(), under = new Group();
   sheet.add(under);
   under.add(new ThreeMesh());

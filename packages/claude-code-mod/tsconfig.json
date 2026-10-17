@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true
+  },
+  "include": [
+    "src",
+    "plugin"
+  ],
+  "exclude": [
+    "plugin/.claude-plugin",
+    "plugin/tsconfig.json"
+  ]
+}

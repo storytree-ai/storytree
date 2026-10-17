@@ -1,5 +1,5 @@
 /**
- * Capability 4 · Graduation: one test per contract 4.1-4.4 in the librarian story. The memory
+ * Capability 24 · Graduation: one test per contract 24.1-24.4 in The library story. The memory
  * folders are throwaway ones, laid out as Claude Code keeps its own; the library is a fresh
  * project's on the real Postgres `pnpm test` provides.
  */
@@ -32,7 +32,7 @@ function memory(folder: string, name: string, lesson: string): string {
   return file;
 }
 
-test("4.1 the worklist lists each memory that is new, changed since it was parked, or parked more than 60 days ago", async () => {
+test("24.1 the worklist lists each memory that is new, changed since it was parked, or parked more than 60 days ago", async () => {
   await withMemoryFolder(async (folder) => {
     const now = new Date("2026-09-27T12:00:00Z");
     const fresh = memory(folder, "fresh", "Run the seed with the app closed.");
@@ -57,7 +57,7 @@ test("4.1 the worklist lists each memory that is new, changed since it was parke
   });
 });
 
-test("4.2 park keeps the reason, the date and what the memory said beside the memory folder, never in the library", async () => {
+test("24.2 park keeps the reason, the date and what the memory said beside the memory folder, never in the library", async () => {
   await withMemoryFolder(async (folder) => {
     const file = memory(folder, "kept", "The owner reads the debrief first.");
     await park(file, "Only this user's habit.", { now: new Date("2026-09-27T12:00:00Z") });
@@ -70,7 +70,7 @@ test("4.2 park keeps the reason, the date and what the memory said beside the me
   });
 });
 
-test("4.3 graduate writes the lesson as a principle, process or definition and only then deletes the memory", async () => {
+test("24.3 graduate writes the lesson as a principle, process or definition and only then deletes the memory", async () => {
   await withLibrary(async (library) => {
     await withMemoryFolder(async (folder) => {
       const file = memory(folder, "measure", "Measure before leaving anything out.");
@@ -97,7 +97,7 @@ test("4.3 graduate writes the lesson as a principle, process or definition and o
   });
 });
 
-test("4.4 the worklist lists each process naming none of the tools served, and each tool no process names", async () => {
+test("24.4 the worklist lists each process naming none of the tools served, and each tool no process names", async () => {
   await withLibrary(async (library) => {
     const process = (title: string, surfaces: string) =>
       library.writeKnowledge("process", {

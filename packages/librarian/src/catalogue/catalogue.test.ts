@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Catalogue: one test per contract 3.1-3.2 in the librarian story, each in a fresh
+ * Capability 23 · Catalogue: one test per contract 23.1-23.2 in The library story, each in a fresh
  * project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ import { test } from "node:test";
 import { withLibrary } from "../testing/pg.js";
 import { newNotes, retire } from "./index.js";
 
-test("3.1 retire retires a note nothing points at, and refuses one a live record points at, naming it", async () => {
+test("23.1 retire retires a note nothing points at, and refuses one a live record points at, naming it", async () => {
   await withLibrary(async (library) => {
     const decision = await library.recordDecision({ title: "Send through Mailgun", text: "Simplest API.", status: "accepted" });
     const definition = await library.defineTerm({ term: "Verified domain", meaning: "Mailgun needs a verified domain.", links: [decision.id] });
@@ -37,7 +37,7 @@ test("3.1 retire retires a note nothing points at, and refuses one a live record
   });
 });
 
-test("3.1 retire reads every arc's increments and questions in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
+test("23.1 retire reads every arc's increments and questions in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
   await withLibrary(async (library) => {
     for (const title of ["Launch v1", "Launch v2", "Launch v3"]) {
       const arc = await library.createArc({ title, intent: "Ship sign-up", endState: "Visitors sign up" });
@@ -58,7 +58,7 @@ test("3.1 retire reads every arc's increments and questions in one ask, however 
   });
 });
 
-test("3.2 the worklist lists each note written new since a cursor, with the live notes a plain search for any word of its title finds", async () => {
+test("23.2 the worklist lists each note written new since a cursor, with the live notes a plain search for any word of its title finds", async () => {
   await withLibrary(async (library) => {
     const principle = await library.writeKnowledge("principle", {
       title: "Send from a verified domain",

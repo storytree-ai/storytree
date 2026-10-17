@@ -1,4 +1,4 @@
-// World 6.7, mounted: the globe as a host mounts it, in real Chromium, its exterior switched layer by layer.
+// Map view 11.7, mounted: the globe as a host mounts it, in real Chromium, its exterior switched layer by layer.
 // Two islands and the roads between them, as the planet's own tests lay them out.
 import { createRoot } from 'react-dom/client';
 import type { Object3D } from 'three';

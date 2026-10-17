@@ -1,5 +1,5 @@
 /**
- * Capability 2 · A server on a data directory: its sign-in. Every cluster storytree runs asks for a
+ * Capability 19 · A server on a data directory: its sign-in. Every cluster storytree runs asks for a
  * password (SCRAM-SHA-256) on every connection; nothing is trusted. The password is this
  * installation's own secret, kept beside the data directory in a private directory
  * (`<dataDir>.auth`, readable by this OS user only), and handed to clients there as the versioned

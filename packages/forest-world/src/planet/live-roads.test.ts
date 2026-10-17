@@ -19,7 +19,7 @@ const scene: ForestScene = { islands, links: [{ from: 'b1', to: 'a1' }] };
 const initial = buildPlanetPathways(scene, spots, R);
 const added = buildPlanetPathways({ ...scene, links: [...scene.links!, { from: 'c1', to: 'a1' }] }, spots, R);
 
-test('6.16 live roads grow initially, then adding a real dependency preserves completed shared roads while its new spans grow from dependency to dependent', () => {
+test('11.16 live roads grow initially, then adding a real dependency preserves completed shared roads while its new spans grow from dependency to dependent', () => {
   const first = nextLiveRoads(new Map(), initial, 0);
   assert.deepEqual([...first.keys()], ['b1->a1']);
   const original = first.get('b1->a1')!;
@@ -55,7 +55,7 @@ test('6.16 live roads grow initially, then adding a real dependency preserves co
   }
 });
 
-test('6.16 unchanged real link identities keep the same live arrival book through unrelated geometry and segment-ID updates', () => {
+test('11.16 unchanged real link identities keep the same live arrival book through unrelated geometry and segment-ID updates', () => {
   const book = nextLiveRoads(new Map(), added, 0);
   const repainted = { ...added, segments: added.segments.map(segment => ({ ...segment, id: `new:${segment.id}`, points: segment.points.map(p => p.clone()) })),
     edges: [...added.edges].reverse().map(edge => ({ ...edge, segments: edge.segments.map(ref => ({ ...ref, id: `new:${ref.id}` })) })),
@@ -63,7 +63,7 @@ test('6.16 unchanged real link identities keep the same live arrival book throug
   assert.equal(nextLiveRoads(book, repainted, 8), book, 'polls and geometry rebuilds cannot restart any road');
 });
 
-test('6.16 a link removed then added again has a fresh arrival, while an addition during growth preserves the unfinished roads clock', () => {
+test('11.16 a link removed then added again has a fresh arrival, while an addition during growth preserves the unfinished roads clock', () => {
   const first = nextLiveRoads(new Map(), initial, 0);
   const during = nextLiveRoads(first, added, 0.05);
   const original = first.get('b1->a1')!;
@@ -79,7 +79,7 @@ test('6.16 a link removed then added again has a fresh arrival, while an additio
   assert.notEqual(returned.get('c1->a1'), during.get('c1->a1'));
 });
 
-test("6.16 the live clock runs until every arrival's own time ends, so a reroute that splits off a road's tail finds it whole", () => {
+test("11.16 the live clock runs until every arrival's own time ends, so a reroute that splits off a road's tail finds it whole", () => {
   // A road whose spans all draw whole early, because an earlier road shares them, has still not ended its own time:
   // stopping the clock there left a tail the next reroute split off undrawn (3.35 on macOS CI, run 37857380271).
   const roads = nextLiveRoads(new Map(), added, 0);
@@ -93,7 +93,7 @@ test("6.16 the live clock runs until every arrival's own time ends, so a reroute
   }
 });
 
-test('6.16 reduced motion and unscheduled roads are whole immediately; normal live-road progress is bounded and linear', () => {
+test('11.16 reduced motion and unscheduled roads are whole immediately; normal live-road progress is bounded and linear', () => {
   const window: GrowthWindow = { start: 2, seconds: 1 };
   assert.equal(liveRoadProgress(undefined, 0, false), 1);
   assert.equal(liveRoadProgress(window, 0, true), 1);

@@ -51,10 +51,27 @@ export function codexToolArguments(event: string): { harness: "codex"; input: Re
   return fields === undefined ? undefined : { harness: "codex", input: Object.fromEntries(fields.map((field) => [field, `\${${field}}`])) };
 }
 
-/** `input` as both ways deliver it: for Codex, only the fields its tool handler sends for the event; for any other harness, as it is. */
+/**
+ * The fields that name a Claude Code event both ways, by event: Claude Code's mod (packages/claude-code-mod) sends a
+ * PreToolUse rebuilt from the tool call's envelope, without the stdin's `prompt_id`, `permission_mode` or transcript,
+ * and with the session's folder; the call's id names a tool call alone. Every other event's input it sends whole.
+ */
+const CLAUDE_CODE_TOOL_CALL = ["session_id", "hook_event_name", "tool_name", "tool_use_id"] as const;
+export const CLAUDE_CODE_EVENT_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  SessionStart: ["session_id", "cwd", "hook_event_name", "source"],
+  SessionEnd: ["session_id", "cwd", "hook_event_name", "reason"],
+  UserPromptSubmit: ["session_id", "cwd", "hook_event_name", "prompt"],
+  PreToolUse: CLAUDE_CODE_TOOL_CALL,
+  PostToolUse: CLAUDE_CODE_TOOL_CALL,
+  PostToolUseFailure: CLAUDE_CODE_TOOL_CALL,
+  Stop: ["session_id", "cwd", "hook_event_name"],
+};
+
+/** `input` as both ways deliver it: for Codex, only the fields its tool handler sends for the event; for Claude Code, the fields that name it; for any other harness, as it is. */
 export function deliveredInput(harness: string, input: unknown): unknown {
-  if (harness !== "codex" || typeof input !== "object" || input === null || Array.isArray(input)) return input;
-  const fields = CODEX_TOOL_EVENTS[String((input as Record<string, unknown>).hook_event_name)];
+  const named = harness === "codex" ? CODEX_TOOL_EVENTS : harness === "claude-code" ? CLAUDE_CODE_EVENT_FIELDS : undefined;
+  if (named === undefined || typeof input !== "object" || input === null || Array.isArray(input)) return input;
+  const fields = named[String((input as Record<string, unknown>).hook_event_name)];
   return fields === undefined ? input : Object.fromEntries(fields.filter((field) => field in input).map((field) => [field, (input as Record<string, unknown>)[field]]));
 }
 
@@ -83,7 +100,7 @@ export function noteDelivered(home: string, key: string): void {
   }
 }
 
-/** How long a command hook waits for the tool server's note of its event: the agent waits for neither, since the hook is `async`. */
+/** How long a background command hook waits for the tool server's note of its event: the agent waits for neither, since the hook is `async`. */
 export const TOOL_GRACE_MS = 3_000;
 
 /** Whether the tool server noted the event `key` within `graceMs`, taking the note if so. */

@@ -7,6 +7,8 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "@storytree/claude-code-mod";
+
 import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pickEngine, pickFresh, readLatestAllowance, readOptional } from "./engine.mjs";
 
 async function loginEnvironment(home, env) {
@@ -25,8 +27,23 @@ async function loginEnvironment(home, env) {
 
 const run = promisify(execFile);
 
+/**
+ * A Claude lane loads storytree's Claude Code mod from the checkout (ADR-1056 D3), its hooks module switched on while that is early access,
+ * and is told the file beside its log where the mod writes the session's id at start. A Codex lane is given none of the mod's
+ * variables, even when the runner itself was started from a Claude Code session that carries them.
+ */
+const MOD = ["--plugin-dir", PLUGIN_FOLDER];
+const MOD_VARIABLES = [...Object.keys(FUNCTION_HOOKS), "CLAUDE_CODE_PLUGIN_DIRS", SESSION_FILE];
+const sessionFile = (log) => `${log.replace(/\.log$/, "")}.session`;
+function engineEnvironment(engine, login, log) {
+  if (engine === "claude") return { ...login, ...FUNCTION_HOOKS, [SESSION_FILE]: sessionFile(log) };
+  const codex = { ...login };
+  for (const name of MOD_VARIABLES) delete codex[name];
+  return codex;
+}
+
 function argumentsFor(engine, brief, addDirs, resume, model) {
-  const adds = addDirs.flatMap((directory) => ["--add-dir", directory]);
+  const adds = [...addDirs.flatMap((directory) => ["--add-dir", directory]), ...(engine === "claude" ? MOD : [])];
   const models = model ? ["--model", model] : [];
   if (resume) return engine === "codex"
     ? ["exec", "resume", resume, brief, ...models, "--dangerously-bypass-approvals-and-sandbox", "--dangerously-bypass-hook-trust", "--json"]
@@ -115,9 +132,9 @@ function leftSomething(before, after) {
   return Object.entries(after.heads).some(([name, sha]) => before.heads[name] !== sha);
 }
 
-/** The engine's session id, from its log's first event that names one (Claude's session_id, Codex's thread_id). */
+/** The engine's session id: as the mod wrote it beside the log, or else from the log's first event that names one (Claude's session_id, Codex's thread_id). */
 async function sessionOf(log) {
-  return /"(?:session_id|thread_id)":"([^"]+)"/.exec(await readOptional(log) ?? "")?.[1];
+  return (await readOptional(sessionFile(log)))?.trim() || /"(?:session_id|thread_id)":"([^"]+)"/.exec(await readOptional(log) ?? "")?.[1];
 }
 
 /** The lane left nothing twice: release what its session holds, and write residue on its increment for the next lane. */
@@ -150,13 +167,13 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   const settings = laneSettings({ home, env });
   const login = await loginEnvironment(home, env);
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
-  const refresh = () => probeCodex(commands.codex, { cwd, env: login, model: settings.models.codex, log: `${log.replace(/\.log$/, "")}.probe.log` });
+  const refresh = () => probeCodex(commands.codex, { cwd, env: engineEnvironment("codex", login, log), model: settings.models.codex, log: `${log.replace(/\.log$/, "")}.probe.log` });
   const picked = await pickFresh({ ...settings, now: now() / 1000, refresh });
   dated(`engine ${picked.engine} ${picked.reason}`);
   const before = increment ? await traces({ increment, lanesDir: settings.lanesDir, heads }) : null;
   let last = { engine: picked.engine, log, err };
   let started = now();
-  let result = await runEngine(commands[picked.engine], argumentsFor(picked.engine, original, addDirs, undefined, settings.models[picked.engine]), { cwd, env: login, log, err });
+  let result = await runEngine(commands[picked.engine], argumentsFor(picked.engine, original, addDirs, undefined, settings.models[picked.engine]), { cwd, env: engineEnvironment(picked.engine, login, log), log, err });
   dated(`engine ${picked.engine} exit ${result.code}`);
   // Read again: the just-finished Codex run can have spent the allowance since we picked it.
   if (picked.engine === "codex" && !result.interrupted && await detectLimitHit({ ...settings, log, err,
@@ -167,7 +184,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     dated(`engine claude (Codex stopped on its usage limit; handing over, log ${base}.claude.log)`);
     last = { engine: "claude", log: `${base}.claude.log`, err: `${base}.claude.err` };
     started = now();
-    result = await runEngine(commands.claude, argumentsFor("claude", handover, addDirs, undefined, settings.models.claude), { cwd, env: login, log: last.log, err: last.err });
+    result = await runEngine(commands.claude, argumentsFor("claude", handover, addDirs, undefined, settings.models.claude), { cwd, env: engineEnvironment("claude", login, last.log), log: last.log, err: last.err });
     dated(`engine claude exit ${result.code}`);
   }
   if (result.interrupted) {
@@ -180,7 +197,7 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
     const base = last.log.replace(/\.log$/, "");
     const resumed = { log: `${base}.resume.log`, err: `${base}.resume.err` };
     dated(`engine ${last.engine} exit 0 having left no report or push for ${increment}: ${session ? `resuming session ${session}` : "restarting"} once, log ${resumed.log}`);
-    result = await runEngine(commands[last.engine], argumentsFor(last.engine, session ? CONTINUE : `${CONTINUE}\n\n${original}`, addDirs, session, settings.models[last.engine]), { cwd, env: login, ...resumed });
+    result = await runEngine(commands[last.engine], argumentsFor(last.engine, session ? CONTINUE : `${CONTINUE}\n\n${original}`, addDirs, session, settings.models[last.engine]), { cwd, env: engineEnvironment(last.engine, login, resumed.log), ...resumed });
     dated(`engine ${last.engine} exit ${result.code}`);
     if (result.interrupted) {
       dated(`lane runner stopped by a signal: exit 75 so the runner keeps this lane queued`);

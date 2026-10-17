@@ -31,7 +31,7 @@ async function launch(t: { after(fn: () => Promise<void>): void }, options: Para
   return result.run;
 }
 
-test('1.1/1.2/1.4 Claude, Codex and session-bound manual launches durably keep separate owners in one folder', async t => {
+test('12.1/12.2/12.4 Claude, Codex and session-bound manual launches durably keep separate owners in one folder', async t => {
   const root = await home(t);
   const owners = [
     own.ownerFromCall({ caller: { session: 'same-folder-a', harness: 'claude-code' }, agent: 'orchestrator' }),
@@ -54,7 +54,7 @@ test('1.1/1.2/1.4 Claude, Codex and session-bound manual launches durably keep s
   }
 });
 
-test('1.3/2.1/2.2 a detached launch survives its launcher and old session evidence; request timeout is explicit', async t => {
+test('12.3/13.1/13.2 a detached launch survives its launcher and old session evidence; request timeout is explicit', async t => {
   const root = await home(t);
   const fixture = fileURLToPath(new URL('./testing/detached-launcher.ts', import.meta.url));
   const { stdout } = await promisify(execFile)(process.execPath, ['--import', 'tsx', fixture, root], { cwd: command.folder });
@@ -79,7 +79,7 @@ test('1.3/2.1/2.2 a detached launch survives its launcher and old session eviden
     owner: { session: 'somebody-else' }, outcome: 'timed-out', evidence: 'wrong caller' }), /owner/);
 });
 
-test('1.3/2.1 explicitly linked subagent work remains owned after its parent run exits', async t => {
+test('12.3/13.1 explicitly linked subagent work remains owned after its parent run exits', async t => {
   const root = await home(t);
   const parent = await launch(t, { ...command, home: root, owner: { session: 'parent', harness: 'codex' } });
   const child = await launch(t, { ...command, home: root, parentRun: parent.id,
@@ -96,7 +96,7 @@ test('1.3/2.1 explicitly linked subagent work remains owned after its parent run
   assert.equal(refused.pid, undefined);
 });
 
-test('1.5 absent owner and failed registration report an untracked launch instead of guessing', async t => {
+test('12.5 absent owner and failed registration report an untracked launch instead of guessing', async t => {
   const root = await home(t);
   const absent = await own.launchOwned({ ...command, home: root });
   assert.equal(absent.status, 'untracked');
@@ -111,7 +111,7 @@ test('1.5 absent owner and failed registration report an untracked launch instea
   assert.ok((await own.readLedger({ home: root })).gaps.length > 0);
 });
 
-test('2.3/2.5 uncertainty and unreadable records remain visible beside readable siblings', async t => {
+test('13.3/13.5 uncertainty and unreadable records remain visible beside readable siblings', async t => {
   const root = await home(t);
   const run = await launch(t, { ...command, home: root, owner: { session: 'reader' } });
   await writeFile(path.join(root, 'runs', 'broken.json'), '{unfinished');
@@ -126,7 +126,7 @@ test('2.3/2.5 uncertainty and unreadable records remain visible beside readable 
   assert.ok((await readdir(path.join(root, 'runs'))).includes(`${run.id}.json`));
 });
 
-test('1.1/2.4 launch time precedes observation, and the spawned child exiting overrides a reused PID reading', async t => {
+test('12.1/13.4 launch time precedes observation, and the spawned child exiting overrides a reused PID reading', async t => {
   const root = await home(t);
   let observedAt = 0;
   const result = await own.launchOwned({ ...command, home: root, owner: { session: 'short-lived' } }, {

@@ -1,7 +1,7 @@
 /**
- * Capability 6 · Rounds: contracts 6.1-6.2, 6.6 and 6.7 in the librarian story, each in a fresh project's
- * library on the real Postgres `pnpm test` provides; 6.5 against the librarian's subagent definition.
- * 6.3-6.4 are proven beside the MCP server (packages/mcp-server/src/tools/librarian-tools.test.ts).
+ * Capability 26 · Rounds: contracts 26.1-26.2, 26.6 and 26.7 in The library story, each in a fresh project's
+ * library on the real Postgres `pnpm test` provides; 26.5 against the librarian's subagent definition.
+ * 26.3-26.4 are proven beside the MCP server (packages/mcp-server/src/tools/librarian-tools.test.ts).
  */
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -15,7 +15,7 @@ import type { ToolAnswer, ToolCall } from "./host.js";
 import type { WorklistView } from "./rounds.js";
 import { librarianTools } from "./tools.js";
 
-test("6.1 the trigger fires on a write to a curated kind since the session started, and when there is no start; graduation is due either way", async () => {
+test("26.1 the trigger fires on a write to a curated kind since the session started, and when there is no start; graduation is due either way", async () => {
   await withLibrary(async (library) => {
     const { cursor: start } = await library.changesSince(0);
     await library.writeKnowledge("techstack", { title: "Postgres", description: "Project storage", statement: "Each project uses Postgres.", whatItIs: "A relational database.", whyThis: "Transactional writes and history." });
@@ -27,7 +27,7 @@ test("6.1 the trigger fires on a write to a curated kind since the session start
   });
 });
 
-test("6.2 the worklist gathers each capability's list: graduation's and the friction drain always, the rest only when the trigger fired", async () => {
+test("26.2 the worklist gathers each capability's list: graduation's and the friction drain always, the rest only when the trigger fired", async () => {
   await withLibrary(async (library) => {
     const root = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
     const folder = path.join(root, "memory");
@@ -60,7 +60,7 @@ test("6.2 the worklist gathers each capability's list: graduation's and the fric
   });
 });
 
-test("6.6 the worklist and land's next-line check take about as much from a library whose history holds weeks of changes, and health piling up since the session started, as from one whose history holds an hour's", { timeout: 120_000 }, async () => {
+test("26.6 the worklist and land's next-line check take about as much from a library whose history holds weeks of changes, and health piling up since the session started, as from one whose history holds an hour's", { timeout: 120_000 }, async () => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
   const taken: number[] = [];
   let history = 0;
@@ -100,7 +100,7 @@ test("6.6 the worklist and land's next-line check take about as much from a libr
   assert.ok(taken[1]! - taken[0]! < 128 * 1024, `the calls took ${taken[0]} bytes from a short history and ${taken[1]} from one ${history} bytes longer: no more than 128 KiB apart`);
 });
 
-test("6.7 the worklist reads the live notes about once however many notes the session wrote, and with no recorded start leaves the catalogue and related lists unread, saying why, rather than reading every note's history", { timeout: 300_000 }, async () => {
+test("26.7 the worklist reads the live notes about once however many notes the session wrote, and with no recorded start leaves the catalogue and related lists unread, saying why, rather than reading every note's history", { timeout: 300_000 }, async () => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
   const principle = (n: number, title: string) => ({ title, description: `Lesson ${n}`, statement: `Lesson ${n} holds.`, why: `Learned the hard way, ${n}. `.repeat(40), howToApply: "Apply it." });
   try {
@@ -154,7 +154,7 @@ test("6.7 the worklist reads the live notes about once however many notes the se
   }
 });
 
-test("6.8 a worklist call names each phase through the call's progress before it answers, and stops at its next phase once progress rejects, reading nothing more", { timeout: 120_000 }, async () => {
+test("26.8 a worklist call names each phase through the call's progress before it answers, and stops at its next phase once progress rejects, reading nothing more", { timeout: 120_000 }, async () => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
   try {
     await withCountedLibrary(async ({ library, project, received }) => {
@@ -197,7 +197,7 @@ test("6.8 a worklist call names each phase through the call's progress before it
   }
 });
 
-test("6.9 the worklist tool answers in a size a session can read, including when creation timestamps tie: the drain's three due reports and how many wait, and each other list's first few notes named, with how many it holds", async (t) => {
+test("26.9 the worklist tool answers in a size a session can read, including when creation timestamps tie: the drain's three due reports and how many wait, and each other list's first few notes named, with how many it holds", async (t) => {
   await withLibrary(async (library) => {
     const folder = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
     try {
@@ -239,7 +239,7 @@ test("6.9 the worklist tool answers in a size a session can read, including when
   });
 });
 
-test("6.5 the librarian's subagent definition names every tool the librarian serves", () => {
+test("26.5 the librarian's subagent definition names every tool the librarian serves", () => {
   const served: string[] = [];
   librarianTools().registerTools!((name) => { served.push(name); });
   const definition = readFileSync(new URL("../../../../.claude/agents/librarian-curator.md", import.meta.url), "utf8");

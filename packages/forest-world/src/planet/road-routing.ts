@@ -1,4 +1,4 @@
-/** Capability 6 · The planet. Roads routed off the page's main thread (world 6.21, ADR-1001 D2).
+/** Capability 11 · The planet. Roads routed off the page's main thread (Map view 11.21, ADR-1001 D2).
  * Routing the roads between islands takes seconds, and while the page routes it answers no hover, drag or click. So
  * a layout draws its islands at once and its roads when they are routed: in a worker where the page offers one,
  * otherwise on the page once the islands are drawn. What is routed does not change, only when. */

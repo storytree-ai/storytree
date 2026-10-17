@@ -1,4 +1,4 @@
-/** Capability 6 · The planet. Selection lanes over the globe's roads (world contracts 6.8–6.9), ported from 0.2's laneLayout and lane draw-on. */
+/** Capability 11 · The planet. Selection lanes over the globe's roads (contracts 11.8–11.9), ported from 0.2's laneLayout and lane draw-on. */
 import { Vector3 } from 'three';
 import type { CoastPoint } from '../coast-clip.js';
 import { trailFillWidth } from '../core/routing.js';
@@ -225,7 +225,7 @@ export function laneHead(elapsed: number, length: number, heads: readonly HeadRa
   return led * Math.min(1, Math.max(0, 1 - (elapsed - laneDrawSeconds(length)) / 0.4));
 }
 
-/** A road's own draw-on (6.16, 6.17, 7.4): constant speed between 0.2's bounds, so a short road still reads as motion
+/** A road's own draw-on (11.16, 11.17, 12.4): constant speed between 0.2's bounds, so a short road still reads as motion
  * and a long one never drags. */
 export function roadDrawSeconds(length: number): number {
   return Math.min(1.2, Math.max(0.28, 0.15 + length / 600));

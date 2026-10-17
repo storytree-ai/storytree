@@ -54,9 +54,10 @@ export async function staleClaims(context: { readonly log: ActivityLog; readonly
   const claimLines = await log.standing(project);
   const holders = holdersOf(claimLines);
   if (holders.length === 0) return { claims: [] };
-  const fold = LogFold.fromBounded(await log.foldLines(project, holders, new Date(now.getTime() - COMMANDS_MS).toISOString()), claimLines);
+  const [lines, beats] = await Promise.all([log.foldLines(project, holders, new Date(now.getTime() - COMMANDS_MS).toISOString()), log.beats.of(project, holders)]);
+  const fold = LogFold.fromBounded(lines, claimLines);
   const restarted = options.restarted ?? thisRestart();
-  const quiet = fold.claims({ now, quietMs: options.quietMs ?? idleAfterMs(), ...(restarted === undefined ? {} : { restarted }) })
+  const quiet = fold.claims({ now, quietMs: options.quietMs ?? idleAfterMs(), beats, ...(restarted === undefined ? {} : { restarted }) })
     .filter((claim): claim is Claim & { increment: string } => claim.increment !== undefined && claim.holder === "idle");
   if (quiet.length === 0) return { claims: [] };
   // GitHub is asked only when a quiet claim names a branch a pull request could come from.

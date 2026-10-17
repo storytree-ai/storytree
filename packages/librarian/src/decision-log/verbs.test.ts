@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Decision log: contract 2.5, the `adr` verbs the librarian declares for the command line, run with a
+ * Capability 22 · Decision log: contract 22.5, the `adr` verbs the librarian declares for the command line, run with a
  * context of a fresh project's library on the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -15,7 +15,7 @@ import { LIBRARIAN_FAMILIES } from "../verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("2.5 · the librarian declares the `adr` family the command line lists 4th: a pulled decision pushed back unedited writes nothing and never asks for the writer, and an edited title writes that field alone", async () => {
+test("22.5 · the librarian declares the `adr` family the command line lists 4th: a pulled decision pushed back unedited writes nothing and never asks for the writer, and an edited title writes that field alone", async () => {
   await withLibrary(async (library) => {
     const adr = LIBRARIAN_FAMILIES.find((family) => family.name === "adr")!;
     assert.equal(adr.order, 4);

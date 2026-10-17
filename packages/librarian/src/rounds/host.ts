@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Rounds. The MCP server's extension point (its ToolExtension, ADR-0643 D6, ADR-0969 D1), as far as
+ * Capability 26 · Rounds. The MCP server's extension point (its ToolExtension, ADR-0643 D6, ADR-0969 D1), as far as
  * the librarian's tools use it. Restated rather than imported: the MCP server depends on this package to serve
  * these tools, and no story may depend on the MCP server (ADR-0969 D1). The MCP server checks the two still
  * fit where it mounts its tool parts (its test 6.75); where the verb's own types live is ADR-0969 D2's work.

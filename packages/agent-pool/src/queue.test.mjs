@@ -12,7 +12,7 @@ async function folder(t) {
   return path;
 }
 
-test("12.1 · each running lane's engine counts once: not its wrapper or native child, nor a process that only mentions an engine", async () => {
+test("3.1 · each running lane's engine counts once: not its wrapper or native child, nor a process that only mentions an engine", async () => {
   const codex = "/home/m/.nvm/versions/node/v24.19.0/lib/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/bin/codex";
   const table = [
     "  100     1 bash /home/m/storytree-lanes/launch-night.sh run L",
@@ -42,7 +42,7 @@ test("12.1 · each running lane's engine counts once: not its wrapper or native 
   assert.equal(await waitForSlot({ max: 5, count: async () => 0, sleep: () => assert.fail(), onWait: () => assert.fail() }), 0);
 });
 
-test("12.1 · a waiting runner reads the cap on every poll, so a raised cap starts it with no lane ending", async () => {
+test("3.1 · a waiting runner reads the cap on every poll, so a raised cap starts it with no lane ending", async () => {
   let cap = 5, sleeps = 0;
   const running = await waitForSlot({ max: async () => cap, count: async () => 5, onWait: () => {},
     sleep: async () => { sleeps++; if (sleeps === 2) cap = 6; if (sleeps > 3) assert.fail("the raised cap was never read"); } });
@@ -50,7 +50,7 @@ test("12.1 · a waiting runner reads the cap on every poll, so a raised cap star
   assert.equal(sleeps, 2);
 });
 
-test("12.3 · one dispatcher at a time: a live one refuses a second, and a dead one's leftover pid does not block", async (t) => {
+test("3.3 · one dispatcher at a time: a live one refuses a second, and a dead one's leftover pid does not block", async (t) => {
   const dir = await folder(t);
   const pidFile = join(dir, "pool.pid");
   const marks = [/launch\.mjs pool( |$)/];

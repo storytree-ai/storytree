@@ -30,7 +30,7 @@ async function lane(t) {
     commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines };
 }
 
-test("10.6 · foreground engines receive the exact brief, model, directories and login environment in the current folder", async (t) => {
+test("1.6 · foreground engines receive the exact brief, model, directories and login environment in the current folder", async (t) => {
   const options = await lane(t);
   for (const engine of ["codex", "claude"]) {
     await writeFile(join(options.lanesDir, "engine-override"), engine);
@@ -56,7 +56,7 @@ test("10.6 · foreground engines receive the exact brief, model, directories and
   assert.equal(options.env.OPENAI_API_KEY, "test-api", "the caller's environment is not mutated");
 });
 
-test("10.14 · A Claude lane loads the Claude Code mod from its plugin folder with function hooks turned on; a Codex lane is given neither", async (t) => {
+test("1.14 · A Claude lane loads the Claude Code mod from its plugin folder with function hooks turned on; a Codex lane is given neither", async (t) => {
   const options = await lane(t);
   // Started from a Claude Code session with the mod loaded, as a dispatcher on the Mint box may be.
   Object.assign(options.env, { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: "1", CLAUDE_CODE_PLUGIN_DIRS: "/parent/plugin", STORYTREE_SESSION_FILE: "/parent.session" });
@@ -77,7 +77,7 @@ test("10.14 · A Claude lane loads the Claude Code mod from its plugin folder wi
   assert.equal(ran.codex.file, null);
 });
 
-test("10.7 · a Codex limit stop hands over once, preserving the original brief and separate logs", async (t) => {
+test("1.7 · a Codex limit stop hands over once, preserving the original brief and separate logs", async (t) => {
   const options = await lane(t);
   options.env.FAST_FAIL_S = "0";
   options.commands.codex = command(`console.log(JSON.stringify({type:'turn.failed',error:{message:'usage limit'}}));process.exitCode=1;`);
@@ -96,7 +96,7 @@ test("10.7 · a Codex limit stop hands over once, preserving the original brief 
   assert.equal(options.lines.at(-1), "2026-10-06T00:00:00Z engine claude exit 9");
 });
 
-test("10.7 · a completed or externally stopped Codex turn is not handed over, even with a spent reading", async (t) => {
+test("1.7 · a completed or externally stopped Codex turn is not handed over, even with a spent reading", async (t) => {
   const options = await lane(t);
   await writeFile(join(options.lanesDir, "engine-override"), "codex");
   const day = join(options.home, ".codex", "sessions", "2026", "10", "06");
@@ -109,7 +109,7 @@ test("10.7 · a completed or externally stopped Codex turn is not handed over, e
   }
 });
 
-test("10.8 · a lane stopped by a signal to its runner exits 75, so its queue keeps it, and is not handed over", async (t) => {
+test("1.8 · a lane stopped by a signal to its runner exits 75, so its queue keeps it, and is not handed over", async (t) => {
   const options = await lane(t);
   options.env.FAST_FAIL_S = "0";
   await writeFile(join(options.lanesDir, "engine-override"), "codex");
@@ -122,7 +122,7 @@ test("10.8 · a lane stopped by a signal to its runner exits 75, so its queue ke
   await assert.rejects(readFile(join(options.lanesDir, "lane.claude.log")), { code: "ENOENT" });
 });
 
-test("10.8 · the last engine's failure is 75 only before FAST_FAIL_S, defaulting to 120 seconds", async (t) => {
+test("1.8 · the last engine's failure is 75 only before FAST_FAIL_S, defaulting to 120 seconds", async (t) => {
   const options = await lane(t);
   for (const [exit, seconds, threshold, expected] of [[0, 0, undefined, 0], [2, 119, undefined, 75], [2, 120, undefined, 2], [2, 4, "5", 75], [2, 5, "5", 2], [2, 0, "0", 2]]) {
     let clock = start;
@@ -140,7 +140,7 @@ test("10.8 · the last engine's failure is 75 only before FAST_FAIL_S, defaultin
   assert.match(await readFile(options.err, "utf8"), /ENOENT/);
 });
 
-test("10.8 · the fast-failure timer restarts for Claude after a long Codex run", async (t) => {
+test("1.8 · the fast-failure timer restarts for Claude after a long Codex run", async (t) => {
   const options = await lane(t);
   let clock = start;
   options.now = () => clock;
@@ -153,7 +153,7 @@ test("10.8 · the fast-failure timer restarts for Claude after a long Codex run"
   assert.equal(await runLane(options), 75);
 });
 
-test("10.9 · status shows both windows, reset, reached and credits, override and marker, and the next engine", async (t) => {
+test("1.9 · status shows both windows, reset, reached and credits, override and marker, and the next engine", async (t) => {
   const options = await lane(t);
   const day = join(options.home, ".codex", "sessions", "2026", "10", "06");
   await mkdir(day, { recursive: true });
@@ -173,7 +173,7 @@ test("10.9 · status shows both windows, reset, reached and credits, override an
   assert.match(options.lines.join("\n"), /next lane: codex \(forced by/);
 });
 
-test("10.6 · the command front door runs a brief, refuses empty input and supports status without starting an engine", async (t) => {
+test("1.6 · the command front door runs a brief, refuses empty input and supports status without starting an engine", async (t) => {
   const options = await lane(t);
   assert.equal(await main(["run", options.brief, options.log, options.err, ...options.addDirs], options), 0);
   assert.equal(await main(["run"], options), 2);
@@ -186,7 +186,7 @@ test("10.6 · the command front door runs a brief, refuses empty input and suppo
   assert.match(result.stdout, /next lane: codex/);
 });
 
-test("10.10 · a lane whose newest reading is stale and spent runs one Codex probe for a fresh reading, then picks from it", async (t) => {
+test("1.10 · a lane whose newest reading is stale and spent runs one Codex probe for a fresh reading, then picks from it", async (t) => {
   const options = await lane(t);
   const day = join(options.home, ".codex", "sessions", "2026", "10", "06");
   await mkdir(day, { recursive: true });
@@ -210,7 +210,7 @@ test("10.10 · a lane whose newest reading is stale and spent runs one Codex pro
   assert.match(options.lines.at(-1), /next lane: claude .*the next lane takes a fresh one first$/);
 });
 
-test("10.11 · a lane that exits 0 having left no report or push is resumed once, then its claims are released and residue written", async (t) => {
+test("1.11 · a lane that exits 0 having left no report or push is resumed once, then its claims are released and residue written", async (t) => {
   const options = await lane(t);
   const session = "1aeed14e-4eef-44a7-a5a0-55f748d0a4b5";
   const runs = join(options.home, "runs");
@@ -257,7 +257,7 @@ test("10.11 · a lane that exits 0 having left no report or push is resumed once
   assert.deepEqual(told, []);
 });
 
-test("10.16 · A Claude lane is told a file beside its log to write its session id in; the runner resumes the session that file names, and searches the log only when the file is absent", async (t) => {
+test("1.16 · A Claude lane is told a file beside its log to write its session id in; the runner resumes the session that file names, and searches the log only when the file is absent", async (t) => {
   const options = await lane(t);
   const runs = join(options.home, "runs");
   // A Claude engine that writes its session id where it is told, as the mod does, and names a different one in its log.
@@ -288,7 +288,7 @@ test("10.16 · A Claude lane is told a file beside its log to write its session 
   assert.equal((await calls())[0].file, null, "a Codex lane is told no file");
 });
 
-test("10.12 · each engine runs the model the pool's configuration names, and its own default when it names none", async (t) => {
+test("1.12 · each engine runs the model the pool's configuration names, and its own default when it names none", async (t) => {
   const options = await lane(t);
   const config = join(options.home, "agent-pool.json");
   options.env.AGENT_POOL_CONFIG = config;

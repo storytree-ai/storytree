@@ -1,5 +1,5 @@
-// Capability 12 · The Mint pool's dispatcher runs its lanes under the box's cap. The pool's configuration (ADR-1066 D2 G):
-// the pool is a general capability of the dev loop, and the Mint box is the owner's configuration of it, in the repo
+// Capability 3 · The Mint pool's dispatcher runs its lanes under the box's cap. The pool's configuration (ADR-1066 D2 G):
+// the pool is a general capability, its own story Agent runner (ADR-1071 D3), and the Mint box is the owner's configuration of it, in the repo
 // root's agent-pool.json (or the file AGENT_POOL_CONFIG names). Every field may be left out:
 // - machine: the ssh host the pool runs on, which a hand-over from any other machine reaches; none, and a hand-over
 //   works only on the pool's own machine.

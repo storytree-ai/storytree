@@ -18,7 +18,7 @@ async function folder(t) {
   return path;
 }
 
-test("10.1 · reads the newest allowance event from the eight newest rollout files, skipping invalid and unrelated lines", async (t) => {
+test("1.1 · reads the newest allowance event from the eight newest rollout files, skipping invalid and unrelated lines", async (t) => {
   const sessions = await folder(t);
   const day = join(sessions, "2026", "10", "06");
   await mkdir(day, { recursive: true });
@@ -41,7 +41,7 @@ test("10.1 · reads the newest allowance event from the eight newest rollout fil
   assert.equal(await readLatestAllowance(join(sessions, "missing")), null);
 });
 
-test("10.2 · expired and undated windows cannot spend the allowance; missing resets lapse after window_minutes", () => {
+test("1.2 · expired and undated windows cannot spend the allowance; missing resets lapse after window_minutes", () => {
   assert.deepEqual(assessAllowance(reading(99), now), { used: 99, resets: now + 7200, reached: false });
   for (const window of [
     { used_percent: 100, resets_at: now },
@@ -59,7 +59,7 @@ test("10.2 · expired and undated windows cannot spend the allowance; missing re
   assert.equal(assessAllowance(both, now + 3600).used, 77);
 });
 
-test("10.3 · Codex is the default below 95 percent; a live reached flag and CODEX_STOP_AT can switch to Claude", async (t) => {
+test("1.3 · Codex is the default below 95 percent; a live reached flag and CODEX_STOP_AT can switch to Claude", async (t) => {
   const lanesDir = await folder(t);
   for (const [allowance, stopAt, engine] of [
     [null, 95, "codex"], [reading(94.99), 95, "codex"], [reading(95), 95, "claude"],
@@ -73,7 +73,7 @@ test("10.3 · Codex is the default below 95 percent; a live reached flag and COD
   assert.equal(laneSettings({ env: { LANES_DIR: lanesDir } }).lanesDir, lanesDir);
 });
 
-test("10.4 · an override wins over an exhausted marker; invalid overrides and expired markers are ignored", async (t) => {
+test("1.4 · an override wins over an exhausted marker; invalid overrides and expired markers are ignored", async (t) => {
   const lanesDir = await folder(t);
   const pick = () => pickEngine({ lanesDir, reading: reading(77), now });
   await writeFile(join(lanesDir, "codex-exhausted-until"), `${now + 100}\n`);
@@ -90,7 +90,7 @@ test("10.4 · an override wins over an exhausted marker; invalid overrides and e
   assert.equal((await pick()).engine, "claude");
 });
 
-test("10.5 · only Codex's own usage-limit stop writes a marker, using the reset or a one-hour fallback", async (t) => {
+test("1.5 · only Codex's own usage-limit stop writes a marker, using the reset or a one-hour fallback", async (t) => {
   const lanesDir = await folder(t);
   const log = join(lanesDir, "lane.log"), err = join(lanesDir, "lane.err"), marker = join(lanesDir, "codex-exhausted-until");
   const run = async (events, stderr, allowance) => {
@@ -118,7 +118,7 @@ test("10.5 · only Codex's own usage-limit stop writes a marker, using the reset
   ]) assert.equal(await run(events, stderr, allowance), false);
 });
 
-test("10.10 · a Claude pick resting on a reading over an hour old takes a fresh reading first; a reached limit is never probed", async (t) => {
+test("1.10 · a Claude pick resting on a reading over an hour old takes a fresh reading first; a reached limit is never probed", async (t) => {
   const home = await folder(t);
   const lanesDir = join(home, "lanes"), sessionsDir = join(home, "sessions"), day = join(sessionsDir, "2026", "10", "06");
   await mkdir(lanesDir); await mkdir(day, { recursive: true });

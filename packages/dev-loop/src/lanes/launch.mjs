@@ -1,4 +1,4 @@
-// Capability 12 · The Mint pool's dispatcher (ADR-0955 D2). Its code is the agent pool's package (packages/agent-pool/src/launch.mjs, ADR-1066 D3); this
+// Capability 14 · The lanes' old paths forward to Agent runner. The Mint pool's dispatcher (ADR-0955 D2): its code is Agent runner's package (packages/agent-pool/src/launch.mjs, ADR-1071 D3); this
 // forwarder keeps the path the Mint box's live processes and older checkouts run working: node packages/dev-loop/src/lanes/launch.mjs …
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";

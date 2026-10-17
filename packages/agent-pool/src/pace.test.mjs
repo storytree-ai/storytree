@@ -11,7 +11,7 @@ const now = Date.parse("2026-10-17T10:00:00Z");
 const usage = (at, ...rateLimits) => ({ usage: { kind: "usage-measured", at, context: { window: 200_000 }, rateLimits } });
 const window = (kind, percentUsed, resetsAt) => ({ kind, percentUsed, ...(resetsAt ? { resetsAt } : {}) });
 
-test("12.20 · the lanes' latest rate-limit reading slows dispatch near a limit and pauses it at the limit until the window resets; no reading, a reset passed or a stale reading holds nothing back", () => {
+test("3.20 · the lanes' latest rate-limit reading slows dispatch near a limit and pauses it at the limit until the window resets; no reading, a reset passed or a stale reading holds nothing back", () => {
   assert.equal(paceOf([], { now }), undefined, "no readings: dispatch as before");
   assert.equal(paceOf([usage("2026-10-17T09:59:00Z", window("five_hour", 40, "2026-10-17T12:00:00Z"))], { now }), undefined);
 
@@ -34,7 +34,7 @@ test("12.20 · the lanes' latest rate-limit reading slows dispatch near a limit 
   assert.deepEqual([paceOf([failed], { now }).hold, paceOf([failed], { now }).until], ["pause", Date.parse("2026-10-17T12:00:00Z")]);
 });
 
-test("12.20 · the dispatcher holds back on the pace, saying why in its status once per change, and dispatches to the cap again once the limit clears; a failed reading dispatches as before", async () => {
+test("3.20 · the dispatcher holds back on the pace, saying why in its status once per change, and dispatches to the cap again once the limit clears; a failed reading dispatches as before", async () => {
   const lines = [], started = [], ends = [];
   let engines = 0, looks = 0, stop = false;
   const paces = [
@@ -74,7 +74,7 @@ test("12.20 · the dispatcher holds back on the pace, saying why in its status o
   assert.ok(failing.some((line) => /rate-limit readings unread \(library down\)/.test(line)));
 });
 
-test("12.20 · the pace reads the newest lanes' reported usage, and only while the next lane would run Claude Code", async (t) => {
+test("3.20 · the pace reads the newest lanes' reported usage, and only while the next lane would run Claude Code", async (t) => {
   const lanesDir = await mkdtemp(join(tmpdir(), "lane-pace-"));
   t.after(() => rm(lanesDir, { recursive: true, force: true }));
   const full = new Map([["S2", usage("2026-10-17T09:59:00Z", window("five_hour", 99, "2026-10-17T12:00:00Z"))]]);

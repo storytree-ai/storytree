@@ -15,7 +15,7 @@ const attempt = ({ id, created, conclusion = "failure", attempt = 1, status = "c
   ({ id, created: minutes(created), updated: minutes(created + 20), status, conclusion, attempt, url: `https://ci/run/${id}`, job });
 const judge = ({ attempts = [], main = [], now = 30 } = {}) => judgeReleases({ release, attempts, main, now: at + now * 60_000 });
 
-test("13.16 · a stopped release is rerun once, then judged an alarm; a quiet main is nothing", () => {
+test("4.16 · a stopped release is rerun once, then judged an alarm; a quiet main is nothing", () => {
   // Only a run in which a job after `source` ran attempted a release.
   assert.equal(attempted([{ name: "source", conclusion: "success", steps: 7 }, { name: "verify", conclusion: "skipped", steps: 0 }]), false);
   assert.equal(attempted([]), false);
@@ -93,7 +93,7 @@ async function box(t, { judged, release: latest = release } = {}) {
 
 const alarm = { why: "the last two release attempts both ended failed or cancelled", run: { id: 50, url: "https://ci/run/50", job: "package (macOS)" } };
 
-test("13.17 · a release alarm starts one fix session per stop, quiet while it or its pull request or question is open, then asks the owner", async (t) => {
+test("4.17 · a release alarm starts one fix session per stop, quiet while it or its pull request or question is open, then asks the owner", async (t) => {
   const b = await box(t, { judged: { reruns: [{ what: "release", run: { id: 50 } }], alarm: null } });
   await watchReleases(b.options);
   assert.deepEqual(b.reruns, [50]);

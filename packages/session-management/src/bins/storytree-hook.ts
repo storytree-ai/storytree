@@ -11,7 +11,7 @@
  * before a shell command and at the end of a turn) it hands the writing to a copy of itself that it
  * leaves running, detached and with nothing of the harness's open, and exits at once. Claude Code's end hook, and in a
  * `claude -p` session each of its hooks after a tool, hand off so before anything else, deaf to the SIGTERM Claude Code
- * stops them with as its process exits (handsOffAtOnce). The look around
+ * stops them with as its process exits (hooks/at-once.ts). The look around
  * the machine a hook hands on, once a minute, goes the same way, to a copy run with `--upkeep` that
  * may run for UPKEEP_DEADLINE_MS. Every copy is started with `--handed`, so its time is read apart.
  *
@@ -19,7 +19,8 @@
  * which is no hook event, is not timed.
  *
  * This module runs nothing by itself: an entry point calls hookCommand(), giving it what this story may not
- * import. The command setup registers is the app setup story's (packages/app-setup/src/bins/storytree-hook.ts),
+ * import. An entry point calls hooks/at-once.ts's deafIfHandingOffAtOnce() first and only then imports this module,
+ * so a hook that hands off at once is deaf from its first statement, before the rest of the command loads. The command setup registers is the app setup story's (packages/app-setup/src/bins/storytree-hook.ts),
  * which gives the gate before each edit the map's file-to-capability lookup; this story's own tests build
  * testing/storytree-hook.ts.
  */
@@ -28,7 +29,8 @@ import { spawn } from "node:child_process";
 import { storytreeHome } from "@storytree/project-and-caller";
 
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
-import { AFTER_TOOL, BACKGROUND, DEADLINE_MS, HANDED, HookClock, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
+import { deafIfHandingOffAtOnce } from "../hooks/at-once.js";
+import { BACKGROUND, DEADLINE_MS, HANDED, HookClock, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
 
 export type { DeclaredCapabilities };
 
@@ -40,9 +42,8 @@ export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabil
   process.on("uncaughtException", () => process.exit(0));
   process.on("unhandledRejection", () => process.exit(0));
   const [harness = "", ...flags] = process.argv.slice(2);
-  const atOnce = handsOffAtOnce(harness, flags, process.env);
-  // Claude Code stops such a hook by SIGTERM before it is done; it is not done until its copy has the input.
-  if (atOnce) process.on("SIGTERM", () => undefined);
+  // Claude Code stops such a hook by SIGTERM before it is done; an entry point that loads this module late is deaf already.
+  const atOnce = deafIfHandingOffAtOnce();
 
   let input = "";
   process.stdin.setEncoding("utf8");
@@ -64,17 +65,6 @@ export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabil
       () => process.exit(0),
     );
   });
-}
-
-/**
- * Whether Claude Code's hook hands its input to a copy of itself at once, deciding nothing first: its end hook, which
- * Claude Code cuts short at 1.5 s, and in a `claude -p` session (CLAUDE_CODE_ENTRYPOINT "sdk-…") every hook run after
- * a tool, which Claude Code stops by SIGTERM when the turn ends and its process exits, some 60 ms into its end-of-turn
- * hook. The copy, detached, outlives it and waits for the mod's note as the hook would have.
- */
-function handsOffAtOnce(harness: string, flags: readonly string[], env: NodeJS.ProcessEnv): boolean {
-  if (harness !== "claude-code" || flags.includes(HANDED)) return false;
-  return flags.includes(BACKGROUND) || (flags.includes(AFTER_TOOL) && (env.CLAUDE_CODE_ENTRYPOINT ?? "").startsWith("sdk"));
 }
 
 /** Start this script again for `harness` with `flags`, detached, with `input` on its stdin, and resolve once it has the input. */

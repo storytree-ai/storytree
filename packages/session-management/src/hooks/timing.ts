@@ -15,8 +15,7 @@ import type { NewLine } from "@storytree/library";
 
 import type { ActivityLog } from "../activity/index.js";
 
-/** The flag a hook's copy is started with, so a handed-on hook is read apart from the one the harness waits for. */
-export const HANDED = "--handed";
+export { HANDED } from "./at-once.js";
 /** Where a machine's readings wait, in its storytree home. */
 export const HOOK_TIMES_FILE = "hook-times.jsonl";
 /** Past this size the file takes no more readings until the next upload empties it. */

@@ -69,16 +69,23 @@ test("4.2: a writer refused the lock by Windows's EPERM, as when the lock is bei
     closeSync(openSync(file, "wx"));
   };
   let wrote = false;
-  withLock(lock, () => (wrote = true), { open });
+  const pauses: number[] = [];
+  withLock(lock, () => (wrote = true), { open, pause: (ms) => pauses.push(ms) });
   assert.equal(wrote, true);
+  assert.equal(pauses.length, 1);
 });
 
 test("4.2: a lock that is always refused with EPERM fails at the deadline, not forever", (t) => {
   const lock = path.join(path.dirname(scratch(t)), "auth.json.lock");
+  let opens = 0;
   const open = (file: string) => {
+    opens++;
     throw Object.assign(new Error(`EPERM: operation not permitted, open '${file}'`), { code: "EPERM" });
   };
-  assert.throws(() => withLock(lock, () => {}, { open, waitMs: 50 }), /locked by another storytree process/);
+  let clock = 0;
+  assert.throws(() => withLock(lock, () => {}, { open, now: () => clock, pause: (ms) => (clock += ms) }), /locked by another storytree process/);
+  assert.ok(clock > 15_000 && clock < 15_100, `gave up at ${clock} ms, not just past the 15-second deadline`);
+  assert.ok(opens > 1);
 });
 
 test("4.3: an explicit value beats the saved entry, which beats the environment variable", (t) => {

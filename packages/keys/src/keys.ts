@@ -153,10 +153,14 @@ export interface LockOptions {
   readonly open?: (lock: string) => void;
   /** How long to wait for the lock before giving up. */
   readonly waitMs?: number;
+  /** Reads the clock the deadline is measured on; by default the wall clock. */
+  readonly now?: () => number;
+  /** Waits between tries; by default blocks the thread for that many milliseconds. */
+  readonly pause?: (ms: number) => void;
 }
 
-export function withLock(lock: string, body: () => void, { open = openLock, waitMs = WAIT_MS }: LockOptions = {}): void {
-  const started = Date.now();
+export function withLock(lock: string, body: () => void, { open = openLock, waitMs = WAIT_MS, now = Date.now, pause = sleep }: LockOptions = {}): void {
+  const started = now();
   for (;;) {
     try {
       open(lock);
@@ -170,7 +174,7 @@ export function withLock(lock: string, body: () => void, { open = openLock, wait
         rmSync(lock, { force: true });
         continue;
       }
-      if (Date.now() - started > waitMs) throw new Error(`The keys file is locked by another storytree process (${lock}): try again, or delete the lock if nothing is running.`);
+      if (now() - started > waitMs) throw new Error(`The keys file is locked by another storytree process (${lock}): try again, or delete the lock if nothing is running.`);
       pause(10 + Math.random() * 20);
     }
   }
@@ -201,12 +205,12 @@ function retrying(act: () => void): void {
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (attempt >= 50 || (code !== "EPERM" && code !== "EACCES" && code !== "EBUSY")) throw error;
-      pause(20);
+      sleep(20);
     }
   }
 }
 
-function pause(ms: number): void {
+function sleep(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 

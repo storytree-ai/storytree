@@ -1,4 +1,4 @@
-// Capability 1 · A Mint lane runs on the engine its allowance allows. Its code is the agent pool's package (packages/agent-pool/src/runner.mjs, ADR-1066 D3); this
+// Capability 14 · The lanes' old paths forward to Agent runner. A Mint lane runs on the engine its allowance allows: its code is Agent runner's package (packages/agent-pool/src/runner.mjs, ADR-1071 D3); this
 // forwarder keeps the path the Mint box's live processes and older checkouts run working: node packages/dev-loop/src/lanes/runner.mjs …
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";

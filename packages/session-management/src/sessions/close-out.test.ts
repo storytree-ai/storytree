@@ -10,9 +10,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { launchOwned } from "@storytree/processes";
-import { stopOwned } from "@storytree/processes/stopping";
-import { testChildArgs } from "@storytree/processes/testing";
+import { launchOwned } from "../processes/index.js";
+import { stopOwned } from "../processes/stopping/index.js";
+import { testChildArgs } from "../processes/testing/child.js";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import type { Line } from "@storytree/library";

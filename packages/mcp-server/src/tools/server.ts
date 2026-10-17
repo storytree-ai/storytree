@@ -47,7 +47,7 @@ import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
 import { type SetupOptions } from "@storytree/app-setup/setup";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
-import { appDatabaseWork } from "@storytree/processes/listing";
+import { appDatabaseWork } from "@storytree/session-management/processes/listing";
 import type { z } from "zod";
 
 // The other stories' tools (ADR-0643 D6), in their manifests' order: the plugin loader composes them from the

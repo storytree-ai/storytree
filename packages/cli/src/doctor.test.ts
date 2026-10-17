@@ -21,7 +21,7 @@ import { after, before, test } from "node:test";
 import { setTimeout as pause } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
-import { probeProcess, readProcess, type ProcessIdentity } from "@storytree/processes";
+import { probeProcess, readProcess, type ProcessIdentity } from "@storytree/session-management/processes";
 import { BuiltCommand, dropTestProjects, inWorld, placeHandoff, placeTestServer, storytree, testServerDataDir, uniqueProjectName, type World } from "./testing/cli.js";
 
 const STUB_APP = fileURLToPath(new URL("./testing/stub-app.mjs", import.meta.url));

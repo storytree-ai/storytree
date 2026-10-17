@@ -230,6 +230,64 @@
  "src/machines/verbs.ts": {
   "11": 40
  },
+ "src/processes/closing/index.ts": {
+  "16": 198
+ },
+ "src/processes/launch/launch.ts": {
+  "12": 20,
+  "13": 4,
+  "14": 12,
+  "15": 30
+ },
+ "src/processes/ledger/files.ts": {
+  "12": 45,
+  "13": 9,
+  "14": 48,
+  "15": 80,
+  "16": 63
+ },
+ "src/processes/ledger/records.ts": {
+  "12": 15,
+  "13": 3,
+  "14": 12,
+  "15": 20,
+  "16": 18
+ },
+ "src/processes/listing/index.ts": {
+  "14": 72,
+  "16": 99
+ },
+ "src/processes/observation/observe.ts": {
+  "12": 30,
+  "13": 6,
+  "14": 24,
+  "16": 18
+ },
+ "src/processes/process/index.ts": {
+  "12": 10,
+  "13": 12,
+  "14": 12,
+  "15": 20,
+  "16": 18
+ },
+ "src/processes/process/linux.ts": {
+  "12": 20,
+  "13": 24,
+  "14": 24,
+  "15": 40,
+  "16": 36
+ },
+ "src/processes/stopping/linux.ts": {
+  "15": 10
+ },
+ "src/processes/stopping/signal.ts": {
+  "15": 20
+ },
+ "src/processes/stopping/stop.ts": {
+  "14": 114,
+  "15": 190,
+  "16": 27
+ },
  "src/readings.ts": {
   "2": 20,
   "3": 973,

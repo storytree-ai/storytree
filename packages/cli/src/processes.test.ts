@@ -6,8 +6,8 @@ import { createRequire } from 'node:module';
 import test from 'node:test';
 import { verifyPayload, writePayloadManifest } from '@storytree/app-setup/deliver';
 import { buildBins } from '@storytree/app-setup/bins';
-import { launchOwned, type RunRecord } from '@storytree/processes';
-import { stopTestChild, testChildArgs } from '@storytree/processes/testing';
+import { launchOwned, type RunRecord } from '@storytree/session-management/processes';
+import { stopTestChild, testChildArgs } from '@storytree/session-management/processes/testing';
 import { BuiltCommand, storytree } from './testing/cli.js';
 
 for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/16.1: ${installed ? 'installed' : 'standalone'} CLI inventories, stops and clears offline`, async t => {

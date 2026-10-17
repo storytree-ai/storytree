@@ -85,7 +85,8 @@ function runHook(harness: string, input: string, storytreeHome: string, flags: r
   return new Promise((resolve, reject) => {
     const started = performance.now();
     const child = spawn(process.execPath, [hook, harness, ...flags], {
-      env: { ...process.env, ...env, STORYTREE_HOME: storytreeHome },
+      // As an interactive session runs it, unless `env` says otherwise, though the tests run under `claude -p`.
+      env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: undefined, ...env, STORYTREE_HOME: storytreeHome },
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
     });
@@ -1047,6 +1048,29 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
   } finally {
     slow.close();
   }
+});
+
+test("3.45 a `claude -p` session's last turn is recorded without the mod though Claude Code stops its async hooks as the process exits: the hook, run as setup registers it, hands its line to one that outlives it", { skip: process.platform === "win32" && "platform:posix: Claude Code stops a hook by SIGTERM, which Windows does not deliver" }, async () => {
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const home = storytreeHome(dir, true);
+    const folder = await projectFolder(dir, project, home);
+    // As setup registers Claude Code's end-of-turn hook (the app setup's hooks-config.ts): async, with --after-tool.
+    const child = spawn(process.execPath, [hook, "claude-code", AFTER_TOOL], { env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_ENTRYPOINT: "sdk-cli" }, stdio: ["pipe", "ignore", "ignore"], shell: false });
+    // As `claude -p` does at its turn's end (2.1.284, measured on the Mint box): SIGTERM soon after the hook starts, then gone when it exits.
+    const term = setTimeout(() => child.kill("SIGTERM"), 100);
+    const kill = setTimeout(() => child.kill("SIGKILL"), 400);
+    await new Promise<void>((resolve) => {
+      child.on("exit", () => resolve());
+      child.stdin.end(recorded("claude-code", "stop", folder));
+    });
+    clearTimeout(term);
+    clearTimeout(kill);
+
+    const deadline = Date.now() + 8_000;
+    while (!(await linesOf(project)).some((line) => line.kind === "turn-ended") && Date.now() < deadline) await sleep(100);
+    assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"]);
+  });
 });
 
 test("4.10 a pull request's merge is recorded on its branch by the hooks though GitHub takes longer to answer than a hook may run (regression: no hook had ever recorded one, 2026-09-30)", { skip: process.platform === "win32" && "platform:posix: a stand-in gh on PATH must be an .exe on Windows", timeout: 30_000 }, async () => {

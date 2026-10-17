@@ -10,7 +10,7 @@ import { launchOwned, type RunRecord } from '@storytree/processes';
 import { stopTestChild, testChildArgs } from '@storytree/processes/testing';
 import { BuiltCommand, storytree } from './testing/cli.js';
 
-for (const installed of [false, true]) test(`processes 3.4/3.6/4.1/5.1: ${installed ? 'installed' : 'standalone'} CLI inventories, stops and clears offline`, async t => {
+for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/16.1: ${installed ? 'installed' : 'standalone'} CLI inventories, stops and clears offline`, async t => {
   const home = await mkdtemp(path.join(tmpdir(), 'processes-door-'));
   const command = new BuiltCommand();
   const children: RunRecord[] = [];

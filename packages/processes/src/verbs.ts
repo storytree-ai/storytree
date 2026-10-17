@@ -1,5 +1,5 @@
 /**
- * Capability 3 · See what remains. The `processes` verbs, declared here (ADR-0969 D2) and named under `verbs` in the
+ * Capability 14 · See what remains. The `processes` verbs, declared here (ADR-0969 D2) and named under `verbs` in the
  * package's manifest (ADR-1033), so the command line mounts them as its `processes` family, which still answers to the
  * story's old name `own`. Each is callerless: it runs offline, with no project, and acts for the session the shell names
  * alone; with none, only `processes --all` reads. None is a tool: the MCP server has its own list_own_runs,

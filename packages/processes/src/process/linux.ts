@@ -1,4 +1,4 @@
-/** Capability 2 · Keep sight of unfinished runs. */
+/** Capability 13 · Keep sight of unfinished runs. */
 import { readFile } from "node:fs/promises";
 import type { ProcessReading } from "./index.js";
 

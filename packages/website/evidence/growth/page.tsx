@@ -3,10 +3,10 @@
 // each with its knowledge core growing with it.
 // ?map=shop|storytree  &seconds=<length>  &at=<seconds> fixes a moment; absent, it plays on the canvas's clock.
 import { createRoot } from 'react-dom/client';
-import { growthPlan, crossingLength, type PlanetSpot } from '@storytree/forest-world/planet';
+import { growthPlan, crossingLength, type PlanetSpot } from '@storytree/forest/world/planet';
 import { createKnowledgeCore } from '@storytree/knowledge-core/view';
 import { PlanetView } from '@storytree/forest/view';
-import { buildPlanetPathways } from '@storytree/forest-world/geometry';
+import { buildPlanetPathways } from '@storytree/forest/world/geometry';
 import shop from '../../src/shop-snapshot.json' with { type: 'json' };
 import storytree from '../../src/forest-snapshot.json' with { type: 'json' };
 

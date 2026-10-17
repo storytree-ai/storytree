@@ -1,8 +1,8 @@
 import { useLayoutEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useFrame, useThree, type RootState } from '@react-three/fiber';
-import { PlanetWorldCanvas } from '../../src/planet/PlanetWorldCanvas.js';
-import type { ForestScene, Island } from '../../src/scene.js';
+import { PlanetWorldCanvas } from '../../../src/world/planet/PlanetWorldCanvas.js';
+import type { ForestScene, Island } from '../../../src/world/scene.js';
 
 // A World-owned globe: two islands and the link between them, as the planet's own tests lay them.
 const island = (story: string, capabilities: string[]): Island => ({

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildWebsite } from '../../../website/src/build.ts';
-import { withCapture } from '../../../../apps/desktop/src/capture/index.ts';
+import { buildWebsite } from '../../../../website/src/build.ts';
+import { withCapture } from '../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, 'site-out');

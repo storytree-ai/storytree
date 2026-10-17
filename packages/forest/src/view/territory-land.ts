@@ -8,7 +8,7 @@
  * stopping at the island's coast. A claim draws nothing here: its flag and lot are `claim-flag.ts`'s (ADR-0968).
  * Plain three.js, so the marks are read without a browser.
  */
-import type { CapabilityWord } from "@storytree/forest-world/scene";
+import type { CapabilityWord } from "../world/scene.js";
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, ShapeUtils, Vector2, type Vector3 } from "three";
 
 /**

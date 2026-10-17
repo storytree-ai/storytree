@@ -7,11 +7,11 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runCapture } from '../../../../apps/desktop/src/capture/index.ts';
+import { runCapture } from '../../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2];
 assert.ok(/^(before|after)\w*$/.test(label ?? ''), 'pass a before/after build label');
-const rows = path.resolve(here, '../../../forest/src/view/evidence/code-rows');
+const rows = path.resolve(here, '../../../src/view/evidence/code-rows');
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(rows, 'seed.json.gz'))).toString('utf8'));
 const survey = JSON.parse(readFileSync(path.join(rows, 'survey.json'), 'utf8'));
 

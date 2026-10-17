@@ -34,7 +34,7 @@ recursive scrubbing and preservation of the previous file when a secret is found
 
 The browser entry waits for the text page to paint and for the map to enter the
 viewport before importing React, the committed JSON and the public
-`@storytree/forest-world/planet` canvas. The still stays visible until a frame has
+`@storytree/forest/world/planet` canvas. The still stays visible until a frame has
 drawn. Missing WebGL, download or initialization failures, a 15-second startup
 timeout, and context loss leave the still in place. No JavaScript is needed for
 the still. The map renders on demand and is turned by dragging it.

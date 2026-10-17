@@ -6,8 +6,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AbsoluteFill, continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { useThree, type RootState } from "@react-three/fiber";
-import { PlanetWorldCanvas } from "@storytree/forest-world/planet";
-import { planetPathwayDrawing } from "@storytree/forest-world/geometry";
+import { PlanetWorldCanvas } from "@storytree/forest/world/planet";
+import { planetPathwayDrawing } from "@storytree/forest/world/geometry";
 import type { CastMap } from "./cast.js";
 import { drawScene, type Words } from "./scene.js";
 import { beats, FONT, INSET, LOW, SCALE } from "./script.js";

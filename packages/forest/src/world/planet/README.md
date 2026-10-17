@@ -1,6 +1,6 @@
 # Globe drawing · lane B
 
-`PlanetWorldCanvas` is the browser entry at `@storytree/forest-world/planet`.
+`PlanetWorldCanvas` is the browser entry at `@storytree/forest/world/planet`.
 It accepts the existing `ForestScene`, a `ReadonlyMap<storyId, { x, y, z }>` of
 unit directions and the placement rule's fixed `radius` in ground units.
 

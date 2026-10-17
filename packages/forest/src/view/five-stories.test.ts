@@ -4,8 +4,8 @@ import { test } from "node:test";
 import { Quaternion, Vector3 } from "three";
 
 import { workStates } from "@storytree/arc-surface";
-import { buildPlanetPathways, plateTransform } from "@storytree/forest-world/geometry";
-import { onIslandSurface } from "@storytree/forest-world/planet";
+import { buildPlanetPathways, plateTransform } from "../world/geometry.js";
+import { onIslandSurface } from "../world/planet/PlanetWorldCanvas.js";
 import { forestScene, openingTurn, storyNodes } from "@storytree/forest";
 
 import { focusRotation, globeFraming, planetLayout } from "./planet-navigation.js";

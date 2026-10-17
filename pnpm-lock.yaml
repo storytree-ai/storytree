@@ -447,9 +447,6 @@ importers:
       '@storytree/arc-surface':
         specifier: workspace:*
         version: link:../arc-surface
-      '@storytree/forest-world':
-        specifier: workspace:*
-        version: link:../forest-world
       '@storytree/knowledge-core':
         specifier: workspace:*
         version: link:../knowledge-core
@@ -465,46 +462,6 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
-      react:
-        specifier: ^19.1.1
-        version: 19.3.0
-      react-dom:
-        specifier: ^19.1.1
-        version: 19.3.0(react@19.3.0)
-      three:
-        specifier: ^0.185.1
-        version: 0.185.1
-    devDependencies:
-      '@types/node':
-        specifier: ^24.13.6
-        version: 24.13.6
-      '@types/react':
-        specifier: ^19.1.8
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: ^19.1.6
-        version: 19.3.0(@types/react@19.3.0)
-      '@types/three':
-        specifier: ^0.185.0
-        version: 0.185.4
-      esbuild:
-        specifier: ^0.28.2
-        version: 0.28.2
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-      typescript:
-        specifier: ~7.0.2
-        version: 7.0.2
-
-  packages/forest-world:
-    dependencies:
-      '@react-three/drei':
-        specifier: ^10.7.7
-        version: 10.7.9(@react-three/fiber@9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1))(@types/react@19.3.0)(@types/three@0.185.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
-      '@react-three/fiber':
-        specifier: ^9.6.1
-        version: 9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
       react:
         specifier: ^19.1.1
         version: 19.3.0
@@ -1003,9 +960,6 @@ importers:
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
-      '@storytree/forest-world':
-        specifier: workspace:*
-        version: link:../forest-world
       '@storytree/knowledge-core':
         specifier: workspace:*
         version: link:../knowledge-core

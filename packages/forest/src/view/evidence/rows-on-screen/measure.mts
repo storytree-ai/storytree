@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openNamedProject, requireApproval, route } from '@storytree/project-and-caller';
 import { workStates } from '@storytree/arc-surface';
-import { islandCoastReach } from '@storytree/forest-world/geometry';
+import { islandCoastReach } from '@storytree/forest/world/geometry';
 import { connect } from '@storytree/library';
 import { readCodeSurvey } from '../../../code-survey/read-survey.js';
 import { forestScene, openingTurn, storyNodes } from '../../../index.js';

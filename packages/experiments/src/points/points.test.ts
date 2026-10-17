@@ -30,6 +30,8 @@ const NOTHING_YET = { tokens: 0, claimRefusals: 0, reds: 0, conflicts: 0, rework
 const CI: ArmCi = { checks: "npm test", verifier: { testsRepository: "storytree-ai/hidden", command: "./verify.sh" } };
 
 interface Merge {
+  /** The seed commit the import pushed, which no pull request merged: its push run is the arm's first. */
+  seed?: true;
   number: number; mergedAt: string; sha: string; passed?: number; total?: number; running?: true; workflow?: string; files: number[];
   /** The pull request's changed files as GitHub lists them, with their patches. */
   changed?: { filename: string; previous_filename?: string; patch?: string }[];
@@ -50,7 +52,11 @@ function github(merges: Merge[], repository = "storytree-ai/x-twin-map-reads-on"
     }
     if (first === "pr" && second === "list") {
       assert.ok(args.includes(repository), `the arm's own repository is read: ${args.join(" ")}`);
-      return JSON.stringify(merges.map((merge) => ({ number: merge.number, mergedAt: merge.mergedAt, mergeCommit: { oid: merge.sha } })).reverse());
+      return JSON.stringify(merges.filter((merge) => !merge.seed).map((merge) => ({ number: merge.number, mergedAt: merge.mergedAt, mergeCommit: { oid: merge.sha } })).reverse());
+    }
+    if (first === "run" && second === "list" && !args.includes("--commit")) {
+      assert.ok(args.includes("push") && args.includes("main"), "the seed is found among the push runs on main");
+      return JSON.stringify(merges.map((merge) => ({ headSha: merge.sha, createdAt: merge.mergedAt })).reverse());
     }
     if (first === "run" && second === "list") return JSON.stringify([{ databaseId: merges.findIndex((merge) => merge.sha === args[args.indexOf("--commit") + 1]) + 1, status: "completed" }]);
     const route = args.at(-1)!;
@@ -317,5 +323,29 @@ test("5.7 · each point carries the imports crossing capability lines in the arm
       await dropTestDatabases([`storytree_${armProject}`]);
       await rm(repository, { recursive: true, force: true });
     }
+  });
+});
+
+test("5.8 · the seed the import pushed is point zero, with the counts its push's hidden-tests run printed against the untouched start, recorded once and before any merge, and the curves show it as the seed", async () => {
+  await withLibrary(async (library, server) => {
+    const arm = { experiment: "twin", arm: "map-reads-on", ci: CI };
+    const merges: Merge[] = [
+      { seed: true, number: 0, mergedAt: "2026-10-17T08:00:00Z", sha: "sss", passed: 0, total: 372, running: true, files: [100] },
+      { number: 3, mergedAt: "2026-10-17T09:00:00Z", sha: "aaa", passed: 12, total: 372, files: [100, 50] },
+    ];
+    assert.deepEqual(await recordPoints(server, library.name, arm, github(merges), NO_STRUCTURE), { written: [], waiting: { pr: 0, commit: "sss" } }, "no merge is recorded before the seed's run finishes");
+
+    delete merges[0]!.running;
+    const { written } = await recordPoints(server, library.name, arm, github(merges), NO_STRUCTURE);
+    assert.deepEqual(written, [
+      { merge: 0, pr: 0, mergedAt: "2026-10-17T08:00:00Z", commit: "sss", passed: 0, total: 372, files: 1, bytes: 100, workflowIntact: true, ...NOTHING_YET },
+      { merge: 1, pr: 3, mergedAt: "2026-10-17T09:00:00Z", commit: "aaa", passed: 12, total: 372, files: 2, bytes: 150, workflowIntact: true, ...NOTHING_YET },
+    ]);
+    const again = github(merges);
+    assert.deepEqual((await recordPoints(server, library.name, arm, again, NO_STRUCTURE)).written, []);
+    assert.equal(again.logs, 0, "the seed, once recorded, is not read again");
+
+    const text = await curvesAnswer(library, server, "twin", false);
+    assert.match(text, /map-reads-on: 2 merges\n[^\n]*\n\s+0\s+seed\s.*0\/372\s+0\.0%[^\n]*\n\s+1\s+#3\s.*12\/372/);
   });
 });

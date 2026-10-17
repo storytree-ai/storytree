@@ -82,15 +82,24 @@ export function testsRepositoryName(experiment: string): string {
 /** Where the counting script sits in the tests repository. */
 export const COUNTS_SCRIPT = "counts.mjs";
 
+/** Where the task's number of hidden tests sits beside the counting script, when the import was given it: `{"total": n}`. */
+export const TOTAL_FILE = "total.json";
+
 /**
  * Reads the results a Harbor verifier left in `/logs/verifier` (the folder given) and prints `{"passed": n, "total": m}`;
  * exits 1 with nothing printed when it left none. A CTRF report counts its tests; a metrics.json counts its `passed` and
  * `total` fields, or the sums of its `<kind>_passed` and `<kind>_total`; a reward alone is one test, passed when it is 1.
+ * A metrics.json whose totals are all 0 says the verifier stopped before its tests (a build that failed): that is none of
+ * the task's tests passed, out of the total in total.json beside the script, or no result when the import was given none.
  */
 export const COUNTS_SOURCE = `import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const folder = process.argv[2];
+const taskTotal = (() => {
+  try { return JSON.parse(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "${TOTAL_FILE}"), "utf8")).total; } catch { return undefined; }
+})();
 const read = (name) => {
   const file = path.join(folder, name);
   if (!existsSync(file)) return undefined;
@@ -105,7 +114,9 @@ const summary = read("ctrf.json")?.results?.summary;
 const metrics = read("metrics.json");
 if (typeof summary?.tests === "number") counts = { passed: Number(summary.passed ?? 0), total: summary.tests };
 else if (metrics !== undefined && sum(metrics, "total") > 0) counts = { passed: sum(metrics, "passed"), total: sum(metrics, "total") };
-else {
+else if (metrics !== undefined && Object.keys(metrics).some((key) => key === "total" || key.endsWith("_total"))) {
+  if (typeof taskTotal === "number") counts = { passed: 0, total: taskTotal };
+} else {
   const reward = existsSync(path.join(folder, "reward.txt")) ? Number(readFileSync(path.join(folder, "reward.txt"), "utf8").trim()) : read("reward.json")?.reward;
   if (typeof reward === "number" && !Number.isNaN(reward)) counts = { passed: reward >= 1 ? 1 : 0, total: 1 };
 }
@@ -153,13 +164,17 @@ function withSeed<T>(body: (seed: string) => T): T {
   }
 }
 
-/** Makes the experiment's private tests repository from the task, and returns its full name. Only it is given the tests. */
-export function makeTestsRepository(experiment: string, task: HarborTask, gh: Gh = ghCli): string {
+/**
+ * Makes the experiment's private tests repository from the task, and returns its full name. Only it is given the tests.
+ * `total`, the task's number of hidden tests when it is known, is written beside the counting script.
+ */
+export function makeTestsRepository(experiment: string, task: HarborTask, gh: Gh = ghCli, total?: number): string {
   const repository = `${ORGANISATION}/${testsRepositoryName(experiment)}`;
   withSeed((seed) => {
     cpSync(task.environment, path.join(seed, "environment"), { recursive: true });
     cpSync(task.tests, path.join(seed, "tests"), { recursive: true });
     writeFileSync(path.join(seed, COUNTS_SCRIPT), COUNTS_SOURCE);
+    if (total !== undefined) writeFileSync(path.join(seed, TOTAL_FILE), `${JSON.stringify({ total })}\n`);
     git(seed, ["init", "-q", "-b", "main"]);
     git(seed, ["add", "-A"]);
     git(seed, ["commit", "-q", "-m", `The hidden tests of Harbor task ${task.name}`]);
@@ -219,6 +234,8 @@ export interface TaskImport {
   readonly startingTree?: string;
   /** Where the merged tree sits in the task image when the verifier runs; `/app`, Harbor's convention, by default. */
   readonly workdir?: string;
+  /** The task's number of hidden tests, the total a run that stops before its tests is counted out of; none by default. */
+  readonly total?: number;
 }
 
 /** What an import made. */
@@ -246,7 +263,8 @@ export async function importHarborTask(spec: TaskImport, seams: { readonly gh?: 
     return workspace;
   });
 
-  const testsRepository = makeTestsRepository(spec.experiment, task, gh);
+  if (spec.total !== undefined && !(Number.isInteger(spec.total) && spec.total > 0)) throw new Error(`The task's total of hidden tests must be a whole number above 0, not ${spec.total}. Nothing was made.`);
+  const testsRepository = makeTestsRepository(spec.experiment, task, gh, spec.total);
   const ci: ArmCi = { checks: spec.checks ?? ARM_CHECKS, verifier: { testsRepository, command: verifierCommand(task, spec.workdir) } };
   const arc: TaskArc = {
     title: `Harbor task ${task.name}`,

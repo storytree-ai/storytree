@@ -10,6 +10,10 @@
  * record the event as before. A hook here never fails the chain: a throw is skipped by the engine, and the hooks
  * beneath run in its place.
  *
+ * Capability 1 also keeps the session's heartbeat (contract 1.2): from `session.start` it beats on the engine's own timer,
+ * so a session that is merely quiet (a long test run) still beats and one that died stops, and at `session.end` it says
+ * the session ended; at start it writes the session's id where a Mint lane's runner reads it.
+ *
  * The API is early access and moves between releases (read from Claude Code 2.1.284's own declarations), so this
  * module declares the little of `$` it uses rather than importing the build's types file.
  */
@@ -18,7 +22,14 @@
 export interface Engine {
   readonly mcp: { call(server: string, tool: string, args?: Record<string, unknown>): Promise<unknown> };
   readonly session: { id(): Promise<string>; cwd(): Promise<string> };
-  readonly clock: { after(ms: number, fn: () => void): { cancel(): void } };
+  readonly clock: { after(ms: number, fn: () => void): Timer; every(ms: number, fn: () => void): Timer };
+  readonly env: { get(name: string): Promise<string | undefined> };
+  readonly fs: { write(path: string, text: string): Promise<void> };
+}
+
+/** One of the engine's timers. */
+interface Timer {
+  cancel(): void;
 }
 
 /** A classic hook event's input: its stdin as a command hook reads it, or for PreToolUse the tool call's envelope. */
@@ -33,6 +44,13 @@ export const HOOK_EVENT = "hook_event";
 
 /** How long a delivery may hold the chain before the hooks beneath run anyway, and record the event themselves. */
 export const DELIVERY_WAIT_MS = 2_000;
+
+/** The tool server's tool that takes a session's heartbeat, and how often the mod beats: storytree reads three missed beats as stopped. */
+export const HEARTBEAT = "heartbeat";
+export const BEAT_MS = 20_000;
+
+/** How long the session's end waits to say so: the whole end chain shares one short bound (1.5 s in 2.1.284). */
+const END_WAIT_MS = 1_000;
 
 /** The tools whose calls storytree's command hooks record, by event (as setup registers them, app-setup hooks-config.ts). */
 const SHELL = ["Bash", "PowerShell"];
@@ -60,6 +78,46 @@ export function register(on: On): void {
   on("classic.PostToolUse", ($, e, next) => forward("PostToolUse", $, e, next, seen));
   on("classic.PostToolUseFailure", ($, e, next) => forward("PostToolUseFailure", $, e, next, seen));
   on("classic.Stop", ($, e, next) => forward("Stop", $, e, next, seen));
+
+  // The heartbeat: started at each load (a reload drops the old timer and starts this module's variables over), ended with the process.
+  let beating: Timer | undefined;
+  on("session.start", async ($, e, next) => {
+    beating?.cancel();
+    beating = $.clock.every(BEAT_MS, () => void beat($));
+    void beat($);
+    await reportSession($);
+    return next(e);
+  });
+  on("session.end", async ($, e, next) => {
+    // After a /clear the process goes on under a new id, which the next beat reads; any other end is the process's.
+    if (e.reason !== "clear") {
+      beating?.cancel();
+      beating = undefined;
+    }
+    if (typeof e.sessionId === "string") await deliver($, HEARTBEAT, { session: e.sessionId, cwd: await $.session.cwd(), ended: true }, END_WAIT_MS);
+    return next(e);
+  });
+}
+
+/** One beat for the session's current id; never throws. */
+async function beat($: Engine): Promise<void> {
+  try {
+    const [session, cwd] = await Promise.all([$.session.id(), $.session.cwd()]);
+    await deliver($, HEARTBEAT, { session, cwd }, DELIVERY_WAIT_MS);
+  } catch {
+    // The next beat says the same.
+  }
+}
+
+/** Write the session's id to the file STORYTREE_SESSION_FILE names, when it names one (a Mint lane's runner reads it); never throws. */
+async function reportSession($: Engine): Promise<void> {
+  try {
+    // Named as a literal: the engine reads which variables a module reads from its source.
+    const file = await $.env.get("STORYTREE_SESSION_FILE");
+    if (file) await $.fs.write(file, `${await $.session.id()}\n`);
+  } catch {
+    // The runner searches its log for the id instead.
+  }
 }
 
 /** The newest folder and transcript the session's events named. */
@@ -74,7 +132,7 @@ async function forward(event: (typeof FORWARDED)[number], $: Engine, e: Input, n
   if (typeof e.transcript_path === "string") seen.transcript_path = e.transcript_path;
   const input = event === "PreToolUse" ? await preToolUse($, e, seen) : recorded(event, e) ? e : undefined;
   if (input === undefined) return next(e);
-  const delivering = deliver($, input);
+  const delivering = deliver($, HOOK_EVENT, { harness: "claude-code", input }, DELIVERY_WAIT_MS);
   // The prompt's command hook runs in the foreground, and the end's is cut short: each looks for the tool's note at once, so it is
   // waited for. Every other event's command hook runs in the background and waits a moment for the note itself, so the agent never waits.
   if (AWAITED.has(event)) await delivering;
@@ -103,14 +161,14 @@ async function preToolUse($: Engine, e: Input, seen: Seen): Promise<Input | unde
   };
 }
 
-/** Hand `input` to the tool server, waiting at most DELIVERY_WAIT_MS; never throws. */
-async function deliver($: Engine, input: Input): Promise<void> {
-  let timer: { cancel(): void } | undefined;
+/** Call the tool server's `tool` with `args`, waiting at most `waitMs`; never throws. */
+async function deliver($: Engine, tool: string, args: Record<string, unknown>, waitMs: number): Promise<void> {
+  let timer: Timer | undefined;
   const late = new Promise<void>((resolve) => {
-    timer = $.clock.after(DELIVERY_WAIT_MS, resolve);
+    timer = $.clock.after(waitMs, resolve);
   });
   try {
-    await Promise.race([$.mcp.call(SERVER, HOOK_EVENT, { harness: "claude-code", input }).catch(() => undefined), late]);
+    await Promise.race([$.mcp.call(SERVER, tool, args).catch(() => undefined), late]);
   } catch {
     // The hooks beneath record the event: no note was written for them.
   } finally {

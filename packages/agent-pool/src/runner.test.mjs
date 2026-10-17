@@ -23,8 +23,10 @@ async function lane(t) {
   const brief = join(home, "brief.md"), log = join(lanesDir, "lane.log"), err = join(lanesDir, "lane.err");
   await writeFile(brief, "Build this increment. Preserve `literal` $text and \"quotes\".\n");
   const lines = [];
+  // Run from a Claude lane, the runner's own environment already carries what it gives a Claude engine.
+  const { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: _hooks, STORYTREE_SESSION_FILE: _file, ...inherited } = process.env;
   return { home, lanesDir, cwd, brief, log, err, addDirs: [join(home, "directory with spaces"), "another"],
-    env: { ...process.env, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
+    env: { ...inherited, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
     commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines };
 }
 
@@ -247,6 +249,37 @@ test("10.11 · a lane that exits 0 having left no report or push is resumed once
   assert.equal(await runLane(options), 0, "a lane that pushed a branch for its increment is done at once");
   assert.equal((await calls()).length, 1);
   assert.deepEqual(told, []);
+});
+
+test("10.16 · A Claude lane is told a file beside its log to write its session id in; the runner resumes the session that file names, and searches the log only when the file is absent", async (t) => {
+  const options = await lane(t);
+  const runs = join(options.home, "runs");
+  // A Claude engine that writes its session id where it is told, as the mod does, and names a different one in its log.
+  options.commands.claude = command(`const fs=require('node:fs'); fs.appendFileSync(${JSON.stringify(runs)}, JSON.stringify({args:process.argv.slice(1),file:process.env.STORYTREE_SESSION_FILE??null})+'\\n');`
+    + ` if (process.env.STORYTREE_SESSION_FILE && !process.env.NO_FILE) fs.writeFileSync(process.env.STORYTREE_SESSION_FILE, 'from-the-mod\\n');`
+    + ` console.log(JSON.stringify({type:'system',subtype:'init',session_id:'from-the-log'}));`);
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  options.increment = "increment_abc";
+  options.heads = async () => ({});
+  options.storytree = async () => "";
+  const calls = async () => (await readFile(runs, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+
+  assert.equal(await runLane(options), 1);
+  const [first, second] = await calls();
+  assert.equal(first.file, join(options.lanesDir, "lane.session"), "the file is the log's, beside it");
+  assert.deepEqual(second.args.slice(2, 4), ["--resume", "from-the-mod"], "the mod's own word wins over the log");
+
+  await rm(runs);
+  await rm(join(options.lanesDir, "lane.session"));
+  options.env.NO_FILE = "1";
+  assert.equal(await runLane(options), 1);
+  assert.deepEqual((await calls())[1].args.slice(2, 4), ["--resume", "from-the-log"], "without the file, the log's first session id");
+
+  await rm(runs);
+  await writeFile(join(options.lanesDir, "engine-override"), "codex");
+  options.commands.codex = command(`require('node:fs').appendFileSync(${JSON.stringify(runs)}, JSON.stringify({file:process.env.STORYTREE_SESSION_FILE??null})+'\\n');`);
+  await runLane(options);
+  assert.equal((await calls())[0].file, null, "a Codex lane is told no file");
 });
 
 test("10.12 · each engine runs the model the pool's configuration names, and its own default when it names none", async (t) => {

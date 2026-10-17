@@ -40,7 +40,7 @@ import type { Hold, Holds, IncrementStatus, Library, Line, SchemaRecord, WriteOp
 
 import { thisMachine, type ActivityLog } from "../activity/index.js";
 import { worktreeRoot } from "../activity/branch.js";
-import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, LogFold, LONGEST_COMMAND_MS, partOf, pullHolder, pullOf, type Attributed, type Claim, type ClaimsOptions, type Part, type Restart } from "../readings.js";
+import { attributeFrom, CLAIM_KINDS, claimOf, holdersOf, LogFold, LONGEST_COMMAND_MS, partOf, pullHolder, pullOf, type Attributed, type Claim, type Beat, type ClaimsOptions, type Part, type Restart } from "../readings.js";
 import { idleAfterMs } from "@storytree/project-and-caller";
 import { endClaim } from "./endings.js";
 
@@ -345,7 +345,7 @@ export async function closed(context: ClaimContext, increment: string, dispositi
 
 /** Who holds what in `project`'s log, read from the standing claims and their holders' latest lines alone (contract 2.7). */
 export async function readClaims(log: ActivityLog, project: string, options: ClaimsOptions = {}): Promise<Claim[]> {
-  const reads: ClaimReads = { standing: () => log.standing(project), foldLines: (sessions, since) => log.foldLines(project, sessions, since) };
+  const reads: ClaimReads = { standing: () => log.standing(project), foldLines: (sessions, since) => log.foldLines(project, sessions, since), beats: (sessions) => log.beats.of(project, sessions) };
   const now = (options.now ?? new Date()).getTime();
   return [...(await heldIn(reads, now, options.quietMs ?? idleAfterMs(), options.restarted ?? thisRestart())).values()];
 }
@@ -397,6 +397,7 @@ async function heldNow(log: ClaimReads & { now(): Promise<Date> }, context: Clai
 interface ClaimReads {
   standing(): Promise<Line[]>;
   foldLines(sessions: readonly string[], commandsSince: string): Promise<Line[]>;
+  beats(sessions: readonly string[]): Promise<Map<string, Beat>>;
 }
 
 /** How far back a holder's commands are read: a command started earlier is past any limit on it, with a minute for a finish written before its start. */
@@ -411,8 +412,9 @@ async function heldIn(reads: ClaimReads, now: number, quietMs: number, restarted
   const claimLines = await reads.standing();
   const holders = holdersOf(claimLines);
   if (holders.length === 0) return new Map();
-  const fold = LogFold.fromBounded(await reads.foldLines(holders, new Date(now - COMMANDS_MS).toISOString()), claimLines);
-  return new Map(fold.claims({ now: new Date(now), quietMs, ...(restarted === undefined ? {} : { restarted }) })
+  const [lines, beats] = await Promise.all([reads.foldLines(holders, new Date(now - COMMANDS_MS).toISOString()), reads.beats(holders)]);
+  const fold = LogFold.fromBounded(lines, claimLines);
+  return new Map(fold.claims({ now: new Date(now), quietMs, beats, ...(restarted === undefined ? {} : { restarted }) })
     .map((claim) => [claim.increment ?? claim.capability, claim]));
 }
 

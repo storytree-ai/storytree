@@ -7,6 +7,8 @@
  */
 import { z } from "zod";
 
+import { route } from "@storytree/project-and-caller";
+
 import { recordHookEvent, type ReachLog } from "./hooks.js";
 
 /** What a harness's tool has for one call: the server's connections to storytree, and where it looks for storytree. */
@@ -32,7 +34,7 @@ export interface ToolExtension {
 /** Session management's tool part, named in its manifest (ADR-1021): served in every folder, as the hooks are. */
 export const hookToolParts = [(): ToolExtension => hookTools()];
 
-/** The tool a harness hands a hook event to (contract 6.79). */
+/** The tools a harness hands a hook event to (contract 6.79) and beats on (3.44). */
 export function hookTools(): ToolExtension {
   return {
     registerHarnessTools(define) {
@@ -43,6 +45,21 @@ export function hookTools(): ToolExtension {
         const { recorded, waiting } = await recordHookEvent(harness, input, reach, locate);
         // Codex reads a tool handler's text as a command hook's output, which may add it for the agent: it says nothing, as the command hook does.
         return { text: "", data: { recorded, waiting } };
+      });
+      define("heartbeat", "For harnesses, not the model: never call this yourself. A harness's own timer says here that its session is alive, or with ended that it ended, so storytree reads a session whose beats stopped as gone within about a minute.", z.object({
+        session: z.string().min(1).describe("The harness's id for the session"),
+        cwd: z.string().min(1).describe("The session's folder, which names its project"),
+        ended: z.boolean().optional().describe("The session ended: its last word"),
+      }), async ({ session, cwd, ended }, { reach, locate }) => {
+        const where = route(cwd, locate);
+        if (where.status !== "routed") return { text: "", data: { recorded: false } };
+        try {
+          await (await reach(where)).beats.beat(where.project, session, { ended: ended === true });
+          return { text: "", data: { recorded: true } };
+        } catch {
+          // A missed beat waits for nothing: the next one, a few seconds on, says the same.
+          return { text: "", data: { recorded: false } };
+        }
       });
     },
   };

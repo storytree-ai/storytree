@@ -45,5 +45,9 @@ test("15.3 · each command and tool is printed with its consumers, and one with 
 });
 
 test("15.2 · the JSON carries both readings as the reading returns them", () => {
-  assert.deepEqual(JSON.parse(doorsJson(week, month)), { short: JSON.parse(JSON.stringify(week)), long: JSON.parse(JSON.stringify(month)) });
+  const { short, long } = JSON.parse(doorsJson(week, month));
+  assert.deepEqual([short.since, short.until, long.since], ["2026-10-01T00:00:00.000Z", "2026-10-08T00:00:00.000Z", "2026-09-10T00:00:00.000Z"]);
+  assert.equal(short.surfaces.find((surface: { verb: string }) => surface.verb === "storytree arc show").calls, 1);
+  assert.equal(long.surfaces.find((surface: { verb: string }) => surface.verb === "storytree arc show").calls, 2, "the long window counts the September call too");
+  assert.deepEqual(short.misses.map(({ word, named }: { word: string; named: string }) => [word, named]), [["show", "storytree library read"]]);
 });

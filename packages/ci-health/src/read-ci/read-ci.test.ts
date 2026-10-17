@@ -359,3 +359,22 @@ test("3.13 each run is scoped by the 'scope:' line its log opens with: a contrac
   assert.equal((await library.health(contracts[1]!)).verified.state, "failing");
   assert.equal(whole.asked.some((route) => route.includes("runs/6/")), false);
 });
+
+test("4.2 a CI reading writes a skip as a test run does: a verdict the newest run skipped is marked not re-run at its commit and run, carrying that verdict, and the same mark is not written again", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), tap("ok")) });
+  const passed = (await library.health(contracts[1]!)).verified;
+  assert.equal(passed.state, "passing");
+
+  const skipped = [tap("ok").split("\n")[1]!, "ok 2 - 1.2 missing details show the error # SKIP owner: needs a signed-in account"].join("\n");
+  await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), skipped) });
+  const marked = (await library.health(contracts[1]!)).verified;
+  assert.equal(marked.state, "not-checked");
+  assert.equal(marked.skip, "owner");
+  assert.deepEqual(marked.was, { state: "passing", at: passed.at }, "the verdict it did not reproduce is carried");
+  assert.match(marked.note ?? "", new RegExp(`^not re-run at commit ${commit.slice(0, 12)}, run https://github\\.com/acme/shop/actions/runs/7: 1 of 1 tests skipped`));
+
+  await readProjectCi({ library, git: gitIn(folder), github: github(pushRunsOnTrunk(commit), skipped) });
+  assert.equal((await library.healthHistory(contracts[1]!)).filter(({ column }) => column === "verified").length, 2, "an entry already saying the same is not written again");
+});

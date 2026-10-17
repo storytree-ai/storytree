@@ -11,10 +11,10 @@
  * the result's name begins with that number and ends with that title.
  * A result counts through its outermost numbered name, so a subtest counts for its parent's contract.
  *
- * Judging follows storytree's own health (ADR-0744, packages/dev-loop/src/own-health.mjs): a contract
+ * Judging follows storytree's own health (ADR-0744): verdictOf below is the one rule, and a run read from its junit report (../test-run/test-run.mjs) is judged by it too: a contract
  * passes only if it has tests and every one passed; any failure fails it; a skipped test is no pass,
  * so a skip leaves it not checked, as does having no tests. A skip whose reason names the platform the test needs
- * (`platform:<os>`, own-health's creditWindows) counts passed when every job of that platform ran the same test and
+ * (`platform:<os>`) counts passed when every job of that platform ran the same test and
  * passed it: one skipped on Windows because it needs a POSIX shell is proved by the Linux and macOS jobs. A contract
  * a skip leaves not checked carries the skip's kind (ADR-0825 D2): `owner` when any reason says `owner:`, else the
  * platform one names, else `other`.
@@ -115,8 +115,11 @@ function creditPlatformSkips(results: readonly TestResult[]): TestResult[] {
   });
 }
 
-/** The kind of a contract's skip, from its skip reasons (own-health's skipKind). */
-function skipKind(reasons: readonly string[]): SkipKind {
+/**
+ * The kind of a contract's skip (ADR-0825 D2), from its skip reasons' first word: `owner` when any says `owner:` (only
+ * the owner can give what it needs), else `platform:<os>` when one names the platform it runs on, else `other`.
+ */
+export function skipKind(reasons: readonly string[]): SkipKind {
   if (reasons.some((reason) => /^owner\b/i.test(reason))) return "owner";
   const platform = reasons.map((reason) => /^platform:([a-z0-9]+)/i.exec(reason)?.[1]).find(Boolean);
   return platform === undefined ? "other" : `platform:${platform.toLowerCase()}`;
@@ -150,17 +153,28 @@ export function judgeRun(proofs: readonly StoryProofs[], reported: readonly Test
   }
   const verdicts = new Map<string, Verdict>();
   for (const [id, own] of tests) {
-    const passed = own.filter(({ status }) => status === "passed").length;
-    const failed = own.filter(({ status }) => status === "failed").length;
-    const skipped = own.filter(({ status }) => status === "skipped").length;
-    const counts = { passed, failed, skipped, total: own.length };
-    const tally = `${passed}/${own.length} tests passed`;
-    if (failed > 0) verdicts.set(id, { state: "failing", ...counts, note: tally });
-    else if (own.length === 0) verdicts.set(id, { state: "not-checked", ...counts, note: "no test ran" });
-    else if (skipped > 0) {
-      const reasons = [...new Set(own.flatMap(({ status, message }) => (status === "skipped" && message ? [message] : [])))];
-      verdicts.set(id, { state: "not-checked", ...counts, skip: skipKind(reasons), note: `${skipped} of ${own.length} tests skipped${reasons.length > 0 ? ` (${reasons.join("; ")})` : ""}` });
-    } else verdicts.set(id, { state: "passing", ...counts, note: tally });
+    verdicts.set(id, verdictOf(own));
   }
   return { verdicts, unmatched };
+}
+
+/**
+ * A contract's verdict from its tests' results, the one rule every run is judged by (a CI log's or a junit report's): it
+ * passes only if it has tests and every one passed; any failure fails it; a skipped test is no pass, so a skip leaves it
+ * not checked, with its kind, as does having no tests. Passing and failing carry the tally as the note, not checked the
+ * skips and their reasons.
+ */
+export function verdictOf(own: readonly { readonly status: TestResult["status"]; readonly message?: string }[]): Verdict {
+  const passed = own.filter(({ status }) => status === "passed").length;
+  const failed = own.filter(({ status }) => status === "failed").length;
+  const skipped = own.filter(({ status }) => status === "skipped").length;
+  const counts = { passed, failed, skipped, total: own.length };
+  const tally = `${passed}/${own.length} tests passed`;
+  if (failed > 0) return { state: "failing", ...counts, note: tally };
+  if (own.length === 0) return { state: "not-checked", ...counts, note: "no test ran" };
+  if (skipped > 0) {
+    const reasons = [...new Set(own.flatMap(({ status, message }) => (status === "skipped" && message ? [message] : [])))];
+    return { state: "not-checked", ...counts, skip: skipKind(reasons), note: `${skipped} of ${own.length} tests skipped${reasons.length > 0 ? ` (${reasons.join("; ")})` : ""}` };
+  }
+  return { state: "passing", ...counts, note: tally };
 }

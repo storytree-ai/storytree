@@ -1,13 +1,15 @@
 /** Capability 6 · Social sign-in and session. */
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { SessionStore } from "./client.js";
 
+/** Starts Windows's protection process; by default Node's spawn. */
+type Spawn = (command: string, args: readonly string[], options: SpawnOptionsWithoutStdio) => ChildProcessWithoutNullStreams;
 /** A session is bound to its WorkOS client only; status needs nothing else. */
-interface StoreConfiguration { readonly directory: string; readonly clientId: string }
+interface StoreConfiguration { readonly directory: string; readonly clientId: string; readonly spawn?: Spawn }
 class PrivateStorageError extends Error {
   constructor(diagnostic?: string) {
     super("Private session storage is unavailable. No session was exposed; check its permissions and try again.",
@@ -51,7 +53,7 @@ export async function withSessionStore<T>(config: StoreConfiguration, act: (stor
           if ((await handle.stat()).size > 64 * 1024) throw storageError();
           value = await handle.readFile("utf8");
         } finally { await handle.close(); }
-        const plain = process.platform === "win32" ? await dpapi(value, false) : value;
+        const plain = process.platform === "win32" ? await dpapi(value, false, config.spawn) : value;
         const data = JSON.parse(plain) as Record<string, unknown>;
         if (data.version !== 1 || typeof data.refreshToken !== "string" || !data.refreshToken || data.refreshToken.length > 16_384) throw storageError();
         if (data.clientId !== config.clientId) return undefined;
@@ -60,7 +62,7 @@ export async function withSessionStore<T>(config: StoreConfiguration, act: (stor
       write: refreshToken => protect(async () => {
         if (!refreshToken || refreshToken.length > 16_384 || /[\x00-\x20\x7f]/.test(refreshToken)) throw storageError();
         const plain = JSON.stringify({ version: 1, clientId: config.clientId, refreshToken });
-        const value = process.platform === "win32" ? await dpapi(plain, true) : plain;
+        const value = process.platform === "win32" ? await dpapi(plain, true, config.spawn) : plain;
         const temporary = path.join(directory, `session-${randomUUID()}`);
         try {
           await writeFile(temporary, value, { flag: "wx", mode: 0o600 });
@@ -79,7 +81,7 @@ async function check(file: string, directory: boolean): Promise<void> {
 }
 
 /** Secrets travel through stdin/stdout pipes, never command arguments, environment variables or logs. */
-function dpapi(value: string, encrypt: boolean): Promise<string> {
+function dpapi(value: string, encrypt: boolean, start: Spawn = spawn): Promise<string> {
   const script = `$ErrorActionPreference = 'Stop'; Add-Type -AssemblyName System.Security; `
     + `[Console]::InputEncoding = [Text.UTF8Encoding]::new($false); [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); `
     + `try { $inputValue = [Console]::In.ReadToEnd(); `
@@ -100,7 +102,7 @@ function dpapi(value: string, encrypt: boolean): Promise<string> {
   return new Promise((resolve, reject) => {
     let child: ChildProcessWithoutNullStreams;
     try {
-      child = spawn("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], {
+      child = start("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")], {
         windowsHide: true, stdio: ["pipe", "pipe", "pipe"],
       });
     } catch (error) { reject(failure("startup", `code=${errorCode(error)}`)); return; }

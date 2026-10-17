@@ -17,7 +17,7 @@ import { EXPERIMENT_FAMILIES } from "../record/verbs.js";
 import { armWorkflow, type Gh } from "../repositories.js";
 import { armWorkspace, makeArm } from "../workspaces.js";
 import { testAdminUrl, withAdmin } from "../testing/pg.js";
-import { COUNTS_SCRIPT, COUNTS_SOURCE, importHarborTask, parkInArmLibrary, readHarborTask, verifierCommand } from "./harbor.js";
+import { COUNTS_SCRIPT, COUNTS_SOURCE, TOTAL_FILE, importHarborTask, parkInArmLibrary, readHarborTask, verifierCommand } from "./harbor.js";
 import { MERGE_QUEUE_TOKEN_KEY, TASK_FAMILY, TESTS_TOKEN_KEY } from "./verbs.js";
 
 const posix = { skip: process.platform === "win32" ? "platform:posix: the verifier runs in bash on GitHub's Linux runners" : false };
@@ -67,7 +67,7 @@ test("8.1 · a Harbor task is read from its folder: its name, instruction, image
   });
 });
 
-test("8.2 · the verifier counts what a Harbor verifier left: a CTRF report's tests, a metrics file's passed and total, or a reward as one test; nothing left is a failure", async () => {
+test("8.2 · the verifier counts what a Harbor verifier left: a CTRF report's tests, a metrics file's passed and total, or a reward as one test; a run that stopped before its tests is none of the task's total, or no result when that is not known; nothing left is a failure", async () => {
   await withTempDir((dir) => {
     const script = path.join(dir, COUNTS_SCRIPT);
     writeFileSync(script, COUNTS_SOURCE);
@@ -82,6 +82,12 @@ test("8.2 · the verifier counts what a Harbor verifier left: a CTRF report's te
     assert.deepEqual(JSON.parse(count({ "reward.txt": "1\n" })), { passed: 1, total: 1 });
     assert.deepEqual(JSON.parse(count({ "reward.json": JSON.stringify({ reward: 0.4 }) })), { passed: 0, total: 1 });
     assert.throws(() => count({}), "no result fails the count");
+
+    const stopped = { "metrics.json": JSON.stringify({ reward: 0, reason: "build_failed", new_passed: 0, new_total: 0, regression_passed: 0, regression_total: 0 }), "reward.txt": "0" };
+    assert.throws(() => count(stopped), "a run that stopped before its tests is no result when the task's total is not known, never 0 of 1");
+    writeFileSync(path.join(dir, TOTAL_FILE), JSON.stringify({ total: 372 }));
+    assert.deepEqual(JSON.parse(count(stopped)), { passed: 0, total: 372 }, "and none of the task's tests passed when it is");
+    assert.deepEqual(JSON.parse(count({ "reward.txt": "1\n" })), { passed: 1, total: 1 }, "a reward alone still counts as one test");
   });
 });
 
@@ -157,11 +163,14 @@ test("8.4 · importing a task puts its image and tests in a private tests reposi
     assert.deepEqual([calls, parked], [[], []]);
 
     writeArmHome(homes["map-reads-off"], "twin", "map-reads-off");
-    const imported = await importHarborTask({ task, experiment: "twin", arms, secrets }, { gh, park });
+    await assert.rejects(importHarborTask({ task, experiment: "twin", arms, secrets, total: 0 }, { gh, park }), /whole number above 0.*Nothing was made/);
+    assert.deepEqual([calls, parked], [[], []]);
+    const imported = await importHarborTask({ task, experiment: "twin", arms, secrets, total: 372 }, { gh, park });
 
     const [tests, ...armRepositories] = created;
     assert.deepEqual([tests!.repository, tests!.visibility], ["storytree-ai/x-twin-tests", "--private"]);
-    assert.deepEqual(tests!.files, ["counts.mjs", "environment/Dockerfile", "environment/apps/page.tsx", "tests/test.sh"]);
+    assert.deepEqual(tests!.files, ["counts.mjs", "environment/Dockerfile", "environment/apps/page.tsx", "tests/test.sh", "total.json"]);
+    assert.deepEqual(JSON.parse(tests!.read("total.json")), { total: 372 }, "the task's total sits beside the counting script, in the private repository only");
     assert.deepEqual(armRepositories.map((made) => [made.repository, made.visibility]), [["storytree-ai/x-twin-map-reads-on", "--public"], ["storytree-ai/x-twin-map-reads-off", "--public"]]);
     for (const made of armRepositories) {
       assert.deepEqual(made.files, [".github/workflows/arm.yml", ".storytree.json", "apps/page.tsx"], "the starting tree, its project and its CI; never the tests or the image");

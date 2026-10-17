@@ -22,7 +22,7 @@ const importVerb = verb({
     family: "experiment task",
     name: "import",
     summary: "import a Harbor task as an experiment's work: a private repository for its hidden tests, each arm's repository seeded from it with its verifier in CI, and its instruction as each arm's one arc (ADR-1064 D7)",
-    usage: "experiment task import <harbor-task-dir> --experiment <name> [--arms a,b] [--checks <command>] [--starting-tree <folder>] [--workdir <path>]",
+    usage: "experiment task import <harbor-task-dir> --experiment <name> [--arms a,b] [--checks <command>] [--starting-tree <folder>] [--workdir <path>] [--total <n>]",
   },
   tool: { absent: "a task is imported by whoever runs the experiment, never by a lane" },
   callerless: true,
@@ -33,10 +33,12 @@ const importVerb = verb({
     checks: { kind: "text", optional: true, describe: "the shell command every arm pull request must pass; ci/checks.sh, which the arm's lanes keep, by default" },
     "starting-tree": { kind: "text", optional: true, describe: "the folder the arms start from; the task's environment/ without its Dockerfile by default" },
     workdir: { kind: "text", optional: true, describe: "where the merged tree sits in the task image when the verifier runs; /app by default" },
+    total: { kind: "text", optional: true, describe: "the task's number of hidden tests, which a verifier run that stops before its tests (a failed build) is counted out of; no result for such a run by default" },
   },
-  async act({ task, experiment, arms, checks, "starting-tree": startingTree, workdir }: {
-    task: string; experiment: string; arms: string | undefined; checks: string | undefined; "starting-tree": string | undefined; workdir: string | undefined;
+  async act({ task, experiment, arms, checks, "starting-tree": startingTree, workdir, total }: {
+    task: string; experiment: string; arms: string | undefined; checks: string | undefined; "starting-tree": string | undefined; workdir: string | undefined; total: string | undefined;
   }) {
+    if (total !== undefined && !/^[1-9][0-9]*$/.test(total)) throw new VerbRefusal(`--total is the task's number of hidden tests, a whole number above 0, not "${total}".`);
     const testsToken = resolveKey(TESTS_TOKEN_KEY);
     const mergeQueueToken = resolveKey(MERGE_QUEUE_TOKEN_KEY);
     const unsaved = [[TESTS_TOKEN_KEY, testsToken, "a fine-grained token that reads only the tests repository"], [MERGE_QUEUE_TOKEN_KEY, mergeQueueToken, "one that may enqueue pull requests on the arm repositories only"]]
@@ -55,6 +57,7 @@ const importVerb = verb({
         ...(checks === undefined ? {} : { checks }),
         ...(startingTree === undefined ? {} : { startingTree: path.resolve(startingTree) }),
         ...(workdir === undefined ? {} : { workdir }),
+        ...(total === undefined ? {} : { total: Number(total) }),
       });
     } catch (error) {
       throw new VerbRefusal((error as Error).message);

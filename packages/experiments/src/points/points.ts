@@ -12,6 +12,9 @@
  * (REWORK_WINDOW, the experiment record's measure), matched by file and text in each pull request's patches. And it
  * carries the tree's structure at the merge: its imports crossing capability lines and its source lines (structure.ts).
  *
+ * Point zero is the seed: the commit the import pushed to main before any lane merged, with the counts its push's
+ * `hidden-tests` run printed, the baseline against the untouched starting tree. It has no pull request, so its `pr` is 0.
+ *
  * A lane can merge a change to `.github/workflows/arm.yml`, which would let it see or fake the hidden tests' results,
  * and nothing else catches that: so each point says whether the workflow at its commit still equals `armWorkflowText`.
  */
@@ -61,7 +64,7 @@ const SCHEMA: readonly string[] = [
 /** How many merges back a removed line counts as rework when one of them added it: the twin build's measure, "within 5 merges". */
 export const REWORK_WINDOW = 5;
 
-/** One merge on an arm's main, as its point records it. */
+/** One merge on an arm's main, as its point records it; merge 0, with pr 0, is the seed commit. */
 export interface Point {
   readonly merge: number;
   readonly pr: number;
@@ -124,6 +127,17 @@ function hiddenTestsJob(gh: Gh, repository: string, commit: string): Job | undef
     if (job !== undefined && job.status === "completed") return job;
   }
   return undefined;
+}
+
+/**
+ * The seed: the commit of the first push run on the arm's main, which only the import's push makes, since lanes merge
+ * through the queue. None when that run's commit is a merge's (the seed's run is no longer listed) or there is no run.
+ */
+function seedOf(gh: Gh, repository: string, merged: readonly Merged[]): Merged & { mergeCommit: { oid: string } } | undefined {
+  const runs = JSON.parse(gh(["run", "list", "--repo", repository, "--workflow", "arm.yml", "--event", "push", "--branch", "main", "--limit", "1000", "--json", "headSha,createdAt"])) as { headSha: string; createdAt: string }[];
+  const first = runs.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))[0];
+  if (first === undefined || merged.some((pr) => pr.mergeCommit?.oid === first.headSha)) return undefined;
+  return { number: 0, mergedAt: first.createdAt, mergeCommit: { oid: first.headSha } };
 }
 
 /** A pull request's changed files as GitHub lists them, a file's patch absent when GitHub leaves it out (a binary or a huge diff). */
@@ -237,6 +251,28 @@ async function recordFrom(server: Storytree, project: string, { experiment, arm,
     .filter((pr): pr is Merged & { mergeCommit: { oid: string } } => pr.mergeCommit !== null)
     .sort((a, b) => Date.parse(a.mergedAt) - Date.parse(b.mergedAt) || a.number - b.number);
   const written: Point[] = [];
+  const write = async (point: Point): Promise<void> => {
+    await pool.query(
+      `INSERT INTO experiment_points (project, experiment, arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework, cross_imports, lines)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) ON CONFLICT DO NOTHING`,
+      [project, experiment, arm, point.merge, point.pr, point.mergedAt, point.commit, point.passed ?? null, point.total ?? null, point.files, point.bytes, point.workflowIntact,
+        point.tokens ?? null, point.claimRefusals, point.reds, point.conflicts, point.rework, point.crossImports, point.lines],
+    );
+    written.push(point);
+  };
+  const seed = recorded.has(0) ? undefined : seedOf(gh, repository, merged);
+  if (seed !== undefined) {
+    const job = hiddenTestsJob(gh, repository, seed.mergeCommit.oid);
+    if (job === undefined) return { written, waiting: { pr: 0, commit: seed.mergeCommit.oid } };
+    const at = new Date(seed.mergedAt);
+    // What was spent before the seed is the seed's own; the running total starts there only when no merge is recorded yet.
+    const spent = await tokensSpent(log, armProject, { upTo: at });
+    if (last === undefined) {
+      tokens = spent;
+      after = at;
+    }
+    await write({ ...pointOf(gh, repository, ci, 0, seed, job), tokens: spent, ...collisionsBy(at.getTime()), rework: 0, ...await trees.at(seed.mergeCommit.oid) });
+  }
   for (const [index, pr] of merged.entries()) {
     if (recorded.has(pr.number)) continue;
     const job = hiddenTestsJob(gh, repository, pr.mergeCommit.oid);
@@ -245,21 +281,14 @@ async function recordFrom(server: Storytree, project: string, { experiment, arm,
     tokens += await tokensSpent(log, armProject, after === undefined ? { upTo: at } : { upTo: at, after });
     after = at;
     const earlier = merged.slice(Math.max(0, index - REWORK_WINDOW), index).map((one) => filesOf(one.number));
-    const point: Point = {
+    await write({
       ...pointOf(gh, repository, ci, index + 1, pr, job),
       // A run recorded before tokens were has no total to add to, so its later points have none either.
       ...(Number.isNaN(tokens) ? {} : { tokens }),
       ...collisionsBy(at.getTime()),
       rework: reworkOf(filesOf(pr.number), earlier),
       ...await trees.at(pr.mergeCommit.oid),
-    };
-    await pool.query(
-      `INSERT INTO experiment_points (project, experiment, arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework, cross_imports, lines)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) ON CONFLICT DO NOTHING`,
-      [project, experiment, arm, point.merge, point.pr, point.mergedAt, point.commit, point.passed ?? null, point.total ?? null, point.files, point.bytes, point.workflowIntact,
-        point.tokens ?? null, point.claimRefusals, point.reds, point.conflicts, point.rework, point.crossImports, point.lines],
-    );
-    written.push(point);
+    });
   }
   return { written };
 }
@@ -315,7 +344,8 @@ export function curvesText(experiment: string, series: Curves): string {
       const share = point.passed === undefined || point.total === 0 ? "-" : `${((100 * point.passed) / point.total!).toFixed(1)}%`;
       const flag = point.workflowIntact ? "" : "  WORKFLOW CHANGED: counts not to be trusted";
       const measure = (value: number | undefined, width: number) => (value === undefined ? "-" : String(value)).padEnd(width);
-      lines.push(`  ${String(point.merge).padEnd(5)}  #${String(point.pr).padEnd(5)} ${point.mergedAt.slice(0, 19).padEnd(20)}  ${counts.padEnd(12)}  ${share.padEnd(6)}  ${String(point.files).padEnd(5)}  ${String(point.bytes).padEnd(10)}  ${measure(point.tokens, 11)}  ${measure(point.claimRefusals, 7)}  ${measure(point.reds, 3)}  ${measure(point.conflicts, 9)}  ${measure(point.rework, 6)}  ${measure(point.crossImports, 9)}  ${measure(point.lines, 5)}`.trimEnd() + flag);
+      const pr = point.merge === 0 ? "seed  " : `#${String(point.pr).padEnd(5)}`;
+      lines.push(`  ${String(point.merge).padEnd(5)}  ${pr} ${point.mergedAt.slice(0, 19).padEnd(20)}  ${counts.padEnd(12)}  ${share.padEnd(6)}  ${String(point.files).padEnd(5)}  ${String(point.bytes).padEnd(10)}  ${measure(point.tokens, 11)}  ${measure(point.claimRefusals, 7)}  ${measure(point.reds, 3)}  ${measure(point.conflicts, 9)}  ${measure(point.rework, 6)}  ${measure(point.crossImports, 9)}  ${measure(point.lines, 5)}`.trimEnd() + flag);
     }
   }
   return lines.join("\n");

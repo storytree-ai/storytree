@@ -377,6 +377,9 @@ importers:
       '@storytree/agent-pool':
         specifier: workspace:*
         version: link:../agent-pool
+      '@storytree/ci-health':
+        specifier: workspace:*
+        version: link:../ci-health
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest

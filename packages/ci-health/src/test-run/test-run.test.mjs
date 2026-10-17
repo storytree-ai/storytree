@@ -1,4 +1,4 @@
-// The rules of `pnpm check:own-health` (packages/dev-loop/src/own-health.mjs): how a test run's results become
+// The rules of recording a test run (test-run.mjs, record-run.mjs; storytree's own `pnpm check:own-health` among them): how a test run's results become
 // each contract's verified health, and how a story's contracts and its package are read from 0.3's
 // own library. The parsing and judging tests are pure; the library tests run against the Postgres
 // `pnpm test` provides (STORYTREE_TEST_PG_URL), each in a project of its own that is dropped
@@ -13,8 +13,8 @@ import { test } from "node:test";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
-import { checkStory } from "./check-own-health.mjs";
-import { contractsCoveredBy, contractsOf, judge, markPending, packageOf, parseJunit, readCiEvidence, recordHealth, recordingTarget } from "./own-health.mjs";
+import { checkStory } from "./record-run.mjs";
+import { contractsCoveredBy, contractsOf, judge, markPending, packageOf, parseJunit, readCiEvidence, recordHealth, recordingTarget } from "./test-run.mjs";
 
 test("parseJunit reads each test's name, the suites around it, its file, and whether it passed, failed or was skipped", () => {
   const results = parseJunit(JUNIT);
@@ -29,7 +29,7 @@ test("parseJunit reads each test's name, the suites around it, its file, and whe
   ]);
 });
 
-test("5.4 judge: a contract passes only if every test it has passed; any failure fails it; a skipped test, or none, leaves it not checked", () => {
+test("4.1 judge: a contract passes only if every test it has passed; any failure fails it; a skipped test, or none, leaves it not checked", () => {
   const result = (name, status, extra = {}) => ({ name, suites: [], file: "C:\\repo\\a.test.ts", status, ...extra });
   const { verdicts, unmapped } = judge({
     contracts: ["1.1", "1.2", "1.3", "2.1", "2.2", "8.1", "8.2"],
@@ -61,11 +61,11 @@ test("5.4 judge: a contract passes only if every test it has passed; any failure
   assert.deepEqual(brief("8.2"), { state: "passing", note: "1/1 tests passed" });
   assert.match(verdicts.get("2.1").reason, /1 of 2 tests skipped/);
   assert.match(verdicts.get("8.1").reason, /skipped.*owner-gated/);
-  assert.match(verdicts.get("1.3").reason, /no tests/);
+  assert.match(verdicts.get("1.3").reason, /no test ran/);
   assert.deepEqual(unmapped.map(({ name }) => name), ["robustness [memory] no number", "9.9 a contract the story does not have"]);
 });
 
-test("5.4 judge: a test file that produced no results leaves the contracts it holds not checked, never failing, and names the file", () => {
+test("4.1 judge: a test file that produced no results leaves the contracts it holds not checked, never failing, and names the file", () => {
   const crashed = "C:\\repo\\packages\\library\\src\\transactions\\pg.test.ts";
   const { verdicts, crashedFiles } = judge({
     contracts: ["2.1", "2.2", "3.1"],
@@ -163,7 +163,7 @@ test("contractsCoveredBy: a crashed multi-contract file leaves every named contr
   }
 });
 
-test("5.4 a leading range too wide to be real, or with an unsafe end, credits nothing instead of crashing; one up to 256 numbers wide still credits", (t) => {
+test("4.1 a leading range too wide to be real, or with an unsafe end, credits nothing instead of crashing; one up to 256 numbers wide still credits", (t) => {
   const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const file = path.join(directory, "planted.test.ts");
@@ -246,7 +246,7 @@ test("own health reads a story's contracts from the library, each number from it
   assert.equal(packageOf("Lag in real use"), "lag-in-use");
 });
 
-test("5.4 checking a story runs its own package's tests and records each contract's verified health from them; a run with no report, or a story with no package, records nothing", async (t) => {
+test("4.1 checking a story runs its own package's tests and records each contract's verified health from them; a run with no report, or a story with no package, records nothing", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-check-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   await withLibrary(async (lib) => {
@@ -276,7 +276,7 @@ test("5.4 checking a story runs its own package's tests and records each contrac
   });
 });
 
-test("5.8 a range wider than 256 contracts names none for the pending marks, so a fixture's oversized title stops no run", (t) => {
+test("4.4 a range wider than 256 contracts names none for the pending marks, so a fixture's oversized title stops no run", (t) => {
   const directory = mkdtempSync(path.join(tmpdir(), "own-health-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const file = path.join(directory, "fixture.test.ts");
@@ -284,14 +284,14 @@ test("5.8 a range wider than 256 contracts names none for the pending marks, so 
   assert.deepEqual([...contractsCoveredBy(file, { root: directory })], Array.from({ length: 256 }, (_, n) => `4.${n + 1}`));
 });
 
-test("5.4 a test whose title's range is wider than 256 contracts credits none and is reported unmapped", () => {
+test("4.1 a test whose title's range is wider than 256 contracts credits none and is reported unmapped", () => {
   const oversized = { name: "3.1–3.9007199254740991 oversized", suites: [], file: "a.test.ts", status: "passed" };
   const { verdicts, unmapped } = judge({ contracts: ["3.1"], results: [oversized], coverage: () => new Set() });
   assert.equal(verdicts.get("3.1").total, 0);
   assert.deepEqual(unmapped, [oversized]);
 });
 
-test("5.8 before its tests run, own health marks pending each contract a numbered test at its commit names, its own or a dependant's, that is not verified passing or skipped, so the worklist holds its capability back until the run records it", async (t) => {
+test("4.4 before its tests run, own health marks pending each contract a numbered test at its commit names, its own or a dependant's, that is not verified passing or skipped, so the worklist holds its capability back until the run records it", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-pending-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
@@ -324,7 +324,7 @@ test("5.8 before its tests run, own health marks pending each contract a numbere
   });
 });
 
-test("5.4 checking a story also runs a dependant's test titled with the story's package and a contract, like cli 1.3, crediting only those titles", async (t) => {
+test("4.1 checking a story also runs a dependant's test titled with the story's package and a contract, like cli 1.3, crediting only those titles", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-dependant-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
@@ -358,7 +358,7 @@ test("5.4 checking a story also runs a dependant's test titled with the story's 
   });
 });
 
-test("5.9 a dependant's test titled with the story's package and a number the story lacks is named with the story it points at, and credits nothing", async (t) => {
+test("4.5 a dependant's test titled with the story's package and a number the story lacks is named with the story it points at, and credits nothing", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-stray-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
@@ -389,7 +389,7 @@ test("5.9 a dependant's test titled with the story's package and a number the st
   });
 });
 
-test("5.12 own health's log names each failing test, with the suites around it, its file and its assertion message, and no test that passed", async (t) => {
+test("4.6 own health's log names each failing test, with the suites around it, its file and its assertion message, and no test that passed", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-failing-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "packages/cli/src"), { recursive: true });
@@ -413,7 +413,7 @@ test("5.12 own health's log names each failing test, with the suites around it, 
   });
 });
 
-test("5.4 checking the app story also runs the desktop app's tests as its own, crediting their numbered titles", async (t) => {
+test("4.1 checking the app story also runs the desktop app's tests as its own, crediting their numbered titles", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-frame-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, "packages/app/src"), { recursive: true });
@@ -445,7 +445,7 @@ test("5.4 checking the app story also runs the desktop app's tests as its own, c
   });
 });
 
-test("5.4 Windows CI at the same commit verifies Get storytree 1.9 and Front door 1.12, naming its run; unavailable or unrelated evidence gives no credit, and a run that saw no Windows leaves that pass standing", async (t) => {
+test("4.1 Windows CI at the same commit verifies Get storytree 1.9 and Front door 1.12, naming its run; unavailable or unrelated evidence gives no credit, and a run that saw no Windows leaves that pass standing", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-windows-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const commit = "a".repeat(40);
@@ -509,7 +509,7 @@ test("5.4 Windows CI at the same commit verifies Get storytree 1.9 and Front doo
   }
 });
 
-test("5.4 macOS CI at the same commit verifies Get storytree 1.11's Apple Silicon test, naming its run; Windows evidence cannot credit it, macOS evidence cannot credit a Windows skip, and a run that saw no macOS leaves that pass standing", async (t) => {
+test("4.1 macOS CI at the same commit verifies Get storytree 1.11's Apple Silicon test, naming its run; Windows evidence cannot credit it, macOS evidence cannot credit a Windows skip, and a run that saw no macOS leaves that pass standing", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "own-health-macos-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const commit = "c".repeat(40);
@@ -560,7 +560,7 @@ test("recordHealth writes each passing or failing verdict to the verified column
       ["1.2", { number: "1.2", state: "failing", note: "1/2 tests passed" }],
       ["1.3", { number: "1.3", state: "not-checked", reason: "no tests" }],
     ]);
-    const written = await recordHealth(lib, contractIds, verdicts);
+    const written = await recordHealth(lib, contractIds, verdicts, { by: "storytree test run" });
     assert.deepEqual(written, { passing: 1, failing: 1, notChecked: 1, marked: 0 });
 
     const passing = await lib.health(contractIds.get("1.1"));
@@ -585,7 +585,7 @@ test("recordHealth writes as the writer it is given: a run on CI says so, with i
   });
 });
 
-test("5.6 judge reads a skipped contract's skip kind from its skip reason's first word: owner, platform:<os>, or other", () => {
+test("4.2 judge reads a skipped contract's skip kind from its skip reason's first word: owner, platform:<os>, or other", () => {
   const result = (name, status, extra = {}) => ({ name, suites: [], file: "a.test.ts", status, ...extra });
   const { verdicts } = judge({
     contracts: ["1.1", "1.2", "1.3", "1.4"],
@@ -600,7 +600,7 @@ test("5.6 judge reads a skipped contract's skip kind from its skip reason's firs
   assert.deepEqual(["1.1", "1.2", "1.3", "1.4"].map((number) => verdicts.get(number).skip), ["owner", "platform:win32", "other", undefined]);
 });
 
-test("5.6 recordHealth records a skip's kind, marks a verdict the run did not reproduce as not re-run at the commit, and writes the same mark only once", async () => {
+test("4.2 recordHealth records a skip's kind, marks a verdict the run did not reproduce as not re-run at the commit, and writes the same mark only once", async () => {
   await withLibrary(async (lib) => {
     const { contractIds } = contractsOf(await kettle(lib));
     const id = (number) => contractIds.get(number);
@@ -637,7 +637,7 @@ test("5.6 recordHealth records a skip's kind, marks a verdict the run did not re
 
 const CI = { GITHUB_ACTIONS: "true", GITHUB_SHA: "9f3734a0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6" };
 
-test("5.7 on CI with HEALTH_PG_ADDRESS set, own health is recorded in the library at that address, by a test run on CI", () => {
+test("4.3 on CI with HEALTH_PG_ADDRESS set, own health is recorded in the library at that address, by a test run on CI", () => {
   const address = "postgres://storytree-ci-health%40storytree-498613.iam@100.97.8.31:5432/postgres";
   assert.deepEqual(recordingTarget({ env: { ...CI, HEALTH_PG_ADDRESS: address }, setting: { location: "local" } }), {
     record: true,
@@ -646,7 +646,7 @@ test("5.7 on CI with HEALTH_PG_ADDRESS set, own health is recorded in the librar
   });
 });
 
-test("5.7 on CI with no HEALTH_PG_ADDRESS, nothing is recorded, and it says the variable is unset", () => {
+test("4.3 on CI with no HEALTH_PG_ADDRESS, nothing is recorded, and it says the variable is unset", () => {
   for (const env of [CI, { ...CI, HEALTH_PG_ADDRESS: "" }]) {
     const target = recordingTarget({ env, setting: { location: "local" } });
     assert.equal(target.record, false);

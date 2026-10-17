@@ -25,7 +25,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
 
-import { parseJunit } from "./own-health.mjs";
+import { parseJunit } from "@storytree/ci-health/test-run";
 
 /** The variables that name an agent's session to a command: each watched harness's, and storytree's own. */
 const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => (harness.shellSession === undefined ? [] : [harness.shellSession])), SESSION_ENV];

@@ -14,7 +14,7 @@ import { connect } from "@storytree/library";
 import { appHome } from "../../../apps/desktop/src/home.ts";
 import { mintAcceptance, readObservations, recordAcceptance, ACCEPTED_BY } from "./acceptance-health.mjs";
 import { appLibraryServer } from "./library-server.mjs";
-import { contractsOf, recordingTarget } from "./own-health.mjs";
+import { contractsOf, recordingTarget } from "@storytree/ci-health/test-run";
 
 const PROJECT = "storytree";
 const COMMAND = "pnpm record:acceptance";

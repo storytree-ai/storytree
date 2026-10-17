@@ -1,11 +1,11 @@
 /**
  * Capability 1 · Front door. `storytree doors`: how the two front doors are used, read on demand (ADR-0998 D1), a thin
- * front door over Reading the front doors. The declared surfaces it counts against are the doors' own:
+ * front door over this door's usage reading (capability 14, ADR-1071 D3). The declared surfaces it counts against are the doors' own:
  * every command walked from this door's table, and every tool the tool server serves in this folder, each with
  * the consumers its story declared for it (ADR-1045 D1).
  * Nothing recurs and nothing is written; it prints and ends.
  */
-import type { DeclaredVerb } from "@storytree/reading-the-front-doors";
+import type { DeclaredVerb } from "../usage/reading.js";
 import { consumersOf } from "@storytree/library/verbs";
 
 import { Refusal } from "../answer.js";
@@ -42,8 +42,8 @@ const read: Verb = {
     const days = daysOf(args.text("days"), "days", 7);
     const trend = daysOf(args.text("trend"), "trend", 28);
     const { log, project } = await context.activityContext();
-    const [{ FAMILIES }, { servedTools }, { readDoors, doorsJson, doorsTable }] = await Promise.all([
-      import("./index.js"), import("@storytree/mcp-server"), import("@storytree/reading-the-front-doors"),
+    const [{ FAMILIES }, { servedTools }, { readDoors }, { doorsJson, doorsTable }] = await Promise.all([
+      import("./index.js"), import("@storytree/mcp-server"), import("../usage/read.js"), import("../usage/table.js"),
     ]);
     const tools = (await servedTools(context.cwd)).map(({ name, consumers }) => ({ verb: name, consumers }));
     const declared = { commands: commandsOf(FAMILIES), tools };

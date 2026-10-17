@@ -1,5 +1,5 @@
 /**
- * Capability 1 · The reading. A project's door-answered lines for the longest window asked, read once from its activity log and
+ * Capability 14 · Reading the doors' use. A project's door-answered lines for the longest window asked, read once from its activity log and
  * narrowed on the server by kind and time (Session management 2.7), with the prompts of the sessions
  * in it; each window is then counted from those lines.
  */

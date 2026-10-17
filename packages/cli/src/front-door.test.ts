@@ -26,7 +26,7 @@ import { SETUP_FAMILIES } from "@storytree/app-setup/verbs";
 import { PROCESSES_FAMILIES } from "@storytree/processes/verbs";
 import { ARC_FAMILIES } from "@storytree/arc-surface/verbs";
 import { LIBRARY_FAMILIES } from "@storytree/library/commands";
-import type { Reading } from "@storytree/reading-the-front-doors";
+import type { Reading } from "./usage/reading.js";
 
 import { FAMILIES } from "./families/index.js";
 import unbundled from "./parts/verbs.js";

@@ -1,13 +1,13 @@
-/** Reading the front doors 1.6: a window read from a project's activity log, against a real Postgres. */
+/** The command line 14.6: a window read from a project's activity log, against a real Postgres. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { openActivityLog } from "@storytree/session-management";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
-import { readDoors } from "./index.js";
+import { readDoors } from "./read.js";
 
-test("1.6 · each window counts only its own door-answered lines, and a session's prompts decide whether it was briefed", async () => {
+test("14.6 · each window counts only its own door-answered lines, and a session's prompts decide whether it was briefed", async () => {
   const log = await openActivityLog(testServerUrl());
   const project = uniqueProjectName();
   try {

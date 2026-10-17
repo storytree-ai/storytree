@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { launch, captureOutput } from '../../../../apps/desktop/src/capture/index.ts';
+import { launch, captureOutput } from '../../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2] ?? 'after';
 const dist = path.join(here, 'dist', `website-${label.replace(/\d+$/, '')}`);

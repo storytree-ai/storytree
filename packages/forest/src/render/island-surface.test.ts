@@ -4,7 +4,7 @@ import test from 'node:test';
 import { DoubleSide, Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
 import { workStates } from '@storytree/arc-surface';
 import { forestScene, growPlanet, PLANET_RADIUS, storyNodes } from '../index.js';
-import { buildPlanetPathways, islandCoastReach, islandSurface, PLATE_CLEARANCE } from '@storytree/forest-world/geometry';
+import { buildPlanetPathways, islandCoastReach, islandSurface, PLATE_CLEARANCE } from '../world/geometry.js';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 const capability = (id: string, dependsOn: string[]) =>

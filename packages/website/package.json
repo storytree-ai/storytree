@@ -14,7 +14,6 @@
     "@storytree/knowledge-core": "workspace:*",
     "@storytree/learning-as-you-build": "workspace:*",
     "@storytree/mark": "workspace:*",
-    "@storytree/forest-world": "workspace:*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "@react-three/fiber": "^9.6.1",

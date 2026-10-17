@@ -10,7 +10,7 @@ height up to its dock over its last 8 units, so where a dock sat at the globe's 
 a strand running off into space. On the website's own globe (`packages/website/src/own-snapshot.json`, radius 271):
 The world's dock stood 13.06 units over the glass and The agent link's 10.07, where their coasts are drawn at 1.69.
 
-**Fix** (`packages/forest-world/src/planet/pathways.ts`, the world's 6.12). Every point the roads take from an island
+**Fix** (`packages/forest/src/world/planet/pathways.ts`, the world's 6.12). Every point the roads take from an island
 (its docks, its coast as the router sees it, and the island routes that selection lanes ride) is placed on the island's
 surface as drawn (`onIslandSurface`). A short road, whose two 8-unit approaches overlap, now blends between its ends'
 heights instead of adding them, so it no longer bulges above both. Every road now stays within 1.69 units of the glass

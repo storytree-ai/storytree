@@ -11,9 +11,9 @@
  */
 import { Euler, Plane, Quaternion, Raycaster, Vector2, Vector3, type Camera, type Object3D } from "three";
 import { sheetPlaces, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
-import { islandCoast, islandCoastReach } from "@storytree/forest-world/geometry";
+import { islandCoast, islandCoastReach } from "../world/geometry.js";
 import { islandTerritories } from "../territories/territories.js";
-import { PLATE_CLEARANCE, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from "@storytree/forest-world/planet";
+import { PLATE_CLEARANCE, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetPoint, sheetSpot, type SheetExtent, type SheetPoint } from "../world/planet/PlanetWorldCanvas.js";
 import type { GlobePose } from "./globe-guide.js";
 import type { ForestMode } from "./planet-navigation.js";
 

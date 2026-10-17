@@ -2,10 +2,10 @@
 // Two islands and the roads between them, as the planet's own tests lay them out.
 import { createRoot } from 'react-dom/client';
 import type { Object3D } from 'three';
-import type { ForestScene, Island } from '../../src/scene.js';
-import { PlanetWorldCanvas } from '../../src/planet/PlanetWorldCanvas.js';
-import type { PlanetSurfaceVisibility } from '../../src/planet/exterior.js';
-import type { PlanetGrowth } from '../../src/planet/PlanetGrowth.js';
+import type { ForestScene, Island } from '../../../src/world/scene.js';
+import { PlanetWorldCanvas } from '../../../src/world/planet/PlanetWorldCanvas.js';
+import type { PlanetSurfaceVisibility } from '../../../src/world/planet/exterior.js';
+import type { PlanetGrowth } from '../../../src/world/planet/PlanetGrowth.js';
 
 const R = 218;
 const island = (story: string, capabilities: string[]): Island => ({

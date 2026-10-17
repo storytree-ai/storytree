@@ -5,11 +5,11 @@ import { Group, Mesh, OrthographicCamera, PerspectiveCamera, Vector3 } from "thr
 import { workStates } from "@storytree/arc-surface";
 import { forestScene, storyNodes } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
-import { applySheetEye, plateTransform, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "@storytree/forest-world/planet";
+import { applySheetEye, plateTransform, SHEET_FOV, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetSpot, SHIPPED_ELEVATION_DEG, type SheetPoint } from "../world/planet/PlanetWorldCanvas.js";
 import { createGlobeGuide, type GlobePose } from "./globe-guide.js";
 import { focusRotation, markerSpot } from "./planet-navigation.js";
 import { compassNorth, headingHome, opensBare, seesUnderside, sheetCentre, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetSpin, sheetPanUnder, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_STEP } from "./sheet-navigation.js";
-import { sheetPoint } from "@storytree/forest-world/planet";
+import { sheetPoint } from "../world/planet/PlanetWorldCanvas.js";
 
 const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
 const size = { width: 1440, height: 960 };

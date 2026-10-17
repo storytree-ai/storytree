@@ -9,7 +9,7 @@ const ROOT = path.resolve(HERE, '../../../../../..');
 const BEFORE = process.env.BEFORE ?? 'c8018334';
 const require = createRequire(path.join(ROOT, 'apps/desktop/package.json'));
 const { build, stop } = require('esbuild');
-const CHANGED = ['packages/forest-world/src/planet/planet.ts', 'packages/forest-world/src/planet/island-surface.ts',
+const CHANGED = ['packages/forest/src/world/planet/planet.ts', 'packages/forest/src/world/planet/island-surface.ts',
   'packages/forest/src/view/globe-surfaces.ts', 'packages/forest/src/view/planet-view.tsx'];
 const atBase = file => execFileSync('git', ['show', `${BEFORE}:${file}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 });
 const HOOK = 'const { camera, gl, scene, size, invalidate } = useThree();';

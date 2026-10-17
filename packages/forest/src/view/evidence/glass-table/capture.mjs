@@ -11,7 +11,7 @@ import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildCapture, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
-import { SHEET_TILT } from '@storytree/forest-world/planet';
+import { SHEET_TILT } from '@storytree/forest/world/planet';
 
 const degrees = radians => Math.round(radians * 1800 / Math.PI) / 10;
 const resting = degrees(SHEET_TILT);

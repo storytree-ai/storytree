@@ -10,7 +10,12 @@
     "./view/styles.css": "./src/view/styles.css",
     "./code-survey": "./src/code-survey/read-survey.ts",
     "./page": "./src/render/page.ts",
-    "./snapshot": "./src/snapshot/forest-snapshot.ts"
+    "./snapshot": "./src/snapshot/forest-snapshot.ts",
+    "./world": "./src/world/index.ts",
+    "./world/geometry": "./src/world/geometry.ts",
+    "./world/scene": "./src/world/scene.ts",
+    "./world/planet": "./src/world/planet/PlanetWorldCanvas.tsx",
+    "./world/road-worker": "./src/world/planet/road-worker.ts"
   },
   "storytree": {
     "surfaces": [
@@ -40,7 +45,6 @@
     "@storytree/library": "workspace:*",
     "@storytree/arc-surface": "workspace:*",
     "@storytree/session-management": "workspace:*",
-    "@storytree/forest-world": "workspace:*",
     "@storytree/knowledge-core": "workspace:*",
     "@dagrejs/dagre": "^1.1.4",
     "@react-three/drei": "^10.7.7",
@@ -58,6 +62,7 @@
     "@types/three": "^0.185.0",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
-    "typescript": "~7.0.2"
+    "typescript": "~7.0.2",
+    "playwright-core": "1.60.0"
   }
 }

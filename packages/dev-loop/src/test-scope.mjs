@@ -234,7 +234,7 @@ export function parseTestArgs(argv) {
  * took 12-15 s in most merge queue runs, but 76 s in one and past its 80 s bound in another (runs 38092380077 and
  * 38032277103; increment_58dcb2d5c9a5).
  */
-export const ALONE = ["packages/forest/src/view/desktop-renderer-smoke.test.ts", "packages/forest-world/src/planet/road-reveal.test.ts"];
+export const ALONE = ["packages/forest/src/view/desktop-renderer-smoke.test.ts", "packages/forest/src/world/planet/road-reveal.test.ts"];
 
 /** The units with each file to run alone whose package is among them added after them as its own. */
 function withAlone(root, units, alone) {

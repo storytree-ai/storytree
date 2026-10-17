@@ -4,11 +4,11 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties } from "react";
 import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
-import { globeOccluder, onIslandSurface, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
+import { globeOccluder, onIslandSurface, plateTransform, type PlanetSpot } from "../world/planet/PlanetWorldCanvas.js";
 import { islandTerritories, type Coast } from "../territories/territories.js";
 import { capabilityPlates, facing, fadedCapabilities, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { islandProgress } from "./island-progress.js";
-import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "@storytree/forest-world";
+import { GROUND_PER_WORLD_UNIT, islandReach, type Descriptor3D } from "../world/index.js";
 
 /** Keep an overlay's host stable when Canvas disconnects its events during project switching. */
 export function Overlay(props: ComponentProps<typeof Html>) {

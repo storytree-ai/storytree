@@ -5,7 +5,7 @@ import { workStates } from "@storytree/arc-surface";
 import { forestScene, growPlanet, sessionColour, storyNodes, type SessionWisp } from "@storytree/forest";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import { saveForestSnapshot } from "@storytree/forest/snapshot";
-import { islandCoastReach } from "@storytree/forest-world/geometry";
+import { islandCoastReach } from "@storytree/forest/world/geometry";
 import type { GrowthSnapshot } from "./forest-data.js";
 import { publicActivity, publicNotes, publicPlan, scrub } from "./tour-snapshot.js";
 

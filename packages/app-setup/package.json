@@ -24,7 +24,6 @@
     "@storytree/session-management": "workspace:*",
     "@storytree/journey-events": "workspace:*",
     "@storytree/library": "workspace:*",
-    "@storytree/local-postgres": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/processes": "workspace:*",
     "@storytree/quality-assurance": "workspace:*",

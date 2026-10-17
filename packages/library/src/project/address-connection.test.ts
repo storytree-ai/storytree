@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { saveKey } from "@storytree/keys";
+import { saveKey } from "../keys/index.js";
 import pg from "pg";
 import { connect, ConnectionError, type Storytree } from "@storytree/library";
 

@@ -18,7 +18,7 @@ async function configFile(t, fields) {
   return file;
 }
 
-test("12.15 · the pool reads its machine, checkout, lanes, session cap, models and watcher limits from its configuration, ~ as this machine's home", async (t) => {
+test("3.15 · the pool reads its machine, checkout, lanes, session cap, models and watcher limits from its configuration, ~ as this machine's home", async (t) => {
   const file = await configFile(t, { machine: "box", checkout: "~/src/shop", lanes: "~/pool", addDirs: ["~/src/shop-wt", "/srv/shared"], sessions: 3,
     engines: { codex: { model: "codex-model" }, claude: { model: "claude-model" }, switchAt: 80 },
     watcher: { fixesPerRed: 1, fixesPerPullRequest: 4, intervalSeconds: 30 } });
@@ -41,7 +41,7 @@ test("12.15 · the pool reads its machine, checkout, lanes, session cap, models 
   assert.throws(() => poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), /could not read the agent pool's configuration/);
 });
 
-test("12.16 · with no configuration the pool runs on general defaults: this checkout, no other machine, the engines' own models, Codex until it is spent", async (t) => {
+test("3.16 · with no configuration the pool runs on general defaults: this checkout, no other machine, the engines' own models, Codex until it is spent", async (t) => {
   const file = await configFile(t);
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), {
     machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: join("/home/u", ".storytree/agent-pool"),

@@ -1,10 +1,10 @@
-// Capability 13 · The watcher also owns a stopped release (ADR-1032 D2). Every few minutes its look loop reads the
+// Capability 4 · The watcher also owns a stopped release (ADR-1032 D2). Every few minutes its look loop reads the
 // latest published release, the "Release installed app" runs and main's own CI runs from GitHub, with no model. A
 // release attempt or main's newest CI run that failed is rerun once; if releases are still stopped after that, one
 // fix session is started for the stop, and after the fix limit the owner is asked on the release arc.
 //
 // The retry lives here rather than in a workflow beside rerun-unrun.yml: the once-only retry and the alarm read the
-// same runs and the same attempt numbers, so one reader decides both and its decisions are pure and tested (13.16),
+// same runs and the same attempt numbers, so one reader decides both and its decisions are pure and tested (4.16),
 // where a workflow's shell would be untested; and the watcher already reads GitHub every minute. A box that is down
 // retries nothing, but then it starts no lanes either. rerun-unrun.yml still reruns a CI job no runner took; when it
 // reruns main's newest run first, that run's next attempt is the retry here.

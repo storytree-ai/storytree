@@ -41,7 +41,7 @@ async function box(t, extra = {}) {
   };
 }
 
-test("12.5 · each lane waits for a slot and updates the checkout under the shared lock, then runs its brief through the lane runner", async (t) => {
+test("3.5 · each lane waits for a slot and updates the checkout under the shared lock, then runs its brief through the lane runner", async (t) => {
   let locked = false, waited = false;
   const b = await box(t, {
     survey: async () => poolWork(["increment_one"]), rules: async () => "Pool rules.\n",
@@ -64,7 +64,7 @@ test("12.5 · each lane waits for a slot and updates the checkout under the shar
   assert.deepEqual(slots, ["3 engines running, cap 5"]);
 });
 
-test("12.5 · the prepared checkout is at origin/main and pushes over SSH, leaving fetches on the original origin", async (t) => {
+test("3.5 · the prepared checkout is at origin/main and pushes over SSH, leaving fetches on the original origin", async (t) => {
   const dir = await folder(t);
   const origin = join(dir, "origin.git"), seed = join(dir, "seed"), repo = join(dir, "repo");
   const git = (cwd, ...args) => run("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd });
@@ -95,7 +95,7 @@ function poolWork(ids, extra = {}) {
   };
 }
 
-test("12.8 · the dispatcher fills free slots up to the cap and no further, never starts one increment twice, and retries a refused one only once its claim clears", async () => {
+test("3.8 · the dispatcher fills free slots up to the cap and no further, never starts one increment twice, and retries a refused one only once its claim clears", async () => {
   const lines = [], started = [], ends = new Map();
   let engines = 1, looks = 0, stop = false;
   let claims = [];
@@ -127,7 +127,7 @@ test("12.8 · the dispatcher fills free slots up to the cap and no further, neve
   assert.match(lines.at(-1), /stopped by/);
 });
 
-test("12.9 · `pool` starts each ready increment under the shared lock with the repository's pool brief, read-only work with the read-only rules", async (t) => {
+test("3.9 · `pool` starts each ready increment under the shared lock with the repository's pool brief, read-only work with the read-only rules", async (t) => {
   const b = await box(t, {
     survey: async () => poolWork(["increment_build", "increment_review"], { bodies: { increment_review: "needs: read-only, blind" } }),
     count: async () => 0, maxLanes: async () => 2,
@@ -148,7 +148,7 @@ test("12.9 · `pool` starts each ready increment under the shared lock with the 
   assert.equal(await main(["pool"], b), 1, "one dispatcher at a time");
 });
 
-test("12.10 · the dispatcher restarts between sessions when its own code changes, and not otherwise", async () => {
+test("3.10 · the dispatcher restarts between sessions when its own code changes, and not otherwise", async () => {
   const lines = [], started = [], ends = new Map(), refreshed = [];
   let version = "tree-a", engines = 0;
   const code = await runPool({
@@ -203,7 +203,7 @@ test("12.10 · the dispatcher restarts between sessions when its own code change
   assert.deepEqual({ slow, slowStarted }, { slow: 3, slowStarted: ["a"] }, "a version read from before the session ended never lets the next one start");
 });
 
-test("12.10 · its own code is the code it runs: a merge touching only other dev loop code leaves it starting work", async (t) => {
+test("3.10 · its own code is the code it runs: a merge touching only other dev loop code leaves it starting work", async (t) => {
   const repo = await folder(t);
   const git = (...args) => run("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: repo });
   const commit = async (path, text) => {
@@ -236,7 +236,7 @@ test("12.10 · its own code is the code it runs: a merge touching only other dev
   assert.deepEqual(configured, { code: 3, started: ["a"] }, "the pool's configuration changed: it restarts to read it");
 });
 
-test("12.11 · with free slots and nothing ready, one planning session starts for a qualifying arc, never two at once", async (t) => {
+test("3.11 · with free slots and nothing ready, one planning session starts for a qualifying arc, never two at once", async (t) => {
   const arcs = [{ id: "arc_old", state: "active", title: "Old", created: "2026-10-01T00:00:00Z", openQuestions: 0 },
     { id: "arc_new", state: "active", title: "New", created: "2026-10-02T00:00:00Z", openQuestions: 0 }];
   const started = [], ends = new Map();
@@ -263,7 +263,7 @@ test("12.11 · with free slots and nothing ready, one planning session starts fo
   assert.ok(b.briefs[0].includes(await planRules()) && /never build/i.test(b.briefs[0]));
 });
 
-test("12.14 · an arc it planned in a state it remembers is not planned again after a restart, and is once that state changes", async (t) => {
+test("3.14 · an arc it planned in a state it remembers is not planned again after a restart, and is once that state changes", async (t) => {
   const arc = { id: "arc_owner", state: "active", title: "Owner", created: "2026-10-01T00:00:00Z", openQuestions: 0 };
   const waiting = (ids) => ({ ...poolWork(ids), increments: poolWork(ids).increments.map((one) => ({ ...one, arc: arc.id })), arcs: [arc], holds: { waits: {}, heldOn: {}, waitsFor: Object.fromEntries(ids.map((id) => [id, [{ releaser: "event", note: "Apple renews the certificate", holds: true }]])) } });
   const restart = async (b, work) => {
@@ -282,7 +282,7 @@ test("12.14 · an arc it planned in a state it remembers is not planned again af
   assert.deepEqual(await restart(b, waiting(["cert", "next"])), ["# Planning lane: arc_owner"], "a newly parked increment changes it");
 });
 
-test("12.12 · an increment handed to the watcher is not offered while its hand-off stands, its fix session running or not", async (t) => {
+test("3.12 · an increment handed to the watcher is not offered while its hand-off stands, its fix session running or not", async (t) => {
   const b = await box(t, { survey: async () => poolWork(["increment_handed", "increment_fixing", "increment_free"]), count: async () => 0, maxLanes: async () => 3 });
   await mkdir(join(b.lanesDir, "watch"), { recursive: true });
   await writeFile(join(b.lanesDir, "watch", "41.json"), JSON.stringify({ pr: 41, increment: "increment_handed", fixes: [], fixing: null }));
@@ -294,7 +294,7 @@ test("12.12 · an increment handed to the watcher is not offered while its hand-
   assert.deepEqual(started, ["# Pool lane: increment_free"], "the handed-over increment and the one a fix session works are left to the watcher");
 });
 
-test("12.13 · with free slots and nothing ready the dispatcher looks again within minutes; full slots poll, and a failing survey backs off", async () => {
+test("3.13 · with free slots and nothing ready the dispatcher looks again within minutes; full slots poll, and a failing survey backs off", async () => {
   const pauses = [];
   let looks = 0, stop = false, fail = false, engines = 0;
   await runPool({
@@ -311,7 +311,7 @@ test("12.13 · with free slots and nothing ready the dispatcher looks again with
   assert.deepEqual(pauses, [2 * 60_000, 60_000, 15 * 60_000], "idle with free slots: two minutes; every slot busy: a minute without a survey; survey failed: fifteen");
 });
 
-test("12.17 · the dispatcher's cap is the configured session count, which the lanes folder's night-max-lanes overrides live", async (t) => {
+test("3.17 · the dispatcher's cap is the configured session count, which the lanes folder's night-max-lanes overrides live", async (t) => {
   const home = await mkdtemp(join(tmpdir(), "lane-pool-config-"));
   t.after(() => rm(home, { recursive: true, force: true }));
   const config = join(home, "agent-pool.json"), lanes = join(home, "lanes");
@@ -325,7 +325,7 @@ test("12.17 · the dispatcher's cap is the configured session count, which the l
   assert.deepEqual(slots, ["1 engines running, cap 3", "1 engines running, cap 7"]);
 });
 
-test("12.19 · `ready` prints, as JSON, the engines running, the cap, the lanes folder and the work the pool would start now, each with its arc's priority, for the project named", async (t) => {
+test("3.19 · `ready` prints, as JSON, the engines running, the cap, the lanes folder and the work the pool would start now, each with its arc's priority, for the project named", async (t) => {
   const b = await box(t, {
     maxLanes: async () => 4, count: async () => 2,
     survey: async (project) => {

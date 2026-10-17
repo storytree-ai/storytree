@@ -63,8 +63,8 @@ before(async () => {
   hook = await buildHook(bins);
 });
 
-after(() => {
-  rmSync(bins, { recursive: true, force: true });
+after(async () => {
+  await removeTempDir(bins);
 });
 
 /** A recorded hook input, with its working folder moved to `folder`. */

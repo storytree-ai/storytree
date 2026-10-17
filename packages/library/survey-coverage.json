@@ -50,6 +50,14 @@
   "8": 51,
   "14": 60
  },
+ "src/local-postgres/binaries.ts": {
+  "18": 6,
+  "19": 24
+ },
+ "src/local-postgres/server.ts": {
+  "18": 29,
+  "19": 116
+ },
  "src/project/cloud-sql.ts": {
   "1": 16,
   "7": 12,

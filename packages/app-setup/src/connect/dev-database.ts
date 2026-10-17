@@ -6,7 +6,7 @@
  */
 import path from "node:path";
 
-import { start } from "@storytree/local-postgres";
+import { start } from "@storytree/library/local-postgres";
 
 const home = process.argv[2];
 if (home === undefined) throw new Error("usage: dev-database <storytree home>");

@@ -7,7 +7,7 @@ import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
 
 import { acceptRun } from "./record-acceptance.mjs";
 import { mintAcceptance, readObservations, recordAcceptance, reportedStates, wentRedThenGreen } from "./acceptance-health.mjs";

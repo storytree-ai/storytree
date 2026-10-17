@@ -13,7 +13,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { connect } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 

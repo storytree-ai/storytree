@@ -26,7 +26,6 @@
     "@storytree/library": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "@storytree/map": "workspace:*",
-    "@storytree/processes": "workspace:*",
     "@storytree/quality-assurance": "workspace:*",
     "@storytree/project-and-caller": "workspace:*"
   },

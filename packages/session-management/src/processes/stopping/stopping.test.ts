@@ -216,7 +216,7 @@ test('15.4 native: a cooperative process exits in the polite phase, while anothe
       if (!isWindow(window)) process.exit(0);
     }, 10);
   `;
-  const run = await launch(t, dir, { folder: path.resolve(import.meta.dirname, '../..') }, setup);
+  const run = await launch(t, dir, { folder: path.resolve(import.meta.dirname, '../../..') }, setup);
   const foreign = await launch(t, dir, { owner: { session: 'other-session', harness: 'codex' } });
   const result = await stopping.stopOwned({ home: dir, owner, targets: [run.id], graceMs: 2000, forceMs: 2000 });
   assert.equal(result.ok, true, JSON.stringify(result));

@@ -10,7 +10,14 @@
     "./verbs": "./src/sessions/verbs.ts",
     "./workspace-verbs": "./src/claims/verbs.ts",
     "./hook-command": "./src/bins/storytree-hook.ts",
-    "./hook-start": "./src/hooks/at-once.ts"
+    "./hook-start": "./src/hooks/at-once.ts",
+    "./processes": "./src/processes/index.ts",
+    "./processes/process": "./src/processes/process/index.ts",
+    "./processes/listing": "./src/processes/listing/index.ts",
+    "./processes/stopping": "./src/processes/stopping/index.ts",
+    "./processes/closing": "./src/processes/closing/index.ts",
+    "./processes/testing": "./src/processes/testing/child.ts",
+    "./processes/verbs": "./src/processes/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -19,8 +26,8 @@
     "@storytree/library": "workspace:*",
     "pg": "^8.23.0",
     "zod": "^4.6.5",
-    "@storytree/processes": "workspace:*",
-    "@storytree/project-and-caller": "workspace:*"
+    "@storytree/project-and-caller": "workspace:*",
+    "koffi": "^3.3.2"
   },
   "devDependencies": {
     "@storytree/local-postgres": "workspace:*",
@@ -47,6 +54,10 @@
       {
         "from": "./workspace-verbs",
         "export": "WORKSPACE_FAMILIES"
+      },
+      {
+        "from": "./processes/verbs",
+        "export": "PROCESSES_FAMILIES"
       }
     ],
     "guidance": [
@@ -54,6 +65,11 @@
         "from": ".",
         "export": "claimsGuidance",
         "order": 40
+      },
+      {
+        "from": "./processes/listing",
+        "export": "runsGuidance",
+        "order": 90
       }
     ]
   }

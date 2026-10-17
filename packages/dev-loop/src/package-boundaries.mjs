@@ -19,7 +19,7 @@ import { packageProblems } from "@storytree/guardrails";
 import { ALSO_OWNED } from "@storytree/map/package-of";
 
 /** 0.3's own stories, each by the id its package has (packages/<id>); one that owns several declares the others in the map's ALSO_OWNED (ADR-1066 D3). */
-export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "journey-events", "lag-in-use", "learning-as-you-build", "knowledge-core", "librarian", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
+export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "journey-events", "lag-in-use", "learning-as-you-build", "knowledge-core", "librarian", "library", "local-postgres", "map", "mcp-server", "plugin-loader", "processes", "project-and-caller", "quality-assurance", "reading-the-front-doors", "session-management", "website"];
 // app-setup: story_b91056a06337 (The app setup).
 // processes: story_9abd84ab493f (Process ledger).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
@@ -30,7 +30,6 @@ export const STORIES = ["app", "app-setup", "arc-surface", "ci-health", "cli", "
 // guardrails: Guardrails, ADR-0911 D2.
 // mcp-server: The MCP server, ADR-0969 D1.
 // quality-assurance: story_421e473f0a99 (Quality assurance, ADR-0956 D2).
-// mark: story_b846911f0fc9 (The mark).
 // reading-the-front-doors: story_f8cd75d15d57 (Reading the front doors, ADR-0998).
 // lag-in-use: story_1c73ed7506ca (Lag in real use, ADR-1001 D4).
 // project-and-caller: story_6def59292b78 (Context, ADR-1025), which owns keys and identity too (ADR-1066 D4).

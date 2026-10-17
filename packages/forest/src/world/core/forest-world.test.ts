@@ -17,7 +17,7 @@ import { buildRelaxedCells, MESH_TUNING, type DrawTile } from './substrate.js';
 // ---------- rng ----------
 
 test('hash is deterministic and a uint32', () => {
-  assert.equal(hash('library'), hash('library'));
+  assert.equal(hash('library'), 2432105424, 'the seed every layout draws from is stable across runs and machines');
   assert.notEqual(hash('library'), hash('cli'));
   const h = hash('library');
   assert.ok(Number.isInteger(h) && h >= 0 && h <= 0xffffffff);

@@ -181,11 +181,6 @@ test('TEETH (b) — the key the old rule used really was camera-dependent, and t
     if (screenKey(v, LAND_CAMERA_ELEVATION_DEG) !== screenKey(v, PLAN_VIEW_ELEVATION_DEG)) {
       screenKeyMoved += 1;
     }
-    assert.equal(
-      groundKey(v),
-      groundKey(v),
-      'the ground key is a function of the ground alone — this cannot fail, and that is the point',
-    );
   }
   assert.ok(
     screenKeyMoved > groundVerts.length * 0.5,

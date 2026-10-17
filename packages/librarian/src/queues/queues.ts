@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Queues (the librarian story): lapsed open questions and friction are looked at on
+ * Capability 25 · Queues (The library story, its librarian package): lapsed open questions and friction are looked at on
  * each pass, and nothing is closed without a reason. The library owns the question review lease
  * and its lapsed-date drain (ADR-0654). The friction drain is 0.2's bounded one (ADR-0168 D4): at most the
  * three open reports, most recurrences first (ADR-0716), oldest first on ties, never one the session's own branch filed, so the librarian

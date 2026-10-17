@@ -1,8 +1,8 @@
 /**
- * Capability 2 · Decision log (the librarian story): every accepted decision stays true in full.
+ * Capability 22 · Decision log (The library story, its librarian package): every accepted decision stays true in full.
  * The dividing question is the agent's: did the decision change? No, and it is corrected in place
  * (`correct`); yes, and a successor supersedes it (`supersede`); a decision that narrows another
- * leaves a note in it (`annotate`). Finished business nothing points at is retired (capability 3's
+ * leaves a note in it (`annotate`). Finished business nothing points at is retired (capability 23's
  * `retire`), and one something points at is consolidated: superseded by a successor restating what
  * is still true. The health report (the owner's G1) is what a write cannot refuse: an edge to a
  * record retired since.

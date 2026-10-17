@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Queues. The `friction` and `resteer` verbs, declared here (ADR-0969 D2) and mounted by the command line
+ * Capability 25 · Queues. The `friction` and `resteer` verbs, declared here (ADR-0969 D2) and mounted by the command line
  * as its families of those names (ADR-1033): file friction or a re-steer, add a recurrence, and drain and route the
  * friction a landing's librarian pass judges. Session management owns capture (evidence validation and recurrence
  * dates), imported in the act; the drain and the route are this capability's. None is a tool: the MCP server's own

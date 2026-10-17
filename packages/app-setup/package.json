@@ -25,7 +25,6 @@
     "@storytree/journey-events": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
-    "@storytree/processes": "workspace:*",
     "@storytree/quality-assurance": "workspace:*",
     "@storytree/project-and-caller": "workspace:*"
   },

@@ -1,9 +1,9 @@
 /** Capability 6 · Agent tools (the MCP server). Ledger doors: identity is resolved by the server; all-session inspection needs no library. */
 import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
-import { listRuns, renderInventory } from '@storytree/processes/listing';
-import { clearOwned, readClosing, renderClosing } from '@storytree/processes/closing';
-import type { SharedWork } from '@storytree/processes/listing';
-import { stopOwned } from '@storytree/processes/stopping';
+import { listRuns, renderInventory } from '@storytree/session-management/processes/listing';
+import { clearOwned, readClosing, renderClosing } from '@storytree/session-management/processes/closing';
+import type { SharedWork } from '@storytree/session-management/processes/listing';
+import { stopOwned } from '@storytree/session-management/processes/stopping';
 import { z } from 'zod';
 import { refusalOf, result, type Answer } from './answers.js';
 

@@ -17,7 +17,7 @@ const scene: ForestScene = { islands: [island('a', ['a1', 'a2']), island('b', ['
   links: [{ from: 'a2', to: 'a1' }, { from: 'b1', to: 'a1' }, { from: 'b2', to: 'b1' }, { from: 'b2', to: 'a2' }] };
 const spots = new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['b', { x: -R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }]]);
 
-test('6.8 a lit link\'s lane is one unbroken strip between islands, from the dock of the island built on to the dock of the island building on it, a thread down the middle of its road with a glow beyond', () => {
+test('11.8 a lit link\'s lane is one unbroken strip between islands, from the dock of the island built on to the dock of the island building on it, a thread down the middle of its road with a glow beyond', () => {
   const plan = buildPlanetPathways(scene, spots, R);
   const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'b2', to: 'a2', dir: 'up' }, { from: 'a2', to: 'a1', dir: 'up' }]);
   assert.deepEqual(lanes.map(l => [l.from, l.to, l.colour]), [['b1', 'a1', LANE_COLOUR.down], ['b2', 'a2', LANE_COLOUR.up]],
@@ -52,7 +52,7 @@ test('6.8 a lit link\'s lane is one unbroken strip between islands, from the doc
   assert.deepEqual(laneRoutes(plan, [{ from: 'x', to: 'y', dir: 'up' }]), [], 'a link with no trail lights nothing');
 });
 
-test('6.8 a lit lane runs on from each dock along its way inland to its capability\'s territory, the same thread; with no way it ends at its dock', () => {
+test('11.8 a lit lane runs on from each dock along its way inland to its capability\'s territory, the same thread; with no way it ends at its dock', () => {
   const plan = buildPlanetPathways(scene, spots, R);
   const link = { from: 'b1', to: 'a1', dir: 'down' } as const;
   // A way from the dock straight to the island's middle, in the island's own ground coordinates.
@@ -78,7 +78,7 @@ test('6.8 a lit lane runs on from each dock along its way inland to its capabili
   assert.equal(none!.points.length, road!.points.length, 'with no way inland it ends at its docks');
 });
 
-test('6.8 a way inland lies on its island where the globe draws it, from the dock, a unit at most between points', () => {
+test('11.8 a way inland lies on its island where the globe draws it, from the dock, a unit at most between points', () => {
   const plan = buildPlanetPathways(scene, spots, R);
   for (const dock of plan.docks) {
     const way = onIsland([dock.local, { x: 0, z: 0 }], spots.get(dock.story)!, R);
@@ -88,7 +88,7 @@ test('6.8 a way inland lies on its island where the globe draws it, from the doc
   }
 });
 
-test('6.8 a type-only link stays marked on its road and its lane', () => {
+test('11.8 a type-only link stays marked on its road and its lane', () => {
   const typed: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }, { from: 'b2', to: 'a2', typeOnly: true }, { from: 'b2', to: 'a1', typeOnly: true }] };
   const plan = buildPlanetPathways(typed, spots, R);
   assert.deepEqual(plan.edges.map(e => [e.from, e.to, e.typeOnly === true]), [['b1', 'a1', false], ['b2', 'a2', true], ['b2', 'a1', true]]);
@@ -99,7 +99,7 @@ test('6.8 a type-only link stays marked on its road and its lane', () => {
   assert.deepEqual(lanes.map(lane => lane.typeOnly === true), [false, true]);
 });
 
-test('6.8 a lane marks each dock it uses in its colour, both colours side by side where an up and a down lane share one, shown once its front leaves or reaches it', () => {
+test('11.8 a lane marks each dock it uses in its colour, both colours side by side where an up and a down lane share one, shown once its front leaves or reaches it', () => {
   const plan = buildPlanetPathways(scene, spots, R);
   const lanes = laneRoutes(plan, [{ from: 'b1', to: 'a1', dir: 'down' }, { from: 'b2', to: 'a2', dir: 'up' }]);
   const marks = laneEntrances(lanes);
@@ -126,7 +126,7 @@ test('6.8 a lane marks each dock it uses in its colour, both colours side by sid
   assert.equal(entranceShown('end', 1), true);
 });
 
-test('6.8 opposite colours share a trunk side by side, each just under half of it, even when their links travel it in opposite directions, and join their exact endpoints continuously', () => {
+test('11.8 opposite colours share a trunk side by side, each just under half of it, even when their links travel it in opposite directions, and join their exact endpoints continuously', () => {
   const point = (x: number, y: number) => new Vector3(x, y, R);
   const line = (id: string, from: [number, number], to: [number, number], links: string[]) => ({
     id, width: 2, links, points: Array.from({ length: 21 }, (_, i) => point(from[0], from[1]).lerp(point(to[0], to[1]), i / 20)),
@@ -164,7 +164,7 @@ test('6.8 opposite colours share a trunk side by side, each just under half of i
   assert.ok(alone.points.every(p => Math.abs(p.x) >= 10 || p.y === 0), 'a single colour uses the centre of its road');
 });
 
-test('6.9 lit lanes start together and their fronts keep one steady pace, so the selection settles in its longest lane\'s time; whole at once under reduced motion', () => {
+test('11.9 lit lanes start together and their fronts keep one steady pace, so the selection settles in its longest lane\'s time; whole at once under reduced motion', () => {
   assert.ok(Math.abs(laneDrawSeconds(600) - 2 * laneDrawSeconds(300)) < 1e-9, 'a lane twice as long takes twice as long');
   assert.equal(laneProgress(0, laneDrawSeconds(100), false), 0, 'nothing drawn when the selection is made');
   for (const t of [0.1, 0.25, 0.5]) {
@@ -199,7 +199,7 @@ const headsAt = (lanes: readonly LaneRoute[], distance: number) => {
   return lanes.filter((lane, i) => laneHead(distance / LANE_SPEED, lane.length, heads[i]!, false) > 0).length;
 };
 
-test('6.9 one head per shared stretch of one colour: links over one road show one head on it and one each where their routes part, however many links ride it', () => {
+test('11.9 one head per shared stretch of one colour: links over one road show one head on it and one each where their routes part, however many links ride it', () => {
   const two = fork([{ from: 'e1', arm: 'east', dir: 'down' }, { from: 'w1', arm: 'west', dir: 'down' }]);
   assert.equal(two[0]!.length, two[1]!.length);
   for (const distance of [1, 10, 19]) assert.equal(headsAt(two, distance), 1, `one head on the shared trunk ${distance} units out`);
@@ -219,7 +219,7 @@ test('6.9 one head per shared stretch of one colour: links over one road show on
     'never a head under reduced motion');
 });
 
-test('6.9 a lane\'s head fades once the lane is whole, and grows in over a short distance where it turns off alone rather than popping on', () => {
+test('11.9 a lane\'s head fades once the lane is whole, and grows in over a short distance where it turns off alone rather than popping on', () => {
   const [alone] = fork([{ from: 'e1', arm: 'east', dir: 'down' }]), heads = laneHeads([alone!])[0]!, whole = laneDrawSeconds(alone!.length);
   assert.equal(laneHead(whole, alone!.length, heads, false), 1);
   assert.ok(laneHead(whole + 0.2, alone!.length, heads, false) > 0 && laneHead(whole + 0.2, alone!.length, heads, false) < 1, 'fading once whole');
@@ -231,7 +231,7 @@ test('6.9 a lane\'s head fades once the lane is whole, and grows in over a short
   assert.equal(at(30), 1);
 });
 
-test('6.9 slow rendered frames leave visible intermediate lane growth, while normal frame steps keep their real time', () => {
+test('11.9 slow rendered frames leave visible intermediate lane growth, while normal frame steps keep their real time', () => {
   let elapsed = 0;
   for (let i = 0; i < 4; i++) {
     const next = advanceLaneClock(elapsed, 0.016);

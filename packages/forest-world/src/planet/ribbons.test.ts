@@ -10,7 +10,7 @@ function front(geometry: BufferGeometry): number {
   return (positions.getX(lastPair * 2) + positions.getX(lastPair * 2 + 1)) / 2;
 }
 
-test('6.9 · The rendered lane front crosses unevenly sampled road sections by physical distance, including between samples', () => {
+test('11.9 · The rendered lane front crosses unevenly sampled road sections by physical distance, including between samples', () => {
   const geometry = laneRibbon({ points: [0, 1, 2, 10].map(x => new Vector3(x, 100, 0)), widths: [0.5, 0.5, 0.5, 0.5] });
   const material = laneMaterial('#0d8fb0', false, 1);
   const along = geometry.getAttribute('along'), position = geometry.getAttribute('position');
@@ -25,7 +25,7 @@ test('6.9 · The rendered lane front crosses unevenly sampled road sections by p
   material.dispose();
 });
 
-test('6.16 · A live road entering at the far end grows back by physical distance without changing its completed geometry', () => {
+test('11.16 · A live road entering at the far end grows back by physical distance without changing its completed geometry', () => {
   const geometry = ribbon({ points: [0, 1, 2, 10].map(x => new Vector3(x, 100, 0)), width: 2 });
   const original = Array.from(geometry.getAttribute('position').array);
   for (const progress of [0, 0.05, 0.5, 0.85, 0.95, 1, 0.3, 1]) {
@@ -44,7 +44,7 @@ test('6.16 · A live road entering at the far end grows back by physical distanc
   geometry.dispose();
 });
 
-test('6.8 · Lanes sharing a stretch of road lay one glow on it between them, however many ride it', () => {
+test('11.8 · Lanes sharing a stretch of road lay one glow on it between them, however many ride it', () => {
   const trunk = [0, 1, 2].map(x => new Vector3(x, 100, 0));
   const lanes = [
     { from: 'b1', to: 'a1', colour: '#6a5fee', points: [...trunk, new Vector3(3, 100, 0), new Vector3(4, 100, 0)] },

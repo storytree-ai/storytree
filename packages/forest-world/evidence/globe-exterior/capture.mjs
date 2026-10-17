@@ -1,4 +1,4 @@
-// World 6.7 in real Chromium: the mounted globe hides its sea, island grounds and roads independently,
+// Map view 11.7 in real Chromium: the mounted globe hides its sea, island grounds and roads independently,
 // keeping each island's host marks, and surface=false hides all of it. exterior.test.ts proves the
 // switches' rule without a GPU; this proves the canvas obeys it, and records what the proof executed.
 // Run from the checkout: node --import tsx packages/forest-world/evidence/globe-exterior/capture.mjs
@@ -13,7 +13,7 @@ import { recordBrowserCoverage } from '../../../dev-loop/src/browser-coverage.mj
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgDir = path.resolve(here, '../..');
 const out = path.join(here, 'out');
-const PROOF = 'forest-world 6.7 the mounted globe hides its sea, island grounds and roads independently, keeping plate children; hiding the exterior hides all of it';
+const PROOF = 'forest-world 11.7 the mounted globe hides its sea, island grounds and roads independently, keeping plate children; hiding the exterior hides all of it';
 
 let traces;
 const results = {};

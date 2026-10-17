@@ -7,8 +7,8 @@ import { after, before, test } from "node:test";
 import { FIRST_SHORT } from "./root.js";
 import { brokenBlocks, bundleShorts, remotionOn, renderPng, rgbOf } from "./render.js";
 
-/** A frame with the documents piled up, the island lit and the cursor on it. */
-const FRAME = 390;
+/** A frame with code on one screen and, on the other, the map with the island lit and its panel open. */
+const FRAME = 285;
 let serveUrl: string, scratch: string;
 before(async () => {
   serveUrl = await bundleShorts();

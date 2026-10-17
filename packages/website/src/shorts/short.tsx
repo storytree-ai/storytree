@@ -1,8 +1,8 @@
-/** Capability 6 · Pixel-art shorts. The first short, "seeing what agents built" (increment_9294d76b04cf, ADR-1046): the
- * same developer on both halves, thinking in bubbles, and on the storytree side the real view in the corner inset. The
- * globe draws off screen at the inset's resolution; each frame turns it to that moment's angle, lights the island the
- * developer looks at, renders it once by hand and hands it to the scene, which draws the one 320×180 canvas the page
- * shows ×6 with no smoothing. */
+/** Capability 6 · Pixel-art shorts. The first short, "seeing what agents built" (increment_9294d76b04cf, ADR-1046, reworked
+ * from the owner's notes in increment_4695144e6847): the same developer at the same desk on both halves, and on the
+ * storytree side's screen the real view. The globe draws off screen at GLOBE pixels square; each frame turns it to that
+ * moment's angle, lights the island once the developer has clicked it, renders it once by hand and hands it to the scene,
+ * which draws the one 320×180 canvas the page shows ×6 with no smoothing. */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AbsoluteFill, continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { useThree, type RootState } from "@react-three/fiber";
@@ -10,11 +10,13 @@ import { PlanetWorldCanvas } from "@storytree/forest/world/planet";
 import { planetPathwayDrawing } from "@storytree/forest/world/geometry";
 import type { CastMap } from "./cast.js";
 import { drawScene, type Words } from "./scene.js";
-import { beats, FONT, INSET, LOW, SCALE } from "./script.js";
-import { ISLAND, litAt, snapshot, turnAt } from "./view.js";
+import { beats, FONT, LOW, SCALE } from "./script.js";
+import { GROUNDING, litAt, snapshot, turnAt } from "./view.js";
 
 const spots = new Map(snapshot.spots);
-const WITH = beats(ISLAND.title).with;
+const WITH = beats(GROUNDING).with;
+/** The globe's own resolution: the largest it is shown on the screen, in the frame's pixels. */
+const GLOBE = 144;
 const LIT = "#ffd34d";
 const quaternion = (angle: number): [number, number, number, number] => [0, Math.sin(angle / 2), 0, Math.cos(angle / 2)];
 
@@ -95,7 +97,7 @@ export function SeeingWhatAgentsBuilt() {
     pixelText(ctx, drawScene(ctx, { seconds, frames: durationInFrames, cast: assets.cast, sheet: assets.sheet, view: state.gl.domElement }));
   }, [get, assets, frame, fps, seconds, durationInFrames, rotation]);
   return <AbsoluteFill style={{ background: "#000" }}>
-    <div style={{ position: "absolute", left: 0, top: 0, width: INSET.width, height: INSET.height }}>
+    <div style={{ position: "absolute", left: 0, top: 0, width: GLOBE, height: GLOBE }}>
       <PlanetWorldCanvas scene={snapshot.scene} spots={spots} radius={snapshot.radius} rotation={rotation} orbit={false}>
         <Grab onState={grabbed} />
       </PlanetWorldCanvas>

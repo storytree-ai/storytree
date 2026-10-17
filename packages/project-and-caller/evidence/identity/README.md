@@ -34,7 +34,7 @@ The client and session-store tests first failed with missing modules, the HTTP t
 - A real loopback HTTP request into the identity handler, real signed JWT validation against WorkOS-shaped HTTP responses, and an isolated ephemeral Postgres schema. Only the portable ID and first verified email are returned. Refused HTTP requests do not mutate identity rows; server errors do not expose secrets.
 - Feedback's optional identity bridge, no first-run identity request, explicit insertion into the editable message, removal before sharing, and normal feedback after sign-in failure. [Chromium captures](../../app-setup/evidence/identity/README.md) use a fixture account and submit nothing.
 
-Run the behavior tests with `pnpm run test packages/project-and-caller/src/identity/identity.test.ts packages/identity/src/client.test.ts packages/identity/src/session-store.test.ts packages/identity/src/command.test.ts packages/app-setup/src/view/mount.test.ts`. The PR and lane report carry the final gate table and three-platform CI results.
+Run the behavior tests with `pnpm run test packages/project-and-caller/src/identity/identity.test.ts packages/project-and-caller/src/identity/client.test.ts packages/project-and-caller/src/identity/session-store.test.ts packages/project-and-caller/src/identity/command.test.ts packages/app-setup/src/view/mount.test.ts`. The PR and lane report carry the final gate table and three-platform CI results.
 
 ## Read-only staging check — 2026-10-06, about 02:11 UTC
 

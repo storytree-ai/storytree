@@ -28,7 +28,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import type { AnnotatedTree, Library, SchemaRecord } from "@storytree/library";
+import type { AnnotatedStory, AnnotatedTree, Library, PendingChange, SchemaRecord } from "@storytree/library";
 
 import { readClaims, type Claim, type ClaimContext } from "./claims.js";
 
@@ -84,21 +84,25 @@ async function refusalsOf(context: GateContext, checkout: string, files: readonl
   const placed = files.map((file) => ({ ...file, relative: path.relative(checkout, path.resolve(checkout, file.path)).split(path.sep).join("/") }))
     .filter(({ relative }) => relative.startsWith("packages/") || relative.startsWith("apps/desktop/"));
   if (placed.length === 0 && inImports.length === 0) return [];
-  const tree = await context.library.projectTree();
-  const explored = inImports.map(({ imported, relative }) => ({ imported, file: relative, covering: coveringOf(tree, imported, relative) }));
-  const owners = [
-    ...explored.flatMap(({ covering, file }) => (covering === undefined ? [] : [{ ...covering, file }])),
-    ...(placed.length === 0 ? [] : await declaredOwners(tree, checkout, placed, declared)),
-  ];
-  if (owners.length === 0 && explored.length === 0) return [];
-
-  const claims = await readClaims(context.log, context.project, {
-    ...(context.quietMs === undefined ? {} : { quietMs: context.quietMs }),
-    ...(context.restarted === undefined ? {} : { restarted: context.restarted }),
-  });
+  const [tree, claims] = await Promise.all([
+    context.library.projectTree(),
+    readClaims(context.log, context.project, {
+      ...(context.quietMs === undefined ? {} : { quietMs: context.quietMs }),
+      ...(context.restarted === undefined ? {} : { restarted: context.restarted }),
+    }),
+  ]);
   const mine = claims.filter((claim) => claim.session === context.session && claim.increment !== undefined);
   const others = claims.filter((claim) => claim.session !== context.session && claim.holder === "live");
-  const lists = new Map(await Promise.all([...mine, ...others.filter((claim) => claim.increment !== undefined)].map(async (claim) => [claim.increment!, await listOf(context.library, claim.increment!)] as const)));
+  const plans = new Map(await Promise.all([...mine, ...others.filter((claim) => claim.increment !== undefined)].map(async (claim) => [claim.increment!, await planOf(context.library, claim.increment!)] as const)));
+  const lists = new Map([...plans].map(([increment, { capabilities }]) => [increment, capabilities] as const));
+
+  const explored = inImports.map(({ imported, relative }) => ({ imported, file: relative, covering: coveringOf(tree, imported, relative) }));
+  const moves = [...new Set(mine.map((claim) => claim.increment!))].flatMap((increment) => plans.get(increment)!.pending);
+  const owners = [
+    ...explored.flatMap(({ covering, file }) => (covering === undefined ? [] : [{ ...covering, file }])),
+    ...(placed.length === 0 ? [] : await declaredOwners(tree, moves, checkout, placed, declared)),
+  ];
+  if (owners.length === 0 && explored.length === 0) return [];
 
   const driving = mine.at(-1)?.increment;
   const refusals: EditRefusal[] = [];
@@ -290,20 +294,57 @@ export function allowCommand(increment: string): string {
   return `storytree workspace allow ${increment}`;
 }
 
-/** The capability each of `files` declares, in the plan's stories, in order; a file that declares none is left out. */
-async function declaredOwners(tree: AnnotatedTree, checkout: string, files: readonly (EditedFile & { relative: string })[], declared: DeclaredCapabilities): Promise<{ capability: string; title: string; file: string }[]> {
+/**
+ * The capability each of `files` declares, in the plan's stories, in order; a file that declares none is left out. The
+ * session's increments' pending `moves` place a file first (ADR-0966): a capability they move or renumber answers to its
+ * new number in its new story and in its old one, whose packages still hold its code while the branch is open, so a fold
+ * that renumbers a package's tests is placed against the plan its branch merges into. The live plan places the rest.
+ */
+async function declaredOwners(tree: AnnotatedTree, moves: readonly PendingChange[], checkout: string, files: readonly (EditedFile & { relative: string })[], declared: DeclaredCapabilities): Promise<{ capability: string; title: string; file: string }[]> {
   const texts = new Map(files.map((file) => [file.relative, file.text] as const));
-  const placed = await declared(checkout, [...texts.keys()], tree, (file) => texts.get(file) ?? readFileSync(path.join(checkout, file), "utf8"));
-  const titles = new Map(tree.stories.flatMap((story) => story.capabilities.map(({ id, title }) => [id, title] as const)));
+  const readText = (file: string) => texts.get(file) ?? readFileSync(path.join(checkout, file), "utf8");
+  const moved = movedOnly(tree, moves);
+  const first = moved === undefined ? new Map<string, string>() : await declared(checkout, [...texts.keys()], moved, readText);
+  const rest = [...texts.keys()].filter((file) => !first.has(file));
+  const placed = new Map([...first, ...(rest.length === 0 ? [] : await declared(checkout, rest, tree, readText))]);
+  const titles = new Map([...tree.stories, ...(moved?.stories ?? [])].flatMap((story) => story.capabilities.map(({ id, title }) => [id, title] as const)));
   const owners: { capability: string; title: string; file: string }[] = [];
-  for (const [file, capability] of placed) {
+  for (const file of texts.keys()) {
+    const capability = placed.get(file);
+    if (capability === undefined) continue;
     if (!owners.some((owner) => owner.capability === capability)) owners.push({ capability, title: titles.get(capability)!, file });
   }
   return owners;
 }
 
+/**
+ * `tree` holding only the capabilities `moves` move or renumber, each under its new title in its new story and its old
+ * one; undefined when they move none.
+ */
+function movedOnly(tree: AnnotatedTree, moves: readonly PendingChange[]): AnnotatedTree | undefined {
+  const changed = new Map(moves.flatMap((move) => ("after" in move && move.type === "capability" && (typeof move.after.title === "string" || typeof move.after.story === "string") ? [[move.record, move.after] as const] : [])));
+  if (changed.size === 0) return undefined;
+  const stories = tree.stories.map((story) => ({ ...story, capabilities: [] as AnnotatedStory["capabilities"] }));
+  for (const story of tree.stories) {
+    for (const capability of story.capabilities) {
+      const after = changed.get(capability.id);
+      if (after === undefined) continue;
+      const moved = { ...capability, title: typeof after.title === "string" ? after.title : capability.title };
+      const to = typeof after.story === "string" ? after.story : story.id;
+      for (const holder of stories) if (holder.id === story.id || holder.id === to) holder.capabilities.push(moved);
+    }
+  }
+  return { ...tree, stories };
+}
+
+/** The capabilities list and pending plan changes of `increment`: none when it has none or is not an increment. */
+async function planOf(library: Library, increment: string): Promise<{ capabilities: readonly string[]; pending: readonly PendingChange[] }> {
+  const record = await library.get(increment);
+  const fields = record?.type === "increment" ? (record as SchemaRecord<"increment">).fields : undefined;
+  return { capabilities: fields?.capabilities ?? [], pending: fields?.pending ?? [] };
+}
+
 /** The capabilities list of `increment`: none when it has none or is not an increment. */
 async function listOf(library: Library, increment: string): Promise<readonly string[]> {
-  const record = await library.get(increment);
-  return record?.type === "increment" ? ((record as SchemaRecord<"increment">).fields.capabilities ?? []) : [];
+  return (await planOf(library, increment)).capabilities;
 }

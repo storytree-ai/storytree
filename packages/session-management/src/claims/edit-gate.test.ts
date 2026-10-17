@@ -77,6 +77,42 @@ test("5.31 an edit tool aimed at a capability its session's claimed increment do
   }
 });
 
+test("5.52 a file is placed by its session's increment's pending moves before the live plan: a capability the increment moves or renumbers answers to its new number in its new story and in its old one, whose packages may still hold its code, so a fold is asked for no capability it never touches (ADR-0966)", async () => {
+  const project = uniqueProjectName();
+  const storytree = await connect({ url: testServerUrl() });
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (checkout) => {
+      const library = await storytree.openProject(project);
+      const loop = await library.addStory({ title: "Dev loop" });
+      const runner = await library.addStory({ title: "Agent runner" });
+      await library.addCapability({ title: "1 · Test scoping", story: loop.id });
+      const guidance = (await library.addCapability({ title: "2 · Guidance", story: loop.id })).id;
+      const engine = (await library.addCapability({ title: "10 · Pool engine", story: loop.id })).id;
+      const arc = await library.createArc({ title: "Fold", intent: "Move the pool", endState: "Agent runner holds the pool", stories: [loop.id, runner.id] });
+      const fold = (await library.addIncrement({ arc: arc.id, title: "The pool is its own story", objective: "o", body: "b", capabilities: [engine] })).id;
+      const as = (session: string) => ({ log, library, project, session, harness: "claude-code", folder: checkout });
+      assert.equal((await claim(as("A"), fold, "driving the fold")).ok, true);
+      await library.pendChange(fold, { record: engine, fields: { story: runner.id, title: "1 · Pool engine" } });
+      const header = (number: number) => `/**\n * Capability ${number} · the pool.\n */\n`;
+      const gate = (file: string, number: number) => editRefusal(as("A"), checkout, [{ path: path.join(checkout, file), text: header(number) }], declaredInTests);
+
+      assert.equal(await gate("packages/dev-loop/src/engine.ts", 1), undefined, "a renumbered file in the old story's package is the moved capability's, not the live 1 · Test scoping");
+      assert.equal(await gate("packages/agent-runner/src/engine.ts", 1), undefined, "and in the new story's package");
+      assert.equal(await gate("packages/dev-loop/src/engine.ts", 10), undefined, "a file not yet renumbered is still placed by the live plan");
+      const live = await gate("packages/dev-loop/src/guide.ts", 2);
+      assert.deepEqual(live?.refused === "unlisted" ? [live.capability, live.title] : live, [guidance, "2 · Guidance"], "a number the pending moves do not carry is placed by the live plan");
+    });
+  } finally {
+    try {
+      await log.close();
+      await storytree.close();
+    } finally {
+      await dropTestProjects([project]);
+    }
+  }
+});
+
 test("5.40 an edit tool aimed at a file in an imported folder is refused before the edit unless the session's increment lists the explored capability covering it, saying how to go on; when it does, the user is asked for the edit, never the agent (ADR-0993 D4, ADR-1015 D1-D2)", async () => {
   const project = uniqueProjectName();
   const storytree = await connect({ url: testServerUrl() });

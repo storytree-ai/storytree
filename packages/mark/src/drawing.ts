@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Master drawing and colour roles. The owner's chosen mark (2026-10-11): a globe, three islets and a main island,
+ * Capability 7 · Master drawing and colour roles. The owner's chosen mark (2026-10-11): a globe, three islets and a main island,
  * and inside the main island a tree of five dots. The geometry is held once here, as shapes in a 104 x 104 box; the SVG is
  * written from them and the fixed-colour files are rendered from them; the 16-pixel files use a small-size variant generated
  * from the same shapes (ADR-0999). No role has a colour of its own.

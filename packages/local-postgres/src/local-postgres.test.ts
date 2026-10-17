@@ -42,7 +42,7 @@ after(async () => {
   rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 });
 
-test("1.1, 1.2 the binaries come from this machine's @embedded-postgres package, and on Windows arm64 from the x64 one, run under emulation", () => {
+test("18.1, 18.2 the binaries come from this machine's @embedded-postgres package, and on Windows arm64 from the x64 one, run under emulation", () => {
   assert.deepEqual(binaryPackages("win32", "arm64"), ["@embedded-postgres/windows-arm64", "@embedded-postgres/windows-x64"]);
   assert.deepEqual(binaryPackages("win32", "x64"), ["@embedded-postgres/windows-x64"]);
   assert.deepEqual(binaryPackages("linux", "arm64"), ["@embedded-postgres/linux-arm64"]);
@@ -66,7 +66,7 @@ test("1.1, 1.2 the binaries come from this machine's @embedded-postgres package,
   assert.throws(() => findBinaries({ dir: empty }), (error: Error) => error.message.includes(empty));
 });
 
-test("2.1 ensureCluster makes a cluster only when there is none: asking every connection for the installation's password, and listening on 127.0.0.1 only", async () => {
+test("19.1 ensureCluster makes a cluster only when there is none: asking every connection for the installation's password, and listening on 127.0.0.1 only", async () => {
   const dataDir = path.join(root, "made");
   assert.equal(await ensureCluster(dataDir), true, "made the first time");
   assert.ok(existsSync(path.join(dataDir, "PG_VERSION")), "a Postgres cluster");
@@ -86,7 +86,7 @@ test("2.1 ensureCluster makes a cluster only when there is none: asking every co
   assert.equal(readFileSync(path.join(other, "notes.txt"), "utf8"), "mine");
 });
 
-test("2.2 start runs the server on the data directory, it answers SELECT 1 at the url handed back, and stop stops it", async () => {
+test("19.2 start runs the server on the data directory, it answers SELECT 1 at the url handed back, and stop stops it", async () => {
   const dataDir = await freshCluster("start-stop");
   const server = await started({ dataDir });
   const url = new URL(server.url);
@@ -111,7 +111,7 @@ test("2.2 start runs the server on the data directory, it answers SELECT 1 at th
   await stopped(again);
 });
 
-test("2.5 start can run the server with settings, as a throwaway test server runs without durability; a server started without them keeps them", async () => {
+test("19.5 start can run the server with settings, as a throwaway test server runs without durability; a server started without them keeps them", async () => {
   const dataDir = await freshCluster("settings");
   const durable = await started({ dataDir });
   assert.deepEqual(await query(durable.url, "SHOW fsync"), [{ fsync: "on" }]);
@@ -128,7 +128,7 @@ test("2.5 start can run the server with settings, as a throwaway test server run
   assert.equal(serverRunning(dataDir), false);
 });
 
-test("2.3 a second start on a data directory a live process holds is refused, naming that process, and its server is left running", async () => {
+test("19.3 a second start on a data directory a live process holds is refused, naming that process, and its server is left running", async () => {
   const dataDir = await freshCluster("held");
   const holder = await hold(dataDir);
 
@@ -154,7 +154,7 @@ test("2.3 a second start on a data directory a live process holds is refused, na
   await stopped(mine);
 });
 
-test("2.4 a server left running by a process that died is stopped and replaced, and a dead owner's record alone is cleared", async () => {
+test("19.4 a server left running by a process that died is stopped and replaced, and a dead owner's record alone is cleared", async () => {
   const dataDir = await freshCluster("stale");
   const holder = await hold(dataDir);
   await holder.kill(); // it cannot stop its server
@@ -176,7 +176,7 @@ test("2.4 a server left running by a process that died is stopped and replaced, 
   await stopped(recovered);
 });
 
-test("2.6 the server lets in only a client with the installation's password, which it hands over privately while it runs", async () => {
+test("19.6 the server lets in only a client with the installation's password, which it hands over privately while it runs", async () => {
   const dataDir = path.join(root, "password");
   const server = await started({ dataDir });
   const password = decodeURIComponent(new URL(server.url).password);
@@ -214,7 +214,7 @@ test("2.6 the server lets in only a client with the installation's password, whi
   await stopped(again);
 });
 
-test("2.7 a cluster made when local connections were trusted is given the password before its server starts again, keeping its data, and an interrupted start never reopens it, even for a Windows administrator", async () => {
+test("19.7 a cluster made when local connections were trusted is given the password before its server starts again, keeping its data, and an interrupted start never reopens it, even for a Windows administrator", async () => {
   const dataDir = path.join(root, "legacy");
   assert.equal(tool("initdb", ["-D", dataDir, "-U", "postgres", "-A", "trust", "-E", "UTF8"]), 0);
   appendFileSync(path.join(dataDir, "postgresql.conf"), "\nlisten_addresses = '127.0.0.1'\n");
@@ -253,7 +253,7 @@ test("2.7 a cluster made when local connections were trusted is given the passwo
   await stopped(again);
 });
 
-test("2.8 clients sign in as an ordinary role that owns storytree's databases, never as the superuser, and a cluster's earlier databases are handed to it", async () => {
+test("19.8 clients sign in as an ordinary role that owns storytree's databases, never as the superuser, and a cluster's earlier databases are handed to it", async () => {
   const dataDir = await freshCluster("client-role");
   // Before: the superuser made a database with a table, a sequence of its own and a view, as a cluster from before this did.
   const before = await started({ dataDir, signIn: "superuser" });
@@ -300,7 +300,7 @@ test("2.8 clients sign in as an ordinary role that owns storytree's databases, n
   await stopped(server);
 });
 
-test("2.10 on Windows the sign-in is kept private beside a data directory whose folder lets this user change files but not take ownership, as a checkout under C:\\code does", { skip: process.platform !== "win32" && "platform:win32: a Windows access list" }, () => {
+test("19.10 on Windows the sign-in is kept private beside a data directory whose folder lets this user change files but not take ownership, as a checkout under C:\\code does", { skip: process.platform !== "win32" && "platform:win32: a Windows access list" }, () => {
   // A folder granting this user Modify alone, inherited, as C:\code grants Authenticated Users: no right to change an owner.
   const parent = path.join(root, "modify-only");
   mkdirSync(parent);
@@ -319,7 +319,7 @@ test("2.10 on Windows the sign-in is kept private beside a data directory whose 
   assert.doesNotMatch(granted, /\(I\)/, "nothing inherited from the folder");
 });
 
-test("2.11 on Windows a sign-in folder a failed first run left behind is made private before any sign-in goes into it", { skip: process.platform !== "win32" && "platform:win32: a Windows access list" }, () => {
+test("19.11 on Windows a sign-in folder a failed first run left behind is made private before any sign-in goes into it", { skip: process.platform !== "win32" && "platform:win32: a Windows access list" }, () => {
   // A first run that made <dataDir>.auth but failed to protect it leaves the folder open to what its parent grants.
   const dataDir = path.join(root, "left-open", "data");
   mkdirSync(`${dataDir}.auth`, { recursive: true });
@@ -330,7 +330,7 @@ test("2.11 on Windows a sign-in folder a failed first run left behind is made pr
   assert.doesNotMatch(granted, /\(I\)/, "nothing inherited from the folder");
 });
 
-test("2.9 a throwaway test server can hand back the superuser's url beside its client's, for tests' setup, while its clients and handoff stay the ordinary role", async () => {
+test("19.9 a throwaway test server can hand back the superuser's url beside its client's, for tests' setup, while its clients and handoff stay the ordinary role", async () => {
   const dataDir = await freshCluster("superuser-beside");
   const server = await started({ dataDir, superuserUrl: true });
   assert.equal(new URL(server.url).username, "storytree", "the url clients use is the ordinary role's");

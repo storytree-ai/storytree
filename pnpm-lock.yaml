@@ -132,6 +132,9 @@ importers:
 
   packages/agent-pool:
     dependencies:
+      '@storytree/claude-code-mod':
+        specifier: workspace:*
+        version: link:../claude-code-mod
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
@@ -270,6 +273,18 @@ importers:
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/claude-code-mod:
     devDependencies:
       '@types/node':
         specifier: ^24.13.6

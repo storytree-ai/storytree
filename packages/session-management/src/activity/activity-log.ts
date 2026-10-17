@@ -24,6 +24,8 @@ import { connect, NEW_LINE, type Line, type LineKind, type LinesSince, type NewL
 import { readExperiment } from "@storytree/project-and-caller";
 
 import { BRANCH_FACTS, countValues, FOLD_LINES, foldValues, inViewValues, MAIN_WORK, selectLines, SESSION_COUNT, SESSIONS_IN_VIEW, STANDING_CLAIMS, STATE_LINES, stateValues, type LineFilter } from "./bounded.js";
+import type { Beat } from "../readings.js";
+import { BEATS_SCHEMA, beatsOf, PgSessionBeats, type SessionBeats } from "./session-beats.js";
 import { PgTranscriptRecords, TRANSCRIPT_SCHEMA, type TranscriptRecords } from "./transcript-records.js";
 
 /** The database the log lives in, on the same server as the projects' libraries. */
@@ -69,6 +71,8 @@ export interface ActivityLog {
   locked<T>(project: string, work: (log: LockedLog) => Promise<T>): Promise<T>;
   /** Sessions' transcripts as their hooks streamed them in, scrubbed (ADR-0749 D3): kept beside the lines, on the same connection. */
   readonly transcripts: TranscriptRecords;
+  /** Sessions' heartbeats, from their harness's own timer (ADR-1056 D3): kept beside the lines, on the same connection. */
+  readonly beats: SessionBeats;
   /** Close the log's connections. */
   close(): Promise<void>;
 }
@@ -116,6 +120,8 @@ export interface LockedLog {
   foldLines(sessions: readonly string[], commandsSince: string): Promise<Line[]>;
   /** When each of `sessions`, or of every session when none are named, last wrote a line. */
   lastSeen(sessions?: readonly string[]): Promise<Map<string, string>>;
+  /** The latest heartbeat of each of `sessions` that has one (ActivityLog.beats). */
+  beats(sessions: readonly string[]): Promise<Map<string, Beat>>;
   /** The time by the database's clock, which stamps every line. */
   now(): Promise<Date>;
   /** Add a line, as ActivityLog.append does. */
@@ -166,6 +172,7 @@ const SCHEMA: readonly string[] = [
   `ALTER TABLE activity ADD COLUMN IF NOT EXISTS event_via text`,
   `CREATE INDEX IF NOT EXISTS activity_project_event_idx ON activity (project, event) WHERE event IS NOT NULL`,
   ...TRANSCRIPT_SCHEMA,
+  ...BEATS_SCHEMA,
 ];
 
 /** The fields every line has its own column for; the rest of a line is its `detail`. */
@@ -221,7 +228,7 @@ export async function forgetProjectActivity(server: Storytree, project: string):
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
-    for (const table of ["activity", "transcript_records", "transcript_readings"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
+    for (const table of ["activity", "transcript_records", "transcript_readings", "session_beats"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {
@@ -249,12 +256,14 @@ class PgActivityLog implements ActivityLog {
   readonly #owner: Storytree | undefined;
 
   readonly transcripts: TranscriptRecords;
+  readonly beats: SessionBeats;
 
   constructor(pool: Pool, stamp: Stamp, owner?: Storytree) {
     this.#pool = pool;
     this.#stamp = stamp;
     this.#owner = owner;
     this.transcripts = new PgTranscriptRecords(pool);
+    this.beats = new PgSessionBeats(pool);
   }
 
   async append(project: string, line: NewLine, options: AppendOptions = {}): Promise<Line> {
@@ -340,6 +349,7 @@ class PgActivityLog implements ActivityLog {
         foldLines: async (sessions, commandsSince) => sessions.length === 0 ? []
           : (await client.query<ActivityRow>(FOLD_LINES, foldValues(project, sessions, commandsSince))).rows.map(lineOf),
         lastSeen: (sessions) => lastSeenIn(client, project, sessions),
+        beats: (sessions) => beatsOf(client, project, sessions),
         now: async () => (await client.query<{ now: Date }>("SELECT now() AS now")).rows[0]!.now,
         append: (line) => insert(client, project, parseLine(this.#stamped(line))),
       }),

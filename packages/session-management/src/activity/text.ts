@@ -8,7 +8,7 @@ import { labelOf } from "../sessions/index.js";
 import type { Line } from "@storytree/library";
 
 /** Why a holder no longer bound, as a person says it. */
-const BECAUSE = { idle: "idle", gone: "gone", restart: "machine restarted", "closed-out": "closed out" } as const;
+const BECAUSE = { idle: "idle", gone: "gone", restart: "machine restarted", "closed-out": "closed out", stopped: "heartbeat stopped" } as const;
 
 /** How long a taken-over holder had been quiet when it was taken, and why, or nothing when the line does not say (ADR-0953 D2). */
 function quiet(line: Extract<Line, { kind: "claimed" }>): string {

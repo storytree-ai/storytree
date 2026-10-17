@@ -317,9 +317,12 @@ test("4.21 the look never stalls its process: while git takes its time asking or
     await withTempDir(async (dir) => {
       const repo = path.join(dir, "site");
       git(dir, "init", "-q", "-b", "main", repo);
-      // Origin answers slowly: the stand-in for a network round trip is an ssh command that waits 1.5 s.
+      // Origin answers slowly: the stand-in for a network round trip is an ssh command that waits 3 s.
+      // A look that blocked its process would hold a timer for that whole wait; a loaded runner's own
+      // stalls are shorter (865 ms seen on Windows CI), so the bound is half the wait, not a fixed budget.
+      const roundTripMs = 3_000;
       git(repo, "remote", "add", "origin", "ssh://origin.invalid/site.git");
-      git(repo, "config", "core.sshCommand", `node -e "setTimeout(() => {}, 1500)"`);
+      git(repo, "config", "core.sshCommand", `node -e "setTimeout(() => {}, ${roundTripMs})"`);
       await log.append(project, { session: "laptop", harness: "claude-code", source: "hook", machine: "elsewhere", folder: "C:\\site", branch: "claude/laptop", kind: "file-edited", files: ["x.ts"] });
 
       const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
@@ -338,8 +341,8 @@ test("4.21 the look never stalls its process: while git takes its time asking or
       } finally {
         clearInterval(ticking);
       }
-      assert.ok(performance.now() - started >= 1_000, "the look waited on the slow origin");
-      assert.ok(worst < 500, `a timer waited ${Math.round(worst)} ms behind the look`);
+      assert.ok(performance.now() - started >= roundTripMs, "the look waited on the slow origin");
+      assert.ok(worst < roundTripMs / 2, `a timer waited ${Math.round(worst)} ms behind the look`);
     });
   } finally {
     await log.close();

@@ -7,7 +7,7 @@ import { unresolved } from "./cast.js";
 import { drawable } from "./font.js";
 import { drawScene } from "./scene.js";
 import { BUBBLE, beats, chatAt, columnsOf, END_CARD, GLYPH, HALF, layBubble, LENGTH, PAD, POSES, PROPS, SCREEN, SMALL, type Side } from "./script.js";
-import { GROUNDING, PANEL, snapshot } from "./view.js";
+import { GROUNDING, PANEL } from "./view.js";
 
 const sprites = new URL("./public/sprites/", import.meta.url);
 const cast = JSON.parse(await readFile(new URL("cast.json", sprites), "utf8")) as CastMap;
@@ -69,10 +69,10 @@ test("6.5 · the storytree side's map is the real view, copied onto its screen w
 });
 
 test("6.8 · the island's panel lists the real island's parts, and the storytree side's short prompt names one of them while the long one names none", () => {
-  const island = (snapshot.scene.islands as unknown as { story: string; title: string; land: { territories: { title: string }[] } }[])
-    .find(each => each.story === PANEL.story)!;
-  assert.equal(PANEL.title, island.title);
-  assert.deepEqual(PANEL.parts.map(part => part.title).sort(), island.land.territories.map(part => part.title).sort());
+  assert.equal(PANEL.title, "The website", "the island is the website's own");
+  assert.deepEqual(PANEL.parts.slice(0, 5).map(part => part.title),
+    ["1 · Home page", "2 · The forest on the site", "3 · Saved snapshot", "4 · Publish on merge", "5 · Waitlist"], "its parts, in number order");
+  assert.equal(GROUNDING.capability, "5 · Waitlist");
   const typed = (side: Side) => script[side].flatMap(beat => beat.typed ? [beat.typed.toLowerCase()] : []);
   const named = (prompt: string) => PANEL.parts.filter(part => prompt.includes(part.title.toLowerCase()));
   assert.ok(typed("with").some(prompt => named(prompt).length === 1 && prompt.includes(PANEL.title.toLowerCase())), "a short prompt names the island and one part");

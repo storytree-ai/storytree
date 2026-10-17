@@ -1,8 +1,9 @@
 /**
- * Capability 2 · Agent activity log. Friction and re-steer capture, which the MCP server's tools and the
- * command line both call, with storytree 0.2's evidence rules (ADR-0643 D1, the owner's n4;
- * 0.2's `packages/cli/src/friction.ts` and `resteer.ts`). These are this story's functions: the
- * agent tools call them, and a person's command line (`0-3-cli-story-tree`) calls the same ones.
+ * Capability 25 · Queues. Friction and re-steer capture, which the MCP server's tools, the command line
+ * and Session management's hooks all call, with storytree 0.2's evidence rules (ADR-0643 D1, the owner's n4;
+ * 0.2's `packages/cli/src/friction.ts` and `resteer.ts`). Filing joins the queue it fills here, so the
+ * library depends on no session code (ADR-1071 D3): the agent tools call these functions, and a person's
+ * command line (`0-3-cli-story-tree`) calls the same ones.
  * They write through the library's `writeKnowledge`, which keeps the rules of the records
  * themselves (a friction's evidence, a defect's failure mode: the library's 6.7); what is added here
  * is only the capture's own floor.
@@ -16,7 +17,7 @@
  * - Capture never classifies: friction is filed without a route, which is decided later by someone
  *   other than the session that filed it (0.2's ADR-0168 D4).
  */
-import type { Library, NewKnowledge, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { Library, NewKnowledge, SchemaRecord, WriteOptions } from "../../index.js";
 
 /** A capture refused before anything is written: its message says what to fix. */
 export class CaptureError extends Error {}

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { librarianToolParts } from "@storytree/librarian";
+import { librarianToolParts } from "@storytree/library/librarian";
 import { qualityToolParts } from "@storytree/quality-assurance";
 import { hookToolParts } from "@storytree/session-management";
 

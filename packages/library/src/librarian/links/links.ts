@@ -4,7 +4,7 @@
  * its term; friction and re-steers carry no links. Neighbours nobody linked are found with the
  * library's related-but-unlinked search (ADR-0654), alongside plain search when the agent needs it.
  */
-import type { Library, Note, Related, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { Library, Note, Related, SchemaRecord, WriteOptions } from "../../index.js";
 
 import { allNotes, LibrarianRefusal, noteOf, typesOf } from "../notes.js";
 

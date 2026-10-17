@@ -50,6 +50,58 @@
   "8": 51,
   "14": 60
  },
+ "src/librarian/catalogue/catalogue.ts": {
+  "21": 28,
+  "23": 22,
+  "25": 12,
+  "26": 21
+ },
+ "src/librarian/decision-log/decision-log.ts": {
+  "21": 12,
+  "22": 40,
+  "25": 4,
+  "26": 6
+ },
+ "src/librarian/graduation/graduation.ts": {
+  "21": 4,
+  "24": 68,
+  "25": 4,
+  "26": 12
+ },
+ "src/librarian/links/links.ts": {
+  "21": 32,
+  "25": 12,
+  "26": 21
+ },
+ "src/librarian/notes.ts": {
+  "21": 32,
+  "22": 24,
+  "23": 16,
+  "24": 12,
+  "25": 12,
+  "26": 12
+ },
+ "src/librarian/queues/queues.ts": {
+  "21": 12,
+  "25": 32,
+  "26": 12
+ },
+ "src/librarian/rounds/rounds.ts": {
+  "21": 12,
+  "25": 8,
+  "26": 9
+ },
+ "src/librarian/rounds/tools.ts": {
+  "26": 6
+ },
+ "src/librarian/testing/pg.ts": {
+  "21": 12,
+  "22": 12,
+  "23": 6,
+  "24": 12,
+  "25": 12,
+  "26": 9
+ },
  "src/local-postgres/binaries.ts": {
   "18": 6,
   "19": 24

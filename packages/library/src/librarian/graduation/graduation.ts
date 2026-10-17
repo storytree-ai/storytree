@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import type { Library, Note, WriteOptions } from "@storytree/library";
+import type { Library, Note, WriteOptions } from "../../index.js";
 
 import { allNotes, LibrarianRefusal } from "../notes.js";
 

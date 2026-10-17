@@ -11,7 +11,7 @@
  * route but nothing names its remedy (ADR-1016 D3).
  * Settling and retiring a question are the MCP server's tools.
  */
-import type { FieldsOf, Library, Note, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { FieldsOf, Library, Note, SchemaRecord, WriteOptions } from "../../index.js";
 
 import { allNotes, LibrarianRefusal } from "../notes.js";
 

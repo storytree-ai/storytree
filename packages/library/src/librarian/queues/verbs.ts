@@ -1,12 +1,12 @@
 /**
  * Capability 25 · Queues. The `friction` and `resteer` verbs, declared here (ADR-0969 D2) and mounted by the command line
  * as its families of those names (ADR-1033): file friction or a re-steer, add a recurrence, and drain and route the
- * friction a landing's librarian pass judges. Session management owns capture (evidence validation and recurrence
- * dates), imported in the act; the drain and the route are this capability's. None is a tool: the MCP server's own
+ * friction a landing's librarian pass judges. Capture (evidence validation and recurrence dates), the drain and the
+ * route are all this capability's. None is a tool: the MCP server's own
  * record_friction, reinforce, worklist, route and record_resteer tools do these jobs.
  */
-import { verb, type VerbContext } from "@storytree/library/verbs";
-import type { FieldsOf } from "@storytree/library";
+import { verb, type VerbContext } from "../../verbs/verb.js";
+import type { FieldsOf } from "../../index.js";
 
 /** A field's value as given: JSON for a list, else the text. */
 function listOf(text: string): string[] {
@@ -60,7 +60,7 @@ const frictionNew = verb({
   },
   writes: true,
   async act(input, context: VerbContext) {
-    const { recordFriction } = await import("@storytree/session-management");
+    const { recordFriction } = await import("./capture.js");
     const note = await recordFriction(context.library, { ...fields(input), branch: await branchIn(context.folder) } as never, context.writer!);
     return { text: `Recorded friction ${note.id}.`, next: [{ command: `library read ${note.id}`, why: "read it whole" }] };
   },
@@ -76,7 +76,7 @@ const reinforce = verb({
   },
   writes: true,
   async act({ friction, evidence, branch }, context: VerbContext) {
-    const { reinforceFriction } = await import("@storytree/session-management");
+    const { reinforceFriction } = await import("./capture.js");
     const note = await reinforceFriction(context.library, friction, { branch: branch ?? await branchIn(context.folder), evidence }, context.writer!);
     return { text: `Reinforced friction ${note.id}.`, next: [{ command: `library read ${note.id}`, why: "see its recurrences" }] };
   },
@@ -149,7 +149,7 @@ const resteerNew = verb({
   },
   writes: true,
   async act({ "judged-by": judgedBy, ...given }, context: VerbContext) {
-    const { recordResteer } = await import("@storytree/session-management");
+    const { recordResteer } = await import("./capture.js");
     const note = await recordResteer(context.library, { ...fields(given), dispositionBy: judgedBy } as never, context.writer!);
     return { text: `Recorded re-steer ${note.id}.`, next: [{ command: `library read ${note.id}`, why: "read it whole" }] };
   },

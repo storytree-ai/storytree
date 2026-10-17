@@ -7,7 +7,7 @@
  * is still true. The health report (the owner's G1) is what a write cannot refuse: an edge to a
  * record retired since.
  */
-import type { Library, Note, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { Library, Note, SchemaRecord, WriteOptions } from "../../index.js";
 
 import { allNotes, LibrarianRefusal, referencesOf, type Reference } from "../notes.js";
 

@@ -5,7 +5,7 @@
  * puts each new note beside what might already cover it, and the one rule a write can keep: a note
  * is retired only if nothing points at it.
  */
-import type { Library, Note, WriteOptions } from "@storytree/library";
+import type { Library, Note, WriteOptions } from "../../index.js";
 
 import { allNotes, LibrarianRefusal, noteOf, referencesOf, typesOf, type Reference } from "../notes.js";
 

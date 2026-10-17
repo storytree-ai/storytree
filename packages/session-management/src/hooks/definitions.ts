@@ -21,7 +21,7 @@
  *   for the drain to take to the owner (D2).
  */
 import { holdsName, normalisedWords } from "@storytree/library/whole-words";
-import type { NewFriction } from "../capture/index.js";
+import type { NewFriction } from "@storytree/library/librarian";
 import { notYetGivenIds } from "./given-once.js";
 
 /** A definition, as the library holds it. */

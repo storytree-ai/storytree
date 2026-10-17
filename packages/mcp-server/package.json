@@ -18,7 +18,6 @@
     "@storytree/session-management": "workspace:*",
     "@storytree/guardrails": "workspace:*",
     "@storytree/journey-events": "workspace:*",
-    "@storytree/librarian": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/quality-assurance": "workspace:*",

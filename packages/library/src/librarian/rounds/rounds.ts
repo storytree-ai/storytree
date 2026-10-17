@@ -6,7 +6,7 @@
  * kind, and when there is no start to read from, since the trigger fires when unsure (0.2's
  * `pre-merge-librarian-pass`). The worklist gathers each capability's list into one report.
  */
-import type { Library, Related, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { Library, Related, SchemaRecord, WriteOptions } from "../../index.js";
 
 import { newNotes, type NewNote } from "../catalogue/index.js";
 import { brokenEdges, type BrokenEdge } from "../decision-log/index.js";

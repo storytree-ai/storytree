@@ -13,8 +13,8 @@
  * - A decision is named by its id or number. Listing uses list(kind), then decision(id) so the library owns
  *   supersession and the status shown or filtered.
  */
-import { verb, VerbRefusal, type VerbContext } from "@storytree/library/verbs";
-import type { DecisionView, Library } from "@storytree/library";
+import { verb, VerbRefusal, type VerbContext } from "../../verbs/verb.js";
+import type { DecisionView, Library } from "../../index.js";
 
 /** The fields a pushed file may change, in the order the file shows them. */
 const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "frontCoverOf"] as const;

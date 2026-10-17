@@ -1,4 +1,4 @@
-/** Capability 2 · Fixed-colour icon files: where they live in the repo, and writing them all from the master. */
+/** Capability 8 · Fixed-colour icon files: where they live in the repo, and writing them all from the master. */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 

@@ -65,7 +65,7 @@ test("6.90 a tool the lane's experiment arm denies does nothing else: it answers
   await withProject(async ({ folder, project, log }) => {
     await withTempDir(async (home) => {
       // The lane's own storytree home, which names its arm, and where its checkout is approved.
-      writeFileSync(path.join(home, "settings.json"), JSON.stringify({ experiment: { name: "twin-build", arm: "map-reads-off" } }));
+      writeFileSync(path.join(home, "settings.json"), JSON.stringify({ experiment: { name: "twin-build", arm: "map-reads-off", denies: { tools: ["focus"], commands: ["storytree map"] } } }));
       await approveCheckout(folder, project, home);
       await withAgent(folder, claudeCode("arm-tool-1", { extensions: [fixtures], setup: { storytreeHome: home } }), async (agent) => {
         const denied = await agent.call("focus", { select: "story:Anything" });

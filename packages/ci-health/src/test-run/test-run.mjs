@@ -1,23 +1,25 @@
-// Capability 5 · Library tools. The rules `pnpm check:own-health` (packages/dev-loop/src/check-own-health.mjs) runs: how a run of a story's
-// tests becomes each of its contracts' VERIFIED health in 0.3's own library (ADR-0641 D2 step 4,
-// choice H1). The library is the one copy of 0.3's own stories, so a story's contracts and their
-// numbers are read from it, and its tests are its own package's: the package named after the
-// story's title (packageOf). Everything here but recordHealth, which writes through the library's
-// public API, is pure.
+// Capability 4 · Recording a test run. How a run of a story's tests, read from their junit report, becomes each of its
+// contracts' VERIFIED health: the rules record-run.mjs runs, and storytree's own health is this run configured for
+// storytree (`pnpm check:own-health`, packages/dev-loop/src/check-own-health.mjs, ADR-1066 D2 G). A story's contracts
+// and their numbers are read from the library, and its tests are its own packages': the package named after the
+// story's title (packageOf) and any other it owns. Everything here but markPending, which writes through the
+// library's public API, is pure.
 //
-// Honesty rules for the verified column: a contract passes only if it has tests and every one of
-// them passed. Any failure fails it. A skipped test is not a pass, so a contract with one is not
-// passing, and one whose tests were all skipped, or that has none, is not checked. A test file
-// that produced no results (its process died before running any test) proves nothing either way:
-// the contracts it holds are left not checked, never failed on the strength of a crash.
-// Not checked is written only when a contract's tests were skipped or crashed (ADR-0825 D2): with
-// the kind of the skip, and any earlier verdict the run did not reproduce, marked "not re-run". Otherwise the column's absence of
-// an entry already reads not-checked.
+// A contract is judged by the rule a CI log's results are (verdicts.ts's verdictOf): it passes only if it has tests and
+// every one of them passed; any failure fails it; a skipped test is no pass, so a skip, or no tests, leaves it not
+// checked. A junit report adds what a log cannot: a test file that produced no results (its process died before running
+// any test) proves nothing either way, so the contracts it holds are left not checked, never failed on the strength of
+// a crash. Each verdict is written by record.ts's recordHealth, as a CI log's are.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { ALSO_OWNED, packageOf } from "@storytree/map/package-of";
+
+import { verdictOf } from "../verdicts/verdicts.ts";
+import { CI_PLATFORMS, recordHealth, unseenPlatform } from "./record.ts";
+
+export { CI_PLATFORMS, recordHealth, unseenPlatform };
 
 /** The package whose tests prove a story, by its title (packages/map/src/code-survey/package-of.ts): its tests are in packages/<name>/src. */
 export { packageOf };
@@ -77,9 +79,6 @@ export function parseJunit(xml) {
   return results;
 }
 
-/** The CI systems whose evidence credits a `platform:<os>` skip, by Node's platform name. */
-export const CI_PLATFORMS = { win32: "Windows", darwin: "macOS" };
-
 /** Read only the downloaded `platform` run/attempt for the exact recording commit; bad or absent evidence proves nothing. */
 export function readCiEvidence(directory, { commit, run, platform }) {
   if (!directory || !commit || !run || !Object.hasOwn(CI_PLATFORMS, platform)) return undefined;
@@ -127,12 +126,6 @@ export function creditPlatforms(results, evidence, { root, commit }) {
     const matches = proof.byTest.get(key(test, file));
     return matches?.length && matches.every((match) => match.status === "passed") ? { ...test, status: "passed", ciRun: `${CI_PLATFORMS[platform]}: ${proof.run}` } : test;
   });
-}
-
-/** Whether `skip` is a CI platform's whose evidence this run did not see, so it could not re-run that platform's tests. */
-export function unseenPlatform(skip, platformsSeen) {
-  const platform = /^platform:(.+)$/.exec(skip ?? "")?.[1];
-  return platformsSeen !== undefined && platform !== undefined && Object.hasOwn(CI_PLATFORMS, platform) && !platformsSeen.has(platform);
 }
 
 /** A tag's attributes, decoded. */
@@ -309,42 +302,21 @@ export function judge({ contracts, results, coverage, show = (file) => file, pre
   const verdicts = new Map();
   for (const number of contracts) {
     const own = tests.get(number);
-    const counts = {
-      passed: own.filter(({ status }) => status === "passed").length,
-      failed: own.filter(({ status }) => status === "failed").length,
-      skipped: own.filter(({ status }) => status === "skipped").length,
-      total: own.length,
-    };
+    const { note, ...judged } = verdictOf(own);
+    const counts = { passed: judged.passed, failed: judged.failed, skipped: judged.skipped, total: judged.total };
     const ciRuns = [...new Set(own.map((test) => test.ciRun).filter(Boolean))];
-    const tally = `${counts.passed}/${counts.total} tests passed${ciRuns.map((run) => `; ${run}`).join("")}`;
-    const skipReasons = [...new Set(own.filter(({ status }) => status === "skipped").map(({ message }) => message).filter(Boolean))];
     /** @type {Verdict} */
     let verdict;
-    if (counts.failed > 0) verdict = { number, state: "failing", ...counts, note: tally };
-    else if (crashedUnder.has(number)) {
+    if (judged.state !== "failing" && crashedUnder.has(number)) {
       verdict = { number, state: "not-checked", ...counts, crashed: true, reason: `${show(crashedUnder.get(number))} produced no results (its process died before running any test)` };
-    } else if (counts.total === 0) verdict = { number, state: "not-checked", ...counts, reason: "no tests" };
-    else if (counts.skipped > 0) {
-      const why = skipReasons.length > 0 ? ` (${skipReasons.join("; ")})` : "";
-      const unrun = own.every(({ status, unrun }) => status !== "skipped" || unrun === true);
-      verdict = { number, state: "not-checked", ...counts, skip: skipKind(skipReasons), reason: `${counts.skipped} of ${counts.total} tests skipped${why}`, ...(unrun ? { unrun } : {}) };
-    } else verdict = { number, state: "passing", ...counts, note: tally };
+    } else if (judged.state !== "not-checked") verdict = { number, state: judged.state, ...counts, note: `${note}${ciRuns.map((run) => `; ${run}`).join("")}` };
+    else {
+      const unrun = judged.skip !== undefined && own.every(({ status, unrun }) => status !== "skipped" || unrun === true);
+      verdict = { number, state: "not-checked", ...counts, ...(judged.skip === undefined ? {} : { skip: judged.skip }), reason: note, ...(unrun ? { unrun } : {}) };
+    }
     verdicts.set(number, verdict);
   }
   return { verdicts, unmapped, stray, crashedFiles };
-}
-
-/**
- * The kind of a contract's skip (ADR-0825 D2), from its skip reasons' first word: `owner` when any
- * says `owner:` (only the owner can give what it needs), else `platform:<os>` when one names the
- * platform it runs on, else `other`.
- * @param {string[]} reasons
- * @returns {"owner" | "other" | `platform:${string}`}
- */
-function skipKind(reasons) {
-  if (reasons.some((reason) => /^owner\b/i.test(reason))) return "owner";
-  const platform = reasons.map((reason) => /^platform:([a-z0-9]+)/i.exec(reason)?.[1]).find(Boolean);
-  return platform === undefined ? "other" : `platform:${platform.toLowerCase()}`;
 }
 
 /** The result Node reports for a test file itself, named after the file, as it does for one that died. */
@@ -445,42 +417,6 @@ function optional(field, value) {
 }
 
 /**
- * Write each verdict to its contract's VERIFIED column: passing or failing, by `writer` (a test
- * run), with its tally as the note, and the commit it ran on when the writer names one. A
- * not-checked verdict is written only when its tests were skipped or crashed (ADR-0825 D2): with
- * the kind of its skip, and any earlier passing or failing it did not reproduce, which it carries as
- * "not re-run at <commit>" (history keeps the old verdict). With no tests there is nothing to re-run,
- * and a verdict from elsewhere stands. One whose column already says the same is not written
- * again, so its note keeps the commit it was first not re-run at. A run that saw no CI evidence for
- * a platform (one missing from `platformsSeen`) cannot re-run a test that only runs there either,
- * so a passing verdict from elsewhere stands against its `platform:<os>` skip; so does one whose skipped tests that
- * platform's run never reached (`unrun`, its scope left their package out). The reported
- * column is never touched: that is what an agent says, and no agent has spoken here.
- * @param {import("@storytree/library").Library} library
- * @param {Map<string, string>} contractIds contract number -> id
- * @param {Map<string, Verdict>} verdicts
- * @param {Writer} [writer]
- * @param {{ platformsSeen?: Set<string> }} [options] the platforms whose CI evidence the run read; all, when absent
- */
-export async function recordHealth(library, contractIds, verdicts, writer = { by: VERIFIED_BY }, { platformsSeen } = {}) {
-  const written = { passing: 0, failing: 0, notChecked: 0, marked: 0 };
-  for (const [number, verdict] of verdicts) {
-    const id = contractIds.get(number);
-    if (verdict.state === "not-checked") {
-      written.notChecked++;
-      if (id !== undefined && (await markNotChecked(library, id, verdict, writer, platformsSeen))) written.marked++;
-      continue;
-    }
-    if (id === undefined) throw new Error(`there is no contract ${number} in the library to record its health on`);
-    const note = writer.commit === undefined ? verdict.note : `${verdict.note}, at commit ${writer.commit}`;
-    await library.recordVerified(id, verdict.state, { by: writer.by, ...optional("note", note) });
-    written[verdict.state]++;
-  }
-  return written;
-}
-
-
-/**
  * Before a run of `story`'s tests, mark pending each of its contracts the run can newly record: one a numbered test
  * at this checkout names (its own package's, or a dependant's titled with its package, as checkStory runs them) whose
  * verified column is failing or not checked without a skip. The health worklist then holds back a capability those
@@ -524,29 +460,9 @@ export async function markPending(library, story, writer, { root }) {
   return marked;
 }
 
-/**
- * Mark contract `id` not checked when its tests were skipped or crashed: with its skip's kind, and
- * the earlier verdict it did not reproduce (carried over from a mark already standing). True if it
- * wrote.
- */
-async function markNotChecked(library, id, verdict, writer, platformsSeen) {
-  // Only a run that had tests for it, skipped or crashed, failed to reproduce a verdict: with none,
-  // a verdict from elsewhere (an acceptance run, ADR-0825 D5) stands.
-  if (verdict.skip === undefined && verdict.crashed !== true) return false;
-  const earlier = (await library.health(id)).verified;
-  if ((verdict.unrun === true || unseenPlatform(verdict.skip, platformsSeen)) && earlier.state === "passing") return false;
-  const was = earlier.state === "not-checked" ? earlier.was : { state: earlier.state, at: earlier.at };
-  const same = earlier.state === "not-checked" && earlier.skip === verdict.skip && earlier.was?.state === was?.state && earlier.was?.at === was?.at;
-  if (same) return false;
-  const at = writer.commit === undefined ? "" : ` at commit ${writer.commit}`;
-  const note = was === undefined ? `${verdict.reason}${at === "" ? "" : `,${at}`}` : `not re-run${at}: ${verdict.reason}`;
-  await library.recordVerified(id, "not-checked", { by: writer.by, note, ...optional("skip", verdict.skip), ...(was === undefined ? {} : { was }) });
-  return true;
-}
-
 // --- where to record ------------------------------------------------------------------------
 
-/** @typedef {{ by: string, commit?: string }} Writer */
+/** @typedef {import("./record.ts").Writer} Writer */
 
 /**
  * Where a run records verified health, and as whom. On CI (GITHUB_ACTIONS), by a test run on CI at

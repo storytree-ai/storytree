@@ -35,7 +35,7 @@ import { locateLibrary, storytreeHome } from "@storytree/project-and-caller";
 
 import { comparedRows } from "./desktop-lag.mjs";
 import { clearAbandonedHeavyLock } from "./heavy-lock.mjs";
-import { recordHealth } from "./own-health.mjs";
+import { recordHealth } from "@storytree/ci-health/test-run";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const PROJECT = "storytree";
@@ -204,7 +204,7 @@ export function lagVerdicts({ history, actions, log: mainLog, owners, ran }) {
 
 /**
  * Write each of `verdicts` (by contract id) to its contract's verified column as a lag run, with the commit measured and the evidence
- * in the note; a not-checked one is written as not re-run over the verdict it did not reproduce (own-health's recordHealth).
+ * in the note; a not-checked one is written as not re-run over the verdict it did not reproduce (CI health's recordHealth).
  * @param {import("@storytree/library").Library} library
  */
 export function recordLagVerdicts(library, verdicts, { commit, evidence }) {

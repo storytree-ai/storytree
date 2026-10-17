@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
-import childProcess, { spawnSync, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
+import { spawnSync, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { chmod, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { syncBuiltinESMExports } from "node:module";
 import { PassThrough } from "node:stream";
 import { test, type TestContext } from "node:test";
 import { inspect } from "node:util";
@@ -22,28 +21,24 @@ function windowsChild(t: TestContext) {
   const ready = new Promise<void>(resolve => child.stdin.on("finish", resolve));
   let input = "";
   child.stdin.on("data", chunk => { input += chunk; });
-  const spawn = t.mock.method(childProcess, "spawn", (_command: string, _args: readonly string[], options: SpawnOptionsWithoutStdio) => {
+  const spawn = (_command: string, _args: readonly string[], options: SpawnOptionsWithoutStdio) => {
     // Reproduce the original spawn timeout as well as an explicit application timer.
     if (options?.timeout) {
       const timer = setTimeout(() => child.kill(), options.timeout);
       child.once("close", () => clearTimeout(timer));
     }
     return child as unknown as ChildProcessWithoutNullStreams;
-  });
-  syncBuiltinESMExports();
-  t.after(() => {
-    spawn.mock.restore(); syncBuiltinESMExports();
-    Object.defineProperty(process, "platform", platform);
-  });
+  };
+  t.after(() => { Object.defineProperty(process, "platform", platform); });
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
-  return { child, ready, input: () => input };
+  return { child, ready, input: () => input, spawn };
 }
 
-test("2.4 Windows storage allows a cold protection process past ten seconds and writes only its ciphertext", async t => {
+test("6.4 Windows storage allows a cold protection process past ten seconds and writes only its ciphertext", async t => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
-  const { child, ready, input } = windowsChild(t);
+  const { child, ready, input, spawn } = windowsChild(t);
   try {
-    const writing = withSessionStore({ directory: home, ...context }, store => store.write("refresh-private"));
+    const writing = withSessionStore({ directory: home, ...context, spawn }, store => store.write("refresh-private"));
     await ready;
     t.mock.timers.tick(11_000);
     assert.equal(child.kill.mock.callCount(), 0);
@@ -57,12 +52,12 @@ test("2.4 Windows storage allows a cold protection process past ten seconds and 
   } finally { await rm(home, { recursive: true, force: true }); }
 });
 
-test("2.4 Windows protection failures retain only safe diagnostics and leave the previous session untouched", async t => {
+test("6.4 Windows protection failures retain only safe diagnostics and leave the previous session untouched", async t => {
   for (const failure of ["timeout", "startup", "exit", "dpapi", "input", "output-limit", "empty-output"] as const) {
     await t.test(failure, async t => {
       const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
-      const { child, ready } = windowsChild(t);
-      const config = { directory: home, ...context };
+      const { child, ready, spawn } = windowsChild(t);
+      const config = { directory: home, ...context, spawn };
       try {
         await writeFile(path.join(home, "session"), "previous-ciphertext");
         const writing = withSessionStore(config, store => store.write("refresh-private"));
@@ -95,21 +90,11 @@ test("2.4 Windows protection failures retain only safe diagnostics and leave the
   }
 });
 
-test("2.4 native Windows protection survives an eleven-second startup delay and still decrypts after reopening", { skip: process.platform !== "win32" }, async t => {
+test("6.4 native Windows protection writes only ciphertext and still decrypts after reopening", { skip: process.platform !== "win32" && "platform:win32: DPAPI protection runs only in Windows PowerShell" }, async () => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
-  const spawn = childProcess.spawn;
-  const delayed = t.mock.method(childProcess, "spawn", (command: string, args: readonly string[], options: SpawnOptionsWithoutStdio) => {
-    const delayedArgs = [...args];
-    const script = Buffer.from(delayedArgs.at(-1)!, "base64").toString("utf16le");
-    delayedArgs[delayedArgs.length - 1] = Buffer.from(`Start-Sleep -Seconds 11; ${script}`, "utf16le").toString("base64");
-    return spawn(command, delayedArgs, options);
-  });
-  syncBuiltinESMExports();
-  t.after(() => { delayed.mock.restore(); syncBuiltinESMExports(); });
   try {
     const config = { directory: home, ...context };
     await withSessionStore(config, store => store.write("refresh-private"));
-    delayed.mock.restore(); syncBuiltinESMExports();
     assert.doesNotMatch(await readFile(path.join(home, "session"), "utf8"), /refresh-private/);
     assert.equal(await withSessionStore(config, store => store.read()), "refresh-private");
     await writeFile(path.join(home, "session"), "corrupt-private-session");
@@ -121,7 +106,7 @@ test("2.4 native Windows protection survives an eleven-second startup delay and 
   } finally { await rm(home, { recursive: true, force: true }); }
 });
 
-test("2.4 a private session survives reopening, is bound to its environment, and sign-out erases it", async () => {
+test("6.4 a private session survives reopening, is bound to its environment, and sign-out erases it", async () => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
   const directory = path.join(home, "identity");
   const use = <T>(act: Parameters<typeof withSessionStore<T>>[1]) => withSessionStore({ directory, ...context }, act);
@@ -149,7 +134,7 @@ test("2.4 a private session survives reopening, is bound to its environment, and
   } finally { await rm(home, { recursive: true, force: true }); }
 });
 
-test("2.4 session operations exclude competing commands and release their lock after a failed command", async () => {
+test("6.4 session operations exclude competing commands and release their lock after a failed command", async () => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
   const config = { directory: path.join(home, "identity"), ...context };
   try {
@@ -163,7 +148,7 @@ test("2.4 session operations exclude competing commands and release their lock a
   } finally { await rm(home, { recursive: true, force: true }); }
 });
 
-test("2.4 unsafe POSIX permissions or symlinks refuse token storage without following them", { skip: process.platform === "win32" }, async () => {
+test("6.4 unsafe POSIX permissions or symlinks refuse token storage without following them", { skip: process.platform === "win32" && "platform:posix: POSIX file modes and symlink refusal have no Windows equivalent" }, async () => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-session-"));
   const directory = path.join(home, "identity");
   const config = { directory, ...context };

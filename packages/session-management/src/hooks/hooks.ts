@@ -65,7 +65,7 @@ import { antigravityLines } from "./antigravity.js";
 import { EDIT_GATE, editGate, recordYesAfterEdit, yesSaid } from "./edit-gate.js";
 import { UPKEEP_DEADLINE_MS, withDeadline } from "./deadlines.js";
 import { noteCodexHookRan } from "./codex-trust.js";
-import { AFTER_TOOL, deliveredByTool, deliveredInput, noteDelivered } from "./codex-delivery.js";
+import { AFTER_TOOL, deliveredByTool, deliveredInput, noteDelivered, TOOL_GRACE_MS } from "./codex-delivery.js";
 import { contextNudge } from "./context-nudge.js";
 import type { NewFriction } from "../capture/index.js";
 import { bigInjectionReport, definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
@@ -344,10 +344,12 @@ export async function recordHookEvent(harness: string, input: unknown, reach: Re
 async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, delivered: DeliveredEvent, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock): Promise<void> {
   try {
     if (made.lines.length === 0) return;
-    // Registered beside the tool server's handler (codex-delivery.ts), an event the tool recorded is not recorded
+    // Registered beside the tool server's handler (codex-delivery.ts) or under Claude Code's mod, an event the tool recorded is not recorded
     // again, nor the library reached for it; but at most once a minute a project's hook takes its whole turn, so
     // the work only a command hook does (merges, the transcript, the look around the machine) still happens.
-    if (flags.includes(AFTER_TOOL) && (await deliveredByTool(storytreeHome(), delivered.key))) {
+    // Claude Code's mod waits for its delivery before a foreground hook runs, so that hook looks for the note at once (ADR-1056 D3).
+    const grace = flags.includes(AFTER_TOOL) ? TOOL_GRACE_MS : harness === "claude-code" ? 0 : undefined;
+    if (grace !== undefined && (await deliveredByTool(storytreeHome(), delivered.key, grace))) {
       const where = route(made.folder, locate);
       const { due } = await import("../claims/merges.js");
       if (where.status !== "routed" || !due(`${where.project}-after-tool`, UPKEEP_EVERY_MS)) {

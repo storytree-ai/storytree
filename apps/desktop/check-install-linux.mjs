@@ -1,6 +1,6 @@
 // Linux packaging proof, the x64 twin of check-install-mac.mjs: unpack the built AppImage itself (no
 // FUSE needed), start the app's own main once (4.17's start check), run its Postgres binaries, verify the
-// shipped license (app setup 4.2), check it declares the sign-in callback scheme (identity 2.5) and run the
+// shipped license (app setup 4.2), check it declares the sign-in callback scheme (Context 6.5) and run the
 // bundled Node, commands and MCP from the app (app setup 1.1).
 // No real app data, update feed or release is used. Run with tsx, from the checkout's root: the release
 // workflow runs it before the Linux assets are uploaded, so an app that cannot start never ships.
@@ -26,7 +26,7 @@ try {
   execFileSync(appImage, ["--appimage-extract"], { cwd: temp, stdio: "ignore", timeout: 120_000 });
   const app = path.join(temp, "squashfs-root");
   const resources = path.join(app, "resources");
-  // The desktop entry is how a Linux desktop hands a sign-in's storytree-auth callback to the app (identity 2.5).
+  // The desktop entry is how a Linux desktop hands a sign-in's storytree-auth callback to the app (Context 6.5).
   const entry = readdirSync(app).find((name) => name.endsWith(".desktop"));
   assert.ok(entry, "the AppImage carries no desktop entry");
   const desktop = readFileSync(path.join(app, entry), "utf8");
@@ -66,7 +66,7 @@ try {
   assert.match(feed, new RegExp(`path: storytree-0\\.3-${version.replaceAll(".", "\\.")}-linux-x86_64\\.AppImage`));
   console.log(`4.4 PASS (Linux x64): built ${version} as an AppImage with latest-linux.yml; its Electron, Postgres and update configuration work from the AppImage's own contents`);
   console.log("4.17 PASS (Linux x64): the app's main process started with a throwaway home, reached its handlers and exited 0");
-  console.log(`identity 2.5 PASS (Linux x64): the AppImage's desktop entry declares the ${AUTH_SCHEME} scheme, so sign-in callbacks reach it`);
+  console.log(`Context 6.5 PASS (Linux x64): the AppImage's desktop entry declares the ${AUTH_SCHEME} scheme, so sign-in callbacks reach it`);
   console.log("app setup 4.2 PASS (Linux x64): the app carries the repository license");
   console.log("app setup 1.1 PASS (Linux x64): bundled Node, CLI, hook, setup and MCP run from the app's verified payload");
 } finally {

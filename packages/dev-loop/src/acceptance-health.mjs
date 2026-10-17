@@ -5,11 +5,11 @@
 // verdict is minted here from those checks alone: the model's account of what it did is never an
 // input, and there is no model-as-judge.
 //
-// The honesty rules are own-health's (ADR-0744): a contract passes only if the harness ran checks
+// The honesty rules are CI health's (ADR-0744): a contract passes only if the harness ran checks
 // for it and every one passed. Any failure fails it. A check not observed is not a pass, so a
 // contract with one is not checked, and so is a contract with no checks. Not checked is never written.
 
-import { recordHealth } from "./own-health.mjs";
+import { recordHealth } from "@storytree/ci-health/test-run";
 
 /** Who writes the verified health: an acceptance run's harness, from what it observed. */
 export const ACCEPTED_BY = "acceptance run";
@@ -49,10 +49,10 @@ export function readObservations(text) {
  * Mint each of `contracts` (their numbers) a verdict from the checks the harness observed. A check
  * for a contract not in the list counts for none.
  * @param {{ contracts: string[], checks: Check[] }} input
- * @returns {Map<string, import("./own-health.mjs").Verdict>}
+ * @returns {Map<string, import("@storytree/ci-health/test-run").Verdict>}
  */
 export function mintAcceptance({ contracts, checks }) {
-  /** @type {Map<string, import("./own-health.mjs").Verdict>} */
+  /** @type {Map<string, import("@storytree/ci-health/test-run").Verdict>} */
   const verdicts = new Map();
   for (const number of contracts) {
     const own = checks.filter((check) => check.contract === number);
@@ -79,7 +79,7 @@ export function mintAcceptance({ contracts, checks }) {
  * the commit in the note. Not checked writes nothing, and the reported column is never touched.
  * @param {import("@storytree/library").Library} library
  * @param {Map<string, string>} contractIds contract number -> id
- * @param {Map<string, import("./own-health.mjs").Verdict>} verdicts
+ * @param {Map<string, import("@storytree/ci-health/test-run").Verdict>} verdicts
  * @param {{ commit: string, evidence: string, note?: string }} run
  */
 export function recordAcceptance(library, contractIds, verdicts, { commit, evidence, note }) {

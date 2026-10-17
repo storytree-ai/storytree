@@ -42,7 +42,7 @@ export function followReleases(options: ReleaseOptions, home: string, choice: ()
   if (!followsReleases) return undefined;
   refreshAgentTools();
 
-  const updater = new ReleaseUpdater({ ...options, home, releaseChannel: () => releaseChannel(home, markerFile === undefined ? "" : readFileSync(markerFile, "utf8")) });
+  const updater = new ReleaseUpdater({ ...options, home, sandboxOff: app.commandLine.hasSwitch("no-sandbox"), releaseChannel: () => releaseChannel(home, markerFile === undefined ? "" : readFileSync(markerFile, "utf8")) });
   const log = releasesLog(path.join(home, "releases.log"));
   updater.logger = log;
   const check = async (): Promise<void> => {

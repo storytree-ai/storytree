@@ -417,7 +417,7 @@ function showTray(): void {
 }
 
 /**
- * Sign-in for feedback through WorkOS's official Electron SDK (app setup contract 5.6, identity 2.5): its session manager, protected storage
+ * Sign-in for feedback through WorkOS's official Electron SDK (app setup contract 5.6, Context 6.5): its session manager, protected storage
  * and system-browser PKCE ceremony, composed here without the SDK's own page bridge, so no token reaches the page. The
  * storytree-auth callback is completed by this app's own deep-link handling, under its own single-instance lock.
  */

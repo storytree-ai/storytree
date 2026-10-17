@@ -195,7 +195,7 @@ const holdForPr = verb({
   command: {
     family: "workspace",
     name: "hold",
-    summary: "the watcher's: keep every claim a session holds for its handed-over pull request until it merges or closes (ADR-1037 D1)",
+    summary: "the watcher's: keep the claims a session took on its handed-over pull request's branch for it until it merges or closes (ADR-1037 D1)",
     usage: "workspace hold <pr> --holder <session> --branch <branch>",
   },
   tool: { absent: "the Mint box's watcher runs it when a session hands a pull request over" },

@@ -11,7 +11,7 @@ const { privateKey, publicKey } = await generateKeyPair("RS256");
 const jwks = { keys: [{ ...(await exportJWK(publicKey)), kid: "k1", alg: "RS256", use: "sig" }] };
 const accessToken = await new SignJWT({ sid: "session_01", aud: "storytree-identity" })
   .setProtectedHeader({ alg: "RS256", kid: "k1" }).setSubject(user.id).setIssuedAt().setExpirationTime("5m").sign(privateKey);
-test("2.2/2.4 sign-in command output shows the browser code then verified identity; reopened status and sign-out keep tokens private", async () => {
+test("6.2/6.4 sign-in command output shows the browser code then verified identity; reopened status and sign-out keep tokens private", async () => {
   const home = await mkdtemp(path.join(tmpdir(), "storytree-command-"));
   const output: string[] = [];
   let exchanges = 0;

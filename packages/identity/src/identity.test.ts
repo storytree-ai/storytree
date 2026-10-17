@@ -74,7 +74,7 @@ async function journey() {
   };
 }
 
-test("1.1 portable user identity persists its own id, first verified email and every provider subject across reopening", async () => {
+test("5.1 portable user identity persists its own id, first verified email and every provider subject across reopening", async () => {
   const j = await journey();
   try {
     j.put("user_first", [google("g1"), github("h1"), microsoft("m1")]);
@@ -91,7 +91,7 @@ test("1.1 portable user identity persists its own id, first verified email and e
   } finally { await j.close(); }
 });
 
-test("1.2 provider+subject survives email and WorkOS replacement; equal email alone never joins users", async () => {
+test("5.2 provider+subject survives email and WorkOS replacement; equal email alone never joins users", async () => {
   const j = await journey();
   try {
     j.put("user_old", [google("stable")]);
@@ -108,7 +108,7 @@ test("1.2 provider+subject survives email and WorkOS replacement; equal email al
   } finally { await j.close(); }
 });
 
-test("1.3 linked identities join atomically; evidence joining two existing people refuses with no writes", async () => {
+test("5.3 linked identities join atomically; evidence joining two existing people refuses with no writes", async () => {
   const j = await journey();
   try {
     j.put("user_a", [google("a")]);
@@ -126,7 +126,7 @@ test("1.3 linked identities join atomically; evidence joining two existing peopl
   } finally { await j.close(); }
 });
 
-test("1.4 concurrent resolutions create one durable user for one provider+subject", async () => {
+test("5.4 concurrent resolutions create one durable user for one provider+subject", async () => {
   const j = await journey();
   try {
     j.put("user_race", [google("same")]);
@@ -139,7 +139,7 @@ test("1.4 concurrent resolutions create one durable user for one provider+subjec
   } finally { await j.close(); }
 });
 
-test("1.5 invalid WorkOS tokens or identity evidence fail closed before writes and never expose secrets", async () => {
+test("5.5 invalid WorkOS tokens or identity evidence fail closed before writes and never expose secrets", async () => {
   const j = await journey();
   try {
     j.put("user_valid", [google("valid")]);
@@ -184,7 +184,7 @@ test("1.5 invalid WorkOS tokens or identity evidence fail closed before writes a
 });
 
 
-test("1.5 the HTTP identity boundary verifies bearer sessions and returns only the portable id and verified email", async () => {
+test("5.5 the HTTP identity boundary verifies bearer sessions and returns only the portable id and verified email", async () => {
   const j = await journey();
   const handle = createIdentityHandler(j.service);
   const server = createServer((req, res) => {

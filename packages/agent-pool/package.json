@@ -4,6 +4,7 @@
   "type": "module",
   "description": "The dev loop's agent pool (story_95ed402f9bd3, capabilities 10 to 13, ADR-1066 D2 G and D3): the lane runner and its engine, the dispatcher, and the watcher that lands handed-over pull requests, configured by agent-pool.json at the repo root. packages/dev-loop/src/lanes keeps forwarders at the old paths the Mint box's live processes run.",
   "dependencies": {
+    "@storytree/claude-code-mod": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
     "@storytree/session-management": "workspace:*"

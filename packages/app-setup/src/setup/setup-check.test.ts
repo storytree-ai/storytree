@@ -1150,3 +1150,23 @@ test("8.32 with a Codex that runs tool handlers (0.148 or later), each event the
     assert.deepEqual(readJson(home.codexHooks), { hooks: { Stop: [{ hooks: [own] }] } });
   });
 });
+
+test("8.33 Claude Code's registration leaves the tool server's hook_event call out of the storytree-tools hook, and its background hooks wait for the tool's note (--after-tool), so a session with the Claude Code mod spawns no recording hook for its own deliveries", async () => {
+  await withTempDir(async (dir) => {
+    const home = throwawayHome(dir);
+    await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
+    const groups = (readJson(home.claudeSettings).hooks ?? {}) as Record<string, HookEntry[]>;
+    const ours = (event: string) => (groups[event] ?? []).flatMap((group) => group.hooks.filter((hook) => hook.args?.[0] === HOOK.script).map((hook) => ({ matcher: group.matcher ?? "", hook })));
+    // Claude Code matches a tool's name against the whole matcher, as a regular expression.
+    const runs = (matcher: string, tool: string) => new RegExp(`^(?:${matcher})$`).test(tool);
+    const [tools] = ours("PreToolUse").filter(({ matcher }) => runs(matcher, "mcp__storytree__open"));
+    assert.ok(tools, "a hook before a storytree tool");
+    assert.ok(runs(tools.matcher, "mcp__storytree__claim") && !runs(tools.matcher, "mcp__storytree__hook_event"), "before every storytree tool but hook_event");
+    assert.ok(runs(tools.matcher, "mcp__storytree__hook_events"), "a tool whose name only starts like it is still one");
+    // Every background hook that records a line stands down when the tool recorded its event; the foreground ones look for the note at once.
+    const background = Object.keys(groups).flatMap((event) => ours(event).map((one) => ({ event, ...one }))).filter(({ hook }) => hook.async === true);
+    assert.deepEqual([...new Set(background.map(({ event }) => event))].sort(), ["PostToolUse", "PostToolUseFailure", "PreToolUse", "SessionStart", "Stop"], "the background hooks");
+    for (const { hook } of background) assert.ok(hook.args?.includes(AFTER_TOOL), hook.args?.join(" "));
+    for (const { hook } of Object.keys(groups).flatMap(ours).filter(({ hook }) => hook.async !== true)) assert.ok(!hook.args?.includes(AFTER_TOOL), hook.args?.join(" "));
+  });
+});

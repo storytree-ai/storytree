@@ -217,7 +217,7 @@ test("8.5 · the instruction is parked as the one arc in the arm's own throwaway
   }
 });
 
-test("8.6 · Experiments declares `experiment task import`, which reads the two tokens CI holds as saved keys and is refused, naming each unsaved key and making nothing, until both are saved", async () => {
+test("8.6 · Experiments declares `experiment task import`, which reads the two tokens CI holds as saved keys and is refused, naming each unsaved key and making nothing, until both are saved; with no arms named it imports into the arms made for the experiment", async () => {
   const [family] = EXPERIMENT_FAMILIES;
   assert.ok(family!.families!.includes(TASK_FAMILY));
   const [taskImport] = TASK_FAMILY.verbs;
@@ -236,6 +236,15 @@ test("8.6 · Experiments declares `experiment task import`, which reads the two 
       saveKey(TESTS_TOKEN_KEY, "tests-token", { home });
       await assert.rejects(taskImport!.act(inputs, { folder: home }, words), (error: unknown) =>
         error instanceof VerbRefusal && error.message.includes("one is not saved") && !error.message.includes(`auth set ${TESTS_TOKEN_KEY}`));
+
+      saveKey(MERGE_QUEUE_TOKEN_KEY, "merge-queue-token", { home });
+      await assert.rejects(taskImport!.act(inputs, { folder: home }, words), (error: unknown) =>
+        error instanceof VerbRefusal && /at least one arm/.test(error.message), "no --arms and no arm made for the experiment: nothing to import into");
+      writeArmHome(path.join(home, "experiments", "x-twin-alien"), "other", "alien");
+      writeArmHome(path.join(home, "experiments", "x-twin-misnamed"), "twin", "map-reads-on");
+      await assert.rejects(taskImport!.act(inputs, { folder: home }, words), (error: unknown) =>
+        error instanceof VerbRefusal && /not the home of arm "misnamed" of experiment "twin"/.test(error.message),
+        "with no --arms, the arms are the homes made for the experiment (another experiment's skipped), each checked before anything is made");
     } finally {
       for (const [name, value] of Object.entries(saved)) {
         if (value === undefined) delete process.env[name];

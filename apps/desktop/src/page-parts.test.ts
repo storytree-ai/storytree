@@ -15,7 +15,7 @@ import { build } from "esbuild";
 
 import type { AnnotatedTree } from "@storytree/library";
 
-import { readReadings } from "@storytree/lag-in-use";
+import { readReadings } from "@storytree/app/lag";
 import { readSettings } from "@storytree/project-and-caller";
 import { partsPlugin } from "@storytree/plugin-loader";
 

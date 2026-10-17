@@ -15,7 +15,7 @@ function recording(sizes: Record<string, number> = {}) {
   return { sent, recorder };
 }
 
-test("1.1 · a catalogue action its user takes becomes one reading of its response, long frames, settled time, progress, name and size", () => {
+test("5.1 · a catalogue action its user takes becomes one reading of its response, long frames, settled time, progress, name and size", () => {
   const { sent, recorder } = recording({ story_lib: 14 });
 
   // Opening the library's island: the panel opens at once with a loading circle, the globe glides and is still 350 ms after the click.
@@ -69,7 +69,7 @@ test("1.1 · a catalogue action its user takes becomes one reading of its respon
   ]]);
 });
 
-test("1.1 · a Library note and a session's row are recognised by what changed, and an action the field cannot tell is never guessed", () => {
+test("5.1 · a Library note and a session's row are recognised by what changed, and an action the field cannot tell is never guessed", () => {
   const { sent, recorder } = recording();
   const library: PageState = { ...closed, mode: "library" };
   // Switching to the Library is answered and done (the page is still) before the note is clicked: the note is timed from its click.
@@ -91,7 +91,7 @@ test("1.1 · a Library note and a session's row are recognised by what changed, 
   assert.deepEqual(sent.flat().map((reading) => [reading.name, reading.settled]), [["open-library-note", 50], ["open-session-row", 40]]);
 });
 
-test("1.2 · readings reach the app in batches, never between an action's input and its settling", () => {
+test("5.2 · readings reach the app in batches, never between an action's input and its settling", () => {
   const { sent, recorder } = recording();
   recorder.flush();
   assert.equal(sent.length, 0, "nothing recorded, nothing sent");

@@ -14,7 +14,7 @@ const ago = (days: number) => new Date(now - days * 86_400_000).toISOString();
 const read = (name: string, days: number, response: number, longestFrame: number, settled: number, progress = false): KeptReading =>
   ({ at: ago(days), version: "0.3.42", name, response, longFrames: longestFrame === 0 ? 0 : 1, longestFrame, settled, progress });
 
-test("3.1 · the report prints each action's count, median, 75th percentile and worst over seven days against its budget, worst first", () => {
+test("7.1 · the report prints each action's count, median, 75th percentile and worst over seven days against its budget, worst first", () => {
   const readings: KeptReading[] = [
     // Twelve island opens on the owner's library: quick to answer, but a long frame and one settle past a second with no progress.
     ...[0, 0, 16, 24, 32, 40, 48, 56, 64, 72, 88, 136].map((response, n) => read("open-island", n % 6, response, n === 11 ? 412 : 0, n === 11 ? 2380 : 180 + n * 10)),

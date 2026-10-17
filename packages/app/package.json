@@ -6,6 +6,11 @@
     ".": "./src/index.ts",
     "./lifecycle/bridge": "./src/lifecycle/bridge.ts",
     "./lifecycle/verbs": "./src/lifecycle/verbs.ts",
+    "./lag": "./src/lag/index.ts",
+    "./lag/bridge": "./src/lag/bridge.ts",
+    "./lag/runtime": "./src/lag/runtime.ts",
+    "./lag/verbs": "./src/lag/verbs.ts",
+    "./lag/view": "./src/lag/view.ts",
     "./projects": "./src/projects/follow.ts",
     "./projects/bridge": "./src/projects/bridge.ts",
     "./surfaces": "./src/surfaces/bridge.ts",
@@ -25,7 +30,8 @@
     "@storytree/library": "workspace:*",
     "electron-updater": "6.8.9",
     "pg": "^8.23.0",
-    "@storytree/project-and-caller": "workspace:*"
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/forest": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",
@@ -49,6 +55,22 @@
       {
         "from": "./updates/verbs",
         "export": "RELEASE_FAMILIES"
+      },
+      {
+        "from": "./lag/verbs",
+        "export": "LAG_FAMILIES"
+      }
+    ],
+    "pageChannels": [
+      {
+        "from": "./lag/bridge",
+        "export": "lagPageChannels"
+      }
+    ],
+    "pageAnswers": [
+      {
+        "from": "./lag/runtime",
+        "export": "lagPageAnswers"
       }
     ]
   }

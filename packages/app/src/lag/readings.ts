@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Readings file. The field's readings, one JSON line each, in one file in the app's home (ADR-1001 D4): appended a
+ * Capability 6 · Readings file. The field's readings, one JSON line each, in one file in the app's home (ADR-1001 D4): appended a
  * batch at a time, the oldest dropped past 30 days or 5 MB. Nothing is sent anywhere and nothing is written to the library.
  */
 import { existsSync, readFileSync } from "node:fs";

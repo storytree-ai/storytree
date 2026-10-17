@@ -1,4 +1,4 @@
-/** Capability 1 · Recorder. What crosses from the page to the app: a batch of readings, data only, safe in the sandboxed renderer. */
+/** Capability 5 · Recorder. What crosses from the page to the app: a batch of readings, data only, safe in the sandboxed renderer. */
 
 /** One catalogue action its user took, as the page measured it. Times are milliseconds. */
 export interface LagReading {

@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Recorder. The field recorder's core (ADR-1001 D4): it is told of each trusted input with what the page showed at
+ * Capability 5 · Recorder. The field recorder's core (ADR-1001 D4): it is told of each trusted input with what the page showed at
  * it, of the page each frame while an action is under way, and of the browser's own entries (Event Timing, Long Animation Frames),
  * and turns each catalogue action its user takes into one reading. It never reads the page or the clock itself, so view.ts wires
  * it to the browser and the tests drive it with recorded entries.

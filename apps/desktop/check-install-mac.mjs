@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync }
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { toolPaths, verifyPayload } from "@storytree/app-setup/deliver";
-import { AUTH_SCHEME } from "@storytree/identity/desktop";
+import { AUTH_SCHEME } from "@storytree/project-and-caller/identity/desktop";
 import { checkTools } from "./check-tools.mjs";
 import { gatekeeperSkip, staplerSkip } from "./mac-signing.mjs";
 import { startsCleanly } from "./src/main/start-check.ts";

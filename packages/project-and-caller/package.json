@@ -2,7 +2,7 @@
   "name": "@storytree/project-and-caller",
   "private": true,
   "type": "module",
-  "description": "The Project and caller story (story_6def59292b78, ADR-1025): which project a folder is, what the user set on this computer, and which session is calling.",
+  "description": "The Context story (story_6def59292b78, ADR-1025, ADR-1071 D3): which project a folder is, what the user set on this computer, which session is calling, and who is signed in (Identity, in src/identity).",
   "exports": {
     ".": "./src/index.ts",
     "./bridge": "./src/settings/bridge.ts",
@@ -12,7 +12,13 @@
     "./view": "./src/view/index.ts",
     "./testing/pg": "./src/testing/pg.ts",
     "./testing/folders": "./src/testing/folders.ts",
-    "./testing/egress": "./src/testing/egress.ts"
+    "./testing/egress": "./src/testing/egress.ts",
+    "./identity": "./src/identity/index.ts",
+    "./identity/client": "./src/identity/client.ts",
+    "./identity/session-store": "./src/identity/session-store.ts",
+    "./identity/command": "./src/identity/command.ts",
+    "./identity/desktop": "./src/identity/desktop.ts",
+    "./identity/verbs": "./src/identity/verbs.ts"
   },
   "storytree": {
     "pageChannels": [
@@ -33,6 +39,12 @@
         "export": "decisionRightsGuidance",
         "order": 30
       }
+    ],
+    "verbs": [
+      {
+        "from": "./identity/verbs",
+        "export": "IDENTITY_FAMILIES"
+      }
     ]
   },
   "scripts": {
@@ -40,6 +52,7 @@
   },
   "dependencies": {
     "@storytree/library": "workspace:*",
+    "jose": "6.2.12",
     "koffi": "^3.3.2",
     "pg": "^8.23.0"
   },

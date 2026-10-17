@@ -24,7 +24,6 @@
     "@storytree/ci-health": "workspace:*",
     "@storytree/forest": "workspace:*",
     "@storytree/guardrails": "workspace:*",
-    "@storytree/identity": "workspace:*",
     "@storytree/journey-events": "workspace:*",
     "@storytree/lag-in-use": "workspace:*",
     "@storytree/librarian": "workspace:*",

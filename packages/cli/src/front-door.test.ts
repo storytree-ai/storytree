@@ -13,7 +13,7 @@ import { RELEASE_FAMILIES } from "@storytree/app/updates/verbs";
 import { APP_FAMILIES } from "@storytree/app/lifecycle/verbs";
 import { SETTINGS_FAMILIES } from "@storytree/app/surfaces/verbs";
 import { HEALTH_FAMILIES } from "@storytree/ci-health/verbs";
-import { IDENTITY_FAMILIES } from "@storytree/identity/verbs";
+import { IDENTITY_FAMILIES } from "@storytree/project-and-caller/identity/verbs";
 import { CHECK_FAMILIES } from "@storytree/guardrails/verbs";
 import { QUALITY_FAMILIES } from "@storytree/quality-assurance/verbs";
 import { JOURNEY_FAMILIES } from "@storytree/journey-events/verbs";

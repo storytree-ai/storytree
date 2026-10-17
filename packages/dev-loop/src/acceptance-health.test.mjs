@@ -118,6 +118,26 @@ test("5.5 a run's verdicts are written to its story's contracts; --dry-run only 
   });
 });
 
+test("5.5 a run naming its story by id is recorded after the story is renamed; one naming a title no story has is refused with the stories it could name", async () => {
+  await withLibrary(async (lib) => {
+    const story = await lib.addStory({ title: "Setup" });
+    const capability = await lib.addCapability({ story: story.id, title: "1 · Get storytree" });
+    await lib.addContract({ capability: capability.id, title: "1.1 · It installs" });
+    const { contractIds } = contractsOf((await lib.projectTree()).stories[0]);
+    const run = { story: story.id, commit: "9f3734a", evidence: "evidence/run", checks: [{ contract: "1.1", name: "installed", observed: "pass" }] };
+    const said = [];
+    const io = { log: (line) => said.push(line), error: (line) => said.push(line) };
+
+    assert.equal(await acceptRun(lib, { ...run, story: "The app setup" }, { dryRun: false, ...io }), 1);
+    assert.match(said.join("\n"), new RegExp(`no story "The app setup"[\\s\\S]*${story.id}  Setup`));
+    assert.deepEqual(await lib.healthHistory(contractIds.get("1.1")), [], "a title a rename retired writes nothing");
+
+    assert.equal(await acceptRun(lib, run, { dryRun: false, ...io }), 0);
+    assert.equal((await lib.health(contractIds.get("1.1"))).verified.by, "acceptance run");
+    assert.match(said.join("\n"), /acceptance of "Setup"/, "the run is reported under the story's title");
+  });
+});
+
 /** Run `body` with a library for a fresh project on the test server, dropped afterwards, pass or fail. */
 async function withLibrary(body) {
   const url = process.env.STORYTREE_TEST_PG_URL;

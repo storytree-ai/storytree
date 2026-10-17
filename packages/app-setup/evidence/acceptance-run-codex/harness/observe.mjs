@@ -67,4 +67,4 @@ check("1.6", "an existing unrelated storytree command is preserved and the confl
 const updated = values["baseline-version"] !== undefined && values["baseline-version"] !== before;
 check("1.5", "the app took an ordinary release update before these sessions started", values["baseline-version"] === undefined ? undefined : updated, `${values["baseline-version"]} -> ${before}`);
 
-console.log(JSON.stringify({ story: "The app setup", release: values.release, commit: values.commit, evidence: values.evidence, checks }, null, 2));
+console.log(JSON.stringify({ story: "story_b91056a06337", release: values.release, commit: values.commit, evidence: values.evidence, checks }, null, 2));

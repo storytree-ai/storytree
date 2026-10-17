@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Readings file. The app's side of the bridge: the main process keeps each batch the page sends, checked and stamped
+ * Capability 6 · Readings file. The app's side of the bridge: the main process keeps each batch the page sends, checked and stamped
  * with the app's version, one batch after another so two never interleave. Keeping them never fails the page.
  */
 import { LAG_CHANNELS, type LagBridge } from "./bridge.js";

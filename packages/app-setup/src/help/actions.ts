@@ -8,7 +8,7 @@ import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Storytree } from "@storytree/library";
 import { addProject, deleteProject, keepOnThisComputer, projectFolder, removeProject, whoLoses } from "../project/index.js";
 import type { AgentConnection, SetupHelpBridge } from "./bridge.js";
-import { openFeedbackDraft } from "./feedback.js";
+import { openFeedbackDraft } from "@storytree/journey-events/feedback";
 import { readShippedLicense } from "./license.js";
 
 /** Platform adapters come from the frame; diagnostics and recovery stay with Session management. */

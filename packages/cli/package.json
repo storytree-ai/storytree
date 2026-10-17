@@ -25,7 +25,6 @@
     "@storytree/forest": "workspace:*",
     "@storytree/guardrails": "workspace:*",
     "@storytree/journey-events": "workspace:*",
-    "@storytree/lag-in-use": "workspace:*",
     "@storytree/librarian": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",

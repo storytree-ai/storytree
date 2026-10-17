@@ -1,4 +1,4 @@
-/** Capability 5 · Send feedback. */
+/** Capability 5 · Send feedback (Journey events; its composer and sign-in stay in Setup's Help panel). */
 export interface FeedbackDraft { readonly title: string; readonly body: string }
 export type DraftResult = { status: "opened" } | { status: "failed"; error: string };
 

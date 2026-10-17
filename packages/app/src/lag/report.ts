@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Lag report. `storytree lag`: the field's readings over the last seven days, per action, against the catalogue's
+ * Capability 7 · Lag report. `storytree lag`: the field's readings over the last seven days, per action, against the catalogue's
  * budgets (ADR-1001 D2, D4), the action furthest over its budget first. A report, not a verdict (ADR-1001 D5).
  */
 import type { Budget, LagAction } from "@storytree/forest/actions";

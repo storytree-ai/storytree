@@ -9,7 +9,7 @@ import { LAG_FAMILIES } from "./verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("3.1 · Lag in real use declares the `lag` family the command line mounts, 7th in its list: its bare verb prints the report over the readings kept in the storytree home", async (t) => {
+test("7.1 · Lag in real use declares the `lag` family the command line mounts, 7th in its list: its bare verb prints the report over the readings kept in the storytree home", async (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "lag-verbs-"));
   const was = process.env.STORYTREE_HOME;
   process.env.STORYTREE_HOME = home;

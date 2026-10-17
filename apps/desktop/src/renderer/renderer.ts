@@ -18,7 +18,7 @@ import { drawingOf, drillDown, forestDrawn, forestReading, forestScene, keptDraw
 import { mountJourneyConsent, mountJourneySettings } from "@storytree/journey-events/view";
 import { journal, type Target } from "@storytree/learning-as-you-build";
 import { mountJournal, mountTeaching } from "@storytree/learning-as-you-build/view";
-import { mountLagRecorder } from "@storytree/lag-in-use/view";
+import { mountLagRecorder } from "@storytree/app/lag/view";
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";

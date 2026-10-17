@@ -1,6 +1,6 @@
 /**
- * Capability 3 · Lag report. Lag in real use: what the desktop app's own recorder kept, read back. The main process's side is
- * `createLagRuntime`; the page's is `@storytree/lag-in-use/view`; `storytree lag` prints `lagReportText`.
+ * Capability 7 · Lag report. Lag in real use (Desktop app): what the desktop app's own recorder kept, read back. The main process's side is
+ * `createLagRuntime`; the page's is `@storytree/app/lag/view`; `storytree lag` prints `lagReportText`.
  */
 import { CATALOGUE } from "@storytree/forest/actions";
 

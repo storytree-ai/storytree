@@ -40,7 +40,7 @@ function page(search: string) {
   };
 }
 
-test("1.2 · switched off, the recorder makes no call at all; switched on, a click's reading reaches the app at the next flush, not before", () => {
+test("5.2 · switched off, the recorder makes no call at all; switched on, a click's reading reaches the app at the next flush, not before", () => {
   const off = page("?lag-recorder=off");
   const sent: LagReading[][] = [];
   const bridge = { recordLag: async (readings: LagReading[]) => { sent.push(readings); } };

@@ -9,7 +9,8 @@
     "./runtime": "./src/runtime.ts",
     "./deletion": "./src/deletion.ts",
     "./release": "./src/release.ts",
-    "./verbs": "./src/verbs.ts"
+    "./verbs": "./src/verbs.ts",
+    "./feedback": "./src/feedback.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

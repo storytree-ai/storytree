@@ -21,7 +21,7 @@ const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabiliti
 
 test("8.1, 8.5 Constructor stories survey alongside ordinary stories and storytree's package aliases, which a user's story of the same title does not take", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-titles-"));
-  const fixtures = [["story-shop", "Shop", "shop"], ["story_f9fb5136c28f", "The command line", "cli"], ["story_1c73ed7506ca", "Lag in real use", "lag-in-use"],
+  const fixtures = [["story-shop", "Shop", "shop"], ["story_f9fb5136c28f", "The command line", "cli"],
     // ADR-1066 D4's developer-first names, whose packages kept their names: storytree's own stories, by id.
     ["story_6def59292b78", "Context", "project-and-caller"], ["story_e50347f0388e", "Architecture checks", "guardrails"], ["story_421e473f0a99", "Code review", "quality-assurance"],
     ["story_73dad81ba7a7", "Code map", "map"], ["story_deee4230348c", "Map view", "forest"], ["story_d754d997f22a", "Knowledge graph", "knowledge-core"],

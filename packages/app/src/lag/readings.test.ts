@@ -11,7 +11,7 @@ import { createLagRuntime } from "./runtime.js";
 const DAY = 86_400_000;
 const reading = (settled: number): LagReading => ({ name: "open-island", response: 40, longFrames: 1, longestFrame: 72, settled, progress: false, size: 9 });
 
-test("2.1 · readings are kept in one file in the app's home, the oldest dropped past 30 days or 5 MB", async () => {
+test("6.1 · readings are kept in one file in the app's home, the oldest dropped past 30 days or 5 MB", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "lag-in-use-"));
   try {
     assert.deepEqual(KEEP, { ageMs: 30 * DAY, bytes: 5 * 1024 * 1024 });

@@ -1,4 +1,4 @@
-/** Reading the front doors 2.1–2.3: a reading printed for a person, and the same readings for a script. */
+/** The command line 15.1–15.3: a reading printed for a person, and the same readings for a script. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -27,7 +27,7 @@ function row(table: string, name: string): string[] | undefined {
   return table.split("\n").map((text) => text.trim().split(/\s{2,}/)).find((cells) => cells[0] === name);
 }
 
-test("2.1 · every command and tool is printed with its calls and sessions in the short window and the long one beside it, then the misses with the command named", () => {
+test("15.1 · every command and tool is printed with its calls and sessions in the short window and the long one beside it, then the misses with the command named", () => {
   const table = doorsTable(week, month);
   assert.deepEqual(row(table, "storytree arc show"), ["storytree arc show", "agent", "1", "1", "2", "1"]);
   assert.deepEqual(row(table, "retire")?.slice(0, 6), ["retire", "agent", "0", "0", "0", "0"], "a tool with no call is printed at zero");
@@ -37,13 +37,17 @@ test("2.1 · every command and tool is printed with its calls and sessions in th
   assert.deepEqual(row(table, "show_plan TypeError"), ["show_plan TypeError", "1", "1"], "failures by class, the short window and the long");
 });
 
-test("2.3 · each command and tool is printed with its consumers, and one with no call is marked unused, or not judged when a person may call it", () => {
+test("15.3 · each command and tool is printed with its consumers, and one with no call is marked unused, or not judged when a person may call it", () => {
   const table = doorsTable(week, month);
   assert.deepEqual(row(table, "retire"), ["retire", "agent", "0", "0", "0", "0", "unused"]);
   assert.deepEqual(row(table, "storytree settings show"), ["storytree settings show", "agent, user", "0", "0", "0", "0", "not judged"]);
   assert.match(table, /Not judged: a person may call it, and a person's own terminal writes no line/);
 });
 
-test("2.2 · the JSON carries both readings as the reading returns them", () => {
-  assert.deepEqual(JSON.parse(doorsJson(week, month)), { short: JSON.parse(JSON.stringify(week)), long: JSON.parse(JSON.stringify(month)) });
+test("15.2 · the JSON carries both readings as the reading returns them", () => {
+  const { short, long } = JSON.parse(doorsJson(week, month));
+  assert.deepEqual([short.since, short.until, long.since], ["2026-10-01T00:00:00.000Z", "2026-10-08T00:00:00.000Z", "2026-09-10T00:00:00.000Z"]);
+  assert.equal(short.surfaces.find((surface: { verb: string }) => surface.verb === "storytree arc show").calls, 1);
+  assert.equal(long.surfaces.find((surface: { verb: string }) => surface.verb === "storytree arc show").calls, 2, "the long window counts the September call too");
+  assert.deepEqual(short.misses.map(({ word, named }: { word: string; named: string }) => [word, named]), [["show", "storytree library read"]]);
 });

@@ -1,5 +1,5 @@
 /**
- * Capability 1 · The reading. Which step of the work each surface serves (ADR-0983 D2's door share per step): orient, search,
+ * Capability 14 · Reading the doors' use. Which step of the work each surface serves (ADR-0983 D2's door share per step): orient, search,
  * claim, write, land or close, as the hand door reading (increment_474e084c620d) put them, so the two
  * readings compare like for like (ADR-0983 D6). A surface no rule names is on "other", and the table
  * lists it there, so a new command or tool shows up rather than vanishing.

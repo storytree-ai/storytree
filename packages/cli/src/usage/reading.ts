@@ -1,21 +1,20 @@
 /**
- * Capability 1 · The reading (Reading the front doors, ADR-0998 D1): the counts of ADR-0983 D2 over one window of
- * `door-answered` lines, against the surfaces each door declares. A pure count: the lines and the
- * declared surfaces are handed in, so neither door is imported and either can front it.
+ * Capability 14 · Reading the doors' use: one window of both doors' `door-answered` lines (ADR-0998 D1, ADR-0983
+ * D2), the command line's own reading and the MCP server's side by side, with the views that read both (ADR-1071 D3,
+ * which keeps them in the command line, the door that already reaches the other).
  *
- * - Use per surface: every declared command and tool with its calls and sessions, those with none at
- *   zero; a verb neither door declares (the bare `storytree`, a family a word was refused in) is listed
- *   apart, never dropped. Each declared one carries its consumers (ADR-1045 D1), and one whose consumers
- *   include a person is not judged by these lines: the command line records nothing typed in a person's
- *   own terminal, so its zero is no sign it went unused.
- * - Misses: each word refused as unknown, where it was refused and the command the refusal named, and
- *   each door's unknowns per 1,000 of its calls.
+ * - Each door's own reading: its declared verbs with their use and consumers, its misses, failures and refusals: the
+ *   commands counted here (./commands.ts), the tools by the MCP server (its capability 8).
  * - Follows: for each offered step, how often it was offered, how often the session's next call took
  *   it, and ADR-0786's like-for-like baseline: after the same previous verbs, with the step not offered.
- * - Door share per step, failures by class, and refusals (a "no" by design) apart from failures.
+ * - Door share per step.
  * - Splits by machine, harness, and briefed: a session given at most one prompt, as a lane is given its
  *   brief and runs headless. The lines carry no other sign of a brief, so this is a reading, not a fact.
  */
+import type { Consumer } from "@storytree/library/verbs";
+import { readToolUse } from "@storytree/mcp-server";
+
+import { readCommandUse } from "./commands.js";
 import { STEPS, stepOf, type Step } from "./steps.js";
 
 export type Door = "command" | "tool";
@@ -36,9 +35,6 @@ export interface DoorLine {
   readonly class?: string;
   readonly next: readonly string[];
 }
-
-/** Who a verb is for: an agent session, a person at the command line or in the app, or both (ADR-1045 D1). */
-export type Consumer = "agent" | "user";
 
 /** One declared verb, as its door names it, with the consumers its story declared for it. */
 export interface DeclaredVerb {
@@ -73,6 +69,7 @@ export interface Reading {
   readonly until: string;
   readonly calls: Readonly<Record<Door, number>>;
   readonly sessions: number;
+  /** Declared commands, declared tools, then the verbs neither door declares. */
   readonly surfaces: readonly Surface[];
   readonly misses: readonly Miss[];
   /** Each door's unknowns per 1,000 of its calls; null for a door with no call. */
@@ -89,63 +86,27 @@ const UNNAMED = "unnamed";
 
 /** Count `lines`, the window's door-answered lines oldest first, against `declared`; `prompts` is how many prompts each session was given. */
 export function countDoors(lines: readonly DoorLine[], declared: Declared, prompts: ReadonlyMap<string, number>, window: Window): Reading {
-  const calls: Record<Door, number> = { command: 0, tool: 0 };
-  const unknowns: Record<Door, number> = { command: 0, tool: 0 };
-  for (const line of lines) {
-    calls[line.door] += 1;
-    if (line.outcome === "unknown") unknowns[line.door] += 1;
-  }
+  const commands = readCommandUse(lines.filter((line) => line.door === "command"), declared.commands);
+  const tools = readToolUse(lines.filter((line) => line.door === "tool"), declared.tools);
+  const listed = (declaredOnes: boolean) => [...commands.surfaces, ...tools.surfaces].filter((surface) => surface.declared === declaredOnes);
   return {
     since: window.since,
     until: window.until,
-    calls,
+    calls: { command: commands.calls, tool: tools.calls },
     sessions: new Set(lines.map((line) => line.session)).size,
-    surfaces: surfaces(lines, declared),
-    misses: misses(lines),
-    unknownPer1000: { command: per1000(unknowns.command, calls.command), tool: per1000(unknowns.tool, calls.tool) },
+    surfaces: [...listed(true), ...listed(false)],
+    misses: [...commands.misses, ...tools.misses],
+    unknownPer1000: { command: commands.unknownPer1000, tool: tools.unknownPer1000 },
     steps: STEPS.map((step) => ({
       step,
       command: lines.filter((line) => line.door === "command" && stepOf("command", line.verb) === step).length,
       tool: lines.filter((line) => line.door === "tool" && stepOf("tool", line.verb) === step).length,
     })),
     follows: follows(lines),
-    failures: tally(lines.filter((line) => line.outcome === "failed"), (line) => [line.door, line.verb, line.class ?? UNNAMED] as const)
-      .map(([[door, verb, kind], count]) => ({ door, verb, class: kind, count })),
-    refusals: tally(lines.filter((line) => line.outcome === "refused"), (line) => [line.door, line.verb] as const)
-      .map(([[door, verb], count]) => ({ door, verb, count })),
+    failures: [...commands.failures, ...tools.failures],
+    refusals: [...commands.refusals, ...tools.refusals],
     splits: splits(lines, prompts),
   };
-}
-
-function per1000(count: number, of: number): number | null {
-  return of === 0 ? null : Math.round((1000 * count) / of * 10) / 10;
-}
-
-function surfaces(lines: readonly DoorLine[], declared: Declared): Surface[] {
-  const seen = new Map<string, { door: Door; verb: string; calls: number; sessions: Set<string> }>();
-  const keyOf = (door: Door, verb: string) => `${door} ${verb}`;
-  for (const line of lines) {
-    const key = keyOf(line.door, line.verb);
-    const surface = seen.get(key) ?? { door: line.door, verb: line.verb, calls: 0, sessions: new Set<string>() };
-    surface.calls += 1;
-    surface.sessions.add(line.session);
-    seen.set(key, surface);
-  }
-  const listed = [...declared.commands.map((one) => ["command", one] as const), ...declared.tools.map((one) => ["tool", one] as const)];
-  const declaredKeys = new Set(listed.map(([door, { verb }]) => keyOf(door, verb)));
-  const byUse = (a: Surface, b: Surface) => (a.door === b.door ? 0 : a.door === "command" ? -1 : 1) || b.calls - a.calls || a.verb.localeCompare(b.verb);
-  const known = [...new Map(listed.map(([door, { verb, consumers }]) => {
-    const surface = seen.get(keyOf(door, verb));
-    return [keyOf(door, verb), { door, verb, declared: true, consumers, judged: !consumers.includes("user"), calls: surface?.calls ?? 0, sessions: surface?.sessions.size ?? 0 }] as const;
-  })).values()];
-  const others = [...seen].filter(([key]) => !declaredKeys.has(key))
-    .map(([, surface]) => ({ door: surface.door, verb: surface.verb, declared: false, judged: true, calls: surface.calls, sessions: surface.sessions.size }));
-  return [...known.sort(byUse), ...others.sort(byUse)];
-}
-
-function misses(lines: readonly DoorLine[]): Miss[] {
-  return tally(lines.filter((line) => line.outcome === "unknown"), (line) => [line.door, line.verb, line.word ?? "", line.named ?? ""] as const)
-    .map(([[door, where, word, named], count]) => ({ door, where, word, ...(named === "" ? {} : { named }), count }));
 }
 
 /** Each session's calls, in order, each with the call after it in the same session. */
@@ -201,16 +162,4 @@ function splits(lines: readonly DoorLine[], prompts: ReadonlyMap<string, number>
       unknown: group.filter((line) => line.outcome === "unknown").length,
     }));
   });
-}
-
-/** How many of `items` share each key, most first, then in the order first seen. */
-function tally<T, K extends readonly string[]>(items: readonly T[], keyOf: (item: T) => K): [K, number][] {
-  const counts = new Map<string, [K, number]>();
-  for (const item of items) {
-    const key = keyOf(item);
-    const id = JSON.stringify(key);
-    const entry = counts.get(id);
-    counts.set(id, [key, (entry?.[1] ?? 0) + 1]);
-  }
-  return [...counts.values()].sort((a, b) => b[1] - a[1]);
 }

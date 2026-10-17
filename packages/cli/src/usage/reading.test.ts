@@ -1,4 +1,4 @@
-/** Reading the front doors 1.1–1.5 and 1.7: the counts one window of door-answered lines gives, against the doors' declared surfaces. */
+/** The command line 14.1–14.5 and 14.7: the counts one window of door-answered lines gives, against the doors' declared surfaces. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -17,7 +17,7 @@ function line(session: string, door: DoorLine["door"], verb: string, more: Parti
   return { session, at: new Date(Date.parse(window.since) + at * 1000).toISOString(), door, verb, outcome: "answered", next: [], ...more };
 }
 
-test("1.1 · every declared command and tool is listed with its calls and sessions, those with none at zero, and an undeclared verb apart", () => {
+test("14.1 · every declared command and tool is listed with its calls and sessions, those with none at zero, and an undeclared verb apart", () => {
   const reading = countDoors([
     line("a", "command", "storytree arc show"),
     line("a", "command", "storytree arc show"),
@@ -36,7 +36,7 @@ test("1.1 · every declared command and tool is listed with its calls and sessio
   assert.equal(reading.sessions, 2);
 });
 
-test("1.2 · each word refused as unknown is counted with where it was refused and the command named, and each door's unknowns per 1,000 calls", () => {
+test("14.2 · each word refused as unknown is counted with where it was refused and the command named, and each door's unknowns per 1,000 calls", () => {
   const lines = [
     line("a", "command", "storytree arc increment", { outcome: "unknown", word: "show", named: "storytree library read" }),
     line("b", "command", "storytree arc increment", { outcome: "unknown", word: "show", named: "storytree library read" }),
@@ -53,7 +53,7 @@ test("1.2 · each word refused as unknown is counted with where it was refused a
   assert.equal(countDoors([], declared, new Map(), window).unknownPer1000.command, null, "no calls, no rate");
 });
 
-test("1.3 · each offered step's follow is counted beside the like-for-like baseline: the same previous verb, the step not offered", () => {
+test("14.3 · each offered step's follow is counted beside the like-for-like baseline: the same previous verb, the step not offered", () => {
   const reading = countDoors([
     // Offered after arc show: taken once, not taken once.
     line("a", "command", "storytree arc show", { next: ["storytree arc list"] }),
@@ -73,7 +73,7 @@ test("1.3 · each offered step's follow is counted beside the like-for-like base
   ]);
 });
 
-test("1.4 · each call is on a step, each step gives its calls through each door, and failures are counted by class apart from refusals", () => {
+test("14.4 · each call is on a step, each step gives its calls through each door, and failures are counted by class apart from refusals", () => {
   const reading = countDoors([
     line("a", "command", "storytree library search"),
     line("a", "tool", "search_notes"),
@@ -95,7 +95,7 @@ test("1.4 · each call is on a step, each step gives its calls through each door
   assert.deepEqual(reading.refusals, [{ door: "tool", verb: "show_plan", count: 1 }]);
 });
 
-test("1.5 · calls, sessions and unknowns are split by machine, harness, and briefed (at most one prompt) or not", () => {
+test("14.5 · calls, sessions and unknowns are split by machine, harness, and briefed (at most one prompt) or not", () => {
   const reading = countDoors([
     line("lane", "command", "storytree arc show", { machine: "box", harness: "codex" }),
     line("lane", "command", "storytree", { machine: "box", harness: "codex", outcome: "unknown", word: "plan" }),
@@ -112,7 +112,7 @@ test("1.5 · calls, sessions and unknowns are split by machine, harness, and bri
   assert.deepEqual(split("briefed", "not briefed"), { by: "briefed", value: "not briefed", command: 1, tool: 1, sessions: 1, unknown: 0 });
 });
 
-test("1.7 · each declared verb carries its consumers, and one a person may call is not judged by these lines, which record no person's own terminal", () => {
+test("14.7 · each declared verb carries its consumers, and one a person may call is not judged by these lines, which record no person's own terminal", () => {
   const reading = countDoors([line("a", "command", "storytree arc show")], {
     commands: [{ verb: "storytree settings show", consumers: ["user"] }, { verb: "storytree quality brief", consumers: ["agent"] }, { verb: "storytree arc show", consumers: both }],
     tools: [],

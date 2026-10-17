@@ -4,3 +4,5 @@
 export { createAgentTools, NOT_A_PROJECT_ANSWER, NOT_RUNNING_ANSWER, servedTools } from "./tools/index.js";
 export type { AgentToolOptions, AgentTools, ToolExtension, ToolCall, DefineTool, ToolAnswer } from "./tools/index.js";
 export { habitsCard } from "./instructions/habits.js";
+export { readToolUse } from "./usage/tool-use.js";
+export type { ServedTool, ToolFailure, ToolLine, ToolMiss, ToolRefusal, ToolSurface, ToolUse } from "./usage/tool-use.js";

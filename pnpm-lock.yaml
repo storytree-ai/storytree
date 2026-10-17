@@ -337,9 +337,6 @@ importers:
       '@storytree/quality-assurance':
         specifier: workspace:*
         version: link:../quality-assurance
-      '@storytree/reading-the-front-doors':
-        specifier: workspace:*
-        version: link:../reading-the-front-doors
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -901,25 +898,6 @@ importers:
       zod:
         specifier: ^4.6.5
         version: 4.6.5
-    devDependencies:
-      '@types/node':
-        specifier: ^24.13.6
-        version: 24.13.6
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-      typescript:
-        specifier: ~7.0.2
-        version: 7.0.2
-
-  packages/reading-the-front-doors:
-    dependencies:
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
-      '@storytree/session-management':
-        specifier: workspace:*
-        version: link:../session-management
     devDependencies:
       '@types/node':
         specifier: ^24.13.6

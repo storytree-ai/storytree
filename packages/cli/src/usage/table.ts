@@ -1,5 +1,5 @@
 /**
- * Capability 2 · The printed table. A reading for a person in a terminal: the short window's numbers with the long window's beside
+ * Capability 15 · The printed table. A reading for a person in a terminal: the short window's numbers with the long window's beside
  * them, leading with what the owner asked to see first (every command and tool with its consumers and its use, one with
  * no call marked unused, or not judged when a person may call it (ADR-1045 D1), and the misses), then follows, failures, refusals, door share per step and the splits (ADR-0983 D2). The
  * same two readings as JSON, for a script that compares numbers rather than printed text.

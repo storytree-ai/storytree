@@ -1,6 +1,7 @@
 /**
  * Capability 1 · Front door. A thin front door onto the keys story (ADR-0843): save, list and remove the keys storytree keeps.
- * Each is a person's own (ADR-1045 D1): a key is given at a terminal, never by an agent.
+ * Each is a person's own (ADR-1045 D1): a key is given at a terminal, never by an agent. `auth connection` hands a hand
+ * script's psql the routed library, signed in with its key, and stores nothing; an agent or a person may run it.
  */
 import { Refusal } from "../answer.js";
 import type { Family } from "../door.js";
@@ -36,6 +37,21 @@ export const auth: Family = {
       if (!keys.length) return { text: "No keys saved.", next: [{ command: "storytree auth set <name>", why: "save one" }] };
       const said = { file: "from the file", command: "from its command, run when needed", environment: "from the environment" } as const;
       return { text: keys.map((key) => `${key.name}: ${said[key.from]}${key.variable === undefined ? "" : ` (${key.variable})`}`).join("\n") };
+    },
+  }, {
+    name: "connection",
+    usage: "auth connection [--database <name>]   (psql \"$(storytree auth connection --database storytree-activity)\")",
+    summary: "print the routed library's postgres:// connection, signed in, for psql; stores nothing",
+    async act(args) {
+      if (args.words.length || args.names.some((name) => name !== "database")) throw new Refusal("usage: storytree auth connection [--database <name>]", { code: 2 });
+      const [{ locateLibrary }, { connectionString, ConnectionError }] = await Promise.all([import("@storytree/project-and-caller/routing"), import("@storytree/library")]);
+      const library = locateLibrary();
+      if (!library.found) throw new Refusal(library.message);
+      try {
+        return { text: connectionString(library.connect, args.text("database")) };
+      } catch (error) {
+        throw error instanceof ConnectionError ? new Refusal(error.message) : error;
+      }
     },
   }, {
     name: "remove",

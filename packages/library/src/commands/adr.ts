@@ -1,11 +1,13 @@
 /**
- * Capability 22 · Decision log. The `adr` verbs, declared here (ADR-0969 D2) and mounted by the command line as its `adr`
- * family (ADR-1033): record a new decision with the next number, its status, who decided it in their own words, and what
- * it supersedes; pull a decision out as a markdown file, edit it, push it back; write its composed statement; list them.
+ * Capability 13 · Decision log. The `adr` verbs, declared here beside the library's own commands (ADR-0969 D2, ADR-1077
+ * D2) and mounted by the command line as its `adr` family, 4th among `storytree`'s families (ADR-1033): record a new
+ * decision with the next number, its status, who decided it in their own words, and what it supersedes; pull a decision
+ * out as a markdown file, edit it, push it back; write its composed statement; list them.
  * None is a tool: an agent reads a decision with the MCP server's `open` and records one with its `write_note`.
  *
- * - Every rule is the library's (its capability 13): numbers handed out inside the write, status, supersession and its
- *   loop check, the owner's words a stamp claiming his authority must quote, and whether a composed statement is stale.
+ * - Every rule is the library's own (knowledge/decision-log.ts): numbers handed out inside the write, status,
+ *   supersession and its loop check, the owner's words a stamp claiming his authority must quote, and whether a composed
+ *   statement is stale.
  * - The file `adr pull` writes: a front matter of `key: <JSON value>` lines, then `# <title>`, a blank line, and the
  *   text. `push` hands the library's `editNote` only what differs from the stored decision, so a push with no edit
  *   writes nothing, and names no writer. The lines below `# read only` (its id, number, how it reads, its authority and
@@ -13,8 +15,8 @@
  * - A decision is named by its id or number. Listing uses list(kind), then decision(id) so the library owns
  *   supersession and the status shown or filtered.
  */
-import { verb, VerbRefusal, type VerbContext } from "../../verbs/verb.js";
-import type { DecisionView, Library } from "../../index.js";
+import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
+import type { DecisionView, Library } from "../index.js";
 
 /** The fields a pushed file may change, in the order the file shows them. */
 const EDITABLE = ["status", "decided", "loadBearing", "supersedes", "links", "frontCoverOf"] as const;
@@ -252,8 +254,11 @@ const list = verb({
   },
 });
 
-/** The decision log's verbs, as the command line's `adr` family lists them. */
-export const ADR_VERBS = [list, create, pull, push, compose];
-
-/** Words agents try for reading one decision. */
-export const ADR_GUESSES: Readonly<Record<string, string>> = { show: "adr pull <decision>", read: "adr pull <decision>", get: "adr pull <decision>", open: "adr pull <decision>" };
+/** The `adr` family, 4th among `storytree`'s families, with the words agents try for reading one decision. */
+export const ADR_FAMILY: VerbFamily = {
+  name: "adr",
+  summary: "the decision log: new, pull, push, compose, list",
+  order: 4,
+  guesses: { show: "adr pull <decision>", read: "adr pull <decision>", get: "adr pull <decision>", open: "adr pull <decision>" },
+  verbs: [list, create, pull, push, compose],
+};

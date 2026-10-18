@@ -18,11 +18,11 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { roundDue, route, worklist } from "@storytree/librarian";
+import { roundDue, route, worklist } from "@storytree/library/librarian";
 import { z } from "zod";
 
 import { nameThisMachine } from "@storytree/session-management/machines";
-import { recordFriction, reinforceFriction } from "@storytree/session-management";
+import { recordFriction, reinforceFriction } from "@storytree/library/librarian";
 import type { ToolExtension } from "./index.js";
 import { readClaims } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/project-and-caller";

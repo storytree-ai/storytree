@@ -12,7 +12,7 @@ import { setTimeout } from "node:timers/promises";
 
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
-import { librarianTools } from "@storytree/librarian";
+import { librarianTools } from "@storytree/library/librarian";
 import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "@storytree/session-management";

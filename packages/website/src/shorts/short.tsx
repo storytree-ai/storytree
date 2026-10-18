@@ -16,6 +16,15 @@ import { MAP, mapProps, quantise, selectedAt, snapshot } from "./view.js";
 const TITLES = new Map(snapshot.scene.islands.map(island => [island.story, island.title]));
 /** The seam the forest hands an evidence capture its canvas's live state through (PlanetWorldCanvas's CAPTURE_SEAM). */
 const CAPTURE_SEAM = "__storytreeCaptureGlobe";
+/** The page asks the forest's view for reduced motion, which it honours by standing every transition (a selection's light,
+ * land drawing on, islands moving) at its end: those play on the wall clock, so otherwise a frame would show wherever one had
+ * got to when a machine, slower or faster, captured it, and not a picture of its own moment. */
+const REDUCE = "(prefers-reduced-motion: reduce)";
+if (typeof window !== "undefined") {
+  const media = window.matchMedia.bind(window), reduced = Object.assign(new EventTarget(), {
+    matches: true, media: REDUCE, onchange: null, addListener() {}, removeListener() {} }) as unknown as MediaQueryList;
+  window.matchMedia = query => query === REDUCE ? reduced : media(query);
+}
 const nextFrame = () => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done())));
 
 /** Text in the pixel font on its own layer, every pixel either fully drawn or not at all: no soft edges. */
@@ -74,7 +83,8 @@ async function settled(controls: GlobeControls, get: () => RootState): Promise<M
   }
 }
 
-export function SeeingWhatAgentsBuilt() {
+/** `lateBy` holds each frame's capture back that many milliseconds, as a slow machine does. */
+export function SeeingWhatAgentsBuilt({ lateBy = 0 }: { lateBy?: number }) {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const shown = useRef<HTMLCanvasElement>(null);
@@ -94,14 +104,14 @@ export function SeeingWhatAgentsBuilt() {
     if (!get || !assets || !marks) return;
     // The view takes a selection on its own renderer's next pass, so the frame is drawn once that has run.
     const drawing = delayRender(`frame ${frame}`);
-    void nextFrame().then(() => {
+    void new Promise(done => setTimeout(done, lateBy)).then(nextFrame).then(() => {
       const map = shrinkView(get(), frame * 1000 / fps);
       const ctx = shown.current!.getContext("2d")!;
       pixelText(ctx, drawScene(ctx, { seconds, frames: durationInFrames, cast: assets.cast, sheet: assets.sheet, view: map,
         map: { width: MAP.width, height: MAP.height, marks } }));
       continueRender(drawing);
     });
-  }, [get, assets, marks, frame, fps, seconds, durationInFrames, selected]);
+  }, [get, assets, marks, frame, fps, seconds, durationInFrames, selected, lateBy]);
   return <AbsoluteFill style={{ background: "#000" }}>
     <div style={{ position: "absolute", left: 0, top: 0, width: MAP.width, height: MAP.height, isolation: "isolate", zIndex: 0 }}>
       <PlanetView {...mapProps(selected)} core={core} onPick={ignore} onNote={ignore} onControls={setControls} />

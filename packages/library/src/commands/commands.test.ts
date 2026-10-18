@@ -30,8 +30,8 @@ test("17.1 · The library declares the library family first among storytree's fa
   });
   const library = await storytree.openProject(project);
 
-  const [family] = LIBRARY_FAMILIES;
-  assert.deepEqual([LIBRARY_FAMILIES.length, family!.name, family!.order], [1, "library", 1]);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library");
+  assert.equal(family!.order, 1);
   const names = family!.verbs.map((one) => mounted(one.command) ? one.command.name : undefined);
   assert.deepEqual(names, ["search", "phrase", "links", "related", "new", "read", "edit", "refile", "retire", "list", "history"]);
   assert.ok(family!.verbs.every((one) => !mounted(one.tool)), "no verb is a tool");

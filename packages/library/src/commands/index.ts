@@ -6,6 +6,7 @@
  * kind under its id (ADR-1058 D2), or retire one with its reason and
  * writer. Long text can come from a file; refusals are the library's own messages. No verb is a tool: an agent searches,
  * opens, writes and corrects artifacts with the tools the library declares beside them (notes.ts), which record its reads.
+ * Beside it the list mounts capability 13's `adr` family (adr.ts, ADR-1077 D2).
  *
  * - `new` hands the fields to the one library function that writes that kind, and the library
  *   judges them. A new contract skips the numbers its story package's tests carry, and one whose title runs past
@@ -28,6 +29,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import { CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "../index.js";
 import { fieldValue, verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
+import { ADR_FAMILY } from "./adr.js";
 
 /** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
 export interface HeldClaim {
@@ -485,4 +487,4 @@ export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{
   order: 1,
   guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", view: "library read <id>", pull: "library read <id>", artifact: "library read <id>" },
   verbs: [search, phrase, links, related, create, read, edit, refile, retire, list, history],
-}];
+}, ADR_FAMILY];

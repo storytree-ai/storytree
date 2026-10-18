@@ -1,5 +1,5 @@
 /**
- * Capability 25 · Queues: contract 25.1 in The library story, in a fresh project's library on the real Postgres
+ * Capability 25 · Lapsed questions: contract 25.1 in The library story, in a fresh project's library on the real Postgres
  * `pnpm test` provides.
  */
 import assert from "node:assert/strict";

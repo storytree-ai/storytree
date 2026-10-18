@@ -13,7 +13,7 @@ import { brokenEdges, type BrokenEdge } from "../decision-log/index.js";
 import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
 import { relatedUnlinked, unrestedDecisions } from "../links/index.js";
 import { allNotes } from "../notes.js";
-import { openQuestions } from "../queues/index.js";
+import { openQuestions } from "../lapsed-questions/index.js";
 
 /** The curated kinds: a write to any of them since the session started makes the whole pass due. */
 export const CURATED: readonly string[] = ["decision", "question", "principle", "guardrail", "pattern", "process", "definition", "agent"];
@@ -55,7 +55,7 @@ export interface Worklist {
     readonly unread?: string;
     /** Graduation (4): processes and tools that match nothing, when the tools served are known. */
     readonly processes?: ProcessGaps;
-    /** Queues (5): open questions whose review lease has lapsed, longest lapsed first. */
+    /** Lapsed questions (5): open questions whose review lease has lapsed, longest lapsed first. */
     readonly questions: SchemaRecord<"question">[];
   };
 }

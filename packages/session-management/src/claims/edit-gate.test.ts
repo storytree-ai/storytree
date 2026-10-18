@@ -60,7 +60,10 @@ test("5.31 an edit tool aimed at a capability its session's claimed increment do
       const refusals = await log.lines(project, { kinds: ["claim-refused"] });
       assert.deepEqual(refusals.map((line) => line.kind === "claim-refused" && [line.session, line.capability, line.under]), [["A", reset, mine], ["C", reset, undefined]], "each refusal is in the activity log, under the increment its session drives (5.38)");
 
+      // A claim on a capability another live session's increment lists is refused (5.53), so B claims it while A's is released.
+      assert.equal((await release(as("A"), mine)).ok, true);
       assert.equal((await claim(as("B"), form, "a quick fix to the form")).ok, true);
+      assert.equal((await claim(as("A"), mine, "driving the email form")).ok, true);
       assert.equal((await gate("A", "form.ts"))?.refused, "held", "a capability another session claimed itself");
       assert.equal((await release(as("B"), form)).ok, true);
 
@@ -155,7 +158,10 @@ test("5.40 an edit tool aimed at a file in an imported folder is refused before 
       assert.deepEqual([claudeAnswer.decision, claudeAnswer.hookSpecificOutput.permissionDecision], [undefined, "ask"], "Claude Code asks its user");
       assert.equal(JSON.parse(refusalAnswer("codex", refusalMessage(asked!), asked!.refused === "ask")).decision, "block", "a harness that cannot ask its user refuses");
 
+      // A claim on a capability another live session's increment lists is refused (5.53), so B claims it while A's is released.
+      assert.equal((await release(as("A"), mine)).ok, true);
       assert.equal((await claim(as("B"), stats, "a fix to the stats page")).ok, true);
+      assert.equal((await claim(as("A"), mine, "driving the stats page")).ok, true);
       assert.equal((await gate("A", "app/stats/page.tsx"))?.refused, "held", "an explored capability another live session holds is refused as any other");
     });
   } finally {

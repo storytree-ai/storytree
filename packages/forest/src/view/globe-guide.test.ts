@@ -17,7 +17,7 @@ function fixture() {
   let size = { width: 800, height: 600 };
   let pose: GlobePose = { turn: { yaw: 0, pitch: 0 }, framing: 3, sideOffset: 0 };
   const guide = createGlobeGuide({ world: () => world, camera: () => camera, size: () => size,
-    read: () => pose, write: next => { pose = next; globe.quaternion.copy(focusRotation(next.turn, camera.quaternion)); }, invalidate() {} });
+    read: () => pose, write: next => { pose = next; globe.quaternion.copy(focusRotation(next.turn, camera.quaternion)); }, invalidate() {}, opening: () => pose });
   return { world, globe, story, cap, file, core, camera, guide, pose: () => pose, resize: (next: typeof size) => { size = next; } };
 }
 
@@ -57,6 +57,10 @@ test("3.23 screen positions follow actual transforms, zoom, viewport and camera 
   at(f.guide.position(target), 520, 260);
   f.globe.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI);
   assert.equal(f.guide.position(target)?.visible, false, "far side");
+  // On the glass sheet nothing is round the back: the same point, tilted past level, is on show.
+  const glass = new Group(); glass.name = "sheet:glass"; f.world.add(glass);
+  assert.equal(f.guide.position(target)?.visible, true, "no far side on the sheet");
+  f.world.remove(glass);
   f.globe.quaternion.copy(new Quaternion()); f.story.visible = false;
   assert.equal(f.guide.position(target)?.visible, false);
   f.story.visible = true; f.file.position.x = 100;
@@ -181,7 +185,7 @@ test("3.44 a pose written but not yet drawn still counts: the guide reads moving
   const camera = new OrthographicCamera(-400, 400, 300, -300, 0.1, 1000);
   let drawn: GlobePose = { turn: { yaw: 0, pitch: 0 }, framing: 1, sideOffset: 0 }, queued: GlobePose | undefined;
   const guide = createGlobeGuide({ world: () => world, camera: () => camera, size: () => ({ width: 800, height: 600 }),
-    read: () => ({ ...drawn }), write: next => { queued = next; }, invalidate() {} });
+    read: () => ({ ...drawn }), write: next => { queued = next; }, invalidate() {}, opening: () => ({ ...drawn }) });
   const render = () => { if (queued !== undefined) drawn = queued; queued = undefined; };
   guide.slide({ framing: 1, sideOffset: -200 }, 600);
   guide.frame(600);
@@ -207,6 +211,10 @@ test("3.51 each drawn island's screen box follows actual transforms and zoom; is
   near(f.guide.islands(), 360, 280, 80, 40);
   f.globe.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI);
   assert.deepEqual(f.guide.islands(), [], "far side");
+  // On the glass sheet no island is round the back, whatever the tilt: the same turn still boxes it.
+  const glass = new Group(); glass.name = "sheet:glass"; f.world.add(glass);
+  assert.equal(f.guide.islands().length, 1, "no far side on the sheet");
+  f.world.remove(glass);
   f.globe.quaternion.copy(new Quaternion()); f.story.visible = false;
   assert.deepEqual(f.guide.islands(), [], "hidden");
 });

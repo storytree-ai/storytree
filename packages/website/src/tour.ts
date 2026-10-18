@@ -253,15 +253,18 @@ export function insetAt(step: TourStep, moments: number, options: { width?: numb
 /** Where the camera faces once `lines` lines are told, on a laptop (`wide`) or a phone. */
 export function viewOf(step: TourStep, lines: number, wide: boolean): CameraView & { side?: number; narrow?: number } {
   const shown = stepAt(step, lines);
-  return (wide ? shown.laptop : shown.phone) ?? { ...(shown.target ? { target: shown.target } : {}), framing: shown.framing ?? 1.1 };
+  return (wide ? shown.laptop : shown.phone) ?? { ...(shown.target ? { target: shown.target } : {}), framing: shown.framing ?? restingFraming };
 }
 
-/** A step's camera view: what it faces, and how close (the short half-side in globe radii). */
+/** A step's view of the map when it names no framing: the short half-side of the view, in the glass sheet's ground units. */
+export const restingFraming = 240;
+/** A step's camera view: what it faces, and how close (the short half-side of the view, in the glass sheet's ground units). */
 export type CameraView = { target?: GlobeTarget; framing: number };
 /** The legs of the camera's flight from one step's view to the next on the same globe, in milliseconds at 1× (ADR-0879 D5). */
 export function flight(from: CameraView, to: CameraView): { framing: number; ms: number }[] {
-  // One eased flight turns the globe and zooms together: between close views it stays in and turns; to a wider view it pulls
-  // back as it turns (2.15, narrowing D5's pull-back before far moves; the owner, 2026-10-04: "just stay zoomed in and rotate the globe").
+  // One eased flight pans the glass sheet and zooms together: between close views it stays in and pans; to a wider view it pulls
+  // back as it pans (2.15, narrowing D5's pull-back before far moves; the owner, 2026-10-04: "just stay zoomed in and rotate the
+  // globe", said of the globe the sheet replaced).
   return [{ framing: to.framing, ms: JSON.stringify(from.target) === JSON.stringify(to.target) ? 1800 : 2000 }];
 }
 

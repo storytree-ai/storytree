@@ -17,7 +17,9 @@ export type GlobeControls = { stop(stop: CameraStop): boolean; position(target: 
 export type PlacedGlobeControls = GlobeControls & { aside(): number };
 /** The short way round from `from` to face the way `to` does, as a yaw to ease toward. */
 const nearestYaw = (from: number, to: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
-export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean; slide(to: Omit<GlobePose, "turn">, duration?: number): boolean } {
+export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void;
+  /** The view the glass sheet opens on and Home returns to, as the canvas is now, or that whole map at a `framing` asked for (3.66). */
+  opening(framing?: number): GlobePose }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean; slide(to: Omit<GlobePose, "turn">, duration?: number): boolean } {
   // A slide (3.40) moves the zoom and offset only, leaving the turn to whatever turns it meanwhile.
   let motion: { from: GlobePose; to: GlobePose; elapsed: number; duration: number; slide?: boolean } | undefined;
   // 3.44: the host draws a written zoom and offset on its next render, so until it has, the pose written is the one on show.
@@ -52,6 +54,11 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
   return {
     stop(stop) {
       const world = host.world(); world.updateMatrixWorld(true);
+      // 3.66: the glass sheet has no core to face; its whole map is the view it opens on, zoomed as asked.
+      if (stop.target.kind === "core" && onTheSheet(world)) {
+        const from = current(), whole = host.opening(stop.framing);
+        return go(from, { turn: { yaw: nearestYaw(from.turn.yaw, whole.turn.yaw), pitch: whole.turn.pitch }, framing: whole.framing, sideOffset: stop.sideOffset ?? from.sideOffset }, stop.duration ?? 600);
+      }
       const target = findTarget(world, stop.target), globe = world.getObjectByName("globe");
       if (target === undefined || globe === undefined) return false;
       const from = current();

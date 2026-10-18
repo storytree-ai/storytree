@@ -1,6 +1,6 @@
 /** Capability 2 · The forest on the site. The tour's camera: where it flies as the tour moves, in what order and when. */
 import type { GlobeTarget } from "@storytree/forest/view";
-import { aim, flight, type CameraView, type TourDetail, type TourStep } from "./tour.js";
+import { aim, flight, restingFraming, type CameraView, type TourDetail, type TourStep } from "./tour.js";
 
 /** A phone's value between its 390px one and its 320px one (`narrow`), moving between the two from 390px down. */
 export function towardNarrow(wide: number, narrow: number, width: number): number {
@@ -8,8 +8,8 @@ export function towardNarrow(wide: number, narrow: number, width: number): numbe
 }
 
 /**
- * Where the globe's middle sits, in pixels right of the screen's: in the room the caption leaves it on a laptop, or a phone's own
- * side. An overlay plays over the globe and goes, so it leaves the globe where it is (ADR-1018 D6); only the knowledge chapter's
+ * Where the middle of the map's view sits, in pixels right of the screen's: in the room the caption leaves it on a laptop, or a phone's own
+ * side. An overlay plays over the map and goes, so it leaves the map where it is (ADR-1018 D6); only the knowledge chapter's
  * note card keeps its room beside it.
  */
 export function globeSide(step: TourStep | undefined, width: number): number {
@@ -32,56 +32,56 @@ export function viewFraming(step: Pick<TourStep, "framing" | "laptop" | "phone">
 }
 
 /**
- * Free play's framing (2.22, 2.23): storytree's own globe is framed smaller on a phone, whose screen is too narrow for the names
- * round its rim at the resting framing, and a little smaller on a laptop, where at the resting framing its southern names fall
- * below the sessions list into the bar; the shop's few islands sit near its middle and keep it.
+ * Free play's framing (2.22, 2.23), in the glass sheet's ground units: storytree's own sheet is framed wider on a phone, whose
+ * screen is too narrow for its names at the resting framing, and a little wider on a laptop, where at the resting framing its
+ * southern names fall below the sessions list into the bar; the shop's few islands sit near its middle and keep it.
  */
 export function freePlayFraming(map: string, width: number, resting: number): number {
   if (map !== "storytree") return resting;
-  return width <= 600 ? towardNarrow(1.5, 1.7, width) : 1.25;
+  return width <= 600 ? towardNarrow(400, 450, width) : 520;
 }
 
 /** One pose the camera eases to over `duration` milliseconds. */
 export type Stop = { target: GlobeTarget; framing: number; duration: number };
 /**
- * One thing the camera does, `at` milliseconds after its move begins: fly to a stop, show the next step's globe at once
- * (`show`), or swap the globe and wait for it to be drawn (`swap`; the cues after it are timed from that moment), and say
+ * One thing the camera does, `at` milliseconds after its move begins: fly to a stop, show the next step's map at once
+ * (`show`), or swap the map and wait for it to be drawn (`swap`; the cues after it are timed from that moment), and say
  * it has arrived (`arrive`), from where an overview step drifts.
  */
 export type Cue = { at: number; kind: "fly"; stop: Stop } | { at: number; kind: "show" | "swap" | "arrive" };
 
-/** What the camera moves from and to, and whether the globe changes on the way. */
+/** What the camera moves from and to, and whether the map changes on the way. */
 export type Move = {
   from: CameraView;
   to: { target: GlobeTarget; framing: number };
-  /** The globe on show's whole view, where a pull back aims when the last step had no target. */
+  /** The map on show's whole view, where a pull back aims when the last step had no target. */
   shownOverview: GlobeTarget;
-  /** The next globe's whole view, where a dive lands before it flies in. */
+  /** The next map's whole view, where a dive lands before it flies in. */
   overview: GlobeTarget;
   /** Chapter 2's first view, which grows in from far away. */
   first: boolean;
-  /** Another project's globe replaces the one on show. */
+  /** Another project's map replaces the one on show. */
   switching: boolean;
-  /** The next globe grows from a point, so it needs no pull back and dive (2.12). */
+  /** The next map grows from a point, so it needs no pull back and dive (2.12). */
   swells: boolean;
   reduced: boolean;
   speed: number;
 };
 
 /**
- * The camera's cues for a move (ADR-0879 D5, D7): with reduced motion it cuts; to another project's globe it pulls back
- * until the globe is small, swaps it there and dives into the new one; chapter 2's first view grows in from far away; and
- * otherwise the legs of one flight follow one another, each turning the globe and zooming at once (2.15).
+ * The camera's cues for a move (ADR-0879 D5, D7): with reduced motion it cuts; to another project's map it pulls back
+ * until the glass sheet is small, swaps it there and dives into the new one; chapter 2's first view grows in from far away;
+ * and otherwise the legs of one flight follow one another, each panning the sheet and zooming at once (2.15).
  */
 export function cameraCues({ from, to, shownOverview, overview, first, switching, swells, reduced, speed }: Move): Cue[] {
   const fly = (at: number, stop: Stop): Cue => ({ at, kind: "fly", stop });
-  // A globe that grows from a point needs no pull back and dive: the old one gives way to the new one's point, which swells
+  // A map that grows from a point needs no pull back and dive: the old one gives way to the new one's point, which swells
   // where the visitor is already looking (2.12; owner, 2026-10-05: "is this really needed?").
   const shown: Cue[] = switching && (reduced || first || swells) ? [{ at: 0, kind: "show" }] : [];
   if (reduced) return [...shown, fly(switching ? 60 : 0, { ...to, duration: 0 }), { at: 0, kind: "arrive" }];
   if (switching && !first && !swells) {
     const wide = Math.max(from.framing, to.framing, 1) * 2.4;
-    // The dive waits for the new globe to be drawn: a heavy globe can take longer to lay out than any fixed beat.
+    // The dive waits for the new map to be drawn: a heavy map can take longer to lay out than any fixed beat.
     return [fly(0, { target: from.target ?? shownOverview, framing: wide, duration: 900 / speed }), { at: 900 / speed, kind: "swap" },
       fly(0, { target: overview, framing: wide, duration: 0 }), fly(60 / speed, { ...to, duration: 1500 / speed }), { at: 1560 / speed, kind: "arrive" }];
   }
@@ -112,7 +112,7 @@ export type CameraStep = {
   tour: TourDetail;
   /** The tour as the camera last saw it. */
   before: TourDetail | undefined;
-  /** The step's globe is not the one on show. */
+  /** The step's map is not the one on show. */
   switching: boolean;
   to: { target: GlobeTarget; framing: number };
   overview: GlobeTarget; shownOverview: GlobeTarget;
@@ -121,7 +121,7 @@ export type CameraStep = {
   reduced: boolean;
   /** Aims the camera; false while the target is not drawn yet, so it is aimed at again on a later beat. */
   place(stop: Stop): boolean;
-  /** Puts the step's globe on show. */
+  /** Puts the step's map on show. */
   show(): void;
 };
 
@@ -131,7 +131,7 @@ export type CameraStep = {
  * freezes the drift; playing again returns to the step's view and drifts on. Flights finish.
  */
 export function createCameraPlayer(host: CameraHost) {
-  let from: CameraView = { framing: 1.1 }, entered = false;
+  let from: CameraView = { framing: restingFraming }, entered = false;
   let flights: unknown[] = [], drifts: unknown[] = [];
   let dive: (() => void) | undefined;
   // Each aim supersedes any earlier one still waiting for its island to be drawn, so a late island never pulls the camera back.
@@ -175,13 +175,13 @@ export function createCameraPlayer(host: CameraHost) {
       schedule(cameraCues({ from, to, shownOverview, overview, first, switching, swells, reduced, speed }));
       from = to;
     },
-    /** Whether a swapped globe is awaited, so the camera dives once it is drawn. */
+    /** Whether a swapped map is awaited, so the camera dives once it is drawn. */
     get diving(): boolean { return dive !== undefined; },
-    /** The swapped globe is drawn: the camera dives into it. */
+    /** The swapped map is drawn: the camera dives into it. */
     drawn(): void { const waiting = dive; dive = undefined; waiting?.(); },
     /** The drift stops where it is (the visitor exploring, or every surface shown). */
     freeze(): void { clearDrift(); },
-    /** Whatever the camera was doing stops: the visitor took the globe. */
+    /** Whatever the camera was doing stops: the visitor took the map. */
     cancel(): void { clearFlight(); clearDrift(); },
     /** The next view grows in from far away, as chapter 2's first does once chapter 1 hands over. */
     reenter(): void { entered = false; },

@@ -12,10 +12,10 @@ import { decisionsDiagram } from "@storytree/learning-as-you-build/view";
 import saved from "./forest-snapshot.json" with { type: "json" };
 import shopSaved from "./shop-snapshot.json" with { type: "json" };
 import ownSaved from "./own-snapshot.json" with { type: "json" };
-import { crossingLength, growthPlan, type GrowthPlan } from "@storytree/forest/world/planet";
+import { crossingLength, growthPlan, SHEET_RADIUS, type GrowthPlan } from "@storytree/forest/world/planet";
 import { buildPlanetPathways } from "@storytree/forest/world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
-import { aim, globeOf, insetAt, islandsKeptOff, labelsAt, labelWords, momentStarts, overlayAt, placeTags, readingTime, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type Label, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
+import { aim, globeOf, insetAt, restingFraming, islandsKeptOff, labelsAt, labelWords, momentStarts, overlayAt, placeTags, readingTime, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type Label, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
 import { createCameraPlayer, freePlayFraming, globeSide, viewFraming } from "./tour-camera.js";
 import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
 import { growthReading, recordedView, savedReading } from "./tour-reading.js";
@@ -48,9 +48,10 @@ type GlobeMap = "storytree" | Grown;
 const grows = (map: GlobeMap): map is Grown => map === "own" || map === "shop";
 const notes = [...knowledge(snapshot.changes).notes.values()];
 const complete: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
-const overviews: Record<GlobeMap, GlobeTarget> = { storytree: { kind: "story", story: "story_deee4230348c" }, own: { kind: "core" }, shop: { kind: "core" } };
-/** The globe at rest fills most of the short side (ADR-0877 D2). */
-const restingFraming = 1.1;
+/** Each map's whole view: on the glass sheet, the view it opens on (forest 3.66). */
+const overviews: Record<GlobeMap, GlobeTarget> = { storytree: { kind: "core" }, own: { kind: "core" }, shop: { kind: "core" } };
+/** The tour frames the map in the glass sheet's ground units (the short half-side of the view); the sheet's camera takes them in its sphere's radii. */
+const sheetFraming = (ground: number) => ground / SHEET_RADIUS;
 type Recording = ReturnType<typeof savedReading>;
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const hold = (reason: Hold, held = true) => window.dispatchEvent(new CustomEvent("storytree-tour-hold", { detail: { reason, held } }));
@@ -231,7 +232,7 @@ function Inset({ title, target, framing, labels, view }: { title: string; target
   useEffect(() => {
     if (!controls) return;
     let again: ReturnType<typeof setTimeout> | undefined;
-    aim(at => controls.stop({ target: at, framing, duration: 0, sideOffset: 0 }), target, target, run => { again = setTimeout(run, 50); });
+    aim(at => controls.stop({ target: at, framing: sheetFraming(framing), duration: 0, sideOffset: 0 }), target, target, run => { again = setTimeout(run, 50); });
     return () => clearTimeout(again);
   }, [controls, target, framing]);
   // Each label sits on what it names in the inset, its words centred under the island, or over it near the inset's foot, and
@@ -261,7 +262,7 @@ function Inset({ title, target, framing, labels, view }: { title: string; target
     <figcaption className="tour-inset-title">{title}, up close</figcaption>
     <div ref={host} className="tour-inset-view" aria-hidden="true">
       <PlanetView {...view} wisps={[]} selected={undefined} onPick={() => {}} onNote={() => {}} surfaces={surfaces} library={false}
-        framing={framing} sideOffset={0} onControls={setControls} />
+        framing={sheetFraming(framing)} sideOffset={0} onControls={setControls} sheet />
       {labels.map(label => <div key={label.key} ref={node => { if (node) tags.current.set(label.key, node); else tags.current.delete(label.key); }}
         className="tour-tag away" data-label={label.key} data-target={label.target.kind}>
         <span className="tour-tag-ring" /><span className="tour-tag-text">{label.text}</span>
@@ -467,7 +468,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     const target = view.target ?? overview;
     camera.step({ tour, before, switching: map !== shownMapNow.current, to: { target, framing: viewFraming(shownStep!, width, restingFraming) }, overview,
       shownOverview: overviews[shownMapNow.current], driftOrder: driftOrders[map], next: driftOrders[map].indexOf(ownerOf(target) ?? "") + 1,
-      reduced: reduced(), place: stop => controls.stop({ ...stop, sideOffset }), show: () => setShownMap(map) });
+      reduced: reduced(), place: stop => controls.stop({ ...stop, framing: sheetFraming(stop.framing), sideOffset }), show: () => setShownMap(map) });
   }, [controls, tour, sideOffset, openingActive, globe.map]);
   // With no globe drawn, each step's panels read the step's own project directly, as the camera would have shown it (2.16).
   useEffect(() => {
@@ -496,7 +497,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     // A globe just swapped in may not be drawn yet (storytree's takes seconds with software WebGL): it is aimed at again, for up to
     // 20 seconds, until it is, so the last globe's framing does not stay.
     let again: ReturnType<typeof setTimeout> | undefined;
-    const frame = requestAnimationFrame(() => aim(target => controls.stop({ target, framing: freePlayFraming(shownMap, width, restingFraming), duration: reduced() ? 0 : 1200, sideOffset: 0 }),
+    const frame = requestAnimationFrame(() => aim(target => controls.stop({ target, framing: sheetFraming(freePlayFraming(shownMap, width, restingFraming)), duration: reduced() ? 0 : 1200, sideOffset: 0 }),
       overviews[shownMap], overviews[shownMap], run => { again = setTimeout(run, 50); }, 400));
     return () => { cancelAnimationFrame(frame); clearTimeout(again); };
   }, [free, shownMap, controls]);
@@ -564,19 +565,19 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   }, [onShop, shopView, shopAt, growthCores]);
   return <>
     {webgl && tour && <GlobeBoundary failed={globeFailed}>
-      <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project globe" : shownMap === "own" ? "Storytree’s own globe, growing as its agents built it" : "An online shop’s globe, as its agents built it"}
+      <div className="forest-drawing" role="group" aria-label={onStorytree ? "Storytree’s saved project map" : shownMap === "own" ? "Storytree’s own map, growing as its agents built it" : "An online shop’s map, as its agents built it"}
         data-globe={shownMap} data-globe-shown={layers.shown} style={layers.shown ? undefined : { visibility: "hidden" }} data-arrived={arrived} data-growth={grown ? moment === undefined ? "whole" : moment.toFixed(2) : undefined} data-focus={focus?.join(" ")}
         data-islands={drawn.islands.length} data-risen={growth ? [...growth.plan.islands.values()].filter(window => window.start <= growth.at).length : undefined} onPointerDown={explore} onWheel={explore}>
         <PlanetView core={grown ? growthCores[shownMap as Grown] : core} scene={drawn} places={grown?.places ?? places}
           frame={grown?.snapshot.scene} easeMoves growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
           wisps={(heldClaims ? wisps : mapFrame?.wisps) ?? (shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps)} selected={selected}
           highlighted={focus?.length === 0 ? ["planned-only"] : focus ?? highlight} onPick={pickStory} onNote={pickNote}
-          onControls={onControls} surfaces={surfaces} framing={free ? freePlayFraming(shownMap, width, restingFraming) : restingFraming} sideOffset={globeSide(undefined, width)} mode={layers.mode} library={layers.library} />
+          onControls={onControls} surfaces={surfaces} framing={sheetFraming(free ? freePlayFraming(shownMap, width, restingFraming) : restingFraming)} sideOffset={globeSide(undefined, width)} mode={layers.mode} library={layers.library} sheet />
       </div>
     </GlobeBoundary>}
     {webgl && <Labels labels={shownLabels} controls={controls} arrived={arrived} />}
     {panelHost && createPortal(<>
-      <div className="forest-views" role="group" aria-label="Globe layers" hidden={!free}>
+      <div className="forest-views" role="group" aria-label="Map layers" hidden={!free}>
         {layers.offered.map(which => <button key={which} type="button" data-globe-switch={which} aria-pressed={switches[which]} onClick={() => flip(which)}>
           {which === "stories" ? "Stories" : "Library"}
         </button>)}
@@ -586,7 +587,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
         <header><h2>Saved project</h2><button type="button" aria-label="Close project browser" onClick={() => setBrowserOpen(false)}>×</button></header>
         <p className="tour-recorded-label">{grows(shownMap) ? `Recorded ${growths[shownMap].snapshot.window.to.slice(0, 10)}` : `Saved ${snapshot.capturedAt.slice(0, 10)}`} · read only</p>
         <label htmlFor="tour-story-choice">Open a story</label>
-        <select id="tour-story-choice" value={story ?? ""} onChange={event => { pickStory(event.target.value); controls?.stop({ target: { kind: "story", story: event.target.value }, framing: .6, duration: reduced() ? 0 : 1400 }); setBrowserOpen(false); }}>
+        <select id="tour-story-choice" value={story ?? ""} onChange={event => { pickStory(event.target.value); controls?.stop({ target: { kind: "story", story: event.target.value }, framing: sheetFraming(130), duration: reduced() ? 0 : 1400 }); setBrowserOpen(false); }}>
           <option value="" disabled>Choose an island…</option>
           {(grows(shownMap) ? Object.entries(growths[shownMap].snapshot.titles).map(([id, title]) => ({ id, title })) : snapshot.tree.stories).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
         </select>

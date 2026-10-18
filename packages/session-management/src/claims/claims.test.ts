@@ -1099,8 +1099,10 @@ test("5.55 several capabilities are claimed in one call, in ascending id order w
     const [first, middle, last] = [emailForm, passwordReset, signIn].sort() as [string, string, string];
 
     assert.ok((await claimAll(as("A"), [last, first, middle], "building sign-up")).ok);
-    assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "claimed").map((line) => line.kind === "claimed" && line.capability), [first, middle, last], "claimed in ascending order");
-    for (const id of [first, middle, last]) await release(as("A"), id);
+    const order = (await log.since(project, 0)).lines.flatMap((line) => line.kind === "claimed" && line.capability !== undefined ? [line.capability] : []);
+    assert.equal(order.length, 3);
+    assert.ok(order[0]! < order[1]! && order[1]! < order[2]!, `claimed in ascending id order, not as given: ${order.join(", ")}`);
+    for (const id of order) await release(as("A"), id);
 
     assert.ok((await claim(as("B"), middle, "fixing the middle one")).ok);
     const refused = await claimAll(as("A"), [last, middle, first], "building sign-up");

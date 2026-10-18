@@ -1,44 +1,22 @@
 /** Capability 6 · Pixel-art shorts. The first short, "seeing what agents built" (increment_9294d76b04cf, ADR-1046, reworked
- * from the owner's notes in increment_4695144e6847): the same developer at the same desk on both halves, and on the
- * storytree side's screen the real view. The globe draws off screen at GLOBE pixels square; each frame turns it to that
- * moment's angle, lights the island once the developer has clicked it, renders it once by hand and hands it to the scene,
- * which draws the one 320×180 canvas the page shows ×6 with no smoothing. */
+ * from the owner's notes in increment_4695144e6847 and polished in increment_ea834305fe2d): the same developer at the same desk
+ * on both halves, and on the storytree side's screen the real map. The forest's own view draws storytree's glass sheet off
+ * screen (view.ts's MAP), at the app's own opening view of it, and lit by the selection when the developer clicks it; each frame
+ * draws it by hand and hands it to the scene, which draws the one 320×180 canvas the page shows ×6 with no smoothing. */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AbsoluteFill, continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { useThree, type RootState } from "@react-three/fiber";
-import { PlanetWorldCanvas } from "@storytree/forest/world/planet";
-import { planetPathwayDrawing } from "@storytree/forest/world/geometry";
+import type { RootState } from "@react-three/fiber";
+import { PlanetView, type GlobeControls } from "@storytree/forest/view";
+import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 import type { CastMap } from "./cast.js";
-import { drawScene, type Words } from "./scene.js";
-import { beats, FONT, LOW, SCALE } from "./script.js";
-import { GROUNDING, litAt, snapshot, turnAt } from "./view.js";
+import { drawScene, SCRIPT, type Marks, type Words } from "./scene.js";
+import { FONT, LOW, SCALE, SCREEN } from "./script.js";
+import { MAP, mapProps, quantise, selectedAt, snapshot } from "./view.js";
 
-const spots = new Map(snapshot.spots);
-const WITH = beats(GROUNDING).with;
-/** The globe's own resolution: the largest it is shown on the screen, in the frame's pixels. */
-const GLOBE = 144;
-const LIT = "#ffd34d";
-const quaternion = (angle: number): [number, number, number, number] => [0, Math.sin(angle / 2), 0, Math.cos(angle / 2)];
-
-type Coloured = { isMesh?: boolean; material?: { clone(): Coloured["material"]; color: { clone(): unknown; copy(c: unknown): { lerp(c: unknown, t: number): unknown } }; opacity: number }; userData: Record<string, unknown> };
-type Lit = { material: NonNullable<Coloured["material"]>; base: unknown; lit: unknown; opacity: number };
-
-/** Tints each island toward the light by its own glow (0 for every island but the lit one), on copies of its materials. */
-function lightIslands(scene: RootState["scene"], lit: { story: string; glow: number } | undefined): void {
-  for (const [story] of spots) scene.getObjectByName(`planet:${story}`)?.traverse(node => {
-    const mesh = node as unknown as Coloured;
-    if (!mesh.isMesh || mesh.material === undefined || !("color" in mesh.material)) return;
-    const own = (mesh.userData.lit ??= (() => {
-      const material = mesh.material!.clone()!;
-      const glow = (material.color.clone() as { set(c: string): unknown }).set(LIT);
-      return { material, base: material.color.clone(), lit: glow, opacity: material.opacity };
-    })()) as Lit;
-    const glow = lit?.story === story ? lit.glow : 0;
-    mesh.material = own.material;
-    own.material.color.copy(own.base).lerp(own.lit, glow);
-    own.material.opacity = own.opacity + (1 - own.opacity) * glow;
-  });
-}
+const TITLES = new Map(snapshot.scene.islands.map(island => [island.story, island.title]));
+/** The seam the forest hands an evidence capture its canvas's live state through (PlanetWorldCanvas's CAPTURE_SEAM). */
+const CAPTURE_SEAM = "__storytreeCaptureGlobe";
+const nextFrame = () => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done())));
 
 /** Text in the pixel font on its own layer, every pixel either fully drawn or not at all: no soft edges. */
 function pixelText(ctx: CanvasRenderingContext2D, words: readonly Words[]): void {
@@ -55,13 +33,6 @@ function pixelText(ctx: CanvasRenderingContext2D, words: readonly Words[]): void
   ctx.drawImage(layer.canvas, 0, 0);
 }
 
-/** Hands the globe's live state out of its canvas. */
-function Grab({ onState }: { onState(get: () => RootState): void }) {
-  const get = useThree(state => state.get);
-  useEffect(() => onState(get), [get, onState]);
-  return null;
-}
-
 /** The pixel font, the cast's sheet and its frame map, loaded once before the first frame draws. */
 async function loadAssets(): Promise<{ cast: CastMap; sheet: HTMLImageElement }> {
   const face = await new FontFace(FONT, `url(${staticFile("fonts/PressStart2P-Regular.ttf")})`).load();
@@ -73,36 +44,69 @@ async function loadAssets(): Promise<{ cast: CastMap; sheet: HTMLImageElement }>
   return { cast, sheet };
 }
 
+/** The forest's drawing at the moment, shrunk to the full screen by averaging (so its thin lit edges survive) and put into the
+ * map's palette. */
+function shrinkView(state: RootState, at: number): HTMLCanvasElement | OffscreenCanvas {
+  state.advance(at);
+  const map = new OffscreenCanvas(SCREEN.full.width, SCREEN.full.height).getContext("2d", { willReadFrequently: true })!;
+  map.imageSmoothingEnabled = true;
+  map.imageSmoothingQuality = "high";
+  map.drawImage(state.gl.domElement, 0, 0, SCREEN.full.width, SCREEN.full.height);
+  const pixels = map.getImageData(0, 0, SCREEN.full.width, SCREEN.full.height);
+  quantise(pixels.data);
+  map.putImageData(pixels, 0, 0);
+  return map.canvas;
+}
+
+/** Aims the view, then waits until it has drawn every island in the same place, and the same picture, several times running:
+ * its roads are routed after its islands draw, later on a busy machine. Then hands back where each island is. */
+async function settled(controls: GlobeControls, get: () => RootState): Promise<Marks> {
+  controls.stop({ target: { kind: "story", story: MAP.aim.story }, framing: MAP.aim.framing, sideOffset: MAP.aim.sideOffset, duration: 0 });
+  let last = "", same = 0;
+  for (;;) {
+    await new Promise(done => setTimeout(done, 150));
+    const islands = controls.islands().filter(island => island.width > 0);
+    const canvas = shrinkView(get(), 0), seen = (canvas as OffscreenCanvas).getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
+    const now = JSON.stringify(islands) + seen.join(",");
+    same = islands.length && now === last ? same + 1 : 0;
+    last = now;
+    if (same >= 4) return { islands: islands.map(island => ({ ...island, title: TITLES.get(island.story) ?? "" })) };
+  }
+}
+
 export function SeeingWhatAgentsBuilt() {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const shown = useRef<HTMLCanvasElement>(null);
   const [get, setGet] = useState<() => RootState>();
-  const grabbed = useCallback((state: () => RootState) => setGet(() => state), []);
+  const [controls, setControls] = useState<GlobeControls>();
+  const [marks, setMarks] = useState<Marks>();
   const [assets, setAssets] = useState<{ cast: CastMap; sheet: HTMLImageElement }>();
-  const [loading] = useState(() => delayRender("The globe, the pixel font and the cast load"));
-  // The roads are routed before the globe mounts, so it draws them at once rather than a few frames in.
-  useState(() => planetPathwayDrawing(snapshot.scene, spots, snapshot.radius));
+  const [loading] = useState(() => delayRender("The map, the pixel font and the cast load"));
+  const core = useMemo(() => createKnowledgeCore(snapshot.project), []);
+  useState(() => { (globalThis as Record<string, unknown>)[CAPTURE_SEAM] = (state: () => RootState) => setGet(() => state); });
   useEffect(() => { void loadAssets().then(setAssets); }, []);
-  useEffect(() => { if (get && assets) continueRender(loading); }, [get, assets, loading]);
-  const seconds = frame / fps;
-  const rotation = useMemo(() => quaternion(turnAt(WITH, seconds)), [seconds]);
+  useEffect(() => { if (controls && get) void settled(controls, get).then(setMarks); }, [controls, get]);
+  useEffect(() => { if (get && assets && marks) continueRender(loading); }, [get, assets, marks, loading]);
+  const seconds = frame / fps, selected = selectedAt(SCRIPT.with, seconds);
+  const ignore = useCallback(() => {}, []);
   useLayoutEffect(() => {
-    if (!get || !assets) return;
-    const state = get();
-    state.scene.getObjectByName("globe")?.quaternion.set(...rotation);
-    lightIslands(state.scene, litAt(WITH, seconds));
-    state.advance(frame * 1000 / fps);
-    const ctx = shown.current!.getContext("2d")!;
-    pixelText(ctx, drawScene(ctx, { seconds, frames: durationInFrames, cast: assets.cast, sheet: assets.sheet, view: state.gl.domElement }));
-  }, [get, assets, frame, fps, seconds, durationInFrames, rotation]);
+    if (!get || !assets || !marks) return;
+    // The view takes a selection on its own renderer's next pass, so the frame is drawn once that has run.
+    const drawing = delayRender(`frame ${frame}`);
+    void nextFrame().then(() => {
+      const map = shrinkView(get(), frame * 1000 / fps);
+      const ctx = shown.current!.getContext("2d")!;
+      pixelText(ctx, drawScene(ctx, { seconds, frames: durationInFrames, cast: assets.cast, sheet: assets.sheet, view: map,
+        map: { width: MAP.width, height: MAP.height, marks } }));
+      continueRender(drawing);
+    });
+  }, [get, assets, marks, frame, fps, seconds, durationInFrames, selected]);
   return <AbsoluteFill style={{ background: "#000" }}>
-    <div style={{ position: "absolute", left: 0, top: 0, width: GLOBE, height: GLOBE }}>
-      <PlanetWorldCanvas scene={snapshot.scene} spots={spots} radius={snapshot.radius} rotation={rotation} orbit={false}>
-        <Grab onState={grabbed} />
-      </PlanetWorldCanvas>
+    <div style={{ position: "absolute", left: 0, top: 0, width: MAP.width, height: MAP.height, isolation: "isolate", zIndex: 0 }}>
+      <PlanetView {...mapProps(selected)} core={core} onPick={ignore} onNote={ignore} onControls={setControls} />
     </div>
     <canvas ref={shown} width={LOW.width} height={LOW.height}
-      style={{ position: "absolute", left: 0, top: 0, width: LOW.width * SCALE, height: LOW.height * SCALE, imageRendering: "pixelated" }} />
+      style={{ position: "absolute", left: 0, top: 0, zIndex: 1, width: LOW.width * SCALE, height: LOW.height * SCALE, imageRendering: "pixelated" }} />
   </AbsoluteFill>;
 }

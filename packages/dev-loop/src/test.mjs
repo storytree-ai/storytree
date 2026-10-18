@@ -1,6 +1,6 @@
 // Capability 6 · Running the tests. `pnpm test`: run the tests a branch's changes can reach, with node:test (through tsx) against a
 // real Postgres. Run it as `pnpm test` (node --import tsx packages/dev-loop/src/test.mjs): it imports
-// @storytree/library/local-postgres, which is TypeScript. CI runs the same command, so it decides the same way.
+// @storytree/local-postgres, which is TypeScript. CI runs the same command, so it decides the same way.
 //
 // What runs (ADR-0649 D4, test-scope.mjs): the workspace packages holding a file changed
 // since the branch left origin/main, working tree and untracked files included, plus every package
@@ -37,7 +37,7 @@
 // the units it ran and leaves the others' results as they were.
 //
 // With STORYTREE_TEST_PG_URL set, the tests use that server and nothing is started or stopped.
-// Otherwise this runs a throwaway local server through @storytree/library/local-postgres, and hands the
+// Otherwise this runs a throwaway local server through @storytree/local-postgres, and hands the
 // tests its data directory too, as STORYTREE_TEST_PG_DATA (Session management reads the owner record
 // local-postgres keeps beside it, as it reads the desktop app's). The server comes from the
 // @embedded-postgres binaries (on Windows arm64, the x64 build under the OS's emulation). Its
@@ -91,7 +91,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DataDirInUseError, start } from "@storytree/library/local-postgres";
+import { DataDirInUseError, start } from "@storytree/local-postgres";
 
 import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";

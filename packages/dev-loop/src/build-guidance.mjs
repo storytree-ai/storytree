@@ -25,7 +25,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { locateLibrary, readLibrary } from "@storytree/project-and-caller";
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
 import { connect } from "@storytree/library";
-import { DataDirInUseError, start } from "@storytree/library/local-postgres";
+import { DataDirInUseError, start } from "@storytree/local-postgres";
 
 import { appHome } from "../../../apps/desktop/src/home.ts";
 import { driftOf, expectedFiles, judgeDrift, overBudget, readRoles, REGION_END, REGION_START, ROLE_DIRS, SKILL_DIRS, sourcesOf } from "./guidance.mjs";

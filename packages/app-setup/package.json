@@ -21,6 +21,7 @@
     "build": "tsx src/bins/build.ts"
   },
   "dependencies": {
+    "@storytree/local-postgres": "workspace:*",
     "@storytree/session-management": "workspace:*",
     "@storytree/journey-events": "workspace:*",
     "@storytree/library": "workspace:*",

@@ -31,6 +31,7 @@
     "check:type-imports": "node --import tsx packages/dev-loop/src/type-imports.mjs"
   },
   "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
     "@storytree/session-management": "workspace:*",
     "@storytree/dev-loop": "workspace:*",
     "@storytree/library": "workspace:*",

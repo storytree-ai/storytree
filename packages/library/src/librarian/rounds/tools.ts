@@ -1,5 +1,4 @@
 /** Capability 26 · Rounds. Rounds 26.3–26.4: curation on the shared MCP server, through its public extension point. */
-import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -9,7 +8,6 @@ import { retire } from "../catalogue/index.js";
 import { annotate, correct, supersede } from "../decision-log/index.js";
 import { claudeCodeMemoryFolder, graduate, park } from "../graduation/index.js";
 import { link } from "../links/index.js";
-import { route } from "../queues/index.js";
 import type { ToolCall, ToolExtension, ToolHost } from "./host.js";
 import { roundDue, worklist, worklistView } from "./rounds.js";
 
@@ -21,27 +19,24 @@ export const librarianToolParts = [({ project, tools }: ToolHost): ToolExtension
 /** The server supplies its discovered tool names; another host can supply the same catalogue. */
 export function librarianTools({ tools }: { tools?: () => readonly string[] } = {}): ToolExtension {
   return {
-    instructions: "Before landing, use `worklist` for the librarian's pass: `link`, `supersede`, `correct` (including load-bearing), `annotate`, `retire`, `park`, `graduate`, and `route`; graduate durable memory every time.",
+    instructions: "Before landing, use `worklist` for the librarian's pass: `link`, `supersede`, `correct` (including load-bearing), `annotate`, `retire`, `park` and `graduate`; graduate durable memory every time. Friction drains apart, through `friction_drain` and `route`.",
     async landNext(_capability, call) {
       return (await roundDue(call.library, await sessionStart(call))).rest ? "run the librarian's pass" : undefined;
     },
     registerTools(define) {
-      define("worklist", "Gather the librarian's worklist since this session started: graduation and the friction drain always, other curation when due. Memory folders default to Claude Code's for this folder; name other folders explicitly.", z.object({
+      define("worklist", "Gather the librarian's worklist since this session started: graduation always, other curation when due. The friction drain is friction_drain's. Memory folders default to Claude Code's for this folder; name other folders explicitly.", z.object({
         memoryFolders: z.array(text).optional(),
         tools: z.array(text).optional().describe("Tools served, for matching processes; defaults to this server's catalogue when supplied by the host"),
       }), async (args, call) => {
-        const branch = branchIn(call.folder);
         const served = args.tools ?? tools?.();
         const full = await worklist(call.library, {
           ...await sessionStart(call),
-          ...(branch === undefined ? {} : { branch }),
           memoryFolders: args.memoryFolders?.map((folder) => path.resolve(call.folder, folder)) ?? [claudeCodeMemoryFolder(call.folder, homedir())],
           ...(served === undefined ? {} : { tools: served }),
           ...(call.progress === undefined ? {} : { progress: call.progress }),
-          ...(call.writer === undefined ? {} : { writer: call.writer }),
         });
         // Bounded (6.9): the full records once reached fifteen million characters.
-        return { text: `The librarian's worklist. Review graduation at every landing. ${full.friction.length} friction reports are due${full.frictionMore === undefined ? "" : `, and ${full.frictionMore} more wait`}; each other list shows its first few, with counts: read any note whole by its ID.`, data: { worklist: worklistView(full) } };
+        return { text: "The librarian's worklist. Review graduation at every landing; each other list shows its first few, with counts: read any note whole by its ID.", data: { worklist: worklistView(full) } };
       }, { consumers: ["agent"] });
       define("link", "Make one note rest on another, preserving its existing links. A definition rests only on the decision that created its term.", z.object({ from: text, to: text }), async ({ from, to }, { library, writer }) => {
         const note = await link(library, from, to, writer);
@@ -78,13 +73,6 @@ export function librarianTools({ tools }: { tools?: () => readonly string[] } = 
         const note = await graduate(call.library, path.resolve(call.folder, memory), kind, fields, call.writer);
         return { text: `Graduated ${memory} into ${note.id}.`, data: { id: note.id } };
       });
-      define("route", "Record the librarian's routing judgement and reason on friction, or add its delivery stamp later. Every route but nothing needs an open increment naming this friction in remedies, unless the remedy is already stamped as delivered.", z.object({
-        friction: text, route: z.enum(["adr", "tool", "principle", "guardrail", "process", "definition", "edit-existing", "nothing"]), reason: text,
-        dischargedBy: text.optional().describe("Reference to the remedy that landed, such as a PR or decision; omit to preserve any existing stamp"),
-      }), async ({ friction, route: to, reason, dischargedBy }, { library, writer }) => {
-        const note = await route(library, friction, to, reason, { ...writer, ...defined({ dischargedBy }) });
-        return { text: `Routed ${friction} to ${to}: ${reason}.`, data: { id: note.id } };
-      });
     },
   };
 }
@@ -103,14 +91,6 @@ async function sessionStart(call: ToolCall): Promise<{ since?: number }> {
   const [newest] = await call.library.history({ newest: 1 });
   const [first] = await call.library.history({ from: start.at, oldest: 1 });
   return { since: first === undefined ? (newest?.seq ?? 0) : first.seq - 1 };
-}
-
-function branchIn(folder: string): string | undefined {
-  try {
-    return execFileSync("git", ["symbolic-ref", "--quiet", "--short", "HEAD"], { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 3_000 }).trim() || undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /** Schema optionals arrive as undefined; domain writes omit them unless the caller supplied one. */

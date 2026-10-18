@@ -27,7 +27,7 @@ test("26.1 the trigger fires on a write to a curated kind since the session star
   });
 });
 
-test("26.2 the worklist gathers each capability's list: graduation's and the friction drain always, the rest only when the trigger fired", async () => {
+test("26.2 the worklist gathers each capability's list: graduation's always, the rest only when the trigger fired, and never the friction drain, which is Friction's", async () => {
   await withLibrary(async (library) => {
     const root = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
     const folder = path.join(root, "memory");
@@ -38,22 +38,20 @@ test("26.2 the worklist gathers each capability's list: graduation's and the fri
       const spec = await library.recordDecision({ title: "The MVP spec", text: "One page.", status: "accepted" });
       const { cursor } = await library.changesSince(0);
       const report = { title: "Slow gate", description: "Gate slow", statement: "The gate hangs", evidence: "gate.log: timed out", impact: "A rerun" };
-      const theirs = await library.writeKnowledge("friction", { ...report, provenance: { branch: "claude/other", date: "2026-09-29", source: "retro" } });
-      await library.writeKnowledge("friction", { ...report, provenance: { branch: "claude/me", date: "2026-09-29", source: "retro" } });
+      await library.writeKnowledge("friction", { ...report, provenance: { branch: "claude/other", date: "2026-09-29", source: "retro" } });
       await library.writeKnowledge("techstack", { title: "Postgres", description: "Project storage", statement: "Each project uses Postgres.", whatItIs: "A relational database.", whyThis: "Transactional writes and history." });
 
-      const quiet = await worklist(library, { since: cursor, memoryFolders: [folder], branch: "claude/me" });
+      const quiet = await worklist(library, { since: cursor, memoryFolders: [folder] });
+      assert.deepEqual(quiet, { graduation: quiet.graduation }, "graduation alone, with no friction drain");
       assert.deepEqual(quiet.graduation.map((item) => item.file), [memory]);
-      assert.deepEqual(quiet.friction.map((note) => note.id), [theirs.id]);
-      assert.equal(quiet.rest, undefined);
 
-      const fired = await worklist(library, { since: 0, memoryFolders: [folder], branch: "claude/me" });
+      const fired = await worklist(library, { since: 0, memoryFolders: [folder] });
       assert.deepEqual(fired.graduation.map((item) => item.file), [memory]);
       assert.deepEqual(fired.rest?.links.map((decision) => decision.id), [spec.id]);
       assert.deepEqual(fired.rest?.health, []);
       assert.ok(fired.rest?.catalogue?.some(({ note }) => note.id === spec.id));
       assert.deepEqual(fired.rest?.questions, []);
-      assert.deepEqual(fired.friction.map((note) => note.id), [theirs.id]);
+      assert.deepEqual(Object.keys(fired).sort(), ["graduation", "rest"], "no friction drain");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -178,7 +176,7 @@ test("26.8 a worklist call names each phase through the call's progress before i
         phases.push(message);
       }));
       assert.ok(answer.data?.worklist);
-      assert.deepEqual(phases, ["graduation", "friction", "trigger", "links", "related", "health", "catalogue", "processes", "questions"]);
+      assert.deepEqual(phases, ["graduation", "trigger", "links", "related", "health", "catalogue", "processes", "questions"]);
 
       let atFirst = 0;
       const cancelled = acts.get("worklist")!({ memoryFolders: [folder], tools: ["worklist"] }, callWith(async (message) => {
@@ -197,7 +195,7 @@ test("26.8 a worklist call names each phase through the call's progress before i
   }
 });
 
-test("26.9 the worklist tool answers in a size a session can read, including when creation timestamps tie: the drain's three due reports and how many wait, and each other list's first few notes named, with how many it holds", async (t) => {
+test("26.9 the worklist tool answers in a size a session can read, including when creation timestamps tie: each list's first few notes named, with how many it holds", async (t) => {
   await withLibrary(async (library) => {
     const folder = mkdtempSync(path.join(tmpdir(), "storytree-librarian-"));
     try {
@@ -206,12 +204,8 @@ test("26.9 the worklist tool answers in a size a session can read, including whe
       t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
       const decisions = [];
       for (let n = 0; n < 12; n += 1) decisions.push(await library.recordDecision({ title: `Decision ${n}`, text: long, status: "accepted" }));
-      const reports = [];
-      for (let n = 0; n < 6; n += 1) {
-        reports.push(await library.writeKnowledge("friction", { title: `Report ${n}`, description: "Slow", statement: "The gate hangs", evidence: `gate.log: ${long}`, impact: "A rerun", provenance: { branch: "claude/other", date: "2026-10-07", source: "retro" } }));
-      }
       t.mock.timers.reset();
-      assert.equal(new Set([...decisions, ...reports].map(({ createdAt }) => createdAt)).size, 1, "every note was created in the same millisecond");
+      assert.equal(new Set(decisions.map(({ createdAt }) => createdAt)).size, 1, "every note was created in the same millisecond");
       const tools = librarianTools();
       const acts = new Map<string, (args: unknown, call: ToolCall) => Promise<ToolAnswer>>();
       tools.registerTools!((name, _description, _input, act) => {
@@ -223,11 +217,8 @@ test("26.9 the worklist tool answers in a size a session can read, including whe
         log: { lines: async () => [] },
       });
       const listed = answer.data?.worklist as WorklistView;
-      // Creation order breaks equal timestamps by ID, not by insertion order or report title.
-      reports.sort((a, b) => a.id < b.id ? -1 : 1);
+      // Creation order breaks equal timestamps by ID, not by insertion order or title.
       decisions.sort((a, b) => a.id < b.id ? -1 : 1);
-      assert.deepEqual(listed.friction, reports.slice(0, 3).map(({ id, fields }) => ({ id, type: "friction", title: fields.title, recurrences: 0 })));
-      assert.equal(listed.frictionMore, 3);
       assert.deepEqual(listed.rest?.links, decisions.slice(0, 5).map(({ id, fields }) => ({ id, type: "decision", title: fields.title })));
       assert.equal(listed.rest?.counts.links, 12);
       const size = JSON.stringify(answer).length;

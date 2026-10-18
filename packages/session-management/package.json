@@ -27,7 +27,8 @@
     "pg": "^8.23.0",
     "zod": "^4.6.5",
     "@storytree/project-and-caller": "workspace:*",
-    "koffi": "^3.3.2"
+    "koffi": "^3.3.2",
+    "@storytree/friction": "workspace:*"
   },
   "devDependencies": {
     "@storytree/local-postgres": "workspace:*",

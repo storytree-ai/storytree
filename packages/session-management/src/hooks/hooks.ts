@@ -68,8 +68,7 @@ import { noteCodexHookRan } from "./codex-trust.js";
 import { BACKGROUND } from "./at-once.js";
 import { AFTER_TOOL, deliveredByTool, deliveredInput, noteDelivered, TOOL_GRACE_MS } from "./codex-delivery.js";
 import { contextNudge } from "./context-nudge.js";
-import type { NewFriction } from "@storytree/library/librarian";
-import { bigInjectionReport, definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
+import { bigInjectionReport, definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven, type InjectionReport } from "./definitions.js";
 import { hookIdentity, noteHookFailure, type HookFailure } from "./failures.js";
 import { isSelfNamed, selfNamedLines } from "./self-named.js";
 import { shellEdits } from "./shell-edits.js";
@@ -517,7 +516,7 @@ function promptIn(harness: string, input: unknown): Prompted | undefined {
  * for Claude Code only, advice once past context guidance. Undefined for none. Both are remembered
  * separately across this session's prompts.
  */
-async function contextForPrompt({ harness, session, folder, prompt }: Prompted): Promise<{ context?: string[]; report?: NewFriction } | undefined> {
+async function contextForPrompt({ harness, session, folder, prompt }: Prompted): Promise<{ context?: string[]; report?: InjectionReport } | undefined> {
   if (isHarnessNotice(prompt)) return undefined;
   const where = route(folder);
   if (where.status !== "routed") return undefined;
@@ -543,11 +542,11 @@ async function contextForPrompt({ harness, session, folder, prompt }: Prompted):
  * folder belongs to, as its session wrote it. A failure is thrown to the hook, which traces it.
  */
 async function fileBigInjection(handed: unknown): Promise<void> {
-  const { session_id: session, cwd: folder, report } = (handed ?? {}) as { session_id?: unknown; cwd?: unknown; report?: NewFriction };
+  const { session_id: session, cwd: folder, report } = (handed ?? {}) as { session_id?: unknown; cwd?: unknown; report?: InjectionReport };
   if (typeof session !== "string" || typeof folder !== "string" || report === undefined) return;
   const where = route(folder);
   if (where.status !== "routed") return;
-  const [{ recordFriction }, { currentBranch }, { connect }] = await Promise.all([import("@storytree/library/librarian"), import("../activity/branch.js"), import("@storytree/library")]);
+  const [{ recordFriction }, { currentBranch }, { connect }] = await Promise.all([import("@storytree/friction"), import("../activity/branch.js"), import("@storytree/library")]);
   const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
   try {
     if (!(await approved(storytree, where.project, where.folder, storytreeHome()))) return;

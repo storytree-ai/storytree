@@ -17,7 +17,7 @@ const TOOLS: Readonly<Record<Exclude<Step, "other">, string>> = {
     + "correct_question record_friction record_resteer raise_question set_wait clear_wait annotate link reinforce retire "
     + "retire_from_plan retire_question supersede settle_question graduate add_remedies name_session mark_built move_increment "
     + "ready_increment report",
-  land: "land worklist health_worklist route",
+  land: "land worklist friction_drain health_worklist route",
   close: "close_increment close_out list_own_runs stop_own_run clear_own_runs",
 };
 const TOOL_STEP = new Map(Object.entries(TOOLS).flatMap(([step, tools]) => tools.split(" ").map((tool) => [tool, step as Step] as const)));

@@ -612,3 +612,17 @@ test("4.25 · each red the watcher handles writes one pr-red line as its fix ses
   assert.deepEqual(await projectOf({ cwd: join(top, "arm", "deep"), repo: join(top, "repo"), home: "/h" }), { folder: join(top, "arm"), home: "/h" });
   assert.equal(await projectOf({ cwd: join(top, "repo", "deep"), repo: join(top, "repo"), home: "/h" }), undefined, "the watcher's own project needs no routing");
 });
+
+test("4.28 · every start of the watcher writes the one log its status names, the lanes folder's watch.runner.log", async (t) => {
+  const b = await box(t);
+  const lanes = await mkdtemp(join(tmpdir(), "lane-log-"));
+  t.after(() => rm(lanes, { recursive: true, force: true }));
+  const started = [], outs = [];
+  const options = { ...b.options, env: { ...process.env, LANES_DIR: lanes }, out: (line) => outs.push(line), pidFile: join(b.dir, "watch.pid"),
+    loopPidFile: join(b.dir, "watch-loop.pid"), argsOf: async () => "", startWatcher: async (log) => { started.push(log); return 1; } };
+  await main(["hand", "44", "increment_one", "--session", SESSION], options);
+  await main(["status"], options);
+  const log = join(lanes, "watch.runner.log");
+  assert.deepEqual(started, [log], "a hand-over that starts the watcher sends its output to the log");
+  assert.ok(outs.includes(`log: ${log}`), outs.join("\n"));
+});

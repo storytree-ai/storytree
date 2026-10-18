@@ -142,3 +142,28 @@ test("4.17 · a release alarm starts one fix session per stop, quiet while it or
   await watchReleases(next.options);
   await assert.rejects(readFile(join(next.dir, "release.json"), "utf8"), { code: "ENOENT" });
 });
+
+test("4.27 · each rerun the watcher starts is recorded as a ci-rerun line naming the repository, the run and the attempt it starts; a refused one is not", async (t) => {
+  const run = (id, what) => ({ what, run: { id, attempt: 1, repo: "storytree-ai/storytree" }, why: `${what} run ${id} ended failure` });
+  const b = await box(t, { judged: { reruns: [run(50, "release"), run(51, "main")], alarm: null } });
+  const told = [];
+  b.options.storytree = async (args) => { told.push(args); return ""; };
+  await watchReleases(b.options);
+  assert.deepEqual(told, [
+    ["workspace", "rerun", "50", "--repo", "storytree-ai/storytree", "--attempt", "2", "--what", "release"],
+    ["workspace", "rerun", "51", "--repo", "storytree-ai/storytree", "--attempt", "2", "--what", "main"],
+  ]);
+
+  told.length = 0;
+  b.options.rerun = async () => { throw new Error("HTTP 403"); };
+  await watchReleases(b.options);
+  assert.deepEqual(told, [], "a rerun GitHub refused started nothing to record");
+  assert.match(b.lines.at(-1), /the rerun was refused \(HTTP 403\)/);
+
+  // The library refusing the line costs the rerun nothing: it is said, and the look goes on.
+  b.options.rerun = async () => {};
+  b.options.storytree = async () => { throw new Error("library unreachable"); };
+  await watchReleases(b.options);
+  assert.ok(b.lines.some((line) => /run 51 .*rerun once/.test(line)));
+  assert.ok(b.lines.some((line) => /recording the rerun of 51 failed \(library unreachable\)/.test(line)));
+});

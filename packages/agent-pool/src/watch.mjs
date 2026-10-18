@@ -102,7 +102,7 @@ async function jobsOf(repo, run) {
   return jobs;
 }
 const asRun = (run, jobs) => ({ id: run.id, sha: run.head_sha, created: run.created_at, updated: run.updated_at, status: run.status,
-  conclusion: run.conclusion, attempt: run.run_attempt, url: run.html_url, job: jobs && failedJob(jobs) });
+  conclusion: run.conclusion, attempt: run.run_attempt, url: run.html_url, repo: run.repository?.full_name ?? REPO.replace(/^repos\//, ""), job: jobs && failedJob(jobs) });
 
 /** The latest published release, the release runs since it that attempted one, and main's push CI runs, judged (4.16). */
 export async function releasesOnGitHub({ repo, now = Date.now }) {
@@ -401,7 +401,9 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     return child.pid;
   };
   return {
-    lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), status: join(lanesDir, "watch.status"), argsOf,
+    lanesDir, repo, dir, pidFile: join(dir, "watch.pid"), loopPidFile: join(dir, "watch-loop.pid"), argsOf,
+    // The one log every start of the watcher writes, whether a hand-over starts it or the box's owner does (4.28).
+    log: join(lanesDir, "watch.runner.log"),
     limit: config.watcher.fixesPerRed, cap: config.watcher.fixesPerPullRequest, intervalMs: config.watcher.intervalMs, now: Date.now,
     session: env.CLAUDE_CODE_SESSION_ID?.trim() || env.CODEX_THREAD_ID?.trim() || "",
     // The command line routes by its folder's marker: a hand-off's own project runs it there, under its own home (4.25).
@@ -423,7 +425,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       return { pid, log: `${base}.log` };
     },
     // Started from the shared checkout's copy, whichever worktree handed over, so it runs the code it watches for changes.
-    startWatcher: () => detached([own, "run"], join(lanesDir, "watch.status"), repo),
+    startWatcher: (log) => detached([own, "run"], log, repo),
     codeVersion: () => codeVersion({ repo, paths: WATCH_CODE }),
     loop: () => new Promise((ended) => {
       const child = spawnChild(process.execPath, [own, "watch"], { cwd: repo, env: free, stdio: "inherit" });
@@ -483,7 +485,7 @@ export async function main(args, box = {}) {
     const branch = await b.branchOf(Number(args[1])).catch(() => "");
     const project = await b.project();
     const { closed, held } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, branch, keepOpen, refused, holder, project, storytree: b.storytree, now: b.now,
-      startWatcher: () => ensureWatcher({ pidFile: b.pidFile, argsOf: b.argsOf, spawn: b.startWatcher }) });
+      startWatcher: () => ensureWatcher({ pidFile: b.pidFile, argsOf: b.argsOf, spawn: () => b.startWatcher(b.log) }) });
     out(`PR #${args[1]} handed to the watcher (${join(b.dir, `${args[1]}.json`)}); `
       + (closed ? `${args[2]} had already closed, so the watcher watches and fixes it to its merge and closes nothing.`
         : `${args[2]} waits on it until it merges${keepOpen ? ", then stays open for its next pull request." : "."}`));
@@ -502,6 +504,7 @@ export async function main(args, box = {}) {
     const pid = (await readFile(b.pidFile, "utf8").catch(() => "")).trim();
     const live = pid && MARKS[0].test(await b.argsOf(pid));
     out(`watcher: ${live ? `running (pid ${pid})` : "not running"}`);
+    out(`log: ${b.log}`);
     // 4.21: a look loop on code other than the checkout's shows, even one older than the version it records.
     const loopPid = (await readFile(b.loopPidFile, "utf8").catch(() => "")).trim();
     if (loopPid && LOOP_MARKS[0].test(await b.argsOf(loopPid))) {

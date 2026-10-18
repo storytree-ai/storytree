@@ -13,7 +13,7 @@ import { test } from "node:test";
 
 import { saveKey } from "../keys/index.js";
 import pg from "pg";
-import { connect, ConnectionError, type Storytree } from "@storytree/library";
+import { connect, ConnectionError, connectionString, type Storytree } from "@storytree/library";
 
 import { dropTestDatabases, dropTestRoles, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 
@@ -177,6 +177,29 @@ test("15.3 a refused password and an unreachable host are each their own refusal
     });
   } finally {
     await Promise.allSettled(opened.map((storytree) => storytree.close()));
+    await dropTestRoles([role]);
+    rmSync(keys, { recursive: true, force: true });
+  }
+});
+
+test("15.5 the library's connection string, signed in with its password, reaches the database it names; a library with no password saved is refused", async () => {
+  const run = uniqueProjectName();
+  const [role, keys] = [`${run}-pw`, home()];
+  assert.throws(() => connectionString({ address: address(role) }), (error: unknown) => error instanceof ConnectionError && error.problem === "no-password");
+  try {
+    await createPasswordRole(role, "right-secret");
+    saveKey("postgres", "right-secret", { home: keys });
+    const signedIn = connectionString({ address: address(role) }, "template1");
+    assert.equal(new URL(signedIn).password, "right-secret");
+    const reached = new pg.Client({ connectionString: signedIn });
+    await reached.connect();
+    try {
+      assert.deepEqual((await reached.query<{ db: string; who: string }>("SELECT current_database() AS db, current_user AS who")).rows[0], { db: "template1", who: role });
+    } finally {
+      await reached.end();
+    }
+    assert.throws(() => connectionString({ cloudSql: { instance: "p:r:i", user: "me@example.com" } }), (error: unknown) => error instanceof ConnectionError && /Cloud SQL/.test(error.message));
+  } finally {
     await dropTestRoles([role]);
     rmSync(keys, { recursive: true, force: true });
   }

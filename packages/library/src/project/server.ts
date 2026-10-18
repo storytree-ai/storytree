@@ -260,7 +260,7 @@ function errorCode(error: unknown): unknown {
 }
 
 /** The server URL with its database swapped for `database`; user, host, port and options stay. */
-function databaseUrl(server: URL, database: string): string {
+export function databaseUrl(server: URL, database: string): string {
   const url = new URL(server.href);
   url.pathname = `/${encodeURIComponent(database)}`;
   return url.href;

@@ -23,7 +23,8 @@ import { resolveKey } from "../keys/index.js";
 import pg from "pg";
 
 import { ConnectionError, sqlState } from "./connection-error.js";
-import { isLoopback, localServer, type ServerAccess, type Transport, type WaitBounds } from "./server.js";
+import { databaseUrl, isLoopback, localServer, type ServerAccess, type Transport, type WaitBounds } from "./server.js";
+import type { ConnectOptions } from "./storytree.js";
 
 /** The key a library reached by address takes its password from. */
 export const PASSWORD_KEY = "postgres";
@@ -55,6 +56,34 @@ const REMOTE_TLS_PARAMS = ["sslmode", "sslrootcert"];
 export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, bounds: WaitBounds = {}, dialVia?: { readonly host: string; readonly port: number }): ServerAccess {
   const url = checkedAddress(address);
   const transport = isLoopback(url.hostname) ? undefined : remoteTransport(url);
+  const signedIn = withPassword(url);
+  // pg lets a connection string's own TLS settings override the ones it is given: a remote address's are read into its transport instead.
+  if (transport !== undefined) for (const key of [...signedIn.searchParams.keys()]) if (TLS_PARAM.test(key)) signedIn.searchParams.delete(key);
+  if (dialVia !== undefined) [signedIn.hostname, signedIn.port] = [dialVia.host, String(dialVia.port)];
+  const server = localServer(signedIn, connectTimeoutMs, bounds, transport);
+  return { ...server, explain: (error) => explain(error, url, connectTimeoutMs) };
+}
+
+/**
+ * The library `options` reach as one postgres:// connection string, signed in, for a hand script's psql
+ * to `database` (by default the address's own). An address takes its password from the `postgres` key,
+ * and a remote one keeps its certificate check in libpq's words; the app's local url is its own. Nothing
+ * is stored. Refused for a Cloud SQL instance, which only Google sign-in reaches, and when no password is saved.
+ */
+export function connectionString(options: ConnectOptions, database?: string): string {
+  if (options.cloudSql !== undefined) {
+    throw new ConnectionError("config", `The library is the Cloud SQL instance ${options.cloudSql.instance}, reached by Google sign-in with no password to hand on: reach it through the Cloud SQL Auth Proxy instead.`);
+  }
+  const url = options.address === undefined ? new URL(options.url) : withPassword(checkedAddress(options.address));
+  if (options.address !== undefined && !isLoopback(url.hostname)) {
+    url.searchParams.set("sslmode", "verify-full");
+    if (!url.searchParams.has("sslrootcert")) url.searchParams.set("sslrootcert", "system");
+  }
+  return database === undefined ? url.href : databaseUrl(url, database);
+}
+
+/** `url` signed in with the `postgres` key, or the refusal saying how to save one. */
+function withPassword(url: URL): URL {
   const password = resolveKey(PASSWORD_KEY);
   if (password === undefined) {
     throw new ConnectionError(
@@ -65,11 +94,7 @@ export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, bo
   }
   const signedIn = new URL(url.href);
   signedIn.password = password;
-  // pg lets a connection string's own TLS settings override the ones it is given: a remote address's are read into its transport instead.
-  if (transport !== undefined) for (const key of [...signedIn.searchParams.keys()]) if (TLS_PARAM.test(key)) signedIn.searchParams.delete(key);
-  if (dialVia !== undefined) [signedIn.hostname, signedIn.port] = [dialVia.host, String(dialVia.port)];
-  const server = localServer(signedIn, connectTimeoutMs, bounds, transport);
-  return { ...server, explain: (error) => explain(error, url, connectTimeoutMs) };
+  return signedIn;
 }
 
 /**

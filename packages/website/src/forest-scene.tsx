@@ -149,7 +149,7 @@ function Labels({ labels, controls, arrived }: { labels: readonly ShownLabel[]; 
     const place = () => {
       const canvas = document.querySelector("#website-forest canvas")?.getBoundingClientRect(), stage = host.getBoundingClientRect();
       const phone = stage.width <= 600;
-      const keepOut = [...document.querySelectorAll("#chapter2 :is(.tour-card, .tour-note, .sessions-list, .arc-overlay, .arc-handle, .story-panel), #website-forest :is(.planet-nameplate:not(.crowded), .planet-mini-globe)")]
+      const keepOut = [...document.querySelectorAll("#chapter2 :is(.tour-card, .tour-note, .sessions-list, .arc-overlay, .arc-handle, .story-panel), #website-forest :is(.planet-nameplate:not(.crowded), .sheet-compass)")]
         .filter(node => getComputedStyle(node).visibility === "visible").map(node => ({ box: node.getBoundingClientRect(), soft: node.classList.contains("planet-nameplate") }))
         .filter(({ box }) => box.width && box.height)
         .map(({ box, soft }) => ({ x: box.left - stage.left, y: box.top - stage.top, width: box.width, height: box.height, soft }));

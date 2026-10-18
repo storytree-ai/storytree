@@ -58,12 +58,13 @@ const story = (id: string): GlobeTarget => ({ kind: "story", story: id });
 const wholeMap: GlobeTarget = { kind: "core" };
 // Storytree's own recorded growth (own-snapshot.json): Act 2 arrives on it, grown from a point as its agents built it (ADR-0889 2.2b).
 const own = { map: "own" as const, target: wholeMap };
-// Every framing is the short half-side of the view in the glass sheet's ground units. On a phone storytree's sheet is framed
-// wider, more so at 320px, so the names it shows stay on the screen and clear of the compass (2.22).
-const ownPhone = { framing: 300, narrowFraming: 340, side: 0 };
-// On a laptop the arrival frames it wider too, beside its words, so its names stay clear of the screen's right edge, the
-// compass and the tour bar (2.23).
-const ownLaptop = { target: own.target, framing: 440 };
+// Every framing is the short half-side of the view in the glass sheet's ground units. A sheet has edges, and one wider than the
+// screen is framed from its west edge, so storytree's busy sheet is framed whole, its edge names included, and held still: it
+// has no far side for a drift to show, and a drift would carry its names off the screen. On a phone it is framed wider still at
+// 320px, so the names it shows stay on the screen and clear of the compass (2.22).
+const ownPhone = { framing: 740, narrowFraming: 920, side: 0 };
+// On a laptop the arrival frames it whole beside its words, clear of the screen's right edge, the compass and the tour bar (2.23).
+const ownLaptop = { target: own.target, framing: 800 };
 // The shop (shop-snapshot.json): the store the test laptop's Claude Code sessions rebuilt side by side with storytree, where the
 // chapters teach (ADR-0890), walking only four of its stories: Signing in, Browsing, Cart and Checkout (ADR-0891, amended
 // 2026-10-05).
@@ -123,7 +124,7 @@ export const steps: TourStep[] = [
   // The owner's words, final (ADR-0889 2.3): the value statement has its slide to itself.
   { id: "value", explainer: "opening", kind: "statement", template: "claim", ...own, title: "Storytree builds a map of your project and glues it to your code.", lines: [
     "The map grows as your agents work, and says what needs you and what doesn't.",
-  ], decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone, drift: true },
+  ], decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone },
   // The owner's words, final (ADR-0889 2.4): each pain (its note) with its fix beside it. The four principles are this step's depth.
   { id: "fixes", explainer: "opening", kind: "fixes", template: "claim", ...own, title: "What storytree fixes", lines: [
     "See your whole project as a map",
@@ -134,7 +135,7 @@ export const steps: TourStep[] = [
     "Agents colliding in a void of code",
     "Agents forgetting why it was built that way",
   ], why: "Storytree answers to four principles. Signals must be real: everything you see comes from the real code and the real work, and says where it came from. Show what matters now and hide the rest: nothing asks for your attention unless it needs it. Your attention goes where you send it: you choose what to look into, and how deep to go. Nothing is out of reach: whatever storytree hides, you can always bring back.",
-  decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone, drift: true },
+  decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone },
   // The owner's line, the claim; the harnesses storytree works with, each by its own mark, are its one support, and the line
   // beneath them is his wording (2026-10-13). The intro's fifth step (ADR-1018 D11).
   { id: "harness", explainer: "opening", kind: "beats", template: "claim", ...own, title: "Works with your harness.", lines: [
@@ -142,7 +143,7 @@ export const steps: TourStep[] = [
     "Storytree works with your existing coding harness.",
   ], how: "Storytree doesn't replace the agent you code with. When you set up a project it looks for Claude Code and Codex, and joins their sessions through hooks and an MCP server: the hooks tell storytree what each session reads and changes, and the MCP server gives the agent storytree's tools for the plan and the library. Any other harness that speaks MCP can connect to the server too: it gets the plan, claims and the library, though storytree doesn't watch its session.",
   why: "You keep the agents, prompts and habits you already have; storytree adds the map beside them.",
-  decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone, drift: true, marks: harnesses, marksNote: "And any harness that speaks MCP." },
+  decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone, marks: harnesses, marksNote: "And any harness that speaks MCP." },
 
   // The map (ADR-0891, amended 2026-10-11, and ADR-1018 D11): six steps in the owner's order. ★ the owner's words; the rest is DRAFT, approved as a
   // table and reworded to fit, as is every How and Why. The whole chapter plays forward in the shop's recorded time. The camera
@@ -275,5 +276,5 @@ export const steps: TourStep[] = [
     "Everything is back: the plan, the code, its health, the knowledge and the sessions.",
     "It's the map you started on. Now you can read it.",
   ], why: "Nothing storytree hides is out of reach: the Show everything switch brings every surface back at any step.",
-  decisions: [decisions.busy, decisions.guide], chips: [principle(4)], surfaces: complete, target: wholeMap, framing: 290, laptop: { target: wholeMap, framing: 520 }, phone: ownPhone, drift: true },
+  decisions: [decisions.busy, decisions.guide], chips: [principle(4)], surfaces: complete, target: wholeMap, framing: 290, laptop: { target: wholeMap, framing: 1080 }, phone: { target: wholeMap, framing: 980, narrowFraming: 1150, side: 0 } },
 ];

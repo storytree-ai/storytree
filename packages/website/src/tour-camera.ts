@@ -32,13 +32,14 @@ export function viewFraming(step: Pick<TourStep, "framing" | "laptop" | "phone">
 }
 
 /**
- * Free play's framing (2.22, 2.23), in the glass sheet's ground units: storytree's own sheet is framed wider on a phone, whose
- * screen is too narrow for its names at the resting framing, and a little wider on a laptop, where at the resting framing its
- * southern names fall below the sessions list into the bar; the shop's few islands sit near its middle and keep it.
+ * Free play's framing (2.22, 2.23), in the glass sheet's ground units: storytree's own sheet is framed whole, wider on a phone,
+ * whose screen is narrower than the sheet at the resting framing, and on a laptop clear of the sessions list and the bar; the
+ * shop's few islands keep the resting framing on a laptop, and on a phone are framed a little wider, so Checkout and Reviews
+ * at its east edge stay on the screen.
  */
 export function freePlayFraming(map: string, width: number, resting: number): number {
-  if (map !== "storytree") return resting;
-  return width <= 600 ? towardNarrow(400, 450, width) : 520;
+  if (width > 600) return map === "storytree" ? 520 : resting;
+  return map === "storytree" ? towardNarrow(1020, 1100, width) : towardNarrow(300, 330, width);
 }
 
 /** One pose the camera eases to over `duration` milliseconds. */

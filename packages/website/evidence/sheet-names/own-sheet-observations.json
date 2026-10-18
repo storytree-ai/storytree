@@ -1,0 +1,18 @@
+{
+  "story": "story_769e230c466d",
+  "commit": "unpublished local build",
+  "evidence": "packages/website/evidence/sheet-names",
+  "note": "Locally built website served from packages/website/dist, SwiftShader",
+  "checks": [
+    {
+      "contract": "2.22",
+      "name": "On 390 and 320 phones storytree's glass sheet keeps every island name inside the screen and clear of the compass in the arrival, the everything step and free play, and so does the shop's in free play",
+      "observed": "pass"
+    },
+    {
+      "contract": "2.23",
+      "name": "On 1440 and 1280 laptops storytree's glass sheet keeps every island name inside the screen and clear of the compass and the bottom bar in the arrival, the everything step and free play",
+      "observed": "pass"
+    }
+  ]
+}

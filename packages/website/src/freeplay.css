@@ -4,8 +4,8 @@
 /* Only website placement lives here. The desktop owns the panels and diagram vocabulary. */
 #chapter2 .tour-freeplay,.tour-session-surface,.tour-arc-surface,.tour-sessions,.tour-arcs { display:contents; }
 #chapter2 .forest-views { top:66px; left:24px; }
-/* The globe runs under the page's bar, so the mini globe (forest 3.36) sits below it, level with the view buttons. */
-#chapter2 .planet-mini-globe { top:58px; right:16px; }
+/* The sheet runs under the page's bar, so its compass sits below it, level with the view buttons. */
+#chapter2 .sheet-compass { top:58px; right:16px; }
 #chapter2 .forest-views button { min-height:36px; font:13px/1.5 system-ui, sans-serif; }
 #chapter2 .forest-views button[aria-pressed="true"] { background:var(--green); font-weight:600; }
 #chapter2 .tour-browse-toggle { position:absolute; top:67px; left:200px; z-index:8; min-height:40px; padding:8px 12px; border:1px solid #485159; border-radius:8px; color:#eee; background:#101418; font:13px/1.5 system-ui, sans-serif; cursor:pointer; }
@@ -40,7 +40,7 @@
 #chapter2 .tour-inset { position:absolute; top:var(--overlay-top); right:var(--overlay-side); z-index:60; width:var(--overlay-width); margin:0; overflow:hidden; border:1px solid #3d4748; border-radius:12px; background:#101418; box-shadow:0 8px 30px #0006; pointer-events:none; animation:tour-inset-in .6s ease both; }
 #chapter2 .tour-inset-title { padding:.55rem .85rem; border-bottom:1px solid #3d4748; color:#e7e8ea; font:650 13px/1.4 system-ui, sans-serif; }
 #chapter2 .tour-inset-view { position:relative; height:min(340px, 40vh); }
-#chapter2 .tour-inset .planet-mini-globe { display:none; }
+#chapter2 .tour-inset .sheet-compass { display:none; }
 @keyframes tour-inset-in { from { opacity:0; transform:scale(.96); transform-origin:top right; } }
 @media (prefers-reduced-motion:reduce) { #chapter2 .tour-inset { animation:none; } }
 /* The diagram (ADR-1018 D7): a drawing in the top left, so its corner says it is not a recording. Its three beats play once over
@@ -74,12 +74,12 @@
 @keyframes tour-diagram-glue { from { opacity:0; transform:translateY(-10px); } }
 @keyframes tour-diagram-caption { 0%, 100% { opacity:0; } 10%, 90% { opacity:1; } }
 @media (prefers-reduced-motion:reduce) { #chapter2 .tour-diagram, #chapter2 .tour-diagram * { animation:none !important; } }
-/* The mini globe would sit under the corner's overlay, so it steps aside while one shows. */
-#chapter2[data-overlay="right"] .planet-mini-globe { visibility:hidden; }
+/* The compass would sit under the corner's overlay, so it steps aside while one shows. */
+#chapter2[data-overlay="right"] .sheet-compass { visibility:hidden; }
 #chapter2[data-tour-mode="freeplay"]:has(.tour-session-surface:not([hidden])) .forest-drawing { bottom:calc(var(--bar-h) + var(--tour-sessions, 0px)); }
 #chapter2 .tour-recording-progress { position:absolute; z-index:6; top:52px; right:24px; margin:0; color:#f2967b; font:600 11px/1.5 system-ui, sans-serif; letter-spacing:.06em; text-transform:uppercase; font-variant-numeric:tabular-nums; }
 #chapter2[data-tour-mode="freeplay"] .tour-recording-progress { display:none; }
-#chapter2[data-tour-mode="tour"] .planet-mini-globe { top:76px; }
+#chapter2[data-tour-mode="tour"] .sheet-compass { top:76px; }
 /* While the tour talks, the arcs drawer is the plans list alone (2.18), with no detail panel and no size control, in the
    corner's box under its handle. Free play keeps the whole surface. */
 #chapter2[data-tour-mode="tour"] .arc-overlay { top:calc(var(--overlay-top) + 48px); right:var(--overlay-side); left:auto; width:var(--overlay-width); height:auto; min-height:0; max-height:170px; bottom:auto; border:1px solid #3d4748; border-top:0; border-radius:0 0 12px 12px; }
@@ -89,12 +89,12 @@
 #chapter2[data-tour-mode="tour"] :is(.arc-briefing, .arc-size) { display:none; }
 @media(max-width:600px) {
  #chapter2 .forest-views { top:60px; left:14px; }
- #chapter2 .planet-mini-globe { top:52px; right:6px; }
- #chapter2 .planet-mini-globe svg { width:88px; height:88px; }
- /* While the tour talks, the mini globe sits at the top of the globe's room, beside the dated note, so storytree's own globe
+ #chapter2 .sheet-compass { top:52px; right:6px; }
+ #chapter2 .sheet-compass svg { width:88px; height:88px; }
+ /* While the tour talks, the compass sits at the top of the map's room, beside the dated note, so storytree's own sheet
     keeps its names clear of it below (2.22). */
- #chapter2[data-tour-mode="tour"] .planet-mini-globe { top:0; }
- #chapter2[data-tour-mode="tour"] .planet-mini-globe svg { width:64px; height:64px; }
+ #chapter2[data-tour-mode="tour"] .sheet-compass { top:0; }
+ #chapter2[data-tour-mode="tour"] .sheet-compass svg { width:64px; height:64px; }
  #chapter2 .forest-views button, #chapter2 .tour-browse-toggle { min-height:44px; }
  #chapter2 .tour-browse-toggle { top:61px; left:180px; }
  #chapter2 .tour-project { top:110px; left:14px; }
@@ -121,7 +121,7 @@
  #chapter2 .tour-diagram { top:auto; left:10px; right:10px; bottom:var(--overlay-under); width:auto; }
  #chapter2 .tour-diagram-view { max-height:min(200px, 26dvh); }
  @keyframes tour-diagram-in { from { opacity:0; transform:scale(.96); transform-origin:bottom center; } }
- #chapter2[data-overlay="left"] .planet-mini-globe { visibility:hidden; }
+ #chapter2[data-overlay="left"] .sheet-compass { visibility:hidden; }
  #chapter2[data-tour-mode="tour"] .arc-overlay { top:auto; left:10px; right:10px; bottom:var(--overlay-under); width:auto; max-height:136px; }
  #chapter2[data-tour-mode="tour"] .arc-overlay .arc-handle { border-radius:12px 12px 0 0; }
 }

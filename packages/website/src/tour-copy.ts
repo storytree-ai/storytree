@@ -6,7 +6,7 @@ import type { Chip, Decision, Explainer, Group, Mark, TourStep } from "./tour.js
 /** When the comparisons were checked against each tool's own documentation (definition_b0b80acc7330). */
 export const researchDate = "3 October 2026";
 export const groupTitles: Record<Group, string> = {
-  opening: "Why storytree", map: "The map", knowledge: "Knowledge graph", ending: "The whole globe",
+  opening: "Why storytree", map: "The map", knowledge: "Knowledge graph", ending: "The whole map",
 };
 export const explainers: { id: Explainer; title: string }[] = (["map", "knowledge"] as const).map(id => ({ id, title: groupTitles[id] }));
 
@@ -54,15 +54,16 @@ const health: Partial<GlobeSurfaces> = { ...files, territories: "health" };
 const inside: Partial<GlobeSurfaces> = { ...land, knowledgeCore: true };
 
 const story = (id: string): GlobeTarget => ({ kind: "story", story: id });
-const forest = story("story_deee4230348c");
+// The whole of a map: on the glass sheet, the view it opens on, zoomed to the step's framing.
+const wholeMap: GlobeTarget = { kind: "core" };
 // Storytree's own recorded growth (own-snapshot.json): Act 2 arrives on it, grown from a point as its agents built it (ADR-0889 2.2b).
-const own = { map: "own" as const, target: { kind: "core" } as GlobeTarget };
-// On a phone storytree's globe is framed smaller, more so at 320px, so the names round its rim stay on the screen and clear of
-// the compass (2.22).
-const ownPhone = { framing: 1.36, narrowFraming: 1.55, side: 0 };
-// On a laptop the arrival frames it smaller too, beside its words, so the names round its rim stay clear of the screen's right edge,
-// the compass and the tour bar (2.23).
-const ownLaptop = { target: own.target, framing: 1.4 };
+const own = { map: "own" as const, target: wholeMap };
+// Every framing is the short half-side of the view in the glass sheet's ground units. On a phone storytree's sheet is framed
+// wider, more so at 320px, so the names it shows stay on the screen and clear of the compass (2.22).
+const ownPhone = { framing: 300, narrowFraming: 340, side: 0 };
+// On a laptop the arrival frames it wider too, beside its words, so its names stay clear of the screen's right edge, the
+// compass and the tour bar (2.23).
+const ownLaptop = { target: own.target, framing: 440 };
 // The shop (shop-snapshot.json): the store the test laptop's Claude Code sessions rebuilt side by side with storytree, where the
 // chapters teach (ADR-0890), walking only four of its stories: Signing in, Browsing, Cart and Checkout (ADR-0891, amended
 // 2026-10-05).
@@ -72,18 +73,18 @@ const shopServer = "capability_323895c5a414", productPage = "capability_f29c6274
 // The shop was rebuilt with storytree's guardrails (ADR-0911 D5): no part of its code is unallocated at any stage, so the tour
 // shows no hatched ground.
 const signingIn = story(signingInId);
-// A view of the four teaching stories together, centred on Browsing so the preceding close-up cannot leave Checkout at the rim.
-const whole = 1.32;
+// A view of the four teaching stories together, centred on Browsing so the preceding close-up cannot leave Checkout off the screen.
+const whole = 230;
 // The map chapter's two views: the four stories, and close on signing in.
-const shop = { target: browsing, framing: whole, phone: { target: browsing, framing: 1.3, side: 0 } };
+const shop = { target: browsing, framing: whole, phone: { target: browsing, framing: 285, side: 0 } };
 // The knowledge chapter's globe: the map chapter's, held where it ends (the 03:08:57 survey), with its notes beneath the land. Its
 // records are read at 03:06, once the session building orders has read checkout's shelf (03:04) and claimed its parts (03:05).
 const kept = { map: "shop" as const, growth: { seconds: 1, stage: "pr7-building", until: "pr7-building" }, sessionsAt: "2026-10-05T03:06:00.000Z" };
 const checkout = story("story_66f80ffaaa4d");
-const closeOnCheckout = { target: checkout, framing: .8, phone: { target: checkout, framing: 1.05, side: 0 } };
-// The knowledge chapter's first view: health's, closer toward 320px, where its three lines leave the globe too small for Cart's
+const closeOnCheckout = { target: checkout, framing: 175, phone: { target: checkout, framing: 230, side: 0 } };
+// The knowledge chapter's first view: health's, closer toward 320px, where its three lines leave the map too small for Cart's
 // and Checkout's names side by side.
-const shopHeld = { ...shop, phone: { ...shop.phone, narrowFraming: 1.12 } };
+const shopHeld = { ...shop, phone: { ...shop.phone, narrowFraming: 245 } };
 // Checkout's "Finish becomes a form post" (02:55), and the session building orders that read it (03:04).
 const finishDecision = "decision_0822dda10ab2", ordersSession = "726ad13e-f730-45fb-9682-893eef2a5696";
 const lit = (surfaces: Partial<GlobeSurfaces>): Partial<GlobeSurfaces> => ({ ...surfaces, sessionTints: true });
@@ -113,16 +114,16 @@ export const steps: TourStep[] = [
     "Right now, building with AI feels overwhelming, exhausting and disconnected.",
     "Storytree is here to fix that.",
   ], why: "Your attention is the scarcest resource in AI-driven development, and coding agents spend it on noise. Reading every line makes you the bottleneck the agents were meant to remove; trusting every line finds the problems in production. There's no in-between.",
-  decisions: [], surfaces: complete, framing: 1.1, laptop: ownLaptop, phone: ownPhone },
+  decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone },
   { id: "grow", explainer: "opening", kind: "beats", template: "claim", ...own, growth: { seconds: arrivalSeconds }, title: "Storytree, a living map", lines: [
     // The owner's words (2026-10-04), punctuation tidied.
     "This is storytree, a living map of your project, for both you and your agents.",
   ], chips: [{ kind: "recording", text: "Recorded {ownRecording} · timing compressed" }],
-  decisions: [], surfaces: complete, framing: 1.1, laptop: ownLaptop, phone: ownPhone },
+  decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone },
   // The owner's words, final (ADR-0889 2.3): the value statement has its slide to itself.
   { id: "value", explainer: "opening", kind: "statement", template: "claim", ...own, title: "Storytree builds a map of your project and glues it to your code.", lines: [
     "The map grows as your agents work, and says what needs you and what doesn't.",
-  ], decisions: [], surfaces: complete, framing: 1.1, laptop: ownLaptop, phone: ownPhone, drift: true },
+  ], decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone, drift: true },
   // The owner's words, final (ADR-0889 2.4): each pain (its note) with its fix beside it. The four principles are this step's depth.
   { id: "fixes", explainer: "opening", kind: "fixes", template: "claim", ...own, title: "What storytree fixes", lines: [
     "See your whole project as a map",
@@ -133,7 +134,7 @@ export const steps: TourStep[] = [
     "Agents colliding in a void of code",
     "Agents forgetting why it was built that way",
   ], why: "Storytree answers to four principles. Signals must be real: everything you see comes from the real code and the real work, and says where it came from. Show what matters now and hide the rest: nothing asks for your attention unless it needs it. Your attention goes where you send it: you choose what to look into, and how deep to go. Nothing is out of reach: whatever storytree hides, you can always bring back.",
-  decisions: [], surfaces: complete, framing: 1.1, laptop: ownLaptop, phone: ownPhone, drift: true },
+  decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone, drift: true },
   // The owner's line, the claim; the harnesses storytree works with, each by its own mark, are its one support, and the line
   // beneath them is his wording (2026-10-13). The intro's fifth step (ADR-1018 D11).
   { id: "harness", explainer: "opening", kind: "beats", template: "claim", ...own, title: "Works with your harness.", lines: [
@@ -141,7 +142,7 @@ export const steps: TourStep[] = [
     "Storytree works with your existing coding harness.",
   ], how: "Storytree doesn't replace the agent you code with. When you set up a project it looks for Claude Code and Codex, and joins their sessions through hooks and an MCP server: the hooks tell storytree what each session reads and changes, and the MCP server gives the agent storytree's tools for the plan and the library. Any other harness that speaks MCP can connect to the server too: it gets the plan, claims and the library, though storytree doesn't watch its session.",
   why: "You keep the agents, prompts and habits you already have; storytree adds the map beside them.",
-  decisions: [], surfaces: complete, framing: 1.1, laptop: ownLaptop, phone: ownPhone, drift: true, marks: harnesses, marksNote: "And any harness that speaks MCP." },
+  decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone, drift: true, marks: harnesses, marksNote: "And any harness that speaks MCP." },
 
   // The map (ADR-0891, amended 2026-10-11, and ADR-1018 D11): six steps in the owner's order. ★ the owner's words; the rest is DRAFT, approved as a
   // table and reworded to fit, as is every How and Why. The whole chapter plays forward in the shop's recorded time. The camera
@@ -150,7 +151,7 @@ export const steps: TourStep[] = [
   { id: "map-empty", explainer: "map", template: "narrated", map: "shop", growth: { seconds: 10, until: "plans" }, title: "The beginning.", lines: [
     // ★
     "Let's start from the beginning and build a shopping site, so you can see how storytree draws a map as your agents build.",
-  ], how: "The shop starts as an empty globe. Its agents plan the work before they write any code, and each story they plan will be an island here.",
+  ], how: "The shop starts as an empty map. Its agents plan the work before they write any code, and each story they plan will be an island here.",
   why: cardOf("empty").why,
   decisions: [], surfaces: land, ...shop },
   // The record just before the first claim (01:53:08): the shop's first arc and its four parts, none held yet. The arcs list is
@@ -189,7 +190,7 @@ export const steps: TourStep[] = [
   ], how: "Each story is broken into the parts that make it work, and each part's territory arrives in the order the agent built it, signing in's shop server first. Parts hold your code: each dot is a file, sized by its lines, in the part whose tests reach it. The cart and checkout have no code yet, so each of their planned parts has an equal share of the island, with no dots. Select a story and a panel shows how its parts work together: what each one is, and what depends on what.",
   why: cardOf("capability").why,
   decisions: [], surfaces: { ...plain, roads: true }, lineSurfaces: { 2: { ...files, roads: true } }, ...shop,
-  panel: "inset", inset: { target: signingIn, framing: .32 }, lineViews: { 3: { panel: "story" } },
+  panel: "inset", inset: { target: signingIn, framing: 70 }, lineViews: { 3: { panel: "story" } },
   // Signing in's largest file in the survey its code arrived with (02:06), said as what the visitor gets (D10).
   labels: { 1: [{ target: { kind: "capability", capability: shopServer }, text: "a part, as your agent built it" }],
     2: [{ target: { kind: "file", story: signingInId, path: "src/server/server.js" }, read: "file", text: "your code, without opening a file" }],
@@ -238,7 +239,7 @@ export const steps: TourStep[] = [
     // DRAFT.
     "As your agents build, they also decide things: how a part should work, and why.",
     // DRAFT.
-    "Storytree keeps each decision inside the globe, beneath the part of the map it's about.",
+    "Storytree keeps each decision under the glass, beneath the part of the map it's about.",
   ], how: "By the time the first round was green, the shop's agents had written {shopDecisions} decisions, most of them while planning, before any code. Each is a note in storytree's library, a knowledge graph: a note links to the notes it stands on, and the graph refuses loops, so every chain of reasons reads to its end. Principles, which steer judgement, are notes too. A note about no one part gathers at the core.",
   why: cardOf("decision").why,
   // With its third line, a drawn diagram plays in the top left: a decision glued beneath its island, and the decisions beneath
@@ -268,11 +269,11 @@ export const steps: TourStep[] = [
     "Graphiti keeps a graph of entities and facts over time, with where each came from.",
     "Storytree keeps decisions on the shelves of the work they shaped, and shows who read them.",
   ], sources: [cursorRules, graphiti, undefined] },
-  decisions: [], surfaces: inside, lineSurfaces: { 3: lit(inside) }, target: checkout, framing: 1, phone: { target: checkout, framing: 1.3, side: 0 }, panel: "sessions" },
+  decisions: [], surfaces: inside, lineSurfaces: { 3: lit(inside) }, target: checkout, framing: 220, phone: { target: checkout, framing: 285, side: 0 }, panel: "sessions" },
 
-  { id: "everything", explainer: "ending", title: "Now read the whole globe.", lines: [
+  { id: "everything", explainer: "ending", title: "Now read the whole map.", lines: [
     "Everything is back: the plan, the code, its health, the knowledge and the sessions.",
-    "It's the globe you started on. Now you can read it.",
+    "It's the map you started on. Now you can read it.",
   ], why: "Nothing storytree hides is out of reach: the Show everything switch brings every surface back at any step.",
-  decisions: [decisions.busy, decisions.guide], chips: [principle(4)], surfaces: complete, target: forest, framing: 1.1, laptop: { target: forest, framing: 1.25 }, phone: ownPhone, drift: true },
+  decisions: [decisions.busy, decisions.guide], chips: [principle(4)], surfaces: complete, target: wholeMap, framing: 290, laptop: { target: wholeMap, framing: 520 }, phone: ownPhone, drift: true },
 ];

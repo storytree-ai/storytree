@@ -150,7 +150,7 @@ test("2.10 · the time-lapse waits for its globe to be set up, then plays from i
   assert.deepEqual(globeOf(arrival[1]!, tour.state, tour.elapsed()), { map: "own", at: 3 });
 });
 
-test("2.12 · the intro's fifth step, after the fixes, is the harness claim over storytree's own globe, the harnesses' marks its one support", () => {
+test("2.12 · the intro's fifth step, after the fixes, is the harness claim over storytree's own map, the harnesses' marks its one support", () => {
   const intro = tourSteps.filter(item => item.explainer === "opening");
   assert.deepEqual(intro.map(item => item.id), ["pain", "grow", "value", "fixes", "harness"]);
   const harness = intro[4]!;
@@ -162,7 +162,7 @@ test("2.12 · the intro's fifth step, after the fixes, is the harness claim over
   assert.match(harness.how ?? "", /Any other harness that speaks MCP can connect to the server too/);
 });
 
-test("2.12 · after the intro, the map chapter opens on the shop's empty globe, swelling from a point, with no cut beat between", () => {
+test("2.12 · after the intro, the map chapter opens on the shop's empty map, swelling from a point, with no cut beat between", () => {
   const at = tourSteps.findIndex(item => item.id === "harness");
   assert.ok(tourSteps.slice(0, at + 1).every(item => item.map === "own"), "the pain, the growth, the value, the fixes and the harness step are all over storytree's own globe");
   const opening = tourSteps[at + 1]!;
@@ -203,7 +203,7 @@ test("2.13 · free play opens with both of the globe's switches on, even after a
   assert.deepEqual(switchesFor("knowledge", tour.state.freePlay), { stories: true, library: true }, "free play starts as a launch does");
 });
 
-test("2.15 · between two close steps the camera stays in and turns the globe; it pulls back only when the next step is the wide view", () => {
+test("2.15 · between two close steps the camera stays in and pans the glass sheet; it pulls back only when the next step is the wide view", () => {
   const cart = { kind: "story", story: "cart" } as const, checkout = { kind: "story", story: "checkout" } as const;
   const widest = (legs: { framing: number }[]) => Math.max(...legs.map(leg => leg.framing));
   const close = flight({ target: cart, framing: .55 }, { target: checkout, framing: .72 });
@@ -509,12 +509,12 @@ test("2.20 · the knowledge chapter plays three steps on the globe the map chapt
   assert.deepEqual(reads.lines.map((_, index) => tinted(reads, index + 1).sessionTints === true), [false, false, true, true]);
   // The camera: it arrives on health's view of the four stories, then goes in to checkout.
   for (const wide of [true, false]) {
-    // The four stories' view, centred on browsing: 1.32 globe radii on a laptop, 1.3 on a phone, so side-by-side names have room;
-    // toward 320px it comes closer than health's, where the step's three lines leave the globe too small for Cart's and
-    // Checkout's names side by side.
-    const browsing = { kind: "story", story: "story_0c07d0047754" };
-    assert.deepEqual(viewOf(inside, 1, wide), wide ? { target: browsing, framing: 1.32 } : { target: browsing, framing: 1.3, narrowFraming: 1.12, side: 0 }, "the chapter picks up on the four stories");
-    assert.deepEqual(viewOf(inside, 1, wide), wide ? viewOf(health, 2, wide) : { ...viewOf(health, 2, wide), narrowFraming: 1.12 }, "where health leaves the camera");
+    // The four stories' view, centred on browsing; toward 320px it comes closer than health's, where the step's three lines
+    // leave the map too small for Cart's and Checkout's names side by side.
+    const browsing = { kind: "story", story: "story_0c07d0047754" }, view = viewOf(inside, 1, wide);
+    assert.deepEqual(view.target, browsing, "the chapter picks up on the four stories");
+    if (!wide) assert.ok(view.narrowFraming! < view.framing, "closer toward 320px");
+    assert.deepEqual(view, wide ? viewOf(health, 2, wide) : { ...viewOf(health, 2, wide), narrowFraming: view.narrowFraming }, "where health leaves the camera");
     for (const item of [shelf, reads]) assert.deepEqual(viewOf(item, 1, wide).target, { kind: "story", story: "story_66f80ffaaa4d" });
   }
   // The shelf's note is a decision on one of checkout's capabilities; the session the reads step follows opened it in full
@@ -622,7 +622,7 @@ test("2.28 · the parts step plays an inset of signing in in the top right, its 
     // Played, it leaves: the story panel takes the corner, on the inset's island.
     assert.equal(shown(3, width), undefined);
   }
-  assert.ok(shown(1, 1440)!.framing < 1, "close up: the island fills the inset");
+  assert.ok(shown(1, 1440)!.framing < viewOf(capabilities, 1, true).framing / 2, "close up: the island fills the inset");
   const tinted = (moment: number) => Object.entries(capabilities.lineSurfaces ?? {}).reduce((on, [from, next]) => moment >= Number(from) ? next : on, capabilities.surfaces);
   assert.deepEqual([1, 2].map(moment => [tinted(moment).territories, tinted(moment).fileCircles ?? false]), [["plain", false], ["plain", true]], "its parts, then its files as dots");
   // A step with no inset has none.

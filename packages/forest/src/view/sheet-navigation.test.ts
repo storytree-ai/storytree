@@ -117,7 +117,7 @@ test("3.53 on the glass sheet, Home eases the view back to the one it opened on,
   const { extent } = sheet(9), opening = sheetOpening(extent, size);
   let pose: GlobePose = opening;
   const guide = createGlobeGuide({ world: () => new Group(), camera: () => new OrthographicCamera(), size: () => size,
-    read: () => pose, write: next => { pose = next; }, invalidate() {} });
+    read: () => pose, write: next => { pose = next; }, invalidate() {}, opening: () => pose });
   pose = { ...pose, turn: sheetPan(sheetPan(pose.turn, { x: -700, y: 80 }, 1, extent), { x: -300, y: -50 }, 2, extent), framing: pose.framing / 3 };
   assert.ok(Math.abs(sheetCentre(pose.turn).x - sheetCentre(opening.turn).x) > 100, "panned east");
   assert.equal(guide.home(sheetOpening(extent, size), 600), true);
@@ -324,7 +324,7 @@ test("3.60 the compass points to the glass sheet's starting north on the window,
   assert.ok(Math.abs(compassNorth(0, false) - Math.PI / 2) < 1e-12, "facing its starting heading, north is up");
   // Spun three and a half turns, tilted under, panned and zoomed: Home brings it back by the short way round, to the opening view.
   let pose: GlobePose = opening;
-  const guide = createGlobeGuide({ world: () => new Group(), camera: () => new OrthographicCamera(), size: () => size, read: () => pose, write: next => { pose = next; }, invalidate() {} });
+  const guide = createGlobeGuide({ world: () => new Group(), camera: () => new OrthographicCamera(), size: () => size, read: () => pose, write: next => { pose = next; }, invalidate() {}, opening: () => pose });
   pose = { ...pose, turn: sheetPan(pose.turn, { x: -600, y: 90 }, 1, extent), framing: pose.framing / 2 };
   const spun = 7 * Math.PI + 0.4, home = sheetHome(spun);
   assert.ok(Math.abs(home.heading - 8 * Math.PI) < 1e-12 && home.heading === headingHome(spun), "the nearest starting heading, not seven half-turns back");
@@ -365,8 +365,31 @@ test("3.63 an island-less sheet, the user's factory, opens on the Library look a
   dot.position.set(at.x, at.y, at.z);
   world.add(opened.globe.add(glass.add(dot)));
   let pose = sheetOpening(empty.extent, size);
-  const guide = createGlobeGuide({ world: () => world, camera: () => opened.camera, size: () => size, read: () => pose, write: next => { pose = next; }, invalidate() {} });
+  const guide = createGlobeGuide({ world: () => world, camera: () => opened.camera, size: () => size, read: () => pose, write: next => { pose = next; }, invalidate() {}, opening: () => pose });
   assert.equal(guide.position({ kind: "note", note: "agent_builder" })?.visible, true);
+});
+
+test("3.66 on the glass sheet, a stop at the whole map pans and zooms to the view it opens on, from its west edge until the sheet fits the window", () => {
+  const { extent } = sheet(9), opening = sheetOpening(extent, size), world = new Group(), glass = new Group();
+  glass.name = "sheet:glass"; world.add(glass);
+  let pose: GlobePose = { ...opening, turn: sheetPan(opening.turn, { x: -900, y: 120 }, 1, extent), framing: opening.framing / 4 };
+  const guide = createGlobeGuide({ world: () => world, camera: () => new OrthographicCamera(), size: () => size,
+    read: () => pose, write: next => { pose = next; }, invalidate() {}, opening: framing => sheetOpening(extent, size, framing) });
+  const centre = (turn: GlobePose["turn"]) => sheetCentre(turn), opened = centre(opening.turn);
+  assert.ok(Math.abs(centre(pose.turn).x - opened.x) > 100, "panned east of the opening");
+  assert.equal(guide.stop({ target: { kind: "core" }, duration: 600 }), true);
+  guide.frame(600);
+  assert.ok(Math.abs(centre(pose.turn).x - opened.x) < 1e-6 && Math.abs(centre(pose.turn).y - opened.y) < 1e-6, "with no framing asked for, back over the place it opened on");
+  assert.equal(pose.framing, opening.framing, "at the zoom it opened at");
+  // The opening frames the sheet's height from its west edge: closer in the middle of the view moves west, the edge kept at
+  // the window's left; far enough out that the whole sheet fits across the window, it sits in the middle.
+  assert.ok(opened.x < 0, "this sheet is wider than the window at its opening");
+  assert.equal(guide.stop({ target: { kind: "core" }, framing: opening.framing / 2, duration: 0 }), true);
+  assert.equal(pose.framing, opening.framing / 2);
+  assert.ok(centre(pose.turn).x < opened.x - 10, "zoomed in, the west edge stays at the window's left");
+  assert.ok(Math.abs(centre(pose.turn).y - opened.y) < 1e-6, "as far north as the opening");
+  guide.stop({ target: { kind: "core" }, framing: opening.framing * 20, duration: 0 });
+  assert.ok(Math.abs(centre(pose.turn).x) < 1e-6, "zoomed out until it fits, the sheet sits in the middle");
 });
 
 test("3.28 on the glass sheet, a plan still growing, framed by its full plan, keeps every island where the full plan puts it, on glass the full plan's size", () => {

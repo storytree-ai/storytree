@@ -424,6 +424,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     read,
     write: pose => { opened.current = true; host.current.turnTo(pose.turn); host.current.onPose(pose); },
     invalidate: () => host.current.invalidate(),
+    // 3.66: asked for only on the glass sheet, where a stop at the whole map goes to its opening.
+    opening: framing => sheetOpening(host.current.sheet!, host.current.size, framing),
   });
   const controls = useRef<PlacedGlobeControls>(undefined);
   const guideFrameAt = useRef(0);

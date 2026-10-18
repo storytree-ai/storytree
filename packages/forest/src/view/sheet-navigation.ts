@@ -117,17 +117,20 @@ function focal(size: { height: number }): number {
  * clear of the Sessions strip, the north edge as far below the window's top as the south edge is above its bottom, from its
  * west edge, so the user scrolls east to follow the depth; a sheet narrower than the window sits in its middle.
  * The perspective draws the near south half bigger than the far north half, so the middle of the view lies a little south
- * of the sheet's middle.
+ * of the sheet's middle. At a `framing` asked for, the whole map is the same view zoomed: still from its west edge, or in the
+ * middle once the sheet is narrower than the window (3.66).
  */
-export function sheetOpening(extent: SheetExtent, size: { width: number; height: number }): GlobePose {
+export function sheetOpening(extent: SheetExtent, size: { width: number; height: number }, framing?: number): GlobePose {
   const f = focal(size), half = Math.max(size.height - CLEAR_HEIGHT, 1) / 2, n = extent.height / 2;
   const sin = Math.sin(SHEET_TILT), cos = Math.cos(SHEET_TILT), lean = half * sin / (f * cos);
-  // North of the middle of the view the sheet runs `far` units, south of it `near`; the eye stands `distance` off.
-  const far = n * (1 + lean), near = n * (1 - lean), distance = far * (f * cos - half * sin) / half;
-  const zoom = f / distance, y = n - far;
+  // North of the middle of the view the sheet runs `far` units, south of it `near`; the eye stands `distance` off, or as far
+  // as a `framing` asked for puts it, with the middle of the view where the opening has it (3.66).
+  const far = n * (1 + lean), near = n * (1 - lean);
+  const zoom = framing === undefined ? f / (far * (f * cos - half * sin) / half) : Math.min(size.width, size.height) / (2 * framing * SHEET_RADIUS);
+  const distance = f / zoom, y = n - far;
   // The south-west corner, nearest the eye, comes to the window's left edge.
   const closest = distance - near * sin, x = extent.width * f / closest <= size.width ? 0 : -extent.width / 2 + size.width * closest / (2 * f);
-  return { turn: turnToIsland(sheetSpot({ x, y })), framing: Math.min(size.width, size.height) / (2 * zoom * SHEET_RADIUS), sideOffset: 0 };
+  return { turn: turnToIsland(sheetSpot({ x, y })), framing: framing ?? Math.min(size.width, size.height) / (2 * zoom * SHEET_RADIUS), sideOffset: 0 };
 }
 
 /** The place on the sheet in the middle of the view at `turn`. */

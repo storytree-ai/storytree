@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { GlobeTarget } from "@storytree/forest/view";
 import { createCameraPlayer, freePlayFraming, viewFraming, type CameraStep, type Stop } from "./tour-camera.js";
 import { steps } from "./tour-copy.js";
-import type { TourDetail, TourStep } from "./tour.js";
+import { restingFraming, type TourDetail, type TourStep } from "./tour.js";
 
 /** A clock the test moves by hand, and a camera on it that writes down what it does and when. */
 function rig() {
@@ -43,7 +43,7 @@ test("2.15 · chapter 2's first view grows in from far away, then arrives", () =
   assert.deepEqual(log, ["0 a ×5.6 0ms", "60 a ×0.8 2600ms", "2660 arrive"], "the far pose lands first, then one eased flight in");
 });
 
-test("2.15 · between steps on one globe the camera flies one leg and arrives when it ends; at 1.5× it is quicker", () => {
+test("2.15 · between steps on one map the camera flies one leg and arrives when it ends; at 1.5× it is quicker", () => {
   const { log, advance, tell } = rig();
   const one = detail(step("one", { target: story("a"), framing: .8 }), 0);
   tell(one, undefined); advance(5000); log.length = 0;
@@ -64,7 +64,7 @@ test("2.15 · a line that moves the camera within a step flies it; a line that d
   assert.deepEqual(log, ["10000 a ×0.8 1800ms", "11800 arrive"], "the line's own view: it eases in on the same island");
 });
 
-test("2.15 · to another project's globe it pulls back, swaps the globe, waits for it to be drawn and dives in", () => {
+test("2.15 · to another project's map it pulls back, swaps the map, waits for it to be drawn and dives in", () => {
   const { camera, log, advance, tell } = rig();
   const one = detail(step("one", { target: story("a"), framing: .8 }), 0);
   tell(one, undefined); advance(5000); log.length = 0;
@@ -78,7 +78,7 @@ test("2.15 · to another project's globe it pulls back, swaps the globe, waits f
   assert.deepEqual(log.slice(2), ["10900 core ×2.4 0ms", "10960 b ×0.6 1500ms", "12460 arrive"], "from the new globe's whole view, one dive in");
 });
 
-test("2.12 · a globe that grows from a point is shown at once, with no pull back and dive", () => {
+test("2.12 · a map that grows from a point is shown at once, with no pull back and dive", () => {
   const { log, advance, tell } = rig();
   const one = detail(step("one", { target: story("a"), framing: 1.1 }), 0);
   tell(one, undefined); advance(5000); log.length = 0;
@@ -123,21 +123,21 @@ test("2.15 · a step's island drawn late is aimed at again until it is drawn, by
   assert.deepEqual(log, ["210 a ×0.8 2600ms"], "aimed at on the next beat once it is, by the latest aim only: the far pose it superseded never pulls the camera back out");
 });
 
-test("2.22 · on a phone storytree's own globe is framed smaller, more so at 320px, in the arrival, the everything step and free play; the shop's is not", () => {
+test("2.22 · on a phone storytree's own glass sheet is framed wider, more so at 320px, in the arrival, the everything step and free play; the shop's is not", () => {
   const own = steps.filter(step => step.map === "own" || step.id === "everything");
   assert.deepEqual(own.map(step => step.id), ["pain", "grow", "value", "fixes", "harness", "everything"]);
   for (const step of own) {
-    const wide = viewFraming(step, 390, 1.1), narrow = viewFraming(step, 320, 1.1);
-    assert.ok(wide > 1.1 && narrow > wide, `${step.id}: ${wide} at 390px, ${narrow} at 320px`);
+    const wide = viewFraming(step, 390, restingFraming), narrow = viewFraming(step, 320, restingFraming);
+    assert.ok(wide > restingFraming && narrow > wide, `${step.id}: ${wide} at 390px, ${narrow} at 320px`);
   }
-  assert.ok(freePlayFraming("storytree", 390, 1.1) > 1.1 && freePlayFraming("storytree", 320, 1.1) > freePlayFraming("storytree", 390, 1.1));
-  assert.equal(freePlayFraming("shop", 320, 1.1), 1.1);
+  assert.ok(freePlayFraming("storytree", 390, restingFraming) > restingFraming && freePlayFraming("storytree", 320, restingFraming) > freePlayFraming("storytree", 390, restingFraming));
+  assert.equal(freePlayFraming("shop", 320, restingFraming), restingFraming);
 });
 
-test("2.23 · on a laptop storytree's own globe is framed smaller than the resting framing in the arrival, the everything step and free play; the shop's is not", () => {
+test("2.23 · on a laptop storytree's own glass sheet is framed wider than the resting framing in the arrival, the everything step and free play; the shop's is not", () => {
   for (const step of steps.filter(step => step.map === "own" || step.id === "everything")) {
-    for (const width of [1440, 1280]) assert.ok(viewFraming(step, width, 1.1) > 1.1, `${step.id} at ${width}px: ${viewFraming(step, width, 1.1)}`);
+    for (const width of [1440, 1280]) assert.ok(viewFraming(step, width, restingFraming) > restingFraming, `${step.id} at ${width}px: ${viewFraming(step, width, restingFraming)}`);
   }
-  assert.ok(freePlayFraming("storytree", 1440, 1.1) > 1.1);
-  assert.equal(freePlayFraming("shop", 1440, 1.1), 1.1);
+  assert.ok(freePlayFraming("storytree", 1440, restingFraming) > restingFraming);
+  assert.equal(freePlayFraming("shop", 1440, restingFraming), restingFraming);
 });

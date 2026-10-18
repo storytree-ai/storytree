@@ -50,10 +50,18 @@ export interface Look {
 /**
  * What a run keeps across its restarts, per arm: when its first lane was dispatched, its lanes so far (planning lanes
  * among them), each arc it planned with the state it planned it in, the arc whose planning lane it has not yet looked
- * past, and why it stopped.
+ * past, each arc whose planning lane changed nothing with the state it was left in and when its back-off ends, and why
+ * it stopped.
  */
 export interface RunState {
-  arms: Record<string, { launches: number; firstLane?: string; planned?: Record<string, string>; checking?: string; stopped?: string }>;
+  arms: Record<string, {
+    launches: number;
+    firstLane?: string;
+    planned?: Record<string, string>;
+    checking?: string;
+    retries?: Record<string, { state: string; until: string }>;
+    stopped?: string;
+  }>;
 }
 
 /** One lane a run starts: an increment to build, or, with `plan`, an arc to plan. */
@@ -117,7 +125,7 @@ export async function approveCheckouts(server: Storytree, arms: readonly ArmRun[
  * plans (launch.mjs): for the first arc its look would plan whose state differs from the one the arm last planned it in
  * (kept in `state`), never while a planning lane of that arm runs. The arm's first look after its planning lane ends
  * checks it: with nothing ready and the arc still in the state it was planned in, the lane changed nothing, so the arc
- * is offered again once `backoffMs` has passed since the lane ended, or sooner if its state changes. Ends, after its lanes end, on the owner's stop or once every arm has stopped.
+ * is offered again once `backoffMs` has passed since the lane ended (kept in `state`), or sooner if its state changes. Ends, after its lanes end, on the owner's stop or once every arm has stopped.
  */
 export async function runExperiment({ arms, rules, look, record, points, launch, state, stopped, sleep, now, say, pollMs = 60_000, backoffMs = 30 * 60_000 }: {
   arms: readonly ArmRun[];
@@ -138,7 +146,6 @@ export async function runExperiment({ arms, rules, look, record, points, launch,
   const saved = await state.load();
   const of = (arm: ArmRun) => (saved.arms[arm.arm] ??= { launches: 0 });
   const running = new Map<string, Promise<void>>(), starting = new Set<string>(), ended = new Map<string, number>(), planning = new Set<string>();
-  const retries = new Map<string, { state: string; until: number }>();
   let paused = false;
   const finish = async (message: string) => {
     await Promise.all(running.values());
@@ -186,7 +193,7 @@ export async function runExperiment({ arms, rules, look, record, points, launch,
           if (!seen.ready.length && unchanged) {
             const { [arc]: _, ...rest } = kept.planned!;
             kept.planned = rest;
-            retries.set(`${arm.arm} ${arc}`, { state: unchanged.state, until: (ended.get(arc) ?? now()) + backoffMs });
+            kept.retries = { ...kept.retries, [arc]: { state: unchanged.state, until: new Date((ended.get(arc) ?? now()) + backoffMs).toISOString() } };
             dated(`plan ${arc} in arm ${arm.arm} changed nothing: offered again after the back-off`);
           }
           delete kept.checking;
@@ -194,8 +201,8 @@ export async function runExperiment({ arms, rules, look, record, points, launch,
         }
         const open = seen.ready.filter((one) => !running.has(one.id) && !(now() < (ended.get(one.id) ?? -Infinity) + backoffMs));
         const plan = open.length || planning.has(arm.arm) ? undefined : (seen.plans ?? []).find((arc) => {
-          const retry = retries.get(`${arm.arm} ${arc.id}`);
-          return kept.planned?.[arc.id] !== arc.state && !(retry?.state === arc.state && now() < retry.until);
+          const retry = kept.retries?.[arc.id];
+          return kept.planned?.[arc.id] !== arc.state && !(retry?.state === arc.state && now() < Date.parse(retry.until));
         });
         if (plan) states.set(`${arm.arm} ${plan.id}`, plan.state);
         offers.set(arm, plan ? [{ id: plan.id, title: plan.title, plan: true }] : [...open]);
@@ -210,6 +217,11 @@ export async function runExperiment({ arms, rules, look, record, points, launch,
       kept.firstLane ??= new Date(now()).toISOString();
       if (one.plan) {
         kept.planned = { ...kept.planned, [one.id]: states.get(`${arm.arm} ${one.id}`)! };
+        if (kept.retries?.[one.id] !== undefined) {
+          const { [one.id]: _, ...rest } = kept.retries;
+          if (Object.keys(rest).length) kept.retries = rest;
+          else delete kept.retries;
+        }
         kept.checking = one.id;
         planning.add(arm.arm);
       }

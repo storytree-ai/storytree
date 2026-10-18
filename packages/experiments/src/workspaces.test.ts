@@ -7,7 +7,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { resolveKey } from "@storytree/library/keys";
+import { resolveKey } from "@storytree/keys";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
 import { readExperiment, readLibrary } from "@storytree/project-and-caller";

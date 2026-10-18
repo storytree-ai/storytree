@@ -304,6 +304,9 @@ importers:
       '@storytree/journey-events':
         specifier: workspace:*
         version: link:../journey-events
+      '@storytree/keys':
+        specifier: workspace:*
+        version: link:../keys
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
@@ -386,6 +389,9 @@ importers:
 
   packages/experiments:
     dependencies:
+      '@storytree/keys':
+        specifier: workspace:*
+        version: link:../keys
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
@@ -520,6 +526,18 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  packages/keys:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
   packages/knowledge-core:
     dependencies:
       '@react-three/drei':
@@ -580,6 +598,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^4.3.0
         version: 4.3.0(@types/node@24.13.6)
+      '@storytree/keys':
+        specifier: workspace:*
+        version: link:../keys
       google-auth-library:
         specifier: ^10.6.2
         version: 10.9.1

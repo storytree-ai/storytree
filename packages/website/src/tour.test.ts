@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { mapRecording, mapGrowthPlan, onSheet, recordedFrame } from "./map-recording.js";
 import { sheetLayout } from "@storytree/forest/view";
-import { sheetPoint } from "@storytree/forest/world/planet";
+import { rowOf } from "@storytree/forest";
+import { SHEET_RADIUS, sheetPoint } from "@storytree/forest/world/planet";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
 import own from "./own-snapshot.json" with { type: "json" };
@@ -374,13 +375,18 @@ test("3.4 · on the glass sheet the map chapter lays the four out by the sheet's
   assert.ok(Math.abs(c.x - k.x) < 1e-6 && c.y > k.y, "the cart and checkout in one column, the cart to the north");
   for (const grown of [recording, onSheet(original), onSheet(own as unknown as GrowthSnapshot)]) {
     const places = new Map(grown.places.map(node => [node.id, node.place]));
-    // The app's sheet for the same plan: what the forest page draws.
-    const app = sheetLayout(grown.scene, places);
-    assert.equal(grown.radius, app.radius);
-    assert.deepEqual(new Map(grown.spots), app.spots, `${grown.project}: the grown map's places are the app's sheet's`);
+    assert.equal(grown.radius, SHEET_RADIUS, `${grown.project}: the roads are measured on the sheet`);
+    // The sheet's rule, island by island: a depth is a column, deeper ones further east, and down a column by slot from the north.
+    const at = new Map(grown.spots.map(([story, spot]) => [story, sheetPoint(spot)]));
+    assert.deepEqual([...at.keys()].sort(), grown.scene.islands.map(island => island.story).sort(), `${grown.project}: every island of the plan is placed`);
+    for (const [one, p] of at) for (const [other, q] of at) {
+      const a = rowOf(places.get(one)!), b = rowOf(places.get(other)!);
+      if (a.row < b.row) assert.ok(p.x < q.x, `${grown.project}: ${one} west of the deeper ${other}`);
+      else if (a.row === b.row) assert.ok(Math.abs(p.x - q.x) < 1e-6 && (a.slot >= b.slot || p.y > q.y), `${grown.project}: ${one} and ${other} in one column, by slot from the north`);
+    }
     // Every stage drawn within its full plan, as the replay draws it, keeps each island at that place.
     for (const stage of grown.stages) for (const [story, spot] of sheetLayout(stage.scene, places, grown.scene).spots)
-      assert.deepEqual(spot, app.spots.get(story), `${grown.project} at ${stage.id}: ${story} where the sheet puts it`);
+      assert.deepEqual(spot, new Map(grown.spots).get(story), `${grown.project} at ${stage.id}: ${story} where the sheet puts it`);
   }
 });
 

@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19 and 1.21 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21 and 1.33 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
@@ -214,7 +214,7 @@ test("1.15 a command kept waiting on the library, here for another session's wri
   });
 });
 
-test("1.17 every answer is recorded on the calling session as a door-answered line: the command, how it went, and the next steps offered as commands; an unknown word with the command its refusal named", async () => {
+test("1.17 every answer is recorded on the calling session as a door-answered line: the command, how it went, and the next steps offered as commands; an unknown word with the command its refusal named, which a guess leaves out", async () => {
   await inWorld(command, async (world) => {
     await (await world.library()).defineTerm({ term: "Mailer", meaning: "Sends the sign-up email" });
     const session = { CLAUDE_CODE_SESSION_ID: "door-1" };
@@ -235,12 +235,29 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
       });
       assert.deepEqual(said, [
         { door: "command", verb: "storytree library search", outcome: "answered", word: undefined, named: undefined, next: ["storytree library read"] },
-        { door: "command", verb: "storytree arc increment", outcome: "unknown", word: "show", named: "storytree library read", next: [] },
-        { door: "command", verb: "storytree", outcome: "unknown", word: "questoin", named: "storytree question", next: [] },
+        { door: "command", verb: "storytree arc increment", outcome: "unknown", word: "show", named: "storytree library read", next: ["storytree library read"] },
+        { door: "command", verb: "storytree", outcome: "unknown", word: "questoin", named: undefined, next: ["storytree question"] },
       ]);
     } finally {
       await log.close();
     }
+  });
+});
+
+test("1.33 a refused word offers, as next steps, the commands sessions ran after it was refused there before; a guess names none of them as the one to run", async () => {
+  await inWorld(command, async (world) => {
+    await (await world.library()).defineTerm({ term: "Mailer", meaning: "Sends the sign-up email" });
+    const first = { CLAUDE_CODE_SESSION_ID: "repoint-1" };
+
+    const unlearned = await world.run(["library", "zzfind", "Mailer"], first);
+    await world.run(["library", "search", "Mailer"], first);
+    const learned = await world.run(["library", "zzfind", "Mailer"], { CLAUDE_CODE_SESSION_ID: "repoint-2" });
+
+    assert.equal(unlearned.code, 2, unlearned.stderr);
+    assert.doesNotMatch(unlearned.stderr, /storytree library search/);
+    assert.equal(learned.code, 2, learned.stderr);
+    assert.match(learned.stderr, /next:\n[\s\S]*- storytree library search <words…>/);
+    assert.doesNotMatch(learned.stderr, /run storytree/);
   });
 });
 

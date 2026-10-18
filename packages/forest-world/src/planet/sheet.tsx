@@ -8,7 +8,7 @@
  * distance from the middle of the view is the zoom, and a lamp shades the islands' sides and the glass's edge. */
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { AmbientLight, BufferGeometry, DirectionalLight, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, MeshLambertMaterial, PlaneGeometry, Quaternion, Vector3, type Camera, type Light, type Object3D, type PerspectiveCamera } from 'three';
+import { AmbientLight, BackSide, BufferGeometry, DirectionalLight, Float32BufferAttribute, FrontSide, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, MeshLambertMaterial, PlaneGeometry, Quaternion, Vector3, type Camera, type Light, type Object3D, type PerspectiveCamera } from 'three';
 import { PLATE_CLEARANCE, type PlanetSpot } from './planet.js';
 
 /** The radius of the sphere whose near pole is the sheet, in ground units. */
@@ -168,9 +168,19 @@ const CLEAR = { 'sheet:pane': 0.05, 'sheet:pane-under': 0.03, 'sheet:edge': 0.25
 export function clearGlass(glass: Object3D, clear: boolean): void {
   const opacity = clear ? CLEAR : SMOKED;
   for (const name of Object.keys(opacity) as (keyof typeof opacity)[]) {
-    const part = glass.getObjectByName(name) as Mesh<BufferGeometry, MeshBasicMaterial> | undefined;
-    if (part !== undefined) part.material.opacity = opacity[name];
+    const part = glass.getObjectByName(name) as Mesh<BufferGeometry, MeshBasicMaterial[]> | undefined;
+    for (const face of part?.material ?? []) face.opacity = opacity[name];
   }
+}
+
+/** `geometry` drawn see-through on both faces, the far one blended first, as three's own two-pass double-sided draw
+ * would; but each face keeps its own material and program, where that draw re-versions one material twice a frame
+ * (ADR-0836 D1). */
+function twoFaced<M extends MeshBasicMaterial | MeshLambertMaterial>(geometry: BufferGeometry, face: (side: typeof BackSide | typeof FrontSide) => M): Mesh<BufferGeometry, M[]> {
+  const whole = geometry.index?.count ?? geometry.getAttribute('position').count;
+  geometry.addGroup(0, whole, 0);
+  geometry.addGroup(0, whole, 1);
+  return new Mesh(geometry, [face(BackSide), face(FrontSide)]);
 }
 
 /**
@@ -187,7 +197,7 @@ export function sheetGlass(extent: SheetExtent): Group {
   const pane = (name: string, z: number) => {
     const plane = new PlaneGeometry(extent.width, extent.height, 48, 32), position = plane.getAttribute('position');
     for (let i = 0; i < position.count; i++) position.setZ(i, sag(position.getX(i), position.getY(i)) + z);
-    const mesh = new Mesh(plane, new MeshBasicMaterial({ color: '#1a2832', transparent: true, opacity: SMOKED[name as keyof typeof SMOKED], depthWrite: false, side: DoubleSide }));
+    const mesh = twoFaced(plane, side => new MeshBasicMaterial({ color: '#1a2832', transparent: true, opacity: SMOKED[name as keyof typeof SMOKED], depthWrite: false, side }));
     mesh.name = name;
     mesh.raycast = () => {};
     return mesh;
@@ -219,7 +229,7 @@ export function sheetGlass(extent: SheetExtent): Group {
   wall.setAttribute('position', new Float32BufferAttribute(position, 3));
   wall.setAttribute('normal', new Float32BufferAttribute(normal, 3));
   wall.setIndex(indices);
-  const edge = new Mesh(wall, new MeshLambertMaterial({ color: GLASS_EDGE_COLOUR, transparent: true, opacity: SMOKED['sheet:edge'], depthWrite: false, side: DoubleSide }));
+  const edge = twoFaced(wall, side => new MeshLambertMaterial({ color: GLASS_EDGE_COLOUR, transparent: true, opacity: SMOKED['sheet:edge'], depthWrite: false, side }));
   edge.name = 'sheet:edge';
   edge.raycast = () => {};
   group.add(pane('sheet:pane-under', bottom), edge, pane('sheet:pane', top), rim('sheet:rim', top), rim('sheet:rim-under', bottom));
@@ -250,9 +260,9 @@ export function SheetGlass({ extent, clear = false }: { extent: SheetExtent; cle
   const glass = useMemo(() => sheetGlass(extent), [extent.width, extent.height]);
   useEffect(() => clearGlass(glass, clear), [glass, clear]);
   useEffect(() => () => glass.traverse(object => {
-    const mesh = object as { geometry?: { dispose(): void }; material?: { dispose(): void } };
+    const mesh = object as { geometry?: { dispose(): void }; material?: { dispose(): void } | { dispose(): void }[] };
     mesh.geometry?.dispose();
-    mesh.material?.dispose();
+    for (const material of [mesh.material ?? []].flat()) material.dispose();
   }), [glass]);
   useFrame(({ camera }) => drawOrderBySide(glass, camera, -1, 20));
   return <primitive object={glass} />;

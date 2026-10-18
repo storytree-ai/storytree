@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { AmbientLight, Box3, DirectionalLight, Group, Mesh as ThreeMesh, MeshLambertMaterial, MeshStandardMaterial, PerspectiveCamera, Quaternion, Raycaster, Vector3, type BufferAttribute, type Mesh } from 'three';
+import { AmbientLight, BackSide, Box3, DirectionalLight, DoubleSide, FrontSide, Group, Mesh as ThreeMesh, MeshLambertMaterial, MeshStandardMaterial, PerspectiveCamera, Quaternion, Raycaster, Vector3, type BufferAttribute, type Mesh } from 'three';
 import { PLATE_CLEARANCE, plateTransform } from './planet.js';
 import { hollowIsland, islandSurface } from './island-surface.js';
 import { applySheetEye, clearGlass, hangUnderTheGlass, SHEET_FOV, SHEET_GLASS_THICKNESS, SHEET_LAND_LIFT, SHEET_LAND_THICKNESS, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, sheetGlass, sheetLights, sheetPoint, sheetSpot } from './sheet.js';
@@ -60,7 +60,7 @@ test('4.27 the glass sheet is a lit slab: the glass has a visible thickness with
   const zAt = (mesh: Mesh) => { const box = new Box3().setFromBufferAttribute(mesh.geometry.getAttribute('position') as BufferAttribute); return box.max.z; };
   assert.ok(Math.abs(zAt(top) - zAt(bottom) - SHEET_GLASS_THICKNESS) < 1e-6 && SHEET_GLASS_THICKNESS >= 3, `the glass is ${SHEET_GLASS_THICKNESS} units thick`);
   assert.equal(glass.children.filter(o => o.name.startsWith('sheet:rim')).length, 2, 'a rim round each face');
-  const lit = (mesh: Mesh) => mesh.material instanceof MeshLambertMaterial || mesh.material instanceof MeshStandardMaterial;
+  const lit = (mesh: Mesh) => [mesh.material].flat().every(material => material instanceof MeshLambertMaterial || material instanceof MeshStandardMaterial);
   assert.ok(lit(edge), 'the glass\'s edge takes the light');
   const island = islandSurface([[{ x: -20, z: -20 }, { x: 20, z: -20 }, { x: 20, z: 20 }, { x: -20, z: 20 }]], SHEET_RADIUS, 'lit', SHEET_LAND_THICKNESS);
   const sides = island.getObjectByName('island-side') as Mesh;
@@ -169,7 +169,7 @@ test('4.28 under clear glass (the Library look) what hangs beneath shows at ever
     assert.equal(under.visible, true, `clear, at ${(tilt * 180 / Math.PI).toFixed(0)}° it shows`);
   }
   const glass = sheetGlass({ width: 400, height: 300 });
-  const opacity = () => ['sheet:pane', 'sheet:pane-under', 'sheet:edge'].map(name => ((glass.getObjectByName(name) as ThreeMesh).material as { opacity: number }).opacity);
+  const opacity = () => ['sheet:pane', 'sheet:pane-under', 'sheet:edge'].flatMap(name => [(glass.getObjectByName(name) as ThreeMesh).material].flat().map(face => face.opacity));
   const smoked = opacity(), where = glass.position.clone();
   clearGlass(glass, true);
   const clear = opacity();
@@ -178,4 +178,18 @@ test('4.28 under clear glass (the Library look) what hangs beneath shows at ever
   clearGlass(glass, false);
   assert.deepEqual(opacity(), smoked, "smoked again");
   assert.ok(glass.position.equals(where), "the glass never moves");
+});
+
+// Three draws a see-through, double-sided material in two passes and re-versions it before each, re-deriving its shader
+// program twice a frame (ADR-0836 D1); each glass part instead draws its far face then its near face, one material each.
+test('3.9 an animating glass sheet redraws its panes and edge, far face then near face, without re-deriving a shader program', () => {
+  const glass = sheetGlass({ width: 400, height: 300 });
+  for (const name of ['sheet:pane', 'sheet:pane-under', 'sheet:edge']) {
+    const part = glass.getObjectByName(name) as Mesh;
+    const materials = [part.material].flat();
+    assert.deepEqual(materials.filter(material => material.transparent && material.side === DoubleSide && !material.forceSinglePass).map(() => name), []);
+    const whole = part.geometry.index!.count;
+    assert.deepEqual(part.geometry.groups.map(({ start, count, materialIndex }) => ({ start, count, side: materials[materialIndex!]!.side })),
+      [{ start: 0, count: whole, side: BackSide }, { start: 0, count: whole, side: FrontSide }], `${name} draws both faces, far first`);
+  }
 });

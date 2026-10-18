@@ -40,7 +40,7 @@ const measure = page => page.evaluate(() => {
     eye: round(camera.matrixWorld.elements), lens: [camera.fov, camera.zoom], sheet: round(glass.parent.matrixWorld.elements),
     tiltDeg: Math.round(new V(0, 0, 1).applyQuaternion(glass.parent.getWorldQuaternion(new Q())).angleTo(new V(0, 0, 1).applyQuaternion(camera.quaternion)) * 1800 / Math.PI) / 10,
     pressed: Object.fromEntries([...document.querySelectorAll('[data-globe-switch]')].map(b => [b.dataset.globeSwitch, b.getAttribute('aria-pressed')])),
-    pane: Math.round(scene.getObjectByName('sheet:pane').material.opacity * 100) / 100,
+    pane: Math.round([scene.getObjectByName('sheet:pane').material].flat()[0].opacity * 100) / 100,
     notesShown: notes, filled, coasts,
   };
 });

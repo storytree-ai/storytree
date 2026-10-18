@@ -9,13 +9,21 @@
 // the standing-up frames PixelLab drew on a 128x128 canvas from the same keyframe. Output 0 of every
 // animation is PixelLab's echo of its first frame; the seated loops play 1-4.
 //
-// Standing up ends in his walk out of the picture. The scene draws that part as two layers: the
-// empty chair (columns 73 and right of the last frame) and him walking (columns left of 72 of
-// frames 6 and 7, the second shifted so both start at the same column), which it slides off his half.
+// Standing up plays PixelLab's frames 0-4, his rise out of the chair. Its later frames walk him away
+// to the left, toward the desk, so they are not played: the scene draws his walk out as two layers,
+// the empty chair (columns 73 and right of the last frame) and him walking (columns left of 72 of
+// frames 6 and 7, the second shifted so both start at the same column), turned to face right and
+// slid off his half behind the chair.
+//
+// The set is PixelLab's too (increment_ea834305fe2d): the owner's reference re-drawn by edit-image-pixen
+// at 128x128 with the person and chair taken out and the monitor's screen one flat green (set.png),
+// and a window (window.png). This script stretches the set to fill a half of the frame (its top row
+// up the wall, its last column and row out to the edges) and cuts its green screen out, so the scene
+// draws what the screen shows behind the room and it shows through on exactly those pixels.
 //
 // Writes ../../src/shorts/public/sprites/cast.png (RGBA, opaque or transparent pixels only) and
-// cast.json (pose -> frames, prop -> rect). The room, the screen and everything on it are drawn by
-// the scene in code (src/shorts/scene.ts).
+// cast.json (pose -> frames, prop -> rect). What the screen shows is drawn by the scene in code
+// (src/shorts/scene.ts).
 import { deflateSync, inflateSync } from 'node:zlib'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -26,13 +34,15 @@ const OUT = join(here, '../../src/shorts/public/sprites')
 const RAW = join(here, 'pixellab')
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
 const CELL = 128, SEATED_AT = { x: 48, y: 32 }, CHAIR_FROM = 73
+/** A half of the frame below its title strip, where the set sits in it, and its screen's one green. */
+const ROOM = { w: 160, h: 166 }, SET_AT = { x: 0, y: 34 }, GREEN = [94, 238, 86]
 
 // ---- poses: which PixelLab frames (pixellab/<file>-<n>.png) play, in order -------------------
 const POSES = {
   typing: { fps: 8, file: 'typing', play: [1, 2, 3, 4] },
   scratching: { fps: 6, file: 'scratching', play: [0, 1, 2, 3, 4, 4, 3, 2, 1] },
   leaning: { fps: 4, file: 'leaning', play: [1, 2, 3, 4, 3, 2] },
-  standing: { fps: 8, file: 'standing', play: [0, 1, 2, 3, 4, 5, 6, 7] },
+  standing: { fps: 5, file: 'standing', play: [0, 1, 2, 3, 4] },
 }
 const WALK = { fps: 6, file: 'standing', play: [6, 7] }
 
@@ -111,8 +121,8 @@ function build() {
   const names = Object.keys(POSES)
   const unique = (n) => [...new Set(POSES[n].play)]
   const rows = names.length + 1
-  const sheet = rgba(CELL * Math.max(...names.map((n) => unique(n).length), WALK.play.length + 1), CELL * rows)
-  const map = { image: 'sprites/cast.png', width: sheet.w, height: sheet.h, poses: {}, props: {} }
+  const sheet = rgba(CELL * Math.max(...names.map((n) => unique(n).length), WALK.play.length + 1), CELL * rows + ROOM.h)
+  const map = { image: 'sprites/cast.png', width: sheet.w, height: sheet.h, poses: {}, props: {}, holes: {} }
   names.forEach((n, row) => {
     const cells = new Map()
     unique(n).forEach((frame, col) => {
@@ -133,7 +143,30 @@ function build() {
     columns(sheet, src, (i + 1) * CELL, y, 0, CHAIR_FROM - 1, leftmost(src, CHAIR_FROM - 1) - start)
     return { x: (i + 1) * CELL, y, w: CELL, h: CELL }
   }) }
+  room(sheet, map, rows * CELL)
   return { sheet, map }
+}
+
+const pixel = (img, x, y) => img.buf.subarray((y * img.w + x) * 4, (y * img.w + x) * 4 + 4)
+const isGreen = (p) => p[0] === GREEN[0] && p[1] === GREEN[1] && p[2] === GREEN[2]
+/** The room (the set filling a half, its screen a hole) and the window, in a row below the cast; the map names the hole's box. */
+function room(sheet, map, y0) {
+  const set = readPng(join(RAW, 'set.png')), room = rgba(ROOM.w, ROOM.h)
+  const mask = { x0: set.w, y0: set.h, x1: -1, y1: -1 }
+  for (let y = 0; y < ROOM.h; y++) for (let x = 0; x < ROOM.w; x++) {
+    const sx = Math.min(set.w - 1, Math.max(0, x - SET_AT.x)), sy = Math.min(set.h - 1, Math.max(0, y - SET_AT.y)), p = pixel(set, sx, sy)
+    if (isGreen(p) && sx === x - SET_AT.x && sy === y - SET_AT.y)
+      Object.assign(mask, { x0: Math.min(mask.x0, sx), y0: Math.min(mask.y0, sy), x1: Math.max(mask.x1, sx), y1: Math.max(mask.y1, sy) })
+    if (isGreen(p)) continue
+    const o = (y * ROOM.w + x) * 4
+    p.copy(room.buf, o, 0, 3); room.buf[o + 3] = 255
+  }
+  const window = readPng(join(RAW, 'window.png'))
+  copy(sheet, room, 0, y0)
+  copy(sheet, window, ROOM.w, y0)
+  map.props.room = { x: 0, y: y0, w: ROOM.w, h: ROOM.h }
+  map.props.window = { x: ROOM.w, y: y0, w: window.w, h: window.h }
+  map.holes = { screen: { x: SET_AT.x + mask.x0, y: SET_AT.y + mask.y0, w: mask.x1 - mask.x0 + 1, h: mask.y1 - mask.y0 + 1 } }
 }
 
 const { sheet, map } = build()

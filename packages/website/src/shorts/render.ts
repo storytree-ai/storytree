@@ -86,9 +86,9 @@ export async function ffmpeg(args: string[]): Promise<Buffer> {
   return (await run).stdout as unknown as Buffer;
 }
 
-/** A picture's pixels as packed RGB, decoded by ffmpeg from any file it reads (a PNG, or one frame of a video at `seconds`). */
-export async function rgbOf(file: string, seconds?: number): Promise<Buffer> {
-  return ffmpeg([...(seconds === undefined ? [] : ["-ss", String(seconds)]), "-i", file, "-frames:v", "1", "-f", "image2pipe", "-c:v", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"]);
+/** A picture's pixels as packed RGB (or RGBA), decoded by ffmpeg from any file it reads (a PNG, or one frame of a video at `seconds`). */
+export async function rgbOf(file: string, seconds?: number, format: "rgb24" | "rgba" = "rgb24"): Promise<Buffer> {
+  return ffmpeg([...(seconds === undefined ? [] : ["-ss", String(seconds)]), "-i", file, "-frames:v", "1", "-f", "image2pipe", "-c:v", "rawvideo", "-pix_fmt", format, "pipe:1"]);
 }
 
 /** Where `rgb` (1920×1080) breaks the pixel grid: the top-left corner of each SCALE×SCALE block holding more than one colour,

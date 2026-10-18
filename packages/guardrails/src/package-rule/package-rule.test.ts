@@ -60,29 +60,13 @@ test("1.1 · a project that declares no stories has one per package under packag
   assert.match(problems[0]!, /apps\/web.*belongs to a story/);
 });
 
-test("1.6 · a story may own several packages, each still belonging to exactly one story (ADR-1066 D3)", (t: TestContext) => {
-  const several: Declarations = { ...DECLARED, stories: ["app", "cli", "forest", "forest-world", { story: "library", packages: ["library", "local-postgres"] }] };
-  const root = plant(t, {
-    "packages/local-postgres/package.json": pkg("local-postgres"),
-    "packages/local-postgres/src/index.ts": "",
-  });
-  assert.deepEqual(packageProblems(root, several), []);
-
-  const twice = packageProblems(root, { ...several, stories: [...several.stories!, { story: "keys", packages: ["local-postgres"] }] });
-  assert.equal(twice.length, 1, twice.join("\n"));
-  assert.match(twice[0]!, /packages\/local-postgres.*library.*keys/);
-
-  const missing = packageProblems(root, { ...several, stories: [...several.stories!, { story: "world", packages: ["globe"] }] });
-  assert.equal(missing.length, 1, missing.join("\n"));
-  assert.match(missing[0]!, /world.*packages\/globe/);
-
-  const framed = packageProblems(plant(t, { "packages/local-postgres/package.json": pkg("local-postgres"), "packages/app/src/local-postgres/start.ts": "" }), several);
-  assert.equal(framed.length, 1, framed.join("\n"));
-  assert.match(framed[0]!, /packages\/app\/src\/local-postgres\/start\.ts is the library story's code.*packages\/local-postgres/);
-
-  const reached = packageProblems(plant(t, { "packages/local-postgres/package.json": pkg("local-postgres"), "packages/forest/src/deep.ts": 'import "@storytree/local-postgres/src/inner.ts";\n' }), several);
-  assert.equal(reached.length, 1, reached.join("\n"));
-  assert.match(reached[0]!, /packages\/forest\/src\/deep\.ts reaches into the library story's files/);
+test("1.6 · A story owns exactly one package: a story declared with several is refused, and the package it would add belongs to no story", (t: TestContext) => {
+  const root = plant(t, { "packages/local-postgres/package.json": pkg("local-postgres"), "packages/local-postgres/src/index.ts": "" });
+  // As a project's untyped declarations (storytree's own are a .mjs file) could write a story with two packages (ADR-1071 rule 5).
+  const several = { ...DECLARED, stories: ["app", "cli", "forest", "forest-world", { story: "library", packages: ["library", "local-postgres"] }] } as unknown as Declarations;
+  const problems = packageProblems(root, several);
+  assert.ok(problems.some((problem) => /"story":"library".*exactly one package/.test(problem)), problems.join("\n"));
+  assert.ok(problems.some((problem) => /packages\/local-postgres is neither a story's package/.test(problem)), problems.join("\n"));
 });
 
 test("1.1 · a package.json saved with a byte-order mark, as Windows editors write it, is read like any other", (t: TestContext) => {

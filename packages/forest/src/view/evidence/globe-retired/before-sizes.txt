@@ -1,0 +1,10 @@
+website dist js bytes: 9017021
+  26106 packages/website/dist/assets/tour-ui-MOGSRV7T.js
+  138021 packages/website/dist/assets/vision_bundle-VL6YJWJ5.js
+  586279 packages/website/dist/assets/hls-E63XNTSF.js
+  8230657 packages/website/dist/assets/forest-scene-FFYI73G3.js
+desktop renderer js bytes: 5072624
+  5072624 apps/desktop/dist/renderer/renderer.js
+forest src lines (non-test): 13793
+forest src lines (with tests): 23848
+website src lines (with tests): 7183

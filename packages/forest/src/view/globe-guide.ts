@@ -19,11 +19,20 @@ export type PlacedGlobeControls = GlobeControls & { aside(): number };
 const nearestYaw = (from: number, to: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
 export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; size(): { width: number; height: number }; read(): GlobePose; write(pose: GlobePose): void; invalidate(): void;
   /** The view the glass sheet opens on and Home returns to, as the canvas is now, or that whole map at a `framing` asked for (3.66). */
-  opening(framing?: number): GlobePose }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean; slide(to: Omit<GlobePose, "turn">, duration?: number): boolean } {
+  opening(framing?: number): GlobePose }): GlobeControls & { frame(milliseconds: number): boolean; home(pose: GlobePose, duration?: number): boolean; slide(to: Omit<GlobePose, "turn">, duration?: number): boolean;
+    /** Aims the last stop at the whole sheet again, at the opening the host now gives, unless something has moved it since (3.66). */
+    reframe(): boolean } {
   // A slide (3.40) moves the zoom and offset only, leaving the turn to whatever turns it meanwhile.
   let motion: { from: GlobePose; to: GlobePose; elapsed: number; duration: number; slide?: boolean } | undefined;
   // 3.44: the host draws a written zoom and offset on its next render, so until it has, the pose written is the one on show.
   let written: GlobePose | undefined;
+  // 3.66: the whole-map stop last asked for on the sheet, until a hand, Home or another stop moves it: a map swapped in can
+  // hand the guide its sheet a frame after the stop, so the host aims it again at the sheet that arrives.
+  let whole: CameraStop | undefined;
+  const toWhole = (stop: CameraStop): boolean => {
+    const from = current(), opening = host.opening(stop.framing);
+    return go(from, { turn: { yaw: nearestYaw(from.turn.yaw, opening.turn.yaw), pitch: opening.turn.pitch }, framing: opening.framing, sideOffset: stop.sideOffset ?? from.sideOffset }, stop.duration ?? 600);
+  };
   const current = (): GlobePose => {
     const drawn = host.read();
     if (written !== undefined && Math.abs(drawn.framing - written.framing) < 1e-6 && Math.abs(drawn.sideOffset - written.sideOffset) < 1e-6) written = undefined;
@@ -54,10 +63,12 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
   return {
     stop(stop) {
       const world = host.world(); world.updateMatrixWorld(true);
+      whole = undefined;
       // 3.66: the glass sheet has no core to face; its whole map is the view it opens on, zoomed as asked.
       if (stop.target.kind === "core" && onTheSheet(world)) {
-        const from = current(), whole = host.opening(stop.framing);
-        return go(from, { turn: { yaw: nearestYaw(from.turn.yaw, whole.turn.yaw), pitch: whole.turn.pitch }, framing: whole.framing, sideOffset: stop.sideOffset ?? from.sideOffset }, stop.duration ?? 600);
+        if (!toWhole(stop)) return false;
+        whole = stop;
+        return true;
       }
       const target = findTarget(world, stop.target), globe = world.getObjectByName("globe");
       if (target === undefined || globe === undefined) return false;
@@ -69,6 +80,7 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     },
     // 3.37: back to the opening view, facing the way it opened however many times it was spun round.
     home(pose, duration = 600) {
+      whole = undefined;
       const from = current();
       return go(from, { ...pose, turn: { yaw: nearestYaw(from.turn.yaw, pose.turn.yaw), pitch: pose.turn.pitch } }, duration);
     },
@@ -97,6 +109,7 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
     // A slide cut short by a drag or the wheel still ends beside the panel; its zoom is left where the wheel takes it, so
     // the zoom on show is the wheel's from here, not a pose the guide wrote.
     cancel() {
+      whole = undefined;
       const cut = motion;
       motion = undefined;
       if (cut?.slide) { host.write({ ...current(), sideOffset: cut.to.sideOffset }); host.invalidate(); }
@@ -135,6 +148,7 @@ export function createGlobeGuide(host: { world(): Object3D; camera(): Camera; si
       });
       return boxes;
     },
+    reframe: () => whole !== undefined && toWhole(whole),
     frame,
   };
 }

@@ -6,7 +6,7 @@ import { createServer, type AddressInfo } from "node:net";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 
-import { findBinaries } from "@storytree/library/local-postgres";
+import { findBinaries } from "@storytree/local-postgres";
 import pg from "pg";
 
 import { setLibrary } from "../settings/settings.js";

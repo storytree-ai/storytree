@@ -9,7 +9,7 @@ import { randomBytes } from "node:crypto";
 import pg from "pg";
 
 import { connect, type Library, type Storytree } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 /** Run `body` with a fresh project's library and the server it is on, the project dropped afterwards, pass or fail. */
 export async function withLibrary(body: (library: Library, server: Storytree) => Promise<void>): Promise<void> {

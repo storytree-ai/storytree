@@ -17,7 +17,7 @@
 
 import pg from "pg";
 
-import { DataDirInUseError } from "@storytree/library/local-postgres";
+import { DataDirInUseError } from "@storytree/local-postgres";
 
 import { SEED_CONNECTION } from "@storytree/library";
 
@@ -83,7 +83,7 @@ export async function holdSeedLock(url, { log }) {
  */
 export async function appLibraryServer(command, { writes, log = (line) => console.log(line) }) {
   const [{ start }, { locateStorytree }, { APP_OWNER, appHome }] = await Promise.all([
-    import("@storytree/library/local-postgres"),
+    import("@storytree/local-postgres"),
     import("@storytree/project-and-caller"),
     import("../../../apps/desktop/src/home.ts"),
   ]);

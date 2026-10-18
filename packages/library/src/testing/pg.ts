@@ -25,7 +25,7 @@ import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { connect as connectSocket, createServer, type AddressInfo, type Socket } from "node:net";
 
-import { dropTestDatabases } from "../local-postgres/testing/drop.js";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { connect, type Project } from "../project/index.js";
 
@@ -108,7 +108,7 @@ async function withClient<T>(
  * role granted with the default INHERIT does. It is deliberately not dropped AS that role (SET
  * ROLE): WITH (FORCE) could then not end the user's own sessions still open on it.
  */
-export { dropTestDatabases, type Queryable } from "../local-postgres/testing/drop.js";
+export { dropTestDatabases, type Queryable } from "@storytree/local-postgres/testing";
 
 /** The password createTestRole() gave each login role it made, by role. */
 const rolePasswords = new Map<string, string>();

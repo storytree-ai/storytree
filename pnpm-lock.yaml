@@ -20,6 +20,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:packages/library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:packages/local-postgres
       '@storytree/session-management':
         specifier: workspace:*
         version: link:packages/session-management
@@ -72,6 +75,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../../packages/library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../../packages/local-postgres
       '@storytree/map':
         specifier: workspace:*
         version: link:../../packages/map
@@ -160,6 +166,9 @@ importers:
       '@storytree/app-setup':
         specifier: workspace:*
         version: link:../app-setup
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -187,6 +196,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
@@ -326,6 +338,9 @@ importers:
         specifier: workspace:*
         version: link:../session-management
     devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@storytree/plugin-loader':
         specifier: workspace:*
         version: link:../plugin-loader
@@ -368,6 +383,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
@@ -408,6 +426,9 @@ importers:
         specifier: ^8.23.0
         version: 8.23.0
     devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -610,6 +631,31 @@ importers:
       zod:
         specifier: ^4.6.5
         version: 4.6.5
+    devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      electron:
+        specifier: 44.4.5
+        version: 44.4.5
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/local-postgres:
+    dependencies:
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
     optionalDependencies:
       '@embedded-postgres/darwin-arm64':
         specifier: 17.10.0-beta.17
@@ -633,9 +679,6 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
-      electron:
-        specifier: 44.4.5
-        version: 44.4.5
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -762,6 +805,9 @@ importers:
         specifier: ^8.23.0
         version: 8.23.0
     devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -796,6 +842,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -824,6 +873,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

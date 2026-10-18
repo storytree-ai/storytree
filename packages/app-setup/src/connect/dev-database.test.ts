@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { ensureCluster, findBinaries } from "@storytree/library/local-postgres";
+import { ensureCluster, findBinaries } from "@storytree/local-postgres";
 import pg from "pg";
 
 const home = mkdtempSync(path.join(tmpdir(), "storytree dev database "));

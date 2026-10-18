@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { randomBytes } from "node:crypto";
 import { setUpProject } from "../project/making.js";
 import { connect } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { projectsOnThisComputer } from "../project/index.js";
 import { setupHelpActions } from "./actions.js";
 

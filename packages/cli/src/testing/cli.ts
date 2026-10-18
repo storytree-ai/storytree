@@ -2,7 +2,7 @@
  * Helpers for the command line's tests: the real, built `storytree` command run as a person's shell
  * runs it, in a throwaway folder and storytree home, against the Postgres `pnpm test` provides.
  *
- * `pnpm test` (packages/dev-loop/src/test.mjs) starts a throwaway local server through @storytree/library/local-postgres
+ * `pnpm test` (packages/dev-loop/src/test.mjs) starts a throwaway local server through @storytree/local-postgres
  * and hands it to the tests as STORYTREE_TEST_PG_URL, with its data directory as
  * STORYTREE_TEST_PG_DATA. "Storytree running" is that server: a throwaway storytree home holds a
  * copy of its owner record (and its sign-in handoff, when it asks for a password), where the app's would be. A Postgres test must never skip silently, so
@@ -20,7 +20,7 @@ import path from "node:path";
 
 import { setUpProject } from "@storytree/app-setup/project";
 import { connect, type Library } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { buildCommand } from "../bins/build.js";
 
@@ -34,7 +34,7 @@ export function testServerUrl(): string {
 
 /** The test server's data directory, beside which its owner record is kept. Throws when there is none. */
 export function testServerDataDir(): string {
-  return required("STORYTREE_TEST_PG_DATA", "run the tests via `pnpm test`, which starts the test Postgres through @storytree/library/local-postgres");
+  return required("STORYTREE_TEST_PG_DATA", "run the tests via `pnpm test`, which starts the test Postgres through @storytree/local-postgres");
 }
 
 /**

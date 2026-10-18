@@ -61,7 +61,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { CATALOGUE, chooseIsland, isSettled, NAMED_STORY } from "@storytree/forest/actions";
 import { connect } from "@storytree/library";
-import { start } from "@storytree/library/local-postgres";
+import { start } from "@storytree/local-postgres";
 import { openActivityLog } from "@storytree/session-management";
 
 import { acquireHeavyLock } from "./heavy-lock.mjs";

@@ -4,7 +4,7 @@
  * (markedProject), on the real Postgres `pnpm test` provides; each such project is named with uniqueProjectName() and
  * its database is dropped afterwards, pass or fail.
  *
- * "Is storytree running, and where?" is read from the owner record @storytree/library/local-postgres keeps
+ * "Is storytree running, and where?" is read from the owner record @storytree/local-postgres keeps
  * beside the app's data directory (`<dataDir>.owner.json`) while the app's Postgres runs. The test
  * server was started the same way, so its own record is the real thing; a crashed app's record is
  * written here in the same shape.

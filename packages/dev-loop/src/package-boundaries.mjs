@@ -18,14 +18,15 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1071 rule 5). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-health", "claude-code-mod", "cli", "dev-loop", "experiments", "forest", "guardrails", "journey-events", "keys", "learning-as-you-build", "knowledge-core", "library", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "session-management", "website"];
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-health", "claude-code-mod", "cli", "dev-loop", "experiments", "forest", "guardrails", "journey-events", "keys", "learning-as-you-build", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "session-management", "website"];
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3); the dev loop depends on it one way, for the forwarders at its old lanes paths.
 // app-setup: story_b91056a06337 (The app setup).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
 // forest: story_deee4230348c (Map view), which holds its drawing engine in src/world (ADR-1071 D3).
-// library: story_754e87e7d531 (The library), which holds the local database and the librarian in its own package (ADR-1071 D3).
+// library: story_754e87e7d531 (The library), which holds the librarian in its own package (ADR-1071 D3).
 // keys: story_d47051f035f0 (Keys, ADR-1075), out of The library again: The library and Experiments call it.
+// local-postgres: story_5e19e65c3433 (The local database, ADR-1076 D1), out of The library again: Setup and the dev loop call it.
 // journey-events: story_9eb523952644 (Journey events).
 // ci-health: story_5c212e7a9a6c (CI health, ADR-0902).
 // guardrails: Guardrails, ADR-0911 D2.

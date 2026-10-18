@@ -9,7 +9,7 @@ import { test } from "node:test";
 
 import { resolveKey } from "@storytree/keys";
 import { connect } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { readExperiment, readLibrary } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import pg from "pg";

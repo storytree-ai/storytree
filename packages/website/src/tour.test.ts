@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
+import { mapRecording, mapGrowthPlan, onSheet, recordedFrame } from "./map-recording.js";
+import { sheetLayout } from "@storytree/forest/view";
+import { sheetPoint } from "@storytree/forest/world/planet";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
+import own from "./own-snapshot.json" with { type: "json" };
 import { aim, createTour, depthLink, flight, globeOf, groups, insetAt, islandsKeptOff, labelsAt, labelWords, lineStarts, linesOn, momentStarts, overlayAt, placeTags, readingTime, replayMoment, settle, stepAt, switchesFor, viewOf, type TourStep } from "./tour.js";
 import { decisionLabel, freePlayLines, steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
@@ -359,6 +362,26 @@ test("3.4 · the map chapter lays the shop's first four stories out by their own
   assert.ok(Math.abs(c.y - k.y) < 1e-9 && c.x < k.x, "the cart and checkout side by side, the cart to the west");
   assert.ok(c.y > b.y && b.y > s.y, "the cart and checkout above browsing, browsing above signing in");
   assert.deepEqual(original.places.find(node => node.id === checkout)!.place, 3001, "free play keeps the finished shop's places");
+});
+
+test("3.4 · on the glass sheet the map chapter lays the four out by the sheet's rule, depth running west to east: signing in, then browsing, then the cart above checkout; every recorded growth lands each island where the app's sheet puts its plan", () => {
+  const original = shop as unknown as GrowthSnapshot;
+  const recording = onSheet(mapRecording(original));
+  const signIn = "story_d263ef0f3f72", browsing = "story_0c07d0047754", cart = "story_2de9e8f4db21", checkout = "story_66f80ffaaa4d";
+  const point = new Map(recording.spots.map(([story, spot]) => [story, sheetPoint(spot)]));
+  const [s, b, c, k] = [point.get(signIn)!, point.get(browsing)!, point.get(cart)!, point.get(checkout)!];
+  assert.ok(s.x < b.x && b.x < c.x, "signing in to the west, browsing east of it, the cart east of browsing");
+  assert.ok(Math.abs(c.x - k.x) < 1e-6 && c.y > k.y, "the cart and checkout in one column, the cart to the north");
+  for (const grown of [recording, onSheet(original), onSheet(own as unknown as GrowthSnapshot)]) {
+    const places = new Map(grown.places.map(node => [node.id, node.place]));
+    // The app's sheet for the same plan: what the forest page draws.
+    const app = sheetLayout(grown.scene, places);
+    assert.equal(grown.radius, app.radius);
+    assert.deepEqual(new Map(grown.spots), app.spots, `${grown.project}: the grown map's places are the app's sheet's`);
+    // Every stage drawn within its full plan, as the replay draws it, keeps each island at that place.
+    for (const stage of grown.stages) for (const [story, spot] of sheetLayout(stage.scene, places, grown.scene).spots)
+      assert.deepEqual(spot, app.spots.get(story), `${grown.project} at ${stage.id}: ${story} where the sheet puts it`);
+  }
 });
 
 test("2.21 · each map line labels the one thing it talks about, in words true to the shop's record as it is said, and the label goes when the line passes", () => {

@@ -1,0 +1,546 @@
+{
+  "capturedAt": "2026-10-18T14:35:19.488Z",
+  "browser": "148.0.7778.96",
+  "renderer": "SwiftShader",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "seconds": 15,
+  "surface": "sheet",
+  "maps": {
+    "shop": {
+      "frames": [
+        {
+          "at": 0.4,
+          "file": "shop-sheet-00.png",
+          "visiblePlates": 0,
+          "plates": 8,
+          "visibleNotes": 0,
+          "notes": 58,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0,
+          "sessions": []
+        },
+        {
+          "at": 1.2,
+          "file": "shop-sheet-01.png",
+          "visiblePlates": 1,
+          "plates": 8,
+          "visibleNotes": 25,
+          "notes": 58,
+          "visibleTerritories": 2,
+          "territories": 3,
+          "visibleFiles": 0,
+          "files": 12,
+          "sessions": []
+        },
+        {
+          "at": 2.4,
+          "file": "shop-sheet-02.png",
+          "visiblePlates": 4,
+          "plates": 8,
+          "visibleNotes": 25,
+          "notes": 58,
+          "visibleTerritories": 8,
+          "territories": 12,
+          "visibleFiles": 0,
+          "files": 36,
+          "sessions": []
+        },
+        {
+          "at": 3.9,
+          "file": "shop-sheet-03.png",
+          "visiblePlates": 4,
+          "plates": 8,
+          "visibleNotes": 26,
+          "notes": 58,
+          "visibleTerritories": 8,
+          "territories": 12,
+          "visibleFiles": 12,
+          "files": 36,
+          "sessions": [
+            "capability_ff897f5c13aa@story_d263ef0f3f72"
+          ]
+        },
+        {
+          "at": 5.7,
+          "file": "shop-sheet-04.png",
+          "visiblePlates": 4,
+          "plates": 8,
+          "visibleNotes": 28,
+          "notes": 58,
+          "visibleTerritories": 8,
+          "territories": 12,
+          "visibleFiles": 14,
+          "files": 36,
+          "sessions": [
+            "capability_276fa436dc33@story_2de9e8f4db21",
+            "capability_668ca101a358@story_66f80ffaaa4d",
+            "capability_94f91d2ed3a9@story_66f80ffaaa4d",
+            "capability_d37b7ec1b593@story_66f80ffaaa4d",
+            "capability_ed214990be99@story_2de9e8f4db21"
+          ]
+        },
+        {
+          "at": 7.5,
+          "file": "shop-sheet-05.png",
+          "visiblePlates": 4,
+          "plates": 8,
+          "visibleNotes": 54,
+          "notes": 58,
+          "visibleTerritories": 8,
+          "territories": 12,
+          "visibleFiles": 31,
+          "files": 36,
+          "sessions": []
+        },
+        {
+          "at": 9.6,
+          "file": "shop-sheet-06.png",
+          "visiblePlates": 8,
+          "plates": 8,
+          "visibleNotes": 57,
+          "notes": 58,
+          "visibleTerritories": 19,
+          "territories": 19,
+          "visibleFiles": 38,
+          "files": 56,
+          "sessions": [
+            "capability_0f71bd556cc4@story_8a4b7fb5d36c",
+            "capability_276fa436dc33@story_2de9e8f4db21",
+            "capability_3c86a78517b6@story_8a4b7fb5d36c",
+            "capability_668ca101a358@story_66f80ffaaa4d",
+            "capability_69e4d74be829@story_b393a0c5a8de",
+            "capability_773d76b91157@story_0c07d0047754",
+            "capability_94f91d2ed3a9@story_66f80ffaaa4d"
+          ]
+        },
+        {
+          "at": 12,
+          "file": "shop-sheet-07.png",
+          "visiblePlates": 8,
+          "plates": 8,
+          "visibleNotes": 57,
+          "notes": 58,
+          "visibleTerritories": 19,
+          "territories": 19,
+          "visibleFiles": 46,
+          "files": 56,
+          "sessions": []
+        },
+        {
+          "at": 15,
+          "file": "shop-sheet-08.png",
+          "visiblePlates": 8,
+          "plates": 8,
+          "visibleNotes": 58,
+          "notes": 58,
+          "visibleTerritories": 19,
+          "territories": 19,
+          "visibleFiles": 56,
+          "files": 56,
+          "sessions": []
+        }
+      ],
+      "plan": {
+        "seconds": 15,
+        "stages": [
+          {
+            "id": "planned",
+            "start": 0.6164414583782201,
+            "at": "2026-10-05T01:53:07.861Z"
+          },
+          {
+            "id": "pr1-building",
+            "start": 2.1515527958968357,
+            "at": "2026-10-05T01:54:54.784Z"
+          },
+          {
+            "id": "pr1",
+            "start": 2.819364375806574,
+            "at": "2026-10-05T02:06:32.147Z"
+          },
+          {
+            "id": "pr2-building",
+            "start": 3.5539571137072863,
+            "at": "2026-10-05T02:17:37.788Z"
+          },
+          {
+            "id": "pr2",
+            "start": 4.221768693617025,
+            "at": "2026-10-05T02:21:39.790Z"
+          },
+          {
+            "id": "pr4-building",
+            "start": 4.956361431517737,
+            "at": "2026-10-05T02:35:08.955Z"
+          },
+          {
+            "id": "pr3",
+            "start": 5.624173011427476,
+            "at": "2026-10-05T02:40:02.942Z"
+          },
+          {
+            "id": "pr5",
+            "start": 6.358765749328188,
+            "at": "2026-10-05T02:46:21.000Z"
+          },
+          {
+            "id": "pr4",
+            "start": 7.0933584872289,
+            "at": "2026-10-05T02:46:51.304Z"
+          },
+          {
+            "id": "pr7-building",
+            "start": 7.761170067138639,
+            "at": "2026-10-05T03:08:57.049Z"
+          },
+          {
+            "id": "pr7",
+            "start": 8.876681513443005,
+            "at": "2026-10-05T03:15:04.833Z"
+          },
+          {
+            "id": "pr9",
+            "start": 9.611274251343719,
+            "at": "2026-10-05T03:19:52.437Z"
+          },
+          {
+            "id": "pr8",
+            "start": 10.345866989244433,
+            "at": "2026-10-05T03:21:57.850Z"
+          },
+          {
+            "id": "pr10-building",
+            "start": 11.080459727145147,
+            "at": "2026-10-05T03:24:53.861Z"
+          },
+          {
+            "id": "pr10",
+            "start": 11.748271307054885,
+            "at": "2026-10-05T03:28:11.259Z"
+          },
+          {
+            "id": "pr11-building",
+            "start": 12.416082886964626,
+            "at": "2026-10-05T03:38:54.787Z"
+          },
+          {
+            "id": "pr12",
+            "start": 13.083894466874364,
+            "at": "2026-10-05T03:45:28.000Z"
+          },
+          {
+            "id": "pr13-building",
+            "start": 13.818487204775078,
+            "at": "2026-10-05T04:17:21.157Z"
+          },
+          {
+            "id": "pr13",
+            "start": 14.486298784684816,
+            "at": "2026-10-05T04:19:35.015Z"
+          }
+        ],
+        "islands": 8,
+        "roads": 63,
+        "capabilities": 34,
+        "files": 56
+      },
+      "play": {
+        "framesDrawn": 417,
+        "meanFps": 27.21,
+        "p95FrameMs": 107.6,
+        "visiblePlatesAtEnd": 8,
+        "plates": 8,
+        "visibleNotesAtEnd": 58,
+        "notes": 58
+      },
+      "baseline": {
+        "framesDrawn": 375,
+        "meanFps": 22.73,
+        "p95FrameMs": 136
+      },
+      "reducedMotion": {
+        "visiblePlatesAt300ms": 8,
+        "plates": 8,
+        "visibleNotesAt300ms": 58,
+        "notes": 58,
+        "drawsIn1sAfter": 0,
+        "visibleTerritoriesAt300ms": 19,
+        "visibleFilesAt300ms": 56
+      }
+    },
+    "storytree": {
+      "frames": [
+        {
+          "at": 0.4,
+          "file": "storytree-sheet-00.png",
+          "visiblePlates": 0,
+          "plates": 25,
+          "visibleNotes": 0,
+          "notes": 919,
+          "visibleTerritories": 0,
+          "territories": 0,
+          "visibleFiles": 0,
+          "files": 0,
+          "sessions": []
+        },
+        {
+          "at": 1.2,
+          "file": "storytree-sheet-01.png",
+          "visiblePlates": 2,
+          "plates": 25,
+          "visibleNotes": 10,
+          "notes": 919,
+          "visibleTerritories": 8,
+          "territories": 23,
+          "visibleFiles": 123,
+          "files": 123,
+          "sessions": []
+        },
+        {
+          "at": 2.4,
+          "file": "storytree-sheet-02.png",
+          "visiblePlates": 4,
+          "plates": 25,
+          "visibleNotes": 13,
+          "notes": 919,
+          "visibleTerritories": 17,
+          "territories": 33,
+          "visibleFiles": 232,
+          "files": 232,
+          "sessions": []
+        },
+        {
+          "at": 3.9,
+          "file": "storytree-sheet-03.png",
+          "visiblePlates": 8,
+          "plates": 25,
+          "visibleNotes": 636,
+          "notes": 919,
+          "visibleTerritories": 48,
+          "territories": 60,
+          "visibleFiles": 317,
+          "files": 317,
+          "sessions": []
+        },
+        {
+          "at": 5.7,
+          "file": "storytree-sheet-04.png",
+          "visiblePlates": 10,
+          "plates": 25,
+          "visibleNotes": 699,
+          "notes": 919,
+          "visibleTerritories": 60,
+          "territories": 74,
+          "visibleFiles": 379,
+          "files": 379,
+          "sessions": []
+        },
+        {
+          "at": 7.5,
+          "file": "storytree-sheet-05.png",
+          "visiblePlates": 14,
+          "plates": 25,
+          "visibleNotes": 737,
+          "notes": 919,
+          "visibleTerritories": 72,
+          "territories": 99,
+          "visibleFiles": 487,
+          "files": 487,
+          "sessions": []
+        },
+        {
+          "at": 9.6,
+          "file": "storytree-sheet-06.png",
+          "visiblePlates": 17,
+          "plates": 25,
+          "visibleNotes": 792,
+          "notes": 919,
+          "visibleTerritories": 91,
+          "territories": 107,
+          "visibleFiles": 501,
+          "files": 510,
+          "sessions": []
+        },
+        {
+          "at": 12,
+          "file": "storytree-sheet-07.png",
+          "visiblePlates": 21,
+          "plates": 25,
+          "visibleNotes": 874,
+          "notes": 919,
+          "visibleTerritories": 114,
+          "territories": 122,
+          "visibleFiles": 533,
+          "files": 533,
+          "sessions": []
+        },
+        {
+          "at": 15,
+          "file": "storytree-sheet-08.png",
+          "visiblePlates": 25,
+          "plates": 25,
+          "visibleNotes": 919,
+          "notes": 919,
+          "visibleTerritories": 131,
+          "territories": 131,
+          "visibleFiles": 569,
+          "files": 569,
+          "sessions": []
+        }
+      ],
+      "plan": {
+        "seconds": 15,
+        "stages": [
+          {
+            "id": "2026-09-25T20:40:47.697Z",
+            "start": 0.4107594515347815,
+            "at": "2026-09-25T20:40:47.697Z"
+          },
+          {
+            "id": "2026-09-26T07:06:32.078Z",
+            "start": 0.9002477979470627,
+            "at": "2026-09-26T07:06:32.078Z"
+          },
+          {
+            "id": "2026-09-26T15:13:23.157Z",
+            "start": 1.5506169295438,
+            "at": "2026-09-26T15:13:23.157Z"
+          },
+          {
+            "id": "2026-09-27T02:54:54.110Z",
+            "start": 2.450864727490863,
+            "at": "2026-09-27T02:54:54.110Z"
+          },
+          {
+            "id": "2026-09-27T02:55:31.207Z",
+            "start": 2.9780060236271657,
+            "at": "2026-09-27T02:55:31.207Z"
+          },
+          {
+            "id": "2026-09-27T04:36:00.418Z",
+            "start": 3.5961151734775116,
+            "at": "2026-09-27T04:36:00.418Z"
+          },
+          {
+            "id": "2026-09-27T21:54:03.748Z",
+            "start": 4.164332414767292,
+            "at": "2026-09-27T21:54:03.748Z"
+          },
+          {
+            "id": "2026-09-27T23:04:24.287Z",
+            "start": 5.348688833359246,
+            "at": "2026-09-27T23:04:24.287Z"
+          },
+          {
+            "id": "2026-09-30T11:56:04.414Z",
+            "start": 5.875830129495549,
+            "at": "2026-09-30T11:56:04.414Z"
+          },
+          {
+            "id": "2026-09-30T12:15:51.889Z",
+            "start": 6.402971425631852,
+            "at": "2026-09-30T12:15:51.889Z"
+          },
+          {
+            "id": "2026-09-30T12:16:07.036Z",
+            "start": 7.303219223578917,
+            "at": "2026-09-30T12:16:07.036Z"
+          },
+          {
+            "id": "2026-10-01T15:13:54.405Z",
+            "start": 7.792707569991198,
+            "at": "2026-10-01T15:13:54.405Z"
+          },
+          {
+            "id": "2026-10-02T06:33:50.894Z",
+            "start": 8.402000756434457,
+            "at": "2026-10-02T06:33:50.894Z"
+          },
+          {
+            "id": "2026-10-03T06:01:39.543Z",
+            "start": 9.586357175026412,
+            "at": "2026-10-03T06:01:39.543Z"
+          },
+          {
+            "id": "2026-10-03T07:43:01.593Z",
+            "start": 10.09980648944489,
+            "at": "2026-10-03T07:43:01.593Z"
+          },
+          {
+            "id": "2026-10-03T21:49:18.714Z",
+            "start": 10.613255803863366,
+            "at": "2026-10-03T21:49:18.714Z"
+          },
+          {
+            "id": "2026-10-04T22:34:17.994Z",
+            "start": 11.126705118281842,
+            "at": "2026-10-04T22:34:17.994Z"
+          },
+          {
+            "id": "2026-10-09T23:52:46.292Z",
+            "start": 11.640154432700319,
+            "at": "2026-10-09T23:52:46.292Z"
+          },
+          {
+            "id": "2026-10-10T02:40:01.555Z",
+            "start": 12.153603747118796,
+            "at": "2026-10-10T02:40:01.555Z"
+          },
+          {
+            "id": "2026-10-10T20:56:28.270Z",
+            "start": 13.102426550135196,
+            "at": "2026-10-10T20:56:28.270Z"
+          },
+          {
+            "id": "2026-10-11T10:33:31.223Z",
+            "start": 13.615875864553672,
+            "at": "2026-10-11T10:33:31.223Z"
+          },
+          {
+            "id": "2026-10-11T14:01:25.196Z",
+            "start": 14.129325178972149,
+            "at": "2026-10-11T14:01:25.196Z"
+          },
+          {
+            "id": "saved",
+            "start": 14.642774493390625,
+            "at": "2026-10-11T20:57:40.205Z"
+          }
+        ],
+        "islands": 25,
+        "roads": 460,
+        "capabilities": 133,
+        "files": 567
+      },
+      "play": {
+        "framesDrawn": 378,
+        "meanFps": 24.23,
+        "p95FrameMs": 92.4,
+        "visiblePlatesAtEnd": 25,
+        "plates": 25,
+        "visibleNotesAtEnd": 919,
+        "notes": 919
+      },
+      "baseline": {
+        "framesDrawn": 276,
+        "meanFps": 16.8,
+        "p95FrameMs": 115
+      },
+      "reducedMotion": {
+        "visiblePlatesAt300ms": 25,
+        "plates": 25,
+        "visibleNotesAt300ms": 919,
+        "notes": 919,
+        "drawsIn1sAfter": 0,
+        "visibleTerritoriesAt300ms": 131,
+        "visibleFilesAt300ms": 569
+      }
+    }
+  },
+  "errors": []
+}

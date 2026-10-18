@@ -1,6 +1,7 @@
 // World 7: replay the shop's recorded growth and storytree's saved reading in real Chromium, in the shipped engine.
 // Writes a frame strip per map, a clip of each playing, the frame rate while it plays, and the reduced-motion check.
-// node packages/website/evidence/growth/capture.mjs
+// node packages/website/evidence/growth/capture.mjs [--sheet]
+// --sheet grows both on the glass sheet instead (ADR-1043), writing `<map>-sheet-*` beside the globe's and measurements-sheet.json.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -16,6 +17,9 @@ const forestCss = readFileSync(path.join(here, '../../../forest/src/view/styles.
 mkdirSync(out, { recursive: true });
 const SECONDS = 15;
 const VIEW = { width: 1440, height: 900 };
+const SHEET = process.argv.includes('--sheet');
+/** Each map's pictures are named for it, and for the sheet when it grows there. */
+const named = map => SHEET ? `${map}-sheet` : map;
 let browser, server;
 try {
   await buildGrowthPage(path.join(out, 'bundle.js'));
@@ -35,12 +39,12 @@ try {
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-    await page.goto(`${url}/?seconds=${SECONDS}&${query}`);
+    await page.goto(`${url}/?seconds=${SECONDS}&${SHEET ? 'sheet=1&' : ''}${query}`);
     await page.waitForFunction(() => window.growthProof?.snapshot().draws > 0, null, { timeout: 120_000 });
     return { page, context };
   };
   const snap = page => page.evaluate(() => window.growthProof.snapshot());
-  const result = { capturedAt: new Date().toISOString(), browser: browser.version(), renderer: 'SwiftShader', viewport: VIEW, seconds: SECONDS, maps: {} };
+  const result = { capturedAt: new Date().toISOString(), browser: browser.version(), renderer: 'SwiftShader', viewport: VIEW, seconds: SECONDS, surface: SHEET ? 'sheet' : 'globe', maps: {} };
   for (const map of ['shop', 'storytree']) {
     const record = result.maps[map] = { frames: [] };
     // The strip: fixed moments through the growth, each drawn by the shipped canvas.
@@ -50,7 +54,7 @@ try {
       await page.waitForTimeout(400);
       const seen = await snap(page);
       record.plan ??= await page.evaluate(() => window.growthProof.plan);
-      const file = `${map}-${String(i).padStart(2, '0')}.png`;
+      const file = `${named(map)}-${String(i).padStart(2, '0')}.png`;
       await page.screenshot({ path: path.join(here, file) });
       record.frames.push({ at, file, visiblePlates: seen.visiblePlates, plates: seen.plates, visibleNotes: seen.visibleNotes, notes: seen.notes,
         visibleTerritories: seen.visibleTerritories, territories: seen.territories, visibleFiles: seen.visibleFiles, files: seen.files, sessions: seen.sessions });
@@ -86,14 +90,14 @@ try {
     await strip.setContent(`<body style="margin:0;background:#101418;font:14px sans-serif;color:#d8dde3;display:flex;flex-wrap:wrap;gap:4px;padding:4px">${
       record.frames.map(f => `<figure style="margin:0;width:352px"><img src="${url}/${f.file}" style="width:352px;display:block"><figcaption>${f.at}s · ${f.visiblePlates}/${f.plates} islands${f.notes ? ` · ${f.visibleNotes}/${f.notes} notes` : ''}${f.visibleFiles ? ` · ${f.visibleTerritories} territories · ${f.visibleFiles} files` : ''}${f.sessions.length ? ` · ${f.sessions.length} claimed territor${f.sessions.length > 1 ? 'ies' : 'y'} outlined` : ''}</figcaption></figure>`).join('')}</body>`);
     await strip.waitForLoadState('networkidle');
-    await strip.screenshot({ path: path.join(here, `${map}-strip.png`), fullPage: true });
+    await strip.screenshot({ path: path.join(here, `${named(map)}-strip.png`), fullPage: true });
     await strip.close();
     // The clip, recorded on its own run: recording costs frames.
     const video = path.join(out, map);
     const clip = await open(`map=${map}`, { recordVideo: { dir: video, size: { width: 960, height: 600 } } });
     await clip.page.waitForTimeout((SECONDS + 1.5) * 1000);
     await clip.context.close();
-    renameSync(await clip.page.video().path(), path.join(here, `${map}-growth.webm`));
+    renameSync(await clip.page.video().path(), path.join(here, `${named(map)}-growth.webm`));
     // The frame rate while it plays on the canvas's own clock.
     const { page, context } = await open(`map=${map}`);
     await page.evaluate(() => window.growthProof.frames());
@@ -121,7 +125,7 @@ try {
     const reduced = await open(`map=${map}`, { reducedMotion: 'reduce' });
     await reduced.page.waitForTimeout(300);
     const at0 = await snap(reduced.page);
-    await reduced.page.screenshot({ path: path.join(here, `${map}-reduced-motion.png`) });
+    await reduced.page.screenshot({ path: path.join(here, `${named(map)}-reduced-motion.png`) });
     await reduced.page.waitForTimeout(1000);
     const later = await snap(reduced.page);
     await reduced.context.close();
@@ -135,7 +139,7 @@ try {
     assert.equal(at0.visibleFiles, record.frames.at(-1).visibleFiles, `${map}: reduced motion shows every file circle at once`);
   }
   result.errors = errors;
-  writeFileSync(path.join(here, 'measurements.json'), JSON.stringify(result, null, 2) + '\n');
+  writeFileSync(path.join(here, SHEET ? 'measurements-sheet.json' : 'measurements.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));
   assert.deepEqual(errors, [], 'the renderer has no errors');
   console.log('PASS world 7: growth replayed from the recordings, islands only rise and notes only appear, all there by the end; reduced motion shows the end at once');

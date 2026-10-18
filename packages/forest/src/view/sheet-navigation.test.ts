@@ -368,3 +368,21 @@ test("3.63 an island-less sheet, the user's factory, opens on the Library look a
   const guide = createGlobeGuide({ world: () => world, camera: () => opened.camera, size: () => size, read: () => pose, write: next => { pose = next; }, invalidate() {} });
   assert.equal(guide.position({ kind: "note", note: "agent_builder" })?.visible, true);
 });
+
+test("3.28 on the glass sheet, a plan still growing, framed by its full plan, keeps every island where the full plan puts it, on glass the full plan's size", () => {
+  const ids = ["s0", "s1", "s2", "loose-a", "loose-b"];
+  const tree: AnnotatedTree = { arcs: [], stories: ids.map((id, k) => ({ id, title: `Story ${id}`, health, capabilities: [
+    { id: `${id}-cap`, title: "A part", dependsOn: id.startsWith("s") && k > 0 ? [`s${k - 1}-cap`] : [], proposed: true, status: "proposed" as const, contracts: [], health },
+  ] })) };
+  const history = ids.map((id, index): Change => ({ seq: index + 1, recordId: id, type: "story", action: "created",
+    record: { id, type: "story", version: 1, fields: { title: id }, createdAt: new Date(index).toISOString(), updatedAt: new Date(index).toISOString() } }));
+  const places = new Map(storyNodes(tree, history).map(node => [node.id, node.place]));
+  const full = forestScene(tree, history, workStates([]));
+  // The first two of the chain: the deepest column and the loose foundations not yet recorded.
+  const growing = { ...full, islands: full.islands.filter(island => island.story === "s0" || island.story === "s1"), links: [] };
+  const whole = sheetLayout(full, places), framed = sheetLayout(growing, places, full);
+  assert.deepEqual([...framed.spots.keys()], ["s0", "s1"], "only the growing plan's islands are drawn");
+  for (const [story, spot] of framed.spots) assert.deepEqual(spot, whole.spots.get(story), `${story} sits where the full plan puts it`);
+  assert.deepEqual(framed.extent, whole.extent, "the glass is the full plan's");
+  assert.notDeepEqual(sheetLayout(growing, places).spots.get("s0"), whole.spots.get("s0"), "unframed, the growing plan would sit elsewhere");
+});

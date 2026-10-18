@@ -35,14 +35,15 @@ export function opensBare(mode: ForestMode): boolean {
  * where the knowledge graph hangs: each story's shelf under its island's middle, each capability's under its territory's,
  * and the sea floor across the islands' footprint, where notes with no links lie (ADR-1063 D3).
  */
-export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>) {
-  const placed = sheetPlaces(scene.islands.map(island => {
+export function sheetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, frame?: ForestScene) {
+  // A plan still growing, framed by its full plan, keeps every island where the full plan puts it, on its glass (3.28).
+  const placed = sheetPlaces((frame ?? scene).islands.map(island => {
     const place = places.get(island.story);
     if (place === undefined) throw new Error(`No permanent place for ${island.title}`);
     return { story: island.story, place, reach: islandCoastReach(island) };
   }));
   // An island-less sheet (the user's factory, 3.63) has no land to set the floor, so its floor is a square round the pole.
-  const { west, east, south, north } = scene.islands.length === 0 ? { west: -BARE_FLOOR / 2, east: BARE_FLOOR / 2, south: -BARE_FLOOR / 2, north: BARE_FLOOR / 2 } : placed.bounds;
+  const { west, east, south, north } = (frame ?? scene).islands.length === 0 ? { west: -BARE_FLOOR / 2, east: BARE_FLOOR / 2, south: -BARE_FLOOR / 2, north: BARE_FLOOR / 2 } : placed.bounds;
   const centre = { x: (west + east) / 2, y: (south + north) / 2 };
   const extent: SheetExtent = { width: east - west + 2 * MARGIN, height: north - south + 2 * MARGIN };
   const at = new Map([...placed.at].map(([story, p]) => [story, { x: p.x - centre.x, y: p.y - centre.y }]));

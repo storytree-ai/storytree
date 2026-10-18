@@ -43,7 +43,7 @@ const principle = (n: 1 | 2 | 3 | 4): Chip => ({ kind: "principle", text: [
   "", "Signals must be real", "Show what matters now; hide the rest", "Your attention goes where you send it", "Nothing is out of reach",
 ][n]! });
 
-const complete: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
+const complete: GlobeSurfaces = { grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
 const none = { roads: false, territories: false, fileCircles: false, knowledgeCore: false, sessionTints: false } as const;
 const quiet: Partial<GlobeSurfaces> = { ...none, nameplates: false };
 const land: Partial<GlobeSurfaces> = { ...none, nameplates: true };

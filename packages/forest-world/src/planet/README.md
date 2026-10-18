@@ -1,47 +1,36 @@
-# Globe drawing · lane B
+# Map drawing · lane B
 
 `PlanetWorldCanvas` is the browser entry at `@storytree/forest-world/planet`.
 It accepts the existing `ForestScene`, a `ReadonlyMap<storyId, { x, y, z }>` of
-unit directions and the placement rule's fixed `radius` in ground units.
+unit directions, the big sphere's `radius` in ground units, and the glass sheet's size: the world is drawn on the
+glass sheet (ADR-1043 D1), the near pole of that sphere, flat to within a degree. The globe it once drew is retired
+(increment_093d5b3b28d8, as ADR-0920 retired the flat canvas): its sea shell, orthographic eye and framing are gone.
 
 Each island is centred before `forestDescriptors` builds it; its clipped coast then becomes one
-flat, pale, see-through surface with a coast band (`island-surface.ts`, ADR-0804 D1), bent onto the
-globe's sphere under a rigid tangent group. There is no ground colouring, no pines or plants, and so
-no kit to parse and no sun to calibrate. The globe's canvas is orthographic; the glass sheet's (ADR-1062 D1) is a
-perspective one, lit by soft light and one lamp over the eye's shoulder (`sheet.tsx`). Plates own and dispose
-their surface geometry. Drag orbits the camera; wheel/pinch zooms. Rendering runs on demand, and only
-while some of the canvas is on screen (6.10, `paint-while-seen.ts`): off screen the frameloop stops,
-keeping the scene, camera and clock, so a host can mount the globe below the fold for free. The
-`kitBytes` prop is gone.
+flat, pale, see-through surface with a coast band and sides (`island-surface.ts`, ADR-0804 D1, ADR-1059 D2), set on
+the sheet under a rigid tangent group. There is no ground colouring, no pines or plants, and so
+no kit to parse. The canvas's eye is a perspective one, lit by soft light and one lamp over the eye's shoulder
+(`sheet.tsx`, ADR-1062 D1). Plates own and dispose their surface geometry. The wheel and a pinch move the eye toward
+or away from the middle of the view. Rendering runs on demand, and only
+while some of the canvas is on screen (4.10, `paint-while-seen.ts`): off screen the frameloop stops,
+keeping the scene, camera and clock, so a host can mount the map below the fold for free.
 
 `plateChildren(island, descriptors)` puts the page's names, selection and claim
 markers in the plate's local coordinates. `parcelSpots(descriptors)` therefore
-uses those local coordinates too. Other
-R3F `children` can read the default orbit controls. The optional `rotation`
-quaternion turns the globe as a whole for host-driven focus. The page, its
-selection handling and its failing-story markers are lane D's work.
+uses those local coordinates too. The optional `rotation` quaternion and `offset` turn and place the big sphere, so a
+host pans, spins and tilts the sheet without rebuilding the plates. The page, its selection handling and its
+failing-story markers are lane D's work.
 
-L1 (ADR-0646) kept the flat forest's lamp fixed relative to the eye for the ground and the kit;
-ADR-0804 removed both, so only the glass ball's highlight still follows that lamp. Clearance of 1.692108 ground units keeps
-the plate's origin above the shell (so the flat surface rests on it). ADR-0648 replaces the opaque sea with a light grey
-transparent shell, tuned after #93 at the owner’s request to read as glass. The same
-sphere uses a small shader: 0.012 base opacity, a Fresnel rim and a single soft
-highlight from L1’s view-space lamp, without a transmission buffer or refraction. Since ADR-0919
-the ball is a one-way mirror: the near face is that see-through glass, writing no depth, and the far
-face is solid, painting the bowl's backdrop (`FAR_WALL_COLOUR`) and writing depth, so nothing on the
-far side shows through while the core inside does. Each island's ground likewise has a depth-only
-copy just under it (`ISLAND_DEPTH_INSET`), drawn from outside only, so a facing island hides what
-lies behind it and an island seen from behind hides nothing. The shell still answers rays, so the
-page keeps its near-side names, claims and picking rule. The surface owns and disposes its
-geometry and material.
+Clearance of 1.692108 ground units keeps the plate's origin above the sphere (so the flat surface rests on it). Each
+island's ground has a depth-only copy just under it (`ISLAND_DEPTH_INSET`), drawn from outside only, so an island hides
+what lies behind it.
 
-The camera's constants live in `camera.ts`: the shipped elevation (`SHIPPED_ELEVATION_DEG`), the
-orthographic zoom for a viewport (`orthographicZoomFor`) and the globe's framing. On the glass sheet the
-same zoom (CSS pixels per unit at the middle of the view) sets how far the perspective eye stands off
-(`applySheetEye`, `sheetEyeZoom`), and the wheel moves the eye, not the lens; what hangs under the glass shows
-by the angle the sheet is tilted to (`hangUnderTheGlass`).
+The camera's constants live in `camera.ts`: the shipped elevation (`SHIPPED_ELEVATION_DEG`), the zoom for a viewport
+(`orthographicZoomFor`, CSS pixels per unit at the middle of the view), the wheel's floor and the side offset. That zoom
+sets how far the perspective eye stands off (`applySheetEye`, `sheetEyeZoom`), and the wheel moves the eye, not the lens;
+what hangs under the glass shows by the angle the sheet is tilted to (`hangUnderTheGlass`).
 
-## Historical first-slice capture
+## Historical first-slice capture (the globe, retired)
 
 The seed at green commit `0967c43` produces six stories and 43 capability trees: the
 Session management, app, arc surface, forest, librarian and library. The fresh seed

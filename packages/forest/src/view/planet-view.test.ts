@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Color, DoubleSide, Euler, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, OrthographicCamera, PlaneGeometry, Quaternion, Raycaster, SphereGeometry, SRGBColorSpace, Vector2, Vector3 } from "three";
 import { workStates } from "@storytree/arc-surface";
-import { forestDrawn, forestScene, MAPPED_ISLAND_CAP, MIN_ISLAND_AREA, openingTurn, storyNodes, type FacingIsland } from "@storytree/forest";
+import { forestDrawn, forestScene, MAPPED_ISLAND_CAP, MIN_ISLAND_AREA, storyNodes } from "@storytree/forest";
 import type { AnnotatedTree, Change } from "@storytree/library";
-import { dragTurn, focusRotation, globeFraming, globeHover, hiddenMarkers, isGlobeDrag, markerSpot, pickGlobe, pickIsland, planetLayout, pointedFile } from "./planet-navigation.js";
+import { globeFraming, globeHover, isGlobeDrag, markerSpot, pickGlobe, pickIsland, pointedFile } from "./planet-navigation.js";
+import { sheetLayout, sheetMarkers } from "./sheet-navigation.js";
+import { sheetPoint } from "@storytree/forest-world/planet";
 import { codePathKey } from "@storytree/knowledge-core";
 import { circleStops, fileCircleMarks, lightFileCircles } from "./file-circles.js";
 import { lightTerritories, territoryLand } from "./territory-land.js";
@@ -35,7 +37,7 @@ test("3.12 movement of five CSS pixels is a drag, including diagonal movement", 
   assert.equal(isGlobeDrag(from, { x: 100, y: 94 }), true);
 });
 
-test("the globe opens every story with its grove at its place in the rows, readable by the smoke check", () => {
+test("1.2 the sheet opens every story in the library with its grove at its place in the rows, a retired story with none, readable by the smoke check", () => {
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
   const tree: AnnotatedTree = { arcs: [], stories: [
     { id: "new", title: "A new story", health, capabilities: [] },
@@ -49,23 +51,19 @@ test("the globe opens every story with its grove at its place in the rows, reada
   }));
   const scene = forestScene(tree, history, workStates([]));
   const places = new Map(storyNodes(tree, history).map(node => [node.id, node.place]));
-  const layout = planetLayout(scene, places);
-  assert.ok(layout.islands.every(i => i.spot.z > 0.75), "the page uses the packed front patch");
+  const layout = sheetLayout(scene, places);
   assert.deepEqual([...layout.spots.keys()], ["new", "kept"]);
-  assert.equal(layout.spots.get("new")!.y, layout.spots.get("kept")!.y, "neither depends on anything: one row");
+  assert.equal(sheetPoint(layout.spots.get("new")!).x, sheetPoint(layout.spots.get("kept")!).x, "neither depends on anything: one depth, one column");
   assert.deepEqual(layout.scene.islands.map(i => i.trees.map(t => t.capability)), [[undefined], ["cap"]]);
   const drawn = forestDrawn(layout.scene);
   assert.deepEqual([drawn.stories, drawn.capabilities], [["new", "kept"], ["cap"]], "what the page drew names every story and capability");
 });
 
-test("3.3 a click picks the rotated island mesh, while the see-through shell keeps far-side islands unselectable", () => {
+test("3.3 a click picks the turned island mesh, and empty space picks none", () => {
   const world = new Group();
   const globe = new Group();
   globe.rotation.y = Math.PI / 2;
   world.add(globe);
-  const sea = new Mesh(new SphereGeometry(10, 32, 16), new MeshBasicMaterial({ transparent: true, opacity: 0.18, depthWrite: false }));
-  sea.name = "planet:shell";
-  globe.add(sea);
   const plate = new Group();
   plate.name = "planet:story";
   plate.position.x = -11;
@@ -79,60 +77,11 @@ test("3.3 a click picks the rotated island mesh, while the see-through shell kee
   ray.setFromCamera(new Vector2(0, 0), camera);
   world.updateMatrixWorld(true);
   assert.equal(pickIsland(ray, world), "story");
-  globe.rotation.y = -Math.PI / 2;
-  world.updateMatrixWorld(true);
-  assert.equal(pickIsland(ray, world), undefined, "clicking the shell cannot pick the back plate");
   ray.setFromCamera(new Vector2(0.95, 0.95), camera);
   assert.equal(pickIsland(ray, world), undefined, "empty space clears selection too");
 });
 
-test("3.11 a hidden failure has a marker in the camera's frame, and its click turns it to the eye after orbiting", () => {
-  const islands: FacingIsland[] = [
-    { story: "first", spot: { x: 0, y: 0, z: 1 }, trees: [{ status: "unhealthy" }] },
-    { story: "behind", spot: { x: 3, y: 4, z: -12 }, trees: [{ status: "unhealthy" }] },
-  ];
-  const eye = new Quaternion().setFromEuler(new Euler(-0.65, 0.8, 0.2));
-  const rotation = focusRotation(openingTurn(islands), eye);
-  const [marker] = hiddenMarkers(islands, rotation, eye);
-  assert.equal(marker?.story, "behind");
-  assert.ok(Math.abs(marker!.at.x - 0.6) < 1e-10);
-  assert.ok(Math.abs(marker!.at.y - 0.8) < 1e-10);
-  const orbitedEye = new Quaternion().setFromEuler(new Euler(0.3, -0.7, 0));
-  const focused = focusRotation(marker!.turn, orbitedEye);
-  const target = new Vector3(3, 4, -12).normalize().applyQuaternion(focused).applyQuaternion(orbitedEye.clone().invert());
-  assert.ok(target.distanceTo(new Vector3(0, 0, 1)) < 1e-10, "the selected failure faces the actual camera");
-  assert.ok(hiddenMarkers(islands, focused, orbitedEye).every(m => m.story !== "behind"));
-});
-
-test("3.38 north stays up: the opening view, a marker's focus and any drag spin the globe freely and tilt it no further than 50° toward a pole, and never roll it", () => {
-  // The canvas's eye looks down a little and never rolls; the globe turns, not the eye.
-  const eye = new Quaternion().setFromEuler(new Euler(-0.3, 0, 0));
-  const islands: FacingIsland[] = [
-    { story: "polar", spot: { x: 0.05, y: 5, z: 0.05 }, trees: [{ status: "unhealthy" }] },
-    { story: "behind", spot: { x: -3, y: -1, z: -4 }, trees: [{ status: "unhealthy" }] },
-  ];
-  const short = Math.cos(50 * Math.PI / 180) - 1e-9;
-  const northUp = (turn: Parameters<typeof focusRotation>[0], why: string) => {
-    const north = new Vector3(0, 1, 0).applyQuaternion(focusRotation(turn, eye)).applyQuaternion(eye.clone().invert());
-    assert.ok(Math.abs(north.x) < 1e-9, `${why}: north points straight up the screen`);
-    assert.ok(north.y >= short, `${why}: tilted no further than 50° toward the pole`);
-  };
-  let turn = openingTurn(islands);
-  northUp(turn, "the opening view of an island at the pole");
-  const [marker] = hiddenMarkers(islands, focusRotation(turn, eye), eye);
-  turn = marker!.turn;
-  northUp(turn, "a marker's focus");
-  for (const drag of [{ x: 240, y: -35 }, { x: -900, y: 2000 }, { x: 15, y: -5000 }]) {
-    turn = dragTurn(turn, drag, 800);
-    northUp(turn, `a drag of ${drag.x}, ${drag.y}`);
-  }
-  assert.ok(Math.abs(dragTurn({ yaw: 0, pitch: 0 }, { x: 0, y: 5000 }, 800).pitch - 50 * Math.PI / 180) < 1e-12, "a long tilt stops at 50°, not short of it");
-  const spun = dragTurn({ yaw: 0, pitch: 0 }, { x: 200, y: 0 }, 800);
-  assert.ok(spun.yaw > 0 && spun.pitch === 0, "dragging sideways spins around the poles only");
-  assert.ok(dragTurn(spun, { x: 400 * 9, y: 0 }, 800).yaw > spun.yaw + 2 * Math.PI, "and the spin has no limit");
-});
-
-test("3.11 the rim marker reads storytree's verified word, never the agent's report alone", () => {
+test("3.11 the edge marker reads storytree's verified word, never the agent's report alone", () => {
   const health = (reported: "passing" | "failing" | "not-checked", verified: "passing" | "failing" | "not-checked") => ({ reported: { state: reported }, verified: { state: verified } });
   const capability = (id: string, status: "healthy" | "unhealthy" | "untested", reported: "passing" | "failing" | "not-checked") =>
     ({ id, title: id, dependsOn: [], proposed: false, status, contracts: [], health: health(reported, status === "unhealthy" ? "failing" : "not-checked") });
@@ -141,26 +90,13 @@ test("3.11 the rim marker reads storytree's verified word, never the agent's rep
     { id: "reported", title: "Reported failing", health: health("failing", "not-checked"), capabilities: [capability("cap-r", "untested", "failing")] },
   ] };
   const scene = forestScene(tree, [], workStates([]));
-  const layout = planetLayout(scene, new Map([["verified", 1], ["reported", 2]]));
-  const behind = layout.islands.map(island => ({ ...island, spot: { x: island.spot.x, y: island.spot.y, z: -Math.abs(island.spot.z) - 1 } }));
-  assert.deepEqual(hiddenMarkers(behind, new Quaternion(), new Quaternion()).map(m => m.story), ["verified"]);
+  const layout = sheetLayout(scene, new Map([["verified", 1], ["reported", 2]]));
+  // Both islands drawn past the window's right edge.
+  const pastTheEdge = () => ({ left: 2000, top: 400 });
+  assert.deepEqual(sheetMarkers(layout.islands, pastTheEdge, { width: 1440, height: 900 }).map(m => m.story), ["verified"]);
 });
 
-test("3.11 Forest never hides a failing island; only an explicit Library choice suppresses its marker", () => {
-  const islands: FacingIsland[] = [
-    { story: "failure", spot: { x: 0, y: 0, z: -1 }, trees: [{ status: "unhealthy" }] },
-  ];
-  const rotation = new Quaternion(), eye = new Quaternion();
-  assert.deepEqual(hiddenMarkers(islands, rotation, eye).map(m => m.story), ["failure"], "Forest is the default");
-  assert.deepEqual(hiddenMarkers(islands, rotation, eye, "library"), []);
-  const [marker] = hiddenMarkers(islands, rotation, eye, "forest");
-  assert.equal(marker?.story, "failure", "returning to Forest restores attention");
-  const focused = focusRotation(marker!.turn, eye);
-  const facing = new Vector3(0, 0, -1).applyQuaternion(focused);
-  assert.ok(facing.z > 0.999999, "the marker still turns the failure into view");
-});
-
-test("3.11 a rim marker keeps clear above what is docked over the canvas's bottom edge, so the Sessions strip never covers it", () => {
+test("3.11 an edge marker keeps clear above what is docked over the canvas's bottom edge, so the Sessions strip never covers it", () => {
   const size = { width: 1440, height: 920 };
   const strip = { left: 0, right: 1440, top: 884, bottom: 920 };
   assert.deepEqual(markerSpot({ left: 720, top: 930 }, size, []), { left: 720, top: 900 }, "with nothing docked it stays 20px inside the canvas");
@@ -171,7 +107,7 @@ test("3.11 a rim marker keeps clear above what is docked over the canvas's botto
   assert.deepEqual(markerSpot({ left: -5, top: 930 }, size, [{ left: 0, right: 1440, top: 400, bottom: 600 }]), { left: 20, top: 900 }, "only what reaches the bottom edge counts");
 });
 
-test("the globe's opening zoom: the whole planet fills 85% of the short side by default, as today; close up fills more, room around less (ADR-0750)", () => {
+test("3.66 the zoom a stop at the whole map frames it at: 1.18 radii across half the short side by default; close up fills more, room around less (ADR-0750)", () => {
   const fills = (choice: Parameters<typeof globeFraming>[0]) => 1 / globeFraming(choice);
   assert.equal(globeFraming("whole-planet"), 1.18, "today's framing: half the short side is 1.18 radii");
   assert.ok(fills("close") > 1, "close up: the planet runs past the short side");

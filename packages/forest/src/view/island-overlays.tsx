@@ -4,7 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties } from "react";
 import { DoubleSide, Quaternion, type Group } from "three";
 import type { Island } from "@storytree/forest";
-import { globeOccluder, onIslandSurface, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
+import { onIslandSurface, plateTransform, type PlanetSpot } from "@storytree/forest-world/planet";
 import { islandTerritories, type Coast } from "../territories/territories.js";
 import { capabilityPlates, facing, fadedCapabilities, fadedPlates, southOnPlate, STORY_PLATE_WIDTH, storyPlate } from "./nameplates.js";
 import { islandProgress } from "./island-progress.js";
@@ -27,15 +27,11 @@ const PLATE_LIFT = 2;
  * A story's nameplate, its top edge at a fixed point just south of the island's coast, turning with the island; while the story is
  * selected, a smaller nameplate on each of its capabilities' territories (below a claimed one's flag), and the other stories' plates dim. No plate takes a pointer from the land beneath it.
  */
-export function Nameplates({ island, spot, coast, radius, selected, dimmed = false, claimed = new Map(), sheet = false }: {
+export function Nameplates({ island, spot, coast, radius, selected, dimmed = false, claimed = new Map() }: {
   island: Island; spot: PlanetSpot; coast: Coast; radius: number; selected: string | undefined; dimmed?: boolean;
-  /** On the glass sheet nothing hides a name: it reads from either face, so the underside says whose notes are whose (ADR-1043 D3). */
-  sheet?: boolean;
   /** Claimed capabilities: their flags stand where their nameplates would, so those nameplates hang just below (ADR-0968 D1). */
   claimed?: ReadonlyMap<string, unknown>;
 }) {
-  // Plates hide behind the sphere only (whatever radius it has grown to): one exact test each, not a raycast of the land.
-  const occluder = useMemo(() => sheet ? false : [{ current: globeOccluder(radius) }], [radius, sheet]);
   const surface = useMemo(() => onIslandSurface(radius, PLATE_LIFT), [radius]);
   // Placed once on the island's own plate, like print on a map: it moves only as the island does (ADR-0917).
   const at = useMemo(() => surface(storyPlate(coast, southOnPlate(plateTransform(spot, radius).quaternion))).toArray(), [surface, coast, spot, radius]);
@@ -48,9 +44,8 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
     if (group?.parent == null) return;
     group.parent.getWorldQuaternion(turned);
     if (label.current === null) return;
-    const faces = facing(turned, camera.quaternion);
-    label.current.style.visibility = sheet || faces > 0 ? "" : "hidden";
-    label.current.dataset.facing = String(faces);
+    // On the glass sheet nothing hides a name: it reads from either face, so the underside says whose notes are whose (ADR-1043 D3).
+    label.current.dataset.facing = String(facing(turned, camera.quaternion));
   }, -1);
   const chosen = island.story === selected;
   const plates = useMemo(() => chosen && island.land !== undefined ? capabilityPlates(islandTerritories(island.land.territories, coast)) : [], [chosen, island.land, coast]);
@@ -60,7 +55,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
   const plateStyle = { "--plate-opacity": opacity, maxWidth: STORY_PLATE_WIDTH } as CSSProperties;
   return <>
     <group ref={anchor} position={at}>
-      <Overlay occlude={occluder} zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
+      <Overlay zIndexRange={[20, 10]} style={{ pointerEvents: "none" }}>
         <div ref={label} className={`forest-label planet-nameplate${chosen ? " selected" : ""}${progress !== undefined ? " with-progress" : ""}`} data-story-id={island.story} data-dimmed={dimmed ? "" : undefined} style={plateStyle}>
           <span className="planet-nameplate-title">{island.title}</span>
           {progress !== undefined && <span className="planet-progress">
@@ -70,7 +65,7 @@ export function Nameplates({ island, spot, coast, radius, selected, dimmed = fal
         </div>
       </Overlay>
     </group>
-    {plates.map(plate => <Overlay key={plate.capability} occlude={occluder} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>
+    {plates.map(plate => <Overlay key={plate.capability} position={surface(plate).toArray()} center zIndexRange={[25, 21]} style={{ pointerEvents: "none" }}>
       <div className="forest-label planet-nameplate capability" data-capability-id={plate.capability} data-size={plate.size} data-claimed={claimed.has(plate.capability) ? "" : undefined}>{plate.title}</div>
     </Overlay>)}
   </>;

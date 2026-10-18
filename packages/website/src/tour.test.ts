@@ -357,11 +357,8 @@ test("3.4 · the map chapter lays the shop's first four stories out by their own
   const signIn = "story_d263ef0f3f72", browsing = "story_0c07d0047754", cart = "story_2de9e8f4db21", checkout = "story_66f80ffaaa4d";
   const place = new Map(recording.places.map(node => [node.id, node.place]));
   assert.deepEqual([signIn, browsing, cart, checkout].map(story => place.get(story)), [1, 1001, 2001, 2002]);
+  // Rows 0, 1 and 2, the cart and checkout side by side in the third: the sheet lays them out by these places (the next test).
   assert.deepEqual(recording.scene.islands.map(island => island.story).sort(), [signIn, browsing, cart, checkout].sort(), "framed by the four, not the finished shop");
-  const spot = new Map(recording.spots);
-  const [s, b, c, k] = [spot.get(signIn)!, spot.get(browsing)!, spot.get(cart)!, spot.get(checkout)!];
-  assert.ok(Math.abs(c.y - k.y) < 1e-9 && c.x < k.x, "the cart and checkout side by side, the cart to the west");
-  assert.ok(c.y > b.y && b.y > s.y, "the cart and checkout above browsing, browsing above signing in");
   assert.deepEqual(original.places.find(node => node.id === checkout)!.place, 3001, "free play keeps the finished shop's places");
 });
 

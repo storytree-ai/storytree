@@ -12,7 +12,7 @@ const checkout = path.resolve(pkg, "../..");
 const run = promisify(execFile);
 const scripts = globSync("evidence/*/build.mjs", { cwd: pkg }).sort();
 test("3.12 · the saved growths' evidence captures each have a build to check", () => {
-  assert.deepEqual(scripts.map(script => path.dirname(script).split(path.sep).pop()), ["growth", "shop-health"]);
+  assert.deepEqual(scripts.map(script => path.dirname(script).split(path.sep).pop()), ["growth"]);
 });
 for (const script of scripts) {
   test(`3.12 · the website's evidence capture builds: ${script}`, { timeout: 130_000 }, async () => {

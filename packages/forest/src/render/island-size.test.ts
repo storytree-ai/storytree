@@ -4,9 +4,11 @@ import { test } from "node:test";
 
 import { workStates } from "@storytree/arc-surface";
 import type { InstanceDescriptor } from "@storytree/forest-world";
-import { buildPlanetPathways, islandCoastReach } from "@storytree/forest-world/geometry";
+import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 
-import { forestScene, growPlanet, PLANET_RADIUS, storyNodes } from "../index.js";
+import { forestScene, storyNodes } from "../index.js";
+import { SHEET_RADIUS } from "@storytree/forest-world/planet";
+import { sheetLayout } from "../view/sheet-navigation.js";
 import { islandArea, LAND_PER_LINE, MIN_ISLAND_AREA } from "../planet-places/island-growth.js";
 import type { StorySurvey } from "@storytree/library";
 import { circleDiameter, fileCircles, territories } from "../territories/territories.js";
@@ -42,8 +44,8 @@ test("3.19 a surveyed island's area follows its lines, a tiny story keeps a floo
   assert.equal(areaOf("tiny"), MIN_ISLAND_AREA);
   assert.equal(areaOf("unsurveyed"), 3 * MIN_ISLAND_AREA, "no survey: one floor's worth of land for each of its three capabilities");
 
-  const spots = growPlanet(storyNodes(tree, []).map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(i => i.story === id)!) }))).spots;
-  const plates = buildPlanetPathways(scene, spots, PLANET_RADIUS).plates;
+  const spots = sheetLayout(scene, new Map(storyNodes(tree, []).map(({ id, place }) => [id, place]))).spots;
+  const plates = buildPlanetPathways(scene, spots, SHEET_RADIUS).plates;
   const drawn = (story: string) => drawnArea(plates.get(story)!.descriptors as InstanceDescriptor[]);
   for (const story of ["big", "small", "tiny"]) assert.ok(Math.abs(drawn(story) - areaOf(story)! ) < 1e-3 * areaOf(story)!, `${story} draws the land its lines give it`);
   assert.ok(drawn("big") > drawn("small") && drawn("small") > drawn("tiny"), "drawn land follows lines, though each has three capabilities");
@@ -58,7 +60,7 @@ test("3.19 an island whose files' circles do not fit on the land its lines give 
   const scene = forestScene(crowded, [], workStates([]), { crowded: { files, imports: [] } });
   const island = scene.islands[0]!;
   assert.ok(island.area! > islandArea(400), `the island grew past the ${islandArea(400)} units² its lines give it (to ${island.area!.toFixed(0)})`);
-  const coast = buildPlanetPathways(scene, new Map([["crowded", { x: 0, y: 0, z: 1 }]]), PLANET_RADIUS).plates.get("crowded")!.coast;
+  const coast = buildPlanetPathways(scene, new Map([["crowded", { x: 0, y: 0, z: 1 }]]), SHEET_RADIUS).plates.get("crowded")!.coast;
   const circles = fileCircles(territories(island.land!.territories, coast), island.land!.files);
   assert.equal(circles.length, files.length);
   for (const circle of circles) assert.ok(Math.abs(circle.radius - circleDiameter(circle.lines) / 2) < 1e-9, `${circle.path} keeps its full size`);

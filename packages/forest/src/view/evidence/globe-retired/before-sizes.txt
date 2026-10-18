@@ -1,0 +1,8 @@
+Taken on main at 40cde6b9 (after the drawing engine moved to packages/forest-world); the pictures match those taken at a3bcb0b2 byte for byte.
+website dist js bytes: 9017348
+  8230984 packages/website/dist/assets/forest-scene-DR4DT5WN.js
+desktop renderer js bytes: 5073508
+forest src lines (non-test): 6975
+forest-world src lines (non-test): 6773
+forest + forest-world src lines (with tests): 23803
+website src lines (with tests): 7183

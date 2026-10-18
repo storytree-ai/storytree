@@ -47,7 +47,7 @@ export type Stop = { target: GlobeTarget; framing: number; duration: number };
 /**
  * One thing the camera does, `at` milliseconds after its move begins: fly to a stop, show the next step's map at once
  * (`show`), or swap the map and wait for it to be drawn (`swap`; the cues after it are timed from that moment), and say
- * it has arrived (`arrive`), from where an overview step drifts.
+ * it has arrived (`arrive`).
  */
 export type Cue = { at: number; kind: "fly"; stop: Stop } | { at: number; kind: "show" | "swap" | "arrive" };
 
@@ -93,11 +93,6 @@ export function cameraCues({ from, to, shownOverview, overview, first, switching
   return [...shown, ...legs, { at, kind: "arrive" }];
 }
 
-/** One leg of an overview step's drift: to the `from`th island in turn, eighteen seconds at 1×. */
-export function driftLeg(order: readonly string[], from: number, framing: number, speed: number): Stop {
-  return { target: { kind: "story", story: order[from % order.length]! }, framing, duration: 18_000 / speed };
-}
-
 /** The clock the camera keeps its cues on: the page's timers, or a test's. */
 export type Timers = { set(run: () => void, ms: number): unknown; clear(timer: unknown): void };
 /** What the page does for the camera. */
@@ -105,8 +100,6 @@ export type CameraHost = {
   timers: Timers;
   /** The camera has arrived at the step's view (true), or has set off for the next (false). */
   arrived(yes: boolean): void;
-  /** Whether the tour is still playing once the camera arrives. */
-  running(): boolean;
 };
 /** The tour as the camera is told it, each time it changes. */
 export type CameraStep = {
@@ -117,8 +110,6 @@ export type CameraStep = {
   switching: boolean;
   to: { target: GlobeTarget; framing: number };
   overview: GlobeTarget; shownOverview: GlobeTarget;
-  /** The islands an overview step drifts round, in their places' order, and the one its drift starts at. */
-  driftOrder: readonly string[]; next: number;
   reduced: boolean;
   /** Aims the camera; false while the target is not drawn yet, so it is aimed at again on a later beat. */
   place(stop: Stop): boolean;
@@ -128,37 +119,27 @@ export type CameraStep = {
 
 /**
  * Plays the tour's camera: it owns the timers, and the page only tells it each step (ADR-0879 D5: the camera flies; it
- * never snaps). A new step, or a line that moves the camera within one, plays the move's cues. The same step waiting
- * freezes the drift; playing again returns to the step's view and drifts on. Flights finish.
+ * never snaps). A new step, or a line that moves the camera within one, plays the move's cues; a sheet has no far side,
+ * so the camera holds still at each step's view. Flights finish.
  */
 export function createCameraPlayer(host: CameraHost) {
   let from: CameraView = { framing: restingFraming }, entered = false;
-  let flights: unknown[] = [], drifts: unknown[] = [];
+  let flights: unknown[] = [];
   let dive: (() => void) | undefined;
   // Each aim supersedes any earlier one still waiting for its island to be drawn, so a late island never pulls the camera back.
   let aims = 0;
   const after = (timers: unknown[], ms: number, run: () => void) => { timers.push(host.timers.set(run, ms)); };
   const clearFlight = () => { flights.forEach(host.timers.clear); flights = []; dive = undefined; };
-  const clearDrift = () => { drifts.forEach(host.timers.clear); drifts = []; };
   return {
-    step({ tour, before, switching, to, overview, shownOverview, driftOrder, next, reduced, place, show }: CameraStep): void {
+    step({ tour, before, switching, to, overview, shownOverview, reduced, place, show }: CameraStep): void {
       const { state } = tour, speed = state.speed;
-      const go = (stop: Stop, timers = flights) => { const mine = ++aims; aim(target => mine !== aims || place({ ...stop, target }), stop.target, overview, again => after(timers, 50, again)); };
-      const drift = (from: number) => {
-        if (!tour.step.drift || reduced) return;
-        go(driftLeg(driftOrder, from, to.framing, speed), drifts);
-        after(drifts, 18_000 / speed, () => drift(from + 1));
-      };
+      const go = (stop: Stop) => { const mine = ++aims; aim(target => mine !== aims || place({ ...stop, target }), stop.target, overview, again => after(flights, 50, again)); };
       // A new step, or a line that moves the camera within one.
       const moved = !before || before.state.index !== state.index || before.state.generation !== state.generation || before.state.freePlay
         || before.state.holds.includes("exploring") || before.state.holds.includes("everything") || !entered
         || JSON.stringify(to.target) !== JSON.stringify(from.target) || to.framing !== from.framing;
-      if (!moved) {
-        if (!tour.running) clearDrift();
-        else if (before && !before.running && tour.step.drift) { clearDrift(); go({ ...to, duration: 1400 / speed }); after(drifts, 1400 / speed, () => drift(next)); }
-        return;
-      }
-      clearFlight(); clearDrift();
+      if (!moved) return;
+      clearFlight();
       host.arrived(false);
       const first = !entered;
       entered = true;
@@ -166,7 +147,7 @@ export function createCameraPlayer(host: CameraHost) {
       const play = (cue: Cue) => {
         if (cue.kind === "fly") go(cue.stop);
         else if (cue.kind === "show") show();
-        else if (cue.kind === "arrive") { host.arrived(true); if (host.running()) drift(next); }
+        else if (cue.kind === "arrive") host.arrived(true);
       };
       const schedule = (cues: readonly Cue[]) => {
         const swap = cues.findIndex(cue => cue.kind === "swap");
@@ -180,10 +161,8 @@ export function createCameraPlayer(host: CameraHost) {
     get diving(): boolean { return dive !== undefined; },
     /** The swapped map is drawn: the camera dives into it. */
     drawn(): void { const waiting = dive; dive = undefined; waiting?.(); },
-    /** The drift stops where it is (the visitor exploring, or every surface shown). */
-    freeze(): void { clearDrift(); },
     /** Whatever the camera was doing stops: the visitor took the map. */
-    cancel(): void { clearFlight(); clearDrift(); },
+    cancel(): void { clearFlight(); },
     /** The next view grows in from far away, as chapter 2's first does once chapter 1 hands over. */
     reenter(): void { entered = false; },
   };

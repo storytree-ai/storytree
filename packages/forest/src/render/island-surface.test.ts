@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DoubleSide, Mesh, MeshBasicMaterial, Vector3, type Object3D } from 'three';
 import { workStates } from '@storytree/arc-surface';
-import { forestScene, growPlanet, PLANET_RADIUS, storyNodes } from '../index.js';
-import { buildPlanetPathways, islandCoastReach, islandSurface, PLATE_CLEARANCE } from '@storytree/forest-world/geometry';
+import { forestScene, storyNodes } from '../index.js';
+import { SHEET_RADIUS } from '@storytree/forest-world/planet';
+import { sheetLayout } from '../view/sheet-navigation.js';
+import { buildPlanetPathways, islandSurface, PLATE_CLEARANCE } from '@storytree/forest-world/geometry';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 const capability = (id: string, dependsOn: string[]) =>
@@ -14,19 +16,19 @@ const tree = { arcs: [], stories: [
   { id: 'b', title: 'B', health, capabilities: [capability('b1', ['a1']), capability('b2', ['b1', 'a2'])] },
 ] };
 const scene = forestScene(tree, [], workStates([]));
-const spots = growPlanet(storyNodes(tree, []).map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(i => i.story === id)!) }))).spots;
-const plates = buildPlanetPathways(scene, spots, PLANET_RADIUS).plates;
+const spots = sheetLayout(scene, new Map(storyNodes(tree, []).map(({ id, place }) => [id, place]))).spots;
+const plates = buildPlanetPathways(scene, spots, SHEET_RADIUS).plates;
 
 function all(root: Object3D): Object3D[] {
   const found: Object3D[] = [];
   root.traverse(object => { if (object !== root) found.push(object); });
   return found;
 }
-const S = PLANET_RADIUS + PLATE_CLEARANCE;
+const S = SHEET_RADIUS + PLATE_CLEARANCE;
 
 test('3.8 an island is drawn as one ground surface and its coast, with no pines, plants or other props', () => {
   for (const [story, plate] of plates) {
-    const surface = islandSurface(plate.coast, PLANET_RADIUS, story);
+    const surface = islandSurface(plate.coast, SHEET_RADIUS, story);
     assert.equal(surface.name, `island-surface:${story}`);
     const kinds = all(surface).map(object => object.name.split(':')[0]);
     // The depth under the ground draws no colour: it only hides what lies behind the island (ADR-0919 D2).
@@ -38,7 +40,7 @@ test('3.8 an island is drawn as one ground surface and its coast, with no pines,
 
 test('3.8 the ground is one pale see-through surface conformed to the globe, covering exactly the coast', () => {
   const plate = plates.get('a')!;
-  const surface = islandSurface(plate.coast, PLANET_RADIUS, 'a');
+  const surface = islandSurface(plate.coast, SHEET_RADIUS, 'a');
   const ground = all(surface).find(object => object.name === 'island-ground') as Mesh;
   const material = ground.material as MeshBasicMaterial;
   // Meaning outranks appearance: a line diving through into the core must stay visible through it.
@@ -67,7 +69,7 @@ test('3.8 the ground is one pale see-through surface conformed to the globe, cov
 
 test('3.8 the coast is a thin band centred on every point of the island rim, on the same sphere', () => {
   const plate = plates.get('b')!;
-  const surface = islandSurface(plate.coast, PLANET_RADIUS, 'b');
+  const surface = islandSurface(plate.coast, SHEET_RADIUS, 'b');
   const bands = all(surface).filter((object): object is Mesh => object.name.startsWith('island-coast'));
   assert.equal(bands.length, plate.coast.length);
   const centre = new Vector3(0, -S, 0);
@@ -87,7 +89,7 @@ test('3.8 the coast is a thin band centred on every point of the island rim, on 
 // would re-derive its shader program twice (WebGLRenderer's renderObject; ADR-0836 D1).
 test('5.4 an animating globe redraws every island\'s ground and coast without re-deriving a shader program', () => {
   for (const [story, plate] of plates) {
-    const materials = all(islandSurface(plate.coast, PLANET_RADIUS, story)).map(object => (object as Mesh).material as MeshBasicMaterial);
+    const materials = all(islandSurface(plate.coast, SHEET_RADIUS, story)).map(object => (object as Mesh).material as MeshBasicMaterial);
     assert.ok(materials.length > 1);
     assert.deepEqual(materials.filter(material => material.transparent && material.side === DoubleSide && !material.forceSinglePass), []);
   }

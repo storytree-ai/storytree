@@ -1,8 +1,8 @@
-/** Capability 3 · Story node render. The forest's globe book: lane B's plates at lane A's places, with lane C's failure turns. */
+/** Capability 3 · Story node render. The forest on the glass sheet (ADR-1043): lane B's plates at their places on the sheet, with its failure markers. */
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Group, Quaternion, Vector3, type Camera, type Object3D } from "three";
-import { claimTints, openingTurn, replayWisps, selectionLanes, type ClaimTint, type EdgeMarker, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
+import { claimTints, replayWisps, selectionLanes, type ClaimTint, type FacingIsland, type ForestScene, type GlobeTurn, type Island, type SessionWisp } from "@storytree/forest";
 import type { Descriptor3D } from "@storytree/forest-world";
 import { islandNormal, onIslandSurface, PlanetWorldCanvas, plateTransform, PLATE_CLEARANCE, SHEET_LAND_LIFT, SHEET_RADIUS, SHEET_TILT, sheetEyeZoom, UnderTheGlass, usePlanetGrowth, type PlanetGrowth, type SheetExtent } from "@storytree/forest-world/planet";
 import { codePathKey, type CodePlaces } from "@storytree/knowledge-core";
@@ -14,27 +14,26 @@ import { laneWays } from "./border-route.js";
 import { ClaimMarks } from "./claim-flag.js";
 import { fileCircles, islandTerritories } from "../territories/territories.js";
 import { NameplateCrowd, Nameplates, Overlay, reducedMotion, SelectionRing } from "./island-overlays.js";
-import { dragTurn, focusRotation, globeHover, hiddenMarkers, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, planetLayout, type ForestMode } from "./planet-navigation.js";
+import { focusRotation, globeHover, isGlobeDrag, markerSpot, movingSpots, MOVE_SECONDS, oncePerFrame, pickGlobe, type ForestMode } from "./planet-navigation.js";
 import { claimsOn } from "./planet-update.js";
 import { createGlobeGuide, type GlobePose, type PlacedGlobeControls } from "./globe-guide.js";
 import { createGlobeAside } from "./globe-aside.js";
-import { asksForHome, miniGlobe } from "./mini-globe.js";
 import { compassNorth, opensBare, seesUnderside, sheetDrag, sheetHome, sheetKey, sheetKeyPan, sheetLayout, sheetMarkers, sheetOpening, sheetPan, sheetPanUnder, sheetSpin, sheetSpinTilt, sheetTilted, sheetTiltBy, sheetTwist, sheetUnder, TILT_PER_PIXEL, TILT_STEP } from "./sheet-navigation.js";
-import { growLand, pastIslands, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
+import { growLand, shownSurfaces as surfacesFor, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 
 export type PlanetViewProps = {
-  /** Receives the app-owned controls while the globe is mounted. */
+  /** Receives the app-owned controls while the map is mounted. */
   onControls?: ((controls: PlacedGlobeControls | undefined) => void) | undefined;
   /** Every surface is shown by default, with territories coloured by health. */
   surfaces?: Partial<GlobeSurfaces> | undefined;
-  /** Move the globe right by this many CSS pixels, leaving its turn unchanged. */
+  /** Move the sheet right by this many CSS pixels, leaving its turn unchanged. */
   sideOffset?: number | undefined;
-  /** CSS pixels of the canvas's right a panel covers: the globe glides into the width left of it (3.40). */
+  /** CSS pixels of the canvas's right a panel covers: the sheet glides into the width left of it (3.40). */
   aside?: number | undefined;
   mode?: ForestMode;
-  /** False when the Library is switched off (ADR-0750): no notes inside, so the globe reads solid. */
+  /** False when the Library is switched off (ADR-0750): no notes under the glass. */
   library?: boolean;
-  /** How many radii half the short side spans as it opens (`globeFraming`). */
+  /** How many of the sheet's radii half the short side spans when a guide frames the whole map (`globeFraming`, 3.66). */
   framing?: number | undefined;
   /** The full plan a plan still growing is drawn within: each island keeps the spot it has there (3.28). */
   frame?: ForestScene | undefined;
@@ -56,19 +55,15 @@ export type PlanetViewProps = {
   /** Hears a click on an island, or undefined for empty space. */
   onPick: (story: string | undefined, capability?: string) => void;
   onNote: (note: string) => void;
-  /** Draw the forest on the glass sheet, depth running west to east, not on the globe (ADR-1043): the user tilts it from
-   * above to below (ADR-1062 D2); `mode` changes only its look, never the eye (D3). */
-  sheet?: boolean | undefined;
 };
 
-export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, library = true, frame, easeMoves = false, growth, liveRoads = false, recordedSessions, sheet = false }: PlanetViewProps) {
-  // Zoomed in past the islands, or in the Library, only the glass and the core show (ADR-0919 D3, D4). The hidden
-  // marks stay mounted, so guides can still locate them.
-  const [past, setPast] = useState(false);
+/** The forest drawn on the glass sheet, depth running west to east (ADR-1043): the user tilts it from above to below
+ * (ADR-1062 D2); `mode` changes only its look, never the eye (D3). */
+export function PlanetView({ core, scene, places, wisps: live, selected, highlighted, onPick, onNote, mode = "forest", framing, sideOffset, aside = 0, surfaces, onControls, library = true, frame, easeMoves = false, growth, liveRoads = false, recordedSessions }: PlanetViewProps) {
   // In the glass sheet's Library the glass is clear and the islands hollow outlines with their names over the knowledge, from
   // every angle (ADR-1061 D2, ADR-1062 D3): the button pressed decides, never the side the eye is on.
-  const outlines = sheet && mode === "library";
-  const shownSurfaces = useMemo(() => surfacesFor(surfaces, !sheet && (mode === "library" || past), outlines), [surfaces, mode, past, sheet, outlines]);
+  const outlines = mode === "library";
+  const shownSurfaces = useMemo(() => surfacesFor(surfaces, outlines), [surfaces, outlines]);
   const [cameraFraming, setFraming] = useState(framing);
   const [cameraOffset, setOffset] = useState(sideOffset);
   const previousFraming = useRef(framing);
@@ -84,15 +79,12 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     setOffset(sideOffset);
   }, [sideOffset]);
   const setPose = useCallback((pose: GlobePose) => { setFraming(pose.framing); setOffset(pose.sideOffset); }, []);
-  // A live update that moved no island keeps the spots on show, so only a changed island's plate draws again (ADR-0836 D1).
-  const shown = useRef<ReturnType<typeof planetLayout>>(undefined);
-  const layout: ReturnType<typeof planetLayout> & Partial<Pick<ReturnType<typeof sheetLayout>, "extent" | "under">> = useMemo(() => sheet ? sheetLayout(scene, places, frame) : planetLayout(scene, places, shown.current, frame), [scene, places, frame, sheet]);
-  shown.current = layout;
+  const layout = useMemo(() => sheetLayout(scene, places, frame), [scene, places, frame]);
   // 3.28: while a change of layout plays, only the plates travel, with no roads; the rest is drawn once, at the new layout.
   const moving = useMovingSpots(layout.spots, easeMoves), travelling = moving !== layout.spots;
   const roadless = useMemo(() => ({ ...layout.scene, links: [] }), [layout.scene]);
   const [rotation, setRotation] = useState(() => new Quaternion());
-  // The globe's centre stands off the origin on the glass sheet, tilted and turned about the middle of the view (ADR-1043 D3, ADR-1059 D1).
+  // The big sphere's centre stands off the origin, the sheet tilted and turned about the middle of the view (ADR-1043 D3, ADR-1059 D1).
   const [centre, setCentre] = useState<[number, number, number]>();
   const onRotate = useCallback((next: Quaternion, at?: [number, number, number]) => { setRotation(next); setCentre(at); }, []);
   // 5.7: replaying a growth with its recorded sessions, the wisps are the replay's, swapped as it passes each stage.
@@ -100,7 +92,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const wisps = growth !== undefined && recordedSessions !== undefined ? replayed ?? [] : live;
   // ADR-0968, ADR-0923: a running session plants a flag on each territory it claimed, and nothing else; no wisps, no coast tint.
   const claimed = useMemo(() => claimTints(wisps), [wisps]);
-  // Each island reports where its file circles lie on the globe once it has drawn them (only the drawing knows its coast); the core's traversal hops between them (ADR-0804 D5).
+  // Each island reports where its file circles lie once it has drawn them (only the drawing knows its coast); the core's traversal hops between them (ADR-0804 D5).
   const [stopsByStory, setStops] = useState<ReadonlyMap<string, ReadonlyMap<string, { x: number; y: number; z: number }>>>(new Map());
   const reportStops = useCallback((story: string, stops: ReadonlyMap<string, { x: number; y: number; z: number }> | undefined) => setStops(before => {
     const next = new Map(before);
@@ -118,13 +110,11 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     capabilities: new Set(code.capabilities),
   }), [stopsByStory, code]);
   const lighting = useCodeLighting(core, codePlaces);
-  // Contract 3.26: the selected story's links to other stories light as lanes; the globe's Library shows none, while the
-  // glass sheet keeps a selection lit on both its faces (ADR-1043 D3).
-  const onShow = sheet || mode === "forest";
-  const lanes = useKept(useMemo(() => onShow ? selectionLanes(scene, selected) : [], [scene, selected, onShow]), JSON.stringify);
+  // Contract 3.26: the selected story's links to other stories light as lanes, on both the sheet's faces (ADR-1043 D3).
+  const lanes = useKept(useMemo(() => selectionLanes(scene, selected), [scene, selected]), JSON.stringify);
   // The knowledge graph under the glass sheet: each shelf's notes under its place, the selected story's lit (ADR-1043 D5).
   const under = layout.under;
-  const underSheet = useMemo((): CoreUnderSheet | undefined => under && { ...under, selected }, [under, selected]);
+  const underSheet = useMemo((): CoreUnderSheet => ({ ...under, selected }), [under, selected]);
   // ADR-0991 D4: a lit lane runs on from its dock along the territories' borders to its capability.
   const ways = useMemo(() => laneWays(layout.scene.islands), [layout.scene]);
   const overlays = useCallback((island: Island, descriptors: readonly Descriptor3D[], coast: readonly (readonly { x: number; z: number }[])[]) => {
@@ -133,21 +123,21 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
     const emphasis = shownSurfaces.sessionTints && highlighted?.length ? (highlighted.includes(island.story) ? "held" : "dimmed") : undefined;
     return <>
       {island.land !== undefined && layout.spots.has(island.story) && <Territories story={island.story} land={island.land} coast={coast} claimed={claimed} radius={layout.radius}
-        spot={layout.spots.get(island.story)!} lighting={lighting} surfaces={shownSurfaces} onStops={reportStops} raised={sheet} />}
-      {onShow && <SessionIslandEmphasis emphasis={emphasis} />}
+        spot={layout.spots.get(island.story)!} lighting={lighting} surfaces={shownSurfaces} onStops={reportStops} />}
+      <SessionIslandEmphasis emphasis={emphasis} />
       {emphasis === "held" && <SelectionRing island={local} descriptors={descriptors} onGlobe emphasis />}
-      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} sheet={sheet} />}
-      {onShow && <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />}
+      {shownSurfaces.nameplates && <Nameplates island={island} spot={layout.spots.get(island.story)!} coast={coast} radius={layout.radius} selected={selected} dimmed={emphasis === "dimmed"} claimed={claimed} />}
+      <SelectionRing island={island.story === selected ? local : undefined} descriptors={descriptors} onGlobe />
     </>;
-  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces, onShow, sheet]);
+  }, [wisps, claimed, selected, highlighted, layout.spots, layout.radius, lighting, reportStops, shownSurfaces]);
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
-    surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false} sheet={layout.extent} hollow={outlines}
+    surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} sheet={layout.extent} hollow={outlines}
     offset={centre}
-    inside={underSheet !== undefined ? library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass> : <group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
+    inside={library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass>}
     rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
-      rotation={rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast} sheet={layout.extent}
-      opening={{ framing: framing ?? 1.18, sideOffset: sideOffset ?? 0 }} aside={aside}
+      rotation={rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} sheet={layout.extent}
+      sideOffset={sideOffset ?? 0} aside={aside}
       showFailures={shownSurfaces.grounds || shownSurfaces.territories !== false || shownSurfaces.fileCircles || shownSurfaces.nameplates || shownSurfaces.roads} />
     <NameplateCrowd selected={selected} />
     {growth !== undefined && recordedSessions !== undefined && <ReplaySessions recorded={recordedSessions} onWisps={setReplayed} />}
@@ -191,7 +181,7 @@ function useMovingSpots(spots: ReadonlyMap<string, FacingIsland["spot"]>, ease: 
   return drawn.current;
 }
 
-/** The core inside the globe or under the glass sheet, its notes appearing with a growth when there is one (knowledge core 1.9). */
+/** The core under the glass sheet, its notes appearing with a growth when there is one (knowledge core 1.9). */
 function GrowingCore({ growing, ...props }: Omit<Parameters<typeof KnowledgeGlobePoints>[0], "growth"> & { growing: boolean }) {
   const growth = usePlanetGrowth();
   return <KnowledgeGlobePoints {...props} growth={growing ? growth : undefined} />;
@@ -210,12 +200,10 @@ const TERRITORY_LIFT = 0.05;
 
 /**
  * An island's territories (3.14) and its files' circles (3.16), cut to its coast and laid on its surface,
- * all in the plate's own units. It says where the circles lie on the globe (3.18), and lights the territories
+ * all in the plate's own units. It says where the circles lie on the sheet (3.18), and lights the territories
  * and circles the selected session's window opened.
  */
-function Territories({ story, land, coast, claimed, radius, spot, lighting, surfaces, onStops, raised }: {
-  /** On the glass sheet, where each island's plate is raised by its thickness (ADR-1059 D2). */
-  raised: boolean;
+function Territories({ story, land, coast, claimed, radius, spot, lighting, surfaces, onStops }: {
   story: string;
   land: NonNullable<Island["land"]>;
   coast: readonly (readonly { x: number; z: number }[])[];
@@ -246,24 +234,24 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
     invalidate();
   }, [marks, drawn, land.files.length, coast, radius, invalidate]);
   useEffect(() => {
-    // Claims already held when the globe first draws stand; any later one, a replay's included, arrives.
+    // Claims already held when the sheet first draws stand; any later one, a replay's included, arrives.
     marks.claims(tints, clock.getElapsedTime(), { standing: first.current && clock.getElapsedTime() < 1, reduced: reducedMotion() });
     first.current = false;
     invalidate();
   }, [marks, tints, clock, invalidate]);
   useFrame(() => {
     // The canvas draws on demand: a transition asks for frames only while it plays; a standing flag asks for none.
-    // On the sheet a flag keeps its size at the zoom the perspective eye shows (ADR-1062 D1).
-    const zoom = raised ? sheetEyeZoom(camera, size) : camera.zoom;
-    if (marks.frame(clock.getElapsedTime(), { zoom, eye: camera.quaternion, reduced: reducedMotion() })) invalidate();
+    // A flag keeps its size at the zoom the perspective eye shows (ADR-1062 D1).
+    if (marks.frame(clock.getElapsedTime(), { zoom: sheetEyeZoom(camera, size), eye: camera.quaternion, reduced: reducedMotion() })) invalidate();
   });
   useEffect(() => {
     if (land.package === undefined) return;
-    const { position, quaternion } = plateTransform(spot, radius, raised ? SHEET_LAND_LIFT : 0);
+    // Each island's plate is raised by its thickness (ADR-1059 D2).
+    const { position, quaternion } = plateTransform(spot, radius, SHEET_LAND_LIFT);
     onStops(story, circleStops(drawn.circles, land.package, { position: new Vector3(...position), quaternion }));
     return () => onStops(story, undefined);
-  }, [drawn, land.package, story, spot.x, spot.y, spot.z, radius, raised, onStops]);
-  // 3.30: on a growing globe the land fills in behind its island; once whole it is left alone until the growth or the land changes.
+  }, [drawn, land.package, story, spot.x, spot.y, spot.z, radius, onStops]);
+  // 3.30: on a growing map the land fills in behind its island; once whole it is left alone until the growth or the land changes.
   const growth = usePlanetGrowth();
   const whole = useRef(false);
   const grow = useCallback(() => growLand(drawn.group, drawn.circles, { capability: id => growth.capability(id), file: path => growth.file(story, path) }), [drawn, growth, story]);
@@ -293,47 +281,40 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
   return <><primitive object={drawn.root} /><primitive object={marks.root} /></>;
 }
 
-type ScreenMarker = Pick<EdgeMarker, "story" | "turn"> & { left: number; top: number };
+/** A failing island's marker at the window's edge, in CSS pixels, with the turn that brings it into view (3.11). */
+type ScreenMarker = { story: string; turn: GlobeTurn; left: number; top: number };
 
-/** The zoom on show, CSS pixels per ground unit at the middle of the view: the orthographic globe's lens, or how near the
- * sheet's perspective eye stands (ADR-1062 D1). */
-function zoomOf(camera: Camera & { zoom?: number }, size: { width: number; height: number }, sheet: SheetExtent | undefined): number {
-  return sheet === undefined ? camera.zoom ?? 1 : sheetEyeZoom(camera, size);
-}
-
-function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, onPast, showFailures, opening: globeOpening, aside, sheet }: {
+function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, showFailures, sideOffset, aside, sheet }: {
   onPose: (pose: GlobePose) => void;
-  /** Told the tilt as the eye comes to the other side of the glass sheet, tilting past level (ADR-1062 D3). */
-  /** The glass sheet drawn, when it is one (ADR-1043): a drag pans it, and it opens and goes Home to `sheetOpening`. */
-  sheet: SheetExtent | undefined;
+  /** The glass sheet drawn (ADR-1043): a drag pans it, and it opens and goes Home to `sheetOpening`. */
+  sheet: SheetExtent;
   /** CSS pixels of the canvas's right a panel covers (3.40). */
   aside: number;
-  /** The zoom and offset the globe opened on, which Home returns to with the opening turn (3.37). */
-  opening: { framing: number; sideOffset: number };
-  /** Told when the eye zooms in past the islands, and back out (ADR-0919 D3). */
-  onPast: (past: boolean) => void;
+  /** The side offset the sheet opened on, which Home returns to (3.37). */
+  sideOffset: number;
   onControls: ((controls: PlacedGlobeControls | undefined) => void) | undefined;
   showFailures: boolean;
   mode: ForestMode;
-  /** The globe's radius as laid out, which grows with its islands. */
+  /** The big sphere's radius, the sheet its near pole. */
   radius: number;
   islands: readonly FacingIsland[];
   titles: ReadonlyMap<string, string>;
+  /** The big sphere's turn as drawn now: a capture build reads it beside `onRotate` (apps/desktop/src/capture). */
   rotation: Quaternion;
-  /** The globe's turn, and where its centre stands when the glass sheet is turned over. */
+  /** The big sphere's turn, and where its centre stands as the glass sheet is tilted and spun. */
   onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void;
   onPick: (story: string | undefined, capability?: string) => void;
   onNote: (note: string) => void;
 }) {
   const { camera, gl, scene, size, invalidate } = useThree();
-  const opening = sheet === undefined ? globeOpening : { framing: sheetOpening(sheet, size).framing, sideOffset: globeOpening.sideOffset };
+  const opening = { framing: sheetOpening(sheet, size).framing, sideOffset };
   const [hover, setHover] = useState<{ title: string; detail?: string; x: number; y: number }>();
   const opened = useRef(false);
   // Until the user or a guide moves the sheet, it keeps to its opening as the canvas or the sheet changes size.
   const touched = useRef(false);
   const lastMarkers = useRef("");
   const [markers, setMarkers] = useState<ScreenMarker[]>([]);
-  // The globe turns only by spin and tilt, and the eye never moves, so north stays up (arc north-up).
+  // The big sphere turns by a hair to slide the sheet under the eye; the eye never rolls.
   const turn = useRef<GlobeTurn>({ yaw: 0, pitch: 0 });
   // How far the glass sheet is tilted (ADR-1062 D2): 0 straight down on its top face, π straight up at its underside; it
   // opens at the top resting tilt in Stories and Library alike, and only the user moves it from there (ADR-1062 D3).
@@ -346,12 +327,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   const [compass, setCompass] = useState(0);
   const turnTo = useCallback((next: GlobeTurn) => {
     turn.current = next;
-    const rotation = focusRotation(next, camera.quaternion);
-    if (sheet === undefined) { onRotate(rotation); return; }
-    const turned = sheetTilted(rotation, camera.quaternion, tilt.current, heading.current);
+    const turned = sheetTilted(focusRotation(next, camera.quaternion), camera.quaternion, tilt.current, heading.current);
     onRotate(turned.quaternion, turned.position.toArray());
-  }, [camera, onRotate, sheet !== undefined]);
-  // The globe group as `turnTo` poses it now, for finding the place under the pointer before the host has drawn the pose.
+  }, [camera, onRotate]);
+  // The sheet's group as `turnTo` poses it now, for finding the place under the pointer before the host has drawn the pose.
   const posed = (): Object3D => {
     const group = new Group(), turned = sheetTilted(focusRotation(turn.current, camera.quaternion), camera.quaternion, tilt.current, heading.current);
     group.quaternion.copy(turned.quaternion);
@@ -413,7 +392,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   host.current = { camera, scene, size, radius, onPose, turnTo, invalidate, opening, sheet, spinTo, tiltTo };
   const read = (): GlobePose => {
     const { camera: eye, size: viewport, radius: extent } = host.current;
-    return { turn: { ...turn.current }, framing: Math.min(viewport.width, viewport.height) / (2 * zoomOf(eye, viewport, host.current.sheet) * extent),
+    return { turn: { ...turn.current }, framing: Math.min(viewport.width, viewport.height) / (2 * sheetEyeZoom(eye, viewport) * extent),
       sideOffset: eye.view?.enabled ? -eye.view.offsetX : 0 };
   };
   const guide = useRef<ReturnType<typeof createGlobeGuide>>(undefined);
@@ -424,8 +403,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     read,
     write: pose => { opened.current = true; host.current.turnTo(pose.turn); host.current.onPose(pose); },
     invalidate: () => host.current.invalidate(),
-    // 3.66: asked for only on the glass sheet, where a stop at the whole map goes to its opening.
-    opening: framing => sheetOpening(host.current.sheet!, host.current.size, framing),
+    // 3.66: a stop at the whole map goes to the sheet's opening.
+    opening: framing => sheetOpening(host.current.sheet, host.current.size, framing),
   });
   const controls = useRef<PlacedGlobeControls>(undefined);
   const guideFrameAt = useRef(0);
@@ -439,26 +418,21 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     islands: () => guide.current!.islands(),
     aside: () => placedAside.current,
   };
-  // The turn the globe opened on, kept as home even when a guide took the first turn (3.37).
-  const [home, setHome] = useState<GlobeTurn>();
   useEffect(() => {
-    if (home === undefined && islands.length > 0) setHome(openingTurn(islands));
-    if (opened.current || (islands.length === 0 && (sheet === undefined || !opensBare(mode)))) return;
+    if (opened.current || (islands.length === 0 && !opensBare(mode))) return;
     opened.current = true;
-    if (sheet === undefined) { turnTo(openingTurn(islands)); return; }
     openSheet();
-  }, [islands, turnTo, home]);
+  }, [islands, turnTo]);
   // The sheet opens framing its height from its west edge (ADR-1043 D4).
   const openSheet = (): void => {
-    if (sheet === undefined) return;
     turnTo(sheetOpening(sheet, size).turn);
     // Beside the panel, while one is open (3.40).
     onPose({ turn: turn.current, ...besideAside.current!.home(size) });
   };
-  useEffect(() => { if (opened.current && !touched.current) openSheet(); }, [size.width, size.height, sheet?.width, sheet?.height]);
-  // 3.40: the globe follows the right-hand panel into the free width, and back.
+  useEffect(() => { if (opened.current && !touched.current) openSheet(); }, [size.width, size.height, sheet.width, sheet.height]);
+  // 3.40: the sheet follows the right-hand panel into the free width, and back.
   const besideAside = useRef<ReturnType<typeof createGlobeAside>>(undefined);
-  besideAside.current ??= createGlobeAside(() => host.current.opening, { fit: sheet === undefined });
+  besideAside.current ??= createGlobeAside(() => host.current.opening, { fit: false });
   useEffect(() => {
     const moved = besideAside.current!.place(size, aside, read());
     placedAside.current = aside;
@@ -474,24 +448,24 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   // or, where the pointer is over no place on the glass, the sheet moves as far as the middle of the view would.
   const panBy = (drag: { x: number; y: number }, from: { x: number; y: number }): GlobeTurn => {
     const { camera: eye, size: viewport, sheet: extent } = host.current;
-    if (extent === undefined) return turn.current;
     const globe = posed(), grabbed = sheetUnder(eye, globe, turn.current, from, viewport, extent);
     const now = grabbed && sheetUnder(eye, globe, turn.current, { x: from.x + drag.x, y: from.y + drag.y }, viewport, extent);
     return grabbed !== undefined && now !== undefined ? sheetPanUnder(turn.current, grabbed, now, extent)
-      : sheetPan(turn.current, drag, zoomOf(eye, viewport, extent), extent, tilt.current, heading.current);
+      : sheetPan(turn.current, drag, sheetEyeZoom(eye, viewport), extent, tilt.current, heading.current);
   };
   const goHome = useRef<() => void>(undefined);
   goHome.current = () => {
-    touched.current = false;
-    const turn = sheet === undefined ? home : sheetOpening(sheet, size).turn;
+    const turn = sheetOpening(sheet, size).turn;
     // The compass and Home spin the sheet back to its starting heading, the short way round, and tilt it to the top resting
     // view, as the view eases home (ADR-1060 D3, ADR-1062 D2).
-    if (sheet !== undefined) { const back = sheetHome(spinning.current.to); spinTo(back.heading, 0.6); tiltTo(back.tilt, 0.6); }
+    const back = sheetHome(spinning.current.to);
+    spinTo(back.heading, 0.6);
+    tiltTo(back.tilt, 0.6);
     touched.current = false;
-    if (turn === undefined || !guide.current!.home({ turn, ...besideAside.current!.home(size) })) return;
+    if (!guide.current!.home({ turn, ...besideAside.current!.home(size) })) return;
     guideFrameAt.current = performance.now();
   };
-  // On the sheet WASD and the arrows pan while held, Q and E spin it a quarter turn, R and F tilt it a step (ADR-1060 D1, D2,
+  // WASD and the arrows pan while held, Q and E spin it a quarter turn, R and F tilt it a step (ADR-1060 D1, D2,
   // ADR-1062 D2); T is the page's.
   const keyPan = useRef({ held: new Set<string>(), frame: 0, at: 0 });
   useEffect(() => {
@@ -499,15 +473,13 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     const panning = (): void => {
       const now = performance.now(), seconds = Math.min(0.1, (now - keys.at) / 1000);
       keys.at = now;
-      const extent = host.current.sheet;
-      if (keys.held.size === 0 || extent === undefined) { keys.frame = 0; return; }
+      if (keys.held.size === 0) { keys.frame = 0; return; }
       guide.current!.cancel();
       host.current.turnTo(panBy(sheetKeyPan(keys.held, seconds), middleOfView()));
       host.current.invalidate();
       keys.frame = requestAnimationFrame(panning);
     };
     const onKey = (event: KeyboardEvent): void => {
-      if (host.current.sheet === undefined) { if (asksForHome(event)) { event.preventDefault(); goHome.current!(); } return; }
       const key = sheetKey(event);
       if (key === undefined) return;
       event.preventDefault();
@@ -538,27 +510,19 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     return () => { onControls?.(undefined); };
   }, [onControls]);
   useEffect(() => () => guide.current!.cancel(), []);
-  const past = useRef(false);
 
-  // OrbitControls runs before this frame. Project the rim with the current eye AND zoom.
+  // OrbitControls runs before this frame.
   useFrame(() => {
     const now = performance.now();
     guide.current!.frame(now - guideFrameAt.current);
     guideFrameAt.current = now;
-    const zoomedPast = sheet === undefined && pastIslands(Math.min(size.width, size.height) / (2 * camera.zoom * radius), past.current);
-    if (zoomedPast !== past.current) onPast(past.current = zoomedPast);
-    const centre = new Vector3().project(camera);
-    const rim = radius * camera.zoom + 16;
-    const middle = { left: (centre.x + 1) * size.width / 2, top: (1 - centre.y) * size.height / 2 };
-    // On the sheet nothing is round the back; a failing island past the window's edge is marked at that edge (3.11).
-    const hidden = !showFailures ? [] : sheet === undefined
-      ? hiddenMarkers(islands, rotation, camera.quaternion, mode).map(marker => ({ ...marker, left: middle.left + marker.at.x * rim, top: middle.top - marker.at.y * rim }))
-      : sheetMarkers(islands, island => {
-        const at = (scene.getObjectByName(`planet:${island.story}`)?.getWorldPosition(new Vector3()) ?? new Vector3()).project(camera);
-        return { left: (at.x + 1) * size.width / 2, top: (1 - at.y) * size.height / 2 };
-      }, size, mode);
+    // Nothing on the sheet is round the back; a failing island past the window's edge is marked at that edge (3.11).
+    const hidden = !showFailures ? [] : sheetMarkers(islands, island => {
+      const at = (scene.getObjectByName(`planet:${island.story}`)?.getWorldPosition(new Vector3()) ?? new Vector3()).project(camera);
+      return { left: (at.x + 1) * size.width / 2, top: (1 - at.y) * size.height / 2 };
+    }, size, mode);
     // The compass turns with the sheet, read to a tenth of a degree.
-    const reading = sheet === undefined ? 0 : Math.round(compassNorth(heading.current, seesUnderside(tilt.current)) * 1800 / Math.PI);
+    const reading = Math.round(compassNorth(heading.current, seesUnderside(tilt.current)) * 1800 / Math.PI);
     if (reading !== compass) setCompass(reading);
     // The Sessions strip is docked over the pane's bottom edge; a marker sits clear above it (3.11).
     const box = gl.domElement.getBoundingClientRect();
@@ -596,18 +560,18 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       element.style.cursor = cursor;
       setHover(title === undefined ? undefined : { title, ...(detail === undefined ? {} : { detail }), x: Math.max(8, Math.min(box.width - (detail === undefined ? 220 : 280), event.clientX - box.left + 12)), y: event.clientY - box.top + 14 });
     });
-    // A drag redraws the globe once a frame, at the latest turn.
+    // A drag redraws the sheet once a frame, at the latest turn.
     const dragTo = oncePerFrame((next: GlobeTurn): void => { if (!stopped) turnTo(next); });
     const onDown = (event: PointerEvent): void => {
       // A grab stops a key's tilt where it is.
-      if (sheet !== undefined) holdTilt();
-      if (sheet !== undefined && event.pointerType === "touch") {
+      holdTilt();
+      if (event.pointerType === "touch") {
         fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
         // A second finger ends the first's pan: two fingers twist, slide up and down to tilt, and pinch.
         if (fingers.size > 1) { down = undefined; clearHover(); return; }
       }
-      // A plain drag pans; on the sheet a right-drag or a Ctrl+drag spins and tilts it, so no switch changes what a drag does (ADR-1060 D2, D5, ADR-1062 D2).
-      const kind = sheet === undefined ? (event.button === 0 && event.isPrimary ? "pan" : undefined) : sheetDrag(event);
+      // A plain drag pans; a right-drag or a Ctrl+drag spins and tilts the sheet, so no switch changes what a drag does (ADR-1060 D2, D5, ADR-1062 D2).
+      const kind = sheetDrag(event);
       down = kind !== undefined ? { x: event.clientX, y: event.clientY, id: event.pointerId, dragged: false, last: { x: event.clientX, y: event.clientY }, spin: kind === "spin" } : undefined;
       if (down !== undefined) element.setPointerCapture?.(event.pointerId);
       clearHover();
@@ -632,10 +596,9 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
         touched.current = true;
         guide.current!.cancel();
         const drag = { x: event.clientX - down.last.x, y: event.clientY - down.last.y };
-        // On the sheet a drag pans, keeping the place grabbed under the pointer, or spins the sheet about its upright axis
-        // with its sideways part and tilts it with its up-and-down part (ADR-1060 D2, ADR-1062 D2).
+        // A drag pans, keeping the place grabbed under the pointer, or spins the sheet about its upright axis with its
+        // sideways part and tilts it with its up-and-down part (ADR-1060 D2, ADR-1062 D2).
         if (down.spin) spinTiltBy(drag);
-        else if (sheet === undefined) turn.current = dragTurn(turn.current, drag, element.clientHeight || 1);
         else { const box = element.getBoundingClientRect(); turn.current = panBy(drag, { x: down.last.x - box.left, y: down.last.y - box.top }); }
         dragTo(turn.current);
         down.last = { x: event.clientX, y: event.clientY };
@@ -657,11 +620,11 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     const onWheel = (event: WheelEvent): void => {
       guide.current!.cancel(); clearHover();
       touched.current = true;
-      // On the sheet a sideways scroll pans east and west; the wheel's zoom is the canvas's own.
-      if (sheet !== undefined && event.deltaX !== 0) dragTo(turn.current = panBy({ x: -event.deltaX, y: 0 }, middleOfView()));
+      // A sideways scroll pans east and west; the wheel's zoom is the canvas's own.
+      if (event.deltaX !== 0) dragTo(turn.current = panBy({ x: -event.deltaX, y: 0 }, middleOfView()));
     };
     // The right button spins and tilts the sheet, so it opens no menu there.
-    const onMenu = (event: MouseEvent): void => { if (sheet !== undefined) event.preventDefault(); };
+    const onMenu = (event: MouseEvent): void => { event.preventDefault(); };
     element.addEventListener("pointerdown", onDown);
     element.addEventListener("pointerup", onUp);
     element.addEventListener("pointermove", onMove);
@@ -683,8 +646,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     };
   }, [camera, gl, scene, onPick, onNote, turnTo, sheet, spinBy, spinTiltBy]);
 
-  // Pinned to the canvas, not to the globe's centre: under a side offset (3.40) the pointer's tooltip, the rim markers
-  // (already placed from the projected centre) and the mini globe would otherwise move twice.
+  // Pinned to the canvas, not to the sheet's middle: under a side offset (3.40) the pointer's tooltip, the edge markers
+  // and the compass would otherwise move twice.
   return <Overlay fullscreen calculatePosition={pinnedToCanvas} zIndexRange={[40, 40]} style={{ pointerEvents: "none" }}>
     {hover !== undefined && <span role="tooltip" className={`knowledge-tooltip${hover.detail === undefined ? "" : " with-detail"}`} style={{ position: "absolute", left: hover.x, top: hover.y }}>
       {hover.detail === undefined ? hover.title : <><strong>{hover.title}</strong><span className="knowledge-tooltip-detail">{hover.detail}</span></>}
@@ -696,11 +659,10 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
       aria-label={`Show unhealthy story: ${titles.get(marker.story)}`}
       onClick={() => {
         guide.current!.cancel();
-        // On the sheet the guide's stop pans the island into view at the zoom the user chose.
-        if (sheet === undefined || !controls.current!.stop({ target: { kind: "story", story: marker.story } })) turnTo(marker.turn);
+        // The guide's stop pans the island into view at the zoom the user chose.
+        if (!controls.current!.stop({ target: { kind: "story", story: marker.story } })) turnTo(marker.turn);
       }}>!</button>)}
-    {home !== undefined && sheet === undefined && <MiniGlobeButton islands={islands} home={home} turn={turn.current} aside={aside} onHome={() => goHome.current!()} />}
-    {sheet !== undefined && <SheetCompass north={compass * Math.PI / 1800} aside={aside} onHome={() => goHome.current!()} />}
+    <SheetCompass north={compass * Math.PI / 1800} aside={aside} onHome={() => goHome.current!()} />
   </Overlay>;
 }
 
@@ -722,32 +684,3 @@ function SheetCompass({ north, aside, onHome }: { north: number; aside: number; 
 
 /** The canvas's middle, where a fullscreen overlay's middle stays whatever the camera's side offset. */
 const pinnedToCanvas = (_object: unknown, _camera: unknown, size: { width: number; height: number }) => [size.width / 2, size.height / 2];
-
-/** 3.36: the globe as it opened, small in the corner, with its poles and a mark on the face on show; a click goes home (3.37). */
-function MiniGlobeButton({ islands, home, turn, aside, onHome }: { islands: readonly FacingIsland[]; home: GlobeTurn; turn: GlobeTurn; aside: number; onHome: () => void }) {
-  const mini = miniGlobe(islands, home, turn);
-  const c = 60, r = 44, at = (p: { x: number; y: number }) => ({ cx: c + p.x * r, cy: c - p.y * r });
-  const equator = mini.equator.filter(p => p.front).map(p => `${(c + p.x * r).toFixed(1)},${(c - p.y * r).toFixed(1)}`).join(" ");
-  const pole = (p: typeof mini.north, label: string) => <g opacity={p.front ? 1 : 0.45}>
-    <circle {...at(p)} r={3.5} className="mini-globe-pole" />
-    <text x={c + p.x * (r + 10)} y={c - p.y * (r + 10)} className="mini-globe-label" textAnchor="middle" dominantBaseline="central">{label}</text>
-  </g>;
-  // Land on the far side is drawn as hollow rings under the near side's solid dots.
-  const land = [...mini.islands].sort((a, b) => Number(a.front) - Number(b.front));
-  // 3.40: it stays in the corner of the free width, left of an open panel.
-  return <button type="button" className="planet-mini-globe" style={aside > 0 ? { marginRight: aside } : undefined} title="Back to the opening view (Home)" aria-label="Back to the opening view (Home)" onClick={onHome}>
-    <svg viewBox="0 0 120 120" width={120} height={120} aria-hidden="true">
-      <circle cx={c} cy={c} r={r} className="mini-globe-sea" />
-      <polyline points={equator} className="mini-globe-equator" />
-      <line x1={at(mini.south).cx} y1={at(mini.south).cy} x2={at(mini.north).cx} y2={at(mini.north).cy} className="mini-globe-axis" />
-      {land.map(island => <circle key={island.story} {...at(island)} r={island.front ? 3.6 : 2.8}
-        className={island.front ? "mini-globe-land" : "mini-globe-land behind"} />)}
-      {pole(mini.north, "N")}
-      {pole(mini.south, "S")}
-      <g className={mini.facing.front ? "mini-globe-facing" : "mini-globe-facing behind"}>
-        <circle {...at(mini.facing)} r={8} />
-        <circle {...at(mini.facing)} r={2} className="mini-globe-facing-dot" />
-      </g>
-    </svg>
-  </button>;
-}

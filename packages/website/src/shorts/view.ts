@@ -35,7 +35,7 @@ export const GROUNDING: Grounding = { island: PANEL.title, capability: asked.tit
  * drawn on a canvas four times the full screen's size (so its lit edges survive being shrunk) and aimed once, before the
  * first frame, at the island two rows in front of the website's (the app setup's), close enough to read the islands and far enough to see the slab's corner and edge, with the
  * website left of where the panel opens. */
-export const MAP = { sheet: true, width: 608, height: 512, aim: { framing: 0.0025, sideOffset: -60, story: "story_b91056a06337" } } as const;
+export const MAP = { width: 608, height: 512, aim: { framing: 0.0025, sideOffset: -60, story: "story_b91056a06337" } } as const;
 
 /** The short's palette for the map: the forest's drawing, shrunk to the screen, is put into these colours, so it is pixel art
  * with hard edges like everything around it: the void past the sheet, the glass in three tones (its far side, its lit middle,
@@ -59,7 +59,7 @@ export function quantise(pixels: Uint8ClampedArray): void {
 
 /** What the short hands the forest's view (`PlanetView`) at a moment: the saved plan on the glass sheet, the website's island
  * selected once he has clicked it, and nothing over it the scene does not draw itself. */
-export const mapProps = (selected: string | undefined) => ({ scene: snapshot.scene, places, sheet: MAP.sheet, selected, wisps: [] as const,
+export const mapProps = (selected: string | undefined) => ({ scene: snapshot.scene, places, selected, wisps: [] as const,
   library: false, surfaces: { nameplates: false, knowledgeCore: false } });
 
 /** When, into the beat he clicks in, the cursor lands on the island, its panel has opened, and the cursor rests on the part

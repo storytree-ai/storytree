@@ -1,7 +1,7 @@
 // World 7: replay the shop's recorded growth and storytree's saved reading in real Chromium, in the shipped engine.
 // Writes a frame strip per map, a clip of each playing, the frame rate while it plays, and the reduced-motion check.
-// node packages/website/evidence/growth/capture.mjs [--sheet]
-// --sheet grows both on the glass sheet instead (ADR-1043), writing `<map>-sheet-*` beside the globe's and measurements-sheet.json.
+// node packages/website/evidence/growth/capture.mjs
+// Both grow on the glass sheet (ADR-1043), writing `<map>-sheet-*` and measurements-sheet.json; the globe's earlier pictures stay as history.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -17,9 +17,8 @@ const forestCss = readFileSync(path.join(here, '../../../forest/src/view/styles.
 mkdirSync(out, { recursive: true });
 const SECONDS = 15;
 const VIEW = { width: 1440, height: 900 };
-const SHEET = process.argv.includes('--sheet');
-/** Each map's pictures are named for it, and for the sheet when it grows there. */
-const named = map => SHEET ? `${map}-sheet` : map;
+/** Each map's pictures are named for it, on the sheet. */
+const named = map => `${map}-sheet`;
 let browser, server;
 try {
   await buildGrowthPage(path.join(out, 'bundle.js'));
@@ -39,12 +38,12 @@ try {
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-    await page.goto(`${url}/?seconds=${SECONDS}&${SHEET ? 'sheet=1&' : ''}${query}`);
+    await page.goto(`${url}/?seconds=${SECONDS}&${query}`);
     await page.waitForFunction(() => window.growthProof?.snapshot().draws > 0, null, { timeout: 120_000 });
     return { page, context };
   };
   const snap = page => page.evaluate(() => window.growthProof.snapshot());
-  const result = { capturedAt: new Date().toISOString(), browser: browser.version(), renderer: 'SwiftShader', viewport: VIEW, seconds: SECONDS, surface: SHEET ? 'sheet' : 'globe', maps: {} };
+  const result = { capturedAt: new Date().toISOString(), browser: browser.version(), renderer: 'SwiftShader', viewport: VIEW, seconds: SECONDS, surface: 'sheet', maps: {} };
   for (const map of ['shop', 'storytree']) {
     const record = result.maps[map] = { frames: [] };
     // The strip: fixed moments through the growth, each drawn by the shipped canvas.
@@ -139,7 +138,7 @@ try {
     assert.equal(at0.visibleFiles, record.frames.at(-1).visibleFiles, `${map}: reduced motion shows every file circle at once`);
   }
   result.errors = errors;
-  writeFileSync(path.join(here, SHEET ? 'measurements-sheet.json' : 'measurements.json'), JSON.stringify(result, null, 2) + '\n');
+  writeFileSync(path.join(here, 'measurements-sheet.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));
   assert.deepEqual(errors, [], 'the renderer has no errors');
   console.log('PASS world 7: growth replayed from the recordings, islands only rise and notes only appear, all there by the end; reduced motion shows the end at once');

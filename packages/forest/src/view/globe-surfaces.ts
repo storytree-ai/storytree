@@ -3,36 +3,23 @@ import type { BufferAttribute, Group, LineSegments, Mesh, MeshBasicMaterial, Obj
 
 /** The app's attention switches, also available to guides mounted outside the app. */
 export type GlobeSurfaces = {
-  sea: boolean; grounds: boolean; roads: boolean; nameplates: boolean;
+  grounds: boolean; roads: boolean; nameplates: boolean;
   territories: false | "plain" | "health";
   fileCircles: boolean; knowledgeCore: boolean; sessionTints: boolean;
 };
 
 /** The ordinary Forest view. */
-const FOREST: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
-/** The islands and every mark on or between them; the glass and the core are not among them. */
-const NO_ISLANDS = { grounds: false, roads: false, nameplates: false, territories: false, fileCircles: false, sessionTints: false } as const;
+const FOREST: GlobeSurfaces = { grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
 
 /** The glass sheet's Library face: the islands as outlines with their names over the knowledge, their territories as borders
  * with no fill, no file circles and no roads; a session's tints still light them (ADR-1061 D2). */
 const OUTLINES = { roads: false, fileCircles: false } as const;
 
-/** What the globe shows: a host's switches over the Forest view, with the islands hidden in the Library or once
- * zoomed past them, while the glass and the core inside it stay (ADR-0919 D3, D4); on the glass sheet's Library face
- * (`outlines`), only their outlines and names. */
-export function shownSurfaces(surfaces: Partial<GlobeSurfaces> | undefined, hideIslands: boolean, outlines = false): GlobeSurfaces {
-  const shown = { ...FOREST, ...surfaces, ...(hideIslands ? NO_ISLANDS : {}) };
+/** What the sheet shows: a host's switches over the Forest view; on the glass sheet's Library face (`outlines`), only the
+ * islands' outlines and names. */
+export function shownSurfaces(surfaces: Partial<GlobeSurfaces> | undefined, outlines = false): GlobeSurfaces {
+  const shown = { ...FOREST, ...surfaces };
   return outlines ? { ...shown, ...OUTLINES, territories: shown.territories && "plain" } : shown;
-}
-
-/** Framings (radii across half the screen's short side) past which the islands drop away, and back above which they
- * return: about four times the opening zoom (1.18), some 27 wheel notches in, beyond where a reader looks at capability
- * names (about twice) and file circles (about 2.6 times), and apart so they do not flicker. */
-export const PAST_ISLANDS = { enter: 0.3, leave: 0.34 } as const;
-
-/** Whether the eye is zoomed in past the islands, given whether it was (ADR-0919 D3). */
-export function pastIslands(framing: number, wasPast: boolean): boolean {
-  return framing < (wasPast ? PAST_ISLANDS.leave : PAST_ISLANDS.enter);
 }
 
 const healthOpacity = new WeakMap<Mesh, number>();

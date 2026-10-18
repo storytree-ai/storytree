@@ -2,12 +2,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Vector3 } from 'three';
-import { forestScene, growPlanet, PLANET_RADIUS, selectionLanes, storyNodes } from '../index.js';
+import { forestScene, selectionLanes, storyNodes } from '../index.js';
 import { workStates } from '@storytree/arc-surface';
-import { planetLayout } from '../view/planet-navigation.js';
+import { sheetLayout } from '../view/sheet-navigation.js';
 import { territories, territoryAt } from '../territories/territories.js';
 import type { InstanceDescriptor } from '@storytree/forest-world';
-import { buildPlanetPathways, clipToCoast, islandCoastReach, plateTransform, RIBBON_GROUND_SCALE, rimLoops, routeTrails, SHIPPED_COAST, trailFillWidth } from '@storytree/forest-world/geometry';
+import { buildPlanetPathways, clipToCoast, plateTransform, RIBBON_GROUND_SCALE, rimLoops, routeTrails, SHIPPED_COAST, trailFillWidth } from '@storytree/forest-world/geometry';
 
 const health = { reported: { state: 'not-checked' as const }, verified: { state: 'not-checked' as const } };
 const capability = (id: string, dependsOn: string[]) => ({ id, title: id, dependsOn, proposed: true, status: "proposed" as const, contracts: [], health });
@@ -17,13 +17,14 @@ const tree = { arcs: [], stories: [
   { id: 'c', title: 'C', health, capabilities: [capability('c1', ['a1', 'b2']), capability('c2', ['c1'])] },
 ] };
 const scene = forestScene(tree, [], workStates([]));
-const spots = growPlanet(storyNodes(tree, []).map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(i => i.story === id)!) }))).spots;
+// The islands where the glass sheet lays them, on its big sphere.
+const { spots, radius: RADIUS } = sheetLayout(scene, new Map(storyNodes(tree, []).map(({ id, place }) => [id, place])));
 const owner = new Map(tree.stories.flatMap(s => s.capabilities.map(c => [c.id, s.id])));
 // Links between stories; a link within one story has no road (3.26 never lights one, and nothing else draws it).
 const links = tree.stories.flatMap(s => s.capabilities.flatMap(c => c.dependsOn.filter(to => owner.get(to) !== s.id).map(to => `${c.id}->${to}`))).sort();
 
 test('3.6 every recorded builds-on link between stories has one continuous trail chain, with shared trunks drawn once', () => {
-  const plan = buildPlanetPathways(scene, spots, PLANET_RADIUS);
+  const plan = buildPlanetPathways(scene, spots, RADIUS);
   assert.deepEqual(plan.edges.map(e => `${e.from}->${e.to}`).sort(), links);
   const segments = new Map(plan.segments.map(s => [s.id, s]));
   assert.equal(segments.size, plan.segments.length, 'a shared segment is drawn once');
@@ -46,11 +47,11 @@ test('3.6 every recorded builds-on link between stories has one continuous trail
     assert.equal(segment.width, trailFillWidth(segment.links.length) * RIBBON_GROUND_SCALE);
   }
   assert.ok(plan.segments.some(s => s.links.length > 1), 'the cost-grid still merges trails');
-  assert.equal(buildPlanetPathways(forestScene({ arcs: [], stories: [] }, [], workStates([])), new Map(), PLANET_RADIUS).edges.length, 0);
+  assert.equal(buildPlanetPathways(forestScene({ arcs: [], stories: [] }, [], workStates([])), new Map(), RADIUS).edges.length, 0);
 });
 
 test('3.7 cross-story chains land at both actual clipped shores', () => {
-  const plan = buildPlanetPathways(scene, spots, PLANET_RADIUS);
+  const plan = buildPlanetPathways(scene, spots, RADIUS);
   for (const edge of plan.edges) {
     const key = `${edge.from}->${edge.to}`;
     const docks = plan.docks.filter(d => d.links.includes(key));
@@ -67,7 +68,7 @@ test('3.7 cross-story chains land at both actual clipped shores', () => {
         distance = Math.min(distance, Math.hypot(dock.local.x-a.x-t*dx, dock.local.z-a.z-t*dz));
       }
       assert.ok(distance < 1e-7, `dock on ${dock.story} is on the coast, not the enclosing disc`);
-      const transform = plateTransform(spots.get(dock.story)!, PLANET_RADIUS);
+      const transform = plateTransform(spots.get(dock.story)!, RADIUS);
       const local = dock.point.clone().sub(new Vector3(...transform.position)).applyQuaternion(transform.quaternion.clone().invert());
       assert.ok(Math.hypot(local.x-dock.local.x, local.z-dock.local.z) < 1e-7);
       const cross = plan.segments.filter(s => s.links.includes(key));
@@ -81,7 +82,7 @@ test('3.6 routing failure is visible while every island and its failing trees st
   const { planetPathwayDrawing } = await import('@storytree/forest-world/geometry');
   const broken = { ...scene, links: [{ from: 'a1', to: 'missing-capability' }],
     islands: scene.islands.map(island => ({ ...island, trees: island.trees.map(t => ({ ...t, form: 'dead' as const })) })) };
-  const drawing = planetPathwayDrawing(broken, spots, PLANET_RADIUS);
+  const drawing = planetPathwayDrawing(broken, spots, RADIUS);
   assert.match(drawing.issue ?? '', /missing-capability/);
   assert.deepEqual([...drawing.plan.plates.keys()], tree.stories.map(s => s.id));
   assert.ok([...drawing.plan.plates.values()].every(plate => plate.descriptors.some(d => d.kind === 'cell-ground')));
@@ -91,14 +92,14 @@ test('3.6 routing failure is visible while every island and its failing trees st
 test('3.6 a change on one island routes nothing again (ADR-0836 D1)', () => {
   const routed: string[] = [];
   const route: typeof routeTrails = (...args) => { routed.push(args[2]); return routeTrails(...args); };
-  const before = buildPlanetPathways(scene, spots, PLANET_RADIUS, route);
+  const before = buildPlanetPathways(scene, spots, RADIUS, route);
   const healthy = { ...tree, stories: tree.stories.map(s => s.id !== 'c' ? s : { ...s, capabilities: s.capabilities.map(c => c.id !== 'c2' ? c : { ...c, proposed: false, status: 'healthy' as const }) }) };
   const changed = forestScene(healthy, [], workStates([]));
   // The page hands on unchanged islands as the objects already on show (ForestView.show).
   const next = { ...changed, islands: changed.islands.map(island => scene.islands.find(old => old.key === island.key) ?? island) };
   assert.notEqual(next.islands[2], scene.islands[2], 'island c changed');
   routed.length = 0;
-  const after = buildPlanetPathways(next, spots, PLANET_RADIUS, route);
+  const after = buildPlanetPathways(next, spots, RADIUS, route);
   assert.deepEqual(routed, []);
   assert.deepEqual(after.edges, before.edges, 'the same pathways are drawn');
 });

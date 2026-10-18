@@ -59,8 +59,7 @@ The growth draws about as fast as the globe it grows into, or faster, because mo
 ## Reproduce
 
 ```sh
-node packages/website/evidence/growth/capture.mjs            # on the globe
-node packages/website/evidence/growth/capture.mjs --sheet    # on the glass sheet
+node packages/website/evidence/growth/capture.mjs            # on the glass sheet (since increment_093d5b3b28d8 retired the globe, the only map)
 ```
 
 It asserts the following:

@@ -2,10 +2,10 @@
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import type { AnnotatedTree, ArcView, Change, Holds, Line } from "@storytree/library";
-import { forestScene, growPlanet, storyNodes } from "@storytree/forest";
+import { forestScene, storyNodes } from "@storytree/forest";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import { saveForestSnapshot } from "@storytree/forest/snapshot";
-import { islandCoastReach } from "@storytree/forest-world/geometry";
+import { sheetLayout } from "@storytree/forest/view";
 import type { TourSnapshot } from "./forest-data.js";
 
 export interface TourReading {
@@ -92,7 +92,8 @@ export async function refreshTourSnapshot(file: string, read: () => Promise<Tour
     const { workStates } = await import(pathToFileURL(resolve.resolve("@storytree/arc-surface")).href) as { workStates(lines: readonly Line[]): Parameters<typeof forestScene>[2] };
     const scene = forestScene(tree, changes, workStates(lines), survey);
     const places = storyNodes(tree, changes, survey);
-    const grown = growPlanet(places.map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(island => island.story === id)!) })));
+    // Each island where the glass sheet lays the plan (ADR-1043 D2).
+    const grown = sheetLayout(scene, new Map(places.map(({ id, place }) => [id, place])));
     const arcs = publicArcs(input.arcs.filter(view => view.state !== "closed"));
     const boardIds = new Set(arcs.flatMap(view => [view.arc.id, ...view.increments.map(increment => increment.id)]));
     const snapshot = {

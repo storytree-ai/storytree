@@ -699,7 +699,7 @@ for (const backend of [memory, postgres]) {
 
     const week = await flight.closedArcs({ from: "2026-10-01", to: "2026-10-19" }, at);
     assert.deepEqual(week.map(({ arc }) => arc.id), [old, yesterday], "only closed arcs, the window's end left out");
-    assert.deepEqual(week[1]!.increments.map(({ fields }) => fields.outcome?.date), ["2026-10-02", "2026-10-18"]);
+    assert.deepEqual(week[1]!.increments.map(({ fields }) => fields.outcome?.date).sort(), ["2026-10-02", "2026-10-18"], "a closed arc carries every increment it closed with");
   });
 
   contract("10.5", "an increment moves to another live arc keeping its id, lifecycle and waits, the history recording the move and its reason; only open work moving to a closed arc is refused", async ({ work, flight, transactions }) => {

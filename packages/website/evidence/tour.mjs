@@ -406,6 +406,7 @@ async function verifyShortPhones(browser, url) {
   for (const [width, height] of [[320, 700], [320, 568]]) {
     const page = await browser.newPage({ viewport: { width, height }, reducedMotion: "reduce" });
     await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
+    page.on('console', m => { if (m.text().startsWith('DBG')) console.log(m.text()); });
     await page.goto(url);
     await page.locator("#tour-play").click();
     await verifyEveryStepFits(page, `${width}x${height}`);
@@ -739,10 +740,8 @@ export async function verifyOwnSheetFits(browser, url, output, sizes = [[390, 84
       await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "storytree"
         && [...document.querySelectorAll(".planet-nameplate")].filter(plate => Number(getComputedStyle(plate).opacity) > .5).length >= 5, null, { timeout: 90_000 });
       // Then until the camera's ease into free play's framing is over: with software WebGL its frames come slowly, so it takes seconds.
-      // A run narrowed to the shop still eases in and holds storytree's free play as long as the full run does: picked sooner, the
-      // shop's sheet at 320px settles with its names off the screen's right edge.
       for (let last = "", now = await where(), tick = 0; now !== last && tick < 40; tick++) { await page.waitForTimeout(750); last = now; now = await where(); }
-      for (let tick = 0; tick < 8; tick++) { if (wanted("freeplay")) await sample("freeplay"); await page.waitForTimeout(250); }
+      for (let tick = 0; tick < 8 && wanted("freeplay"); tick++) { await sample("freeplay"); await page.waitForTimeout(250); }
     }
     // On a phone, free play on the shop's sheet, which is wider than a phone's screen too.
     if (!laptop && wanted("shop")) {

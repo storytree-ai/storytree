@@ -28,6 +28,8 @@
  * - A session that hands its pull request to the watcher has its claims moved to that pull request's holder, which
  *   reads live until the watcher lets them go on its merge or closing, or gives it up; only a session on its branch,
  *   its fix session, takes them over (holdForPull, letGo, ADR-1037).
+ * - A capability on the capabilities list of an increment another live session holds is refused at the claim too, naming
+ *   that increment first, as the list edit and the edit gate refuse it (ADR-0949 D2): a late session backs off at the first door.
  * - Claims work on trust: storytree refuses a second claim, but cannot stop an agent that never asks.
  *   The edit tools are refused before an edit to work the session may not do (edit-gate.ts, ADR-0949 D3);
  *   nothing claims after the edit (ADR-0953 D5).
@@ -133,7 +135,8 @@ type ClaimOptions = { readonly moveBranch?: true; readonly keepBranch?: true; re
 /**
  * Claim `id`, a capability or an increment, for the context's session, with a one-line reason.
  * Refused if the library has no live capability or increment by that id, if it is a closed
- * increment, if it is waiting work (waitingOn), or if another live session holds it; a holder idle
+ * increment, if it is waiting work (waitingOn), or if another live session holds it, a capability also when it is on
+ * the list of an increment another live session holds (listingOf); a holder idle
  * past the quiet time is taken over. Claiming a proposed increment starts it, through the
  * library's own `advanceIncrement` (0.2's ADR-0386). Claiming what it already holds changes nothing,
  * unless `moveBranch` is given with a new branch, or it is claimed from a linked worktree on another branch (5.48):
@@ -159,6 +162,11 @@ export async function claim(context: ClaimContext, id: string, reason: string, g
     if (!mine && current?.holder === "live" && !takesOver(current, context)) {
       await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...file, ...underOf(standing, context.session, found.part) });
       return held(standing.values(), current);
+    }
+    const listing = current?.holder === "live" ? undefined : await listingOf(context, standing.values(), found.part);
+    if (listing !== undefined) {
+      await log.append({ ...who(context), kind: "claim-refused", ...found.part, holder: listing.session, reason, ...file, ...underOf(standing, context.session, found.part) });
+      return held(standing.values(), listing, listing.increment);
     }
     // A claim may have waited for this lock without needing any library write at all.
     context.writer?.signal?.throwIfAborted();
@@ -203,13 +211,31 @@ export async function claimRefusal(context: ClaimContext, id: string, reason?: s
     ...(context.restarted === undefined ? {} : { restarted: context.restarted }),
   });
   const current = standing.find((claim) => (claim.increment ?? claim.capability) === id);
-  if (current === undefined || current.session === context.session || current.holder !== "live" || takesOver(current, context)) return undefined;
+  const direct = current !== undefined && current.session !== context.session && current.holder === "live" && !takesOver(current, context);
+  const listing = direct || current?.holder === "live" ? undefined : await listingOf(context, standing, found.part);
+  const holder = direct ? current : listing;
+  if (holder === undefined) return undefined;
   // A caller giving the reason it would claim with is turned away now, so the refusal is recorded.
   if (reason !== undefined) {
     const under = underOf(new Map(standing.map((claim) => [claim.increment ?? claim.capability!, claim])), context.session, found.part);
-    await context.log.append(context.project, { ...who(context), kind: "claim-refused", ...found.part, holder: current.session, reason, ...under });
+    await context.log.append(context.project, { ...who(context), kind: "claim-refused", ...found.part, holder: holder.session, reason, ...under });
   }
-  return held(standing, current);
+  return held(standing, holder, listing?.increment);
+}
+
+/**
+ * Another live session's claim on an increment whose capabilities list names the capability `part`, unless the context's
+ * session takes it over (its pull request's fix session): one session plans a capability at a time, so its claim is
+ * refused at the first door, as the list edit and the edit gate refuse it (ADR-0949 D2, ADR-0944 D3).
+ */
+async function listingOf(context: ClaimContext, standing: Iterable<Claim>, part: Part): Promise<Claim | undefined> {
+  if (part.capability === undefined) return undefined;
+  for (const claim of standing) {
+    if (claim.increment === undefined || claim.session === context.session || claim.holder !== "live" || takesOver(claim, context)) continue;
+    const listed = ((await context.library.get(claim.increment))?.fields as { capabilities?: string[] } | undefined)?.capabilities ?? [];
+    if (listed.includes(part.capability)) return claim;
+  }
+  return undefined;
 }
 
 /** Whether the context's session takes over `current`, a pull request's held claim: it works on that pull request's branch, as its fix session does (ADR-1037 D2). */
@@ -217,10 +243,10 @@ function takesOver(current: Claim, context: ClaimContext): boolean {
   return pullOf(current.session) !== undefined && context.branch !== undefined && context.branch === current.branch;
 }
 
-/** The refusal of a claim `holder` holds, naming the increments it holds the work for among `standing` claims. */
-function held(standing: Iterable<Claim>, holder: Claim): Held {
+/** The refusal of a claim `holder` holds, naming the increments it holds the work for among `standing` claims, `listedOn` first: the one whose list names it. */
+function held(standing: Iterable<Claim>, holder: Claim, listedOn?: string): Held {
   const holds = [...standing].filter((claim) => claim.session === holder.session && claim.increment !== undefined).map((claim) => claim.increment!);
-  const heldFor = [...new Set([...(holder.under === undefined ? [] : [holder.under]), ...holds])];
+  const heldFor = [...new Set([...(listedOn === undefined ? [] : [listedOn]), ...(holder.under === undefined ? [] : [holder.under]), ...holds])];
   return { ok: false, refused: "held", holder, heldFor };
 }
 

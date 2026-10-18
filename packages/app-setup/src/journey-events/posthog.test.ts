@@ -102,14 +102,21 @@ test("14.2 corrupt queue rows cannot widen the journey payload", async () => {
 });
 
 test("14.2 a slow but successful US acknowledgement counts as delivery, as a cold connection from far away takes over a second", async () => {
+  const deadlines = new Set<{ ms: number; fire: () => void }>();
+  let asked!: () => void;
+  let answer!: (response: Response) => void;
+  const requested = new Promise<void>((resolve) => { asked = resolve; });
   const transport = createPostHogTransport({
     projectKey: "phc_test_only",
     permitted: () => true,
-    fetch: async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1_300));
-      return Response.json({ status: 1 });
-    },
+    // The transport's clock: a deadline is scheduled here and comes due only when the test says.
+    after: (ms, fire) => { const deadline = { ms, fire }; deadlines.add(deadline); return () => deadlines.delete(deadline); },
+    fetch: () => { asked(); return new Promise<Response>((resolve) => { answer = resolve; }); },
   });
-  await transport.send(event);
+  const sent = transport.send(event);
+  await requested;
+  for (const deadline of [...deadlines]) if (deadline.ms <= 1_300) deadline.fire();
+  answer(Response.json({ status: 1 }));
+  await sent;
   await transport.close();
 });

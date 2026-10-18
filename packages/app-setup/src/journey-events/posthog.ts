@@ -19,8 +19,11 @@ export function createPostHogTransport(options: {
   projectKey: string;
   permitted: () => boolean;
   fetch?: typeof globalThis.fetch;
+  /** Schedules `fire` after `ms` on the transport's clock and returns its cancel; real time by default. */
+  after?: (ms: number, fire: () => void) => () => void;
 }): { send(event: DeliveryEvent): Promise<void>; close(): Promise<void> } {
   const fetch = options.fetch ?? globalThis.fetch;
+  const after = options.after ?? ((ms, fire) => { const timer = setTimeout(fire, ms); return () => clearTimeout(timer); });
   let closed = false;
   const pending = new Set<Promise<void>>();
   const permitted = () => !closed && /^phc_[A-Za-z0-9_]+$/.test(options.projectKey) && options.permitted();
@@ -47,13 +50,13 @@ export function createPostHogTransport(options: {
         fetch: async (url, init) => {
           // captureImmediate in this pinned SDK catches its own failures. Record the actual
           // HTTP acknowledgement here; keep vendor error bodies and request keys out of SDK logs.
-          let timer: ReturnType<typeof setTimeout> | undefined;
+          let cancel: (() => void) | undefined;
           const controller = new AbortController();
           try {
             if (url !== "https://us.i.posthog.com/batch/"|| typeof init.body !== "string" || !permitted()) throw unavailable();
             // A cold TLS connection to the US from far away takes over a second (seen live from Australia).
             const deadline = new Promise<never>((_resolve, reject) => {
-              timer = setTimeout(() => { controller.abort(); reject(unavailable()); }, 2_500);
+              cancel = after(2_500, () => { controller.abort(); reject(unavailable()); });
             });
             const response = await Promise.race([
               fetch(url, {
@@ -65,7 +68,7 @@ export function createPostHogTransport(options: {
             accepted = response.ok;
             void response.body?.cancel().catch(() => {});
           } catch { accepted = false; }
-          finally { clearTimeout(timer); }
+          finally { cancel?.(); }
           // A neutral SDK response prevents internal retries/logging. Only `accepted` below
           // is returned to Storytree as success; failed or blocked events remain on disk.
           return Response.json({ status: 1 });

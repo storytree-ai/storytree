@@ -325,13 +325,19 @@ test("3.17 · the dispatcher's cap is the configured session count, which the la
   assert.deepEqual(slots, ["1 engines running, cap 3", "1 engines running, cap 7"]);
 });
 
-test("3.19 · `ready` prints, as JSON, the engines running, the cap, the lanes folder and the work the pool would start now, each with its arc's priority, for the project named", async (t) => {
+test("3.19 · `ready` prints, as JSON, the engines running, the cap, the lanes folder, the work the pool would start now, each with its arc's priority, and every arc it would plan with nothing ready, each with its state, for the project named", async (t) => {
   const b = await box(t, {
     maxLanes: async () => 4, count: async () => 2,
     survey: async (project) => {
       const work = poolWork(["increment_ranked", "increment_held", "increment_free"], { claims: [{ holder: "live", increment: "increment_held", session: "s1", since: "2026-10-08T00:00:00Z" }] });
       work.increments[0].priority = 1;
       for (const one of work.increments) one.title = `${project}: ${one.id}`;
+      work.arcs = [
+        { id: "arc_later", state: "active", title: "Later", created: "2026-10-02T00:00:00Z", openQuestions: 0 },
+        { id: "arc_increment_free", state: "active", title: "Has ready work", created: "2026-10-01T00:00:00Z", openQuestions: 0 },
+        { id: "arc_asked", state: "active", title: "Waits on a question", created: "2026-10-01T00:00:00Z", openQuestions: 1 },
+        { id: "arc_first", state: "active", title: "First", created: "2026-10-01T00:00:00Z", openQuestions: 0 },
+      ];
       return work;
     },
   });
@@ -343,6 +349,10 @@ test("3.19 · `ready` prints, as JSON, the engines running, the cap, the lanes f
     ready: [
       { id: "increment_ranked", title: "x-twin-map-reads-on: increment_ranked", priority: 1 },
       { id: "increment_free", title: "x-twin-map-reads-on: increment_free" },
+    ],
+    plans: [
+      { id: "arc_first", title: "First", state: "[0,[]]" },
+      { id: "arc_later", title: "Later", state: "[0,[]]" },
     ],
   });
 });

@@ -198,7 +198,7 @@ test("7.8 · an arm with nothing ready is given one planning lane for its first 
     "round 0: one planning lane for on, not two, while off builds; rounds 1-3: on's lane runs, then its arc is unchanged, and off's arc was planned in its state before the restart; round 4: on's arc changed");
   assert.ok(box.lines.some((line) => /plan arc_on \(On's arc\) in arm map-reads-on: nothing ready/.test(line)));
   assert.deepEqual(box.saved.at(-1)?.arms, {
-    "map-reads-on": { launches: 2, firstLane: "2026-10-17T00:00:00.000Z", planned: { arc_on: "s2" } },
+    "map-reads-on": { launches: 2, firstLane: "2026-10-17T00:00:00.000Z", planned: { arc_on: "s2" }, checking: "arc_on" },
     "map-reads-off": { launches: 1, firstLane: "2026-10-17T00:00:00.000Z", planned: { arc_off: "t1" } },
   });
 });
@@ -247,4 +247,22 @@ test("7.10 · a run approves each arm's checkout as its trunk, as the machine it
       }
     });
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("7.11 · a planning lane that ends with its arm's arc unchanged and nothing ready leaves that arc offered again after the back-off, said once; one after which work is ready leaves it planned", async () => {
+  const box = fakeBox({
+    rounds: 34, planRounds: 2,
+    real: () => idle(0, 4),
+    arms: { "map-reads-on": () => [], "map-reads-off": (round) => (round === 2 ? ["off1"] : []) },
+    plans: {
+      "map-reads-on": () => [{ id: "arc_on", title: "On's arc", state: "s1" }],
+      "map-reads-off": () => [{ id: "arc_off", title: "Off's arc", state: "t1" }],
+    },
+  });
+  assert.equal(await box.run(), 0);
+  assert.deepEqual(box.launched, ["map-reads-on:plan:arc_on", "map-reads-off:plan:arc_off", "map-reads-off:off1", "map-reads-on:plan:arc_on"],
+    "both lanes end at round 2; on's arc is unchanged with nothing ready, so it is offered again at round 32, 30 minutes after its lane ended; off's lane left work ready, so its arc stays planned");
+  assert.equal(box.lines.filter((line) => /plan arc_on in arm map-reads-on changed nothing: offered again after the back-off/.test(line)).length, 1);
+  assert.ok(!box.lines.some((line) => /arc_off in arm map-reads-off changed nothing/.test(line)));
+  assert.deepEqual(box.saved.at(-1)?.arms["map-reads-off"]?.planned, { arc_off: "t1" });
 });

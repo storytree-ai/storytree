@@ -21,7 +21,7 @@ const ARMS: ArmRun[] = [
 ];
 
 /** A box whose real pool and arms are scripted per look; the dispatcher runs until `rounds` looks have passed. */
-function fakeBox({ rounds, real, arms, plans = {}, planRounds = 0, points = async () => ({}), record = async () => [], state = { arms: {} } as RunState, launchCode = 0 }: {
+function fakeBox({ rounds, real, arms, plans = {}, planRounds = 0, points = async () => ({}), record = async () => [], state = { arms: {} } as RunState, launchCode = 0, start = "2026-10-17T00:00:00Z" }: {
   rounds: number;
   real: (round: number) => Look;
   arms: Record<string, (round: number) => string[]>;
@@ -31,6 +31,7 @@ function fakeBox({ rounds, real, arms, plans = {}, planRounds = 0, points = asyn
   record?: (round: number) => Promise<readonly string[]>;
   state?: RunState;
   launchCode?: number;
+  start?: string;
 }) {
   let round = 0;
   const lines: string[] = [], launched: string[] = [], saved: RunState[] = [];
@@ -38,7 +39,7 @@ function fakeBox({ rounds, real, arms, plans = {}, planRounds = 0, points = asyn
   // A planning lane runs for `planRounds` looks (or until the run stops), so a look can find it still running.
   const planning: { until: number; end: () => void }[] = [];
   const endPlans = (all: boolean) => { for (const lane of planning.filter((one) => all || round >= one.until)) { lane.end(); planning.splice(planning.indexOf(lane), 1); } };
-  let clock = Date.parse("2026-10-17T00:00:00Z");
+  let clock = Date.parse(start);
   return {
     lines, launched, saved,
     run: () => runExperiment({
@@ -265,4 +266,15 @@ test("7.11 · a planning lane that ends with its arm's arc unchanged and nothing
   assert.equal(box.lines.filter((line) => /plan arc_on in arm map-reads-on changed nothing: offered again after the back-off/.test(line)).length, 1);
   assert.ok(!box.lines.some((line) => /arc_off in arm map-reads-off changed nothing/.test(line)));
   assert.deepEqual(box.saved.at(-1)?.arms["map-reads-off"]?.planned, { arc_off: "t1" });
+});
+
+test("7.12 · a run restarted while an unchanged arc waits out its back-off keeps the back-off: the arc is offered again only once it has passed", async () => {
+  const plans = { "map-reads-on": () => [{ id: "arc_on", title: "On's arc", state: "s1" }] };
+  const first = fakeBox({ rounds: 4, planRounds: 2, real: () => idle(0, 4), arms: {}, plans });
+  await first.run();
+  assert.deepEqual(first.launched, ["map-reads-on:plan:arc_on"]);
+  const second = fakeBox({ rounds: 30, real: () => idle(0, 4), arms: {}, plans, state: first.saved.at(-1)!, start: "2026-10-17T00:04:00Z" });
+  await second.run();
+  assert.deepEqual(second.launched, ["map-reads-on:plan:arc_on"], "the lane ended at 00:02, so the restarted run, from 00:04, offers the arc again at 00:32, its 28th look, not at once");
+  assert.ok(second.lines.some((line) => line.startsWith("2026-10-17T00:32:00Z plan arc_on")), second.lines.join("\n"));
 });

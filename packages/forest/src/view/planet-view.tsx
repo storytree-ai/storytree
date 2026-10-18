@@ -86,7 +86,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   const setPose = useCallback((pose: GlobePose) => { setFraming(pose.framing); setOffset(pose.sideOffset); }, []);
   // A live update that moved no island keeps the spots on show, so only a changed island's plate draws again (ADR-0836 D1).
   const shown = useRef<ReturnType<typeof planetLayout>>(undefined);
-  const layout: ReturnType<typeof planetLayout> & Partial<Pick<ReturnType<typeof sheetLayout>, "extent" | "under">> = useMemo(() => sheet ? sheetLayout(scene, places) : planetLayout(scene, places, shown.current, frame), [scene, places, frame, sheet]);
+  const layout: ReturnType<typeof planetLayout> & Partial<Pick<ReturnType<typeof sheetLayout>, "extent" | "under">> = useMemo(() => sheet ? sheetLayout(scene, places, frame) : planetLayout(scene, places, shown.current, frame), [scene, places, frame, sheet]);
   shown.current = layout;
   // 3.28: while a change of layout plays, only the plates travel, with no roads; the rest is drawn once, at the new layout.
   const moving = useMovingSpots(layout.spots, easeMoves), travelling = moving !== layout.spots;
@@ -143,7 +143,7 @@ export function PlanetView({ core, scene, places, wisps: live, selected, highlig
   return <PlanetWorldCanvas scene={travelling ? roadless : layout.scene} spots={moving} radius={layout.radius}
     surface surfaces={shownSurfaces} framing={cameraFraming} sideOffset={cameraOffset} orbit={false} sheet={layout.extent} hollow={outlines}
     offset={centre}
-    inside={underSheet !== undefined ? library && <UnderTheGlass clear={outlines}><KnowledgeGlobePoints core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} /></UnderTheGlass> : <group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
+    inside={underSheet !== undefined ? library && <UnderTheGlass clear={outlines}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} sheet={underSheet} growing={growth !== undefined} /></UnderTheGlass> : <group name="globe-core" visible={library && shownSurfaces.knowledgeCore}><GrowingCore core={core} spots={layout.spots} radius={layout.radius} places={codePlaces} growing={growth !== undefined} /></group>}
     rotation={rotation.toArray()} plateChildren={overlays} lanes={lanes} laneWays={ways} growth={growth} liveRoads={liveRoads}>
     <Navigation islands={layout.islands} radius={layout.radius} titles={new Map(scene.islands.map(i => [i.story, i.title]))}
       rotation={rotation} onRotate={onRotate} onPose={setPose} onControls={onControls} onPick={onPick} onNote={onNote} mode={mode} onPast={setPast} sheet={layout.extent}
@@ -191,7 +191,7 @@ function useMovingSpots(spots: ReadonlyMap<string, FacingIsland["spot"]>, ease: 
   return drawn.current;
 }
 
-/** The core inside the globe, its notes appearing with a growth when there is one (knowledge core 1.9). */
+/** The core inside the globe or under the glass sheet, its notes appearing with a growth when there is one (knowledge core 1.9). */
 function GrowingCore({ growing, ...props }: Omit<Parameters<typeof KnowledgeGlobePoints>[0], "growth"> & { growing: boolean }) {
   const growth = usePlanetGrowth();
   return <KnowledgeGlobePoints {...props} growth={growing ? growth : undefined} />;

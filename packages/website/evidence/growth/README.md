@@ -29,6 +29,20 @@ Clips of each playing in real time: [shop-growth.webm](shop-growth.webm), [story
 
 **Reduced motion** shows the end state at once, every island, note, territory and file circle, and draws nothing more. `shop-reduced-motion.png` and `storytree-reduced-motion.png` are byte-identical to each map's final frame (`-08.png`).
 
+## On the glass sheet
+
+2026-10-19, Mint box, increment_3a93539db9cc: the same two recordings grown on the glass sheet that replaces the globe (ADR-1043), with `capture.mjs --sheet` (the page's `&sheet=1`). Each island stands where the app's forest page puts its plan on the sheet, depth running west to east, and every stage drawn within that full plan keeps it there (forest 3.28, website 3.4); the roads are measured on the sheet, so each draws on at the lane's speed there. The sheet's glass does not swell from a point as the globe's does: the first frame is the bare glass. The knowledge core's notes, hung under the glass, appear as the replay reaches their dates, as they do inside the globe (knowledge core 1.9). The same assertions hold (below), and the browser reported no errors.
+
+The shop on the sheet, beside its globe above:
+
+![The shop's growth on the glass sheet](shop-sheet-strip.png)
+
+storytree's saved reading on the sheet (re-read since the globe's pictures: 25 islands and 919 notes now):
+
+![storytree's growth on the glass sheet](storytree-sheet-strip.png)
+
+Clips: [shop-sheet-growth.webm](shop-sheet-growth.webm), [storytree-sheet-growth.webm](storytree-sheet-growth.webm); single frames `shop-sheet-NN.png` and `storytree-sheet-NN.png`; `measurements-sheet.json` holds the run. Its frame rates, read as below (headless Chromium 148, SwiftShader, 1440×900, on the Mint box with other lanes running): the shop 27.21 fps growing (p95 107.6 ms) against 22.73 whole (136 ms); storytree 24.23 fps growing (92.4 ms) against 16.8 whole (115 ms).
+
 ## Frame rate
 
 `measurements.json` records each run. Frame rates are page `requestAnimationFrame` intervals at 1440×900 in headless Chromium 148 on SwiftShader (CPU rendering), on a Windows laptop (Snapdragon X Elite, 12 cores) with other sessions running, so the absolute numbers move with its load. Each growth's 15-second play is measured beside a baseline: the same globe with no growth, redrawn every frame for as long, run back to back in the same capture. The clip is recorded on a separate run, since recording video costs frames. The comparison that holds is growth against baseline within one run.
@@ -45,7 +59,8 @@ The growth draws about as fast as the globe it grows into, or faster, because mo
 ## Reproduce
 
 ```sh
-node packages/website/evidence/growth/capture.mjs
+node packages/website/evidence/growth/capture.mjs            # on the globe
+node packages/website/evidence/growth/capture.mjs --sheet    # on the glass sheet
 ```
 
 It asserts the following:

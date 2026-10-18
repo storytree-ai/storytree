@@ -2,6 +2,7 @@
 import { growthPlan, type GrowthPlan, type GrowthOptions } from "@storytree/forest/world/planet";
 import { islandCoastReach } from "@storytree/forest/world/geometry";
 import { growPlanet, placeInRow } from "@storytree/forest";
+import { sheetLayout } from "@storytree/forest/view";
 import type { GrowthSnapshot } from "./forest-data.js";
 
 type Stage = GrowthSnapshot["stages"][number];
@@ -111,6 +112,14 @@ export function mapRecording(saved: GrowthSnapshot): GrowthSnapshot {
   const at = new Map(places.map(node => [node.id, node.place]));
   const grown = growPlanet(frame.islands.map(island => ({ story: island.story, place: at.get(island.story)!, reach: islandCoastReach(island) })));
   return { ...saved, scene: frame, places, spots: [...grown.spots], radius: grown.radius, stages };
+}
+
+/** A recorded growth laid on the glass sheet as the app lays its plan (ADR-1043 D2): each island's spot where the forest page's
+ * sheet puts the recording's full plan, depth running west to east, and the sheet's radius, so the roads it grows are measured
+ * on the sheet. Each stage, drawn within that plan, keeps its islands there (forest 3.28). */
+export function onSheet(recording: GrowthSnapshot): GrowthSnapshot {
+  const layout = sheetLayout(recording.scene, new Map(recording.places.map(node => [node.id, node.place])));
+  return { ...recording, spots: [...layout.spots], radius: layout.radius };
 }
 
 /** Each island's place as `scene` draws it: a row for each depth from the front (z 0) back, a slot for each island west to east in it. */

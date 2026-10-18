@@ -2,11 +2,13 @@
 // the shop's saved growth stage by stage, or storytree's saved reading grown from one point by its own dated history,
 // each with its knowledge core growing with it.
 // ?map=shop|storytree  &seconds=<length>  &at=<seconds> fixes a moment; absent, it plays on the canvas's clock.
+// &sheet=1 grows it on the glass sheet, each island where the app's sheet puts the plan (ADR-1043), not on the globe.
 import { createRoot } from 'react-dom/client';
 import { growthPlan, crossingLength, type PlanetSpot } from '@storytree/forest/world/planet';
 import { createKnowledgeCore } from '@storytree/knowledge-core/view';
 import { PlanetView } from '@storytree/forest/view';
 import { buildPlanetPathways } from '@storytree/forest/world/geometry';
+import { onSheet } from '../../src/map-recording.js';
 import shop from '../../src/shop-snapshot.json' with { type: 'json' };
 import storytree from '../../src/forest-snapshot.json' with { type: 'json' };
 
@@ -16,8 +18,10 @@ type Snapshot = { radius: number; scene: any; spots: [string, PlanetSpot][]; cap
 const query = new URLSearchParams(location.search);
 const map = query.get('map') === 'storytree' ? 'storytree' : 'shop';
 const saved = (map === 'shop' ? shop : storytree) as unknown as Snapshot;
-const spots = new Map(saved.spots);
-const pathways = buildPlanetPathways(saved.scene, spots, saved.radius);
+const sheet = query.get('sheet') === '1';
+// On the sheet the roads are measured where the sheet lays the islands, so each draws on at the lane's speed there.
+const laid = sheet ? onSheet(saved as any) : saved;
+const pathways = buildPlanetPathways(saved.scene, new Map(laid.spots), laid.radius);
 // The shop's recorded stages; storytree's saved reading, staged by when its library recorded each story and capability.
 // A shop stage whose recorded sessions changed holds a beat, so each claim and landing is seen (world 7.6).
 const sessionsOf = (i: number) => JSON.stringify(saved.stages?.[i]?.wisps?.map(w => [w.session, w.story]) ?? []);
@@ -98,6 +102,6 @@ const places = new Map((saved.places ?? []).map(p => [p.id, p.place]));
 const sessions = saved.stages?.map(({ at, wisps }) => ({ at, wisps: wisps ?? [] }));
 const none = () => {};
 createRoot(document.getElementById('globe')!).render(
-  <PlanetView core={core} scene={saved.scene} places={places} frame={map === 'shop' ? saved.scene : undefined} wisps={[]} selected={undefined}
+  <PlanetView core={core} scene={saved.scene} places={places} frame={map === 'shop' || sheet ? saved.scene : undefined} sheet={sheet} wisps={[]} selected={undefined}
     onPick={none} onNote={none} growth={growth} recordedSessions={growth && sessions} />,
 );

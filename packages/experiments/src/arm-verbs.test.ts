@@ -10,11 +10,11 @@ import { EXPERIMENT_FAMILIES } from "./record/verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("2.4 · Experiments declares `experiment arm make` and `drop`, which act on the cluster holding the caller's library on this machine and are refused, making nothing, where the library is not there", async () => {
+test("2.4 · Experiments declares `experiment arm make`, `grant` and `drop`, which act on the cluster holding the caller's library on this machine and are refused, making nothing, where the library is not there", async () => {
   const [family] = EXPERIMENT_FAMILIES;
   assert.ok(family!.families!.includes(ARM_FAMILY));
   const arm = ARM_FAMILY;
-  assert.deepEqual([family!.name, arm.name, ...arm.verbs.map((one) => (one.command as { name: string }).name)], ["experiment", "arm", "make", "drop"]);
+  assert.deepEqual([family!.name, arm.name, ...arm.verbs.map((one) => (one.command as { name: string }).name)], ["experiment", "arm", "make", "grant", "drop"]);
 
   const before = process.env.STORYTREE_HOME;
   await withTempDir(async (home) => {

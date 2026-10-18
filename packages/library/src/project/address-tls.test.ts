@@ -21,7 +21,7 @@ import { test } from "node:test";
 import { TLSSocket } from "node:tls";
 import { fileURLToPath } from "node:url";
 
-import { saveKey } from "../keys/index.js";
+import { saveKey } from "@storytree/keys";
 
 import { addressServer } from "./address.js";
 import { ConnectionError } from "./connection-error.js";

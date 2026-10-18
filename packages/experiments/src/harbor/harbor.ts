@@ -16,7 +16,7 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } 
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { resolveKey } from "@storytree/library/keys";
+import { resolveKey } from "@storytree/keys";
 import { connect } from "@storytree/library";
 import { readExperiment, readLibrary } from "@storytree/project-and-caller";
 

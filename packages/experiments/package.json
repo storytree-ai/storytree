@@ -21,6 +21,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@storytree/keys": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",

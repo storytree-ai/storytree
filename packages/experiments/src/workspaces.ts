@@ -15,7 +15,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { saveKey } from "@storytree/library/keys";
+import { saveKey } from "@storytree/keys";
 import { readExperiment } from "@storytree/project-and-caller";
 
 /** Something SQL can be run on, with values: a pg Client or Pool signed in as the cluster's admin. */

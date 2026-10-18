@@ -8,7 +8,7 @@
 import { readdirSync } from "node:fs";
 import path from "node:path";
 
-import { resolveKey } from "@storytree/library/keys";
+import { resolveKey } from "@storytree/keys";
 import { verb, VerbRefusal, type VerbFamilies, type VerbPlace } from "@storytree/library/verbs";
 import { readExperiment, storytreeHome } from "@storytree/project-and-caller";
 

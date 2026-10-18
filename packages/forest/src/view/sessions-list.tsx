@@ -86,6 +86,65 @@ export function windowsReader(read: (sessions: readonly string[]) => Promise<rea
   };
 }
 
+/** How long a failed refresh counts toward the banner, and how many in that time raise it (7.33). */
+export const FAILURES_WINDOW_MS = 30_000;
+export const FAILURES_SHOWN = 3;
+
+/** What failed when no step of the list's own is named: the page reading's ask of the library, or its resume. */
+export const NEWS_STEP = "reading the library's news";
+
+/** A failure in one named step of the list's handling of news, carrying the error it caught. */
+export class StepFailed extends Error {
+  constructor(readonly step: string, override readonly cause: unknown) {
+    super(`${step} failed`, { cause });
+  }
+}
+
+/** Run `step`, naming it on any failure, so the banner and the app log say which read or step failed. */
+async function named<T>(step: string, run: () => T | Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    throw new StepFailed(step, error);
+  }
+}
+
+const said = (error: unknown): string => error instanceof Error ? error.message : String(error);
+
+/**
+ * The list's failed refreshes, kept so the banner says what failed and shows only once failures
+ * persist (7.33): one the next ask recovers is no banner (decision_bf2b01d46359, the rows last drawn
+ * stay meanwhile). The banner shows while `shown` failures fall within the last `windowMs`, and clears
+ * once news is handled again or they age out. Each failure is told to `log` the first time its step
+ * and message are heard since the last recovery, with its stack, so an outage writes one line, not one per ask.
+ */
+export function refreshFailures(log: (line: string) => void, windowMs = FAILURES_WINDOW_MS, shown = FAILURES_SHOWN) {
+  let failures: { step: string; message: string; at: number }[] = [];
+  const logged = new Set<string>();
+  return {
+    failed(error: unknown, at: number): void {
+      const step = error instanceof StepFailed ? error.step : NEWS_STEP;
+      const cause = error instanceof StepFailed ? error.cause : error;
+      const message = said(cause);
+      failures = [...failures.filter(failure => at - failure.at < windowMs), { step, message, at }];
+      if (logged.has(`${step}\n${message}`)) return;
+      logged.add(`${step}\n${message}`);
+      log(`storytree sessions list: ${step} failed: ${cause instanceof Error ? cause.stack ?? message : message}`);
+    },
+    recovered(): void {
+      failures = [];
+      logged.clear();
+    },
+    /** The banner at `at`, naming the last failure's step, with its message as the detail; none until failures persist. */
+    banner(at: number): { text: string; detail: string } | undefined {
+      const recent = failures.filter(failure => at - failure.at < windowMs);
+      const last = recent.at(-1);
+      if (recent.length < shown || last === undefined) return undefined;
+      return { text: `Sessions could not be refreshed: ${last.step} failed. Retrying…`, detail: last.message };
+    },
+  };
+}
+
 /** Whether a kept value is session rows, so rows kept by an older build are not drawn. */
 export function isSessionRows(value: unknown): value is SessionRow[] {
   return Array.isArray(value) && value.every((row: Partial<SessionRow> | null) => typeof row === "object" && row !== null
@@ -174,9 +233,14 @@ export function mountSessionsList(container: HTMLElement, options: {
   // Story titles by id, so History's search finds an idle row by the stories it claimed (7.28).
   let titles: ReadonlyMap<string, string> = new Map();
   let stopped = false;
-  const draw = (error?: string): void => root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
+  const failures = refreshFailures(line => console.error(line));
+  // A failure's banner is redrawn away once it ages out, even when no news or clock comes meanwhile.
+  const ageing = new Set<ReturnType<typeof setTimeout>>();
+  const draw = (): void => {
+    const banner = failures.banner(Date.now());
+    root.render(<SessionsList rows={rows} loading={tree === undefined && rows.length === 0}
     refreshing={tree === undefined && rows.length > 0}
-    error={error} selected={selected} onHighlight={options.onHighlight}
+    error={banner?.text} errorDetail={banner?.detail} selected={selected} onHighlight={options.onHighlight}
     expanded={expanded} files={files} onToggle={toggle} open={stripOpen}
     onToggleOpen={() => { stripOpen = !stripOpen; openKept.write(stripOpen); draw(); }}
     full={stripFull} onToggleFull={() => { stripFull = !stripFull; fullKept.write(stripFull); draw(); }}
@@ -184,6 +248,7 @@ export function mountSessionsList(container: HTMLElement, options: {
     tab={tab} onTab={next => { tab = next; tabKept.write(tab); draw(); }} history={past} range={range} now={now()}
     onRange={next => { range = next; draw(); }} storyTitles={titles}
     {...(options.onSelect ? { onSelect: options.onSelect } : {})} />);
+  };
   /** Supplied details (showDetails) keep their parent; a reading supplies the tokens and groups. */
   const merged = (): ReadonlyMap<string, SessionDetails> => new Map([...new Set([...details.keys(), ...readings.keys()])]
     .map(id => [id, { ...details.get(id), ...readings.get(id) }]));
@@ -244,18 +309,26 @@ export function mountSessionsList(container: HTMLElement, options: {
   const stopHearing = page.subscribe({
     async onNews(news) {
       // Each read again only when the news changes what it is read from (7.24, ADR-0836 D3).
-      const nextTree = await treeAfter(options.reads, options.project, news, tree);
-      const nextArcs = await arcsAfter(options.reads, options.project, news, arcs);
+      const nextTree = await named("reading the project tree", () => treeAfter(options.reads, options.project, news, tree));
+      const nextArcs = await named("reading the arcs", () => arcsAfter(options.reads, options.project, news, arcs));
       if (stopped) return;
       if (nextTree !== tree) titles = new Map(nextTree.stories.map(story => [story.id, story.title]));
       tree = nextTree;
       arcs = nextArcs;
       // The page reading holds the log once for every surface, folded and thinned to what they read (ADR-0836 D4).
       log = page.held();
-      refresh(now());
+      await named("drawing the rows", () => refresh(now()));
+      failures.recovered();
+      draw();
     },
     onClock(at) { refresh(options.now?.() ?? new Date(at)); },
-    onError() { if (!stopped) draw("Sessions could not be refreshed. Retrying…"); },
+    onError(error) {
+      if (stopped) return;
+      failures.failed(error, Date.now());
+      const timer = setTimeout(() => { ageing.delete(timer); if (!stopped) draw(); }, FAILURES_WINDOW_MS);
+      ageing.add(timer);
+      draw();
+    },
   });
   return {
     showDetails(next: ReadonlyMap<string, SessionDetails>) { details = next; refresh(now()); },
@@ -269,6 +342,7 @@ export function mountSessionsList(container: HTMLElement, options: {
     },
     stop() {
       stopped = true;
+      for (const timer of ageing) clearTimeout(timer);
       stopHearing();
       own?.stop();
       options.onHighlight(undefined);
@@ -355,13 +429,15 @@ function SessionDetail({ row, files }: { row: SessionRow; files: SessionFiles | 
 const ON_MAIN_WORDS: Readonly<Record<OnMain, string>> = { "outside-workspace": "on main", "first-commit-pending": "first commit" };
 const ON_MAIN_TONES: Readonly<Record<OnMain, "warning" | "neutral">> = { "outside-workspace": "warning", "first-commit-pending": "neutral" };
 
-export function SessionsList({ rows, loading = false, refreshing = false, error, selected, onHighlight, onSelect, files,
+export function SessionsList({ rows, loading = false, refreshing = false, error, errorDetail, selected, onHighlight, onSelect, files,
   history = [], range: chosen, onRange, now = new Date(), storyTitles, ...control }: {
   rows: readonly SessionRow[];
   loading?: boolean;
   /** The rows are the ones last kept, drawn before this start's first read lands. */
   refreshing?: boolean;
   error?: string | undefined;
+  /** What the error said, shown on the banner's hover. */
+  errorDetail?: string | undefined;
   /** The session the knowledge core has selected. */
   selected?: string | undefined;
   onHighlight(stories: readonly string[] | undefined): void;
@@ -491,7 +567,7 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
       idle={idleShown.map(entry => sessionItem(entry, entry.depth === 0 ? IDLE_LEAD : undefined))} /> : <>
     {loading && !error && <p role="status">Reading sessions…</p>}
     {refreshing && !error && <p role="status">As last read. Refreshing…</p>}
-    {error && <p role="status">{error}</p>}
+    {error && <p role="status" title={errorDetail}>{error}</p>}
     {!loading && rows.length === 0 && <p>No running sessions</p>}
     {/* With only idle sessions the tab says where they are, as a fact (ADR-0824 D1). */}
     {rows.length > 0 && idle.length === rows.length && <p className="sessions-idle-note">No sessions at work · <button type="button" className="sessions-idle-elsewhere"

@@ -108,6 +108,7 @@ import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
+import { logPageErrors } from "./page-errors.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
 // A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
@@ -581,6 +582,8 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
   // The page is the app: it never navigates away or opens other windows.
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  // A failure inside the page (a surface's failed refresh, an uncaught throw) is kept in app.log with the rest.
+  logPageErrors(window.webContents, line => console.error(line));
   if (!args.smoke) window.once("ready-to-show", () => window.show());
   // The page names the project; the title adds which build this is.
   window.setTitle(`storytree 0.3 · ${build}`);

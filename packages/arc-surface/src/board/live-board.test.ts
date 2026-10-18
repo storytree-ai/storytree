@@ -140,9 +140,10 @@ test("3.9 news the page reading already held when the board opened reads no work
   let state: BoardState | undefined;
   const watcher = watchBoard({ project: "p", reads, timers, reading: page, onState: (next) => { state = next; } });
   try {
-    await until(() => state?.status === "ready");
-    await delay(50);
+    // The page hands the held news on subscribing, and a read of the work starts as it is handled.
     assert.equal(asked.arcViews, 1, "the held arc change is already in the board's own read");
+    await until(() => state?.status === "ready");
+    assert.equal(asked.arcViews, 1);
   } finally {
     watcher.stop();
     page.stop();

@@ -853,6 +853,92 @@
         }
       ],
       "note": "The balance fell by 9, the sum of the calls below: the 8-frame standing-up animation cost 2, every other call 1 (the 500 included)."
+    },
+    {
+      "date": "2026-10-18",
+      "for": "increment_ea834305fe2d",
+      "balance_before": 1955,
+      "balance_after": 1951,
+      "generations_used": 4,
+      "route": "edit-image-pixen on the owner's reference (person and chair out, the screen flat green, simpler) -> edit-image-pixen to take the screen's green glow off the desk -> create-image-pixen for the window. assemble-cast.mjs stretches the set over a half of the frame and cuts the green screen out as a hole.",
+      "note": "Four calls, one generation each; the balance fell from 1955 to 1951.",
+      "calls": [
+        {
+          "endpoint": "POST /edit-image-pixen",
+          "request": {
+            "image": "<png: reference/first-short-reference-2026-10-18.png>",
+            "description": "remove the person and the office chair completely, leaving only the desk and what is on it: the monitor, the keyboard, the mouse and the mug. make the monitor's screen one solid flat bright green colour with nothing on it. remove the shelves, posters, lamp and speakers; keep the wall plain and dark. simpler pixel art with less detail.",
+            "width": 128,
+            "height": 128,
+            "seed": 11,
+            "no_background": false
+          },
+          "ids": [
+            "7a56872b-765c-4002-9d1f-de46d5d44cd8"
+          ],
+          "generations": 1,
+          "outputs": [
+            "pixellab/set-first.png"
+          ],
+          "note": "the owner's reference, re-drawn at 128x128 without him and the chair, the screen one flat green; the desk came out tinted green by the screen's glow, so the next call fixed that"
+        },
+        {
+          "endpoint": "POST /edit-image-pixen",
+          "request": {
+            "image": "<png: reference/first-short-reference-2026-10-18.png>",
+            "description": "remove the person and the office chair completely, leaving only the desk and what is on it: the monitor, the keyboard, the mouse and the mug. make the monitor's screen one solid flat bright green colour with nothing on it. remove the shelves, posters, lamp and speakers; keep the wall plain and dark. simpler pixel art with less detail.",
+            "width": 128,
+            "height": 128,
+            "seed": 23,
+            "no_background": false
+          },
+          "ids": [
+            "efd71934-7590-4e61-91b6-f82a26d2a958"
+          ],
+          "generations": 1,
+          "outputs": [],
+          "note": "a second seed of the same edit; not used (set-first.png, seed 11, kept the desk lit by the screen less)"
+        },
+        {
+          "endpoint": "POST /edit-image-pixen",
+          "request": {
+            "image": "<png: pixellab/set-first.png>",
+            "description": "make the desk top plain dark brown wood with no green light on it. keep the monitor's screen solid flat bright green. keep everything else the same.",
+            "seed": 5,
+            "no_background": false
+          },
+          "ids": [
+            "cc60b939-7e64-4b2b-a54c-077b8d4a58cf"
+          ],
+          "generations": 1,
+          "outputs": [
+            "pixellab/set.png"
+          ],
+          "note": "set-first.png with a plain dark wooden desk top; the committed set (assemble-cast.mjs cuts its green screen out)"
+        },
+        {
+          "endpoint": "POST /create-image-pixen",
+          "request": {
+            "description": "a small square bedroom window at night seen straight on, dark navy blue sky with a pale crescent moon and two tiny stars, thin dark grey window frame with a cross bar, simple pixel art",
+            "image_size": {
+              "width": 40,
+              "height": 36
+            },
+            "view": "side",
+            "direction": "south",
+            "outline": "single color black outline",
+            "detail": "low detail",
+            "no_background": true,
+            "seed": 77
+          },
+          "ids": null,
+          "generations": 1,
+          "outputs": [
+            "pixellab/window.png"
+          ],
+          "note": "the window on the room's right wall"
+        }
+      ]
     }
   ]
 }

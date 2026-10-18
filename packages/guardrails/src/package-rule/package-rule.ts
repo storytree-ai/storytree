@@ -1,6 +1,6 @@
 /**
  * Capability 1 · The package rule (the Guardrails story, ADR-0911 D2): which parts of a checkout break
- * one package per story and roads one way (ADR-0649 D1-D3, in storytree 0.2's decision log; ADR-1071 rule 5
+ * one package per story and roads one way (ADR-0649 D1-D3, in storytree 0.2's decision log; ADR-1078 rule 4
  * restores D1 after ADR-1066 D3). A user's project runs it as `storytree check`; storytree's own dev loop runs
  * the same code with its own declarations (packages/dev-loop/src/package-boundaries.mjs), so the two cannot drift.
  *
@@ -76,7 +76,7 @@ export function storiesOf(root: string): string[] {
 
 /** What in the checkout at `root` breaks the package rule, one sentence each; empty when nothing does. */
 export function packageProblems(root: string, declared: Declarations = {}): string[] {
-  // Untyped declarations (storytree's own are a .mjs file) could give a story several packages: each owns exactly one (ADR-1071 rule 5).
+  // Untyped declarations (storytree's own are a .mjs file) could give a story several packages: each owns exactly one (ADR-1078 rule 4).
   const named: readonly unknown[] = declared.stories ?? storiesOf(root);
   const stories = named.filter((story): story is string => typeof story === "string");
   const frames = declared.frames ?? [];
@@ -86,7 +86,7 @@ export function packageProblems(root: string, declared: Declarations = {}): stri
   const packages = [...packageDirs(root, "packages"), ...packageDirs(root, "apps")];
 
   for (const story of named.filter((story) => typeof story !== "string")) {
-    problems.push(`${JSON.stringify(story)} is no package's folder name: each story owns exactly one package, and is declared by its folder name (ADR-1071 rule 5)`);
+    problems.push(`${JSON.stringify(story)} is no package's folder name: each story owns exactly one package, and is declared by its folder name (ADR-1078 rule 4)`);
   }
   for (const story of stories) {
     if (!packages.includes(`packages/${story}`)) {

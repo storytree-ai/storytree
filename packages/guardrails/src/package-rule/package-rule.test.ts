@@ -62,7 +62,7 @@ test("1.1 · a project that declares no stories has one per package under packag
 
 test("1.6 · A story owns exactly one package: a story declared with several is refused, and the package it would add belongs to no story", (t: TestContext) => {
   const root = plant(t, { "packages/local-postgres/package.json": pkg("local-postgres"), "packages/local-postgres/src/index.ts": "" });
-  // As a project's untyped declarations (storytree's own are a .mjs file) could write a story with two packages (ADR-1071 rule 5).
+  // As a project's untyped declarations (storytree's own are a .mjs file) could write a story with two packages (ADR-1078 rule 4).
   const several = { ...DECLARED, stories: ["app", "cli", "forest", "forest-world", { story: "library", packages: ["library", "local-postgres"] }] } as unknown as Declarations;
   const problems = packageProblems(root, several);
   assert.ok(problems.some((problem) => /"story":"library".*exactly one package/.test(problem)), problems.join("\n"));

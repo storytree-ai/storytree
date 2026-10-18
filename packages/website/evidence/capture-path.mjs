@@ -27,3 +27,18 @@ export function captureOutput(evidence, argv, tmp) {
   const check = args.some(arg => arg.startsWith("--verify-")) && !args.includes("--retake");
   return check ? path.join(tmp, "storytree-captures", "website", folder) : path.resolve(evidence, folder);
 }
+
+// Which widths and views --verify-own-sheet checks: all four widths and every view, or the one width (--width=390) and the
+// one view (--view=everything) named, so a framing guess is judged in seconds. The shop's sheet is checked only on phones.
+export function ownSheetScope(argv) {
+  const sizes = [[390, 844], [320, 844], [1440, 900], [1280, 800]];
+  const views = ["grow", "value", "fixes", "harness", "everything", "freeplay", "shop"];
+  const named = flag => argv.find(arg => arg.startsWith(`--${flag}=`))?.slice(flag.length + 3);
+  const width = named("width"), view = named("view");
+  const chosen = width === undefined ? sizes : sizes.filter(([w]) => String(w) === width);
+  if (!chosen.length) throw new Error(`--width=${width} is not one of ${sizes.map(([w]) => w).join(", ")}`);
+  if (view !== undefined && !views.includes(view)) throw new Error(`--view=${view} is not one of ${views.join(", ")}`);
+  const fit = view === "shop" ? chosen.filter(([w]) => w <= 600) : chosen;
+  if (!fit.length) throw new Error(`--view=shop is checked only on phones, not at --width=${width}`);
+  return { sizes: fit, views: view === undefined ? undefined : [view] };
+}

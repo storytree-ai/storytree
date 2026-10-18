@@ -666,7 +666,9 @@ export async function reviewFallbacks(browser, url, output) {
 // in free play on it, keeps every island name it shows inside the screen and clear of the compass, and on a laptop clear of the
 // bottom bar's band too (the tour bar, or free play's line and waitlist button), sampled as the sheet grows; on a phone the shop's
 // sheet in free play too.
-export async function verifyOwnSheetFits(browser, url, output, sizes = [[390, 844], [320, 844], [1440, 900], [1280, 800]]) {
+// views, when given, narrows the run to those views (capture-path.mjs ownSheetScope); otherwise every view is sampled.
+export async function verifyOwnSheetFits(browser, url, output, sizes = [[390, 844], [320, 844], [1440, 900], [1280, 800]], views) {
+  const wanted = view => !views || views.includes(view);
   const failures = { "2.22": new Map(), "2.23": new Map() };
   for (const [width, height] of sizes) {
     const laptop = width > 600, contract = laptop ? "2.23" : "2.22";
@@ -705,42 +707,51 @@ export async function verifyOwnSheetFits(browser, url, output, sizes = [[390, 84
       // Each view's picture, as it last stood when sampled.
       if (++samples[where] % 4 === 1) await page.screenshot({ path: path.join(output, `own-sheet-${where}-${width}.png`) });
     };
-    // The arrival, played through at 1.5× from the growth to the harness step.
-    await goToStep(page, "grow");
-    // A phone cycles the speeds with one button; a laptop shows each.
-    if (laptop) await page.locator('#tour-bar [data-speed="1.5"]').click();
-    else for (let tap = 0; tap < 2; tap++) await page.locator("#tour-speed-cycle").click();
-    if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
-    for (let step = await stepOf(page); ["grow", "value", "fixes", "harness"].includes(step); step = await stepOf(page)) { await sample(step); await page.waitForTimeout(250); }
+    const arrival = ["grow", "value", "fixes", "harness"].filter(wanted);
+    // The arrival, played through at 1.5× from the growth to the harness step; a run narrowed to one of its views goes to it.
+    if (!views && arrival.length) {
+      await goToStep(page, "grow");
+      // A phone cycles the speeds with one button; a laptop shows each.
+      if (laptop) await page.locator('#tour-bar [data-speed="1.5"]').click();
+      else for (let tap = 0; tap < 2; tap++) await page.locator("#tour-speed-cycle").click();
+      if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
+      for (let step = await stepOf(page); arrival.includes(step); step = await stepOf(page)) { await sample(step); await page.waitForTimeout(250); }
+    }
     // A view the play-through passed between two samples (software WebGL's slow frames) is gone to and sampled.
-    for (const missed of ["value", "fixes", "harness"].filter(view => !seen.has(view))) {
+    for (const missed of arrival.filter(view => !seen.has(view))) {
       await goToStep(page, missed);
       for (let tick = 0; tick < 12 && await stepOf(page) === missed; tick++) { await sample(missed); await page.waitForTimeout(250); }
     }
-    // The everything step.
-    await goToStep(page, "everything");
-    if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
-    const touring = async () => await stepOf(page) === "everything" && await page.locator("#chapter2").getAttribute("data-tour-mode") === "tour";
-    for (let tick = 0; tick < 24 && await touring(); tick++) { await sample("everything"); await page.waitForTimeout(250); }
-    // Free play on storytree's own project, once its names are drawn.
-    // The last step offers no skip: its end, or a tap on Skip before then, opens free play.
-    if (await page.locator("#tour-skip").isVisible()) await page.locator("#tour-skip").click();
-    await page.waitForFunction(() => document.querySelector("#chapter2")?.dataset.tourMode === "freeplay", null, { timeout: 30_000 });
-    await page.locator('#tour-project [data-project="storytree"]').click();
-    await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "storytree"
-      && [...document.querySelectorAll(".planet-nameplate")].filter(plate => Number(getComputedStyle(plate).opacity) > .5).length >= 5, null, { timeout: 90_000 });
-    // Then until the camera's ease into free play's framing is over: with software WebGL its frames come slowly, so it takes seconds.
+    // The everything step, gone to also on the way to free play.
+    if (wanted("everything") || wanted("freeplay") || wanted("shop")) {
+      await goToStep(page, "everything");
+      if (await page.locator("#tour-play").getAttribute("aria-label") !== "Pause the tour") await page.locator("#tour-play").click();
+      const touring = async () => await stepOf(page) === "everything" && await page.locator("#chapter2").getAttribute("data-tour-mode") === "tour";
+      for (let tick = 0; tick < 24 && wanted("everything") && await touring(); tick++) { await sample("everything"); await page.waitForTimeout(250); }
+    }
     const where = () => page.locator("#website-forest .planet-nameplate[data-story-id]").evaluateAll(plates => plates.map(plate => { const { x, y } = plate.getBoundingClientRect(); return `${Math.round(x)},${Math.round(y)}`; }).join(" "));
-    for (let last = "", now = await where(), tick = 0; now !== last && tick < 40; tick++) { await page.waitForTimeout(750); last = now; now = await where(); }
-    for (let tick = 0; tick < 8; tick++) { await sample("freeplay"); await page.waitForTimeout(250); }
+    if (wanted("freeplay") || wanted("shop")) {
+      // Free play on storytree's own project, once its names are drawn.
+      // The last step offers no skip: its end, or a tap on Skip before then, opens free play.
+      if (await page.locator("#tour-skip").isVisible()) await page.locator("#tour-skip").click();
+      await page.waitForFunction(() => document.querySelector("#chapter2")?.dataset.tourMode === "freeplay", null, { timeout: 30_000 });
+      await page.locator('#tour-project [data-project="storytree"]').click();
+      await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "storytree"
+        && [...document.querySelectorAll(".planet-nameplate")].filter(plate => Number(getComputedStyle(plate).opacity) > .5).length >= 5, null, { timeout: 90_000 });
+      // Then until the camera's ease into free play's framing is over: with software WebGL its frames come slowly, so it takes seconds.
+      // A run narrowed to the shop still eases in and holds storytree's free play as long as the full run does: picked sooner, the
+      // shop's sheet at 320px settles with its names off the screen's right edge.
+      for (let last = "", now = await where(), tick = 0; now !== last && tick < 40; tick++) { await page.waitForTimeout(750); last = now; now = await where(); }
+      for (let tick = 0; tick < 8; tick++) { if (wanted("freeplay")) await sample("freeplay"); await page.waitForTimeout(250); }
+    }
     // On a phone, free play on the shop's sheet, which is wider than a phone's screen too.
-    if (!laptop) {
+    if (!laptop && wanted("shop")) {
       await page.locator('#tour-project [data-project="shop"]').click();
       await page.waitForFunction(() => document.querySelector(".forest-drawing")?.dataset.globe === "shop", null, { timeout: 90_000 });
       for (let last = "", now = await where(), tick = 0; now !== last && tick < 40; tick++) { await page.waitForTimeout(750); last = now; now = await where(); }
       for (let tick = 0; tick < 8; tick++) { await sample("shop"); await page.waitForTimeout(250); }
     }
-    assert.deepEqual([...seen], ["grow", "value", "fixes", "harness", "everything", "freeplay", ...laptop ? [] : ["shop"]], `storytree's sheet was sampled at every view at ${width}px`);
+    assert.deepEqual([...seen], ["grow", "value", "fixes", "harness", "everything", "freeplay", ...laptop ? [] : ["shop"]].filter(wanted), `storytree's sheet was sampled at every view asked for at ${width}px`);
     await page.close();
   }
   // Each contract's verdict, its failures listed: an empty list passes.

@@ -513,8 +513,8 @@ test("2.20 · the knowledge chapter plays three steps on the globe the map chapt
     // leave the map too small for Cart's and Checkout's names side by side.
     const browsing = { kind: "story", story: "story_0c07d0047754" }, view = viewOf(inside, 1, wide);
     assert.deepEqual(view.target, browsing, "the chapter picks up on the four stories");
-    if (!wide) assert.ok(view.narrowFraming! < view.framing, "closer toward 320px");
-    assert.deepEqual(view, wide ? viewOf(health, 2, wide) : { ...viewOf(health, 2, wide), narrowFraming: view.narrowFraming }, "where health leaves the camera");
+    if (!wide) assert.ok(inside.phone!.narrowFraming! < inside.phone!.framing, "closer toward 320px");
+    assert.deepEqual(view, wide ? viewOf(health, 2, wide) : { ...viewOf(health, 2, wide), narrowFraming: inside.phone!.narrowFraming }, "where health leaves the camera");
     for (const item of [shelf, reads]) assert.deepEqual(viewOf(item, 1, wide).target, { kind: "story", story: "story_66f80ffaaa4d" });
   }
   // The shelf's note is a decision on one of checkout's capabilities; the session the reads step follows opened it in full

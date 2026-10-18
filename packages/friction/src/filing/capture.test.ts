@@ -15,7 +15,7 @@ import { VerbRefusal, type DoorWords, type VerbAnswer, type VerbContext } from "
 
 import { withLibrary } from "../testing/pg.js";
 import { FRICTION_FAMILIES } from "../verbs.js";
-import { CaptureError, recordFriction, reinforceFriction } from "./capture.js";
+import { CaptureError, recordFriction, reinforceFriction } from "../index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 /** The day capture stamps, pinned by mocking the clock at its noon (UTC). */

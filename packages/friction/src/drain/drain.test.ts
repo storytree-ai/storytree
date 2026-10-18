@@ -8,7 +8,7 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { frictionDrain, LEASE_MINUTES, openFriction, route } from "./drain.js";
+import { frictionDrain, LEASE_MINUTES, openFriction, route } from "../index.js";
 
 function friction(library: Library, title: string, branch?: string) {
   return library.writeKnowledge("friction", {

@@ -21,8 +21,16 @@
  *   for the drain to take to the owner (D2).
  */
 import { holdsName, normalisedWords } from "@storytree/library/whole-words";
-import type { NewFriction } from "@storytree/friction";
 import { notYetGivenIds } from "./given-once.js";
+
+/** The friction report this hook files through Friction's capture: the fields it writes (ADR-1017 D2). */
+export interface InjectionReport {
+  readonly title: string;
+  readonly description: string;
+  readonly statement: string;
+  readonly evidence: string;
+  readonly impact: string;
+}
 
 /** A definition, as the library holds it. */
 export interface Definition {
@@ -107,7 +115,7 @@ export function notYetGiven<D extends Definition>(session: string, definitions: 
  * definitions by the name each came through, since one name bringing in many is the sprawl it is
  * for. At most one a session, remembered as soon as it is decided, whether or not its filing succeeds.
  */
-export function bigInjectionReport(session: string, added: readonly NamedDefinition[], context: string): NewFriction | undefined {
+export function bigInjectionReport(session: string, added: readonly NamedDefinition[], context: string): InjectionReport | undefined {
   const bytes = Buffer.byteLength(context);
   if (bytes <= BIG_INJECTION_BYTES || notYetGivenIds(session, [BIG_INJECTION_TITLE], "big-injections").length === 0) return undefined;
   const byName = new Map<string, string[]>();

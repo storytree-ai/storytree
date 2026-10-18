@@ -60,7 +60,7 @@ try {
   reads = pageReads({ storytree: store });
   const pick = (names) => Object.fromEntries(names.map((name) => [name, reads[name]]));
   const bridge = fakeBridge({
-    ...pick(['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'arcViews']),
+    ...pick(['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'arcViews', 'boardArcs', 'closedArcs']),
     holds: async () => library.holds(),
     projectSelection: async () => ({ current: project, projects: [project] }),
     readSurfaces: async () => undefined,

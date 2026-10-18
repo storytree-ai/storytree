@@ -663,6 +663,45 @@ for (const backend of [memory, postgres]) {
     assert.ok(reads <= 3, `${reads} reads for ${arcs.length} arcs`);
   });
 
+  contract("10.22", "the board's arcs: live arcs whole plus closed arcs whose closing day falls in a window, and closed arcs alone by a window, each with its closing day and only the increment fields the board draws", async ({ work, flight, records }) => {
+    const closedOn = async (...days: string[]) => {
+      const arc = await work.createArc(ARC);
+      for (const date of days) {
+        const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+        await flight.closeIncrement(increment.id, { pr: "#1", disposition: "landed", date });
+      }
+      return arc.id;
+    };
+    const active = await work.createArc(ARC);
+    await flight.addIncrement({ arc: active.id, ...WORK });
+    const parked = await work.createArc(ARC);
+    await flight.parkArc(parked.id, { until: "2999-01-01" });
+    const old = await closedOn("2026-10-01");
+    const yesterday = await closedOn("2026-10-02", "2026-10-18");
+    const today = await closedOn("2026-10-19");
+    const at = new Date("2026-10-19T12:00:00Z");
+
+    let reads = 0;
+    for (const method of ["get", "list", "select"] as const) {
+      const real = records[method].bind(records) as (...args: unknown[]) => Promise<unknown>;
+      (records as unknown as Record<string, unknown>)[method] = (...args: unknown[]) => { reads += 1; return real(...args); };
+    }
+    const board = await flight.boardArcs({ from: "2026-10-18", to: "2026-10-20" }, at);
+    assert.ok(reads <= 6, `${reads} reads`);
+    assert.deepEqual(board.map(({ arc }) => arc.id), [active.id, parked.id, yesterday, today], "live arcs, and those closed in the window by their last close");
+    assert.deepEqual(board.map(({ state }) => state), ["active", "parked", "closed", "closed"]);
+    assert.deepEqual(board.map(({ closed }) => closed), [undefined, undefined, "2026-10-18", "2026-10-19"], "a closed arc's closing day is its latest outcome day");
+    assert.equal(board[1]!.wakes, "2999-01-01", "a dated park keeps its wake day");
+    const increment = board[0]!.increments[0]!;
+    assert.equal(increment.fields.title, WORK.title);
+    assert.equal(increment.fields.objective, WORK.objective);
+    assert.equal("body" in increment.fields, false, "no increment's planning body is read");
+
+    const week = await flight.closedArcs({ from: "2026-10-01", to: "2026-10-19" }, at);
+    assert.deepEqual(week.map(({ arc }) => arc.id), [old, yesterday], "only closed arcs, the window's end left out");
+    assert.deepEqual(week[1]!.increments.map(({ fields }) => fields.outcome?.date), ["2026-10-02", "2026-10-18"]);
+  });
+
   contract("10.5", "an increment moves to another live arc keeping its id, lifecycle and waits, the history recording the move and its reason; only open work moving to a closed arc is refused", async ({ work, flight, transactions }) => {
     const from = await work.createArc(ARC);
     const to = await work.createArc(ARC);

@@ -21,6 +21,7 @@ export { boardView } from "./board/board.js";
 export type { Bar, BoardScope, BoardSnapshot, BoardView, Lane } from "./board/board.js";
 export { readBoard } from "./board/reads.js";
 export type { BoardReads } from "./board/reads.js";
+export type { ClosedRange } from "./board/closed-range.js";
 export { isBoardSnapshot, watchBoard } from "./board/live-board.js";
 export type { BoardState, WatchBoardOptions } from "./board/live-board.js";
 export { arcSmokeProblems } from "./board/smoke.js";

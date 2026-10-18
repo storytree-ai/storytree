@@ -50,6 +50,8 @@ test("3.2 a name that is not a project is refused, and never created", async () 
     const asks: [string, () => Promise<unknown>][] = [
       ["its tree", () => reads.projectTree(missing)],
       ["every arc", () => reads.arcViews(missing)],
+      ["the board's arcs", () => reads.boardArcs(missing, { from: "2026-10-18", to: "2026-10-20" })],
+      ["arcs closed in a window", () => reads.closedArcs(missing, { from: "2026-10-01", to: "2026-10-20" })],
       ["its holds", () => reads.holds(missing)],
       ["its changes", () => reads.changesSince(missing, 0)],
       ["its lines", () => reads.linesSince(missing, 0)],

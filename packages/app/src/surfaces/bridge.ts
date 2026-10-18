@@ -4,7 +4,7 @@
  * the app answers (reads.ts). Data only: safe for the page and preload.
  */
 import type { ContextReading, SessionWindow } from "@storytree/session-management";
-import type { AnnotatedTree, ArcView, Changes, Holds, LinesSince, Note, SchemaRecord } from "@storytree/library";
+import type { AnnotatedTree, ArcView, BoardArcView, Changes, DayWindow, Holds, LinesSince, Note, SchemaRecord } from "@storytree/library";
 
 import type { SurfaceReading } from "./switches.js";
 
@@ -25,6 +25,10 @@ export const SURFACES_CHANNELS = {
 export interface PageReadsBridge {
   /** Every live arc's view in a project, in one read (library 7.8): what the sessions list builds its rows from. */
   arcViews(name: string): Promise<ArcView[]>;
+  /** The arc board's reading (library 10.22): every live arc, and those closed in a window of days. */
+  boardArcs(name: string, closed: DayWindow): Promise<BoardArcView[]>;
+  /** The arcs closed in a window of days (library 10.22), for the arc board's Closed tab. */
+  closedArcs(name: string, window: DayWindow): Promise<BoardArcView[]>;
   /** Every hold on a project's live work, wait and owner, in one reading. */
   holds(name: string): Promise<Holds>;
   /** A project's tree, with every node's health. */
@@ -55,6 +59,8 @@ export interface PageReadsBridge {
 
 export const PAGE_READS_CHANNELS = {
   arcViews: "storytree:arc-views",
+  boardArcs: "storytree:board-arcs",
+  closedArcs: "storytree:closed-arcs",
   holds: "storytree:holds",
   projectTree: "storytree:project-tree",
   changesSince: "storytree:changes-since",

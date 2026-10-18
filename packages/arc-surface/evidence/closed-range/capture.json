@@ -1,0 +1,36 @@
+{
+  "browser": "148.0.7778.96",
+  "shown": {
+    "active": [
+      "Arc surface opens fresh"
+    ],
+    "today": [
+      "Closed today"
+    ],
+    "yesterday": [
+      "Closed yesterday"
+    ],
+    "week": [
+      "Closed four days ago",
+      "Closed today",
+      "Closed yesterday"
+    ],
+    "range": [
+      "Closed four days ago",
+      "Closed three weeks ago",
+      "Closed today",
+      "Closed yesterday"
+    ]
+  },
+  "asked": [
+    {
+      "from": "2026-10-13",
+      "to": "2026-10-20"
+    },
+    {
+      "from": "2026-09-19",
+      "to": "2026-10-20"
+    }
+  ],
+  "errors": []
+}

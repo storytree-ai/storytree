@@ -1,6 +1,7 @@
 /** Capability 3 · Arc surface. */
 import { queueRun } from "../waits/waits.js";
 import { boardView } from "../board/board.js";
+import { windowOf } from "../board/closed-range.js";
 import { readBoard, type BoardReads } from "../board/reads.js";
 import { arcSmokeProblems, type ArcDrawn } from "../board/smoke.js";
 
@@ -34,7 +35,10 @@ export async function smokeArcSurface(page: { executeJavaScript(code: string): P
       }
       return JSON.parse(document.body.dataset.drew).arcSurface;
     })()`) as ArcDrawn;
-    const board = boardView(snapshot, lines, new Date(), scope);
+    // The Closed tab opens on Today (3.12): it is judged against the arcs closed today.
+    const today = windowOf({ preset: "today" }, Date.now());
+    const shown = scope !== "closed" ? snapshot : { ...snapshot, arcs: snapshot.arcs.filter(({ closed }) => closed !== undefined && closed >= today.from && closed < today.to) };
+    const board = boardView(shown, lines, new Date(), scope);
     const rows = new Set(board.queues.map(({ arc }) => arc.id));
     const chips = new Set(board.queues.flatMap((queue) => queueRun(queue).chips.map(({ id }) => id)));
     // A queue chip shows its title and counts on hover, not a second full row of bars.

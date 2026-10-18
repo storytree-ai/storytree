@@ -142,3 +142,45 @@ test("3.10 · Expand fills the window and reads Restore, which returns the drawe
   surface = mount("p");
   assert.equal(drawer().dataset.expanded, "false", "another project's choice leaves this one's alone");
 });
+
+test("3.9 a drawer reopened on the same page draws its last board ready while it reads the work again; a new mount draws the kept board refreshing", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    arcViews: async () => [{ arc, increments: [], questions: [], state: "active" }],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  const mount = () => mountArcSurface(document.body, { project: "p", reads, timers: { now: () => Date.parse("2026-10-19T00:00:00Z"), every: () => () => {} } });
+  const drawer = () => document.querySelector<HTMLElement>("#arc-drawer")!;
+  const launch = () => document.querySelector<HTMLButtonElement>("[data-open-arcs]")!;
+  surface = mount();
+  launch().click();
+  await settle();
+  assert.equal(drawer().dataset.arcState, "ready");
+  page.document.dispatchEvent(new page.KeyboardEvent("keydown", { key: "Escape" }));
+
+  reads.arcViews = () => new Promise(() => {});
+  launch().click();
+  assert.equal(drawer().dataset.arcState, "ready", "reopened, the board read fresh on this page is not refreshing");
+  assert.equal(drawer().querySelector("[role=status]")?.textContent, "");
+  assert.ok(drawer().querySelector('[data-arc-select="arc_1"]'));
+
+  surface.stop();
+  surface = mount();
+  assert.equal(drawer().dataset.arcState, "refreshing", "a new page's kept board is not yet fresh");
+});

@@ -29,6 +29,8 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   let question: string | undefined;
   let watching: ReturnType<typeof watchBoard> | undefined;
   let state: BoardState | undefined;
+  /** Whether a board was read fresh since this mount: a reopened drawer draws the kept one as fresh (3.9). */
+  let readFresh = false;
   const folds = new Set<string>();
   const queues = new Set<string>();
   const remember = () => writePreferences(options.project, { open: !drawer.hidden, scope, ...(picked ? { picked } : {}), ...(expanded ? { expanded } : {}) });
@@ -40,6 +42,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   function draw(next: BoardState, preservePosition = true): void {
     const sameScope = state?.board?.scope === next.board?.scope;
     state = next;
+    if (next.status === "ready") readFresh = true;
     drawer.dataset.arcState = next.status;
     status.textContent = next.status === "loading" ? "Reading arcs…" : next.status === "refreshing" ? "Showing the arcs as last read. Refreshing…"
       : next.status === "error" ? `Arcs could not be read: ${next.error}. Retrying…` : "";
@@ -73,7 +76,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
       if (!drawer.hidden) return;
       drawer.hidden = false; launch.hidden = true; launch.setAttribute("aria-expanded", "true");
       remember();
-      watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, onState: draw });
+      watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, keptFresh: readFresh, onState: draw });
       drawer.querySelector<HTMLButtonElement>("[data-close-arcs]")!.focus();
     },
     close() {

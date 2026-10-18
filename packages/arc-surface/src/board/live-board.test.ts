@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import type { Line } from "@storytree/library";
-import { ASK_EVERY_MS, CLOCK_EVERY_MS, readBoard, watchBoard } from "../index.js";
+import { ASK_EVERY_MS, CLOCK_EVERY_MS, pageReading, readBoard, watchBoard } from "../index.js";
 import type { BoardState } from "./live-board.js";
 import type { BoardReads } from "./reads.js";
 import { record } from "../testing/records.js";
@@ -46,7 +46,7 @@ test("3.5 the public watched board ages a holder at the user's idle-after settin
   }
 });
 
-test("3.9 the open board re-reads the work only when its news holds an arc, increment or question change: lines alone, or other records, redraw it from what it has; its first news always reads", async () => {
+test("3.9 the open board re-reads the work only when its news holds an arc, increment or question change: lines alone, or other records, redraw it from what it has; the board reads the work itself at once, and again for news past what the page held when it opened", async () => {
   const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
   const increment = record("inc_1", "increment", { arc: "arc_1", title: "Draw lanes", objective: "Draw", body: "Draw", status: "active" });
   const start = Date.parse("2026-09-29T10:00:00Z");
@@ -77,26 +77,75 @@ test("3.9 the open board re-reads the work only when its news holds an arc, incr
   const watcher = watchBoard({ project: "p", reads, timers: { now: () => start + 60_000, every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } },
     onState: (next) => { state = next; drawn++; } });
   try {
-    await until(() => state?.status === "ready");
-    assert.deepEqual(asked, { arcViews: 1, holds: 1 }, "the first news reads the work");
+    await until(() => state?.status === "ready" && asked.arcViews === 2);
+    assert.deepEqual(asked, { arcViews: 2, holds: 2 }, "the board reads the work at once, and again for the first news's arc change, which may be newer");
 
     let before = drawn;
     ticks.get(ASK_EVERY_MS)!();
     await until(() => drawn > before);
     assert.equal(state?.board?.lanes[0]?.agents.length, 1, "the new claim is drawn");
-    assert.deepEqual(asked, { arcViews: 1, holds: 1 }, "lines alone read no work");
+    assert.deepEqual(asked, { arcViews: 2, holds: 2 }, "lines alone read no work");
 
     before = drawn;
     ticks.get(ASK_EVERY_MS)!();
     await until(() => drawn > before);
-    assert.deepEqual(asked, { arcViews: 1, holds: 1 }, "a health change reads no work");
+    assert.deepEqual(asked, { arcViews: 2, holds: 2 }, "a health change reads no work");
 
     before = drawn;
     ticks.get(ASK_EVERY_MS)!();
-    await until(() => asked.arcViews === 2 && drawn > before);
-    assert.deepEqual(asked, { arcViews: 2, holds: 2 }, "an increment change reads the work again");
+    await until(() => asked.arcViews === 3 && drawn > before);
+    assert.deepEqual(asked, { arcViews: 3, holds: 3 }, "an increment change reads the work again");
   } finally {
     watcher.stop();
+  }
+});
+
+test("3.9 the board draws fresh from its own read of the work at once, without waiting on the page reading's first read of the whole history", async () => {
+  const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
+  let landHistory!: () => void;
+  const history = new Promise<void>((resolve) => { landHistory = resolve; });
+  const asked = { arcViews: 0 };
+  const reads: BoardReads = {
+    changesSince: async () => { await history; return { changes: [{ seq: 1, recordId: "arc_1", type: "arc", action: "updated", record: arc }], cursor: 1 }; },
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    arcViews: async () => { asked.arcViews++; return [{ arc, increments: [], questions: [], state: "active" }]; },
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  let state: BoardState | undefined;
+  const watcher = watchBoard({ project: "p", reads, timers: { now: () => Date.parse("2026-10-19T10:00:00Z"), every: () => () => {} }, onState: (next) => { state = next; } });
+  try {
+    await until(() => state?.status === "ready");
+    assert.deepEqual(state?.board?.lanes.map(({ id }) => id), ["arc_1"], "drawn while the history is still on the way");
+    assert.equal(asked.arcViews, 1);
+    landHistory();
+    await until(() => asked.arcViews === 2);
+  } finally {
+    watcher.stop();
+  }
+});
+
+test("3.9 news the page reading already held when the board opened reads no work beyond the board's own read", async () => {
+  const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
+  const asked = { arcViews: 0 };
+  let served = false;
+  const reads: BoardReads = {
+    changesSince: async () => { const changes = served ? [] : [{ seq: 1, recordId: "arc_1", type: "arc", action: "updated" as const, record: arc }]; served = true; return { changes, cursor: 1 }; },
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    arcViews: async () => { asked.arcViews++; return [{ arc, increments: [], questions: [], state: "active" }]; },
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  const timers = { now: () => Date.parse("2026-10-19T10:00:00Z"), every: () => () => {} };
+  const page = pageReading({ project: "p", reads, timers });
+  await until(() => page.held().changes.length === 1);
+  let state: BoardState | undefined;
+  const watcher = watchBoard({ project: "p", reads, timers, reading: page, onState: (next) => { state = next; } });
+  try {
+    await until(() => state?.status === "ready");
+    await delay(50);
+    assert.equal(asked.arcViews, 1, "the held arc change is already in the board's own read");
+  } finally {
+    watcher.stop();
+    page.stop();
   }
 });
 

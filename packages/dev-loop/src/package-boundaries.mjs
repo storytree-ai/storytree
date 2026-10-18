@@ -17,7 +17,7 @@
 import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
-/** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1071 rule 5). */
+/** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
 export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-health", "claude-code-mod", "cli", "dev-loop", "experiments", "forest", "guardrails", "journey-events", "keys", "learning-as-you-build", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "session-management", "website"];
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3); the dev loop depends on it one way, for the forwarders at its old lanes paths.
 // app-setup: story_b91056a06337 (The app setup).

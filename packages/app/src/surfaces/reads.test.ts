@@ -15,7 +15,7 @@ import { machineOf, recordImport } from "@storytree/project-and-caller";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
-import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { pageReads, type PageReads } from "../index.js";
 

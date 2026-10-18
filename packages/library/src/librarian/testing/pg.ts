@@ -8,7 +8,7 @@ import { randomBytes } from "node:crypto";
 import { connect as connectSocket, createServer, type AddressInfo, type Socket } from "node:net";
 
 import { connect, type Library } from "../../index.js";
-import { dropTestDatabases } from "../../local-postgres/testing/drop.js";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import pg from "pg";
 
 /** The server the tests run against. Throws when there is none. */

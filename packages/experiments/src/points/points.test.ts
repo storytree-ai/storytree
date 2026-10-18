@@ -11,7 +11,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import type { Library, Storytree } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { ACTIVITY_DATABASE, openActivityLog } from "@storytree/session-management";
 
 import { mounted, type DoorWords, type VerbContext } from "@storytree/library/verbs";

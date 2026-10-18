@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { findBinaries } from "@storytree/library/local-postgres";
+import { findBinaries } from "@storytree/local-postgres";
 import pg from "pg";
 
 import { makeDevHome, removeDevHome } from "./dev-home.js";

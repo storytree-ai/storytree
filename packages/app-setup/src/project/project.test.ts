@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { openActivityLog } from "@storytree/session-management";
 import { requireApproval } from "@storytree/project-and-caller";
 import { openLedger } from "@storytree/quality-assurance";

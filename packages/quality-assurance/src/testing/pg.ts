@@ -7,7 +7,7 @@
 import { randomBytes } from "node:crypto";
 
 import { connect, type Library, type Storytree } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 /** The server the tests run against. Throws when there is none. */
 export function testServerUrl(): string {

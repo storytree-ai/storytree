@@ -20,7 +20,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { buildBins } from "../bins/build.js";
-import { findBinaries } from "@storytree/library/local-postgres";
+import { findBinaries } from "@storytree/local-postgres";
 import { installCommand } from "../deliver/command.js";
 import { connectAgents, installedToolServerCommand, type ConnectionResult, type Harness, type RunHarness } from "./index.js";
 

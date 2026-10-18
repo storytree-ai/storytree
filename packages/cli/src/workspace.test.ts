@@ -523,6 +523,30 @@ test("11.17 `workspace claim` and `workspace attach` from a worktree on a handed
   });
 });
 
+test("11.18 `workspace claim` takes several capabilities, as words or a comma list, all or nothing: a refusal names the holder and leaves the calling session holding none of them (ADR-1079 D2)", async () => {
+  await inWorld(command, async (world) => {
+    await withRepository(world);
+    const library = await world.library();
+    const story = await library.addStory({ title: "Sign-up" });
+    const [email, reset, signIn, profile] = await Promise.all(["Email form", "Password reset", "Sign-in form", "Profile"].map(async (title) => (await library.addCapability({ story: story.id, title })).id));
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const held = async (session: string) => (await readClaims(log, world.project)).filter((claim) => claim.session === session).map(({ capability }) => capability).sort();
+
+      const claimed = await world.run(["workspace", "claim", reset!, `${signIn},${email}`, "--reason", "building sign-up"], { CLAUDE_CODE_SESSION_ID: "claude-9" });
+      assert.equal(claimed.code, 0, claimed.stderr);
+      assert.deepEqual(await held("claude-9"), [email!, reset!, signIn!].sort());
+
+      const refused = await world.run(["workspace", "claim", `${profile},${signIn}`, "--reason", "me too"], { CODEX_THREAD_ID: "other" });
+      assert.equal(refused.code, 1);
+      assert.match(refused.stderr, /held by .* claude-9/);
+      assert.deepEqual(await held("other"), [], "holds none of them");
+    } finally {
+      await log.close();
+    }
+  });
+});
+
 /** The project's log as its claims and closes wrote it: without the door's own record of each command's answer (ADR-0983 D1). */
 async function logged(log: ActivityLog, project: string): Promise<{ lines: Line[] }> {
   return { lines: (await log.since(project, 0)).lines.filter((line) => line.kind !== "door-answered") };

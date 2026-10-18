@@ -172,7 +172,7 @@ test("2.5 · An arm's role reads and adds to the server's shared activity and QA
             const client = await signedInAs(made, database);
             try {
               await client.query("SELECT digest FROM storytree_setup");
-              assert.equal((await client.query("SELECT project FROM lines")).rows.length >= 1, true);
+              assert.equal((await client.query<{ project: string }>("SELECT project FROM lines ORDER BY seq")).rows[0]!.project, "storytree");
               if (write) {
                 await client.query("INSERT INTO lines (project) VALUES ($1)", [made.project]);
                 await client.query("UPDATE lines SET answer = 'fixed' WHERE project = $1", [made.project]);
@@ -199,7 +199,7 @@ test("2.5 · An arm's role reads and adds to the server's shared activity and QA
 
         // An arm made before make granted anything is granted the same by grant, and granting again changes nothing.
         for (const { database } of shared) await withAdmin((client) => client.query(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM "${made.role}"`), database);
-        await assert.rejects(lane());
+        await assert.rejects(lane(), /permission denied/);
         await grantArm(admin, experiment, "map-reads-on", options);
         await grantArm(admin, experiment, "map-reads-on", options);
         await lane();

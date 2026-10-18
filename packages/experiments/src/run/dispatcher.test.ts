@@ -8,7 +8,7 @@ import { test } from "node:test";
 import { readExperiment } from "@storytree/project-and-caller";
 
 import type { Experiment } from "../record/record.js";
-import type { Curves } from "../points/points.js";
+import type { Curves, Point } from "../points/points.js";
 import { ExperimentRefusal } from "../record/record.js";
 import { armLaneCommand, armRuns, runExperiment, stateFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
 
@@ -154,7 +154,7 @@ test("7.5 · each arm lane is the agent pool's lane runner, run as its own proce
 });
 
 test("7.7 · each look records the arms' new merges as points before their stop rules read the curves, saying what it recorded; a record that fails is said and the look goes on", async () => {
-  const recorded: Curves = {};
+  const recorded: Record<string, Point[]> = {};
   const box = fakeBox({
     rounds: 3,
     real: () => idle(0, 4),

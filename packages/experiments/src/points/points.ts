@@ -216,13 +216,14 @@ function pointOf(gh: Gh, repository: string, seeded: string, merge: number, pr: 
  * whose `hidden-tests` run has not finished stops it there, so points are always written in order; run it again later.
  * `structure` reads the tree at each merge; by default it clones the arm's repository and reads the arm's library.
  */
-export async function recordPoints(server: Storytree, project: string, { experiment, arm, ci }: ArmOfExperiment, gh: Gh = ghCli, structure?: Structure): Promise<Recorded> {
+export async function recordPoints(server: Storytree, project: string, of: ArmOfExperiment, gh: Gh = ghCli, structure?: Structure): Promise<Recorded> {
+  const { experiment, arm } = of;
   // The arm's repository and its throwaway library share one name, `x-<experiment>-<arm>`.
   const armProject = armRepositoryName(experiment, arm);
   const repository = `${ORGANISATION}/${armProject}`;
   const trees = structure ?? armStructure(server, armProject, repository, gh);
   try {
-    return await recordFrom(server, project, { experiment, arm, ci }, gh, trees, armProject, repository);
+    return await recordFrom(server, project, of, gh, trees, armProject, repository);
   } finally {
     await trees.close();
   }

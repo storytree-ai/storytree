@@ -7,6 +7,9 @@
  *   commands counted here (./commands.ts), the tools by the MCP server (its capability 8).
  * - Follows: for each offered step, how often it was offered, how often the session's next call took
  *   it, and ADR-0786's like-for-like baseline: after the same previous verbs, with the step not offered.
+ * - Repoints: for each word refused as unknown with steps offered (ADR-1045 D3), how often it was offered, the offers
+ *   followed by target (the session's next call is that command, answered: a refused or failed one is no follow), and
+ *   how often none was taken.
  * - Door share per step.
  * - Splits by machine, harness, and briefed: a session given at most one prompt, as a lane is given its
  *   brief and runs headless. The lines carry no other sign of a brief, so this is a reading, not a fact.
@@ -60,6 +63,7 @@ export interface Window {
 export interface Surface { readonly door: Door; readonly verb: string; readonly declared: boolean; readonly consumers?: readonly Consumer[]; readonly judged: boolean; readonly calls: number; readonly sessions: number }
 export interface Miss { readonly door: Door; readonly where: string; readonly word: string; readonly named?: string; readonly count: number }
 export interface Follow { readonly step: string; readonly offered: number; readonly answered: number; readonly followed: number; readonly baseline: { readonly calls: number; readonly took: number } }
+export interface Repoint { readonly door: Door; readonly where: string; readonly word: string; readonly offered: number; readonly followed: readonly { readonly target: string; readonly count: number }[]; readonly none: number }
 export interface Failure { readonly door: Door; readonly verb: string; readonly class: string; readonly count: number }
 export interface Split { readonly by: "machine" | "harness" | "briefed"; readonly value: string; readonly command: number; readonly tool: number; readonly sessions: number; readonly unknown: number }
 
@@ -76,6 +80,8 @@ export interface Reading {
   readonly unknownPer1000: Readonly<Record<Door, number | null>>;
   readonly steps: readonly { readonly step: Step; readonly command: number; readonly tool: number }[];
   readonly follows: readonly Follow[];
+  /** Words refused with steps offered, most offered first. */
+  readonly repoints: readonly Repoint[];
   readonly failures: readonly Failure[];
   readonly refusals: readonly { readonly door: Door; readonly verb: string; readonly count: number }[];
   readonly splits: readonly Split[];
@@ -103,6 +109,7 @@ export function countDoors(lines: readonly DoorLine[], declared: Declared, promp
       tool: lines.filter((line) => line.door === "tool" && stepOf("tool", line.verb) === step).length,
     })),
     follows: follows(lines),
+    repoints: repoints(lines),
     failures: [...commands.failures, ...tools.failures],
     refusals: [...commands.refusals, ...tools.refusals],
     splits: splits(lines, prompts),
@@ -138,6 +145,22 @@ function follows(lines: readonly DoorLine[]): Follow[] {
       baseline: { calls: unoffered.length, took: unoffered.filter(({ after }) => after?.verb === step).length },
     };
   }).sort((a, b) => b.offered - a.offered || a.step.localeCompare(b.step));
+}
+
+function repoints(lines: readonly DoorLine[]): Repoint[] {
+  const words = new Map<string, { door: Door; where: string; word: string; offered: number; followed: Map<string, number> }>();
+  for (const { line, after } of pairs(lines)) {
+    if (line.outcome !== "unknown" || line.word === undefined || line.next.length === 0) continue;
+    const key = JSON.stringify([line.door, line.verb, line.word]);
+    const counted = words.get(key) ?? { door: line.door, where: line.verb, word: line.word, offered: 0, followed: new Map<string, number>() };
+    counted.offered += 1;
+    if (after !== undefined && after.outcome === "answered" && line.next.includes(after.verb)) counted.followed.set(after.verb, (counted.followed.get(after.verb) ?? 0) + 1);
+    words.set(key, counted);
+  }
+  return [...words.values()].map(({ followed, ...counted }) => {
+    const targets = [...followed].map(([target, count]) => ({ target, count })).sort((a, b) => b.count - a.count || a.target.localeCompare(b.target));
+    return { ...counted, followed: targets, none: counted.offered - targets.reduce((sum, { count }) => sum + count, 0) };
+  }).sort((a, b) => b.offered - a.offered || a.where.localeCompare(b.where) || a.word.localeCompare(b.word));
 }
 
 function splits(lines: readonly DoorLine[], prompts: ReadonlyMap<string, number>): Split[] {

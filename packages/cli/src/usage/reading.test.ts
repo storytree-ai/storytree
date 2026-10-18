@@ -1,4 +1,4 @@
-/** The command line 14.1–14.5 and 14.7: the counts one window of door-answered lines gives, against the doors' declared surfaces. */
+/** The command line 14.1–14.5, 14.7 and 14.8: the counts one window of door-answered lines gives, against the doors' declared surfaces. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -121,4 +121,23 @@ test("14.7 · each declared verb carries its consumers, and one a person may cal
   assert.deepEqual(of("storytree settings show"), { door: "command", verb: "storytree settings show", declared: true, consumers: ["user"], judged: false, calls: 0, sessions: 0 });
   assert.deepEqual(of("storytree quality brief"), { door: "command", verb: "storytree quality brief", declared: true, consumers: ["agent"], judged: true, calls: 0, sessions: 0 });
   assert.equal(of("storytree arc show")?.judged, false, "a verb for both is never judged by the agents' lines alone");
+});
+
+test("14.8 · each word refused with hints counts its offers, the offers followed by target, and how often none was taken; a refused or failed next call is no follow", () => {
+  const refused = (session: string) => line(session, "command", "storytree adr", { outcome: "unknown", word: "show", next: ["storytree library search", "storytree adr list"] });
+  const reading = countDoors([
+    refused("a"), line("a", "command", "storytree library search"),
+    refused("b"), line("b", "command", "storytree adr list"),
+    refused("c"), line("c", "command", "storytree library search"),
+    refused("d"), line("d", "command", "storytree library search", { outcome: "refused" }),
+    refused("e"), line("e", "command", "storytree adr list", { outcome: "failed", class: "TypeError" }),
+    refused("f"), line("f", "tool", "search_notes"),
+    refused("g"),
+    // A refusal that offered no step is not counted.
+    line("h", "command", "storytree", { outcome: "unknown", word: "nope" }),
+  ], declared, new Map(), window);
+  assert.deepEqual(reading.repoints, [{
+    door: "command", where: "storytree adr", word: "show", offered: 7,
+    followed: [{ target: "storytree library search", count: 2 }, { target: "storytree adr list", count: 1 }], none: 4,
+  }]);
 });

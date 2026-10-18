@@ -12,6 +12,7 @@ import type { DoorWords, VerbContext } from "../verbs/verb.js";
 
 import { connect } from "../index.js";
 import { testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { ADR_FAMILY } from "./adr.js";
 import { LIBRARY_FAMILIES } from "./index.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
@@ -30,7 +31,8 @@ test("13.10 · the library declares the `adr` family the command line lists 4th:
   });
   const library = await storytree.openProject(project);
 
-  const adr = LIBRARY_FAMILIES.find((family) => family.name === "adr")!;
+  assert.equal(LIBRARY_FAMILIES.find((family) => family.name === "adr"), ADR_FAMILY);
+  const adr = ADR_FAMILY;
   assert.equal(adr.order, 4);
   const verbOf = (name: string) => adr.verbs.find((one) => "name" in one.command && one.command.name === name)!;
   const decision = await library.recordDecision({ title: "Mail by queue", text: "Send mail from a queue.", status: "proposed" });

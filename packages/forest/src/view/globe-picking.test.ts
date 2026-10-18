@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";
-import { Group, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PlaneGeometry, SphereGeometry } from "three";
+import { Group, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PlaneGeometry } from "three";
 import { pickGlobe } from "./planet-navigation.js";
 
 const dot = (id: string, x: number, distance = 20, z = 0): ProjectedNote => ({ id, x, y: 50, z, distance, visible: true });
@@ -27,11 +27,8 @@ test("3.12 a far-side masked dot, a dot outside the viewport, and a clipped dot 
   for (const z of [-1.01, 1.01]) assert.equal(pickProjectedNote([dot("clipped", 50, 20, z)], { x: 50, y: 50 }), undefined);
 });
 
-test("3.12 the transparent near shell permits a dot; land and the far shell retain Forest occlusion", () => {
+test("3.12 Forest picks the land before a note behind it; Library picks only the drawn dots on screen", () => {
   const world = new Group();
-  const shell = new Mesh(new SphereGeometry(10), new MeshBasicMaterial());
-  shell.name = "planet:shell";
-  world.add(shell);
   const note = new Object3D();
   note.name = "knowledge-point:note";
   note.position.z = 5;
@@ -42,10 +39,6 @@ test("3.12 the transparent near shell permits a dot; land and the far shell reta
   const box = { left: 0, top: 0, width: 300, height: 300 }, cursor = { x: 150, y: 150 };
   const pick = (mode: "forest" | "library") => pickGlobe(world, camera, box, cursor, mode);
   assert.deepEqual(pick("forest"), { kind: "note", id: "note" });
-  note.position.z = -5;
-  assert.equal(pick("forest"), undefined, "the back half is not selectable through the shell");
-  assert.deepEqual(pick("library"), { kind: "note", id: "note" }, "Library removes the shell occlusion");
-  note.position.z = 5;
   const land = new Mesh(new PlaneGeometry(4, 4), new MeshBasicMaterial());
   land.name = "planet:story";
   land.position.z = 11;

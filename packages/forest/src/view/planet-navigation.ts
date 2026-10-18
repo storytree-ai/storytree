@@ -115,7 +115,7 @@ export function pointedFile(world: Object3D, camera: Camera,
   return undefined;
 }
 
-/** Project the rotating points; the glass admits the near half, solid land still occludes it. */
+/** Project the drawn points; in Forest, solid land before a point occludes it. */
 export function pickGlobe(world: Object3D, camera: Camera,
   box: { left: number; top: number; width: number; height: number }, cursor: { x: number; y: number }, mode: ForestMode): Selection {
   world.updateMatrixWorld(true);
@@ -139,11 +139,9 @@ export function pickGlobe(world: Object3D, camera: Camera,
     const at = object.getWorldPosition(new Vector3());
     const projected = at.clone().project(camera);
     const inViewport = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1;
-    // Library has no shell: either half can be selected. In Forest the far half stays behind it.
-    const nearHalf = at.dot(ray.ray.direction) <= 0;
     notes.push({ id: object.name.slice("knowledge-point:".length),
       x: box.left + (projected.x + 1) * box.width / 2, y: box.top + (1 - projected.y) * box.height / 2,
-      z: projected.z, distance: at.sub(ray.ray.origin).dot(ray.ray.direction), visible: inViewport && (mode === "library" || nearHalf) });
+      z: projected.z, distance: at.sub(ray.ray.origin).dot(ray.ray.direction), visible: inViewport });
   });
   const note = pickProjectedNote(notes, cursor, landDistance);
   if (note !== undefined) return { kind: "note", id: note };

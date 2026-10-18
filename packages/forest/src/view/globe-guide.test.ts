@@ -98,7 +98,7 @@ test("3.22 hidden land and file circles cannot be picked, including through an i
   assert.equal(pointedFile(f.world, f.camera, box, cursor), undefined);
 });
 
-test("3.37 home eases the globe back to the turn and zoom it opened on, the short way round", () => {
+test("3.37 home eases the view back to the turn and zoom it opened on, the short way round", () => {
   const f = fixture();
   const home: GlobePose = { turn: { yaw: 0.4, pitch: 0 }, framing: 1.18, sideOffset: 0 };
   f.guide.stop({ target: { kind: "story", story: "shop" }, framing: 5, sideOffset: 40, duration: 0 });

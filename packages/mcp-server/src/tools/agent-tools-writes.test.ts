@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Agent tools (the MCP server), in the MCP server story: waits, friction and re-steers, corrections and retirements, questions, other stories' tools, workspaces, search, and bounded reads. One of three files
+ * Capability 6 · Agent tools (the MCP server), in the MCP server story: waits, corrections and retirements, questions, other stories' tools, workspaces, search, and bounded reads. One of three files
  * (agent-tools, agent-tools-reads, agent-tools-writes) split so a test unit runs them side by side.
  * A test client talks to the server inside the test itself, over an
  * in-memory transport, with no real agent and no network, as Claude Code or Codex would: Claude
@@ -18,11 +18,11 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { roundDue, route, worklist } from "@storytree/library/librarian";
+import { roundDue, worklist } from "@storytree/library/librarian";
 import { z } from "zod";
 
 import { nameThisMachine } from "@storytree/session-management/machines";
-import { recordFriction, reinforceFriction } from "@storytree/library/librarian";
+import { recordFriction, route } from "@storytree/friction";
 import type { ToolExtension } from "./index.js";
 import { readClaims } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/project-and-caller";
@@ -134,129 +134,6 @@ test("6.40 it sets a wait for the owner or an outside event with a note, and a c
       assert.equal((await agent.call("clear_wait", { waiter: install, for: "event" })).isError, false);
       assert.deepEqual(await library.waitsFor(install), []);
       assert.equal((await agent.call("claim", { increment: install, reason: "driving it" })).isError, false);
-    });
-  });
-});
-
-test("6.12 friction capture uses the calling folder's branch for the shared daily cap", async () => {
-  await withProject(async ({ folder, library }) => {
-    git(folder, "init", "-b", "fix/mail");
-    const fields = { title: "Delay", description: "Delay", statement: "Timeout", evidence: "src/mail.ts: Error", impact: "Wait" };
-    const date = new Date().toISOString().slice(0, 10);
-    for (let i = 0; i < 2; i++) await library.writeKnowledge("friction", {
-      ...fields, provenance: { branch: "fix/mail", date, source: "retro" },
-    });
-    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      const third = idOf(await agent.call("record_friction", fields));
-      const history = await library.history();
-      const fourth = await agent.call("record_friction", fields);
-      assert.equal(fourth.isError, true, "the MCP caller shares the cap");
-      assert.match(fourth.text, /friction reinforce/);
-      assert.deepEqual(await library.history(), history);
-      const saved = await library.get(third);
-      assert.ok(saved?.type === "friction");
-      assert.deepEqual(saved.fields.provenance, { branch: "fix/mail", date, source: "retro" });
-    });
-  });
-});
-
-test("6.36 the daily friction cap counts each session's own reports: on a branch every session shares, a second session's report is accepted after another filed three that day, and each is still refused its own fourth", async () => {
-  await withProject(async ({ folder, library }) => {
-    git(folder, "init", "-b", "main");
-    const report = (title: string) => ({ title, description: title, statement: title, evidence: `src/${title}.ts: Error`, impact: "Lost time" });
-    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      for (const title of ["one", "two", "three"]) assert.equal((await agent.call("record_friction", report(title))).isError, false);
-      assert.equal((await agent.call("record_friction", report("four"))).isError, true, "the first session's own fourth is refused");
-    });
-    await withAgent(folder, claudeCode("claude-2"), async (agent) => {
-      const later = await agent.call("record_friction", report("islands"));
-      assert.equal(later.isError, false, later.text);
-      const saved = await library.get(idOf(later));
-      assert.ok(saved?.type === "friction");
-      assert.equal(saved.fields.title, "islands");
-    });
-  });
-});
-
-test("6.12 it records friction with concrete evidence and a re-steer with the owner's quoted words, the agent's account kept apart; vague evidence, a re-steer quoting nobody and a defect with no failure mode are each refused as a readable answer, and nothing is written", async () => {
-  await withProject(async ({ folder, library }) => {
-    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      const friction = idOf(
-        await agent.call("record_friction", {
-          title: "Tests need a running Postgres",
-          description: "The suite cannot run without one",
-          statement: "Running one test file starts a whole Postgres",
-          evidence: "`pnpm test -- src/a.test.ts` took 9 s, most of it in pg_ctl start",
-          impact: "Slow red-green loops",
-        }),
-      );
-      const resteer = idOf(
-        await agent.call("record_resteer", {
-          title: "Asked before building what he had directed",
-          description: "A proposal treated as waiting on the owner",
-          doing: "Asking the owner whether to build a proposal",
-          redirect: "Build what he directed without asking again",
-          evidence: "\"proposal means not built yet doesnt mean waiting on me\"",
-          self_report: "I read proposal as needing his yes",
-          disposition: "defect",
-          judged_by: "owner",
-          mode: "no-mast-home",
-        }),
-      );
-      assert.ok((await library.search("Postgres")).some((note) => note.id === friction));
-      const stored = (await library.search("waiting on me")).find((note) => note.id === resteer)?.fields as { evidence?: string; selfReport?: string } | undefined;
-      assert.equal(stored?.evidence, "\"proposal means not built yet doesnt mean waiting on me\"");
-      assert.equal(stored?.selfReport, "I read proposal as needing his yes", "the agent's account kept apart");
-
-      const vague = await agent.call("record_friction", { title: "Slowness", description: "Vaguely", statement: "It was slow", evidence: "it was slow and annoying", impact: "annoying" });
-      assert.equal(vague.isError, true);
-      assert.match(vague.text, /concrete/);
-      const unquoted = await agent.call("record_resteer", {
-        title: "Vaguely redirected",
-        description: "Vaguely",
-        doing: "something",
-        redirect: "something else",
-        evidence: "he wanted it done differently",
-        disposition: "taste",
-        judged_by: "owner",
-      });
-      assert.equal(unquoted.isError, true);
-      const modeless = await agent.call("record_resteer", {
-        title: "Vaguely wrong",
-        description: "Vaguely",
-        doing: "something",
-        redirect: "something else",
-        evidence: "\"not like that\"",
-        disposition: "defect",
-        judged_by: "agent",
-      });
-      assert.equal(modeless.isError, true);
-      assert.match(modeless.text, /mode/);
-      assert.deepEqual(await library.search("Vaguely"), [], "nothing written");
-    });
-  });
-});
-
-test("6.35 a re-steer whose evidence is the user's exact words without quotation marks is refused with the step that passes, putting those words inside double quotation marks, and the same words inside them are then recorded (regression: Conduit 3 on the reset laptop, 2026-10-02)", async () => {
-  await withProject(async ({ folder, library }) => {
-    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      const words = "I know Your Feed was meant for part 5, but the tests expect the tab to be there as soon as people can sign in. Can you add it now?";
-      const resteer = (evidence: string) => agent.call("record_resteer", {
-        title: "Your Feed now, not in part 5",
-        description: "The user moved the feed tab forward",
-        doing: "Leaving the feed tab for part 5",
-        redirect: "Add the feed tab as soon as people can sign in",
-        evidence,
-        disposition: "taste",
-        judged_by: "owner",
-      });
-      const refused = await resteer(words);
-      assert.equal(refused.isError, true);
-      assert.match(refused.text, /double quotation marks/, refused.text);
-      const recorded = await resteer(`"${words}"`);
-      assert.notEqual(recorded.isError, true, recorded.text);
-      const stored = (await library.search("Your Feed")).find((note) => note.id === idOf(recorded))?.fields as { evidence?: string } | undefined;
-      assert.equal(stored?.evidence, `"${words}"`);
     });
   });
 });
@@ -443,36 +320,6 @@ test("6.44 raising a question held on an increment the session holds, or a wait 
       assert.match(waited.text, new RegExp(`Released your claims on ${install}`));
       assert.deepEqual(await held(), [other]);
       assert.equal(((await library.get(install))?.fields as { status?: string } | undefined)?.status, "proposal", "nobody's work in progress");
-    });
-  });
-});
-
-test("6.15 reinforce appends dated concrete evidence to the existing friction, preserving its route, and refuses invalid recurrences", async () => {
-  await withProject(async ({ folder, library }) => {
-    const friction = await recordFriction(library, { title: "Slow mail", description: "Mail takes too long", statement: "The mailer timed out", evidence: "src/mail.ts: TimeoutError", impact: "Signup was delayed" });
-    await library.editNote(friction.id, { route: "process", routeReason: "An upstream outage" });
-    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      assert.equal(idOf(await agent.call("reinforce", { friction: friction.id, evidence: "#81: mail still times out" })), friction.id);
-      const first = await library.get(friction.id);
-      assert.ok(first?.type === "friction");
-      assert.equal(first.fields.reinforcedBy?.[0]?.date, new Date().toISOString().slice(0, 10));
-      assert.equal(first.fields.reinforcedBy?.[0]?.evidence, "#81: mail still times out");
-      const second = await reinforceFriction(library, friction.id, { branch: "fix/mail", evidence: "src/mail.ts: TimeoutError again" }, { actor: "person:Sam" });
-      assert.equal(second.id, friction.id);
-      assert.deepEqual(second.fields, { ...first.fields, reinforcedBy: [
-        ...first.fields.reinforcedBy!, { branch: "fix/mail", date: new Date().toISOString().slice(0, 10), evidence: "src/mail.ts: TimeoutError again" },
-      ] });
-      assert.equal((await library.list("friction")).length, 1, "no twin was created");
-      assert.equal((await library.history({ id: friction.id })).at(-1)?.actor, "person:Sam");
-      const note = await library.defineTerm({ term: "Delivery", meaning: "Not friction" });
-      const before = await library.history();
-      for (const [id, evidence] of [[friction.id, "It happened again"], [note.id, "src/mail.ts"], ["missing", "src/mail.ts"]]) {
-        await assert.rejects(reinforceFriction(library, id!, { branch: "fix/mail", evidence: evidence! }));
-        const refused = await agent.call("reinforce", { friction: id, evidence });
-        assert.equal(refused.isError, true, refused.text);
-        assert.match(refused.text, /concrete|friction/i);
-      }
-      assert.deepEqual(await library.history(), before, "refused recurrences wrote nothing");
     });
   });
 });

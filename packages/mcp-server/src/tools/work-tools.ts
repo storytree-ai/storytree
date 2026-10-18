@@ -1,7 +1,7 @@
 /**
  * Capability 6 · Agent tools (the MCP server). The work tools (ADR-0643 D1, 6): park, ready, move and close increments, add to what one remedies, park and unpark arcs, set and
- * clear waits, raise, correct, settle and retire the owner's questions, and record friction and re-steers. Each is a thin wrapper over the library's own
- * functions, or this story's capture functions over them, so no library rule is kept here twice.
+ * clear waits, raise, correct, settle and retire the owner's questions. Each is a thin wrapper over the library's own
+ * functions, so no library rule is kept here twice. Recording friction and re-steers is Friction's declared verbs (ADR-1077 D1).
  * Starting an increment is claiming it (claim-tools.ts), so a start is refused as a claim is. Asking the owner about work the
  * session holds, by a question held on it or a wait for the owner, releases its claims on it (releaseAsked, ADR-0944 D4).
  *
@@ -12,7 +12,6 @@
 import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
-import { recordFriction, recordResteer, reinforceFriction } from "@storytree/library/librarian";
 import { closed, currentBranch, increments, presentQuestion, releaseAsked, stopPresenting } from "@storytree/session-management";
 import { incrementMachine, MachineNameError } from "@storytree/session-management/machines";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
@@ -277,57 +276,6 @@ export function registerWorkTools(define: Define): void {
       return { text: `Retired question ${question}.${freed}`, data: { id: question, released } };
     },
   );
-
-  define(
-    "record_friction",
-    "Record friction: something that got in the way, with concrete evidence (a path, a pull request, a commit, a command and its output, an error, or a quoted excerpt) and what it cost. Record it; do not decide what to do about it.",
-    z.object({
-      title: z.string().min(1).describe("A short name for it"),
-      description: z.string().min(1).describe("One line on what it is"),
-      statement: z.string().min(1).describe("What went wrong"),
-      evidence: z.string().min(1).describe("The concrete evidence for it"),
-      impact: z.string().min(1).describe("What it cost"),
-    }),
-    async (fields, { library, folder, writer }) => {
-      const friction = await recordFriction(library, { ...fields, branch: captureBranch(folder) }, writer);
-      return { text: `Recorded friction ${quoted(fields.title)} (${friction.id}).`, data: { id: friction.id } };
-    },
-  );
-
-  define(
-    "reinforce",
-    "Record a recurrence of existing friction with its own concrete evidence. It appends the date and this session's branch, keeping the original item and its route.",
-    z.object({ friction: id("friction"), evidence: z.string().min(1).describe("Concrete evidence of what happened this time") }),
-    async ({ friction, evidence }, { library, folder, writer }) => {
-      const saved = await reinforceFriction(library, friction, { branch: currentBranch(folder) ?? "(no branch)", evidence }, writer);
-      return { text: `Reinforced friction ${quoted(saved.fields.title)} (${saved.id}).`, data: { id: saved.id } };
-    },
-  );
-
-  define(
-    "record_resteer",
-    "Record a re-steer: the user (the project's owner) redirected what you were doing. Put their own words inside double quotation marks as the evidence; your own account of it goes in self_report. Say whether it was a defect or a matter of taste, and who judged that: the owner, or you. A defect needs its failure mode (no-mast-home when none fits).",
-    z.object({
-      title: z.string().min(1).describe("A short name for it"),
-      description: z.string().min(1).describe("One line on what it is"),
-      doing: z.string().min(1).describe("What you were doing"),
-      redirect: z.string().min(1).describe("What the owner redirected you to"),
-      evidence: z.string().min(1).describe('Their own words, inside double quotation marks: "…"'),
-      self_report: z.string().min(1).optional().describe("Your own account of it"),
-      disposition: z.enum(["defect", "taste"]).describe("defect: something went wrong; taste: a preference"),
-      judged_by: z.enum(["owner", "agent"]).describe("Who judged it a defect or taste: owner only when the owner said so"),
-      mode: z.string().min(1).optional().describe("A defect's failure mode"),
-    }),
-    async ({ self_report: selfReport, judged_by: dispositionBy, ...fields }, { library, writer }) => {
-      const resteer = await recordResteer(library, defined({ ...fields, selfReport, dispositionBy }), writer);
-      return { text: `Recorded re-steer ${quoted(fields.title)} (${resteer.id}).`, data: { id: resteer.id } };
-    },
-  );
-}
-
-/** Capture also knows the branch of a repository that has no first commit yet. */
-function captureBranch(folder: string): string {
-  return currentBranch(folder) ?? "(no branch)";
 }
 
 /** The questions increment `id` is held on now, and its arc, or undefined when it is not a live increment. */

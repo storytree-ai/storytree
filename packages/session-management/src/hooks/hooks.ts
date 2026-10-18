@@ -68,7 +68,7 @@ import { noteCodexHookRan } from "./codex-trust.js";
 import { BACKGROUND } from "./at-once.js";
 import { AFTER_TOOL, deliveredByTool, deliveredInput, noteDelivered, TOOL_GRACE_MS } from "./codex-delivery.js";
 import { contextNudge } from "./context-nudge.js";
-import type { NewFriction } from "@storytree/library/librarian";
+import type { NewFriction } from "@storytree/friction";
 import { bigInjectionReport, definitionsContext, definitionsNamedIn, isHarnessNotice, notYetGiven } from "./definitions.js";
 import { hookIdentity, noteHookFailure, type HookFailure } from "./failures.js";
 import { isSelfNamed, selfNamedLines } from "./self-named.js";
@@ -547,7 +547,7 @@ async function fileBigInjection(handed: unknown): Promise<void> {
   if (typeof session !== "string" || typeof folder !== "string" || report === undefined) return;
   const where = route(folder);
   if (where.status !== "routed") return;
-  const [{ recordFriction }, { currentBranch }, { connect }] = await Promise.all([import("@storytree/library/librarian"), import("../activity/branch.js"), import("@storytree/library")]);
+  const [{ recordFriction }, { currentBranch }, { connect }] = await Promise.all([import("@storytree/friction"), import("../activity/branch.js"), import("@storytree/library")]);
   const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
   try {
     if (!(await approved(storytree, where.project, where.folder, storytreeHome()))) return;

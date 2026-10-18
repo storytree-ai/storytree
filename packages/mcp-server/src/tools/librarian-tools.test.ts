@@ -19,7 +19,7 @@ import { openActivityLog, type ActivityLog } from "@storytree/session-management
 import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { createAgentTools } from "./index.js";
 
-const VERBS = ["worklist", "link", "supersede", "correct", "annotate", "retire", "park", "graduate", "route"];
+const VERBS = ["worklist", "link", "supersede", "correct", "annotate", "retire", "park", "graduate"];
 
 /** Run `body` with a fresh project's library, dropped afterwards, pass or fail. */
 async function withLibrary(body: (library: Library) => Promise<void>): Promise<void> {
@@ -90,9 +90,6 @@ test("library 26.4 the shared server lists and calls every librarian verb, attri
     const first = await library.recordDecision({ title: "One copy", text: "Use the library", status: "accepted", loadBearing: true });
     const narrowing = await library.recordDecision({ title: "File by shelf", text: "Put covers on shelves", status: "accepted" });
     const discarded = await library.defineTerm({ term: "Draft", meaning: "Obsolete wording" });
-    const frictionFields = { title: "Missing tool", description: "The curator cannot act", statement: "Serve curation", evidence: "worklist: unknown tool", impact: "A pass stops" };
-    const own = await library.writeKnowledge("friction", { ...frictionFields, provenance: { branch: "curation", date: "2026-09-27", source: "retro" } });
-    const friction = await library.writeKnowledge("friction", { ...frictionFields, provenance: { branch: "other", date: "2026-09-27", source: "retro" } });
     let cursor = (await library.changesSince(0)).cursor;
     async function write(name: string, args: Record<string, unknown>, session = "curator") {
       const result = await call(client, name, args, session);
@@ -104,10 +101,8 @@ test("library 26.4 the shared server lists and calls every librarian verb, attri
       return result.structuredContent as Record<string, unknown>;
     }
     const listed = await call(client, "worklist", { memoryFolders: [memory], tools: names });
-    const work = listed.structuredContent!.worklist as { graduation: { file: string }[]; friction: { id: string }[]; rest: { processes: { tools: string[] } } };
+    const work = listed.structuredContent!.worklist as { graduation: { file: string }[]; rest: { processes: { tools: string[] } } };
     assert.deepEqual(work.graduation.map((item) => item.file), [kept, durable]);
-    assert.ok(work.friction.some((item) => item.id === friction.id));
-    assert.ok(!work.friction.some((item) => item.id === own.id));
     assert.deepEqual(work.rest.processes.tools, names);
     await write("link", { from: narrowing.id, to: first.id });
     assert.deepEqual((await fields(library, narrowing.id)).links, [first.id]);
@@ -125,22 +120,12 @@ test("library 26.4 the shared server lists and calls every librarian verb, attri
     assert.notEqual((await call(client, "park", { memory: kept, reason: "This experiment is still running" })).isError, true);
     const parked = await call(client, "worklist", { memoryFolders: [memory] });
     assert.deepEqual((parked.structuredContent!.worklist as typeof work).graduation.map((item) => item.file), [durable]);
-    assert.equal(((await fields(library, friction.id)).lease as { holder: string }).holder, "session:curator");
     cursor = (await library.changesSince(cursor)).cursor;
     assert.equal((await call(client, "graduate", { memory: durable, kind: "definition", fields: { term: "Missing meaning" } })).isError, true);
     assert.ok(existsSync(durable), "a refused graduation keeps its source");
     const graduated = await write("graduate", { memory: durable, kind: "definition", fields: { term: "Library", meaning: "The single copy" } }, "after-clear");
     assert.equal((await fields(library, graduated.id as string)).meaning, "The single copy");
     assert.ok(!existsSync(durable));
-    const historyBeforeRoute = await library.history();
-    const unparked = await call(client, "route", { friction: friction.id, route: "tool", reason: "Build the missing verb" });
-    assert.equal(unparked.isError, true);
-    assert.deepEqual(await library.history(), historyBeforeRoute);
-    await write("route", { friction: friction.id, route: "tool", reason: "The missing verb is now served", dischargedBy: "  #42  " });
-    assert.equal((await fields(library, friction.id)).route, "tool");
-    assert.equal((await fields(library, friction.id)).dischargedBy, "#42");
-    await write("route", { friction: friction.id, route: "tool", reason: "Clarify the delivered remedy" });
-    assert.equal((await fields(library, friction.id)).dischargedBy, "#42");
     const before = await library.history();
     const refused = await call(client, "correct", { id: narrowing.id, fields: { status: "proposed" } });
     assert.equal(refused.isError, true);
@@ -162,7 +147,7 @@ test("library 26.3 land and worklist use the calling session's start, including 
     assert.notEqual(quiet.isError, true);
     assert.doesNotMatch(JSON.stringify(quiet.content), /Next:/);
     const quietWork = await call(client, "worklist", { memoryFolders: [] });
-    assert.deepEqual(quietWork.structuredContent!.worklist, { graduation: [], friction: [] });
+    assert.deepEqual(quietWork.structuredContent!.worklist, { graduation: [] });
     await library.defineTerm({ term: "Round", meaning: "A librarian's pass" });
     await setTimeout(5);
     await log.append(library.name, { session: "curator", harness: "codex", source: "hook", kind: "session-started", how: "resume" });

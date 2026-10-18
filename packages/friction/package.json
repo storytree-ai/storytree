@@ -1,0 +1,30 @@
+{
+  "name": "@storytree/friction",
+  "private": true,
+  "type": "module",
+  "description": "Friction (ADR-1077 D1): filing friction and re-steers with their evidence, the drain a landing's pass judges, and routing each report to its remedy.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./verbs": "./src/verbs.ts"
+  },
+  "storytree": {
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "FRICTION_FAMILIES"
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/library": "workspace:*"
+  },
+  "devDependencies": {
+    "@storytree/local-postgres": "workspace:*",
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

@@ -45,6 +45,7 @@ import { findProject, idleAfterMs, locateStorytree, route, storytreeHome, type L
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
+import { FRICTION_TOOLS } from "@storytree/friction/verbs";
 import { type SetupOptions } from "@storytree/app-setup/setup";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
 import { appDatabaseWork } from "@storytree/session-management/processes/listing";
@@ -322,8 +323,9 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   });
   registerClaimTools(define, extensions, options.merges);
   registerWorkTools(define);
-  // The library's artifact tools, declared in The library (ADR-1035 D3).
+  // The library's artifact tools, declared in The library (ADR-1035 D3), and Friction's, declared in Friction (ADR-1077 D1).
   mountTools(define, NOTE_TOOLS);
+  mountTools(define, FRICTION_TOOLS);
   registerPipelineTools(define, options.protection);
   registerContextTools(define, options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir)));
   for (const extension of extensions) extension.registerTools?.(define);

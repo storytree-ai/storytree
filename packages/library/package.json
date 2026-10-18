@@ -7,8 +7,7 @@
     "./verbs": "./src/verbs/verb.ts",
     "./commands": "./src/commands/index.ts",
     "./whole-words": "./src/knowledge/whole-words.ts",
-    "./librarian": "./src/librarian/index.ts",
-    "./librarian/verbs": "./src/librarian/verbs.ts"
+    "./librarian": "./src/librarian/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -46,10 +45,6 @@
       {
         "from": "./commands",
         "export": "LIBRARY_FAMILIES"
-      },
-      {
-        "from": "./librarian/verbs",
-        "export": "LIBRARIAN_FAMILIES"
       }
     ],
     "tools": [

@@ -1,19 +1,19 @@
 /**
- * Capability 26 · Rounds (The library story, its librarian package): when the librarian's pass runs, and what it looks
- * at. Graduation is due at every landing, because only this session knows what it learned, and so is
- * the friction drain, because every session files friction and no curated write marks it; the
+ * Capability 26 · Rounds (The library story, its curation tooling): when the librarian's pass runs, and what it looks
+ * at. Graduation is due at every landing, because only this session knows what it learned; the friction drain is
+ * Friction's own, which the landing's pass drains apart from this worklist (ADR-1077 D4); the
  * rest is due when the library's change feed since the session started shows a write to a curated
  * kind, and when there is no start to read from, since the trigger fires when unsure (0.2's
  * `pre-merge-librarian-pass`). The worklist gathers each capability's list into one report.
  */
-import type { Library, Related, SchemaRecord, WriteOptions } from "../../index.js";
+import type { Library, Related, SchemaRecord } from "../../index.js";
 
 import { newNotes, type NewNote } from "../catalogue/index.js";
 import { brokenEdges, type BrokenEdge } from "../decision-log/index.js";
 import { memoryWorklist, processGaps, type MemoryItem, type ProcessGaps } from "../graduation/index.js";
 import { relatedUnlinked, unrestedDecisions } from "../links/index.js";
 import { allNotes } from "../notes.js";
-import { leaseFriction, openQuestions, openFriction } from "../queues/index.js";
+import { openQuestions } from "../queues/index.js";
 
 /** The curated kinds: a write to any of them since the session started makes the whole pass due. */
 export const CURATED: readonly string[] = ["decision", "question", "principle", "guardrail", "pattern", "process", "definition", "agent"];
@@ -28,15 +28,11 @@ export interface RoundDue {
 export interface WorklistOptions {
   /** The change feed's cursor when the session started. Without it the trigger fires. */
   readonly since?: number;
-  /** The session's branch: the friction drain never holds a report filed from it. */
-  readonly branch?: string;
   /** The agent's memory folders. */
   readonly memoryFolders?: readonly string[];
   /** The tools served, to match against the processes; without them, processes are not matched. */
   readonly tools?: readonly string[];
   readonly now?: Date;
-  /** The session asking: the friction drain leases what it gives to the writer's actor. */
-  readonly writer?: WriteOptions;
   /** Told each phase as it starts; a rejection stops the worklist before that phase reads anything. */
   readonly progress?: (phase: string) => Promise<void>;
 }
@@ -45,10 +41,6 @@ export interface WorklistOptions {
 export interface Worklist {
   /** Graduation (4): memories new, changed or lapsed. Always there. */
   readonly graduation: MemoryItem[];
-  /** Queues (5): the friction drain. Always there, since filing friction is not a curated write. */
-  readonly friction: SchemaRecord<"friction">[];
-  /** How many more open reports from other branches wait beyond these; absent when none do. */
-  readonly frictionMore?: number;
   /** The rest, when the trigger fired. */
   readonly rest?: {
     /** Links (1): accepted decisions on no shelf that nothing rests on. */
@@ -76,21 +68,16 @@ export async function roundDue(library: Library, { since }: { since?: number }):
   return { graduation: true, rest: curated.length > 0 };
 }
 
-/** Gather the worklist: graduation's list and the friction drain always, the rest when the trigger fired. */
+/** Gather the worklist: graduation's list always, the rest when the trigger fired. */
 export async function worklist(library: Library, options: WorklistOptions): Promise<Worklist> {
   const phase = async (name: string): Promise<void> => options.progress?.(name);
   await phase("graduation");
   const graduation = await memoryWorklist(options.memoryFolders ?? [], options.now === undefined ? {} : { now: options.now });
-  await phase("friction");
+  await phase("trigger");
+  if (!(await roundDue(library, options)).rest) return { graduation };
+  const { since } = options;
   // The live notes, read once for every list that needs them (6.7).
   const notes = await allNotes(library);
-  const open = await openFriction(library, options.branch === undefined ? {} : { branch: options.branch }, notes);
-  // Leased to this session, so a session draining at the same time is handed others (5.8).
-  const { taken: friction, free } = await leaseFriction(library, open, { ...(options.writer === undefined ? {} : { writer: options.writer }), ...(options.now === undefined ? {} : { now: options.now }) });
-  const more = free > friction.length ? { frictionMore: free - friction.length } : {};
-  await phase("trigger");
-  if (!(await roundDue(library, options)).rest) return { graduation, friction, ...more };
-  const { since } = options;
   await phase("links");
   const links = await unrestedDecisions(library, notes);
   // With no start the notes this session wrote are unknown; every note's history is never read instead (6.7).
@@ -106,8 +93,6 @@ export async function worklist(library: Library, options: WorklistOptions): Prom
   const questions = await openQuestions(library, options.now);
   return {
     graduation,
-    friction,
-    ...more,
     rest: {
       links,
       ...(related === undefined || catalogue === undefined
@@ -131,14 +116,11 @@ export interface NoteRef {
 }
 
 /**
- * The worklist as a session reads it (6.9): graduation whole, the friction drain's due reports and
- * how many more wait, and each rest list's first few items, named only, with how many each holds. The full
+ * The worklist as a session reads it (6.9): graduation whole, and each rest list's first few items, named only, with how many each holds. The full
  * records once took fifteen million characters; any one is read whole by its ID.
  */
 export interface WorklistView {
   readonly graduation: MemoryItem[];
-  readonly friction: (NoteRef & { readonly recurrences: number })[];
-  readonly frictionMore?: number;
   readonly rest?: {
     readonly links: NoteRef[];
     readonly related?: { source: string; hits: (NoteRef & { readonly linked: boolean })[] }[];
@@ -156,8 +138,6 @@ export interface WorklistView {
 export function worklistView(full: Worklist): WorklistView {
   const view: WorklistView = {
     graduation: full.graduation,
-    friction: full.friction.map((report) => ({ ...ref(report), recurrences: report.fields.reinforcedBy?.length ?? 0 })),
-    ...(full.frictionMore === undefined ? {} : { frictionMore: full.frictionMore }),
   };
   const { rest } = full;
   if (rest === undefined) return view;

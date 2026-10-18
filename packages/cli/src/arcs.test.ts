@@ -11,7 +11,7 @@ import pg from "pg";
 
 import { connect, type Line } from "@storytree/library";
 import { nameThisMachine } from "@storytree/session-management/machines";
-import { recordFriction } from "@storytree/library/librarian";
+import { recordFriction } from "@storytree/friction";
 import { claim, openActivityLog, readClaims, release, type ActivityLog } from "@storytree/session-management";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 

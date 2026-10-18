@@ -13,7 +13,6 @@ import {
   WaitLoopError,
 } from "@storytree/library";
 
-import { CaptureError } from "@storytree/library/librarian";
 import { ProjectFolderError } from "@storytree/project-and-caller";
 
 /** A tool's answer: one plain sentence (or a few lines), what it made or found as data, and whether it refused. */
@@ -41,7 +40,7 @@ export function result(answer: Answer): CallToolResult {
 
 /** The library's and the claims' own refusals, as against a failure. */
 function isRefusal(error: unknown): boolean {
-  const refusals = [MissingReferenceError, SchemaError, DependencyLoopError, UnknownTypeError, NewerSchemaError, ProjectNameError, ProjectFolderError, ConnectionError, LifecycleError, WaitLoopError, RetireRefusedError, CaptureError];
+  const refusals = [MissingReferenceError, SchemaError, DependencyLoopError, UnknownTypeError, NewerSchemaError, ProjectNameError, ProjectFolderError, ConnectionError, LifecycleError, WaitLoopError, RetireRefusedError];
   return refusals.some((kind) => error instanceof kind);
 }
 

@@ -25,7 +25,7 @@ const RECORD = {
 test("7.6 · `experiment run` refuses, at the door, an unfrozen record and a frozen one whose stop rules it cannot read", async () => {
   await withLibrary(async (library, server) => {
     const writer = { actor: "session:s" };
-    const context: VerbContext = { library, server, project: library.name, session: "s", folder: process.cwd(), writer };
+    const context = { library, server, project: library.name, session: "s", folder: process.cwd(), writer } satisfies VerbContext;
     const words: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
     const run = (experiment: string) => RUN_VERB.act({ experiment, as: "twin", rules: "rules.md" }, context, words);
     const experiment = await library.writeKnowledge("experiment", RECORD);

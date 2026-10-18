@@ -16,7 +16,9 @@
  * `hidden-tests` run printed, the baseline against the untouched starting tree. It has no pull request, so its `pr` is 0.
  *
  * A lane can merge a change to `.github/workflows/arm.yml`, which would let it see or fake the hidden tests' results,
- * and nothing else catches that: so each point says whether the workflow at its commit still equals `armWorkflowText`.
+ * and nothing else catches that: so each point says whether the workflow at its commit still equals the one the arm was
+ * seeded with, `armWorkflowText` of its CI when the recorder is given it, else the workflow at the seed commit, which
+ * only the import pushed. `experiment run` records its arms this way at every look, and `experiment points` by hand.
  */
 import type { Storytree } from "@storytree/library";
 import { openActivityLog, tokensSpent } from "@storytree/session-management";
@@ -97,11 +99,14 @@ export interface Recorded {
   readonly waiting?: { readonly pr: number; readonly commit: string };
 }
 
-/** The arm whose merges are recorded: the experiment's and arm's names, as its repository is named, and the CI it was seeded with. */
+/**
+ * The arm whose merges are recorded: the experiment's and arm's names, as its repository is named, and the CI it was
+ * seeded with, when known; without it, the workflow at the seed commit is the one each merge's is compared with.
+ */
 export interface ArmOfExperiment {
   readonly experiment: string;
   readonly arm: string;
-  readonly ci: ArmCi;
+  readonly ci?: ArmCi;
 }
 
 function database(server: Server) {
@@ -178,19 +183,22 @@ function reworkOf(files: readonly ChangedFile[], earlier: readonly (readonly Cha
 /** What the arm had run into by a merge, from its claim-refused and pr-red lines. */
 interface Collisions { readonly claimRefusals: number; readonly reds: number; readonly conflicts: number }
 
-/** The point for one merge, read from GitHub. */
-function pointOf(gh: Gh, repository: string, ci: ArmCi, merge: number, pr: Merged & { mergeCommit: { oid: string } }, job: Job): Point {
+/** The arm's workflow at `commit`, or undefined when it has none there. */
+function workflowAt(gh: Gh, repository: string, commit: string): string | undefined {
+  try {
+    return gh(["api", "-H", "Accept: application/vnd.github.raw", `repos/${repository}/contents/${ARM_WORKFLOW_PATH}?ref=${commit}`]);
+  } catch {
+    return undefined;
+  }
+}
+
+/** The point for one merge, read from GitHub; its workflow is intact when it equals `seeded`, the arm's workflow as it was seeded. */
+function pointOf(gh: Gh, repository: string, seeded: string, merge: number, pr: Merged & { mergeCommit: { oid: string } }, job: Job): Point {
   const commit = pr.mergeCommit.oid;
   const counts = job.conclusion === "success" ? countsOf(gh(["api", `repos/${repository}/actions/jobs/${job.id}/logs`])) : undefined;
   const tree = JSON.parse(gh(["api", `repos/${repository}/git/trees/${commit}?recursive=1`])) as { truncated: boolean; tree: { type: string; size?: number }[] };
   if (tree.truncated) throw new Error(`${repository}'s tree at ${commit} is too large for GitHub to list whole, so its file growth cannot be read`);
   const blobs = tree.tree.filter((entry) => entry.type === "blob");
-  let workflow: string | undefined;
-  try {
-    workflow = gh(["api", "-H", "Accept: application/vnd.github.raw", `repos/${repository}/contents/${ARM_WORKFLOW_PATH}?ref=${commit}`]);
-  } catch {
-    workflow = undefined;
-  }
   return {
     merge,
     pr: pr.number,
@@ -199,7 +207,7 @@ function pointOf(gh: Gh, repository: string, ci: ArmCi, merge: number, pr: Merge
     ...(counts === undefined ? {} : counts),
     files: blobs.length,
     bytes: blobs.reduce((sum, blob) => sum + (blob.size ?? 0), 0),
-    workflowIntact: workflow === armWorkflowText(ci),
+    workflowIntact: workflowAt(gh, repository, commit) === seeded,
   };
 }
 
@@ -208,13 +216,14 @@ function pointOf(gh: Gh, repository: string, ci: ArmCi, merge: number, pr: Merge
  * whose `hidden-tests` run has not finished stops it there, so points are always written in order; run it again later.
  * `structure` reads the tree at each merge; by default it clones the arm's repository and reads the arm's library.
  */
-export async function recordPoints(server: Storytree, project: string, { experiment, arm, ci }: ArmOfExperiment, gh: Gh = ghCli, structure?: Structure): Promise<Recorded> {
+export async function recordPoints(server: Storytree, project: string, of: ArmOfExperiment, gh: Gh = ghCli, structure?: Structure): Promise<Recorded> {
+  const { experiment, arm } = of;
   // The arm's repository and its throwaway library share one name, `x-<experiment>-<arm>`.
   const armProject = armRepositoryName(experiment, arm);
   const repository = `${ORGANISATION}/${armProject}`;
   const trees = structure ?? armStructure(server, armProject, repository, gh);
   try {
-    return await recordFrom(server, project, { experiment, arm, ci }, gh, trees, armProject, repository);
+    return await recordFrom(server, project, of, gh, trees, armProject, repository);
   } finally {
     await trees.close();
   }
@@ -222,7 +231,7 @@ export async function recordPoints(server: Storytree, project: string, { experim
 
 async function recordFrom(server: Storytree, project: string, { experiment, arm, ci }: ArmOfExperiment, gh: Gh, trees: Structure, armProject: string, repository: string): Promise<Recorded> {
   const pool = await database(server);
-  const { rows } = await pool.query<{ pr: number }>("SELECT pr FROM experiment_points WHERE project = $1 AND experiment = $2 AND arm = $3", [project, experiment, arm]);
+  const { rows } = await pool.query<{ pr: number; sha: string }>("SELECT pr, sha FROM experiment_points WHERE project = $1 AND experiment = $2 AND arm = $3", [project, experiment, arm]);
   const recorded = new Set(rows.map((row) => row.pr));
   const last = (await pool.query<{ merged_at: Date; tokens: string | null }>(
     "SELECT merged_at, tokens FROM experiment_points WHERE project = $1 AND experiment = $2 AND arm = $3 ORDER BY merge DESC LIMIT 1",
@@ -261,6 +270,14 @@ async function recordFrom(server: Storytree, project: string, { experiment, arm,
     written.push(point);
   };
   const seed = recorded.has(0) ? undefined : seedOf(gh, repository, merged);
+  let reference: string | undefined;
+  const seeded = (): string => {
+    if (reference !== undefined) return reference;
+    if (ci !== undefined) return (reference = armWorkflowText(ci));
+    const commit = rows.find((row) => row.pr === 0)?.sha ?? seed?.mergeCommit.oid;
+    if (commit === undefined) throw new Error(`${repository} has no seed commit, recorded or among its push runs on main, so its merges' workflow has nothing to be compared with: record it with the arm's CI`);
+    return (reference = workflowAt(gh, repository, commit) ?? "");
+  };
   if (seed !== undefined) {
     const job = hiddenTestsJob(gh, repository, seed.mergeCommit.oid);
     if (job === undefined) return { written, waiting: { pr: 0, commit: seed.mergeCommit.oid } };
@@ -271,7 +288,7 @@ async function recordFrom(server: Storytree, project: string, { experiment, arm,
       tokens = spent;
       after = at;
     }
-    await write({ ...pointOf(gh, repository, ci, 0, seed, job), tokens: spent, ...collisionsBy(at.getTime()), rework: 0, ...await trees.at(seed.mergeCommit.oid) });
+    await write({ ...pointOf(gh, repository, seeded(), 0, seed, job), tokens: spent, ...collisionsBy(at.getTime()), rework: 0, ...await trees.at(seed.mergeCommit.oid) });
   }
   for (const [index, pr] of merged.entries()) {
     if (recorded.has(pr.number)) continue;
@@ -282,7 +299,7 @@ async function recordFrom(server: Storytree, project: string, { experiment, arm,
     after = at;
     const earlier = merged.slice(Math.max(0, index - REWORK_WINDOW), index).map((one) => filesOf(one.number));
     await write({
-      ...pointOf(gh, repository, ci, index + 1, pr, job),
+      ...pointOf(gh, repository, seeded(), index + 1, pr, job),
       // A run recorded before tokens were has no total to add to, so its later points have none either.
       ...(Number.isNaN(tokens) ? {} : { tokens }),
       ...collisionsBy(at.getTime()),
@@ -291,6 +308,47 @@ async function recordFrom(server: Storytree, project: string, { experiment, arm,
     });
   }
   return { written };
+}
+
+/** One arm's record, or why it could not be recorded. */
+export interface ArmRecorded {
+  readonly arm: string;
+  readonly recorded?: Recorded;
+  readonly error?: string;
+}
+
+/**
+ * Records each of the experiment's `arms` in turn (recordPoints, with the seed's workflow as the reference), one that
+ * fails kept with its reason, so it stops none of the others. `structure` gives an arm's tree reader; the default clones.
+ */
+export async function recordArms(server: Storytree, project: string, experiment: string, arms: readonly string[], { gh = ghCli, structure }: { gh?: Gh; structure?: (arm: string) => Structure } = {}): Promise<ArmRecorded[]> {
+  const results: ArmRecorded[] = [];
+  for (const arm of arms) {
+    try {
+      results.push({ arm, recorded: await recordPoints(server, project, { experiment, arm }, gh, structure?.(arm)) });
+    } catch (error) {
+      results.push({ arm, error: String((error as Error).message).split("\n")[0]! });
+    }
+  }
+  return results;
+}
+
+/** A point as a record's line names it: the seed, or the merge and its pull request, with its counts. */
+function pointName(point: Point): string {
+  const counts = point.passed === undefined ? "no result" : `${point.passed}/${point.total}`;
+  return point.merge === 0 ? `the seed (${counts})` : `merge ${point.merge} (#${point.pr}, ${counts})`;
+}
+
+/** One line per arm: what its record wrote and where it waits, nothing new, or why it could not be recorded. */
+export function recordedLines(results: readonly ArmRecorded[]): string[] {
+  return results.map(({ arm, recorded, error }) => {
+    if (recorded === undefined) return `${arm}: could not be recorded: ${error}`;
+    const wrote = recorded.written.map(pointName);
+    const waits = recorded.waiting === undefined ? "" : `waiting for ${recorded.waiting.pr === 0 ? "the seed" : `#${recorded.waiting.pr}`}'s hidden-tests run`;
+    if (wrote.length === 0) return `${arm}: ${waits === "" ? "nothing new to record" : `nothing new to record; ${waits}`}`;
+    const list = wrote.length === 1 ? wrote[0] : `${wrote.slice(0, -1).join(", ")} and ${wrote.at(-1)}`;
+    return `${arm}: recorded ${list}${waits === "" ? "" : `; ${waits}`}`;
+  });
 }
 
 /** An experiment's points, as one series per arm in merge order, the arms by name. */

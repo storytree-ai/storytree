@@ -8,7 +8,7 @@ import { test } from "node:test";
 import { readExperiment } from "@storytree/project-and-caller";
 
 import type { Experiment } from "../record/record.js";
-import type { Curves } from "../points/points.js";
+import type { Curves, Point } from "../points/points.js";
 import { ExperimentRefusal } from "../record/record.js";
 import { armLaneCommand, armRuns, runExperiment, stateFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
 
@@ -19,11 +19,12 @@ const ARMS: ArmRun[] = [
 ];
 
 /** A box whose real pool and arms are scripted per look; the dispatcher runs until `rounds` looks have passed. */
-function fakeBox({ rounds, real, arms, points = async () => ({}), state = { arms: {} } as RunState, launchCode = 0 }: {
+function fakeBox({ rounds, real, arms, points = async () => ({}), record = async () => [], state = { arms: {} } as RunState, launchCode = 0 }: {
   rounds: number;
   real: (round: number) => Look;
   arms: Record<string, (round: number) => string[]>;
   points?: (round: number) => Promise<Curves>;
+  record?: (round: number) => Promise<readonly string[]>;
   state?: RunState;
   launchCode?: number;
 }) {
@@ -39,6 +40,7 @@ function fakeBox({ rounds, real, arms, points = async () => ({}), state = { arms
         ? real(round)
         : { running: 0, cap: 0, lanesDir: "/l", ready: (arms[arm.arm]?.(round) ?? []).map((id) => ({ id, title: id })) }),
       points: () => points(round),
+      record: () => record(round),
       launch: (arm, one, { engineUp }) => {
         launched.push(`${arm.arm}:${one.id}`);
         engineUp();
@@ -149,4 +151,25 @@ test("7.5 · each arm lane is the agent pool's lane runner, run as its own proce
   try {
     assert.equal(stateFile(lanes, "twin"), path.join(lanes, "experiment-twin.json"));
   } finally { rmSync(lanes, { recursive: true, force: true }); }
+});
+
+test("7.7 · each look records the arms' new merges as points before their stop rules read the curves, saying what it recorded; a record that fails is said and the look goes on", async () => {
+  const recorded: Record<string, Point[]> = {};
+  const box = fakeBox({
+    rounds: 3,
+    real: () => idle(0, 4),
+    record: async (round) => {
+      if (round === 0) throw new Error("gh: HTTP 502\nmore");
+      if (round === 1) return [];
+      recorded["map-reads-on"] = [{ merge: 1, pr: 4, mergedAt: "", commit: "", files: 1, bytes: 1, workflowIntact: true, passed: 372, total: 372 }];
+      return ["map-reads-on: recorded merge 1 (#4, 372/372)"];
+    },
+    points: async () => recorded,
+    arms: { "map-reads-on": (round) => [`on${round}`], "map-reads-off": () => [] },
+  });
+  await box.run();
+  assert.ok(box.lines.some((line) => /could not record the arms' points \(gh: HTTP 502\)/.test(line)), "the failure is said in one line");
+  assert.deepEqual(box.launched, ["map-reads-on:on0", "map-reads-on:on1"], "a failed record does not stop the look; a point recorded at a look is read by that look's stop rules");
+  assert.ok(box.lines.some((line) => /map-reads-on: recorded merge 1 \(#4, 372\/372\)/.test(line)));
+  assert.match(box.saved.at(-1)?.arms["map-reads-on"]?.stopped ?? "", /passes all 372 tests/);
 });

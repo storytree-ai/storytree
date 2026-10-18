@@ -312,6 +312,17 @@ export async function recordRed(context: ClaimContext, pr: number, increment: st
   await context.log.append(context.project, { session: pullHolder(pr), harness: "watcher", source: context.source ?? "tool", kind: "pr-red", pr, increment, conflict, checks });
 }
 
+/** The session a ci-rerun line is written on: the watcher's own, which reads as no session (ABOUT_OTHERS). */
+export const WATCHER_SESSION = "watcher";
+
+/**
+ * The watcher reran CI run `run` of the GitHub repository `repo`, starting its `attempt` (Agent runner 4.27): a ci-rerun
+ * line on the watcher, so its reruns are told from the owner's, whom GitHub names as the actor of both.
+ */
+export async function recordRerun(context: ClaimContext, rerun: { repo: string; run: number; attempt: number; what: "main" | "release" }): Promise<void> {
+  await context.log.append(context.project, { session: WATCHER_SESSION, harness: "watcher", source: context.source ?? "tool", kind: "ci-rerun", ...rerun });
+}
+
 /**
  * Asking the owner about `increment` releases the work it holds (ADR-0944 D4): when the context's session holds it,
  * its claim ends, and so do the session's capability claims taken under it; an active increment is a proposal again,

@@ -106,7 +106,7 @@ Your job is to get releases moving and nothing else. Work from ~/code/storytree0
  * still with the watcher, or while the question it (or the watcher) raised is open; a settled question lets the alarm
  * start sessions again. After `limit` sessions the watcher raises that question itself.
  */
-export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, raise, startFix, limit, now = Date.now, say }) {
+export async function watchReleases({ dir, readReleases, rerun, tail, alive, room, questionOpen, raise, startFix, limit, storytree, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} releases: ${message}`);
   const { release, reruns, alarm } = await readReleases();
   let state = await load(dir);
@@ -115,9 +115,12 @@ export async function watchReleases({ dir, readReleases, rerun, tail, alive, roo
     dated(`${release.tag} published: the stop after ${state.stop} ended`);
     state = null;
   }
-  for (const { run, why } of reruns) {
+  for (const { what, run, why } of reruns) {
     try { await rerun(run); dated(`${why}: rerun once`); }
-    catch (error) { dated(`${why}: the rerun was refused (${error.message.split("\n")[0]})`); }
+    catch (error) { dated(`${why}: the rerun was refused (${error.message.split("\n")[0]})`); continue; }
+    // GitHub names the owner as every rerun's actor, since the watcher signs in as him: its own record tells them apart (4.27).
+    try { await storytree?.(["workspace", "rerun", String(run.id), "--repo", run.repo, "--attempt", String(run.attempt + 1), "--what", what]); }
+    catch (error) { dated(`recording the rerun of ${run.id} failed (${error.message.split("\n")[0]})`); }
   }
   if (!alarm) return;
   state ??= { stop: release.tag, since: release.at, fixes: [], fixing: null, pr: null, question: null };

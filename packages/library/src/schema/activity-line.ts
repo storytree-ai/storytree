@@ -166,6 +166,12 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    */
   z.object({ ...common, kind: z.literal("pr-red"), pr: z.number().int().positive(), increment: z.string().min(1), conflict: z.boolean(), checks: z.array(z.string().min(1)) }).strict(),
   /**
+   * A CI run (`run`, in the GitHub repository `repo`, as owner/name) the watcher reran, and the `attempt` the rerun starts:
+   * main's newest CI run or a release run, `what` (Agent runner 4.27). GitHub names the owner as its actor, since the watcher
+   * signs in as him, so this line is how its reruns are told from his. Written on the watcher, which is no session.
+   */
+  z.object({ ...common, kind: z.literal("ci-rerun"), repo: z.string().min(1), run: z.number().int().positive(), attempt: z.number().int().min(2), what: z.enum(["main", "release"]) }).strict(),
+  /**
    * Whether a branch (`of`) still holds open work (ADR-0754 D4): resolved once a pull request from
    * it merged, it has nothing ahead of the default branch, or it was deleted; open again when work
    * is added after. Written by whichever session saw it, never on the sessions that worked on it,

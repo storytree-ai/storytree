@@ -250,12 +250,38 @@ const redPr = verb({
   },
 });
 
+const rerunCi = verb({
+  consumers: ["agent"],
+  command: {
+    family: "workspace",
+    name: "rerun",
+    summary: "the watcher's: record a CI run it reran, a ci-rerun activity line naming the repository, the run and the attempt it starts",
+    usage: "workspace rerun <run> --repo <owner/name> --attempt <n> --what main|release",
+  },
+  tool: { absent: "the Mint box's watcher runs it when it reruns main's CI or a release run" },
+  inputs: {
+    run: { kind: "text", word: 0, describe: "the CI run's id" },
+    repo: { kind: "text", describe: "the GitHub repository, as owner/name" },
+    attempt: { kind: "count", describe: "the attempt the rerun starts" },
+    what: { kind: "text", describe: "main, for main's CI run, or release" },
+  },
+  async act({ run, repo, attempt, what }, context: SessionVerbContext) {
+    if (!/^\d+$/.test(run)) throw new VerbRefusal(`${run} is not a CI run's id`, { misuse: true });
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new VerbRefusal(`${repo} is not a repository as owner/name`, { misuse: true });
+    if (attempt < 2) throw new VerbRefusal("a rerun starts attempt 2 or later", { misuse: true });
+    if (what !== "main" && what !== "release") throw new VerbRefusal(`--what is main or release, not ${what}`, { misuse: true });
+    const { recordRerun } = await import("./claims.js");
+    await recordRerun(context, { repo, run: Number(run), attempt, what });
+    return { text: `Recorded the watcher's rerun of ${repo} run ${run}, attempt ${attempt}.` };
+  },
+});
+
 /** The command line's `workspace` family, which the package's manifest names under `verbs` (ADR-1033): its bare name makes a workspace. */
 export const WORKSPACE_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [{
   name: "workspace",
   summary: "prepare or attach a workspace, claim or release work for this agent session, list stale claims, or allow an increment's changes to imported code",
   order: 23,
-  verbs: [attach, claimOnly, releaseClaim, stale, allow, holdForPr, letGoOfPr, redPr],
+  verbs: [attach, claimOnly, releaseClaim, stale, allow, holdForPr, letGoOfPr, redPr, rerunCi],
   bare: make,
 }];
 

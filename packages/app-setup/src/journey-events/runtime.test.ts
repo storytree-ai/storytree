@@ -92,7 +92,15 @@ test("14.4 a shipped build is stamped with only the public project token, which 
 test("14.3 CLI shutdown awaits a bounded flush: a network that never answers cannot hold the command open, and the milestone stays queued", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
   const configuration = { projectKey: "phc_test", retention: "30 days", deletionContact: "privacy@example.test" };
-  const transport = createPostHogTransport({ projectKey: "phc_test", permitted: () => true, fetch: () => new Promise<Response>(() => {}) });
+  const deadlines = new Set<{ ms: number; fire: () => void }>();
+  let asked!: () => void;
+  const requested = new Promise<void>((resolve) => { asked = resolve; });
+  const transport = createPostHogTransport({
+    projectKey: "phc_test", permitted: () => true,
+    // The transport's clock: its deadline comes due only when the test says.
+    after: (ms, fire) => { const deadline = { ms, fire }; deadlines.add(deadline); return () => deadlines.delete(deadline); },
+    fetch: () => { asked(); return new Promise<Response>(() => {}); },
+  });
   const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", configuration, transport });
   // The next invocation, still offline. Its finish flushes too: left to the real transport, the test
   // posted to PostHog, and on Windows ARM process.exit with that connection closing aborts in libuv.
@@ -101,9 +109,12 @@ test("14.3 CLI shutdown awaits a bounded flush: a network that never answers can
   try {
     await runtime.chooseJourney(true);
     runtime.projectCreated();
-    const started = Date.now();
-    await runtime.finish();
-    assert.ok(Date.now() - started < 6_000, `shutdown took ${Date.now() - started} ms`);
+    const finished = runtime.finish();
+    await requested;
+    // The bound is a deadline of at most five seconds; once it comes due, shutdown completes.
+    assert.deepEqual([...deadlines].map(({ ms }) => ms <= 5_000), [true]);
+    for (const deadline of [...deadlines]) deadline.fire();
+    await finished;
     assert.equal((await reopened.readJourney()).queued, 1);
   } finally { await runtime.finish(); await reopened.finish(); rmSync(home, { recursive: true, force: true }); }
 });

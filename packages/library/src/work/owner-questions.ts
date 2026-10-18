@@ -158,7 +158,7 @@ export async function editQuestion(records: SchemaRecords, id: string, fields: Q
 
 /**
  * The open questions whose lease has lapsed at `at`, across every arc, longest lapsed first (one
- * never stamped before any): the librarian's Queues drain (12-a).
+ * never stamped before any): the librarian's lapsed-questions drain (12-a).
  */
 export async function lapsedQuestions(records: SchemaRecords, at: Date): Promise<SchemaRecord<"question">[]> {
   const lapsed = (await records.list("question"))

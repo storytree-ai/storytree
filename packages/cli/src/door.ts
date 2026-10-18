@@ -174,7 +174,9 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
     io.out(render(writer === undefined ? answer : { ...answer, text: `${answer.text}\nWriter: ${writer.actor}` }));
     outcome = { outcome: "answered", next: stepVerbs(answer.next) };
     return 0;
-  } catch (error) {
+  } catch (thrown) {
+    // A word the door does not have is worded only now, with the hints its own history offers (ADR-1045 D2, D3).
+    const error = thrown instanceof Unheard ? await repointed(thrown, opened, io.cwd) : thrown;
     outcome = outcomeOf(error);
     if (error instanceof Refusal) {
       io.err(render({ text: error.message, next: error.next }));
@@ -271,7 +273,7 @@ async function dispatch(argv: readonly string[], heard: Heard, context: Context)
   const family = FAMILIES.find((candidate) => candidate.name === first || candidate.aliases?.includes(first));
   if (family === undefined) {
     const named = FAMILIES.filter((candidate) => candidate.waitsOn === undefined).map((candidate) => ({ name: candidate.name, command: candidate.name }));
-    throw unknown("storytree", first, (Object.hasOwn(GUESSES, first) ? GUESSES[first] : undefined) ?? nearest(first, named), "Its families", named);
+    throw unknown("storytree", first, Object.hasOwn(GUESSES, first) ? GUESSES[first] : undefined, "Its families", named);
   }
   return dispatchIn(family, family.name, rest, heard, context);
 }
@@ -305,7 +307,7 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   const retired = Object.hasOwn(family.retired ?? {}, second) ? family.retired?.[second] : undefined;
   if (retired !== undefined) throw new Refusal(`storytree ${path} ${second} is retired: ${retired.why}\nRun storytree ${retired.instead}`, { code: 2, next: [] });
   const guessed = Object.hasOwn(family.guesses ?? {}, second) ? family.guesses?.[second] : undefined;
-  throw unknown(`storytree ${path}`, second, guessed ?? nearest(second, named), "Its commands", named);
+  throw unknown(`storytree ${path}`, second, guessed, "Its commands", named);
 }
 
 /**
@@ -322,26 +324,104 @@ async function act(verb: Verb, args: Args, context: Context, heard: Heard): Prom
 }
 
 /**
- * The door's answer to a word it does not have: the real command for that job when agents are
- * known to guess the word, else the nearest real one by spelling, and what there is to choose from.
+ * A word the door does not have, before its refusal is worded (`repointed`): where it was given, the real command for
+ * that job when agents are known to guess the word, the real ones near it by spelling, and what there is to choose from.
  */
-function unknown(where: string, word: string, instead: string | undefined, listed: string, named: readonly { name: string }[]): UnknownCommand {
-  const said = instead === undefined ? "" : `: run storytree ${instead}`;
-  const choices = `${listed}: ${named.map((one) => one.name).join(", ")}.`;
-  return new UnknownCommand(`${where} has no "${word}"${said}\n${choices}`, word, instead, {
+class Unheard extends UnknownCommand {
+  readonly where: string;
+  readonly handPicked: string | undefined;
+  readonly spelled: readonly string[];
+  readonly choices: string;
+
+  constructor(where: string, word: string, handPicked: string | undefined, spelled: readonly string[], choices: string) {
+    super(`${where} has no "${word}"\n${choices}`, word, undefined, { code: 2 });
+    this.where = where;
+    this.handPicked = handPicked;
+    this.spelled = spelled;
+    this.choices = choices;
+  }
+}
+
+function unknown(where: string, word: string, handPicked: string | undefined, listed: string, named: readonly { name: string; command: string }[]): Unheard {
+  return new Unheard(where, word, handPicked, nearby(word, named), `${listed}: ${named.map((one) => one.name).join(", ")}.`);
+}
+
+/**
+ * The door's answer to a word it does not have (ADR-1045 D2, D3): up to three next steps, the commands sessions ran
+ * after the word was refused there before, the hand-picked one and the nearest by spelling, rotated so position does
+ * not choose. A mistake (a real verb, of either door, in the wrong place) leads with, says and names its right command
+ * for the job; a guess (a word nowhere) names none.
+ */
+async function repointed(unheard: Unheard, opened: Opened, folder: string): Promise<UnknownCommand> {
+  const { repointHints } = await import("./usage/repoint.js");
+  const learned = await opened.learned(unheard.where, unheard.word);
+  // Each hint is keyed by the command it runs, shown with its usage, or the hand-picked text where one was given.
+  const shown = new Map<string, string>();
+  const hint = (command: string, why: string) => {
+    const key = verbOf(`storytree ${command}`) ?? `storytree ${command}`;
+    if (!shown.has(key)) shown.set(key, `storytree ${command}`);
+    return { command: key, why };
+  };
+  const handPicked = unheard.handPicked === undefined ? undefined : hint(unheard.handPicked, "the command for this job");
+  const spelled = unheard.spelled.map((command) => hint(command, "nearest by spelling"));
+  const taught = learned.map(({ verb, count }) => ({ command: verb, why: `run next after this word ${count} time${count === 1 ? "" : "s"}` }));
+  const mistake = await isVerb(unheard.word, folder);
+  const right = mistake ? (taught[0] === undefined ? handPicked : { ...taught[0], why: "the command for this job" }) : undefined;
+  const hints = repointHints({
+    ...(right === undefined ? {} : { right }),
+    learned: taught,
+    ...(handPicked === undefined ? {} : { handPicked }),
+    spelled,
+    turn: Math.floor(Date.now() / 1000),
+  });
+  const display = (key: string) => shown.get(key) ?? usageOf(key);
+  const said = right === undefined ? "" : `: run ${display(right.command)}`;
+  return new UnknownCommand(`${unheard.where} has no "${unheard.word}"${said}\n${unheard.choices}`, unheard.word, right?.command.replace(/^storytree /, ""), {
     code: 2,
-    next: instead === undefined ? [{ command: where, why: "each command, with its usage" }] : [],
+    next: hints.length === 0
+      ? [{ command: unheard.where, why: "each command, with its usage" }]
+      : hints.map((one) => ({ command: display(one.command), why: one.why })),
   });
 }
 
-/** The command whose name is closest to `word`, when it is close enough to be the one meant. */
-function nearest(word: string, named: readonly { name: string; command: string }[]): string | undefined {
-  let best: { distance: number; command: string } | undefined;
-  for (const one of named) {
-    const distance = editDistance(word.toLowerCase(), one.name);
-    if (best === undefined || distance < best.distance) best = { distance, command: one.command };
+/** Whether `word` is a real verb of either door: a family, a family within one or a verb anywhere in the door's table, or a tool. */
+async function isVerb(word: string, folder: string): Promise<boolean> {
+  const named = (family: Family): boolean =>
+    family.name === word || (family.aliases ?? []).includes(word) || family.verbs.some((verb) => verb.name === word) || (family.families ?? []).some(named);
+  if (FAMILIES.some(named)) return true;
+  try {
+    const { servedTools } = await import("@storytree/mcp-server");
+    return (await servedTools(folder)).some((tool) => tool.name === word);
+  } catch {
+    return false;
   }
-  return best !== undefined && best.distance <= Math.max(1, Math.floor(word.length / 3)) ? best.command : undefined;
+}
+
+/** `verb` (a path the door names, `storytree library search`) as its usage shows it, else as it is. */
+function usageOf(verb: string): string {
+  const [, ...words] = verb.split(" ");
+  let family = FAMILIES.find((candidate) => candidate.name === words[0]);
+  if (family === undefined) return verb;
+  for (const word of words.slice(1)) {
+    const inner: Family | undefined = family.families?.find((candidate) => candidate.name === word);
+    if (inner !== undefined) {
+      family = inner;
+      continue;
+    }
+    const found = family.verbs.find((candidate) => candidate.name === word);
+    return found === undefined ? verb : `storytree ${found.usage}`;
+  }
+  return family.bare === undefined ? verb : `storytree ${family.bare.usage}`;
+}
+
+/** The commands whose names are close enough to `word` to be the one meant, closest first. */
+function nearby(word: string, named: readonly { name: string; command: string }[]): string[] {
+  const most = Math.max(1, Math.floor(word.length / 3));
+  return named
+    .map((one) => ({ distance: editDistance(word.toLowerCase(), one.name), command: one.command }))
+    .filter((one) => one.distance <= most)
+    .sort((a, b) => a.distance - b.distance)
+    .map((one) => one.command);
 }
 
 /** Edits (insert, delete, change, or swap two neighbours) that turn `a` into `b`. */
@@ -438,6 +518,17 @@ class Opened {
     const caller = commandSession();
     if (caller === undefined || route(this.#cwd).status !== "routed") return;
     await (await this.#activityLog()).append(this.#routed().project, { ...caller, source: "tool", folder: this.#cwd, kind: "door-answered", door: "command", ...answer });
+  }
+
+  /** What sessions ran next after `word` was refused in `where` (ADR-1045 D3): none where the folder does not route, or on any error. */
+  async learned(where: string, word: string): Promise<{ verb: string; count: number }[]> {
+    if (route(this.#cwd).status !== "routed") return [];
+    try {
+      const { readLearned } = await import("./usage/read.js");
+      return await readLearned(await this.#activityLog(), this.#routed().project, where, word, new Date());
+    } catch {
+      return [];
+    }
   }
 
   async activityContext(): Promise<ClaimContext & { readonly server: Storytree }> {

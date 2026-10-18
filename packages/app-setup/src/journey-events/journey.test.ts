@@ -17,7 +17,7 @@ function fixture() {
   return { open, close() { for (const journey of opened) journey.close(); rmSync(home, { recursive: true, force: true }); } };
 }
 
-test("1.1 sharing defaults off and persists explicit consent without backfilling earlier milestones", () => {
+test("13.1 sharing defaults off and persists explicit consent without backfilling earlier milestones", () => {
   const f = fixture();
   try {
     const a = f.open();
@@ -35,7 +35,7 @@ test("1.1 sharing defaults off and persists explicit consent without backfilling
   } finally { f.close(); }
 });
 
-test("1.2 only named milestones and validated app versions cross the queue boundary", async () => {
+test("13.2 only named milestones and validated app versions cross the queue boundary", async () => {
   const f = fixture();
   try {
     const a = f.open(); a.choose(true);
@@ -56,7 +56,7 @@ test("1.2 only named milestones and validated app versions cross the queue bound
   } finally { f.close(); }
 });
 
-test("1.3 the anonymous installation id survives reopening", () => {
+test("13.3 the anonymous installation id survives reopening", () => {
   const f = fixture();
   try {
     const a = f.open();
@@ -65,7 +65,7 @@ test("1.3 the anonymous installation id survives reopening", () => {
   } finally { f.close(); }
 });
 
-test("2.1 offline events survive reopening and are removed only after accepted delivery", async () => {
+test("14.1 offline events survive reopening and are removed only after accepted delivery", async () => {
   const f = fixture();
   try {
     const a = f.open(); a.choose(true); a.record("first_launch");
@@ -79,7 +79,7 @@ test("2.1 offline events survive reopening and are removed only after accepted d
   } finally { f.close(); }
 });
 
-test("2.3 another connection switching off drops queued events and stops the next send, even after re-enabling", async () => {
+test("14.3 another connection switching off drops queued events and stops the next send, even after re-enabling", async () => {
   const f = fixture();
   try {
     const a = f.open(); const b = f.open(); a.choose(true);
@@ -91,7 +91,7 @@ test("2.3 another connection switching off drops queued events and stops the nex
   } finally { f.close(); }
 });
 
-test("3.1 absent service and privacy configuration cannot enable sharing or send queued events", async () => {
+test("15.1 absent service and privacy configuration cannot enable sharing or send queued events", async () => {
   const f = fixture();
   try {
     const disabled = f.open(false);
@@ -105,7 +105,7 @@ test("3.1 absent service and privacy configuration cannot enable sharing or send
   } finally { f.close(); }
 });
 
-test("2.1 the offline queue retains at most 500 events and expires events after seven days", async (t) => {
+test("14.1 the offline queue retains at most 500 events and expires events after seven days", async (t) => {
   const f = fixture();
   let now = Date.now();
   t.mock.method(Date, "now", () => now);
@@ -118,7 +118,7 @@ test("2.1 the offline queue retains at most 500 events and expires events after 
   } finally { f.close(); }
 });
 
-test("4.1 preparing a deletion request switches sharing off and clears local events, without claiming remote erasure", () => {
+test("16.1 preparing a deletion request switches sharing off and clears local events, without claiming remote erasure", () => {
   const f = fixture();
   try {
     const a = f.open(); a.choose(true); a.record("error");

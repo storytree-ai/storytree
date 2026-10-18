@@ -235,7 +235,7 @@ test("6.64 check_setup from an MCP client storytree has no hooks for passes as c
   });
 });
 
-test("journey-events 1.5: the hooks-verified milestone is reported only once check_setup verifies all four of the current session's hooks; incomplete evidence, or another session's, reports none", async () => {
+test("app-setup 13.5: the hooks-verified milestone is reported only once check_setup verifies all four of the current session's hooks; incomplete evidence, or another session's, reports none", async () => {
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);

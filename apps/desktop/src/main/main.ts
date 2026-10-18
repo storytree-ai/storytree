@@ -77,8 +77,8 @@ import {
 } from "@storytree/app";
 import { projectsOnThisComputer, setupHelpActions } from "@storytree/app-setup";
 import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANNELS } from "@storytree/app-setup/bridge";
-import { createJourneyRuntime, type JourneyRuntime } from "@storytree/journey-events/runtime";
-import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
+import { createJourneyRuntime, type JourneyRuntime } from "@storytree/app-setup/journey-events/runtime";
+import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";

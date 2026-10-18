@@ -27,7 +27,6 @@
     "@storytree/app-setup": "workspace:*",
     "@storytree/arc-surface": "workspace:^",
     "@storytree/forest": "workspace:^",
-    "@storytree/journey-events": "workspace:*",
     "@storytree/knowledge-core": "workspace:*",
     "@storytree/learning-as-you-build": "workspace:*",
     "@storytree/library": "workspace:*",

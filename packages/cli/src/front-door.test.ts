@@ -16,7 +16,7 @@ import { HEALTH_FAMILIES } from "@storytree/ci-health/verbs";
 import { IDENTITY_FAMILIES } from "@storytree/project-and-caller/identity/verbs";
 import { CHECK_FAMILIES } from "@storytree/guardrails/verbs";
 import { QUALITY_FAMILIES } from "@storytree/quality-assurance/verbs";
-import { JOURNEY_FAMILIES } from "@storytree/journey-events/verbs";
+import { JOURNEY_FAMILIES } from "@storytree/app-setup/journey-events/verbs";
 import { EXPERIMENT_FAMILIES } from "@storytree/experiments/verbs";
 import { LAG_FAMILIES } from "@storytree/app/lag/verbs";
 import { SESSION_FAMILIES } from "@storytree/session-management/verbs";

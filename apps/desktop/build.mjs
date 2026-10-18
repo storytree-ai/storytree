@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
-import { journeyDefine } from "@storytree/journey-events/release";
+import { journeyDefine } from "@storytree/app-setup/journey-events/release";
 import { partsPlugin } from "@storytree/plugin-loader";
 
 const here = path.dirname(fileURLToPath(import.meta.url));

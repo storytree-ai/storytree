@@ -23,7 +23,7 @@ function setup(consent: JourneyState["consent"] = "pending", available = false) 
   return { host, bridge, choices, state: () => state, element: host as unknown as HTMLElement };
 }
 
-test("3.1 first launch has no preselected consent, disables unavailable sharing and persists decline", async () => {
+test("15.1 first launch has no preselected consent, disables unavailable sharing and persists decline", async () => {
   const s = setup();
   const mounted = mountJourneyConsent(s.element, s.bridge);
   await setImmediate();
@@ -40,7 +40,7 @@ test("3.1 first launch has no preselected consent, disables unavailable sharing 
   mounted.stop();
 });
 
-test("3.1 available first launch shares only after an explicit choice; settled consent does not prompt", async () => {
+test("15.1 available first launch shares only after an explicit choice; settled consent does not prompt", async () => {
   const s = setup("pending", true);
   const mounted = mountJourneyConsent(s.element, s.bridge);
   await setImmediate();
@@ -55,7 +55,7 @@ test("3.1 available first launch shares only after an explicit choice; settled c
   next.stop();
 });
 
-test("3.2 settings acknowledge off only after the bridge persists it, retain off and report errors", async () => {
+test("15.2 settings acknowledge off only after the bridge persists it, retain off and report errors", async () => {
   const s = setup("on", true);
   let finish!: (state: JourneyState) => void;
   const save = s.bridge.chooseJourney;
@@ -81,7 +81,7 @@ test("3.2 settings acknowledge off only after the bridge persists it, retain off
   mounted.stop();
 });
 
-test("4.1 deletion prepares contact and installation ID after turning off, without claiming deletion", async () => {
+test("16.1 deletion prepares contact and installation ID after turning off, without claiming deletion", async () => {
   const s = setup("on", true);
   const mounted = mountJourneySettings(s.element, s.bridge);
   mounted.open(); await setImmediate();
@@ -100,7 +100,7 @@ test("4.1 deletion prepares contact and installation ID after turning off, witho
 });
 
 
-test("3.1–3.2 actual controls persist consent and clear queued events across reopened stores", async (t) => {
+test("15.1–15.2 actual controls persist consent and clear queued events across reopened stores", async (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-controls-"));
   const options = { home, appVersion: "0.3.42", configuration: { projectKey: "phc_test_only", retention: "30 days", deletionContact: "privacy@example.test" } };
   const journey = openJourney(options);

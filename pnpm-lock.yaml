@@ -63,9 +63,6 @@ importers:
       '@storytree/forest':
         specifier: workspace:^
         version: link:../../packages/forest
-      '@storytree/journey-events':
-        specifier: workspace:*
-        version: link:../../packages/journey-events
       '@storytree/knowledge-core':
         specifier: workspace:*
         version: link:../../packages/knowledge-core
@@ -190,9 +187,6 @@ importers:
 
   packages/app-setup:
     dependencies:
-      '@storytree/journey-events':
-        specifier: workspace:*
-        version: link:../journey-events
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
@@ -211,6 +205,9 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
+      posthog-node:
+        specifier: 5.55.0
+        version: 5.55.0
     devDependencies:
       '@storytree/plugin-loader':
         specifier: workspace:*
@@ -316,9 +313,6 @@ importers:
       '@storytree/guardrails':
         specifier: workspace:*
         version: link:../guardrails
-      '@storytree/journey-events':
-        specifier: workspace:*
-        version: link:../journey-events
       '@storytree/keys':
         specifier: workspace:*
         version: link:../keys
@@ -593,28 +587,6 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
-  packages/journey-events:
-    dependencies:
-      '@storytree/library':
-        specifier: workspace:*
-        version: link:../library
-      posthog-node:
-        specifier: 5.55.0
-        version: 5.55.0
-    devDependencies:
-      '@types/node':
-        specifier: ^24.13.6
-        version: 24.13.6
-      happy-dom:
-        specifier: 'catalog:'
-        version: 20.14.5
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-      typescript:
-        specifier: ~7.0.2
-        version: 7.0.2
-
   packages/keys:
     devDependencies:
       '@types/node':
@@ -802,9 +774,6 @@ importers:
       '@storytree/guardrails':
         specifier: workspace:*
         version: link:../guardrails
-      '@storytree/journey-events':
-        specifier: workspace:*
-        version: link:../journey-events
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
@@ -5103,13 +5072,13 @@ snapshots:
       '@remotion/timeline-utils': 4.0.535(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@rspack/core': 1.7.11
       '@rspack/plugin-react-refresh': 1.6.1(react-refresh@0.18.0)
-      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.2)(postcss@8.5.30))
+      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.30))
       esbuild: 0.28.1
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
       react-refresh: 0.18.0
       remotion: 4.0.535(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      style-loader: 4.0.0(webpack@5.105.0(esbuild@0.28.2)(postcss@8.5.30))
+      style-loader: 4.0.0(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.30))
       webpack: 5.105.0(esbuild@0.28.1)(postcss@8.5.30)
     transitivePeerDependencies:
       - '@minify-html/node'
@@ -5947,7 +5916,7 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
-  css-loader@7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.2)(postcss@8.5.30)):
+  css-loader@7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.30)):
     dependencies:
       icss-utils: 5.1.0(postcss@8.5.30)
       postcss: 8.5.30
@@ -7365,7 +7334,7 @@ snapshots:
 
   stubborn-utils@1.0.2: {}
 
-  style-loader@4.0.0(webpack@5.105.0(esbuild@0.28.2)(postcss@8.5.30)):
+  style-loader@4.0.0(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.30)):
     dependencies:
       webpack: 5.105.0(esbuild@0.28.1)(postcss@8.5.30)
 

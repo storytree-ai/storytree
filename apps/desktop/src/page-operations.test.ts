@@ -8,7 +8,7 @@ import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
 import { PAGE_READS_CHANNELS, SURFACES_CHANNELS } from "@storytree/app/surfaces";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS } from "@storytree/app-setup/bridge";
 import { FOREST_CHANNELS } from "@storytree/forest/page";
-import { JOURNEY_CHANNELS } from "@storytree/journey-events/bridge";
+import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 
 import { createBridge } from "./bridge.js";
 import { answerPage } from "./page-operations.js";

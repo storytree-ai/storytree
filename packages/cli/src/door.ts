@@ -60,7 +60,7 @@ export type Claim = {
   readonly capability?: string | undefined;
 };
 
-type JourneyRuntime = ReturnType<typeof import("@storytree/journey-events/runtime").createJourneyRuntime>;
+type JourneyRuntime = ReturnType<typeof import("@storytree/app-setup/journey-events/runtime").createJourneyRuntime>;
 
 /** Where a command runs, and where its answer goes. */
 export interface Io {
@@ -168,7 +168,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
       activityContext: () => opened.activityContext(),
       claimContext: () => opened.claimContext(),
       writer: () => (writer ??= commandWriter()),
-      journey: () => (journey ??= import("@storytree/journey-events/runtime").then(({ createJourneyRuntime }) =>
+      journey: () => (journey ??= import("@storytree/app-setup/journey-events/runtime").then(({ createJourneyRuntime }) =>
         createJourneyRuntime({ appVersion: sourceVersion()?.version ?? "0.3.0" }))),
     });
     io.out(render(writer === undefined ? answer : { ...answer, text: `${answer.text}\nWriter: ${writer.actor}` }));

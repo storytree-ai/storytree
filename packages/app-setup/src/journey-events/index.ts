@@ -1,4 +1,4 @@
-/** Capability 1 · Consent and allowed milestones. */
+/** Capability 13 · Consent and allowed milestones. */
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";

@@ -1,6 +1,6 @@
 /** Capability 3 · First-run guide. */
 import type { FeedbackAccount, SetupHelpBridge } from "../help/bridge.js";
-import { draftSaid, feedbackText } from "@storytree/journey-events/feedback";
+import { draftSaid, feedbackText } from "../journey-events/feedback.js";
 import { guideOffered, rememberGuideDismissed } from "./first-run.js";
 import { guide, recoveryRequest } from "./guide.js";
 

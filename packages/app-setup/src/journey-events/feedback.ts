@@ -1,4 +1,4 @@
-/** Capability 5 · Send feedback (Journey events; its composer and sign-in stay in Setup's Help panel). */
+/** Capability 5 · Send feedback: the draft and the text it opens; the composer and optional sign-in are the Help panel's (view/mount.ts). */
 export interface FeedbackDraft { readonly title: string; readonly body: string }
 export type DraftResult = { status: "opened" } | { status: "failed"; error: string };
 

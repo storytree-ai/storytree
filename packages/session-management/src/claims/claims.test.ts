@@ -1053,3 +1053,28 @@ test("5.49 a red the watcher handles is a pr-red line on its pull request's hold
     assert.deepEqual((await readSessions(log, project)).map((session) => session.session), [], "a pull request's holder is no session");
   });
 });
+
+test("5.53 a capability another live session's increment lists is refused at the claim, as the list edit refuses it, naming that increment and its holder; the holder's own session, its pull request's fix session and a session once the increment is released claim it", async () => {
+  await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const work = await park("email form", [emailForm]);
+    assert.ok((await claim(as("A", { branch: "feature/signup" }), work, "driving the email form")).ok);
+
+    const refused = await claim(as("B"), emailForm, "I need the email form");
+    assert.ok(!refused.ok && refused.refused === "held");
+    assert.equal(refused.holder.session, "A");
+    assert.equal(refused.heldFor[0], work, "the increment whose list names it comes first");
+    const unlocked = await claimRefusal(as("B"), emailForm);
+    assert.ok(unlocked?.refused === "held" && unlocked.heldFor[0] === work, "read without the lock, the same");
+    assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "claim-refused").map((line) => line.kind === "claim-refused" && [line.session, line.capability, line.holder]),
+      [["B", emailForm, "A"]], "the refusal is recorded");
+    assert.ok((await claim(as("B"), passwordReset, "fixing the reset link")).ok, "a capability no other increment lists is claimed");
+
+    await holdForPull(as("C"), "A", 12, "feature/signup");
+    assert.ok(!(await claim(as("D"), emailForm, "I need the email form")).ok, "a pull request's held increment refuses it too");
+    assert.ok((await claim(as("D", { branch: "feature/signup" }), emailForm, "fix PR #12")).ok, "its fix session claims it");
+    await release(as("D"), emailForm);
+    await letGo(as("C"), 12, "merged");
+    assert.ok((await claim(as("B"), emailForm, "building the email form")).ok, "free once the increment is let go");
+  });
+});

@@ -1,7 +1,8 @@
 /**
  * Capability 15 · The printed table. A reading for a person in a terminal: the short window's numbers with the long window's beside
  * them, leading with what the owner asked to see first (every command and tool with its consumers and its use, one with
- * no call marked unused, or not judged when a person may call it (ADR-1045 D1), and the misses), then follows, failures, refusals, door share per step and the splits (ADR-0983 D2). The
+ * no call marked unused, or not judged when a person may call it (ADR-1045 D1), and the misses), then follows, the
+ * repoint hints each refused word offered and which were followed (ADR-1045 D3), failures, refusals, door share per step and the splits (ADR-0983 D2). The
  * same two readings as JSON, for a script that compares numbers rather than printed text.
  */
 import type { Door, Reading } from "./reading.js";
@@ -41,6 +42,12 @@ export function doorsTable(short: Reading, long: Reading): string {
     `→ ${follow.step}`, String(follow.offered), String(follow.followed), percent(follow.followed, follow.answered), percent(follow.baseline.took, follow.baseline.calls),
   ]));
   out.push("Follow rate: of the offers the session called again after; baseline: how often the same previous verbs led to the step when it was not offered.");
+
+  section(out, `Refused words' hints, ${sd} days`, ["offered", "followed", "none taken"], short.repoints.map((repoint) => [
+    `↳ ${repoint.where} ${repoint.word}`, String(repoint.offered),
+    repoint.followed.length === 0 ? "–" : repoint.followed.map(({ target, count }) => `${target} ${count}`).join(", "), String(repoint.none),
+  ]));
+  out.push("Followed: the session's next call was that hint, answered. None taken: no next call, or one that took no hint or was refused or failed.");
 
   section(out, "Failures by class", [`${sd}d`, `${ld}d`], long.failures.map((failure) => {
     const near = short.failures.find((other) => other.door === failure.door && other.verb === failure.verb && other.class === failure.class);

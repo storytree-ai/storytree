@@ -69,7 +69,7 @@ const importVerb = verb({
 });
 
 /** The arms `storytree experiment arm make` made for `experiment` in this storytree home: each home that names one of its arms. */
-function madeArms(experiment: string): string[] {
+export function madeArms(experiment: string): string[] {
   const folder = path.join(storytreeHome(), "experiments");
   const prefix = `x-${experiment}-`;
   let homes: string[];

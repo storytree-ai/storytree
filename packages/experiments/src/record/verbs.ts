@@ -1,12 +1,13 @@
 /**
  * Capability 4 · Experiment record and freeze. The `experiment` verbs, declared here (ADR-1033 D3) and named under `verbs`
  * in the package's manifest, so the command line mounts them as its `experiment` family: freezing a record (capability 4), running it (capability 7)
- * and reading its curves (capability 5), with `experiment arm` (capability 2) and `experiment task` (capability 8) within it. No tool serves them yet.
+ * and recording and reading its curves (capability 5), with `experiment arm` (capability 2) and `experiment task` (capability 8) within it. No tool serves them yet.
  */
-import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
+import type { Storytree } from "@storytree/library";
+import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "@storytree/library/verbs";
 
 import { ARM_FAMILY } from "../arm-verbs.js";
-import { TASK_FAMILY } from "../harbor/verbs.js";
+import { madeArms, TASK_FAMILY } from "../harbor/verbs.js";
 import { RUN_VERB } from "../run/verbs.js";
 
 const freezeVerb = verb({
@@ -43,11 +44,30 @@ const curvesVerb = verb({
   },
 });
 
+const pointsVerb = verb({
+  consumers: ["user"],
+  command: { family: "experiment", name: "points", summary: "record each arm's new merges, and the seed, as points: what `experiment run` does at every look (ADR-1064 D4)", usage: "experiment points <experiment> [--arms a,b]" },
+  tool: { absent: "points are recorded on the Mint box by whoever runs the experiment, never by a lane" },
+  inputs: {
+    experiment: { kind: "text", word: 0, describe: "the experiment's name, as its arms' repositories are named" },
+    arms: { kind: "text", optional: true, describe: "the arms to record, comma-separated; every arm made for the experiment in this storytree home by default" },
+  },
+  // The door hands the whole library server: recording reads the arms' own projects and the activity log beside them.
+  async act({ experiment, arms }: { experiment: string; arms: string | undefined }, context: VerbContext & { readonly server?: Storytree }) {
+    if (context.server === undefined) throw new VerbRefusal("an experiment's points are kept on the library server, which this door has not opened");
+    const names = arms === undefined ? madeArms(experiment) : arms.split(",").map((arm) => arm.trim()).filter((arm) => arm !== "");
+    if (names.length === 0) throw new VerbRefusal(`experiment ${experiment} has no arms made in this storytree home: name them with --arms, or record on the machine that made them`);
+    const { recordArms, recordedLines } = await import("../points/points.js");
+    const lines = recordedLines(await recordArms(context.server, context.library.name, experiment, names));
+    return { text: lines.join("\n"), next: [{ command: `experiment curves ${experiment}`, why: "read each arm's curve" }] };
+  },
+});
+
 /** The `experiment` family. */
 export const EXPERIMENT_FAMILIES: readonly VerbFamily[] = [{
   name: "experiment",
   summary: "write an experiment down before it runs, give its arms throwaway libraries, import its task, and read its curves (ADR-1064)",
   order: 27,
-  verbs: [freezeVerb, curvesVerb, RUN_VERB],
+  verbs: [freezeVerb, curvesVerb, pointsVerb, RUN_VERB],
   families: [ARM_FAMILY, TASK_FAMILY],
 }];

@@ -19,7 +19,7 @@ import { mounted, type DoorWords, type VerbContext } from "@storytree/library/ve
 import { EXPERIMENT_FAMILIES } from "../record/verbs.js";
 import { armWorkflowText, type ArmCi, type Gh } from "../repositories.js";
 import { withLibrary } from "../testing/pg.js";
-import { curves, recordPoints, type Structure } from "./points.js";
+import { curves, recordArms, recordedLines, recordPoints, type Structure } from "./points.js";
 
 /** The arm's tree as no survey sees it: tests about other measures read no repository. */
 const NO_STRUCTURE: Structure = { at: async () => ({ crossImports: 0, lines: 0 }), close: async () => {} };
@@ -347,5 +347,51 @@ test("5.8 · the seed the import pushed is point zero, with the counts its push'
 
     const text = await curvesAnswer(library, server, "twin", false);
     assert.match(text, /map-reads-on: 2 merges\n[^\n]*\n\s+0\s+seed\s.*0\/372\s+0\.0%[^\n]*\n\s+1\s+#3\s.*12\/372/);
+  });
+});
+
+test("5.9 · an arm recorded without the CI it was seeded with judges each merge's workflow against the one at its seed commit, still after the seed is recorded, and refuses when it has no seed to judge by", async () => {
+  await withLibrary(async (library, server) => {
+    const arm = { experiment: "twin", arm: "map-reads-on" };
+    const seeded = armWorkflowText({ ...CI, checks: "bash ci/checks.sh" });
+    const merges: Merge[] = [
+      { seed: true, number: 0, mergedAt: "2026-10-17T08:00:00Z", sha: "sss", passed: 0, total: 372, workflow: seeded, files: [1] },
+      { number: 1, mergedAt: "2026-10-17T09:00:00Z", sha: "aaa", passed: 3, total: 372, workflow: seeded, files: [1] },
+      { number: 2, mergedAt: "2026-10-17T10:00:00Z", sha: "bbb", passed: 9, total: 372, running: true, workflow: armWorkflowText(CI), files: [1] },
+    ];
+    const first = await recordPoints(server, library.name, arm, github(merges), NO_STRUCTURE);
+    assert.deepEqual(first.written.map(({ merge, workflowIntact }) => [merge, workflowIntact]), [[0, true], [1, true]]);
+
+    delete merges[2]!.running;
+    const second = await recordPoints(server, library.name, arm, github(merges), NO_STRUCTURE);
+    assert.deepEqual(second.written.map(({ merge, workflowIntact }) => [merge, workflowIntact]), [[2, false]], "the seed recorded earlier is still the reference");
+
+    const unseeded: Merge[] = [{ number: 1, mergedAt: "2026-10-17T09:00:00Z", sha: "aaa", passed: 3, total: 372, files: [1] }];
+    const gh = github(unseeded, "storytree-ai/x-twin-map-reads-off");
+    const noSeed = ((args: readonly string[]) => (args[0] === "run" && args[1] === "list" && !args.includes("--commit") ? "[]" : gh(args))) as Gh;
+    await assert.rejects(recordPoints(server, library.name, { experiment: "twin", arm: "map-reads-off" }, noSeed, NO_STRUCTURE), /no seed commit/);
+  });
+});
+
+test("5.10 · recording an experiment records each of its arms in turn, an arm that fails said without stopping the others, and says per arm what it wrote and where it waits", async () => {
+  await withLibrary(async (library, server) => {
+    const on: Merge[] = [
+      { seed: true, number: 0, mergedAt: "2026-10-17T08:00:00Z", sha: "sss", passed: 0, total: 372, files: [1] },
+      { number: 4, mergedAt: "2026-10-17T09:00:00Z", sha: "aaa", passed: 12, total: 372, files: [1] },
+      { number: 5, mergedAt: "2026-10-17T10:00:00Z", sha: "bbb", passed: 20, total: 372, running: true, files: [1] },
+    ];
+    const onGh = github(on, "storytree-ai/x-twin-map-reads-on");
+    const gh = ((args: readonly string[]) => {
+      if (args.includes("storytree-ai/x-twin-map-reads-off") || args.some((arg) => arg.startsWith("repos/storytree-ai/x-twin-map-reads-off/"))) throw new Error("gh: HTTP 404");
+      return onGh(args);
+    }) as Gh;
+    const results = await recordArms(server, library.name, "twin", ["map-reads-off", "map-reads-on"], { gh, structure: () => NO_STRUCTURE });
+    assert.deepEqual(results.map(({ arm, recorded, error }) => [arm, recorded?.written.map(({ merge }) => merge), recorded?.waiting?.pr, error === undefined ? undefined : /404/.test(error)]),
+      [["map-reads-off", undefined, undefined, true], ["map-reads-on", [0, 1], 5, undefined]]);
+    const lines = recordedLines(results);
+    assert.match(lines.find((line) => line.startsWith("map-reads-off"))!, /could not be recorded: .*404/);
+    assert.match(lines.find((line) => line.startsWith("map-reads-on"))!, /recorded the seed \(0\/372\) and merge 1 \(#4, 12\/372\); waiting for #5's hidden-tests run/);
+    const again = recordedLines(await recordArms(server, library.name, "twin", ["map-reads-on"], { gh: github(on.slice(0, 2), "storytree-ai/x-twin-map-reads-on"), structure: () => NO_STRUCTURE }));
+    assert.deepEqual(again, ["map-reads-on: nothing new to record"]);
   });
 });

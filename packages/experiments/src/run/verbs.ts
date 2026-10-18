@@ -5,7 +5,8 @@
  */
 import path from "node:path";
 
-import { verb, VerbRefusal } from "@storytree/library/verbs";
+import type { Storytree } from "@storytree/library";
+import { verb, VerbRefusal, type VerbContext } from "@storytree/library/verbs";
 
 export const RUN_VERB = verb({
   consumers: ["user"],
@@ -20,7 +21,8 @@ export const RUN_VERB = verb({
     as: { kind: "text", describe: "the experiment's short name, as its arms were made with `experiment arm make`" },
     rules: { kind: "text", describe: "the file of rules every arm lane's brief ends with" },
   },
-  async act({ experiment, as, rules }: { experiment: string; as: string; rules: string }, context) {
+  // The door hands the whole library server: each look records the arms' points from their projects and the activity log.
+  async act({ experiment, as, rules }: { experiment: string; as: string; rules: string }, context: VerbContext & { readonly server?: Storytree }) {
     if (context.server === undefined) throw new VerbRefusal("an experiment's points are kept on the library server, which this door has not opened");
     const { ExperimentRefusal } = await import("../record/record.js");
     const { runRecorded } = await import("./dispatcher.js");

@@ -4,6 +4,7 @@
  * takes a slot only while the real pool has no ranked work waiting (unranked work, the experiment's own arc among it,
  * does not hold it back), always leaves one slot for real work, and gives the arms equal turns, the arm with fewer lanes
  * first, so a pause or a quiet week hits both alike. Each arm stops on its stop rules (stop-rules.ts); a pause stops none.
+ * At every look it first records each arm's new merges as points (points.ts), so its stop rules and curves see them.
  *
  * It reaches the agent pool by running its files as processes, never by importing the package (the increment's design
  * call, recorded on capability 7): the command line and the MCP server import this package, and an import would give
@@ -21,7 +22,7 @@ import type { Library, Storytree } from "@storytree/library";
 import { readExperiment, storytreeHome } from "@storytree/project-and-caller";
 
 import { carryDenies } from "../arms.js";
-import { curves, type Curves } from "../points/points.js";
+import { curves, recordArms, recordedLines, type Curves } from "../points/points.js";
 import { ExperimentRefusal, frozenExperiment, type Experiment } from "../record/record.js";
 import { armWorkspace } from "../workspaces.js";
 import { readStopRules, stopReason, type StopRules } from "./stop-rules.js";
@@ -67,17 +68,18 @@ export function armRuns(experiment: Experiment, name: string, root: string): Arm
 }
 
 /**
- * The run's loop, every outside reading injected: `look()` is the real pool and `look(arm)` an arm's library; `points` the
- * experiment's curves; `launch` runs one lane and resolves with its exit (calling `engineUp` once its engine runs, so it
+ * The run's loop, every outside reading injected: `look()` is the real pool and `look(arm)` an arm's library; `record`
+ * writes the arms' new merges as points and gives the lines to say of it; `points` the experiment's curves; `launch` runs one lane and resolves with its exit (calling `engineUp` once its engine runs, so it
  * counts among the box's engines); `stopped` is the owner's stop. Each look: the arms whose stop rules hold are stopped
- * (kept in `state`); with ranked work waiting in the real pool it pauses; otherwise it fills the cap less the engines
+ * (kept in `state`), after their new merges are recorded; with ranked work waiting in the real pool it pauses; otherwise it fills the cap less the engines
  * running, the lanes it is still starting and one slot kept for real work, the arm with fewer lanes first, never starting
  * an increment it runs or ended within `backoffMs`. Ends, after its lanes end, on the owner's stop or once every arm has stopped.
  */
-export async function runExperiment({ arms, rules, look, points, launch, state, stopped, sleep, now, say, pollMs = 60_000, backoffMs = 30 * 60_000 }: {
+export async function runExperiment({ arms, rules, look, record, points, launch, state, stopped, sleep, now, say, pollMs = 60_000, backoffMs = 30 * 60_000 }: {
   arms: readonly ArmRun[];
   rules: StopRules;
   look: (arm?: ArmRun) => Promise<Look>;
+  record: () => Promise<readonly string[]>;
   points: () => Promise<Curves>;
   launch: (arm: ArmRun, one: { id: string; title: string }, hooks: { engineUp: () => void }) => Promise<number>;
   state: { load: () => Promise<RunState>; save: (state: RunState) => Promise<void> };
@@ -100,6 +102,8 @@ export async function runExperiment({ arms, rules, look, points, launch, state, 
   };
   for (;;) {
     if (await stopped()) return finish("stopped by the owner's stop file");
+    try { for (const line of await record()) dated(line); }
+    catch (error) { dated(`could not record the arms' points (${String((error as Error).message).split("\n")[0]}); the next look tries again`); }
     let series: Curves | undefined;
     try { series = await points(); }
     catch (error) { dated(`could not read the experiment's points (${String((error as Error).message).split("\n")[0]}); its stop rules wait for the next look`); }
@@ -211,7 +215,7 @@ function spawned({ command, args, cwd, env }: ReturnType<typeof armLaneCommand>,
  * the file experiment-<name>-stop there stops it. One run per experiment at a time. Resolves, with the state file, when the run ends.
  */
 export async function runRecorded({ library, server, record, name, rulesFile, say: tell = console.log }: {
-  library: Library; server: Pick<Storytree, "ownDatabase">; record: string; name: string; rulesFile: string; say?: (line: string) => void;
+  library: Library; server: Storytree; record: string; name: string; rulesFile: string; say?: (line: string) => void;
 }): Promise<string> {
   const experiment = await frozenExperiment(library, record);
   const rules = readStopRules(experiment);
@@ -228,6 +232,9 @@ export async function runRecorded({ library, server, record, name, rulesFile, sa
   await runExperiment({
     arms, rules,
     look: (arm) => (arm === undefined ? lookWith(library.name) : lookWith(arm.project, arm.home)),
+    // Only what a look wrote, or failed to, is said: an arm waiting on a run, or with nothing new, says nothing every minute.
+    record: async () => recordedLines((await recordArms(server, library.name, name, arms.map((arm) => arm.arm)))
+      .filter(({ recorded }) => recorded === undefined || recorded.written.length > 0)),
     points: () => curves(server, library.name, name),
     launch: async (arm, one, { engineUp }) => {
       await freshen(arm.checkout, say);

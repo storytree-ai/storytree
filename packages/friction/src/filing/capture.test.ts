@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 
 import type { Library } from "@storytree/library";
 import { VerbRefusal, type DoorWords, type VerbAnswer, type VerbContext } from "@storytree/library/verbs";
@@ -18,7 +18,9 @@ import { FRICTION_FAMILIES } from "../verbs.js";
 import { CaptureError, recordFriction, reinforceFriction } from "./capture.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
-const today = () => new Date().toISOString().slice(0, 10);
+/** The day capture stamps, pinned by mocking the clock at its noon (UTC). */
+const DAY = "2026-03-04";
+const pinDay = (t: TestContext) => t.mock.timers.enable({ apis: ["Date"], now: Date.parse(`${DAY}T12:00:00Z`) });
 
 /** Run Friction's `family name` verb with `input` as `actor`, in `folder`. */
 function run(library: Library, folder: string, actor: string, family: string, name: string, input: Record<string, unknown>): Promise<VerbAnswer> {
@@ -72,7 +74,8 @@ test("1.2 · a re-steer whose evidence is a paraphrase is refused; the quote and
   });
 });
 
-test("1.3 · reinforce appends a dated recurrence on the calling branch to the existing friction, keeping the route of a routed one", async () => {
+test("1.3 · reinforce appends a dated recurrence on the calling branch to the existing friction, keeping the route of a routed one", async (t) => {
+  pinDay(t);
   await withLibrary(async (library) => {
     await inFolder("fix/mail", async (folder) => {
       const note = await recordFriction(library, report("Slow mail", "src/mail.ts: TimeoutError"));
@@ -84,8 +87,8 @@ test("1.3 · reinforce appends a dated recurrence on the calling branch to the e
       assert.deepEqual(twins, []);
       assert.deepEqual([saved!.fields.route, saved!.fields.routeReason], ["process", "Upstream outage"]);
       assert.deepEqual(saved!.fields.reinforcedBy, [
-        { branch: "fix/mail", date: today(), evidence: "#81: timed out again" },
-        { branch: "fix/mail", date: today(), evidence: "src/mail.ts: another TimeoutError" },
+        { branch: "fix/mail", date: DAY, evidence: "#81: timed out again" },
+        { branch: "fix/mail", date: DAY, evidence: "src/mail.ts: another TimeoutError" },
       ]);
       const history = await library.history();
       await assert.rejects(run(library, folder, "session:s", "friction", "reinforce", { friction: note.id, evidence: "It happened again" }), /concrete/);
@@ -94,10 +97,11 @@ test("1.3 · reinforce appends a dated recurrence on the calling branch to the e
   });
 });
 
-test("1.4 · capture stamps the calling folder's branch and UTC date and refuses a fourth report on that branch that day, routed ones counted, naming the cap and friction reinforce, with nothing written; a defect with no failure mode is refused", async () => {
+test("1.4 · capture stamps the calling folder's branch and UTC date and refuses a fourth report on that branch that day, routed ones counted, naming the cap and friction reinforce, with nothing written; a defect with no failure mode is refused", async (t) => {
+  pinDay(t);
   await withLibrary(async (library) => {
     await inFolder("fix/mail", async (folder) => {
-      for (const provenance of [{ branch: "another/branch", date: today() }, { branch: "fix/mail", date: "2000-01-01" }]) {
+      for (const provenance of [{ branch: "another/branch", date: DAY }, { branch: "fix/mail", date: "2000-01-01" }]) {
         await library.writeKnowledge("friction", { ...report("Old"), provenance: { ...provenance, source: "retro" as const } });
       }
       const filed = [];
@@ -105,11 +109,11 @@ test("1.4 · capture stamps the calling folder's branch and UTC date and refuses
       await library.editNote(filed[2]!, { route: "nothing", routeReason: "Outage passed" });
       const first = await library.get(filed[0]!);
       assert.ok(first?.type === "friction");
-      assert.deepEqual(first.fields.provenance, { branch: "fix/mail", date: today(), source: "retro" });
+      assert.deepEqual(first.fields.provenance, { branch: "fix/mail", date: DAY, source: "retro" });
 
       const history = await library.history();
       await assert.rejects(run(library, folder, "session:s", "friction", "new", report("four")), (error: Error) =>
-        error instanceof CaptureError && /3 friction.*fix\/mail/.test(error.message) && error.message.includes(today()) && /friction reinforce/.test(error.message));
+        error instanceof CaptureError && /3 friction.*fix\/mail/.test(error.message) && error.message.includes(DAY) && /friction reinforce/.test(error.message));
       assert.deepEqual(await library.history(), history, "refusal writes nothing");
       await run(library, folder, "session:s", "friction", "reinforce", { friction: filed[0], evidence: "#81: again" });
       execFileSync("git", ["-C", folder, "symbolic-ref", "HEAD", "refs/heads/fix/other"]);
@@ -122,14 +126,15 @@ test("1.4 · capture stamps the calling folder's branch and UTC date and refuses
   });
 });
 
-test("1.5 · reinforcing through the public capture function appends dated concrete evidence to the same item, keeps a routed one's route and reopens a dismissed one; invalid recurrences write nothing", async () => {
+test("1.5 · reinforcing through the public capture function appends dated concrete evidence to the same item, keeps a routed one's route and reopens a dismissed one; invalid recurrences write nothing", async (t) => {
+  pinDay(t);
   await withLibrary(async (library) => {
     const friction = await recordFriction(library, report("Slow mail", "src/mail.ts: TimeoutError"));
     await library.editNote(friction.id, { route: "nothing", routeReason: "An upstream outage" });
     const reopened = await reinforceFriction(library, friction.id, { branch: "fix/mail", evidence: "src/mail.ts: TimeoutError again" }, { actor: "person:Sam" });
     assert.equal(reopened.id, friction.id);
     assert.equal(reopened.fields.state, "open", "a dismissed report reopens");
-    assert.deepEqual(reopened.fields.reinforcedBy, [{ branch: "fix/mail", date: today(), evidence: "src/mail.ts: TimeoutError again" }]);
+    assert.deepEqual(reopened.fields.reinforcedBy, [{ branch: "fix/mail", date: DAY, evidence: "src/mail.ts: TimeoutError again" }]);
     assert.equal((await library.history({ id: friction.id })).at(-1)?.actor, "person:Sam");
 
     const note = await library.defineTerm({ term: "Delivery", meaning: "Not friction" });

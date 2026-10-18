@@ -136,7 +136,8 @@ const LIBRARY_API = [
  * it with contract 5.8: how a capability's word and why it is not healthy are said (ADR-0825 D1).
  * heldBack joined it with contract 5.11: how the worklist says what a test run in progress holds back.
  * NEW_LINE joined it with ADR-1017 D3: the schema Session management checks each activity log line
- * against before it stores it in the library's database.
+ * against before it stores it in the library's database. connectionString joined it with contract 15.5:
+ * the routed library's connection string, signed in, that `storytree auth connection` hands psql.
  */
 const RUNTIME_EXPORTS = [
   "CONTRACT_DEFINITION",
@@ -161,6 +162,7 @@ const RUNTIME_EXPORTS = [
   "UnknownTypeError",
   "WaitLoopError",
   "connect",
+  "connectionString",
   "heldBack",
   "knowledgeGuidance",
   "planGuidance",

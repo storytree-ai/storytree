@@ -1,6 +1,6 @@
 /**
  * Capability 2 · Arm workspaces. The `experiment arm` verbs (ADR-1033 D3), an inner family the `experiment` family in
- * record/verbs.ts mounts: `experiment arm make` and `drop`. They
+ * record/verbs.ts mounts: `experiment arm make`, `grant` and `drop`. They
  * act as the caller's own library role on the cluster that holds its library, signed in with its `postgres` key, and open
  * no project: the real one is never read or written. The cluster is reached only on this machine (ADR-1064 D3 puts the
  * arms on the Mint box's), so the role's password never leaves it. They are no tools: an arm is made by whoever runs the
@@ -12,6 +12,8 @@ import { resolveKey } from "@storytree/library/keys";
 import { verb, VerbRefusal, type VerbFamilies, type VerbPlace } from "@storytree/library/verbs";
 import { readLibrary, storytreeHome } from "@storytree/project-and-caller";
 
+import type { OnDatabase, SharedOptions } from "./workspaces.js";
+
 const NO_TOOL = { absent: "an arm is made by whoever runs the experiment, never by a lane" };
 
 const ARM_INPUTS = {
@@ -22,8 +24,11 @@ const ARM_INPUTS = {
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
-/** The cluster that holds this caller's library, signed in as its role, with its address; refused when it is not one here. */
-async function cluster<T>(body: (admin: import("pg").Client, server: string) => Promise<T>): Promise<T> {
+/**
+ * The cluster that holds this caller's library, signed in as its role, with its address and the way to its other databases
+ * as that role; refused when it is not one here.
+ */
+async function cluster<T>(body: (admin: import("pg").Client, server: string, shared: SharedOptions) => Promise<T>): Promise<T> {
   const library = readLibrary();
   if (library.location !== "postgres" || !LOOPBACK.has(new URL(library.address).hostname)) {
     throw new VerbRefusal("An experiment's arms are made on the Postgres cluster that holds your library, on this machine: run this where the library setting is a postgres address on 127.0.0.1 (the Mint box).");
@@ -34,9 +39,20 @@ async function cluster<T>(body: (admin: import("pg").Client, server: string) => 
   signedIn.password = password;
   const pg = (await import("pg")).default;
   const admin = new pg.Client({ connectionString: signedIn.href });
+  const onDatabase: OnDatabase = async (database, inside) => {
+    const there = new URL(signedIn.href);
+    there.pathname = `/${encodeURIComponent(database)}`;
+    const client = new pg.Client({ connectionString: there.href });
+    await client.connect();
+    try {
+      return await inside(client);
+    } finally {
+      await client.end();
+    }
+  };
   await admin.connect();
   try {
-    return await body(admin, library.address);
+    return await body(admin, library.address, { onDatabase });
   } finally {
     await admin.end();
   }
@@ -54,9 +70,9 @@ const makeVerb = verb({
   inputs: ARM_INPUTS,
   async act({ experiment, arm, home }: { experiment: string; arm: string; home: string | undefined }) {
     const { makeArm } = await import("./workspaces.js");
-    const made = await cluster((admin, server) => makeArm(admin, server, experiment, arm, homeOf(experiment, arm, home)));
+    const made = await cluster((admin, server, shared) => makeArm(admin, server, experiment, arm, homeOf(experiment, arm, home), shared));
     return {
-      text: `Made arm "${arm}" of experiment "${experiment}": role and project ${made.project}, database ${made.database}, home ${made.home}. A lane run with STORYTREE_HOME=${made.home} works in that library alone.`,
+      text: `Made arm "${arm}" of experiment "${experiment}": role and project ${made.project}, database ${made.database}, home ${made.home}. A lane run with STORYTREE_HOME=${made.home} works in that library alone, and in the shared ${granted(made.granted)}.`,
       data: { ...made },
     };
   },
@@ -71,10 +87,27 @@ const dropVerb = verb({
   async act({ experiment, arm, home }: { experiment: string; arm: string; home: string | undefined }) {
     const { dropArm } = await import("./workspaces.js");
     const folder = homeOf(experiment, arm, home);
-    await cluster((admin) => dropArm(admin, experiment, arm, folder));
+    await cluster((admin, _server, shared) => dropArm(admin, experiment, arm, folder, shared));
     return { text: `Dropped arm "${arm}" of experiment "${experiment}": its database, role and home ${folder}.` };
   },
 });
 
+const grantVerb = verb({
+  consumers: ["user"],
+  command: { family: "experiment arm", name: "grant", summary: "grant an arm already made what its lanes use in the server's shared activity, QA, routing and points databases, as make does", usage: "experiment arm grant <experiment> <arm>" },
+  tool: NO_TOOL,
+  callerless: true,
+  inputs: { experiment: ARM_INPUTS.experiment, arm: ARM_INPUTS.arm },
+  async act({ experiment, arm }: { experiment: string; arm: string }) {
+    const { grantArm } = await import("./workspaces.js");
+    const done = await cluster((admin, _server, shared) => grantArm(admin, experiment, arm, shared));
+    return { text: `Granted arm "${arm}" of experiment "${experiment}" the shared ${granted(done)}.`, data: { granted: [...done] } };
+  },
+});
+
+function granted(databases: readonly string[]): string {
+  return databases.length === 0 ? "databases: none, as the server holds none of them yet" : `databases ${databases.join(", ")}`;
+}
+
 /** `experiment arm`, the inner family of the command line's `experiment` family. */
-export const ARM_FAMILY: VerbFamilies<VerbPlace> = { name: "arm", summary: "make or drop an arm's throwaway library and home", verbs: [makeVerb, dropVerb] };
+export const ARM_FAMILY: VerbFamilies<VerbPlace> = { name: "arm", summary: "make, grant or drop an arm's throwaway library and home", verbs: [makeVerb, grantVerb, dropVerb] };

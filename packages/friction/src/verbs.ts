@@ -178,5 +178,10 @@ export const FRICTION_FAMILIES: readonly VerbFamily[] = [
   { name: "resteer", summary: "file a re-steer, with the owner's own words", order: 14, verbs: [resteerNew] },
 ];
 
+/** Its section of the habits card (ADR-1021, the guidance kind): filing what fought you, and draining what others filed. */
+export const frictionGuidance: readonly string[] = [
+  "File what fought you: `record_friction` when something got in your way, with concrete evidence, and `reinforce` the existing item when it happens again, with its own; `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed: read each, then `route` it with its reason.",
+];
+
 /** Friction's verbs that are tools, which the MCP server mounts (3.2). */
 export const FRICTION_TOOLS = FRICTION_FAMILIES.flatMap((family) => family.verbs);

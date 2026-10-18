@@ -13,6 +13,13 @@
         "from": "./verbs",
         "export": "FRICTION_FAMILIES"
       }
+    ],
+    "guidance": [
+      {
+        "from": "./verbs",
+        "export": "frictionGuidance",
+        "order": 85
+      }
     ]
   },
   "scripts": {

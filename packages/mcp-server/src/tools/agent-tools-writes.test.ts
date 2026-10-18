@@ -430,7 +430,7 @@ test("6.16 every library write from a tool names the calling session, including 
       }
       const friction = await write("record_friction", { title: "Slow mail", description: "Delay", statement: "Timeout", evidence: "src/mail.ts: Error", impact: "Delayed signup" });
       await write("reinforce", { friction, evidence: "#82: Timeout again" });
-      await write("record_resteer", { title: "Simpler", description: "Less UI", doing: "Many fields", redirect: "Just email", evidence: '"Use just email"', disposition: "taste", judged_by: "owner" });
+      await write("record_resteer", { title: "Simpler", description: "Less UI", doing: "Many fields", redirect: "Just email", evidence: '"Use just email"', disposition: "taste", "judged-by": "owner" });
       for (const id of [contract, capability]) await write("retire_from_plan", { id, reason: "Replaced" });
 
       await log.append(project, { session: "after-clear", harness: "claude-code", source: "hook", kind: "tool-requested", tool: "write_note", call: "new-window", agent: "orchestrator" });

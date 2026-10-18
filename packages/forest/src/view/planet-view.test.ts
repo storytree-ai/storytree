@@ -37,7 +37,7 @@ test("3.12 movement of five CSS pixels is a drag, including diagonal movement", 
   assert.equal(isGlobeDrag(from, { x: 100, y: 94 }), true);
 });
 
-test("the sheet opens every story with its grove at its place in the rows, readable by the smoke check", () => {
+test("1.2 the sheet opens every story in the library with its grove at its place in the rows, a retired story with none, readable by the smoke check", () => {
   const health = { reported: { state: "not-checked" as const }, verified: { state: "not-checked" as const } };
   const tree: AnnotatedTree = { arcs: [], stories: [
     { id: "new", title: "A new story", health, capabilities: [] },
@@ -107,7 +107,7 @@ test("3.11 an edge marker keeps clear above what is docked over the canvas's bot
   assert.deepEqual(markerSpot({ left: -5, top: 930 }, size, [{ left: 0, right: 1440, top: 400, bottom: 600 }]), { left: 20, top: 900 }, "only what reaches the bottom edge counts");
 });
 
-test("the opening zoom a guide frames the whole map at: 1.18 radii across half the short side by default; close up fills more, room around less (ADR-0750)", () => {
+test("3.66 the zoom a stop at the whole map frames it at: 1.18 radii across half the short side by default; close up fills more, room around less (ADR-0750)", () => {
   const fills = (choice: Parameters<typeof globeFraming>[0]) => 1 / globeFraming(choice);
   assert.equal(globeFraming("whole-planet"), 1.18, "today's framing: half the short side is 1.18 radii");
   assert.ok(fills("close") > 1, "close up: the planet runs past the short side");

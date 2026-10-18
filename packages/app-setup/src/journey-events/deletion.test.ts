@@ -9,7 +9,7 @@ function person(distinctIds = [credentials.distinctId]) {
   return { id: personId, uuid: personId, distinct_ids: distinctIds };
 }
 
-test("4.2 administrator requests only the matching US person's events and reports queued, never erased", async () => {
+test("16.2 administrator requests only the matching US person's events and reports queued, never erased", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const result = await deleteJourneyEvents({
     ...credentials,
@@ -30,7 +30,7 @@ test("4.2 administrator requests only the matching US person's events and report
   }
 });
 
-test("4.2 missing authorization makes no request and absent person does not claim erasure", async () => {
+test("16.2 missing authorization makes no request and absent person does not claim erasure", async () => {
   let calls = 0;
   const fetch: typeof globalThis.fetch = async () => {
     calls += 1;
@@ -42,7 +42,7 @@ test("4.2 missing authorization makes no request and absent person does not clai
   assert.equal(calls, 1);
 });
 
-test("4.2 administrator refuses ambiguous or malformed matches before deletion", async () => {
+test("16.2 administrator refuses ambiguous or malformed matches before deletion", async () => {
   for (const body of [
     { next: null, results: [person(), person()] },
     { next: "https://us.posthog.com/more", results: [person()] },
@@ -59,7 +59,7 @@ test("4.2 administrator refuses ambiguous or malformed matches before deletion",
   }
 });
 
-test("4.2 vendor failures never expose the personal key or claim deletion success", async () => {
+test("16.2 vendor failures never expose the personal key or claim deletion success", async () => {
   for (const response of [
     Response.json({ error: credentials.personalKey }, { status: 401 }),
     Response.json({ persons_found: 1, persons_queued_for_deletion: 0, persons_deleted: 0, events_queued_for_deletion: false, deletion_errors: [] }, { status: 202 }),

@@ -1,6 +1,6 @@
 /** Capability 3 · First-run guide. The help surface's bridge to the main process. Data only: safe for the page and preload. */
 import type { SetupLine } from "../setup/index.js";
-import type { DraftResult } from "@storytree/journey-events/feedback";
+import type { DraftResult } from "../journey-events/feedback.js";
 
 /** The folder picked for Add project, and the project it now is (or already was). */
 export interface AddedFolder {

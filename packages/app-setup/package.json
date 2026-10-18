@@ -13,7 +13,15 @@
     "./setup": "./src/setup/index.ts",
     "./pipeline": "./src/pipeline/pipeline.ts",
     "./bins": "./src/bins/build.ts",
-    "./verbs": "./src/verbs.ts"
+    "./verbs": "./src/verbs.ts",
+    "./journey-events": "./src/journey-events/index.ts",
+    "./journey-events/view": "./src/journey-events/view.ts",
+    "./journey-events/bridge": "./src/journey-events/bridge.ts",
+    "./journey-events/runtime": "./src/journey-events/runtime.ts",
+    "./journey-events/deletion": "./src/journey-events/deletion.ts",
+    "./journey-events/release": "./src/journey-events/release.ts",
+    "./journey-events/verbs": "./src/journey-events/verbs.ts",
+    "./journey-events/feedback": "./src/journey-events/feedback.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",
@@ -21,9 +29,9 @@
     "build": "tsx src/bins/build.ts"
   },
   "dependencies": {
+    "posthog-node": "5.55.0",
     "@storytree/local-postgres": "workspace:*",
     "@storytree/session-management": "workspace:*",
-    "@storytree/journey-events": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/quality-assurance": "workspace:*",
@@ -44,6 +52,10 @@
       {
         "from": "./verbs",
         "export": "SETUP_FAMILIES"
+      },
+      {
+        "from": "./journey-events/verbs",
+        "export": "JOURNEY_FAMILIES"
       }
     ],
     "guidance": [

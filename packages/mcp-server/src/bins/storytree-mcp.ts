@@ -16,7 +16,7 @@ import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-import { createJourneyRuntime, journeyVersion } from "@storytree/journey-events/runtime";
+import { createJourneyRuntime, journeyVersion } from "@storytree/app-setup/journey-events/runtime";
 
 import { builtFromMain, runSetupCheck, type HookCommand } from "@storytree/app-setup/setup";
 import { createAgentTools } from "../tools/index.js";

@@ -7,7 +7,7 @@ import { JOURNEY_FAMILIES, type JourneyPlace } from "./verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("3.3 the journey events story declares the `journey` family the command line mounts, 26th in its list: status, on, off and delete-request act on the runtime the door hands them", async () => {
+test("15.3 Setup declares the `journey` family the command line mounts, 26th in its list: status, on, off and delete-request act on the runtime the door hands them", async () => {
   const calls: string[] = [];
   let consent: JourneyState["consent"] = "pending";
   const state = (): JourneyState => ({ consent, available: true, installId: "install-test", queued: 0, retention: "30 days" });

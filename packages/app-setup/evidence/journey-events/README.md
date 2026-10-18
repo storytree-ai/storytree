@@ -1,6 +1,6 @@
 # Journey sharing controls
 
-Run `node --import tsx packages/journey-events/evidence/capture.mjs` from the checkout. Add `--retake` to replace this evidence; otherwise the shared desktop capture kit writes to scratch.
+Run `node --import tsx packages/app-setup/evidence/journey-events/capture.mjs` from the checkout. Add `--retake` to replace this evidence; otherwise the shared desktop capture kit writes to scratch.
 
 These pictures use the actual desktop renderer and its content security policy, with the local bridge intercepted. No service credentials, real user events or network analytics calls are used. The fixed installation identifier and `privacy@example.test` are examples. The configured example's 30-day retention is fixture data, not an owner-approved retention policy.
 

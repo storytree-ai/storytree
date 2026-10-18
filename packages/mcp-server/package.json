@@ -17,7 +17,6 @@
     "@modelcontextprotocol/server": "^2.1.0",
     "@storytree/session-management": "workspace:*",
     "@storytree/guardrails": "workspace:*",
-    "@storytree/journey-events": "workspace:*",
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/quality-assurance": "workspace:*",

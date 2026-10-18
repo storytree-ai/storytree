@@ -9,7 +9,7 @@ import { PROJECTS_CHANNELS, type ProjectsBridge } from "@storytree/app/projects/
 import { UPDATES_CHANNELS, type UpdatesBridge } from "@storytree/app/updates/bridge";
 import type { SurfacesBridge } from "@storytree/app";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS, type FeedbackIdentityBridge, type SetupHelpBridge } from "@storytree/app-setup/bridge";
-import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/journey-events/bridge";
+import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/app-setup/journey-events/bridge";
 import type { StorySurvey } from "@storytree/library";
 
 import PAGE_CHANNELS from "#parts/pageChannels";

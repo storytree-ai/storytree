@@ -8,7 +8,7 @@ import { createJourneyRuntime, formatDeletionRequest, formatJourneyState, releas
 import { journeyDefine } from "./release.js";
 import { createPostHogTransport } from "./posthog.js";
 
-test("3.1 first-launch consent records current launch milestones only after an explicit yes, and shutdown awaits delivery", async () => {
+test("15.1 first-launch consent records current launch milestones only after an explicit yes, and shutdown awaits delivery", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
   const events: string[] = [];
   let closed = false;
@@ -26,7 +26,7 @@ test("3.1 first-launch consent records current launch milestones only after an e
   } finally { rmSync(home, { recursive: true, force: true }); }
 });
 
-test("2.3 optional observation cannot prevent application cleanup when local storage is unavailable", async () => {
+test("14.3 optional observation cannot prevent application cleanup when local storage is unavailable", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
   const runtime = createJourneyRuntime({ home, appVersion: "0.3.42" });
   try {
@@ -40,7 +40,7 @@ test("2.3 optional observation cannot prevent application cleanup when local sto
   } finally { await runtime.finish(); rmSync(home, { recursive: true, force: true }); }
 });
 
-test("3.1 a development copy, stamped with no public project token, stays unavailable", async () => {
+test("15.1 a development copy, stamped with no public project token, stays unavailable", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
   const runtime = createJourneyRuntime({ home, appVersion: "0.3.42" });
   try {
@@ -51,7 +51,7 @@ test("3.1 a development copy, stamped with no public project token, stays unavai
   } finally { await runtime.finish(); rmSync(home, { recursive: true, force: true }); }
 });
 
-test("1.4 only completed current actions produce project and landing milestones", async () => {
+test("13.4 only completed current actions produce project and landing milestones", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
   const events: string[] = [];
   const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", configuration: {
@@ -71,7 +71,7 @@ test("1.4 only completed current actions produce project and landing milestones"
   } finally { await runtime.finish(); rmSync(home, { recursive: true, force: true }); }
 });
 
-test("2.4 a shipped build is stamped with only the public project token, which makes sharing available with its retention and deletion contact", async () => {
+test("14.4 a shipped build is stamped with only the public project token, which makes sharing available with its retention and deletion contact", async () => {
   assert.deepEqual(journeyDefine({}), {});
   assert.equal(releaseConfiguration(undefined), undefined);
   assert.throws(() => journeyDefine({ STORYTREE_JOURNEY_KEY: "phx_private_personal_key" }), /public project token/);
@@ -89,7 +89,7 @@ test("2.4 a shipped build is stamped with only the public project token, which m
   } finally { await runtime.finish(); rmSync(home, { recursive: true, force: true }); }
 });
 
-test("2.3 CLI shutdown awaits a bounded flush: a network that never answers cannot hold the command open, and the milestone stays queued", async () => {
+test("14.3 CLI shutdown awaits a bounded flush: a network that never answers cannot hold the command open, and the milestone stays queued", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
   const configuration = { projectKey: "phc_test", retention: "30 days", deletionContact: "privacy@example.test" };
   const transport = createPostHogTransport({ projectKey: "phc_test", permitted: () => true, fetch: () => new Promise<Response>(() => {}) });
@@ -108,7 +108,7 @@ test("2.3 CLI shutdown awaits a bounded flush: a network that never answers cann
   } finally { await runtime.finish(); await reopened.finish(); rmSync(home, { recursive: true, force: true }); }
 });
 
-test("3.3 the command line's status, on, off and delete-request share the persisted controls, refuse on without configuration, wait for their flush and never print the project key", async () => {
+test("15.3 the command line's status, on, off and delete-request share the persisted controls, refuse on without configuration, wait for their flush and never print the project key", async () => {
   const home = mkdtempSync(path.join(tmpdir(), "journey-runtime-"));
   const configuration = { projectKey: "phc_never_printed", retention: "30 days", deletionContact: "privacy@example.test" };
   const sent: string[] = [];

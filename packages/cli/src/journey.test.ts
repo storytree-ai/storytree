@@ -1,4 +1,4 @@
-/** Journey events 3.3: persisted consent controls are reachable from the offline command line. */
+/** Setup 15.3 (Sharing controls): persisted consent controls are reachable from the offline command line. */
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,7 +11,7 @@ const command = new BuiltCommand();
 before(() => command.build());
 after(() => command.remove());
 
-test("journey events 3.3: help does nothing; status, off and deletion work offline while unconfigured opt-in is refused", async (t) => {
+test("app-setup 15.3: help does nothing; status, off and deletion work offline while unconfigured opt-in is refused", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-journey-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");

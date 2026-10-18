@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Sharing controls. The `journey` verbs, declared here (ADR-0969 D2) and named under `verbs` in the package's
+ * Capability 15 · Sharing controls. The `journey` verbs, declared here (ADR-0969 D2) and named under `verbs` in the package's
  * manifest (ADR-1033), so the command line mounts them as its `journey` family: show or change this computer's journey
  * sharing choice, or stop sharing and prepare a deletion request. Each needs no caller; the door hands the per-process
  * runtime, which it finishes after the answer. None is a tool: the desktop app's settings carry the same controls.

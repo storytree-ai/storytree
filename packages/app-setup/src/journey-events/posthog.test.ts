@@ -17,7 +17,7 @@ function requestBody(init?: RequestInit): Record<string, unknown> {
   return JSON.parse(text) as Record<string, unknown>;
 }
 
-test("2.2 Node transport sends one US request without IP, person enrichment, or flags", async () => {
+test("14.2 Node transport sends one US request without IP, person enrichment, or flags", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const transport = createPostHogTransport({
     projectKey: "phc_test_only",
@@ -51,7 +51,7 @@ test("2.2 Node transport sends one US request without IP, person enrichment, or 
   });
 });
 
-test("2.2, 2.3 missing configuration or revoked permission cannot issue a request", async () => {
+test("14.2, 14.3 missing configuration or revoked permission cannot issue a request", async () => {
   let requests = 0;
   const fetch: typeof globalThis.fetch = async () => {
     requests += 1;
@@ -68,7 +68,7 @@ test("2.2, 2.3 missing configuration or revoked permission cannot issue a reques
   assert.equal(requests, 0);
 });
 
-test("2.1, 2.3 failed sends reject safely without background retry and close refuses later sends", async () => {
+test("14.1, 14.3 failed sends reject safely without background retry and close refuses later sends", async () => {
   let requests = 0;
   const transport = createPostHogTransport({
     projectKey: "phc_secret_test_marker",
@@ -84,7 +84,7 @@ test("2.1, 2.3 failed sends reject safely without background retry and close ref
   assert.equal(requests, 1);
 });
 
-test("2.2 corrupt queue rows cannot widen the journey payload", async () => {
+test("14.2 corrupt queue rows cannot widen the journey payload", async () => {
   let requests = 0;
   const transport = createPostHogTransport({
     projectKey: "phc_test_only", permitted: () => true,
@@ -101,7 +101,7 @@ test("2.2 corrupt queue rows cannot widen the journey payload", async () => {
   assert.equal(requests, 0);
 });
 
-test("2.2 a slow but successful US acknowledgement counts as delivery, as a cold connection from far away takes over a second", async () => {
+test("14.2 a slow but successful US acknowledgement counts as delivery, as a cold connection from far away takes over a second", async () => {
   const transport = createPostHogTransport({
     projectKey: "phc_test_only",
     permitted: () => true,

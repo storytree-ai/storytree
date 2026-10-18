@@ -16,7 +16,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
-import { journeyDefine } from "@storytree/journey-events/release";
+import { journeyDefine } from "../journey-events/release.js";
 import { partsPlugin } from "@storytree/plugin-loader";
 
 import { buildLauncher, LAUNCHER_PROGRAM } from "./launcher.js";

@@ -15,7 +15,7 @@ import { mountAddProject, mountDeleteProject, mountRemoveProject, mountSetupHelp
 import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveReading, type PageReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { drawingOf, drillDown, forestDrawn, forestReading, forestScene, keptDrawing, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
-import { mountJourneyConsent, mountJourneySettings } from "@storytree/journey-events/view";
+import { mountJourneyConsent, mountJourneySettings } from "@storytree/app-setup/journey-events/view";
 import { journal, type Target } from "@storytree/learning-as-you-build";
 import { mountJournal, mountTeaching } from "@storytree/learning-as-you-build/view";
 import { mountLagRecorder } from "@storytree/app/lag/view";

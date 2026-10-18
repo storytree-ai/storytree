@@ -118,7 +118,7 @@ test("3.8 the mounted guide explains a Smart App Control block: what it is, wher
   } finally { mounted.stop(); }
 });
 
-test("journey-events 5.5 · feedback sign-in is optional and only explicitly added identity enters the editable draft", async () => {
+test("5.5 · feedback sign-in is optional and only explicitly added identity enters the editable draft", async () => {
   let statuses = 0;
   let signIns = 0;
   const drafts: unknown[] = [];
@@ -165,7 +165,7 @@ test("journey-events 5.5 · feedback sign-in is optional and only explicitly add
   } finally { mounted.stop(); }
 });
 
-test("journey-events 5.5 · unavailable sign-in leaves feedback open and does not expose private errors", async () => {
+test("5.5 · unavailable sign-in leaves feedback open and does not expose private errors", async () => {
   const mounted = mountSetupHelp(document.body, helpBridge({
     feedbackIdentity: {
       status: async () => null,

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeFileSync } from 'node:fs';
-import { withCapture, fakeBridge } from '../../../apps/desktop/src/capture/index.ts';
+import { withCapture, fakeBridge } from '../../../../apps/desktop/src/capture/index.ts';
 import { build } from './build.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = await build();

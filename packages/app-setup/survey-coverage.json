@@ -54,6 +54,42 @@
  "src/help/license.ts": {
   "4": 1
  },
+ "src/journey-events/deletion.ts": {
+  "16": 12
+ },
+ "src/journey-events/feedback.ts": {
+  "3": 8,
+  "5": 20
+ },
+ "src/journey-events/index.ts": {
+  "13": 48,
+  "14": 72,
+  "15": 76,
+  "16": 19
+ },
+ "src/journey-events/posthog.ts": {
+  "13": 10,
+  "14": 80,
+  "15": 30
+ },
+ "src/journey-events/release.ts": {
+  "13": 1,
+  "14": 3,
+  "15": 3
+ },
+ "src/journey-events/runtime.ts": {
+  "13": 18,
+  "14": 54,
+  "15": 57
+ },
+ "src/journey-events/verbs.ts": {
+  "8": 31,
+  "15": 5
+ },
+ "src/journey-events/view.ts": {
+  "15": 56,
+  "16": 14
+ },
  "src/pipeline/pipeline.ts": {
   "11": 12
  },
@@ -143,16 +179,19 @@
   "8": 124
  },
  "src/view/add-project.ts": {
-  "3": 24
+  "3": 24,
+  "5": 12
  },
  "src/view/delete-project.ts": {
   "3": 1
  },
  "src/view/first-run.ts": {
-  "3": 10
+  "3": 10,
+  "5": 4
  },
  "src/view/mount.ts": {
-  "3": 96
+  "3": 96,
+  "5": 48
  },
  "src/view/remove-project.ts": {
   "3": 1

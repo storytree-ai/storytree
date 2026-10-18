@@ -5,7 +5,7 @@ import type { AnnotatedTree, ArcView, Change, Holds, Line } from "@storytree/lib
 import { forestScene, growPlanet, storyNodes } from "@storytree/forest";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import { saveForestSnapshot } from "@storytree/forest/snapshot";
-import { islandCoastReach } from "@storytree/forest/world/geometry";
+import { islandCoastReach } from "@storytree/forest-world/geometry";
 import type { TourSnapshot } from "./forest-data.js";
 
 export interface TourReading {

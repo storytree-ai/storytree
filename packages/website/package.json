@@ -11,6 +11,7 @@
     "@storytree/arc-surface": "workspace:*",
     "@storytree/ci-health": "workspace:*",
     "@storytree/forest": "workspace:*",
+    "@storytree/forest-world": "workspace:*",
     "@storytree/knowledge-core": "workspace:*",
     "@storytree/learning-as-you-build": "workspace:*",
     "@storytree/mark": "workspace:*",

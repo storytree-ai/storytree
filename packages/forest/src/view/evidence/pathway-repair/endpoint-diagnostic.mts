@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Vector3 } from 'three';
 import { workStates } from '@storytree/arc-surface';
-import { buildPlanetPathways, plateTransform } from '@storytree/forest/world/geometry';
+import { buildPlanetPathways, plateTransform } from '@storytree/forest-world/geometry';
 import { forestScene, storyNodes } from '../../../index.js';
 import { planetLayout } from '../../planet-navigation.js';
 import { territories, territoryAt } from '../../../territories/territories.js';

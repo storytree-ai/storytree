@@ -15,7 +15,7 @@ const require = createRequire(path.join(root, 'apps/desktop/package.json'));
 const { forestScene, storyNodes, placeOnPackedGlobe, PLANET_RADIUS, PLANET_CAPACITY } =
   await import(pathToFileURL(require.resolve('@storytree/forest')));
 const { workStates } = await import(pathToFileURL(require.resolve('@storytree/arc-surface')));
-const engine = async name => import(pathToFileURL(path.join(root, 'packages/forest/src/world', name)));
+const engine = async name => import(pathToFileURL(path.join(root, 'packages/forest-world/src', name)));
 const { buildPlanetPathways } = await engine('planet/pathways.ts');
 const { plateTransform } = await engine('planet/planet.ts');
 const { clipToCoast, rimLoops, SHIPPED_COAST } = await engine('coast-clip.ts');

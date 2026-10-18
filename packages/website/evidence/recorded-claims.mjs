@@ -8,8 +8,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
-import { crossingLength } from '@storytree/forest/world/planet';
-import { buildPlanetPathways } from '@storytree/forest/world/geometry';
+import { crossingLength } from '@storytree/forest-world/planet';
+import { buildPlanetPathways } from '@storytree/forest-world/geometry';
 import { mapRecording, mapGrowthPlan } from '../src/map-recording.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));

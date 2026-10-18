@@ -1,0 +1,116 @@
+{
+ "src/coast-clip.ts": {
+  "4": 390,
+  "5": 312
+ },
+ "src/core/camera.ts": {
+  "1": 4,
+  "4": 20,
+  "5": 16
+ },
+ "src/core/coast.ts": {
+  "1": 24,
+  "4": 120,
+  "5": 96
+ },
+ "src/core/hex.ts": {
+  "1": 12,
+  "3": 4,
+  "4": 64,
+  "5": 48
+ },
+ "src/core/rng.ts": {
+  "1": 8,
+  "4": 20,
+  "5": 16
+ },
+ "src/core/routing.ts": {
+  "1": 106,
+  "3": 3,
+  "4": 370,
+  "5": 368
+ },
+ "src/core/sizing.ts": {
+  "1": 4,
+  "4": 20,
+  "5": 16
+ },
+ "src/core/substrate.ts": {
+  "1": 44,
+  "4": 220,
+  "5": 176
+ },
+ "src/exact-colour.ts": {
+  "2": 4
+ },
+ "src/forest-ground/forest-ground.ts": {
+  "1": 74,
+  "4": 382,
+  "5": 312
+ },
+ "src/land-per-capability.ts": {
+  "1": 10,
+  "4": 50,
+  "5": 40
+ },
+ "src/land-relief.ts": {
+  "3": 2,
+  "4": 28,
+  "5": 16
+ },
+ "src/planet/PlanetGrowth.tsx": {
+  "4": 7
+ },
+ "src/planet/PlanetTrailRibbons.tsx": {
+  "4": 19
+ },
+ "src/planet/PlanetWorldCanvas.tsx": {
+  "4": 27
+ },
+ "src/planet/camera.ts": {
+  "4": 12
+ },
+ "src/planet/exterior.ts": {
+  "4": 2
+ },
+ "src/planet/growth.ts": {
+  "4": 1,
+  "5": 344
+ },
+ "src/planet/island-surface.ts": {
+  "4": 87,
+  "5": 16
+ },
+ "src/planet/lanes.ts": {
+  "4": 16,
+  "5": 8
+ },
+ "src/planet/paint-while-seen.ts": {
+  "4": 35
+ },
+ "src/planet/pathways.ts": {
+  "4": 477,
+  "5": 440
+ },
+ "src/planet/planet.ts": {
+  "3": 7,
+  "4": 39,
+  "5": 8
+ },
+ "src/planet/redraw-on-restore.ts": {
+  "4": 5
+ },
+ "src/shade-ladder.ts": {
+  "3": 1,
+  "4": 14,
+  "5": 8
+ },
+ "src/trail-ribbon-width.ts": {
+  "3": 12
+ },
+ "src/true-footprint.ts": {
+  "1": 10,
+  "4": 50,
+  "5": 40
+ }
+}

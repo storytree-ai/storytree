@@ -4,10 +4,10 @@
 // ?map=shop|storytree  &seconds=<length>  &at=<seconds> fixes a moment; absent, it plays on the canvas's clock.
 // &sheet=1 grows it on the glass sheet, each island where the app's sheet puts the plan (ADR-1043), not on the globe.
 import { createRoot } from 'react-dom/client';
-import { growthPlan, crossingLength, type PlanetSpot } from '@storytree/forest/world/planet';
+import { growthPlan, crossingLength, type PlanetSpot } from '@storytree/forest-world/planet';
 import { createKnowledgeCore } from '@storytree/knowledge-core/view';
 import { PlanetView } from '@storytree/forest/view';
-import { buildPlanetPathways } from '@storytree/forest/world/geometry';
+import { buildPlanetPathways } from '@storytree/forest-world/geometry';
 import { onSheet } from '../../src/map-recording.js';
 import shop from '../../src/shop-snapshot.json' with { type: 'json' };
 import storytree from '../../src/forest-snapshot.json' with { type: 'json' };

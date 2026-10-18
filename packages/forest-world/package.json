@@ -1,0 +1,33 @@
+{
+  "name": "@storytree/forest-world",
+  "private": true,
+  "type": "module",
+  "description": "The drawing engine (ADR-0633 D2, ADR-0920): the globe and the ground under its islands, from 0.2's forest-world core (src/core), and the join that feeds it 0.3's story node places.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./geometry": "./src/geometry.ts",
+    "./scene": "./src/scene.ts",
+    "./planet": "./src/planet/PlanetWorldCanvas.tsx",
+    "./road-worker": "./src/planet/road-worker.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@types/three": "^0.185.0",
+    "esbuild": "^0.28.2",
+    "playwright-core": "1.60.0",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

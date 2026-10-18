@@ -392,6 +392,32 @@ test("3.66 on the glass sheet, a stop at the whole map pans and zooms to the vie
   assert.ok(Math.abs(centre(pose.turn).x) < 1e-6, "zoomed out until it fits, the sheet sits in the middle");
 });
 
+test("3.66 a stop at the whole map aimed while the last map's sheet was still on show reframes once the new sheet arrives, until something else moves it", () => {
+  const wide = sheet(9).extent, narrow = sheet(2).extent, world = new Group(), glass = new Group();
+  glass.name = "sheet:glass"; world.add(glass);
+  let extent = wide, pose = sheetOpening(wide, size);
+  const guide = createGlobeGuide({ world: () => world, camera: () => new OrthographicCamera(), size: () => size,
+    read: () => pose, write: next => { pose = next; }, invalidate() {}, opening: framing => sheetOpening(extent, size, framing) });
+  const framing = sheetOpening(wide, size).framing / 2, at = (turn: GlobePose["turn"]) => sheetCentre(turn);
+  assert.equal(guide.stop({ target: { kind: "core" }, framing, duration: 600 }), true);
+  guide.frame(300);
+  // The new map's sheet arrives mid-glide: the stop is aimed again at the whole of it.
+  extent = narrow;
+  assert.equal(guide.reframe(), true);
+  guide.frame(600);
+  const whole = sheetOpening(narrow, size, framing);
+  assert.ok(Math.abs(at(pose.turn).x - at(whole.turn).x) < 1e-6 && Math.abs(at(pose.turn).y - at(whole.turn).y) < 1e-6, "over the new sheet's whole map");
+  assert.equal(pose.framing, framing);
+  // A hand on the sheet, Home or another stop ends it: a sheet changing after that leaves the view where it is.
+  for (const move of [() => guide.cancel(), () => guide.home(pose, 0), () => guide.stop({ target: { kind: "story", story: "s0" } })]) {
+    extent = narrow;
+    guide.stop({ target: { kind: "core" }, framing, duration: 0 });
+    move();
+    extent = wide;
+    assert.equal(guide.reframe(), false);
+  }
+});
+
 test("3.28 on the glass sheet, a plan still growing, framed by its full plan, keeps every island where the full plan puts it, on glass the full plan's size", () => {
   const ids = ["s0", "s1", "s2", "loose-a", "loose-b"];
   const tree: AnnotatedTree = { arcs: [], stories: ids.map((id, k) => ({ id, title: `Story ${id}`, health, capabilities: [

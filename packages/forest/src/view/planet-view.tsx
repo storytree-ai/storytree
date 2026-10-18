@@ -430,6 +430,8 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
     onPose({ turn: turn.current, ...besideAside.current!.home(size) });
   };
   useEffect(() => { if (opened.current && !touched.current) openSheet(); }, [size.width, size.height, sheet.width, sheet.height]);
+  // 3.66: a stop at the whole map the guide aimed at the last map's sheet is aimed again at the sheet that replaced it.
+  useEffect(() => { if (touched.current && guide.current!.reframe()) guideFrameAt.current = performance.now(); }, [sheet.width, sheet.height]);
   // 3.40: the sheet follows the right-hand panel into the free width, and back.
   const besideAside = useRef<ReturnType<typeof createGlobeAside>>(undefined);
   besideAside.current ??= createGlobeAside(() => host.current.opening, { fit: false });

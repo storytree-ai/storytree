@@ -24,10 +24,10 @@ test("6.1 · a rendered still is crisp pixel art: every 6×6 block of the lossle
   assert.ok(new Set(Array.from({ length: rgb.length / 3 }, (_, i) => rgb.readUIntBE(i * 3, 3))).size > 8, "the frame draws a picture, not a flat fill");
 });
 
-test("6.2 · the same frame renders identically twice, the turning globe included", { timeout: 300_000 }, async () => {
+test("6.2 · the same frame renders identically twice, the turning globe included, however late a slow machine captures it", { timeout: 300_000 }, async () => {
   const [first, second] = [path.join(scratch, "first.png"), path.join(scratch, "second.png")];
   await renderPng(serveUrl, FIRST_SHORT.id, FRAME, first);
-  await renderPng(serveUrl, FIRST_SHORT.id, FRAME, second);
+  await renderPng(serveUrl, FIRST_SHORT.id, FRAME, second, 1, { lateBy: 600 });
   assert.ok((await rgbOf(first)).equals(await rgbOf(second)));
 });
 

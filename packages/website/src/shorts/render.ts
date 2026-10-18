@@ -61,11 +61,12 @@ export function remotionOn({ platform, arch, env, exists, x64Binaries }: Machine
   return { browserExecutable: chrome, chromeMode: "chrome-for-testing", binariesDirectory: x64Binaries() };
 }
 
-/** One frame of a composition as a lossless PNG, rendered in a browser of its own; `scale` 0.5 gives the ×3 web size. */
-export async function renderPng(serveUrl: string, id: string, frame: number, output?: string, scale = 1): Promise<Buffer> {
+/** One frame of a composition as a lossless PNG, rendered in a browser of its own; `scale` 0.5 gives the ×3 web size, and
+ * `inputProps` are the composition's props. */
+export async function renderPng(serveUrl: string, id: string, frame: number, output?: string, scale = 1, inputProps: Record<string, unknown> = {}): Promise<Buffer> {
   const setup = remotionOn();
-  const composition = await selectComposition({ serveUrl, id, chromiumOptions, timeoutInMilliseconds, ...setup, logLevel: "error" });
-  const { buffer } = await renderStill({ serveUrl, composition, frame, imageFormat: "png", output: output ?? null, chromiumOptions, timeoutInMilliseconds, ...setup,
+  const composition = await selectComposition({ serveUrl, id, inputProps, chromiumOptions, timeoutInMilliseconds, ...setup, logLevel: "error" });
+  const { buffer } = await renderStill({ serveUrl, composition, frame, inputProps, imageFormat: "png", output: output ?? null, chromiumOptions, timeoutInMilliseconds, ...setup,
     logLevel: "error", overwrite: true, scale });
   return buffer ?? readFile(output!);
 }

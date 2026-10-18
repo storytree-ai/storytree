@@ -10,7 +10,7 @@ import { readExperiment } from "@storytree/project-and-caller";
 import type { Experiment } from "../record/record.js";
 import type { Curves, Point } from "../points/points.js";
 import { ExperimentRefusal } from "../record/record.js";
-import { armLaneCommand, armRuns, runExperiment, stateFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
+import { armLaneCommand, armRuns, laneBrief, PLAN_RULES, runExperiment, stateFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
 
 const RULES = { flatMerges: 2, wallClockMs: 3600_000, wallClock: "1 hour" };
 const ARMS: ArmRun[] = [
@@ -19,10 +19,12 @@ const ARMS: ArmRun[] = [
 ];
 
 /** A box whose real pool and arms are scripted per look; the dispatcher runs until `rounds` looks have passed. */
-function fakeBox({ rounds, real, arms, points = async () => ({}), record = async () => [], state = { arms: {} } as RunState, launchCode = 0 }: {
+function fakeBox({ rounds, real, arms, plans = {}, planRounds = 0, points = async () => ({}), record = async () => [], state = { arms: {} } as RunState, launchCode = 0 }: {
   rounds: number;
   real: (round: number) => Look;
   arms: Record<string, (round: number) => string[]>;
+  plans?: Record<string, (round: number) => { id: string; title: string; state: string }[]>;
+  planRounds?: number;
   points?: (round: number) => Promise<Curves>;
   record?: (round: number) => Promise<readonly string[]>;
   state?: RunState;
@@ -31,6 +33,9 @@ function fakeBox({ rounds, real, arms, points = async () => ({}), record = async
   let round = 0;
   const lines: string[] = [], launched: string[] = [], saved: RunState[] = [];
   const lanes: Promise<number>[] = [];
+  // A planning lane runs for `planRounds` looks (or until the run stops), so a look can find it still running.
+  const planning: { until: number; end: () => void }[] = [];
+  const endPlans = (all: boolean) => { for (const lane of planning.filter((one) => all || round >= one.until)) { lane.end(); planning.splice(planning.indexOf(lane), 1); } };
   let clock = Date.parse("2026-10-17T00:00:00Z");
   return {
     lines, launched, saved,
@@ -38,19 +43,20 @@ function fakeBox({ rounds, real, arms, points = async () => ({}), record = async
       arms: ARMS, rules: RULES, pollMs: 60_000, backoffMs: 30 * 60_000,
       look: async (arm) => (arm === undefined
         ? real(round)
-        : { running: 0, cap: 0, lanesDir: "/l", ready: (arms[arm.arm]?.(round) ?? []).map((id) => ({ id, title: id })) }),
+        : { running: 0, cap: 0, lanesDir: "/l", ready: (arms[arm.arm]?.(round) ?? []).map((id) => ({ id, title: id })), plans: plans[arm.arm]?.(round) ?? [] }),
       points: () => points(round),
       record: () => record(round),
       launch: (arm, one, { engineUp }) => {
-        launched.push(`${arm.arm}:${one.id}`);
+        launched.push(`${arm.arm}:${one.plan ? "plan:" : ""}${one.id}`);
         engineUp();
+        if (one.plan && planRounds > 0) return new Promise((done) => planning.push({ until: round + planRounds, end: () => done(launchCode) }));
         const lane = Promise.resolve(launchCode);
         lanes.push(lane);
         return lane;
       },
       state: { load: async () => structuredClone(state), save: async (next) => { saved.push(structuredClone(next)); } },
-      stopped: async () => round >= rounds,
-      sleep: async (ms) => { round += 1; clock += ms; await Promise.all(lanes); await new Promise((go) => setImmediate(go)); },
+      stopped: async () => { const done = round >= rounds; if (done) endPlans(true); return done; },
+      sleep: async (ms) => { round += 1; clock += ms; endPlans(false); await Promise.all(lanes); await new Promise((go) => setImmediate(go)); },
       now: () => clock,
       say: (line) => lines.push(line),
     }),
@@ -172,4 +178,36 @@ test("7.7 · each look records the arms' new merges as points before their stop 
   assert.deepEqual(box.launched, ["map-reads-on:on0", "map-reads-on:on1"], "a failed record does not stop the look; a point recorded at a look is read by that look's stop rules");
   assert.ok(box.lines.some((line) => /map-reads-on: recorded merge 1 \(#4, 372\/372\)/.test(line)));
   assert.match(box.saved.at(-1)?.arms["map-reads-on"]?.stopped ?? "", /passes all 372 tests/);
+});
+
+test("7.8 · an arm with nothing ready is given one planning lane for its first arc whose state it has not planned in, never two at once, kept across restarts and counted among its lanes", async () => {
+  const box = fakeBox({
+    rounds: 6, planRounds: 2,
+    state: { arms: { "map-reads-off": { launches: 0, planned: { arc_off: "t1" } } } },
+    real: () => idle(0, 4),
+    arms: { "map-reads-on": () => [], "map-reads-off": (round) => (round === 0 ? ["off1"] : []) },
+    plans: {
+      "map-reads-on": (round) => [{ id: "arc_on", title: "On's arc", state: round < 4 ? "s1" : "s2" }, ...(round < 2 ? [{ id: "arc_on2", title: "Another", state: "x" }] : [])],
+      "map-reads-off": () => [{ id: "arc_off", title: "Off's arc", state: "t1" }],
+    },
+  });
+  assert.equal(await box.run(), 0);
+  assert.deepEqual(box.launched, ["map-reads-on:plan:arc_on", "map-reads-off:off1", "map-reads-on:plan:arc_on"],
+    "round 0: one planning lane for on, not two, while off builds; rounds 1-3: on's lane runs, then its arc is unchanged, and off's arc was planned in its state before the restart; round 4: on's arc changed");
+  assert.ok(box.lines.some((line) => /plan arc_on \(On's arc\) in arm map-reads-on: nothing ready/.test(line)));
+  assert.deepEqual(box.saved.at(-1)?.arms, {
+    "map-reads-on": { launches: 2, firstLane: "2026-10-17T00:00:00.000Z", planned: { arc_on: "s2" } },
+    "map-reads-off": { launches: 1, firstLane: "2026-10-17T00:00:00.000Z", planned: { arc_off: "t1" } },
+  });
+});
+
+test("7.9 · a build lane's brief names its increment and ends with the lane rules; a planning lane's names its arc and ends with the planning rules beside the dispatcher; each names the arm's home, library and checkout", () => {
+  const planRules = readFileSync(PLAN_RULES, "utf8");
+  const build = laneBrief({ arm: ARMS[0]!, name: "twin", one: { id: "increment_a", title: "A" }, rules: "BUILD RULES", planRules });
+  const plan = laneBrief({ arm: ARMS[0]!, name: "twin", one: { id: "arc_a", title: "The task", plan: true }, rules: "BUILD RULES", planRules });
+  assert.match(build, /^# Experiment lane: increment_a\n\nYour increment: increment_a\. /);
+  assert.ok(build.endsWith("BUILD RULES"));
+  assert.match(plan, /^# Experiment planning lane: arc_a\n\nYour arc: arc_a \(The task\)\. /);
+  assert.ok(plan.endsWith(planRules) && !plan.includes("BUILD RULES"));
+  for (const brief of [build, plan]) assert.ok(brief.includes("/h/on") && brief.includes("x-twin-map-reads-on") && brief.includes("/h/on/repo"));
 });

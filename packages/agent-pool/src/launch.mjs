@@ -215,14 +215,21 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
 
 /**
  * `ready`: what the box would do now for `project` (by default storytree), read by another dispatcher that shares the box's
- * cap (the experiment dispatcher, ADR-1064 D3): the engines running, the cap, the lanes folder, and every increment
- * pickPool would start, with its arc's priority when it has one. The library is the one this process's storytree home names.
+ * cap (the experiment dispatcher, ADR-1064 D3): the engines running, the cap, the lanes folder, every increment
+ * pickPool would start, with its arc's priority when it has one, and every arc pickPlan would plan with nothing ready, in
+ * its order, each with the state it would be planned in (the reader keeps which it planned). The library is the one this
+ * process's storytree home names.
  */
 async function ready(b, project = "storytree") {
   const found = withHandOffs(await b.survey(project), await handedOff(join(b.lanesDir, "watch")));
   const { picks } = pickPool(found, { max: Infinity, now: b.now() });
   const work = picks.map((one) => ({ id: one.id, title: one.title, ...(one.priority === undefined ? {} : { priority: one.priority }) }));
-  (b.out ?? console.log)(JSON.stringify({ running: await b.count(), cap: await b.maxLanes(), lanesDir: b.lanesDir, ready: work }));
+  const plans = [], offered = new Map();
+  for (let arc = pickPlan(found, { planned: offered }); arc; arc = pickPlan(found, { planned: offered })) {
+    offered.set(arc.id, arc.state);
+    plans.push({ id: arc.id, title: arc.title, state: arc.state });
+  }
+  (b.out ?? console.log)(JSON.stringify({ running: await b.count(), cap: await b.maxLanes(), lanesDir: b.lanesDir, ready: work, plans }));
   return 0;
 }
 

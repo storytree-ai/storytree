@@ -35,17 +35,31 @@ export interface ArmRun {
   readonly checkout: string;
 }
 
-/** What a library's pool would start now, as `launch.mjs ready` prints it, with the box's engines running and its cap. */
+/**
+ * What a library's pool would start now, as `launch.mjs ready` prints it, with the box's engines running and its cap: its
+ * ready increments and, for when none is ready, the arcs it would plan, each with the state it would be planned in.
+ */
 export interface Look {
   readonly running: number;
   readonly cap: number;
   readonly lanesDir: string;
   readonly ready: readonly { readonly id: string; readonly title: string; readonly priority?: number }[];
+  readonly plans?: readonly { readonly id: string; readonly title: string; readonly state: string }[];
 }
 
-/** What a run keeps across its restarts, per arm: when its first lane was dispatched, its lanes so far, and why it stopped. */
+/**
+ * What a run keeps across its restarts, per arm: when its first lane was dispatched, its lanes so far (planning lanes
+ * among them), each arc it planned with the state it planned it in, and why it stopped.
+ */
 export interface RunState {
-  arms: Record<string, { launches: number; firstLane?: string; stopped?: string }>;
+  arms: Record<string, { launches: number; firstLane?: string; planned?: Record<string, string>; stopped?: string }>;
+}
+
+/** One lane a run starts: an increment to build, or, with `plan`, an arc to plan. */
+export interface Lane {
+  readonly id: string;
+  readonly title: string;
+  readonly plan?: true;
 }
 
 /**
@@ -73,7 +87,9 @@ export function armRuns(experiment: Experiment, name: string, root: string): Arm
  * counts among the box's engines); `stopped` is the owner's stop. Each look: the arms whose stop rules hold are stopped
  * (kept in `state`), after their new merges are recorded; with ranked work waiting in the real pool it pauses; otherwise it fills the cap less the engines
  * running, the lanes it is still starting and one slot kept for real work, the arm with fewer lanes first, never starting
- * an increment it runs or ended within `backoffMs`. Ends, after its lanes end, on the owner's stop or once every arm has stopped.
+ * an increment it runs or ended within `backoffMs`. An arm with nothing ready is offered one planning lane, as the real pool
+ * plans (launch.mjs): for the first arc its look would plan whose state differs from the one the arm last planned it in
+ * (kept in `state`), never while a planning lane of that arm runs. Ends, after its lanes end, on the owner's stop or once every arm has stopped.
  */
 export async function runExperiment({ arms, rules, look, record, points, launch, state, stopped, sleep, now, say, pollMs = 60_000, backoffMs = 30 * 60_000 }: {
   arms: readonly ArmRun[];
@@ -81,7 +97,7 @@ export async function runExperiment({ arms, rules, look, record, points, launch,
   look: (arm?: ArmRun) => Promise<Look>;
   record: () => Promise<readonly string[]>;
   points: () => Promise<Curves>;
-  launch: (arm: ArmRun, one: { id: string; title: string }, hooks: { engineUp: () => void }) => Promise<number>;
+  launch: (arm: ArmRun, one: Lane, hooks: { engineUp: () => void }) => Promise<number>;
   state: { load: () => Promise<RunState>; save: (state: RunState) => Promise<void> };
   stopped: () => Promise<boolean>;
   sleep: (ms: number) => Promise<void>;
@@ -93,7 +109,7 @@ export async function runExperiment({ arms, rules, look, record, points, launch,
   const dated = (message: string) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   const saved = await state.load();
   const of = (arm: ArmRun) => (saved.arms[arm.arm] ??= { launches: 0 });
-  const running = new Map<string, Promise<void>>(), starting = new Set<string>(), ended = new Map<string, number>();
+  const running = new Map<string, Promise<void>>(), starting = new Set<string>(), ended = new Map<string, number>(), planning = new Set<string>();
   let paused = false;
   const finish = async (message: string) => {
     await Promise.all(running.values());
@@ -131,11 +147,14 @@ export async function runExperiment({ arms, rules, look, record, points, launch,
     if (paused) dated("resumed: the real pool has no ranked work waiting");
     paused = false;
     let free = real.cap - real.running - starting.size - 1;
-    const offers = new Map<ArmRun, { id: string; title: string }[]>();
+    const offers = new Map<ArmRun, Lane[]>(), states = new Map<string, string>();
     if (free > 0) {
       for (const arm of live) {
-        const open = (await look(arm)).ready.filter((one) => !running.has(one.id) && !(now() < (ended.get(one.id) ?? -Infinity) + backoffMs));
-        offers.set(arm, [...open]);
+        const seen = await look(arm);
+        const open = seen.ready.filter((one) => !running.has(one.id) && !(now() < (ended.get(one.id) ?? -Infinity) + backoffMs));
+        const plan = open.length || planning.has(arm.arm) ? undefined : (seen.plans ?? []).find((arc) => of(arm).planned?.[arc.id] !== arc.state);
+        if (plan) states.set(`${arm.arm} ${plan.id}`, plan.state);
+        offers.set(arm, plan ? [{ id: plan.id, title: plan.title, plan: true }] : [...open]);
       }
     }
     while (free > 0) {
@@ -145,13 +164,17 @@ export async function runExperiment({ arms, rules, look, record, points, launch,
       const kept = of(arm);
       kept.launches += 1;
       kept.firstLane ??= new Date(now()).toISOString();
+      if (one.plan) {
+        kept.planned = { ...kept.planned, [one.id]: states.get(`${arm.arm} ${one.id}`)! };
+        planning.add(arm.arm);
+      }
       await state.save(saved);
       free -= 1;
       starting.add(one.id);
-      dated(`start ${one.id} in arm ${arm.arm}`);
+      dated(one.plan ? `plan ${one.id} (${one.title}) in arm ${arm.arm}: nothing ready` : `start ${one.id} in arm ${arm.arm}`);
       running.set(one.id, launch(arm, one, { engineUp: () => starting.delete(one.id) })
         .then((code) => dated(`end ${one.id} in arm ${arm.arm} exit ${code}`), (error: Error) => dated(`lane ${one.id} in arm ${arm.arm} failed: ${error.message}`))
-        .finally(() => { starting.delete(one.id); running.delete(one.id); ended.set(one.id, now()); }));
+        .finally(() => { starting.delete(one.id); running.delete(one.id); ended.set(one.id, now()); if (one.plan) planning.delete(arm.arm); }));
     }
     await sleep(pollMs);
   }
@@ -178,6 +201,20 @@ export function armLaneCommand({ arm, repo, brief, log, err, addDirs, env }: {
     cwd: arm.checkout,
     env: { ...env, STORYTREE_HOME: arm.home },
   };
+}
+
+/** The planning lane's rules, versioned beside this file: plan the arm's arc inside the arm, never build. */
+export const PLAN_RULES = fileURLToPath(new URL("./arm-plan-rules.md", import.meta.url));
+
+/**
+ * The brief one lane of arm `arm` of experiment `name` starts from: an increment to build, ending with the build rules
+ * `rules`, or an arc to plan, ending with the planning rules `planRules`; each names the arm's home, library and checkout.
+ */
+export function laneBrief({ arm, name, one, rules, planRules }: { arm: ArmRun; name: string; one: Lane; rules: string; planRules: string }): string {
+  const where = `You work in arm "${arm.arm}" of experiment "${name}": your storytree home is ${arm.home}, whose library is the arm's own (project ${arm.project}), and your repository is the one checked out at ${arm.checkout}.`;
+  return (one.plan
+    ? [`# Experiment planning lane: ${one.id}`, "", `Your arc: ${one.id} (${one.title}). ${where}`, "", planRules]
+    : [`# Experiment lane: ${one.id}`, "", `Your increment: ${one.id}. ${where}`, "", rules]).join("\n");
 }
 
 const exec = promisify(execFile);
@@ -221,7 +258,7 @@ export async function runRecorded({ library, server, record, name, rulesFile, sa
   const rules = readStopRules(experiment);
   const arms = armRuns(experiment, name, path.join(storytreeHome(), "experiments"));
   if (!existsSync(rulesFile)) throw new ExperimentRefusal(`there are no lane rules at ${rulesFile}: name the file every arm lane's brief ends with`);
-  const lanesRules = readFileSync(rulesFile, "utf8");
+  const lanesRules = readFileSync(rulesFile, "utf8"), planRules = readFileSync(PLAN_RULES, "utf8");
   const { lanesDir } = await lookWith(library.name);
   const pidFile = path.join(lanesDir, `experiment-${name}.pid`);
   const other = Number(existsSync(pidFile) ? readFileSync(pidFile, "utf8").trim() : NaN);
@@ -240,9 +277,7 @@ export async function runRecorded({ library, server, record, name, rulesFile, sa
       await freshen(arm.checkout, say);
       const base = path.join(lanesDir, `experiment-${name}-${arm.arm}-${one.id}`);
       const at = new Date().toISOString().replace(/[-:]|\.\d{3}Z$/g, "");
-      writeFileSync(`${base}-brief.md`, [`# Experiment lane: ${one.id}`, "",
-        `Your increment: ${one.id}. You work in arm "${arm.arm}" of experiment "${name}": your storytree home is ${arm.home}, whose library is the arm's own (project ${arm.project}), and your repository is the one checked out at ${arm.checkout}.`,
-        "", lanesRules].join("\n"));
+      writeFileSync(`${base}-brief.md`, laneBrief({ arm, name, one, rules: lanesRules, planRules }));
       const lane = armLaneCommand({ arm, repo: CHECKOUT, brief: `${base}-brief.md`, log: `${base}-${at}.log`, err: `${base}-${at}.err`, addDirs: [lanesDir], env: process.env });
       return spawned(lane, (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); });
     },

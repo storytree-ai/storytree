@@ -1,4 +1,4 @@
-// Build first, then: node packages/website/evidence/capture.mjs [evidence subfolder] [--verify-… journeys] [--retake]
+// Build first, then: node --import tsx packages/website/evidence/capture.mjs [evidence subfolder] [--verify-… journeys] [--retake]
 // A --verify-… run is a check and writes to a scratch folder (it says which); --retake writes into the evidence subfolder.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";

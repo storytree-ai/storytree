@@ -146,14 +146,19 @@ test("1.5 · reinforcing through the public capture function appends dated concr
   });
 });
 
-test("1.6 · the daily cap counts each writer's own reports: on a branch every session shares, a second session's report is accepted after another filed three that day, and each is still refused its own fourth", async () => {
+test("1.6 · the daily cap counts each writer's own reports: on a branch every session shares, a second session's report is accepted after another filed three that day, and each is still refused its own fourth; a report whose writer was not recorded counts toward every writer's three", async (t) => {
+  pinDay(t);
   await withLibrary(async (library) => {
     await inFolder("main", async (folder) => {
       for (const title of ["one", "two", "three"]) await run(library, folder, "session:first", "friction", "new", report(title));
       await assert.rejects(run(library, folder, "session:first", "friction", "new", report("four")), CaptureError);
       for (const title of ["islands", "bridges", "tunnels"]) await run(library, folder, "session:second", "friction", "new", report(title));
       await assert.rejects(run(library, folder, "session:second", "friction", "new", report("ferries")), CaptureError);
-      assert.equal((await library.list("friction")).length, 6);
+
+      await library.writeKnowledge("friction", { ...report("unsigned"), provenance: { branch: "main", date: DAY, source: "retro" as const } });
+      for (const title of ["roads", "rails"]) await run(library, folder, "session:third", "friction", "new", report(title));
+      await assert.rejects(run(library, folder, "session:third", "friction", "new", report("canals")), CaptureError, "the unsigned report counts toward the third session's three");
+      assert.equal((await library.list("friction")).length, 9);
     });
   });
 });

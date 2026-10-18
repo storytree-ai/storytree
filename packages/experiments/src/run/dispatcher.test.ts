@@ -1,16 +1,18 @@
 /** Capability 7 · Experiment dispatcher: a fake box (engines, cap, the real pool's ready work, each arm's) and fake lanes. */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { readExperiment } from "@storytree/project-and-caller";
+import { forgetTrunk, machineOf, readExperiment, registerTrunk, requireApproval, trunksOn } from "@storytree/project-and-caller";
 
 import type { Experiment } from "../record/record.js";
 import type { Curves, Point } from "../points/points.js";
 import { ExperimentRefusal } from "../record/record.js";
-import { armLaneCommand, armRuns, laneBrief, PLAN_RULES, runExperiment, stateFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
+import { withLibrary } from "../testing/pg.js";
+import { approveCheckouts, armLaneCommand, armRuns, laneBrief, PLAN_RULES, runExperiment, stateFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
 
 const RULES = { flatMerges: 2, wallClockMs: 3600_000, wallClock: "1 hour" };
 const ARMS: ArmRun[] = [
@@ -210,4 +212,39 @@ test("7.9 · a build lane's brief names its increment and ends with the lane rul
   assert.match(plan, /^# Experiment planning lane: arc_a\n\nYour arc: arc_a \(The task\)\. /);
   assert.ok(plan.endsWith(planRules) && !plan.includes("BUILD RULES"));
   for (const brief of [build, plan]) assert.ok(brief.includes("/h/on") && brief.includes("x-twin-map-reads-on") && brief.includes("/h/on/repo"));
+});
+
+test("7.10 · a run approves each arm's checkout as its trunk, as the machine its home names, through the admin's connection: one with no trunk is recorded approved, one recorded unapproved is approved, one already approved is left alone, and a project whose trunk is elsewhere refuses the run", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "arm-trunks-"));
+  const tag = randomBytes(3).toString("hex");
+  const arm = (name: string): ArmRun => {
+    const home = path.join(root, name);
+    mkdirSync(path.join(home, "repo"), { recursive: true });
+    return { arm: name, project: `x-${tag}-${name}`, home, checkout: path.join(home, "repo") };
+  };
+  const none = arm("none"), unapproved = arm("unapproved"), joined = arm("joined"), elsewhere = arm("elsewhere");
+  const trunkOf = (server: Parameters<typeof trunksOn>[0], one: ArmRun) => trunksOn(server, machineOf(one.home).id).then((all) => all.find((trunk) => trunk.project === one.project));
+  try {
+    await withLibrary(async (_library, server) => {
+      try {
+        const record = (one: ArmRun, by?: string) => { const machine = machineOf(one.home); return registerTrunk(server, { project: one.project, machine: machine.id, machineName: machine.name, folder: realpathSync.native(one.checkout) }, by); };
+        await record(unapproved);
+        await record(joined, "join");
+        assert.deepEqual(await approveCheckouts(server, [none, unapproved, joined]), [
+          `approved ${realpathSync.native(none.checkout)} as arm none's checkout (${none.project})`,
+          `approved ${realpathSync.native(unapproved.checkout)} as arm unapproved's checkout (${unapproved.project})`,
+        ]);
+        for (const one of [none, unapproved, joined]) await requireApproval(server, one.project, one.checkout, one.home);
+        assert.equal((await trunkOf(server, none))?.approvedBy, "experiment run");
+        assert.equal((await trunkOf(server, joined))?.approvedBy, "join", "an approved checkout is left as it was");
+        assert.deepEqual(await approveCheckouts(server, [none, unapproved, joined]), [], "approving again changes nothing");
+
+        const machine = machineOf(elsewhere.home);
+        await registerTrunk(server, { project: elsewhere.project, machine: machine.id, machineName: machine.name, folder: path.join(root, "other") }, "join");
+        await assert.rejects(approveCheckouts(server, [elsewhere]), (error: Error) => error instanceof ExperimentRefusal && /already has its trunk at/.test(error.message));
+      } finally {
+        for (const one of [none, unapproved, joined, elsewhere]) await forgetTrunk(server, { project: one.project }, one.home);
+      }
+    });
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

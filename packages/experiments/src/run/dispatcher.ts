@@ -12,14 +12,14 @@
  * start now, with the engines running and the box's cap; `runner.mjs run` runs one lane on the engine its allowance allows.
  */
 import { execFile, spawn } from "node:child_process";
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import type { Library, Storytree } from "@storytree/library";
-import { readExperiment, storytreeHome } from "@storytree/project-and-caller";
+import { approveTrunk, machineOf, readExperiment, registerTrunk, storytreeHome, trunksOn } from "@storytree/project-and-caller";
 
 import { carryDenies } from "../arms.js";
 import { curves, recordArms, recordedLines, type Curves } from "../points/points.js";
@@ -79,6 +79,31 @@ export function armRuns(experiment: Experiment, name: string, root: string): Arm
   });
   for (const { run, denies } of runs) carryDenies(run.home, name, run.arm, denies);
   return runs.map(({ run }) => run);
+}
+
+/**
+ * Approve each arm's checkout as its project's trunk on this machine, as the machine its home names, through `server`, the
+ * admin's connection: an arm's role only reads the trunks, so no lane can approve a folder, and its doors would refuse the
+ * checkout until a join it cannot make. A checkout already approved is left alone; one recorded unapproved is approved;
+ * none recorded is recorded approved. Refused when the arm's project has another trunk on that machine, or the checkout is
+ * another project's. Gives a line for each checkout it approved.
+ */
+export async function approveCheckouts(server: Storytree, arms: readonly ArmRun[]): Promise<string[]> {
+  const lines: string[] = [];
+  for (const arm of arms) {
+    const machine = machineOf(arm.home), folder = realpathSync.native(arm.checkout);
+    const trunks = await trunksOn(server, machine.id);
+    const own = trunks.find((trunk) => trunk.project === arm.project);
+    if (own !== undefined && own.folder !== folder) throw new ExperimentRefusal(`arm "${arm.arm}"'s project ${arm.project} already has its trunk at ${own.folder} on this machine, not its checkout ${folder}: forget that trunk first`);
+    if (own?.approvedBy !== undefined) continue;
+    const by = "experiment run";
+    if (own !== undefined ? !(await approveTrunk(server, { project: arm.project, machine: machine.id, folder }, by)) : !(await registerTrunk(server, { project: arm.project, machine: machine.id, machineName: machine.name, folder }, by))) {
+      const other = trunks.find((trunk) => trunk.folder === folder)?.project;
+      throw new ExperimentRefusal(`arm "${arm.arm}"'s checkout ${folder} could not be approved as ${arm.project}'s trunk${other === undefined ? "" : `: it is ${other}'s`}`);
+    }
+    lines.push(`approved ${folder} as arm ${arm.arm}'s checkout (${arm.project})`);
+  }
+  return lines;
 }
 
 /**
@@ -247,8 +272,8 @@ function spawned({ command, args, cwd, env }: ReturnType<typeof armLaneCommand>,
 
 /**
  * `storytree experiment run`: the frozen record `record` in `library` (refused unfrozen), its arms' homes as `experiment arm
- * make` made them for the short name `name`, each with its repository cloned at `<home>/repo`, and the lane rules in
- * `rulesFile`. Its status lines go to the lanes folder's experiment-<name>.status, its state to experiment-<name>.json;
+ * make` made them for the short name `name`, each with its repository cloned at `<home>/repo` (approved as its trunk
+ * here, approveCheckouts), and the lane rules in `rulesFile`. Its status lines go to the lanes folder's experiment-<name>.status, its state to experiment-<name>.json;
  * the file experiment-<name>-stop there stops it. One run per experiment at a time. Resolves, with the state file, when the run ends.
  */
 export async function runRecorded({ library, server, record, name, rulesFile, say: tell = console.log }: {
@@ -257,6 +282,7 @@ export async function runRecorded({ library, server, record, name, rulesFile, sa
   const experiment = await frozenExperiment(library, record);
   const rules = readStopRules(experiment);
   const arms = armRuns(experiment, name, path.join(storytreeHome(), "experiments"));
+  for (const line of await approveCheckouts(server, arms)) tell(line);
   if (!existsSync(rulesFile)) throw new ExperimentRefusal(`there are no lane rules at ${rulesFile}: name the file every arm lane's brief ends with`);
   const lanesRules = readFileSync(rulesFile, "utf8"), planRules = readFileSync(PLAN_RULES, "utf8");
   const { lanesDir } = await lookWith(library.name);

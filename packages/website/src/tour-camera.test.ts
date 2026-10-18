@@ -123,20 +123,22 @@ test("2.15 · a step's island drawn late is aimed at again until it is drawn, by
   assert.deepEqual(log, ["210 a ×0.8 2600ms"], "aimed at on the next beat once it is, by the latest aim only: the far pose it superseded never pulls the camera back out");
 });
 
-test("2.22 · on a phone storytree's own glass sheet is framed wider, more so at 320px, in the arrival, the everything step and free play; the shop's is not", () => {
+test("2.22 · on a phone storytree's own glass sheet is framed whole, wider at 320px, and held still in the arrival, the everything step and free play; the shop's is framed wider in free play too", () => {
   const own = steps.filter(step => step.map === "own" || step.id === "everything");
   assert.deepEqual(own.map(step => step.id), ["pain", "grow", "value", "fixes", "harness", "everything"]);
   for (const step of own) {
     const wide = viewFraming(step, 390, restingFraming), narrow = viewFraming(step, 320, restingFraming);
     assert.ok(wide > restingFraming && narrow > wide, `${step.id}: ${wide} at 390px, ${narrow} at 320px`);
+    assert.ok(!step.drift, `${step.id} drifts its sheet's names off the screen`);
   }
   assert.ok(freePlayFraming("storytree", 390, restingFraming) > restingFraming && freePlayFraming("storytree", 320, restingFraming) > freePlayFraming("storytree", 390, restingFraming));
-  assert.equal(freePlayFraming("shop", 320, restingFraming), restingFraming);
+  assert.ok(freePlayFraming("shop", 390, restingFraming) > restingFraming && freePlayFraming("shop", 320, restingFraming) > freePlayFraming("shop", 390, restingFraming));
 });
 
-test("2.23 · on a laptop storytree's own glass sheet is framed wider than the resting framing in the arrival, the everything step and free play; the shop's is not", () => {
+test("2.23 · on a laptop storytree's own glass sheet is framed whole and held still in the arrival, the everything step and free play; the shop's keeps the resting framing", () => {
   for (const step of steps.filter(step => step.map === "own" || step.id === "everything")) {
     for (const width of [1440, 1280]) assert.ok(viewFraming(step, width, restingFraming) > restingFraming, `${step.id} at ${width}px: ${viewFraming(step, width, restingFraming)}`);
+    assert.ok(!step.drift, `${step.id} drifts its sheet's names off the screen`);
   }
   assert.ok(freePlayFraming("storytree", 1440, restingFraming) > restingFraming);
   assert.equal(freePlayFraming("shop", 1440, restingFraming), restingFraming);

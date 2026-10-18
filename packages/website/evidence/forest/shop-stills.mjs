@@ -1,8 +1,8 @@
 // Capture the shop's two stills from the website's own live drawing of free play on the shop, the same saved renderer the
-// visitor's globe uses. Build first (pnpm --filter @storytree/website build), then from the checkout root:
+// visitor's glass sheet uses. Build first (pnpm --filter @storytree/website build), then from the checkout root:
 //   node packages/website/evidence/forest/shop-stills.mjs [storytree]
 // Given storytree, it switches free play to storytree's saved project and captures public/forest-*.png instead.
-// Like storytree's stills, each is a central square crop of the drawn canvas; the page's text and panels are hidden for the shot.
+// Each is the drawn canvas's full width, cut to a band round the sheet's names; the page's text and panels are hidden for the shot.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -36,12 +36,15 @@ try {
     }
     await page.waitForTimeout(4000);
     // Only the drawing: the chapter's text, bar and panels sit over it on the page, not in the picture.
-    await page.addStyleTag({ content: "#chapter2 > :not(.tour-stage), .tour-card, .forest-views, .forest-controls, .tour-session-surface, .tour-project { visibility:hidden !important; }" });
+    await page.addStyleTag({ content: "#chapter2 > :not(.tour-stage), .tour-card, .forest-views, .forest-controls, .tour-session-surface, .tour-project, .sheet-compass { visibility:hidden !important; }" });
     await page.waitForTimeout(500);
     const box = await page.locator("#website-forest .forest-canvas canvas").boundingBox();
-    const side = Math.min(box.width, box.height);
-    await page.screenshot({ path: path.join(website, `public/${project === "shop" ? "shop" : "forest"}-${kind}.png`), clip: { x: box.x + (box.width - side) / 2, y: box.y + (box.height - side) / 2, width: side, height: side } });
-    console.log(`Captured ${project}'s ${kind} still at ${width} × ${height}: ${Math.round(side)} px square`);
+    // The glass sheet is wider than it is deep: the band from a little above its northernmost name to a little below its southernmost.
+    const names = await page.locator("#website-forest .planet-nameplate[data-story-id]").evaluateAll(plates => plates.map(plate => plate.getBoundingClientRect()).filter(at => at.height));
+    const top = Math.max(box.y, Math.min(...names.map(at => at.top)) - 90), bottom = Math.min(box.y + box.height, Math.max(...names.map(at => at.bottom)) + 50);
+    const clip = { x: box.x, y: top, width: box.width, height: bottom - top };
+    await page.screenshot({ path: path.join(website, `public/${project === "shop" ? "shop" : "forest"}-${kind}.png`), clip });
+    console.log(`Captured ${project}'s ${kind} still at ${width} × ${height}: ${Math.round(clip.width)} × ${Math.round(clip.height)} px`);
     await page.close();
   }
 } finally { await browser.close(); server.close(); }

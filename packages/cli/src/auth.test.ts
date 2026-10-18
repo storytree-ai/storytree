@@ -1,6 +1,6 @@
 /** Keys 1.5: `storytree auth` saves a key from standard input, lists names only, and removes one, offline (ADR-0843). */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -43,4 +43,23 @@ test("library 27.5: auth set reads the value from standard input, auth list name
   const again = await invoke(["auth", "remove", "anthropic"]);
   assert.equal(again.code, 1);
   assert.match(again.stderr, /anthropic/);
+});
+
+test("library 15.5: auth connection prints the routed library's address signed in with its key, to the database named, and stores nothing", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-auth-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = path.join(dir, "home");
+  mkdirSync(home, { recursive: true });
+  writeFileSync(path.join(home, "settings.json"), JSON.stringify({ library: { location: "postgres", address: "postgres://storytree_library@127.0.0.1:5432/postgres" } }));
+  const invoke = (args: string[], env: Record<string, string> = {}) => storytree(command.script, args, { cwd: dir, home, env: { PGPASSWORD: "", ...env } });
+
+  const none = await invoke(["auth", "connection"]);
+  assert.equal(none.code, 1);
+  assert.match(none.stderr, /storytree auth set postgres/);
+
+  const printed = await invoke(["auth", "connection", "--database", "storytree-activity"], { PGPASSWORD: "s3cret/pw" });
+  assert.equal(printed.code, 0, printed.stderr);
+  const url = new URL(printed.stdout.trim());
+  assert.deepEqual([url.username, decodeURIComponent(url.password), url.host, url.pathname], ["storytree_library", "s3cret/pw", "127.0.0.1:5432", "/storytree-activity"]);
+  assert.deepEqual(readdirSync(home), ["settings.json"]);
 });

@@ -12,7 +12,7 @@ import type { Library } from "@storytree/library";
 import { packagesOf, testedNumbers as testedNumbersIn, untestedContracts as untestedIn } from "@storytree/map/code-survey";
 import { z } from "zod";
 
-import { attachWorkspace, claim, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, staleClaims, type Claim, type ClaimAnswer, type ClaimContext, type MergeWatch, type WorkspaceRefusal } from "@storytree/session-management";
+import { attachWorkspace, claim, claimAll, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, staleClaims, type Claim, type ClaimAnswer, type ClaimContext, type MergeWatch, type WorkspaceRefusal } from "@storytree/session-management";
 import { refusalOf } from "./answers.js";
 import { lineOf, type Call, type Define, type ToolExtension } from "./server.js";
 import { quoted } from "./text.js";
@@ -24,17 +24,29 @@ const part = {
   increment: z.string().min(1).optional().describe("The id of the increment, as the plan shows it: claiming one starts it"),
 };
 const ONE_PART = "Name a capability or an increment to claim, exactly one.";
+const ONE_CLAIM = "Name a capability, several capabilities or an increment to claim, exactly one of them.";
 /** Claiming work and the workspace it is built in are an agent session's (ADR-1045 D1). */
 const AGENT = { consumers: ["agent"] } as const;
 
 export function registerClaimTools(define: Define, extensions: readonly ToolExtension[] = [], merges: MergeWatch = {}): void {
   define(
     "claim",
-    "Pass exactly one target per call: capability or increment, never both. To claim an increment and a capability, call claim twice, once for each target. Claim a capability before you build it, or the increment you drive, with a one-line reason: your edits then count toward it, and claiming an increment starts it. If another live session holds it you are told who, and if it waits on other work you are told what; either way, pick other work.",
-    z.object({ ...part, reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`) }),
-    async ({ capability, increment, reason }, call) => {
+    "Pass exactly one target per call: capability, capabilities or increment. To claim an increment and a capability, call claim twice, once for each target. Claim a capability before you build it, or the increment you drive, with a one-line reason: your edits then count toward it, and claiming an increment starts it. Once you hold your increment, claim every capability you already know you need in one call, as capabilities: all are claimed or none is (ADR-1079 D2). If another live session holds it you are told who, and if it waits on other work you are told what; either way, pick other work.",
+    z.object({
+      ...part,
+      capabilities: z.array(capabilityId).min(1).optional().describe("Several capabilities' ids, claimed in ascending id order, all or nothing: at the first refusal none is held"),
+      reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`),
+    }),
+    async ({ capability, capabilities, increment, reason }, call) => {
       const id = capability ?? increment;
-      if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { held: false } };
+      if ([capability, capabilities, increment].filter((given) => given !== undefined).length !== 1) return { text: ONE_CLAIM, refused: true, data: { held: false } };
+      if (capabilities !== undefined) {
+        const all = await claimAll(claimContext(call), capabilities, reason);
+        if (!all.ok) return { text: `${await refusalText(call.library, all.id, all.refusal)} You hold none of the ${capabilities.length} you asked for.`, refused: true, data: { held: false } };
+        const names = await Promise.all(all.claims.map(({ claim: { capability: held, increment: on } }) => titleOf(call.library, (held ?? on)!)));
+        return { text: `You hold ${names.join(", ")} now. Write each contract's failing test and report it red, make it pass and report it green, then land it.`, data: { held: true } };
+      }
+      if (id === undefined) return { text: ONE_CLAIM, refused: true, data: { held: false } };
       const answer = await claim(claimContext(call), id, reason);
       if (!answer.ok) return { text: await refusalText(call.library, id, answer), refused: true, data: { held: false } };
       const name = await titleOf(call.library, id);

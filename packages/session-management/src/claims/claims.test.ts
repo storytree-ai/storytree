@@ -21,7 +21,7 @@ import { countingStore } from "@storytree/project-and-caller/testing/egress";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions } from "../sessions/index.js";
-import { claim, claimRefusal, closed, holdForPull, land, letGo, readAttribution, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { claim, claimAll, claimRefusal, closed, holdForPull, land, letGo, readAttribution, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { boardClaims, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
 import { staleClaims } from "./stale-claims.js";
 
@@ -1089,5 +1089,29 @@ test("5.53 a capability another live session's increment lists is refused at the
     await release(as("D"), emailForm);
     await letGo(as("C"), 12, "merged");
     assert.ok((await claim(as("B"), emailForm, "building the email form")).ok, "free once the increment is let go");
+  });
+});
+
+test("5.55 several capabilities are claimed in one call, in ascending id order whatever order they are given; one another live session holds leaves this session holding none of them and names the holder; one this session already holds counts as taken (ADR-1079 D2)", async () => {
+  await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
+    const story = await library.addStory({ title: "Visitor can sign in" });
+    const signIn = (await library.addCapability({ title: "Sign-in form", story: story.id })).id;
+    const [first, middle, last] = [emailForm, passwordReset, signIn].sort() as [string, string, string];
+
+    assert.ok((await claimAll(as("A"), [last, first, middle], "building sign-up")).ok);
+    assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "claimed").map((line) => line.kind === "claimed" && line.capability), [first, middle, last], "claimed in ascending order");
+    for (const id of [first, middle, last]) await release(as("A"), id);
+
+    assert.ok((await claim(as("B"), middle, "fixing the middle one")).ok);
+    const refused = await claimAll(as("A"), [last, middle, first], "building sign-up");
+    assert.ok(!refused.ok && refused.refusal.refused === "held");
+    assert.equal(refused.id, middle);
+    assert.equal(refused.refusal.holder.session, "B", "the refusal names the holder");
+    assert.deepEqual((await readClaims(log, project)).filter(({ session }) => session === "A"), [], "A holds none of them");
+    await release(as("B"), middle);
+
+    assert.ok((await claim(as("A"), emailForm, "the email form first")).ok);
+    assert.ok((await claimAll(as("A"), [passwordReset, emailForm], "building sign-up")).ok);
+    assert.deepEqual((await readClaims(log, project)).filter(({ session }) => session === "A").map(({ capability }) => capability).sort(), [emailForm, passwordReset].sort(), "both held");
   });
 });

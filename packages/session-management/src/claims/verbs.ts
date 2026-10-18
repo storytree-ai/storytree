@@ -84,12 +84,25 @@ const attach = verb({
 
 const claimOnly = verb({
   consumers: ["agent"],
-  command: { family: "workspace", name: "claim", summary: "claim work for this agent session in the folder it is in, making no worktree (11.9)", usage: "workspace claim <increment|capability> --reason <text>" },
+  command: {
+    family: "workspace",
+    name: "claim",
+    summary: "claim work for this agent session in the folder it is in, making no worktree (11.9); several capabilities at once, all or nothing, in ascending id order (11.18, ADR-1079 D2)",
+    usage: "workspace claim <increment|capability> [<capability> ...] --reason <text>",
+  },
   tool: ownTool("claim"),
-  inputs: { work, reason },
-  async act({ work: id, reason: why }, context: SessionVerbContext) {
+  inputs: { work: { kind: "text", word: 0, many: true, describe: "the work's id: an increment or a capability; or several capabilities, as words or a comma list" }, reason },
+  async act({ work: given, reason: why }, context: SessionVerbContext) {
     agentOnly(context);
-    const { claim } = await import("./claims.js");
+    const ids = given.flatMap((word) => word.split(",")).filter((id) => id !== "");
+    const { claim, claimAll } = await import("./claims.js");
+    if (ids.length > 1) {
+      const all = await claimAll(context, ids, why);
+      if (!all.ok) throw new VerbRefusal(`${workspaceRefusalText(all.id, all.refusal)}\nNone of ${ids.join(", ")} is held by this call.`);
+      return { text: `${context.session} holds ${all.claims.map(({ claim: { capability, increment } }) => capability ?? increment).join(", ")}: ${why}\nNo worktree was made; work where you are.` };
+    }
+    const id = ids[0];
+    if (id === undefined) throw new VerbRefusal("this needs the work's id", { misuse: true });
     const answer = await claim(context, id, why);
     if (!answer.ok) throw new VerbRefusal(workspaceRefusalText(id, answer));
     if (answer.alreadyHeld) return { text: `${context.session} already holds ${id}: no worktree was made.` };

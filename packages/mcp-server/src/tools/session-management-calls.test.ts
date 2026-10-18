@@ -144,3 +144,22 @@ test("6.68 a tool call from Pi, which sends the tool server neither a session no
     assert.match(unannounced ?? "", /^storytree-mcp-\S+ pi$/, "Cursor's announcement of the same tool is not Pi's");
   });
 });
+
+test("6.91 the claim tool takes several capabilities with one reason, all or nothing: a refusal names the holder and leaves the caller holding none of them (session-management 5.55, ADR-1079 D2)", async () => {
+  await withProject(async ({ folder, project, library, log }) => {
+    const story = await library.addStory({ title: "Sign up" });
+    const [email, reset, profile] = await Promise.all(["Email form", "Password reset", "Profile"].map(async (title) => (await library.addCapability({ story: story.id, title })).id));
+    const held = async (session: string) => (await readClaims(log, project)).filter((claim) => claim.session === session).map(({ capability }) => capability).sort();
+    await withAgent(folder, claudeCode("A"), async (agent) => {
+      const claimed = await agent.call("claim", { capabilities: [reset!, email!], reason: "building sign-up" });
+      assert.equal(claimed.isError, false, claimed.text);
+    });
+    assert.deepEqual(await held("A"), [email!, reset!].sort());
+    await withAgent(folder, claudeCode("B"), async (agent) => {
+      const refused = await agent.call("claim", { capabilities: [profile!, email!], reason: "me too" });
+      assert.equal(refused.isError, true);
+      assert.match(refused.text, /\bA\b/, "names the holder");
+    });
+    assert.deepEqual(await held("B"), [], "holds none of them");
+  });
+});

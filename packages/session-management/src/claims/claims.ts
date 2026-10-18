@@ -188,6 +188,30 @@ export async function claim(context: ClaimContext, id: string, reason: string, g
   });
 }
 
+/** Every claim taken, in the order taken; or the first refusal, `id` the work it refused, once this call's own claims are released. */
+export type ClaimAllAnswer =
+  | { ok: true; claims: Extract<ClaimAnswer, { ok: true }>[] }
+  | { ok: false; id: string; refusal: Exclude<ClaimAnswer, { ok: true }> };
+
+/**
+ * Claim every one of `ids`, the capabilities a session knows it needs, with one reason, in ascending id order whatever
+ * order they were given, so that two sessions needing the same ones never each hold one the other waits for (ADR-1079 D2).
+ * All or nothing: at the first refusal it releases what this call took and answers that refusal. One this session already
+ * held counts as taken, and is kept.
+ */
+export async function claimAll(context: ClaimContext, ids: readonly string[], reason: string): Promise<ClaimAllAnswer> {
+  const claims: Extract<ClaimAnswer, { ok: true }>[] = [];
+  for (const id of [...new Set(ids)].sort()) {
+    const answer = await claim(context, id, reason);
+    if (!answer.ok) {
+      for (const taken of claims) if (taken.alreadyHeld !== true) await release(context, taken.claim.capability ?? taken.claim.increment!);
+      return { ok: false, id, refusal: answer };
+    }
+    claims.push(answer);
+  }
+  return { ok: true, claims };
+}
+
 /** Whether `folder` is in a linked worktree, whose `.git` is a file, not the main checkout, whose `.git` is a folder. */
 function inLinkedWorktree(folder: string | undefined): boolean {
   const root = folder === undefined ? undefined : worktreeRoot(folder);

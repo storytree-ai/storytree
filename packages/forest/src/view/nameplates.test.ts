@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Euler, Quaternion, Vector3 } from "three";
 import { turnToIsland } from "@storytree/forest";
-import { plateTransform } from "../world/planet/PlanetWorldCanvas.js";
+import { plateTransform } from "@storytree/forest-world/planet";
 import { territories, type Point } from "../territories/territories.js";
 import { focusRotation } from "./planet-navigation.js";
 import { capabilityPlates, facesEye, facing, fadedCapabilities, fadedPlates, southOnPlate, storyPlate } from "./nameplates.js";

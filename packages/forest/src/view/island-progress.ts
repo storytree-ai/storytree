@@ -1,5 +1,5 @@
 /** Capability 3 · Story node render: recorded landings, separate from either health column. */
-import type { Island } from "../world/scene.js";
+import type { Island } from "@storytree/forest-world/scene";
 
 /** The nameplate's neutral progress meter; surveyed islands already have their code presentation. */
 export function islandProgress(island: Island): { landed: number; total: number } | undefined {

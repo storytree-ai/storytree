@@ -1,7 +1,7 @@
 // Capability 3 · Story node render. The Forest public snapshot shared with hosts through the Node-only ./snapshot export.
 import { randomUUID } from "node:crypto";
 import { rename, rm, writeFile } from "node:fs/promises";
-import type { ForestScene } from "../world/scene.js";
+import type { ForestScene } from "@storytree/forest-world/scene";
 
 /** Public drawing data only. Never serialize a library record or an activity line here. */
 export interface ForestSnapshot {

@@ -18,6 +18,7 @@ export interface StoryNamed {
 const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
   story_f9fb5136c28f: "cli", // The command line
   story_5e19e65c3433: "local-postgres", // The local database (ADR-1076 D1)
+  story_ed2c6b55715d: "forest-world", // The drawing engine (ADR-1076 D2)
   // ADR-1066 D4's developer-first names: the stories were renamed and their packages kept their names.
   story_6def59292b78: "project-and-caller", // Context
   story_e50347f0388e: "guardrails", // Architecture checks

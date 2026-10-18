@@ -13,7 +13,7 @@
  * - An island's key changes only when something drawn on it changes, so a change redraws only the
  *   islands it touched, without a reload.
  */
-import { PLACE_WIDTH, type CapabilityWord, type ForestScene, type Island, type PlacedTree, type TreeForm } from "../world/scene.js";
+import { PLACE_WIDTH, type CapabilityWord, type ForestScene, type Island, type PlacedTree, type TreeForm } from "@storytree/forest-world/scene";
 import type { AnnotatedTree, Change, StorySurvey } from "@storytree/library";
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";

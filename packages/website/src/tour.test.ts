@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mapRecording, mapGrowthPlan, onSheet, recordedFrame } from "./map-recording.js";
 import { sheetLayout } from "@storytree/forest/view";
 import { rowOf } from "@storytree/forest";
-import { SHEET_RADIUS, sheetPoint } from "@storytree/forest/world/planet";
+import { SHEET_RADIUS, sheetPoint } from "@storytree/forest-world/planet";
 import type { GrowthSnapshot } from "./forest-data.js";
 import shop from "./shop-snapshot.json" with { type: "json" };
 import own from "./own-snapshot.json" with { type: "json" };

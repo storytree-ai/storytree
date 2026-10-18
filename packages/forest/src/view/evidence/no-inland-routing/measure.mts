@@ -7,7 +7,7 @@ import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { workStates } from '@storytree/arc-surface';
-import { planetPathwayDrawing } from '@storytree/forest/world/geometry';
+import { planetPathwayDrawing } from '@storytree/forest-world/geometry';
 import { forestScene, storyNodes } from '../../../index.js';
 import { planetLayout } from '../../planet-navigation.js';
 

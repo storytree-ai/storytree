@@ -1,6 +1,6 @@
 /** Capability 2 · The forest on the site. The map chapter's window onto the shop's saved record. */
-import { growthPlan, type GrowthPlan, type GrowthOptions } from "@storytree/forest/world/planet";
-import { islandCoastReach } from "@storytree/forest/world/geometry";
+import { growthPlan, type GrowthPlan, type GrowthOptions } from "@storytree/forest-world/planet";
+import { islandCoastReach } from "@storytree/forest-world/geometry";
 import { growPlanet, placeInRow } from "@storytree/forest";
 import { sheetLayout } from "@storytree/forest/view";
 import type { GrowthSnapshot } from "./forest-data.js";

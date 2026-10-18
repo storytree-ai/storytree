@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { Vector3 } from "three";
 
 import { workStates } from "@storytree/arc-surface";
-import { buildPlanetPathways, plateTransform } from "../world/geometry.js";
+import { buildPlanetPathways, plateTransform } from "@storytree/forest-world/geometry";
 import { forestScene, PLANET_RADIUS, SEA_GAP, storyNodes } from "@storytree/forest";
 
 import { movingSpots, planetLayout } from "./planet-navigation.js";

@@ -10,12 +10,7 @@
     "./view/styles.css": "./src/view/styles.css",
     "./code-survey": "./src/code-survey/read-survey.ts",
     "./page": "./src/render/page.ts",
-    "./snapshot": "./src/snapshot/forest-snapshot.ts",
-    "./world": "./src/world/index.ts",
-    "./world/geometry": "./src/world/geometry.ts",
-    "./world/scene": "./src/world/scene.ts",
-    "./world/planet": "./src/world/planet/PlanetWorldCanvas.tsx",
-    "./world/road-worker": "./src/world/planet/road-worker.ts"
+    "./snapshot": "./src/snapshot/forest-snapshot.ts"
   },
   "storytree": {
     "surfaces": [
@@ -53,7 +48,8 @@
     "react-dom": "^19.1.1",
     "three": "^0.185.1",
     "@storytree/map": "workspace:*",
-    "@storytree/project-and-caller": "workspace:*"
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/forest-world": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

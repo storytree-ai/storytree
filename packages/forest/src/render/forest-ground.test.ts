@@ -10,9 +10,9 @@ import { test } from "node:test";
 
 import { workStates } from "@storytree/arc-surface";
 import type { AnnotatedCapability, AnnotatedStory, Change, NewLine } from "@storytree/library";
-import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandReach, statusOf, type Descriptor3D, type InstanceDescriptor } from "../world/index.js";
+import { forestDescriptors, GROUND_PER_PLACE, GROUND_PER_WORLD_UNIT, islandReach, statusOf, type Descriptor3D, type InstanceDescriptor } from "@storytree/forest-world";
 
-import { parcelCellsFrom } from "../world/geometry.js";
+import { parcelCellsFrom } from "@storytree/forest-world/geometry";
 
 import { forestScene, PLACE_WIDTH, type ForestScene } from "../index.js";
 

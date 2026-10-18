@@ -1,7 +1,7 @@
 /** Capability 3 · Story node render. The desktop's joins between permanent story places, lane C's turns, and Three's camera. */
 import { Euler, Quaternion, Raycaster, Vector2, Vector3, type Camera, type Object3D } from "three";
 import { edgeMarkers, growPlanet, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
-import { islandCoastReach } from "../world/geometry.js";
+import { islandCoastReach } from "@storytree/forest-world/geometry";
 import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";
 import type { Selection } from "./panel-selection.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";

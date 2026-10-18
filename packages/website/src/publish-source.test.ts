@@ -30,7 +30,7 @@ test("4.3 · failed, unmerged, superseded, foreign and unmatched queue runs cann
 });
 
 test("4.3 · website build inputs trigger publishing; unrelated merges do not", () => {
-  for (const file of ["packages/website/src/index.html", "packages/website/public/forest.json", "packages/forest/src/world/scene.ts", "README.md", "pnpm-lock.yaml", "package.json", "pnpm-workspace.yaml", "tsconfig.base.json", ".github/workflows/website.yml"]) {
+  for (const file of ["packages/website/src/index.html", "packages/website/public/forest.json", "packages/forest-world/src/scene.ts", "README.md", "pnpm-lock.yaml", "package.json", "pnpm-workspace.yaml", "tsconfig.base.json", ".github/workflows/website.yml"]) {
     assert.equal(websiteChanged([file]), true, file);
   }
   assert.equal(websiteChanged(["packages/app/src/view.ts", "stories/forest.md", "AGENTS.md"]), false);

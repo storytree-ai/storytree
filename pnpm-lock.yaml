@@ -456,6 +456,9 @@ importers:
       '@storytree/arc-surface':
         specifier: workspace:*
         version: link:../arc-surface
+      '@storytree/forest-world':
+        specifier: workspace:*
+        version: link:../forest-world
       '@storytree/knowledge-core':
         specifier: workspace:*
         version: link:../knowledge-core
@@ -471,6 +474,49 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
+      react:
+        specifier: ^19.1.1
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.1.1
+        version: 19.3.0(react@19.3.0)
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.1.6
+        version: 19.3.0(@types/react@19.3.0)
+      '@types/three':
+        specifier: ^0.185.0
+        version: 0.185.4
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+      playwright-core:
+        specifier: 1.60.0
+        version: 1.60.0
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/forest-world:
+    dependencies:
+      '@react-three/drei':
+        specifier: ^10.7.7
+        version: 10.7.9(@react-three/fiber@9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1))(@types/react@19.3.0)(@types/three@0.185.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
+      '@react-three/fiber':
+        specifier: ^9.6.1
+        version: 9.8.1(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.185.1)
       react:
         specifier: ^19.1.1
         version: 19.3.0
@@ -5026,13 +5072,13 @@ snapshots:
       '@remotion/timeline-utils': 4.0.535(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@rspack/core': 1.7.11
       '@rspack/plugin-react-refresh': 1.6.1(react-refresh@0.18.0)
-      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.30))
+      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.2)(postcss@8.5.30))
       esbuild: 0.28.1
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
       react-refresh: 0.18.0
       remotion: 4.0.535(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      style-loader: 4.0.0(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.30))
+      style-loader: 4.0.0(webpack@5.105.0(esbuild@0.28.2)(postcss@8.5.30))
       webpack: 5.105.0(esbuild@0.28.1)(postcss@8.5.30)
     transitivePeerDependencies:
       - '@minify-html/node'
@@ -5870,7 +5916,7 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
-  css-loader@7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.30)):
+  css-loader@7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.2)(postcss@8.5.30)):
     dependencies:
       icss-utils: 5.1.0(postcss@8.5.30)
       postcss: 8.5.30
@@ -7288,7 +7334,7 @@ snapshots:
 
   stubborn-utils@1.0.2: {}
 
-  style-loader@4.0.0(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.30)):
+  style-loader@4.0.0(webpack@5.105.0(esbuild@0.28.2)(postcss@8.5.30)):
     dependencies:
       webpack: 5.105.0(esbuild@0.28.1)(postcss@8.5.30)
 

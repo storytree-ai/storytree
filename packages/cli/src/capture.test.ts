@@ -6,7 +6,7 @@ import { userInfo } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { recordFriction } from "@storytree/session-management";
+import { recordFriction } from "@storytree/library/librarian";
 import { BuiltCommand, inWorld } from "./testing/cli.js";
 
 const command = new BuiltCommand();

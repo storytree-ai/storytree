@@ -25,7 +25,7 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-hea
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
 // forest: story_deee4230348c (Map view), which holds its drawing engine in src/world (ADR-1071 D3).
-// library: story_754e87e7d531 (The library), which holds Keys and the local database in its own package (ADR-1071 D3) and owns librarian too (ADR-1066 D4).
+// library: story_754e87e7d531 (The library), which holds Keys, the local database and the librarian in its own package (ADR-1071 D3).
 // journey-events: story_9eb523952644 (Journey events).
 // ci-health: story_5c212e7a9a6c (CI health, ADR-0902).
 // guardrails: Guardrails, ADR-0911 D2.

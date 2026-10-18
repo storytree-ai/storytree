@@ -1,4 +1,4 @@
-/** The command line 15.1–15.3: a reading printed for a person, and the same readings for a script. */
+/** The command line 15.1–15.4: a reading printed for a person, and the same readings for a script. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -50,4 +50,14 @@ test("15.2 · the JSON carries both readings as the reading returns them", () =>
   assert.equal(short.surfaces.find((surface: { verb: string }) => surface.verb === "storytree arc show").calls, 1);
   assert.equal(long.surfaces.find((surface: { verb: string }) => surface.verb === "storytree arc show").calls, 2, "the long window counts the September call too");
   assert.deepEqual(short.misses.map(({ word, named }: { word: string; named: string }) => [word, named]), [["show", "storytree library read"]]);
+});
+
+test("15.4 · each word refused with hints is printed with its offers, the hints followed by target, and how often none was taken", () => {
+  const hinted = [
+    line("c", "command", "storytree adr", "2026-10-06T00:00:00.000Z", { outcome: "unknown", word: "show", next: ["storytree library search", "storytree adr list"] }),
+    line("c", "command", "storytree library search", "2026-10-06T00:00:01.000Z"),
+    line("d", "command", "storytree adr", "2026-10-06T00:00:02.000Z", { outcome: "unknown", word: "show", next: ["storytree library search", "storytree adr list"] }),
+  ];
+  const reading = countDoors(hinted, declared, new Map(), { since: "2026-10-01T00:00:00.000Z", until: "2026-10-08T00:00:00.000Z" });
+  assert.deepEqual(row(doorsTable(reading, reading), "↳ storytree adr show"), ["↳ storytree adr show", "2", "storytree library search 1", "1"]);
 });

@@ -1,11 +1,12 @@
 /**
  * Capability 14 · Reading the doors' use. A project's door-answered lines for the longest window asked, read once from its activity log and
  * narrowed on the server by kind and time (Session management 2.7), with the prompts of the sessions
- * in it; each window is then counted from those lines.
+ * in it; each window is then counted from those lines. And, for one refused word, what its sessions ran next (./repoint.ts).
  */
 import type { Line, LineKind } from "@storytree/library";
 
 import { countDoors, type Declared, type DoorLine, type Reading } from "./reading.js";
+import { LEARN_DAYS, learnedTargets } from "./repoint.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -14,7 +15,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * of the one call and the filter fields it uses (ADR-1017 D2).
  */
 export interface DoorsLog {
-  lines(project: string, filter: { readonly kinds: readonly LineKind[]; readonly since?: string; readonly sessions?: readonly string[]; readonly omit?: readonly string[] }): Promise<Line[]>;
+  lines(project: string, filter: { readonly kinds: readonly LineKind[]; readonly since?: string; readonly sessions?: readonly string[]; readonly omit?: readonly string[]; readonly where?: Readonly<Record<string, string>>; readonly newest?: number }): Promise<Line[]>;
 }
 
 /** One reading for each of `days`, each the window of that many days ending at `until`. */
@@ -34,6 +35,22 @@ export async function readDoors(log: DoorsLog, project: string, declared: Declar
     const since = new Date(until.getTime() - count * DAY_MS).toISOString();
     return countDoors(lines.filter((line) => line.at >= since), declared, prompts, { since, until: end });
   });
+}
+
+/** The most sessions a refusal learns from: the newest refusals of its word. */
+const LEARN_SESSIONS = 200;
+
+/**
+ * The commands sessions ran next after `word` was refused in `where` over the 28 days to `until` (ADR-1045 D3), most often
+ * first: the word's refusals read narrowed on the server, then only those sessions' door-answered lines.
+ */
+export async function readLearned(log: DoorsLog, project: string, where: string, word: string, until: Date): Promise<{ verb: string; count: number }[]> {
+  const since = new Date(until.getTime() - LEARN_DAYS * DAY_MS).toISOString();
+  const refusals = await log.lines(project, { kinds: ["door-answered"], since, where: { door: "command", outcome: "unknown", verb: where, word }, newest: LEARN_SESSIONS });
+  const sessions = [...new Set(refusals.map((line) => line.session))];
+  if (sessions.length === 0) return [];
+  const lines = (await log.lines(project, { kinds: ["door-answered"], since, sessions })).flatMap((line) => doorLineOf(line) ?? []);
+  return learnedTargets(lines, where, word);
 }
 
 function doorLineOf(line: Line): DoorLine | undefined {

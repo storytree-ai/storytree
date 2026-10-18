@@ -4,6 +4,10 @@ Contracts 2.22 (phones) and 2.23 (laptops), checked in the browser on the glass 
 
 `pnpm --filter @storytree/website build && node --import tsx packages/website/evidence/capture.mjs sheet-names --verify-own-sheet --retake`
 
+To judge one framing guess in seconds rather than minutes, name one width and one view, for example
+`--verify-own-sheet --width=390 --view=everything` (widths 390, 320, 1440, 1280; views grow, value, fixes, harness, everything,
+freeplay, shop). A run narrowed so judges no contract and writes no `own-sheet-observations.json`.
+
 Both PASS at 1440×900, 1280×800, 390×844 and 320×844 (`own-sheet-observations.json`): every island name storytree's sheet
 shows stays inside the screen and clear of the compass (and on a laptop the bottom bar) in the arrival, the value, fixes and
 harness steps, the everything step and free play on storytree; on a phone the shop's sheet in free play too. Each

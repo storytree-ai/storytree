@@ -1,8 +1,10 @@
 // Build first, then: node --import tsx packages/website/evidence/capture.mjs [evidence subfolder] [--verify-… journeys] [--retake]
 // A --verify-… run is a check and writes to a scratch folder (it says which); --retake writes into the evidence subfolder.
+// --verify-own-sheet takes --width=<390|320|1440|1280> and --view=<grow|value|fixes|harness|everything|freeplay|shop> to judge one
+// framing in seconds; a run narrowed so judges no contract and records no observations.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { captureOutput, capturePath } from "./capture-path.mjs";
+import { captureOutput, capturePath, ownSheetScope } from "./capture-path.mjs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -78,19 +80,27 @@ try {
       { contract: "2.22", name: "On 390 and 320 phones storytree's glass sheet keeps every island name inside the screen and clear of the compass in the arrival, the everything step and free play, and so does the shop's in free play", observed: "not-observed" },
       { contract: "2.23", name: "On 1440 and 1280 laptops storytree's glass sheet keeps every island name inside the screen and clear of the compass and the bottom bar in the arrival, the everything step and free play", observed: "not-observed" },
     ];
+    const { sizes, views } = ownSheetScope(process.argv), narrowed = views !== undefined || sizes.length < 4;
     const drawing = await chromium.launch({ headless: true, args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"] });
     try {
-      const found = await verifyOwnSheetFits(drawing, url, output);
-      for (const check of checks) {
-        check.observed = found[check.contract].length ? "fail" : "pass";
-        if (found[check.contract].length) check.detail = found[check.contract].join("\n");
-        else console.log(`PASS contract ${check.contract}: ${check.name}`);
+      const found = await verifyOwnSheetFits(drawing, url, output, sizes, views);
+      if (narrowed) {
+        const failures = Object.values(found).flat();
+        assert.deepEqual(failures, [], `storytree's sheet at ${sizes.map(([width]) => width).join(", ")}px in ${views?.join(", ") ?? "every view"}`);
+        console.log(`no name off the screen, under the compass or in the bottom bar at ${sizes.map(([width]) => width).join(", ")}px in ${views?.join(", ") ?? "every view"}: a narrowed run, so no contract is judged`);
       }
-      for (const check of checks) assert.deepEqual(found[check.contract], [], `website ${check.contract}: ${check.name}`);
+      else {
+        for (const check of checks) {
+          check.observed = found[check.contract].length ? "fail" : "pass";
+          if (found[check.contract].length) check.detail = found[check.contract].join("\n");
+          else console.log(`PASS contract ${check.contract}: ${check.name}`);
+        }
+        for (const check of checks) assert.deepEqual(found[check.contract], [], `website ${check.contract}: ${check.name}`);
+      }
     }
     finally {
       await drawing.close();
-      await writeFile(path.join(output, "own-sheet-observations.json"), JSON.stringify({
+      if (!narrowed) await writeFile(path.join(output, "own-sheet-observations.json"), JSON.stringify({
         story: "story_769e230c466d", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
         evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
         note: "Locally built website served from packages/website/dist, SwiftShader", checks,

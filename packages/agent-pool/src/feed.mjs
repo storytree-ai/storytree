@@ -45,7 +45,9 @@ const rank = (one) => one.priority ?? Infinity;
  * (on it, on a listed capability or on one its lane was refused) refused it, and it is retried only once that claim clears (it records the refusal in `attempts`). Work whose session has
  * ended and is back in the pool (it bounced on a capability claim, say) is offered again `backoffMs` after the first
  * survey that found the session gone (it records that in `attempts` as `ended`), so a bounce needs no restart and a
- * session that bounces every time starts at most once a back-off.
+ * session that bounces every time starts at most once a back-off. Within one survey (ADR-1079 D1), a candidate whose known needs (its
+ * capabilities list plus every capability refused under it, whoever holds that now) meet those of an earlier pick or of an increment
+ * in `running` is not picked: it is skipped naming the shared capability and the increment that took it, and offered again on the next survey.
  */
 export function pickPool(survey, { attempts = new Map(), running = [], max = 1, now = Date.now(), backoffMs = 30 * 60_000 }) {
   const skipped = [];
@@ -93,11 +95,25 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
     if (why) skipped.push({ id: one.id, why });
     else ready.push(one);
   }
+  const refusedOf = Map.groupBy(survey.refusals ?? [], (refusal) => refusal.under);
+  const needsOf = (one) => new Set([...(one.capabilities ?? []), ...(refusedOf.get(one.id) ?? []).map((refusal) => refusal.capability)]);
+  // A lane still starting has claimed nothing yet, so the round's taken capabilities start from the running increments' known needs.
+  const taken = new Map();
+  for (const one of survey.increments.filter((one) => running.includes(one.id))) {
+    for (const capability of needsOf(one)) if (!taken.has(capability)) taken.set(capability, `${one.id}, running now`);
+  }
   const picks = [];
   while (picks.length < max && ready.length) {
     const idle = ready.findIndex((one) => !busy.has(one.arc));
     const at = idle > 0 && rank(ready[idle]) !== rank(ready[0]) ? 0 : Math.max(0, idle);
     const [one] = ready.splice(at, 1);
+    const known = needsOf(one);
+    const shared = [...known].find((capability) => taken.has(capability));
+    if (shared) {
+      skipped.push({ id: one.id, why: `shares ${shared} with ${taken.get(shared)}` });
+      continue;
+    }
+    for (const capability of known) taken.set(capability, `${one.id}, started this round`);
     busy.add(one.arc);
     picks.push(one);
   }
@@ -144,7 +160,7 @@ export function pickPlan(survey, { planned = new Map() } = {}) {
 /**
  * One survey of the library: every arc with its open questions counted, its increments with their holds and machine fields (one `arcViews` and one `holds` read),
  * this machine's short name (`here`, undefined while it has none), the standing claims,
- * and the refusals of the capabilities live sessions hold, whoever refused them, each under the increment its refused session held (`refusals`, given those capabilities).
+ * and the refusals under every open increment on an active arc, whoever holds the capability now, each under the increment its refused session held (`refusals`, given those increments).
  */
 export async function readSurvey({ library, claims, refusals = async () => [], here = async () => undefined }) {
   const [views, holds, held, name] = await Promise.all([library.arcViews(), library.holds(), claims(), here()]);
@@ -156,8 +172,8 @@ export async function readSurvey({ library, claims, refusals = async () => [], h
     id: view.arc.id, state: view.state, title: view.arc.fields?.title ?? view.arc.id, created: view.arc.createdAt?.toISOString?.(),
     openQuestions: (view.questions ?? []).filter((question) => question.fields.lifecycle === "open").length,
   }));
-  const capabilities = [...liveCapabilities(held, increments).keys()];
-  return { arcs, increments, holds, claims: held, here: name, refusals: capabilities.length ? await refusals(capabilities) : [] };
+  const open = increments.filter((one) => one.status !== "closed" && one.arcState === "active").map((one) => one.id);
+  return { arcs, increments, holds, claims: held, here: name, refusals: open.length ? await refusals(open) : [] };
 }
 
 export async function withLibrary(project, use) {
@@ -179,7 +195,7 @@ export async function surveyLibrary(project = "storytree") {
   const { thisComputer } = await import("@storytree/session-management/machines");
   return withLibrary(project, async (library, storytree) => {
     const log = await openActivityLog(storytree);
-    const refusals = async (capabilities) => (await log.lines(project, { kinds: ["claim-refused"], has: ["under"], where: { capability: capabilities }, omit: ["reason", "file"] }))
+    const refusals = async (under) => (await log.lines(project, { kinds: ["claim-refused"], where: { under }, omit: ["reason", "file"] }))
       .map((line) => ({ capability: line.capability, under: line.under, holder: line.holder }));
     return readSurvey({ library, claims: () => readClaims(log, project), refusals, here: async () => (await thisComputer(storytree)).name });
   });

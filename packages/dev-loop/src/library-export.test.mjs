@@ -12,7 +12,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
-import { dropTestDatabases } from "@storytree/library/local-postgres/testing";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { writeExport } from "./export-library.mjs";
 import { foldStoryText } from "./fold-story-text.mjs";

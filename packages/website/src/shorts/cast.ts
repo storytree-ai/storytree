@@ -1,5 +1,6 @@
 /** Capability 6 · Pixel-art shorts. The cast's sprite sheet and its frame map (public/sprites, drawn by
- * evidence/first-short/assemble-cast.mjs): every pose of the developer as frames, and every prop, as rectangles of one picture. */
+ * evidence/first-short/assemble-cast.mjs): every pose of the developer as frames, and every prop, as rectangles of one picture;
+ * and the holes in the room a prop leaves (its screen), in the room's own pixels. */
 import type { Pose, Prop } from "./script.js";
 
 export type Rect = { x: number; y: number; w: number; h: number };
@@ -7,6 +8,7 @@ export type CastMap = {
   image: string; width: number; height: number;
   poses: Record<string, { fps: number; frames: Rect[] }>;
   props: Record<string, Rect>;
+  holes: Record<string, Rect>;
 };
 
 /** The frame of `pose` showing at `seconds` into its beat: the pose loops at its own frame rate. */

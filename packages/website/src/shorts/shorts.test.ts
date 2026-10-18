@@ -8,7 +8,7 @@ import { FIRST_SHORT } from "./root.js";
 import { brokenBlocks, bundleShorts, remotionOn, renderPng, rgbOf } from "./render.js";
 
 /** A frame with code on one screen and, on the other, the map with the island lit and its panel open. */
-const FRAME = 285;
+const FRAME = 480;
 let serveUrl: string, scratch: string;
 before(async () => {
   serveUrl = await bundleShorts();

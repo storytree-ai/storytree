@@ -2,10 +2,10 @@
 // the tour: its library as it grew, one recorded stage at a time; every stage is replayed from its history, never drawn by hand.
 import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree, ArcView, Change, HealthState, Holds, Line } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
-import { forestScene, growPlanet, sessionColour, storyNodes, type SessionWisp } from "@storytree/forest";
+import { forestScene, sessionColour, storyNodes, type SessionWisp } from "@storytree/forest";
 import type { ProjectSurvey } from "@storytree/forest/code-survey";
 import { saveForestSnapshot } from "@storytree/forest/snapshot";
-import { islandCoastReach } from "@storytree/forest-world/geometry";
+import { sheetLayout } from "@storytree/forest/view";
 import type { GrowthSnapshot } from "./forest-data.js";
 import { publicActivity, publicNotes, publicPlan, scrub } from "./tour-snapshot.js";
 
@@ -13,7 +13,7 @@ export interface GrowthReading {
   project: string;
   capturedAt: string;
   window: { from: string; to: string };
-  /** The plan as it stands now: it fixes every island's place, so islands keep their spots as the globe grows. */
+  /** The plan as it stands now: it fixes every island's place, so islands keep their spots as the map grows. */
   tree: AnnotatedTree;
   changes: readonly Change[];
   lines: readonly Line[];
@@ -113,7 +113,8 @@ export async function refreshGrowthSnapshot(file: string, read: () => Promise<Gr
     const survey = await surveyAt(window.to, tree);
     const scene = forestScene(tree, changes, workStates(own), survey);
     const places = storyNodes(tree, changes, survey);
-    const grown = growPlanet(places.map(({ id, place }) => ({ story: id, place, reach: islandCoastReach(scene.islands.find(island => island.story === id)!) })));
+    // Each island where the glass sheet lays the plan (ADR-1043 D2).
+    const grown = sheetLayout(scene, new Map(places.map(({ id, place }) => [id, place])));
     const stages = [];
     for (const { id, at } of input.stages) {
       const plan = planAt(tree, changes, at);

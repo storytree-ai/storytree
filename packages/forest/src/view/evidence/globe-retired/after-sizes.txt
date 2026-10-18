@@ -1,0 +1,7 @@
+website dist js bytes: 9004866
+  8218509 packages/website/dist/assets/forest-scene-C3HIZZKJ.js
+desktop renderer js bytes: 5050548
+forest src lines (non-test): 6554
+forest-world src lines (non-test): 6651
+forest + forest-world src lines (with tests): 22733
+website src lines (with tests): 7135

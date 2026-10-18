@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { LineSegments, Mesh, MeshBasicMaterial, Vector3 } from "three";
-import { growLand, PAST_ISLANDS, pastIslands, presentTerritories, restoreTerritoryPresentation, shownSurfaces, TERRITORY_DRAW, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
+import { growLand, presentTerritories, restoreTerritoryPresentation, shownSurfaces, TERRITORY_DRAW, TerritoryDrawOn, type GlobeSurfaces } from "./globe-surfaces.js";
 import { fileCircleMarks } from "./file-circles.js";
 import { territoryLand } from "./territory-land.js";
 
@@ -64,40 +64,13 @@ test("3.30 on a growing globe each territory fills in and each file circle swell
 const islandMarks = (surfaces: GlobeSurfaces) =>
   [surfaces.grounds, surfaces.roads, surfaces.nameplates, surfaces.territories, surfaces.fileCircles, surfaces.sessionTints];
 
-test("3.9 Library hides the islands and every mark on them, and keeps the glass and the core", () => {
-  const forest = shownSurfaces(undefined, false);
-  assert.deepEqual(islandMarks(forest), [true, true, true, "health", true, true], "the ordinary Forest view");
-  const library = shownSurfaces(undefined, true);
-  assert.deepEqual(islandMarks(library), [false, false, false, false, false, false]);
-  assert.deepEqual([library.sea, library.knowledgeCore], [true, true], "the globe stays, with the core inside it (ADR-0919 D4)");
-  // A guide's own switches still apply to what stays.
-  assert.equal(shownSurfaces({ sea: false }, true).sea, false);
-});
-
 test("3.62 seen from below the glass sheet, the islands are outlines with their names: territory borders without fill, no roads or file circles, and a session still tints them (ADR-1061 D2, ADR-1062 D4)", () => {
-  const face = shownSurfaces(undefined, false, true);
+  const face = shownSurfaces(undefined, true);
   assert.deepEqual(islandMarks(face), [true, false, true, "plain", false, true]);
   assert.equal(face.knowledgeCore, true, "the knowledge it shows");
   // A guide's switch still hides what it hides.
-  assert.equal(shownSurfaces({ nameplates: false }, false, true).nameplates, false);
-});
-
-test("3.34 zooming in past the islands hides them, leaving the glass and core; zooming back out brings them back without flickering", () => {
-  // Framing is how many radii half the screen's short side spans: smaller is closer in.
-  assert.equal(pastIslands(1.18, false), false, "the opening view");
-  assert.equal(pastIslands(1.18 / 2.6, false), false, "close on an island, reading its file circles (2.6 times the opening zoom)");
-  assert.equal(pastIslands(0.55, false), false, "the closest a guided stop frames");
-  // The owner found ten times the opening zoom (about 45 wheel notches) too far to reach: they are gone by four times.
-  assert.equal(pastIslands(1.18 / 4, false), true, "four times the opening zoom is past the islands");
-  let past = false;
-  const zoom = (framing: number) => (past = pastIslands(framing, past));
-  assert.equal(zoom(PAST_ISLANDS.enter * 0.99), true, "past the islands");
-  // Hovering at the edge does not toggle them: they come back only once clearly out again.
-  assert.equal(zoom(PAST_ISLANDS.enter * 1.01), true);
-  assert.ok(PAST_ISLANDS.leave > PAST_ISLANDS.enter);
-  assert.equal(zoom(PAST_ISLANDS.leave * 1.01), false, "back out, the islands return");
-  assert.equal(zoom(PAST_ISLANDS.enter * 1.01), false);
-  assert.deepEqual(shownSurfaces(undefined, past), shownSurfaces(undefined, false));
+  assert.equal(shownSurfaces({ nameplates: false }, true).nameplates, false);
+  assert.deepEqual(islandMarks(shownSurfaces(undefined)), [true, true, true, "health", true, true], "the Stories face shows everything");
 });
 
 test("3.46 territories arrive without a flash: borders trace on along their length, then the fill eases in; kept land stays drawn across a rebuild", () => {

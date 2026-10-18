@@ -17,7 +17,7 @@ import { buildPlanetPathways } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
 import { aim, globeOf, insetAt, restingFraming, islandsKeptOff, labelsAt, labelWords, momentStarts, overlayAt, placeTags, readingTime, replayMoment, stepAt, switchesFor, type Box, type GlobeOn, type Hold, type Label, type TagSide, type TourDetail, type TourGrowth, type TourStep } from "./tour.js";
 import { createCameraPlayer, freePlayFraming, globeSide, viewFraming } from "./tour-camera.js";
-import { mapRecording, mapGrowthPlan, recordedFrame } from "./map-recording.js";
+import { mapRecording, mapGrowthPlan, onSheet, recordedFrame } from "./map-recording.js";
 import { growthReading, recordedView, savedReading } from "./tour-reading.js";
 
 /** One session's wisp round one island, as the forest draws it: the site's own copy, whole, since it hands each one back (ADR-1017 D2). */
@@ -31,7 +31,8 @@ function recordedGrowth(snapshot: GrowthSnapshot, mapChapter = false) {
   return { snapshot, places: new Map(snapshot.places.map(place => [place.id, place.place])), sessions: snapshot.stages.map(({ at, wisps }) => ({ at, wisps })),
     /** Planned on first use: a stage whose recorded sessions changed holds a beat, so each claim and landing is seen (world 7.6). */
     plan: () => planned ??= (() => {
-      const pathways = buildPlanetPathways(snapshot.scene, new Map(snapshot.spots), snapshot.radius);
+      // The roads measured where the sheet lays the islands, so each draws on at the lane's speed there (3.4).
+      const laid = onSheet(snapshot), pathways = buildPlanetPathways(laid.scene, new Map(laid.spots), laid.radius);
       if (mapChapter) return mapGrowthPlan(snapshot, link => crossingLength(pathways, link));
       const sessions = (index: number) => JSON.stringify(snapshot.stages[index]?.wisps.map(wisp => [wisp.session, wisp.story]) ?? []);
       const stages = snapshot.stages.map(({ id, at, scene }, index) => ({ id, at, scene, ...(sessions(index) !== sessions(index - 1) ? { hold: 1 } : {}) }));
@@ -47,7 +48,7 @@ type Grown = keyof typeof growths;
 type GlobeMap = "storytree" | Grown;
 const grows = (map: GlobeMap): map is Grown => map === "own" || map === "shop";
 const notes = [...knowledge(snapshot.changes).notes.values()];
-const complete: GlobeSurfaces = { sea: true, grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
+const complete: GlobeSurfaces = { grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
 /** Each map's whole view: on the glass sheet, the view it opens on (forest 3.66). */
 const overviews: Record<GlobeMap, GlobeTarget> = { storytree: { kind: "core" }, own: { kind: "core" }, shop: { kind: "core" } };
 /** The tour frames the map in the glass sheet's ground units (the short half-side of the view); the sheet's camera takes them in its sphere's radii. */
@@ -57,9 +58,6 @@ const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const hold = (reason: Hold, held = true) => window.dispatchEvent(new CustomEvent("storytree-tour-hold", { detail: { reason, held } }));
 const ownerOf = (target: GlobeTarget | undefined) => target?.kind === "story" ? target.story : target?.kind === "capability"
   ? snapshot.tree.stories.find(owner => owner.capabilities.some(item => item.id === target.capability))?.id : undefined;
-/** Overview steps drift round the islands in their places' order, one leg at a time. */
-const order = (nodes: readonly { id: string; place: number }[]) => [...nodes].sort((a, b) => a.place - b.place).map(place => place.id);
-const driftOrders: Record<GlobeMap, string[]> = { storytree: order(snapshot.places), own: order(own.places), shop: order(shop.places) };
 
 /** A lost graphics context leaves the saved picture and the readable app surfaces available. */
 class GlobeBoundary extends Component<{ children: ReactNode; failed(): void }, { failed: boolean }> {
@@ -262,7 +260,7 @@ function Inset({ title, target, framing, labels, view }: { title: string; target
     <figcaption className="tour-inset-title">{title}, up close</figcaption>
     <div ref={host} className="tour-inset-view" aria-hidden="true">
       <PlanetView {...view} wisps={[]} selected={undefined} onPick={() => {}} onNote={() => {}} surfaces={surfaces} library={false}
-        framing={sheetFraming(framing)} sideOffset={0} onControls={setControls} sheet />
+        framing={sheetFraming(framing)} sideOffset={0} onControls={setControls} />
       {labels.map(label => <div key={label.key} ref={node => { if (node) tags.current.set(label.key, node); else tags.current.delete(label.key); }}
         className="tour-tag away" data-label={label.key} data-target={label.target.kind}>
         <span className="tour-tag-ring" /><span className="tour-tag-text">{label.text}</span>
@@ -322,10 +320,8 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   const [progress, setProgress] = useState(recording.progress);
   const [openingActive, setOpeningActive] = useState(() => document.getElementById("opening")?.hidden === false);
   const [camera] = useState(() => createCameraPlayer({ timers: { set: (run, ms) => window.setTimeout(run, ms), clear: timer => clearTimeout(timer as number) },
-    arrived: setArrived, running: () => latest.current?.running === true }));
+    arrived: setArrived }));
   const previous = useRef<TourDetail | undefined>(undefined);
-  const latest = useRef<TourDetail | undefined>(undefined);
-  latest.current = tour;
   const recordingAt = useRef<{ inSessions: boolean; generation: number } | undefined>(undefined);
   const wasExploring = useRef(false);
   const panelHost = document.querySelector<HTMLElement>("#chapter2");
@@ -456,18 +452,18 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     wasExploring.current = exploringNow;
   }, [exploringNow]);
 
-  // The camera flies; it never snaps (ADR-0879 D5). Between close steps it stays in and turns the globe (2.15). Its cues and
-  // timers are the camera player's (tour-camera.ts): the page tells it each step and puts on show the globe it asks for.
+  // The camera flies; it never snaps (ADR-0879 D5). Between close steps it stays in and pans the sheet (2.15). Its cues and
+  // timers are the camera player's (tour-camera.ts): the page tells it each step and puts on show the map it asks for.
   useEffect(() => {
     if (!tour || !controls || free || !step || openingActive) return;
     const before = previous.current;
     previous.current = tour;
-    if (exploringNow || everything) { camera.freeze(); if (everything && shownMapNow.current !== "storytree") setShownMap("storytree"); return; }
+    if (exploringNow || everything) { if (everything && shownMapNow.current !== "storytree") setShownMap("storytree"); return; }
     const map = globe.map, overview = overviews[map];
     const view = (width > 600 ? shownStep!.laptop : shownStep!.phone) ?? shownStep!;
     const target = view.target ?? overview;
     camera.step({ tour, before, switching: map !== shownMapNow.current, to: { target, framing: viewFraming(shownStep!, width, restingFraming) }, overview,
-      shownOverview: overviews[shownMapNow.current], driftOrder: driftOrders[map], next: driftOrders[map].indexOf(ownerOf(target) ?? "") + 1,
+      shownOverview: overviews[shownMapNow.current],
       reduced: reduced(), place: stop => controls.stop({ ...stop, framing: sheetFraming(stop.framing), sideOffset }), show: () => setShownMap(map) });
   }, [controls, tour, sideOffset, openingActive, globe.map]);
   // With no globe drawn, each step's panels read the step's own project directly, as the camera would have shown it (2.16).
@@ -492,7 +488,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
   useEffect(() => { if (free) setSwitches(switchesFor(undefined, true)); }, [free]);
   useEffect(() => {
     if (!free || !controls) return;
-    // Free play takes the camera from the tour: a drift the last step left running would otherwise keep turning and framing it.
+    // Free play takes the camera from the tour: a flight the last step left running would otherwise keep framing it.
     camera.cancel();
     // A globe just swapped in may not be drawn yet (storytree's takes seconds with software WebGL): it is aimed at again, for up to
     // 20 seconds, until it is, so the last globe's framing does not stay.
@@ -572,7 +568,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
           frame={grown?.snapshot.scene} easeMoves growth={growth} recordedSessions={mapFrame || (shopAt && shownMap === "shop") ? undefined : grown?.sessions}
           wisps={(heldClaims ? wisps : mapFrame?.wisps) ?? (shopAt && shownMap === "shop" ? wisps : grown ? [] : wisps)} selected={selected}
           highlighted={focus?.length === 0 ? ["planned-only"] : focus ?? highlight} onPick={pickStory} onNote={pickNote}
-          onControls={onControls} surfaces={surfaces} framing={sheetFraming(free ? freePlayFraming(shownMap, width, restingFraming) : restingFraming)} sideOffset={globeSide(undefined, width)} mode={layers.mode} library={layers.library} sheet />
+          onControls={onControls} surfaces={surfaces} framing={sheetFraming(free ? freePlayFraming(shownMap, width, restingFraming) : restingFraming)} sideOffset={globeSide(undefined, width)} mode={layers.mode} library={layers.library} />
       </div>
     </GlobeBoundary>}
     {webgl && <Labels labels={shownLabels} controls={controls} arrived={arrived} />}

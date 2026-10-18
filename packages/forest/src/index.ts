@@ -3,8 +3,8 @@
 export { storyNodes } from "./story-nodes/story-nodes.js";
 export type { Point, StoryNode } from "./story-nodes/story-nodes.js";
 export { NAMEPLATE_ROOM, sheetPlaces, type SheetPlaces } from "./planet-places/sheet-places.js";
-export { placeInRow, PLANET_RADIUS, ROW_LATITUDE, rowLatitude, rowOf, type PlanetPoint } from "./planet-places/planet-places.js";
-export { GROWTH_STEP, growPlanet, islandArea, LAND_PER_LINE, MAPPED_ISLAND_CAP, mappedArea, MAX_NUDGE, MIN_ISLAND_AREA, ROW_BAND, SEA_GAP, type GrowingIsland, type GrownPlanet } from "./planet-places/island-growth.js";
+export { placeInRow, rowOf } from "./planet-places/planet-places.js";
+export { islandArea, LAND_PER_LINE, MAPPED_ISLAND_CAP, mappedArea, MIN_ISLAND_AREA, SEA_GAP, type GrowingIsland } from "./planet-places/island-growth.js";
 export { grove } from "./capability-tree/capability-tree.js";
 export type { Tree, TreeForm } from "./capability-tree/capability-tree.js";
 export { changedIslands, forestDrawn, forestScene, PLACE_WIDTH } from "./render/forest-scene.js";
@@ -20,6 +20,6 @@ export { CARD, layoutTree, OUTSIDE_CARD } from "./drill-down/tree-layout.js";
 export type { Card, Link, TreeLayout } from "./drill-down/tree-layout.js";
 export { claimTints, replayWisps, sessionColour, sessionWisps } from "./agent-claims/agent-claims.js";
 export type { ClaimTint, SessionWisp } from "./agent-claims/agent-claims.js";
-export { edgeMarkers, openingTurn, turnToIsland, type EdgeMarker, type FacingIsland, type GlobeDirection, type GlobeTurn } from "./never-hidden/never-hidden.js";
+export { turnToIsland, type FacingIsland, type GlobeDirection, type GlobeTurn } from "./never-hidden/never-hidden.js";
 
 export { sessionRoster, sessionRows, type SessionRow, type SessionDetails } from "./sessions-list/sessions-list.js";

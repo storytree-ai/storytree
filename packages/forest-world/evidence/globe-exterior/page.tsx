@@ -1,19 +1,19 @@
-// The drawing engine 4.7, mounted: the globe as a host mounts it, in real Chromium, its exterior switched layer by layer.
-// Two islands and the roads between them, as the planet's own tests lay them out.
+// The drawing engine 4.7, mounted: the glass sheet as a host mounts it, in real Chromium, its exterior switched layer by layer.
+// Two islands and the roads between them, laid on the sheet.
 import { createRoot } from 'react-dom/client';
 import type { Object3D } from 'three';
 import type { ForestScene, Island } from '../../src/scene.js';
-import { PlanetWorldCanvas } from '../../src/planet/PlanetWorldCanvas.js';
+import { PlanetWorldCanvas, SHEET_RADIUS, sheetSpot } from '../../src/planet/PlanetWorldCanvas.js';
 import type { PlanetSurfaceVisibility } from '../../src/planet/exterior.js';
 import type { PlanetGrowth } from '../../src/planet/PlanetGrowth.js';
 
-const R = 218;
+const R = SHEET_RADIUS, sheet = { width: 260, height: 160 };
 const island = (story: string, capabilities: string[]): Island => ({
   story, title: story, x: 0, z: 0, key: story,
   trees: capabilities.map((capability, i) => ({ capability, form: 'green', status: 'healthy', contracts: 1, x: i, z: 0, scale: 1, turn: 0 })),
 });
 const scene: ForestScene = { islands: [island('a', ['a1', 'a2']), island('b', ['b1', 'b2'])], links: [{ from: 'a2', to: 'a1' }, { from: 'b1', to: 'a1' }, { from: 'b2', to: 'b1' }] };
-const spots = new Map([['a', { x: R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }], ['b', { x: -R * Math.sin(0.3), y: 0, z: R * Math.cos(0.3) }]]);
+const spots = new Map([['a', sheetSpot({ x: 60, y: 0 })], ['b', sheetSpot({ x: -60, y: 0 })]]);
 const stories = scene.islands.map(i => i.story);
 
 let globe: (() => any) | undefined;
@@ -30,7 +30,7 @@ const shown = (object: Object3D | undefined) => {
 (window as any).proof = {
   stories,
   mount(surface: boolean, surfaces?: Partial<PlanetSurfaceVisibility>, growth?: PlanetGrowth) {
-    root.render(<PlanetWorldCanvas scene={scene} spots={spots} radius={R} surface={surface} surfaces={surfaces}
+    root.render(<PlanetWorldCanvas scene={scene} spots={spots} radius={R} sheet={sheet} surface={surface} surfaces={surfaces}
       growth={growth} plateChildren={island => <mesh name={`mark:${island.story}`} />} />);
   },
   recorded(at: number) {
@@ -59,14 +59,13 @@ const shown = (object: Object3D | undefined) => {
     });
     return roads;
   },
-  /** What the mounted globe draws: its sea, each island's ground, its roads, and each island's host mark. */
+  /** What the mounted sheet draws: each island's ground, its roads, and each island's host mark. */
   drawn() {
     const world = globe!().scene;
     const roads = world.getObjectByName('globe-roads');
     let pathways = 0;
     roads?.traverse((node: Object3D) => { if (node.name.startsWith('pathway:')) pathways++; });
     return {
-      sea: shown(world.getObjectByName('planet:shell')),
       grounds: stories.map(story => shown(world.getObjectByName(`island-surface:${story}`))),
       roads: pathways > 0 && shown(roads),
       marks: stories.map(story => shown(world.getObjectByName(`mark:${story}`))),

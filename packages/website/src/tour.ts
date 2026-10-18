@@ -54,7 +54,7 @@ export type TourStep = {
   sessionsAt?: string;
   /** The stories a growth's globe is narrowed to: the rest are dimmed (ADR-0890's teaching stories). */
   focus?: readonly string[];
-  target?: GlobeTarget; framing?: number; drift?: boolean;
+  target?: GlobeTarget; framing?: number;
   /** A laptop's own view where a phone's would not fit its panels (wider than 600px). */
   laptop?: { target: GlobeTarget; framing: number };
   /** A phone's own view (600px wide or less), with the globe's middle `side` pixels right of the screen's; at 320px wide

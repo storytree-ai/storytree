@@ -1,4 +1,4 @@
-// The drawing engine 4.7 in real Chromium: the mounted globe hides its sea, island grounds and roads independently,
+// The drawing engine 4.7 in real Chromium: the mounted sheet hides its island grounds and roads independently,
 // keeping each island's host marks, and surface=false hides all of it. exterior.test.ts proves the
 // switches' rule without a GPU; this proves the canvas obeys it, and records what the proof executed.
 // Run from the checkout: node --import tsx packages/forest-world/evidence/globe-exterior/capture.mjs
@@ -13,7 +13,7 @@ import { recordBrowserCoverage } from '../../../dev-loop/src/browser-coverage.mj
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgDir = path.resolve(here, '../..');
 const out = path.join(here, 'out');
-const PROOF = 'forest-world 4.7 the mounted globe hides its sea, island grounds and roads independently, keeping plate children; hiding the exterior hides all of it';
+const PROOF = 'forest-world 4.7 the mounted map hides its island grounds and roads independently, keeping plate children; hiding the exterior hides all of it';
 
 let traces;
 const results = {};
@@ -34,17 +34,15 @@ try {
     };
     const all = [true, true];
     results.whole = await drawn(true, undefined);
-    assert.deepEqual(results.whole, { sea: true, grounds: all, roads: true, marks: all }, 'by default the globe draws every layer');
+    assert.deepEqual(results.whole, { grounds: all, roads: true, marks: all }, 'by default the map draws every layer');
     await page.screenshot({ path: path.join(here, 'whole.png') });
-    results.noSea = await drawn(true, { sea: false });
-    assert.deepEqual(results.noSea, { sea: false, grounds: all, roads: true, marks: all }, 'the sea hides alone');
     results.noGrounds = await drawn(true, { grounds: false });
-    assert.deepEqual(results.noGrounds, { sea: true, grounds: [false, false], roads: true, marks: all }, 'bare grounds keep the islands\' marks');
+    assert.deepEqual(results.noGrounds, { grounds: [false, false], roads: true, marks: all }, 'bare grounds keep the islands\' marks');
     await page.screenshot({ path: path.join(here, 'no-grounds.png') });
     results.noRoads = await drawn(true, { roads: false });
-    assert.deepEqual(results.noRoads, { sea: true, grounds: all, roads: false, marks: all }, 'the roads hide alone');
-    results.inside = await drawn(false, { sea: true, grounds: true, roads: true });
-    assert.deepEqual(results.inside, { sea: false, grounds: [false, false], roads: false, marks: [false, false] }, 'surface=false wins over every switch');
+    assert.deepEqual(results.noRoads, { grounds: all, roads: false, marks: all }, 'the roads hide alone');
+    results.inside = await drawn(false, { grounds: true, roads: true });
+    assert.deepEqual(results.inside, { grounds: [false, false], roads: false, marks: [false, false] }, 'surface=false wins over every switch');
     await page.evaluate(() => window.proof.dispose());
     assert.deepEqual(errors, [], 'no page errors');
     traces = (await page.coverage.stopJSCoverage()).filter(script => script.url.endsWith('/bundle.js')).map(script => ({

@@ -1,8 +1,8 @@
-// The globe's growth (world 7), replayed in the shipped engine from the website's own recordings:
+// The map's growth (world 7), replayed in the shipped engine on the glass sheet from the website's own recordings:
 // the shop's saved growth stage by stage, or storytree's saved reading grown from one point by its own dated history,
 // each with its knowledge core growing with it.
 // ?map=shop|storytree  &seconds=<length>  &at=<seconds> fixes a moment; absent, it plays on the canvas's clock.
-// &sheet=1 grows it on the glass sheet, each island where the app's sheet puts the plan (ADR-1043), not on the globe.
+// Each island stands where the app's sheet puts the plan (ADR-1043).
 import { createRoot } from 'react-dom/client';
 import { growthPlan, crossingLength, type PlanetSpot } from '@storytree/forest-world/planet';
 import { createKnowledgeCore } from '@storytree/knowledge-core/view';
@@ -18,9 +18,8 @@ type Snapshot = { radius: number; scene: any; spots: [string, PlanetSpot][]; cap
 const query = new URLSearchParams(location.search);
 const map = query.get('map') === 'storytree' ? 'storytree' : 'shop';
 const saved = (map === 'shop' ? shop : storytree) as unknown as Snapshot;
-const sheet = query.get('sheet') === '1';
-// On the sheet the roads are measured where the sheet lays the islands, so each draws on at the lane's speed there.
-const laid = sheet ? onSheet(saved as any) : saved;
+// The roads are measured where the sheet lays the islands, so each draws on at the lane's speed there.
+const laid = onSheet(saved as any);
 const pathways = buildPlanetPathways(saved.scene, new Map(laid.spots), laid.radius);
 // The shop's recorded stages; storytree's saved reading, staged by when its library recorded each story and capability.
 // A shop stage whose recorded sessions changed holds a beat, so each claim and landing is seen (world 7.6).
@@ -56,7 +55,7 @@ const at = query.get('at');
 let draws = 0;
 const intervals: number[] = [];
 let last = 0;
-// ?baseline=1: the same globe with no growth, redrawn every frame, for the frame rate to be read against.
+// ?baseline=1: the same map with no growth, redrawn every frame, for the frame rate to be read against.
 const baseline = query.get('baseline') === '1';
 (globalThis as any).__storytreeCaptureGlobe = (get: () => any) => {
   const { gl } = get();
@@ -67,7 +66,7 @@ const baseline = query.get('baseline') === '1';
     plan: { seconds: plan.seconds, stages: plan.stages, islands: plan.islands.size, roads: plan.roads.size, capabilities: plan.capabilities.size, files: plan.files.size },
     snapshot: () => {
       const { scene, clock } = get();
-      const plates = scene.getObjectByName('globe').children.filter((c: any) => c.name.startsWith('planet:') && c.name !== 'planet:shell');
+      const plates = scene.getObjectByName('globe').children.filter((c: any) => c.name.startsWith('planet:'));
       const notes: any[] = [];
       scene.getObjectByName('knowledge-points')?.children.forEach((c: any) => { if (c.name.startsWith('knowledge-point:')) notes.push(c); });
       // Territories and file circles count once mounted on their island, and as filled in once they show (forest 3.30).
@@ -95,13 +94,13 @@ function claims(scene: any): string[] {
   return shown.sort();
 }
 const growth = baseline ? undefined : { plan, at: at === null ? undefined : Number(at) };
-// Both grow in The forest's own globe, their territories and file circles filling in behind each island and their cores'
+// Both grow on the forest's own glass sheet, their territories and file circles filling in behind each island and their cores'
 // notes appearing (forest 3.30, knowledge core 1.9); the shop's recording with the sessions it recorded outlining the
 // territories they held (forest 5.7), within its full plan as the tour draws it.
 const places = new Map((saved.places ?? []).map(p => [p.id, p.place]));
 const sessions = saved.stages?.map(({ at, wisps }) => ({ at, wisps: wisps ?? [] }));
 const none = () => {};
 createRoot(document.getElementById('globe')!).render(
-  <PlanetView core={core} scene={saved.scene} places={places} frame={map === 'shop' || sheet ? saved.scene : undefined} sheet={sheet} wisps={[]} selected={undefined}
+  <PlanetView core={core} scene={saved.scene} places={places} frame={saved.scene} wisps={[]} selected={undefined}
     onPick={none} onNote={none} growth={growth} recordedSessions={growth && sessions} />,
 );

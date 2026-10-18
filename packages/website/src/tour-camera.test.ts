@@ -10,11 +10,11 @@ function rig() {
   let now = 0, id = 0;
   const pending = new Map<number, { at: number; run: () => void }>();
   const log: string[] = [];
-  let running = true, drawn = new Set<string>(["a", "b", "c", "core"]);
+  let drawn = new Set<string>(["a", "b", "c", "core"]);
   const name = (target: GlobeTarget) => target.kind === "story" ? target.story : target.kind;
   const camera = createCameraPlayer({
     timers: { set: (run, ms) => { pending.set(++id, { at: now + ms, run }); return id; }, clear: timer => { pending.delete(timer as number); } },
-    arrived: yes => { if (yes) log.push(`${Math.round(now)} arrive`); }, running: () => running,
+    arrived: yes => { if (yes) log.push(`${Math.round(now)} arrive`); },
   });
   const advance = (ms: number) => {
     const until = now + ms;
@@ -28,8 +28,8 @@ function rig() {
   const place = (stop: Stop) => { if (!drawn.has(name(stop.target))) return false; log.push(`${Math.round(now)} ${name(stop.target)} ×${+stop.framing.toFixed(2)} ${Math.round(stop.duration)}ms`); return true; };
   const tell = (tour: TourDetail, before: TourDetail | undefined, more: Partial<CameraStep> = {}) => camera.step({ tour, before, switching: false,
     to: { target: story(tour.step.target ? name(tour.step.target) : "core"), framing: tour.step.framing ?? 1.1 }, overview: { kind: "core" }, shownOverview: { kind: "core" },
-    driftOrder: ["a", "b", "c"], next: 1, reduced: false, place, show: () => log.push(`${Math.round(now)} show`), ...more });
-  return { camera, log, advance, tell, set running(value: boolean) { running = value; }, set drawn(value: Set<string>) { drawn = value; } };
+    reduced: false, place, show: () => log.push(`${Math.round(now)} show`), ...more });
+  return { camera, log, advance, tell, set drawn(value: Set<string>) { drawn = value; } };
 }
 const story = (id: string): GlobeTarget => id === "core" ? { kind: "core" } : { kind: "story", story: id };
 const step = (id: string, more: Partial<TourStep> = {}): TourStep => ({ id, title: id, explainer: "map", lines: ["One"], decisions: [], surfaces: {}, ...more });
@@ -86,30 +86,14 @@ test("2.12 · a map that grows from a point is shown at once, with no pull back 
   assert.deepEqual(log, ["5000 show", "5000 core ×1.1 2000ms", "7000 arrive"]);
 });
 
-test("2.15 · with reduced motion the camera cuts to each view and never drifts", () => {
+test("2.15 · with reduced motion the camera cuts to each view", () => {
   const { log, advance, tell } = rig();
-  const one = detail(step("one", { target: story("a"), framing: .8, drift: true }), 0);
+  const one = detail(step("one", { target: story("a"), framing: .8 }), 0);
   tell(one, undefined, { reduced: true }); advance(60_000);
   assert.deepEqual(log, ["0 a ×0.8 0ms", "0 arrive"]);
   log.length = 0;
   tell(detail(step("two", { target: story("b") }), 1), one, { reduced: true, switching: true }); advance(1000);
-  assert.deepEqual(log, ["60000 show", "60000 arrive", "60060 b ×1.1 0ms"], "a new globe at once, the camera on it a beat later");
-});
-
-test("2.15 · an overview step drifts round the islands one leg at a time; pausing freezes the drift and playing returns and drifts on", () => {
-  const rigged = rig();
-  const { log, advance, tell } = rigged;
-  const s = step("one", { target: story("a"), framing: 1.1, drift: true });
-  const playing = detail(s, 0);
-  tell(playing, undefined); advance(2660 + 18_000 * 2 - 1);
-  assert.deepEqual(log, ["0 a ×7.7 0ms", "60 a ×1.1 2600ms", "2660 arrive", "2660 b ×1.1 18000ms", "20660 c ×1.1 18000ms"], "a leg to each island in turn, from the one after the step's");
-  log.length = 0;
-  const paused = detail(s, 0, { holds: ["paused"] }, false);
-  tell(paused, playing); advance(60_000);
-  assert.deepEqual(log, [], "waiting freezes the drift");
-  const again = detail(s, 0);
-  tell(again, paused); advance(1400 + 18_000);
-  assert.deepEqual(log, ["98659 a ×1.1 1400ms", "100059 b ×1.1 18000ms", "118059 c ×1.1 18000ms"], "back to the step's view, then on round the islands");
+  assert.deepEqual(log, ["60000 show", "60000 arrive", "60060 b ×1.1 0ms"], "a new map at once, the camera on it a beat later");
 });
 
 test("2.15 · a step's island drawn late is aimed at again until it is drawn, by its latest aim", () => {
@@ -129,7 +113,6 @@ test("2.22 · on a phone storytree's own glass sheet is framed whole, wider at 3
   for (const step of own) {
     const wide = viewFraming(step, 390, restingFraming), narrow = viewFraming(step, 320, restingFraming);
     assert.ok(wide > restingFraming && narrow > wide, `${step.id}: ${wide} at 390px, ${narrow} at 320px`);
-    assert.ok(!step.drift, `${step.id} drifts its sheet's names off the screen`);
   }
   assert.ok(freePlayFraming("storytree", 390, restingFraming) > restingFraming && freePlayFraming("storytree", 320, restingFraming) > freePlayFraming("storytree", 390, restingFraming));
   assert.ok(freePlayFraming("shop", 390, restingFraming) > restingFraming && freePlayFraming("shop", 320, restingFraming) > freePlayFraming("shop", 390, restingFraming));
@@ -138,7 +121,6 @@ test("2.22 · on a phone storytree's own glass sheet is framed whole, wider at 3
 test("2.23 · on a laptop storytree's own glass sheet is framed whole and held still in the arrival, the everything step and free play; the shop's keeps the resting framing", () => {
   for (const step of steps.filter(step => step.map === "own" || step.id === "everything")) {
     for (const width of [1440, 1280]) assert.ok(viewFraming(step, width, restingFraming) > restingFraming, `${step.id} at ${width}px: ${viewFraming(step, width, restingFraming)}`);
-    assert.ok(!step.drift, `${step.id} drifts its sheet's names off the screen`);
   }
   assert.ok(freePlayFraming("storytree", 1440, restingFraming) > restingFraming);
   assert.equal(freePlayFraming("shop", 1440, restingFraming), restingFraming);

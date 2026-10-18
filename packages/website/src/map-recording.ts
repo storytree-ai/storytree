@@ -1,7 +1,6 @@
 /** Capability 2 · The forest on the site. The map chapter's window onto the shop's saved record. */
 import { growthPlan, type GrowthPlan, type GrowthOptions } from "@storytree/forest-world/planet";
-import { islandCoastReach } from "@storytree/forest-world/geometry";
-import { growPlanet, placeInRow } from "@storytree/forest";
+import { placeInRow } from "@storytree/forest";
 import { sheetLayout } from "@storytree/forest/view";
 import type { GrowthSnapshot } from "./forest-data.js";
 
@@ -109,9 +108,7 @@ export function mapRecording(saved: GrowthSnapshot): GrowthSnapshot {
   stages.push({ ...end, id: "checked", scene: narrow(end.scene), wisps: [] }, { ...end, scene: narrow(end.scene), wisps: [] });
   stages.sort((a, b) => a.at.localeCompare(b.at));
   const frame = narrow(end.scene), places = placesOf(narrow(planned.scene), saved.places);
-  const at = new Map(places.map(node => [node.id, node.place]));
-  const grown = growPlanet(frame.islands.map(island => ({ story: island.story, place: at.get(island.story)!, reach: islandCoastReach(island) })));
-  return { ...saved, scene: frame, places, spots: [...grown.spots], radius: grown.radius, stages };
+  return onSheet({ ...saved, scene: frame, places, stages });
 }
 
 /** A recorded growth laid on the glass sheet as the app lays its plan (ADR-1043 D2): each island's spot where the forest page's

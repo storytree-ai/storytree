@@ -57,7 +57,6 @@ function recorder() {
 
 test("6.5 · the storytree side's map is the forest's glass sheet of the saved plan, copied onto its screen whenever the screen shows the map, and only then", () => {
   const props = mapProps(undefined);
-  assert.equal(props.sheet, true, "the view draws the glass sheet, not the globe");
   assert.equal(props.scene, snapshot.scene, "of the saved plan");
   assert.equal(mapProps(PANEL.story).selected, PANEL.story, "and selects the island he clicks");
   const pixels = new Uint8ClampedArray(Array.from({ length: 4 * 512 }, (_, at) => (at * 37) % 256));

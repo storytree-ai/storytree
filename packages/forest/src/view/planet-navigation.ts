@@ -1,7 +1,6 @@
-/** Capability 3 · Story node render. The desktop's joins between permanent story places, lane C's turns, and Three's camera. */
+/** Capability 3 · Story node render. The desktop's joins between the sheet's islands, the pointer, and Three's camera. */
 import { Euler, Quaternion, Raycaster, Vector2, Vector3, type Camera, type Object3D } from "three";
-import { edgeMarkers, growPlanet, turnToIsland, type FacingIsland, type ForestScene, type GlobeTurn } from "@storytree/forest";
-import { islandCoastReach } from "@storytree/forest-world/geometry";
+import type { FacingIsland, GlobeTurn } from "@storytree/forest";
 import { pickProjectedNote, type ProjectedNote } from "./globe-picking.js";
 import type { Selection } from "./panel-selection.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
@@ -10,7 +9,7 @@ import { globeName } from "./nameplates.js";
 
 export type ForestMode = "forest" | "library";
 
-/** Five CSS pixels or more separates a globe drag from a click (3.12). */
+/** Five CSS pixels or more separates a drag from a click (3.12). */
 export function isGlobeDrag(from: { x: number; y: number }, to: { x: number; y: number }): boolean {
   return Math.hypot(to.x - from.x, to.y - from.y) >= 5;
 }
@@ -42,28 +41,6 @@ export function globeFraming(choice: GlobeOpening): number {
   return choice === "close" ? 0.8 : choice === "far" ? 1.7 : 1.18;
 }
 
-/**
- * The globe's layout (ADR-0804 D7): each island at its permanent place, nudged only as far as its coast needs
- * room, and the globe's radius, which grows when nudging cannot make room. Every drawing takes `radius` from here.
- */
-export function planetLayout(scene: ForestScene, places: ReadonlyMap<string, number>, before?: { spots: ReadonlyMap<string, FacingIsland["spot"]> }, frame?: ForestScene) {
-  // A plan still growing, framed by its full plan, keeps every island where the full plan puts it (3.28).
-  const grown = growPlanet((frame ?? scene).islands.map(island => {
-    const place = places.get(island.story);
-    if (place === undefined) throw new Error(`No permanent place for ${island.title}`);
-    return { story: island.story, place, reach: islandCoastReach(island) };
-  }));
-  // An island that did not move keeps the spot on show, so its plate is not drawn again (ADR-0836 D1).
-  const kept = (story: string) => {
-    const spot = grown.spots.get(story)!, old = before?.spots.get(story);
-    return old !== undefined && old.x === spot.x && old.y === spot.y && old.z === spot.z ? old : spot;
-  };
-  const islands: FacingIsland[] = scene.islands.map(island => ({ story: island.story, trees: island.trees, spot: kept(island.story) }));
-  const spots = new Map(islands.map(i => [i.story, i.spot]));
-  const same = before !== undefined && before.spots.size === spots.size && [...spots].every(([story, spot]) => before.spots.get(story) === spot);
-  return { scene, islands, spots: same ? before.spots : spots, radius: grown.radius };
-}
-
 /** How long a host's change of layout takes to move its islands, in seconds (3.28). */
 export const MOVE_SECONDS = 1.6;
 
@@ -86,45 +63,17 @@ export function movingSpots(from: ReadonlyMap<string, FacingIsland["spot"]>, to:
 }
 
 /**
- * How far the globe tilts toward either pole (3.38, ADR-0977): 50°, enough to bring the top and bottom rows
- * (42° north and south) past the middle of the view, never so far that the view looks down from over a pole.
- * The Library keeps the same stop: its notes fill a see-through ball, so no tilt hides any of them.
- */
-export const TILT_LIMIT = 50 * Math.PI / 180;
-
-/**
- * The globe as turned in the eye's frame: spun about its poles by yaw, then tilted by pitch, held within
- * the tilt stop. Nothing else turns it, so with an eye that never rolls, north points straight up the screen.
+ * The big sphere the sheet is the near pole of, as turned in the eye's frame: spun about its poles by yaw, then tilted by
+ * pitch. A sheet's turns are a hair's breadth, so with an eye that never rolls, north points straight up the screen.
  */
 export function focusRotation(turn: GlobeTurn, eye: Quaternion): Quaternion {
-  const pitch = Math.max(-TILT_LIMIT, Math.min(TILT_LIMIT, turn.pitch));
-  return eye.clone().multiply(new Quaternion().setFromEuler(new Euler(pitch, turn.yaw, 0)));
-}
-
-/**
- * A drag of `drag` pixels on a canvas `height` tall: sideways spins the globe about its poles without limit,
- * up and down tilts it, up to the tilt stop. A drag the canvas's height turns it once around, as the orbit did.
- */
-export function dragTurn(turn: GlobeTurn, drag: { x: number; y: number }, height: number): GlobeTurn {
-  const rate = 2 * Math.PI / height;
-  const pitch = Math.max(-TILT_LIMIT, Math.min(TILT_LIMIT, turn.pitch));
-  return { yaw: turn.yaw + drag.x * rate, pitch: Math.max(-TILT_LIMIT, Math.min(TILT_LIMIT, pitch + drag.y * rate)) };
-}
-
-/** Use the actual camera frame for marker bearings, retaining absolute globe turns for clicks. */
-export function hiddenMarkers(islands: readonly FacingIsland[], rotation: Quaternion, eye: Quaternion, mode: ForestMode = "forest") {
-  // ADR-0660 D4: only the viewer's explicit Library choice hides failure attention.
-  if (mode === "library") return [];
-  const toView = eye.clone().invert().multiply(rotation);
-  const viewed = islands.map(island => ({ ...island, spot: new Vector3(island.spot.x, island.spot.y, island.spot.z).applyQuaternion(toView) }));
-  const turns = new Map(islands.map(i => [i.story, turnToIsland(i.spot)]));
-  return edgeMarkers(viewed, { x: 0, y: 0, z: 1 }).map(marker => ({ ...marker, turn: turns.get(marker.story)! }));
+  return eye.clone().multiply(new Quaternion().setFromEuler(new Euler(turn.pitch, turn.yaw, 0)));
 }
 
 type PaneRect = { left: number; right: number; top: number; bottom: number };
 
 /**
- * 3.11: where a rim marker sits in a canvas `size`, in its pixels: at its rim spot, kept 20px inside the canvas and
+ * 3.11: where an edge marker sits in a canvas `size`, in its pixels: at its spot, kept 20px inside the canvas and
  * 20px above anything docked over the canvas's bottom edge under it (the Sessions strip), so nothing covers it.
  */
 export function markerSpot(at: { left: number; top: number }, size: { width: number; height: number }, docked: readonly PaneRect[]): { left: number; top: number } {
@@ -134,7 +83,7 @@ export function markerSpot(at: { left: number; top: number }, size: { width: num
   return { left, top: Math.max(20, Math.min(lowest, at.top)) };
 }
 
-/** Pick the actual rotated land. The see-through shell retains the near-side interaction rule. */
+/** Pick the actual turned land. */
 export function pickIsland(ray: Raycaster, world: Object3D): string | undefined {
   return pickLand(ray, world)?.story;
 }
@@ -145,7 +94,6 @@ function pickLand(ray: Raycaster, world: Object3D): { story: string; capability?
     if (!isDrawn(hit.object)) continue;
     let capability: string | undefined;
     for (let object: Object3D | null = hit.object; object !== null; object = object.parent) {
-      if (object.name === "planet:shell") return undefined;
       if (object.name.startsWith("territory:") && typeof object.userData.capability === "string") capability ??= object.userData.capability;
       if (object.name.startsWith("planet:")) return capability === undefined ? { story: object.name.slice("planet:".length) } : { story: object.name.slice("planet:".length), capability };
     }
@@ -162,7 +110,6 @@ export function pointedFile(world: Object3D, camera: Camera,
   ray.setFromCamera(new Vector2(2 * (cursor.x - box.left) / box.width - 1, 1 - 2 * (cursor.y - box.top) / box.height), camera);
   for (const hit of ray.intersectObject(world, true)) {
     if (!isDrawn(hit.object)) continue;
-    if (hit.object.name === "planet:shell") return undefined;
     if (hit.object.name.startsWith("file:")) return hit.object.userData as { file: string; lines: number; capability?: string };
   }
   return undefined;
@@ -181,7 +128,7 @@ export function pickGlobe(world: Object3D, camera: Camera,
       if (!isDrawn(hit.object)) continue;
       let land = false;
       for (let object: Object3D | null = hit.object; object !== null; object = object.parent) {
-        if (object.name.startsWith("planet:") && object.name !== "planet:shell") { land = true; break; }
+        if (object.name.startsWith("planet:")) { land = true; break; }
       }
       if (land) { landDistance = hit.distance; break; }
     }

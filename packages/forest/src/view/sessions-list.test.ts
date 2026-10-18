@@ -3,7 +3,7 @@ import { createElement } from "react";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { arcsAfter, isSessionRows, keptPanelOpen, keptStripFull, keptTab, SessionsList, windowsReader } from "./sessions-list.js";
+import { arcsAfter, FAILURES_WINDOW_MS, isSessionRows, keptPanelOpen, keptStripFull, keptTab, NEWS_STEP, refreshFailures, SessionsList, StepFailed, windowsReader } from "./sessions-list.js";
 import type { ArcView } from "@storytree/library";
 import type { SessionWindow } from "@storytree/session-management";
 import { sessionColour } from "../agent-claims/agent-claims.js";
@@ -321,4 +321,27 @@ test("7.28 History's search keeps the rows, idle and ended, whose name, agent, o
   const none = renderToStaticMarkup(createElement(SessionsList, { ...props, search: "nothing like it" }));
   assert.match(none, /No sessions match the search/);
   assert.doesNotMatch(none, /history-row|No sessions ended in this range/);
+});
+
+test("7.33 a failed refresh names its step with the error on hover and is logged once per step and message; a lone failure raises no banner, three within 30 s do, and it clears on recovery or once they age out", () => {
+  const logged: string[] = [];
+  const failures = refreshFailures(line => logged.push(line));
+  failures.failed(new StepFailed("reading the arcs", new Error("connection reset")), 0);
+  assert.equal(failures.banner(0), undefined, "one failure the next ask may recover is no banner");
+  failures.failed(new StepFailed("reading the arcs", new Error("connection reset")), 2_000);
+  failures.failed(new StepFailed("reading the arcs", new Error("connection reset")), 4_000);
+  assert.deepEqual(failures.banner(4_000), { text: "Sessions could not be refreshed: reading the arcs failed. Retrying…", detail: "connection reset" });
+  assert.equal(logged.length, 1, "the same step and message is logged once");
+  assert.match(logged[0]!, /^storytree sessions list: reading the arcs failed: Error: connection reset\n\s+at /, "with its stack");
+  assert.equal(failures.banner(4_000 + FAILURES_WINDOW_MS), undefined, "aged out");
+  failures.failed(new Error("fetch failed"), 10_000);
+  assert.equal(failures.banner(10_000)?.text, `Sessions could not be refreshed: ${NEWS_STEP} failed. Retrying…`, "an unnamed failure is the page reading's");
+  assert.equal(logged.length, 2);
+  failures.recovered();
+  assert.equal(failures.banner(10_000), undefined, "news handled again clears it");
+  failures.failed(new StepFailed("reading the arcs", new Error("connection reset")), 11_000);
+  assert.equal(logged.length, 3, "after a recovery the same failure is logged again");
+  const html = renderToStaticMarkup(createElement(SessionsList, { rows: [row], onHighlight() {}, error: "Sessions could not be refreshed: drawing the rows failed. Retrying…", errorDetail: "x is undefined" }));
+  assert.match(html, /<p role="status" title="x is undefined">Sessions could not be refreshed: drawing the rows failed\. Retrying…<\/p>/);
+  assert.match(html, /Build &lt;signup&gt;/, "the rows last drawn stay under the banner");
 });

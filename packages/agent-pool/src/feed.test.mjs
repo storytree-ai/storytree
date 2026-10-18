@@ -12,7 +12,7 @@ function survey(increments, extra = {}) {
   return { increments, holds: { waits: {}, heldOn: {} }, claims: [], ...extra };
 }
 
-test("2.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, machine field, the arc's state, this machine's name, the standing claims and the refusals of the capabilities live sessions hold", async () => {
+test("2.2 · the survey reads arcs and holds once, with every increment's arc, capabilities list, machine field, the arc's state, this machine's name, the standing claims and the refusals under every open increment on an active arc, whoever holds the capability now", async () => {
   let reads = 0;
   const record = (id, arc, body, extra = {}) => ({ id, createdAt: new Date(now), fields: { arc, title: id, body, status: "proposal", parked: "2026-10-06T00:00:00Z", waits: [], ...extra } });
   const library = {
@@ -30,9 +30,9 @@ test("2.2 · the survey reads arcs and holds once, with every increment's arc, c
   const claims = [{ increment: "i1", session: "laptop", holder: "live", since: "2026-10-07T02:30:00Z" }, { capability: "capability_y", session: "quiet", holder: "gone", since: "2026-10-07T02:30:00Z" },
     { increment: "i3", session: "desk", holder: "live", since: "2026-10-07T02:30:00Z" }, { capability: "capability_z", session: "laptop", holder: "live", since: "2026-10-07T02:30:00Z" }];
   const asked = [];
-  const refused = [{ capability: "capability_x", under: "i2", holder: "laptop" }];
-  const read = await readSurvey({ library, claims: async () => claims, refusals: async (capabilities) => (asked.push(capabilities), refused), here: async () => "mint" });
-  assert.deepEqual(asked, [["capability_x", "capability_z"]], "refusals are read once, for the capabilities live sessions hold, on a held increment's list or directly");
+  const refused = [{ capability: "capability_x", under: "i2", holder: "laptop" }, { capability: "capability_y", under: "i5", holder: "quiet" }];
+  const read = await readSurvey({ library, claims: async () => claims, refusals: async (under) => (asked.push(under), refused), here: async () => "mint" });
+  assert.deepEqual(asked, [["i1", "i2", "i3", "i5"]], "refusals are read once, under every open increment on an active arc, a capability nobody holds included (ADR-1079 D1)");
   assert.equal(read.refusals, refused);
   assert.equal(reads, 1);
   assert.deepEqual(read.increments.map((one) => [one.id, one.arc, one.arcState, one.body]), [
@@ -43,7 +43,8 @@ test("2.2 · the survey reads arcs and holds once, with every increment's arc, c
   assert.deepEqual(read.holds.waits.i1, [{ on: "z", reason: "r" }]);
   assert.deepEqual(read.arcs.map((arc) => [arc.id, arc.state, arc.openQuestions]), [["arc_laptop", "active", 1], ["arc_cap", "active", 0], ["arc_box", "parked", 0], ["arc_stale", "active", 0]]);
   assert.equal(read.claims, claims);
-  assert.deepEqual((await readSurvey({ library, claims: async () => [claims[0], claims[1]], refusals: async () => assert.fail("no live capability, no read") })).refusals, []);
+  const parked = { ...library, arcViews: async () => [{ arc: { id: "arc_box" }, state: "parked", increments: [record("i4", "arc_box", "d")] }] };
+  assert.deepEqual((await readSurvey({ library: parked, claims: async () => claims, refusals: async () => assert.fail("no open increment on an active arc, no read") })).refusals, []);
 });
 
 test("2.8 · the pool picks ready work from every package by claims alone, oldest first, an arc nobody is on before a busy one", () => {
@@ -245,8 +246,8 @@ test("2.12 · work whose listed capability a live session holds is left out, and
   const why = Object.fromEntries(skipped.map((skip) => [skip.id, skip.why]));
   assert.match(why.listed, /capability_hot held by live session s7/);
   assert.equal(attempts.get("bounced").refusedBy, "s7", "a capability claim older than the start refused it");
-  assert.deepEqual(pickPool(work([]), { attempts, max: 4, now: ran + 2 * 60_000 }).picks.map((one) => one.id), ["listed", "bounced", "gone-holder", "unlisted"],
-    "offered again as soon as the claim clears, with no back-off");
+  assert.deepEqual(pickPool(work([]), { attempts, max: 4, now: ran + 2 * 60_000 }).picks.map((one) => one.id), ["listed", "gone-holder", "unlisted"],
+    "offered again as soon as the claim clears, with no back-off (bounced shares capability_hot with listed, so it waits a round)");
 });
 
 test("2.18 · work whose lane was refused a capability not yet on its list is left out while any live session holds it, whoever it passed to (increment_8a3301a85e42, increment_201f02e6baef dispatched six times on 2026-10-11)", () => {
@@ -261,8 +262,8 @@ test("2.18 · work whose lane was refused a capability not yet on its list is le
   const why = Object.fromEntries(skipped.map((skip) => [skip.id, skip.why]));
   assert.match(why.bounced, /capability_tools refused its lane, held by live session s0f2/);
   assert.match(why.passed, /capability_tools refused its lane, held by live session s0f2/, "naming the session that holds it now");
-  assert.deepEqual(pickPool(work([{ ...holding[0], holder: "gone" }], refusals), { max: 2, now }).picks.map((one) => one.id), ["bounced", "passed"],
-    "offered again once no live session holds it");
+  assert.deepEqual(pickPool(work([{ ...holding[0], holder: "gone" }], refusals), { max: 2, now }).picks.map((one) => one.id), ["bounced"],
+    "offered again once no live session holds it, one at a time while both were refused it");
 });
 
 test("2.16 · work is left out while a capability on its list is on the list of an increment another live session holds", () => {
@@ -275,8 +276,8 @@ test("2.16 · work is left out while a capability on its list is on the list of 
   const { picks, skipped } = pickPool(work(driving), { max: 3, now });
   assert.deepEqual(picks.map((one) => one.id), ["apart"]);
   assert.match(Object.fromEntries(skipped.map((skip) => [skip.id, skip.why])).wide, /capability_shared held by live session s9 on the list of driven/);
-  assert.deepEqual(pickPool(work([{ ...driving[0], holder: "gone" }]), { max: 3, now }).picks.map((one) => one.id), ["driven", "wide", "apart"],
-    "offered again once the holder's claim is no longer live");
+  assert.deepEqual(pickPool(work([{ ...driving[0], holder: "gone" }]), { max: 3, now }).picks.map((one) => one.id), ["driven", "apart"],
+    "offered again once the holder's claim is no longer live (wide shares capability_shared with driven, so it waits a round)");
 });
 
 test("2.17 · only the body's leading needs clause routes work: read-only or blind said later is not its need", () => {
@@ -304,4 +305,37 @@ test("2.19 · work whose machine field names another machine is left out, with t
   assert.deepEqual(picks.map((one) => one.id), ["mint", "any", "worded"]);
   assert.deepEqual(skipped, [{ id: "laptop", why: "needs laptop" }]);
   assert.deepEqual(pickPool({ ...work, here: undefined }, { max: 4, now }).skipped.map((skip) => skip.id), ["laptop", "mint"], "an unnamed machine takes no work that names one");
+});
+
+test("2.23 · of two ready increments listing one capability, only the older starts in a round; the other is skipped naming the capability and the pick, and work with disjoint needs starts beside it (ADR-1079 D1)", () => {
+  const work = survey([
+    increment("older", "x", { arc: "arc_a", parked: "2026-10-01T00:00:00Z", capabilities: ["capability_shared"] }),
+    increment("newer", "x", { arc: "arc_b", parked: "2026-10-02T00:00:00Z", capabilities: ["capability_other", "capability_shared"] }),
+    increment("apart", "x", { arc: "arc_c", parked: "2026-10-03T00:00:00Z", capabilities: ["capability_own"] }),
+  ]);
+  const { picks, skipped } = pickPool(work, { max: 3, now });
+  assert.deepEqual(picks.map((one) => one.id), ["older", "apart"]);
+  assert.deepEqual(skipped, [{ id: "newer", why: "shares capability_shared with older, started this round" }]);
+  assert.deepEqual(pickPool(work, { max: 3, now }).picks.map((one) => one.id), ["older", "apart"], "offered again on the next survey, with no back-off recorded");
+});
+
+test("2.24 · a candidate whose lane was refused a capability an earlier pick needs is skipped, though that refusal's holder is long gone (ADR-1079 D1)", () => {
+  const work = survey([
+    increment("listed", "x", { arc: "arc_a", parked: "2026-10-01T00:00:00Z", capabilities: ["capability_hot"] }),
+    increment("refused", "x", { arc: "arc_b", parked: "2026-10-02T00:00:00Z" }),
+  ], { refusals: [{ capability: "capability_hot", under: "refused", holder: "s_gone" }], claims: [{ capability: "capability_hot", session: "s_gone", holder: "gone", since: "2026-10-01T00:00:00Z" }] });
+  const { picks, skipped } = pickPool(work, { max: 2, now });
+  assert.deepEqual(picks.map((one) => one.id), ["listed"]);
+  assert.deepEqual(skipped, [{ id: "refused", why: "shares capability_hot with listed, started this round" }]);
+});
+
+test("2.25 · a candidate whose known needs meet a still-running lane's is skipped, though that lane has claimed nothing yet (ADR-1079 D1)", () => {
+  const work = survey([
+    increment("starting", "x", { arc: "arc_a", parked: "2026-10-01T00:00:00Z" }),
+    increment("waiting", "x", { arc: "arc_b", parked: "2026-10-02T00:00:00Z", capabilities: ["capability_tools"] }),
+    increment("free", "x", { arc: "arc_c", parked: "2026-10-03T00:00:00Z", capabilities: ["capability_own"] }),
+  ], { refusals: [{ capability: "capability_tools", under: "starting", holder: "s_old" }] });
+  const { picks, skipped } = pickPool(work, { running: ["starting"], max: 2, now });
+  assert.deepEqual(picks.map((one) => one.id), ["free"]);
+  assert.deepEqual(skipped, [{ id: "starting", why: "running now" }, { id: "waiting", why: "shares capability_tools with starting, running now" }]);
 });

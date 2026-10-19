@@ -126,6 +126,11 @@
  "src/testing/pg.ts": {
   "3": 2
  },
+ "src/tour-copy.ts": {
+  "1": 6,
+  "2": 239,
+  "3": 12
+ },
  "src/tour-counts.ts": {
   "1": 60,
   "2": 10,

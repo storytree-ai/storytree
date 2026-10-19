@@ -81,13 +81,7 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
 #chapter2[data-tour-template="narrated"][data-tour-running="true"] .tour-line { grid-area:1 / 1; align-self:end; }
 #chapter2[data-tour-template="narrated"][data-tour-running="true"] .tour-line:not(.on) { visibility:hidden; transition:none; }
 @keyframes tour-beat-in { from { opacity:0; transform:translateY(8px); } }
-/* Act 2 arrives (ADR-0889): the pain in words on the dark screen chapter 1 leaves, before any globe or name. */
-#chapter2[data-tour-step="pain"][data-tour-mode="tour"] :is(.tour-heading h1, .tour-note) { opacity:0; transition:none; }
 #chapter2 :is(.tour-heading h1, .tour-note) { transition:opacity 1.2s ease; }
-/* With no globe yet, the pain is centred on the dark screen (owner, 2026-10-04). */
-#chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-stage::before { display:none; }
-#chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-card { left:0; right:0; width:min(860px, calc(100% - 48px)); margin-inline:auto; text-align:center; align-items:center; }
-#chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-depth { align-self:center; }
 /* A recording's date is small print in the bottom-left corner, above the bar. */
 #chapter2 .tour-recorded { position:absolute; z-index:66; left:24px; bottom:calc(var(--bar-room, var(--bar-h)) + 8px); margin:0; color:var(--dim); font:10.5px/1.4 system-ui, sans-serif; letter-spacing:.01em; pointer-events:none; }
 #chapter2[data-tour-mode="freeplay"] .tour-recorded { display:none; }
@@ -234,7 +228,6 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   #chapter2 .tour-heading { top:12px; left:14px; gap:8px; }
   #chapter2 .tour-heading h1 { font-size:21px; }
   #chapter2 .tour-recorded { left:14px; bottom:calc(var(--bar-h) + 6px); max-width:calc(100% - 28px); font-size:10px; }
-  #chapter2[data-tour-step="pain"][data-tour-mode="tour"] .tour-card { top:72px; justify-content:center; }
   #chapter2 .tour-note { top:58px; left:14px; right:14px; max-width:none; text-align:left; font-size:10.5px; }
   /* The note stops short of the compass beside it (2.22). */
   #chapter2[data-tour-mode="tour"] .tour-note { right:76px; }
@@ -318,6 +311,4 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   /* Reduced motion outlines the pointed-out sessions list without a fade, until its line passes. */
   #chapter2 .tour-session-surface[data-pointed] .sessions-list { animation:none; outline:2px solid var(--green); outline-offset:3px; }
   #chapter2 :is(.tour-title, .pain, .turn, .fix) { animation:none !important; }
-  /* Reduced motion draws storytree's growing globe whole at once, so under the pain it is not drawn at all. */
-  #chapter2[data-tour-step="pain"][data-tour-mode="tour"] #website-forest { opacity:0; }
 }

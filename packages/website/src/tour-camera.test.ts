@@ -109,7 +109,7 @@ test("2.15 · a step's island drawn late is aimed at again until it is drawn, by
 
 test("2.22 · on a phone storytree's own glass sheet is framed whole, wider at 320px, and held still in the arrival, the everything step and free play; the shop's is framed wider in free play too", () => {
   const own = steps.filter(step => step.map === "own" || step.id === "everything");
-  assert.deepEqual(own.map(step => step.id), ["pain", "grow", "value", "fixes", "harness", "everything"]);
+  assert.deepEqual(own.map(step => step.id), ["grow", "value", "fixes", "harness", "everything"]);
   for (const step of own) {
     const wide = viewFraming(step, 390, restingFraming), narrow = viewFraming(step, 320, restingFraming);
     assert.ok(wide > restingFraming && narrow > wide, `${step.id}: ${wide} at 390px, ${narrow} at 320px`);

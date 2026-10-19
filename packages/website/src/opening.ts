@@ -1,5 +1,5 @@
 /** Capability 1 · Home page. */
-import { AGENTS, BANNER, EXTRA, FINALE, FINALE_AGAIN, THINK } from "./opening-copy.js";
+import { AGENTS, BANNER, EXTRA, FINALE, FINALE_AGAIN, PAIN, THINK } from "./opening-copy.js";
 import { createOpeningAudio } from "./opening-audio.js";
 import type { OpeningClock } from "./opening-clock.js";
 import { OPENING_PROMPT, lineClass, lineText } from "./opening-lines.js";
@@ -11,6 +11,10 @@ const POWER_OFF: Keyframe[] = [
   { offset: 0.3, scale: "1.02 .55", filter: "brightness(2.6)", opacity: 1 },
   { scale: "1 .04", filter: "brightness(3)", opacity: 0 },
 ];
+// The pain line's pace is the tour's, where it was said before (ADR-1091 D1): 2.6 words a second, at least 2.8 s a line, a
+// short dark beat before it and a rest after it.
+const reading = (text: string) => Math.max(2800, text.split(" ").length / 2.6 * 1000);
+const PAIN_BEAT = 400, PAIN_REST = 1200;
 // Where the three agents the joke adds appear, as [column, row] on the 4-column and 3-column grids.
 const EXTRA_SLOTS = [[0.55, 1.3, 0.5, 1.35], [1.7, 0.4, 1.4, 0.45], [2.6, 1.45, 1.8, 2.4]] as const;
 
@@ -32,6 +36,8 @@ export function wireOpening() {
   const screen = root.querySelector<HTMLElement>(".opening-screen")!;
   const crtLine = get("opening-crt-line");
   const crtDot = get("opening-crt-dot");
+  const pain = get("opening-pain");
+  const painLines = [...pain.children] as HTMLElement[];
   const countEl = get("opening-count");
   const [agentsCount, waitingCount, answeredCount] = [...countEl.querySelectorAll<HTMLElement>("span")] as [HTMLElement, HTMLElement, HTMLElement];
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
@@ -141,7 +147,7 @@ export function wireOpening() {
     grainContext.drawImage(frames[grainIndex]!, 0, 0, grain.width, grain.height);
   };
   const syncGrain = () => {
-    const wanted = Boolean(grainContext) && !reduced.matches && !root.hidden && onScreen && !document.hidden && root.dataset.phase !== "turn";
+    const wanted = Boolean(grainContext) && !reduced.matches && !root.hidden && onScreen && !document.hidden && root.dataset.phase !== "turn" && root.dataset.phase !== "pain";
     if (wanted && !grainHandle) { sizeGrain(); frames ??= noiseFrames(); grainHandle = requestAnimationFrame(paintGrain); }
     if (!wanted && grainHandle) { cancelAnimationFrame(grainHandle); grainHandle = 0; grainContext?.clearRect(0, 0, grain.width, grain.height); }
   };
@@ -153,6 +159,7 @@ export function wireOpening() {
   const endTurn = () => {
     turnId++;
     delete root.dataset.crt; crtLine.hidden = true; crtDot.hidden = true;
+    pain.hidden = true; painLines.forEach(line => line.classList.remove("on"));
     root.getAnimations({ subtree: true }).forEach(animation => animation.cancel());
   };
   const leave = (move = true, bloom = false) => {
@@ -178,6 +185,14 @@ export function wireOpening() {
     });
     const actions = () => { better.hidden = false; joke.hidden = false; joke.textContent = round ? "restart chapter 1" : "i'll keep babysitting"; };
     if (instant) actions(); else later(copy.length * 750, actions);
+  };
+  // Chapter 1 ends on the pain line, said on the dark screen the turn leaves, then hands over (ADR-1091 D1).
+  const sayPain = () => {
+    root.dataset.phase = "pain"; syncGrain(); pain.hidden = false;
+    if (reduced.matches) { painLines.forEach(line => line.classList.add("on")); later(PAIN.reduce((sum, text) => sum + reading(text), PAIN_REST), () => leave()); return; }
+    let at = PAIN_BEAT;
+    painLines.forEach((line, i) => { later(at, () => line.classList.add("on")); at += reading(PAIN[i]!); });
+    later(at + PAIN_REST, () => leave(true, true));
   };
   const reset = () => {
     endTurn(); stop(); typing = mulberry32(OPENING_SEED ^ 0x7e57);
@@ -242,13 +257,13 @@ export function wireOpening() {
     if (reduced.matches) showFinale(FINALE_AGAIN, true); else later(3000, () => showFinale(FINALE_AGAIN));
   });
   // The turn: the windows power off one after another, then the whole screen collapses like an old CRT
-  // switching off (a bright line, a point, a fading glow), and the globe grows out of that point.
+  // switching off (a bright line, a point, a fading glow); the pain line is said in the dark it leaves, and the globe grows after.
   // Every step is an animation on one schedule, so a slow frame never stretches the turn, and cancelling
   // one cancels all.
   const beat = (ms: number) => root.animate([{ opacity: 1 }, { opacity: 1 }], { duration: Math.max(1, ms) }).finished;
   better.addEventListener("click", async () => {
-    if (reduced.matches) { leave(); return; }
-    if (root.dataset.phase === "turn") return;
+    if (root.dataset.phase === "turn" || root.dataset.phase === "pain") return;
+    if (reduced.matches) { sayPain(); return; }
     stop(); root.dataset.phase = "turn"; syncGrain();
     const id = ++turnId;
     root.scrollIntoView({ block: "start", behavior: "instant" });
@@ -273,7 +288,7 @@ export function wireOpening() {
     void beat(collapse).then(mark("line")).catch(() => {});
     void squash.finished.then(mark("point")).catch(() => {});
     try { await glow.finished; } catch { return; /* A reset or an exit cancelled the turn. */ }
-    if (id === turnId) leave(true, true);
+    if (id === turnId) sayPain();
   });
   sound.addEventListener("click", () => {
     if (enabled) { enabled = false; audio.setOn(false); }

@@ -377,7 +377,7 @@ function Forest({ core, recording, replay, finishRecording, ready, failed, webgl
     let first = true;
     const hear = (event: CustomEvent<TourDetail>) => {
       const detail = event.detail;
-      // The first globe drawn is the step's own: under Act 2's pain that is the shop's seed, never a flash of another (2.10).
+      // The first globe drawn is the step's own: on Act 2's arrival that is storytree's own seed, never a flash of another (2.10).
       if (first) { first = false; setShownMap(globeOf(detail.step, detail.state, detail.elapsed).map); }
       setTour(detail);
     };

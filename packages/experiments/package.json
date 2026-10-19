@@ -29,6 +29,7 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
+    "@storytree/agent-pool": "workspace:*",
     "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",

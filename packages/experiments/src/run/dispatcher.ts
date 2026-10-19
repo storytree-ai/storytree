@@ -320,10 +320,15 @@ export function laneBrief({ arm, name, one, rules, planRules }: { arm: ArmRun; n
 
 const exec = promisify(execFile);
 
+/** The arguments of `launch.mjs ready` for `project`: an arm's look (`arm`) also lists its drained arcs, as it plans its one arc. */
+export function readyArgs(project: string, { arm = false }: { arm?: boolean } = {}): string[] {
+  return ["ready", project, ...(arm ? ["--drained"] : [])];
+}
+
 /** `launch.mjs ready` for `project`, as the storytree home `home` (this process's when omitted) sees it. */
 async function lookWith(project: string, home?: string): Promise<Look> {
   const env = home === undefined ? process.env : { ...process.env, STORYTREE_HOME: home };
-  const { stdout } = await exec(process.execPath, ["--import", "tsx", path.join(CHECKOUT, "packages/agent-pool/src/launch.mjs"), "ready", project, ...(home === undefined ? [] : ["--drained"])],
+  const { stdout } = await exec(process.execPath, ["--import", "tsx", path.join(CHECKOUT, "packages/agent-pool/src/launch.mjs"), ...readyArgs(project, { arm: home !== undefined })],
     { cwd: CHECKOUT, env, maxBuffer: 16 * 1024 * 1024 });
   return JSON.parse(stdout) as Look;
 }

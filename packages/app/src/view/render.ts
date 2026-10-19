@@ -56,13 +56,17 @@ export function renderSwitcher(projects: readonly string[], current: string | un
 
 /**
  * The app bar's switch between the product on show and its factory (ADR-1048 D3): to the factory from a product, back to
- * the product from the factory, or, with no factory yet, a plain line saying so.
+ * the product from the factory, or, with no factory yet, a plain line saying so. A factory that builds itself, with no
+ * other product building with it, is the factory on show with nowhere to switch to (ADR-1086 D3).
  */
 export function renderFactorySwitch(place: FactoryPlace | undefined): string {
   if (place === undefined) return "";
   if (place.place === "none") return `<span class="app-factory-none">No factory yet</span>`;
   if (place.place === "product") {
     return `<button type="button" class="app-factory-switch" data-app-factory-switch="${escape(place.factory)}" title="Switch to your factory: the roles, notes and checks your products build with">Your factory</button>`;
+  }
+  if (place.product === undefined && place.itself === true) {
+    return `<span class="app-factory-here" title="Your factory, building itself: the roles, notes and checks it builds with are its own">Your factory</span>`;
   }
   return `<span class="app-factory-here">Your factory</span>`
     + (place.product === undefined ? `<span class="app-factory-none">No product builds with it yet</span>`

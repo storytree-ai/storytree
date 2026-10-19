@@ -312,6 +312,7 @@ async function run(): Promise<void> {
       file: path.join(home.dir, "project-choice.json"),
       // The app bar's switch to the factory and back reads each project's lineage through the libraries the page reads keep open.
       lineageOf: (name) => pages.projectLineage(name),
+      buildsItself: (name) => pages.projectBuildsItself(name),
     });
     project = (await projects.read(args.project)).current;
     if (!args.smoke) recordLaunch();

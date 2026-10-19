@@ -150,6 +150,13 @@ test("2.15 the app bar switches the project on show to its factory and back, and
   back.click();
   await setImmediate();
   assert.deepEqual(chosen, ["my-factory", "my-site"]);
+  // A factory that builds itself, with no product building with it, is shown as the factory with nowhere to switch to (ADR-1086 D3).
+  menu.update({ projects, current: "my-factory", factory: { place: "factory", product: undefined, itself: true } });
+  assert.equal(bar().querySelector("[data-app-factory-switch]"), null);
+  assert.match(bar().textContent, /Your factory/);
+  assert.doesNotMatch(bar().textContent, /No product builds with it yet|No factory yet/);
+  menu.update({ projects, current: "my-factory", factory: { place: "factory", product: undefined } });
+  assert.match(bar().textContent, /No product builds with it yet/, "a library-only factory still says no product builds with it");
   menu.update({ projects, current: "my-site", factory: { place: "none" } });
   assert.equal(bar().querySelector("[data-app-factory-switch]"), null);
   assert.match(bar().textContent, /No factory yet/);

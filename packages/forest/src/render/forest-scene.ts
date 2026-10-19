@@ -12,8 +12,9 @@
  * - What the page drew is said as the smoke check reads it (ADR-0634 D2), with each capability's form.
  * - An island's key changes only when something drawn on it changes, so a change redraws only the
  *   islands it touched, without a reload.
+ * - The project's sentence sits above the plan it governs, with what the plan has not yet said (ADR-1085 D1).
  */
-import { PLACE_WIDTH, type CapabilityWord, type ForestScene, type Island, type PlacedTree, type TreeForm } from "@storytree/forest-world/scene";
+import { PLACE_WIDTH, type CapabilityWord, type ForestScene as WorldScene, type Island, type PlacedTree, type TreeForm } from "@storytree/forest-world/scene";
 import type { AnnotatedTree, Change, StorySurvey } from "@storytree/library";
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";
@@ -23,7 +24,21 @@ import { storyNodes } from "../story-nodes/story-nodes.js";
 import { landForCircles } from "../territories/territories.js";
 
 export { PLACE_WIDTH };
-export type { ForestScene, Island, PlacedTree };
+export type { Island, PlacedTree };
+
+/**
+ * The map's top line (ADR-1085 D1): the project's sentence, what it is and who it is for, when any of it is written,
+ * and what the plan has not yet said, a plan-health reading that fails nothing.
+ */
+export interface ForestAnchor {
+  sentence?: string;
+  unsaid: string[];
+}
+
+/** The drawing engine's scene, with the plan's anchor line above it. */
+export interface ForestScene extends WorldScene {
+  anchor?: ForestAnchor;
+}
 
 /**
  * The flat forest's places are spread out as far as the land grew (ADR-0910: 318 to {@link MIN_ISLAND_AREA} ground
@@ -67,7 +82,23 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
     return { story: story.id, title: story.title, x, z, trees: placed, ...(land === undefined ? {} : { land }), area, key };
   });
-  return { islands, links: capabilityLinks(tree, survey) };
+  return { islands, links: capabilityLinks(tree, survey), anchor: forestAnchor(tree) };
+}
+
+/**
+ * The project's sentence and what the plan has not said (ADR-1085 D1): the anchor's missing halves, and each story
+ * that names no audience, in the plan's order. Only that the words are there is read; what they say is the owner's.
+ */
+export function forestAnchor(tree: Pick<AnnotatedTree, "anchor" | "stories">): ForestAnchor {
+  const { what, audience } = tree.anchor ?? {};
+  const unsaid: string[] = [];
+  if (what === undefined && audience === undefined) unsaid.push("The project has no anchor yet: what it is, and who it is for");
+  else if (what === undefined) unsaid.push("The anchor does not yet say what the project is");
+  else if (audience === undefined) unsaid.push("The anchor does not yet say who it is for");
+  const silent = tree.stories.filter((story) => story.audience === undefined).map(({ title }) => title);
+  if (silent.length > 0) unsaid.push(`${silent.length === 1 ? "1 story names" : `${silent.length} stories name`} no audience: ${silent.join(", ")}`);
+  if (what === undefined && audience === undefined) return { unsaid };
+  return { sentence: `${what ?? "…"}, for ${audience ?? "…"}`, unsaid };
 }
 
 /**

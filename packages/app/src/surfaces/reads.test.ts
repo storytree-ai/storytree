@@ -11,7 +11,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { ACTIVITY_DATABASE, openActivityLog, pruneTranscripts, RETAIN_MS, shipTranscript, type ActivityLog } from "@storytree/session-management";
-import { machineOf, recordImport } from "@storytree/project-and-caller";
+import { forgetTrunk, machineOf, recordImport, registerTrunk } from "@storytree/project-and-caller";
 import { countingStore, longHistory } from "@storytree/project-and-caller/testing/egress";
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
@@ -109,7 +109,7 @@ test("3.13 the page can ask the app for the system notes the project on show rea
   });
 });
 
-test("3.14 the app reads where a project sits among factories, for the app bar's switch, and refuses a name that is not a project", async () => {
+test("3.14 the app reads where a project sits among factories and whether a factory builds itself, for the app bar's switch, and refuses a name that is not a project", async () => {
   const [factory, product, loose] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   await withApp([factory, product, loose], async ({ storytree, reads }) => {
     await (await storytree.openProject(factory)).markFactory();
@@ -120,6 +120,17 @@ test("3.14 the app reads where a project sits among factories, for the app bar's
     assert.deepEqual(await reads.projectLineage(product), { kind: "product", factory });
     assert.deepEqual(await reads.projectLineage(loose), { kind: "none" });
     await assert.rejects(reads.projectLineage(uniqueProjectName()), /there is no project called/);
+
+    // A factory with a folder of its own, on any machine, builds itself (ADR-1086 D3); a library-only one does not.
+    assert.equal(await reads.projectBuildsItself(factory), false);
+    await registerTrunk(storytree, { project: factory, machine: "another-machine", machineName: "another", folder: path.join(tmpdir(), factory) }, "setup");
+    try {
+      assert.equal(await reads.projectBuildsItself(factory), true);
+      assert.equal(await reads.projectBuildsItself(product), false);
+      await assert.rejects(reads.projectBuildsItself(uniqueProjectName()), /there is no project called/);
+    } finally {
+      await forgetTrunk(storytree, { project: factory });
+    }
   });
 });
 

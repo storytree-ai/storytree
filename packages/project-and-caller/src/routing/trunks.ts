@@ -148,6 +148,13 @@ export async function trunksOn(storytree: Storytree, machine: string): Promise<T
   return rows.map((row) => ({ project: row.project, machine: row.machine, machineName: row.machine_name, folder: row.folder, ...(row.approved_by === null ? {} : { approvedBy: row.approved_by }) }));
 }
 
+/** Every project with a trunk on some machine, approved or not (1.20): one with a folder of its own. A folder it only imports is no trunk. */
+export async function trunkedProjects(storytree: Storytree): Promise<Set<string>> {
+  const pool = await trunksPool(storytree);
+  const { rows } = await pool.query<{ project: string }>("SELECT DISTINCT project FROM trunks");
+  return new Set(rows.map((row) => row.project));
+}
+
 /**
  * Record `trunk`, approved by `approvedBy` when given, unless its project already has one on its
  * machine or its folder is already some project's there: then nothing is written, and false says so.

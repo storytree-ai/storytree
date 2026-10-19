@@ -24,6 +24,7 @@ export type RecordType =
   | "health"
   | "decision"
   | "decisionNumbering"
+  | "anchor"
   | "definition"
   | KnowledgeKind
   | "increment"
@@ -164,6 +165,11 @@ export const RECORD_SCHEMAS = {
   // ADR-0662: a project setting kept in history and snapshots, not a knowledge artifact.
   decisionNumbering: z.object({ floor: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER) }).strict(),
   /**
+   * The project's sentence (ADR-1085 D1), one per project at the work model's ANCHOR_ID: what it is, and who it
+   * is for (its audience). Either half may be written first; the plan-health reading names a half not yet written.
+   */
+  anchor: z.object({ what: nonEmpty.optional(), audience: nonEmpty.optional() }).strict(),
+  /**
    * An arc, whole (capability 10): its intent and end state, required from version 2 (an older arc
    * is upgraded, ./upgrades.ts). Whether it is active or closed is worked out from its increments on
    * every read and never stored; only the owner's "parked" is (10-b), with, when given, the day it
@@ -193,6 +199,8 @@ export const RECORD_SCHEMAS = {
       description: z.string().optional(),
       /** Its prose, as markdown, whole and in the order written (ADR-1050 D1). Optional, so no version bump. */
       text: z.string().optional(),
+      /** Who uses what it delivers (ADR-1085 D1): the project's audience, or a named subset of it. Optional, so no version bump. */
+      audience: nonEmpty.optional(),
       /**
        * A mapped story (ADR-0993 D2): a package of an imported folder, written only by the work model's
        * mapStories. `from` is the import's key, `package` the package's folder relative to the imported
@@ -594,6 +602,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   health: 1,
   decision: 2,
   decisionNumbering: 1,
+  anchor: 1,
   definition: 1,
   principle: 1,
   guardrail: 1,

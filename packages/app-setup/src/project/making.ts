@@ -16,7 +16,7 @@ import path from "node:path";
 
 import { ProjectGoneError, type Storytree } from "@storytree/library";
 import { forgetProjectActivity } from "@storytree/session-management";
-import { approveTrunk, findProject, forgetTrunk, inMainCheckout, keepOnThisComputer, machineOf, MARKER_FILE, ProjectFolderError, recordProjectChoice, registerTrunk, rememberApproval, storytreeHome, trunksOn, type Trunk } from "@storytree/project-and-caller";
+import { approveTrunk, findProject, forgetTrunk, inMainCheckout, keepOnThisComputer, machineOf, MARKER_FILE, ProjectFolderError, recordProjectChoice, registerTrunk, rememberApproval, storytreeHome, trunkedProjects, trunksOn, type Trunk } from "@storytree/project-and-caller";
 
 import { seedStarterPack } from "./starter-pack.js";
 
@@ -92,27 +92,20 @@ export async function setUpProject({ folder, project, storytree, storytreeHome: 
 }
 
 /**
- * The user's factory (ADR-1040, 6.11): a project with no folder of its own, only a library, holding the system their
- * product projects build with. Found as the first project named `name`, `name-2`, `name-3`… that is a factory; else
- * made under the first of those names `taken` lacks, marked a factory and seeded with the starter pack. Of two setups
- * making it at once, only the one whose mark made it seeds it.
+ * The user's factory (ADR-1040, 6.11): a project holding the system their product projects build with, found among
+ * `taken` by its mark (ADR-1086 D4). The one storytree ships has no folder, only a library, and is found first, as the
+ * first project named `name`, `name-2`, `name-3`… that is a factory. With none, a factory the user brought is found:
+ * a project of another name marked a factory and with a folder of its own (a trunk on some machine), the first by name
+ * of several. With neither, it is made under the first of storytree's names `taken` lacks, marked a factory and seeded
+ * with the starter pack. Of two setups making it at once, only the one whose mark made it seeds it.
  */
 export async function userFactory(storytree: Storytree, name: string, taken: readonly string[]): Promise<string> {
   const candidate = new RegExp(`^${name}(-[0-9]+)?$`);
   const named = taken.filter((each) => candidate.test(each)).sort((a, b) => a.length - b.length || a.localeCompare(b));
-  for (const each of named) {
-    // A project deleted since the list was read is no factory.
-    const library = await storytree.openProject(each, { create: false }).catch((error: unknown) => {
-      if (error instanceof ProjectGoneError) return undefined;
-      throw error;
-    });
-    if (library === undefined) continue;
-    try {
-      if ((await library.factory()).kind === "factory") return each;
-    } finally {
-      await library.close();
-    }
-  }
+  for (const each of named) if (await isFactory(storytree, each)) return each;
+  const trunked = await trunkedProjects(storytree);
+  const brought = taken.filter((each) => !candidate.test(each) && trunked.has(each)).sort();
+  for (const each of brought) if (await isFactory(storytree, each)) return each;
   const made = unusedName(name, taken);
   const library = await storytree.openProject(made);
   try {
@@ -121,6 +114,20 @@ export async function userFactory(storytree: Storytree, name: string, taken: rea
     await library.close();
   }
   return made;
+}
+
+/** Whether project `name`'s library says it is a factory; a project deleted since the list was read is none. */
+async function isFactory(storytree: Storytree, name: string): Promise<boolean> {
+  const library = await storytree.openProject(name, { create: false }).catch((error: unknown) => {
+    if (error instanceof ProjectGoneError) return undefined;
+    throw error;
+  });
+  if (library === undefined) return false;
+  try {
+    return (await library.factory()).kind === "factory";
+  } finally {
+    await library.close();
+  }
 }
 
 /**

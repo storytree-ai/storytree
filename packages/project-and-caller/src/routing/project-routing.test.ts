@@ -22,7 +22,7 @@ import pg from "pg";
 import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
 import { dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
-import { approveTrunk, forgetTrunk, importsOf, machineOf, recordImport, registerTrunk } from "./trunks.js";
+import { approveTrunk, forgetTrunk, importsOf, machineOf, recordImport, registerTrunk, trunkedProjects } from "./trunks.js";
 import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, requireApproval, route, type ProjectLookup } from "./index.js";
 
 /** "Well under a second", as the tests hold it. */
@@ -337,6 +337,28 @@ test("1.19 an imported folder is recorded on its project beside the trunk, appro
       assert.deepEqual(await importsOf(storytree, project, onBox.id), [], "a deleted project's imports go on every machine");
       assert.equal((await importsOf(storytree, other, onLaptop.id)).length, 1, "another project's import stays");
       await forgetTrunk(storytree, { project: other }, laptop);
+    });
+  });
+});
+
+test("1.20 the projects with a trunk are read as one set across every machine: a forgotten trunk leaves it, and an imported folder is no trunk", async () => {
+  const [onBoxOnly, both, imported] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  await withTempDir(async (dir) => {
+    const { laptop, box } = machines(dir);
+    const [onLaptop, onBox] = [machineOf(laptop), machineOf(box)];
+    await withStorytree([], async (storytree) => {
+      await registerTrunk(storytree, { project: onBoxOnly, machine: onBox.id, machineName: onBox.name, folder: path.join(dir, "a") });
+      await registerTrunk(storytree, { project: both, machine: onLaptop.id, machineName: onLaptop.name, folder: path.join(dir, "b") }, "setup");
+      await registerTrunk(storytree, { project: both, machine: onBox.id, machineName: onBox.name, folder: path.join(dir, "b") }, "join");
+      await recordImport(storytree, { project: imported, machine: onLaptop.id, machineName: onLaptop.name, folder: path.join(dir, "c") });
+      const mine = (set: ReadonlySet<string>) => [onBoxOnly, both, imported].filter((name) => set.has(name));
+      assert.deepEqual(mine(await trunkedProjects(storytree)), [onBoxOnly, both], "a trunk on any machine, approved or not, counts; an import does not");
+      await forgetTrunk(storytree, { project: both, machine: onLaptop.id }, laptop);
+      assert.deepEqual(mine(await trunkedProjects(storytree)), [onBoxOnly, both], "forgotten on one machine, its trunk on another stays");
+      await forgetTrunk(storytree, { project: both }, laptop);
+      await forgetTrunk(storytree, { project: onBoxOnly }, laptop);
+      await forgetTrunk(storytree, { project: imported }, laptop);
+      assert.deepEqual(mine(await trunkedProjects(storytree)), []);
     });
   });
 });

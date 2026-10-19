@@ -4,12 +4,12 @@ import type { FactoryLink } from "@storytree/library";
 
 /**
  * Where the project on show sits among factories (ADR-1040), for the app bar's switch (ADR-1048 D3): a product with
- * its factory here, the factory with the product to go back to (none when no product here builds with it), or
- * no factory yet.
+ * its factory here, the factory with the product to go back to (none when no product here builds with it) and whether
+ * it builds itself (ADR-1086 D3), or no factory yet.
  */
 export type FactoryPlace =
   | { place: "product"; factory: string }
-  | { place: "factory"; product: string | undefined }
+  | { place: "factory"; product: string | undefined; itself?: true }
   | { place: "none" };
 
 export interface ProjectSelection {
@@ -20,11 +20,13 @@ export interface ProjectSelection {
 }
 
 /** Setup and the app share the choice record. Passive reads never write over a user's choice. */
-export function projectSelection({ listProjects, file, lineageOf }: {
+export function projectSelection({ listProjects, file, lineageOf, buildsItself }: {
   listProjects(): Promise<string[]>;
   file: string;
   /** A project's factory link, as its library keeps it (library 1.19). */
   lineageOf?(name: string): Promise<FactoryLink>;
+  /** Whether a factory builds itself: it has a folder of its own, as a factory the user brought may (ADR-1086 D3). */
+  buildsItself?(name: string): Promise<boolean>;
 }) {
   let requested: string | undefined;
   /** The product last on show for each factory, which the factory's switch goes back to. */
@@ -64,13 +66,15 @@ export function projectSelection({ listProjects, file, lineageOf }: {
       return { place: "product", factory: here.factory };
     }
     if (here.kind !== "factory") return { place: "none" };
+    // A factory that cannot be told to build itself reads as the library-only one storytree ships.
+    const itself = (await buildsItself?.(current).catch(() => false)) === true ? { itself: true as const } : {};
     const remembered = cameFrom.get(current);
-    if (remembered !== undefined && projects.includes(remembered)) return { place: "factory", product: remembered };
+    if (remembered !== undefined && projects.includes(remembered)) return { place: "factory", product: remembered, ...itself };
     for (const name of projects) {
       const other = await link(name);
-      if (other.kind === "product" && other.factory === current) return { place: "factory", product: name };
+      if (other.kind === "product" && other.factory === current) return { place: "factory", product: name, ...itself };
     }
-    return { place: "factory", product: undefined };
+    return { place: "factory", product: undefined, ...itself };
   }
 
   return {

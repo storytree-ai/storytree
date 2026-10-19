@@ -116,8 +116,11 @@ export async function userFactory(storytree: Storytree, name: string, taken: rea
   return made;
 }
 
-/** Whether project `name`'s library says it is a factory; a project deleted since the list was read is none. */
-async function isFactory(storytree: Storytree, name: string): Promise<boolean> {
+/**
+ * Whether project `name`'s library says it is a factory; a project deleted since the list was read is none, and so is
+ * one deleted while it is read: a read that fails opens it once more, which finds it gone.
+ */
+async function isFactory(storytree: Storytree, name: string, attempt = 1): Promise<boolean> {
   const library = await storytree.openProject(name, { create: false }).catch((error: unknown) => {
     if (error instanceof ProjectGoneError) return undefined;
     throw error;
@@ -125,9 +128,12 @@ async function isFactory(storytree: Storytree, name: string): Promise<boolean> {
   if (library === undefined) return false;
   try {
     return (await library.factory()).kind === "factory";
+  } catch (error) {
+    if (attempt > 1) throw error;
   } finally {
     await library.close();
   }
+  return isFactory(storytree, name, attempt + 1);
 }
 
 /**

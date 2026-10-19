@@ -230,16 +230,20 @@ class ServerConnection implements Storytree {
 
   /**
    * `inherit: false` opens a factory for the product reading it, which reads no factory of its own. An open that only
-   * reaches an existing project and loses its connection partway (no SQLSTATE, or 57P01, or 3D000 for a database
-   * gone) may be racing the project's deletion: it is refused as gone if the database is gone within a second.
+   * reaches an existing project, finds its database and then loses its connection (no SQLSTATE, or 57P01, or 3D000 for
+   * a database gone) may be racing the project's deletion: it is refused as gone if the database is gone within a second.
    */
   async #openProject(name: string, options: OpenOptions & { readonly inherit?: boolean }): Promise<Project> {
     assertProjectName(name); // before anything touches the server
     const database = projectDatabase(name);
+    let identity: string | undefined;
     try {
-      return await this.#openOnce(name, database, options);
+      if (options.create !== false) await this.#createDatabaseIfMissing(database);
+      identity = await this.#databaseIdentity(database);
+      if (identity === undefined || (options.create === false && options.identity !== undefined && identity !== options.identity)) throw new ProjectGoneError(name);
+      return await this.#openFound(name, database, identity, options);
     } catch (error) {
-      const lost = !(error instanceof ProjectGoneError) && [undefined, "57P01", "3D000"].includes(sqlState(error));
+      const lost = identity !== undefined && !(error instanceof ProjectGoneError) && [undefined, "57P01", "3D000"].includes(sqlState(error));
       if (options.create === false && lost && (await this.#goneWithin(database, 1_000))) throw new ProjectGoneError(name);
       throw this.#server.explain(error);
     }
@@ -254,10 +258,7 @@ class ServerConnection implements Storytree {
     }
   }
 
-  async #openOnce(name: string, database: string, options: OpenOptions & { readonly inherit?: boolean }): Promise<Project> {
-    if (options.create !== false) await this.#createDatabaseIfMissing(database);
-    const identity = await this.#databaseIdentity(database);
-    if (identity === undefined || (options.create === false && options.identity !== undefined && identity !== options.identity)) throw new ProjectGoneError(name);
+  async #openFound(name: string, database: string, identity: string, options: OpenOptions & { readonly inherit?: boolean }): Promise<Project> {
     const pool = this.#server.pool(database, await this.#owningRole(database));
     try {
       await openTables(pool, name);

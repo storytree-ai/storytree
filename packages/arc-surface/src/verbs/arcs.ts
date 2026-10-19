@@ -15,11 +15,12 @@
  * check, whether a wait holds (`waitHolds`) and whether work is held on the owner (`heldOnQuestion`), and an arc's
  * state, which `arcView` works out. There is no `increment start` (starting is claiming, the agent tools'), no
  * `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand close
- * or re-open of an arc (the owner's R1). `arc list` reads each arc's view.
+ * or re-open of an arc (the owner's R1). `arc list` reads the board's arcs: live ones and those closed yesterday or today, or a window's closed arcs.
  */
 import { verb, VerbRefusal, type VerbFamilies } from "@storytree/library/verbs";
 import type { ArcView, Holds, NoteWait, PendingChange, WaitFor } from "@storytree/library";
 
+import { recentWindow, windowOf, type ClosedRange } from "../board/closed-range.js";
 import { questionsBehind } from "../work-states/board-states.js";
 import { labelOf, listOf, releasedAsking, type ArcVerbContext } from "./context.js";
 
@@ -41,7 +42,7 @@ function priorityOf(value: string | undefined): { priority?: number | undefined 
 }
 
 /** An arc's priority as said: 1 first, and an arc with none comes after every arc that has one (ADR-0963 D1). */
-const rankOf = (view: ArcView): number => view.arc.fields.priority ?? Infinity;
+const rankOf = (view: Pick<ArcView, "arc">): number => view.arc.fields.priority ?? Infinity;
 
 /** An increment's pending changes (ADR-0966 D3): each record, then each field as before -> after, or its retirement. */
 function pendingSaid(pending: readonly PendingChange[]): string[] {
@@ -78,7 +79,7 @@ function waitSaid({ releaser, note, checkBack, holds }: NoteWait): string {
 }
 
 /** An arc's state as said: "parked until <day>" while a dated park holds (the owner's, or its work's check-back), its state otherwise. */
-function stateOf({ state, wakes }: ArcView): string {
+function stateOf({ state, wakes }: Pick<ArcView, "state" | "wakes">): string {
   return state === "parked" && wakes !== undefined ? `parked until ${wakes} (UTC)` : state;
 }
 
@@ -522,21 +523,60 @@ const incrementSettlePending = verb({
   },
 });
 
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * The closing days `arc list` reads closed arcs by, as the sessions History tab's presets and From–to (3.12): none given,
+ * none (the board's routine read, yesterday and today, lists them beside the live arcs); a preset, or both days of a
+ * From–to, both ends included.
+ */
+function closedRangeOf(closed: string | undefined, from: string | undefined, to: string | undefined): ClosedRange | undefined {
+  if (closed !== undefined && (from !== undefined || to !== undefined)) throw new VerbRefusal("give --closed or --from and --to, not both");
+  if (closed !== undefined) {
+    if (closed !== "today" && closed !== "yesterday" && closed !== "week") throw new VerbRefusal(`--closed is today, yesterday or week; not "${closed}"`);
+    return { preset: closed };
+  }
+  if (from === undefined && to === undefined) return undefined;
+  if (from === undefined || to === undefined) throw new VerbRefusal("--from and --to are given together: the first and last closing day, both included");
+  for (const [flag, day] of [["--from", from], ["--to", to]] as const) {
+    if (!DAY.test(day) || Number.isNaN(Date.parse(`${day}T12:00:00`))) throw new VerbRefusal(`${flag} is a day as YYYY-MM-DD; not "${day}"`);
+  }
+  if (from > to) throw new VerbRefusal(`--from ${from} is after --to ${to}`);
+  return { from, to };
+}
+
 const list = verb({
-  command: { family: "arc", name: "list", summary: "every live arc, its state and its priority, by priority (1 first, unranked last)" },
+  command: {
+    family: "arc",
+    name: "list",
+    summary: "every live arc and those closed yesterday or today, by priority (1 first, unranked last); --closed or --from and --to list older closed arcs",
+    usage: "arc list [--closed today|yesterday|week | --from <YYYY-MM-DD> --to <YYYY-MM-DD>]",
+  },
   tool: { absent: "the MCP server's own show_plan shows the plan" },
-  inputs: {},
-  async act(_input, { library }: ArcVerbContext) {
-    const lines: string[] = [];
+  inputs: {
+    closed: { kind: "text", optional: true, describe: "only the arcs closed today, yesterday or this week (the last seven days)" },
+    from: { kind: "text", optional: true, describe: "only the arcs closed from this day (YYYY-MM-DD), with --to" },
+    to: { kind: "text", optional: true, describe: "only the arcs closed up to this day (YYYY-MM-DD), included, with --from" },
+  },
+  async act({ closed, from, to }, { library }: ArcVerbContext) {
+    const range = closedRangeOf(closed, from, to);
+    const now = Date.now();
+    // The board's reads (10.22): live arcs and the recently closed in one ask, or a window's closed arcs alone in one.
+    const read = range === undefined ? await library.boardArcs(recentWindow(now)) : await library.closedArcs(windowOf(range, now));
     // A stable sort: within one priority, and among the unranked, the order is the library's.
-    const views = (await library.arcViews()).sort((one, other) => rankOf(one) - rankOf(other) || 0);
-    for (const view of views) {
+    const views = [...read].sort((one, other) => rankOf(one) - rankOf(other) || 0);
+    const lines = views.map((view) => {
       const priority = view.arc.fields.priority === undefined ? "" : `  priority ${view.arc.fields.priority}`;
-      lines.push(`  ${view.arc.id}  [${stateOf(view)}]${priority}  ${view.arc.fields.title}`);
-    }
+      const state = view.closed === undefined ? stateOf(view) : `closed ${view.closed}`;
+      return `  ${view.arc.id}  [${state}]${priority}  ${view.arc.fields.title}`;
+    });
+    const empty = range === undefined ? "No live or recently closed arcs in this project." : "No arcs closed in that window.";
     return {
-      text: lines.length === 0 ? "No arcs in this project." : [`${lines.length} arcs:`, ...lines].join("\n"),
-      next: [{ command: "arc show <arc>", why: "see one whole" }],
+      text: lines.length === 0 ? empty : [`${lines.length} arcs:`, ...lines].join("\n"),
+      next: [
+        { command: "arc show <arc>", why: "see one whole" },
+        ...(range === undefined ? [{ command: "arc list --from <YYYY-MM-DD> --to <YYYY-MM-DD>", why: "older closed arcs" }] : []),
+      ],
     };
   },
 });

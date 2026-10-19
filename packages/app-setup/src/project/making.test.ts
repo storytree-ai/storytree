@@ -378,6 +378,26 @@ test("6.11 the user's factory is found by its mark: with none of storytree's nam
   });
 });
 
+test("6.11 a factory the user brought that another computer deletes while it is being looked at is not found, and storytree's own is made (ADR-1086 D4)", async () => {
+  const shipped = uniqueProjectName();
+  const brought = Array.from({ length: 40 }, () => uniqueProjectName());
+  await withTempDir(async (dir) => {
+    const machine = machineOf(machines(dir).laptop);
+    await withStorytree([shipped, ...brought], async (storytree) => {
+      for (const project of brought) {
+        await (await storytree.openProject(project)).markFactory();
+        await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: path.join(dir, project) }, "setup");
+        try {
+          const [found] = await Promise.all([userFactory(storytree, shipped, [project]), dropTestProjects([project])]);
+          assert.ok(found === project || found === shipped, `found ${found}`);
+        } finally {
+          await forgetTrunk(storytree, { project });
+        }
+      }
+    });
+  });
+});
+
 test("6.11 setting the first project up makes the user's factory, a project with no folder holding the starter pack, and every new project names it, holding no copy of the pack; a later project finds it, a join makes none, and a product project already holding its name leaves it the next free one (ADR-1040)", async () => {
   const [factory, first, second, before] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {

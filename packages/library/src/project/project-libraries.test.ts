@@ -300,6 +300,37 @@ test("1.12 a project once deleted is not made again by an open that only reaches
   });
 });
 
+test("1.12 an open that only reaches an existing project, racing that project's deletion, opens it or is refused as gone", async () => {
+  const run = uniqueProjectName();
+  const sites = Array.from({ length: 20 }, (_, index) => `${run}-site-${index}`);
+  await withStorytree(sites.map(databaseOf), async (storytree) => {
+    for (const site of sites) {
+      await (await storytree.openProject(site)).close();
+      const [opened] = await Promise.allSettled([storytree.openProject(site, { create: false }), storytree.dropProject(site)]);
+      if (opened.status === "fulfilled") await opened.value.close();
+      else assert.ok(opened.reason instanceof ProjectGoneError && opened.reason.project === site, `refused as gone, not ${String(opened.reason)}`);
+    }
+  });
+});
+
+test("1.12 a connection a caller holds when another computer deletes its project fails its next query, and the process does not crash", async () => {
+  const site = `${uniqueProjectName()}-site`;
+  await withStorytree([databaseOf(site)], async (storytree) => {
+    const project = await storytree.openProject(site);
+    const held = await project.pool.connect();
+    try {
+      const ended = new Promise((resolve) => held.once("end", resolve));
+      await dropTestDatabases([databaseOf(site)]);
+      // An error the held connection raised with no one listening would fail this test as uncaught before it ends.
+      await ended;
+      await assert.rejects(held.query("SELECT 1"));
+    } finally {
+      held.release(true);
+      await project.close();
+    }
+  });
+});
+
 test("1.4 a record saved in one project cannot be read from another", async () => {
   const run = uniqueProjectName();
   const site = `${run}-site`;

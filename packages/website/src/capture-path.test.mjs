@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
-import { captureOutput, capturePath, ownSheetScope } from "../evidence/capture-path.mjs";
+import { captureOutput, capturePath } from "../evidence/capture-path.mjs";
 
 const captures = ["terminal.mjs", "turn/capture.mjs", "journey/capture.mjs", "arrival/capture.mjs",
   "nameplates-phone/capture.mjs", "warm-globe/measure.mjs", "capture.mjs"];
@@ -94,15 +94,4 @@ test("3.15 · A journey run as a check writes to a scratch folder; only --retake
   assert.equal(run("--verify-forest", "forest", "--retake"), path.join(evidence, "forest"), "the folder is the first word that is not a flag");
   assert.equal(run("home"), path.join(evidence, "home"));
   assert.equal(run(), path.join(evidence, "scaffold"));
-});
-
-test("3.28 · --verify-own-sheet can be narrowed to one width and one view; with neither it checks all four widths and every view", () => {
-  const scope = (...args) => ownSheetScope(["node", "capture.mjs", "sheet-names", "--verify-own-sheet", ...args]);
-  assert.deepEqual(scope(), { sizes: [[390, 844], [320, 844], [1440, 900], [1280, 800]], views: undefined });
-  assert.deepEqual(scope("--width=320"), { sizes: [[320, 844]], views: undefined });
-  assert.deepEqual(scope("--width=1280", "--view=everything"), { sizes: [[1280, 800]], views: ["everything"] });
-  assert.deepEqual(scope("--view=shop"), { sizes: [[390, 844], [320, 844]], views: ["shop"] }, "the shop's sheet is checked only on phones");
-  for (const bad of [["--width=800"], ["--view=globe"], ["--width=1440", "--view=shop"]]) assert.throws(() => scope(...bad), /--width|--view/, bad.join(" "));
-  const tmp = path.resolve("/scratch");
-  assert.equal(captureOutput("/evidence", ["node", "capture.mjs", "sheet-names", "--verify-own-sheet", "--width=390"], tmp), path.join(tmp, "storytree-captures", "website", "sheet-names"), "a narrowing flag is no folder name");
 });

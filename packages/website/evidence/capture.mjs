@@ -1,17 +1,14 @@
 // Build first, then: node --import tsx packages/website/evidence/capture.mjs [evidence subfolder] [--verify-… journeys] [--retake]
 // A --verify-… run is a check and writes to a scratch folder (it says which); --retake writes into the evidence subfolder.
-// --verify-own-sheet takes --width=<390|320|1440|1280> and --view=<grow|value|fixes|harness|everything|freeplay|shop> to judge one
-// framing in seconds; a run narrowed so judges no contract and records no observations.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { captureOutput, capturePath, ownSheetScope } from "./capture-path.mjs";
+import { captureOutput, capturePath } from "./capture-path.mjs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { verifyOpening, verifyOpeningFrames } from "./opening.mjs";
-import { verifyTour, verifyTourCamera, verifyImmersive, verifyRecordingFreeplay, verifyOwnSheetFits, reviewChapters, reviewFallbacks } from "./tour.mjs";
 import { verifyForest } from "./forest.mjs";
 import { withBrowserCoverage } from "./browser-coverage.mjs";
 
@@ -54,7 +51,7 @@ try {
     // One journey checks both contracts; a failure fails the contract its assertion names, leaving the other not observed.
     const checks = [
       { contract: "1.9", name: "Act 1's turn hands over to Act 2 in about the time it is drawn to take, drawing frames throughout", observed: "not-observed" },
-      { contract: "2.10", name: "After Run the turn lands on a live globe that drew nothing in chapter 1", observed: "not-observed" },
+      { contract: "2.10", name: "The map loads and draws nothing while the intro plays; it sets up once the intro hands the screen to the page", observed: "not-observed" },
     ];
     try { await verifyOpeningFrames(browser, url, output); for (const check of checks) check.observed = "pass"; }
     catch (error) {
@@ -67,57 +64,6 @@ try {
         story: "story_769e230c466d", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
         evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
         note: "Locally built website served from packages/website/dist, SwiftShader", checks,
-      }, null, 2) + "\n");
-    }
-  }
-  else if (process.argv.includes("--review-chapters")) await reviewChapters(browser, url, output);
-  else if (process.argv.includes("--review-fallbacks")) await reviewFallbacks(browser, url, output);
-  else if (process.argv.includes("--verify-recording")) await verifyRecordingFreeplay(browser, url, output);
-  else if (process.argv.includes("--verify-own-sheet")) {
-    // 2.22 and 2.23 are checked only in the browser: their verdicts are written down for pnpm record:acceptance. Storytree's names
-    // draw only with the live sheet: software WebGL, as the journey's pictures use.
-    const checks = [
-      { contract: "2.22", name: "On 390 and 320 phones storytree's glass sheet keeps every island name inside the screen and clear of the compass in the arrival, the everything step and free play, and so does the shop's in free play", observed: "not-observed" },
-      { contract: "2.23", name: "On 1440 and 1280 laptops storytree's glass sheet keeps every island name inside the screen and clear of the compass and the bottom bar in the arrival, the everything step and free play", observed: "not-observed" },
-    ];
-    const { sizes, views } = ownSheetScope(process.argv), narrowed = views !== undefined || sizes.length < 4;
-    const drawing = await chromium.launch({ headless: true, args: ["--no-sandbox", "--enable-unsafe-swiftshader", "--use-angle=swiftshader"] });
-    try {
-      const found = await verifyOwnSheetFits(drawing, url, output, sizes, views);
-      if (narrowed) {
-        const failures = Object.values(found).flat();
-        assert.deepEqual(failures, [], `storytree's sheet at ${sizes.map(([width]) => width).join(", ")}px in ${views?.join(", ") ?? "every view"}`);
-        console.log(`no name off the screen, under the compass or in the bottom bar at ${sizes.map(([width]) => width).join(", ")}px in ${views?.join(", ") ?? "every view"}: a narrowed run, so no contract is judged`);
-      }
-      else {
-        for (const check of checks) {
-          check.observed = found[check.contract].length ? "fail" : "pass";
-          if (found[check.contract].length) check.detail = found[check.contract].join("\n");
-          else console.log(`PASS contract ${check.contract}: ${check.name}`);
-        }
-        for (const check of checks) assert.deepEqual(found[check.contract], [], `website ${check.contract}: ${check.name}`);
-      }
-    }
-    finally {
-      await drawing.close();
-      if (!narrowed) await writeFile(path.join(output, "own-sheet-observations.json"), JSON.stringify({
-        story: "story_769e230c466d", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
-        evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
-        note: "Locally built website served from packages/website/dist, SwiftShader", checks,
-      }, null, 2) + "\n");
-    }
-  }
-  else if (process.argv.includes("--verify-immersive")) {
-    // 2.19 is checked only in the browser: its verdict is written down for pnpm record:acceptance. A journey that stops
-    // before 2.19's own checks finish has not observed it.
-    const check = { contract: "2.19", name: "Every chapter step is told in the arrival's format, at 1920, 1440, 1280, 390 and 320, and every step fits its room, on short phones too", observed: "not-observed" };
-    try { await verifyImmersive(browser, url, output); check.observed = "pass"; }
-    catch (error) { if (error.contract === "2.19") { check.observed = "fail"; check.detail = error.message; } throw error; }
-    finally {
-      await writeFile(path.join(output, "immersive-observations.json"), JSON.stringify({
-        story: "story_769e230c466d", commit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim(),
-        evidence: path.relative(path.resolve(here, "../../.."), output).split(path.sep).join("/"),
-        note: "Locally built website served from packages/website/dist", checks: [check],
       }, null, 2) + "\n");
     }
   }
@@ -141,13 +87,6 @@ try {
         note: "Locally built website served from packages/website/dist", checks,
       }, null, 2) + "\n");
     }
-  }
-  if (process.argv.includes("--verify-camera")) await verifyTourCamera(browser, url);
-  if (process.argv.includes("--verify-tour")) {
-    const proof = { contracts: ["2.4", "2.5", "2.6", "2.7", "2.8"], observed: "not-observed", source: "Locally built unpublished working tree", baseCommit: (await readFile(path.join(dist, "version.txt"), "utf8")).trim() };
-    try { await journey("website 2.4 guided tour and dated free play", measured => verifyTour(measured, url, output)); proof.observed = "pass"; }
-    catch (error) { proof.observed = "fail"; proof.detail = error.message; throw error; }
-    finally { await writeFile(path.join(output, "tour-observations.json"), JSON.stringify(proof, null, 2) + "\n"); }
   }
   if (verifyOpeningRequested) {
     const check = {

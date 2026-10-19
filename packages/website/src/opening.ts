@@ -1,5 +1,5 @@
 /** Capability 1 · Home page. */
-import { AGENTS, BANNER, EXTRA, FINALE, FINALE_AGAIN, PAIN, THINK } from "./opening-copy.js";
+import { AGENTS, BANNER, EXTRA, FINALE, FINALE_AGAIN, THINK } from "./opening-copy.js";
 import { createOpeningAudio } from "./opening-audio.js";
 import type { OpeningClock } from "./opening-clock.js";
 import { OPENING_PROMPT, lineClass, lineText } from "./opening-lines.js";
@@ -189,9 +189,12 @@ export function wireOpening() {
   // Chapter 1 ends on the pain line, said on the dark screen the turn leaves, then hands over (ADR-1091 D1).
   const sayPain = () => {
     root.dataset.phase = "pain"; syncGrain(); pain.hidden = false;
-    if (reduced.matches) { painLines.forEach(line => line.classList.add("on")); later(PAIN.reduce((sum, text) => sum + reading(text), PAIN_REST), () => leave()); return; }
     let at = PAIN_BEAT;
-    painLines.forEach((line, i) => { later(at, () => line.classList.add("on")); at += reading(PAIN[i]!); });
+    painLines.forEach(line => {
+      const say = () => line.classList.add("on");
+      if (reduced.matches) say(); else later(at, say);
+      at += reading(line.textContent!);
+    });
     later(at + PAIN_REST, () => leave(true, true));
   };
   const reset = () => {

@@ -284,6 +284,13 @@ function Territories({ story, land, coast, claimed, radius, spot, lighting, surf
 /** A failing island's marker at the window's edge, in CSS pixels, with the turn that brings it into view (3.11). */
 type ScreenMarker = { story: string; turn: GlobeTurn; left: number; top: number };
 
+/** The one dev-only seam an evidence capture reads the sheet's turn through: a capture build sets this global
+ * before the page runs, and Navigation hands it the turn as drawn and the call that sets it, on every render.
+ * Nothing in the product sets it (mirrors forest-world's `__storytreeCaptureGlobe`). */
+export const NAVIGATION_SEAM = "__storytreeCaptureNavigation";
+/** What Navigation hands a capture build's `NAVIGATION_SEAM`. */
+export type CapturedNavigation = { rotation: Quaternion; onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void };
+
 function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onControls, onPick, onNote, mode, showFailures, sideOffset, aside, sheet }: {
   onPose: (pose: GlobePose) => void;
   /** The glass sheet drawn (ADR-1043): a drag pans it, and it opens and goes Home to `sheetOpening`. */
@@ -299,7 +306,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   radius: number;
   islands: readonly FacingIsland[];
   titles: ReadonlyMap<string, string>;
-  /** The big sphere's turn as drawn now: a capture build reads it beside `onRotate` (apps/desktop/src/capture). */
+  /** The big sphere's turn as drawn now: a capture build reads it beside `onRotate` through `NAVIGATION_SEAM`. */
   rotation: Quaternion;
   /** The big sphere's turn, and where its centre stands as the glass sheet is tilted and spun. */
   onRotate: (rotation: Quaternion, offset?: [number, number, number]) => void;
@@ -307,6 +314,7 @@ function Navigation({ islands, radius, titles, rotation, onRotate, onPose, onCon
   onNote: (note: string) => void;
 }) {
   const { camera, gl, scene, size, invalidate } = useThree();
+  (globalThis as { [NAVIGATION_SEAM]?: (navigation: CapturedNavigation) => void })[NAVIGATION_SEAM]?.({ rotation, onRotate });
   const opening = { framing: sheetOpening(sheet, size).framing, sideOffset };
   const [hover, setHover] = useState<{ title: string; detail?: string; x: number; y: number }>();
   const opened = useRef(false);

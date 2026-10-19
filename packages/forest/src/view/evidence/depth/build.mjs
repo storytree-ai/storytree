@@ -24,13 +24,14 @@ export async function bundle(which) {
       entryPoints: [path.join(ROOT, 'apps/desktop/src/renderer/renderer.ts')],
       outfile: path.join(dist, 'renderer.js'), bundle: true, logLevel: 'warning',
       sourcemap: false, platform: 'browser', format: 'iife', target: 'es2023', loader: { '.glb': 'binary' },
-      banner: { js: "globalThis.__storytreeCaptureGlobe = get => Object.defineProperty(globalThis, '__globe', { get, configurable: true });" },
+      banner: { js: "globalThis.__storytreeCaptureGlobe = get => Object.defineProperty(globalThis, '__globe', { get, configurable: true }); globalThis.__storytreeCaptureNavigation = nav => { globalThis.__nav = nav; };" },
       plugins: [{ name: 'before-after', setup(b) {
         b.onLoad({ filter: /(planet|island-surface|globe-surfaces|planet-view)\.tsx?$/ }, args => {
           const file = base.get(path.resolve(args.path).toLowerCase());
           if (file === undefined) return undefined;
           let contents = which === 'before' ? atBase(file) : readFileSync(args.path, 'utf8');
-          if (file.endsWith('planet-view.tsx')) {
+          // The frozen 'before' text predates planet-view's NAVIGATION_SEAM, so only it is spliced.
+          if (which === 'before' && file.endsWith('planet-view.tsx')) {
             if (!contents.includes(HOOK)) throw new Error('observation hook moved');
             contents = contents.replace(HOOK, `${HOOK} globalThis.__nav = { rotation, onRotate };`);
           }

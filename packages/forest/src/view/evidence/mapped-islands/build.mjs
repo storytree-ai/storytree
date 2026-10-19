@@ -22,14 +22,8 @@ await build({
   entryPoints: [path.join(root, 'apps/desktop/src/renderer/renderer.ts')],
   outfile: path.join(out, 'renderer.js'), bundle: true, logLevel: 'warning',
   sourcemap: true, platform: 'browser', format: 'iife', target: 'es2023', loader: { '.glb': 'binary' },
-  banner: { js: "globalThis.__storytreeCaptureGlobe = get => Object.defineProperty(globalThis, '__globe', { get, configurable: true });" },
+  banner: { js: "globalThis.__storytreeCaptureGlobe = get => Object.defineProperty(globalThis, '__globe', { get, configurable: true }); globalThis.__storytreeCaptureNavigation = nav => { globalThis.__nav = nav; };" },
   plugins: [{ name: 'mapped-islands-observation', setup(builder) {
-    builder.onLoad({ filter: /planet-view\.tsx$/ }, args => ({
-      contents: replace(readFileSync(args.path, 'utf8'),
-        'const { camera, gl, scene, size, invalidate } = useThree();',
-        'const { camera, gl, scene, size, invalidate } = useThree(); globalThis.__nav = { rotation, onRotate };'),
-      loader: 'tsx', resolveDir: path.dirname(args.path),
-    }));
     if (cap !== undefined) builder.onLoad({ filter: /island-growth\.ts$/ }, args => ({
       contents: replace(readFileSync(args.path, 'utf8'), 'export const MAPPED_ISLAND_CAP = 12_000;', `export const MAPPED_ISLAND_CAP = ${Number(cap)};`),
       loader: 'ts', resolveDir: path.dirname(args.path),

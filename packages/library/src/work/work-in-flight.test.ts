@@ -688,18 +688,20 @@ for (const backend of [memory, postgres]) {
     }
     const board = await flight.boardArcs({ from: "2026-10-18", to: "2026-10-20" }, at);
     assert.ok(reads <= 6, `${reads} reads`);
-    assert.deepEqual(board.map(({ arc }) => arc.id), [active.id, parked.id, yesterday, today], "live arcs, and those closed in the window by their last close");
-    assert.deepEqual(board.map(({ state }) => state), ["active", "parked", "closed", "closed"]);
-    assert.deepEqual(board.map(({ closed }) => closed), [undefined, undefined, "2026-10-18", "2026-10-19"], "a closed arc's closing day is its latest outcome day");
-    assert.equal(board[1]!.wakes, "2999-01-01", "a dated park keeps its wake day");
-    const increment = board[0]!.increments[0]!;
+    // Arcs made in one millisecond have no creation order, so each is found by its id.
+    const byId = new Map(board.map((view) => [view.arc.id, view]));
+    assert.deepEqual([...byId.keys()].sort(), [active.id, parked.id, yesterday, today].sort(), "live arcs, and those closed in the window by their last close");
+    assert.deepEqual([active.id, parked.id, yesterday, today].map((id) => byId.get(id)!.state), ["active", "parked", "closed", "closed"]);
+    assert.deepEqual([active.id, parked.id, yesterday, today].map((id) => byId.get(id)!.closed), [undefined, undefined, "2026-10-18", "2026-10-19"], "a closed arc's closing day is its latest outcome day");
+    assert.equal(byId.get(parked.id)!.wakes, "2999-01-01", "a dated park keeps its wake day");
+    const increment = byId.get(active.id)!.increments[0]!;
     assert.equal(increment.fields.title, WORK.title);
     assert.equal(increment.fields.objective, WORK.objective);
     assert.equal("body" in increment.fields, false, "no increment's planning body is read");
 
     const week = await flight.closedArcs({ from: "2026-10-01", to: "2026-10-19" }, at);
-    assert.deepEqual(week.map(({ arc }) => arc.id), [old, yesterday], "only closed arcs, the window's end left out");
-    assert.deepEqual(week[1]!.increments.map(({ fields }) => fields.outcome?.date).sort(), ["2026-10-02", "2026-10-18"], "a closed arc carries every increment it closed with");
+    assert.deepEqual(week.map(({ arc }) => arc.id).sort(), [old, yesterday].sort(), "only closed arcs, the window's end left out");
+    assert.deepEqual(week.find(({ arc }) => arc.id === yesterday)!.increments.map(({ fields }) => fields.outcome?.date).sort(), ["2026-10-02", "2026-10-18"], "a closed arc carries every increment it closed with");
   });
 
   contract("10.5", "an increment moves to another live arc keeping its id, lifecycle and waits, the history recording the move and its reason; only open work moving to a closed arc is refused", async ({ work, flight, transactions }) => {

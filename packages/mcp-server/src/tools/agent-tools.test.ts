@@ -689,7 +689,7 @@ test("app-setup 11.7 an import recorded with no repository is named by wire_pipe
   });
 });
 
-test("6.2 show_plan reads every arc's increments in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
+test("6.2 show_plan reads every live arc's increments in one ask of the board's arcs, however many arcs the project has (ADR-0836 D3)", async () => {
   await withProject(async ({ folder, project, library, log }) => {
     for (const title of ["Launch", "Relaunch", "Sunset"]) {
       const arc = await library.createArc({ title, intent: "Ship signup", endState: "Visitors join" });
@@ -697,10 +697,10 @@ test("6.2 show_plan reads every arc's increments in one ask, however many arcs t
     }
     const acts = new Map<string, (args: never, call: Call) => Promise<{ text: string }>>();
     registerPlanTools(((name, _description, _input, act) => acts.set(name, act as never)) as Define);
-    const asked = { arcView: 0, arcViews: 0 };
+    const asked = { arcView: 0, arcViews: 0, boardArcs: 0 };
     const counted = new Proxy(library, {
       get(target, key) {
-        if (key === "arcView" || key === "arcViews") asked[key]++;
+        if (key === "arcView" || key === "arcViews" || key === "boardArcs") asked[key]++;
         const value = Reflect.get(target, key) as unknown;
         return typeof value === "function" ? value.bind(target) : value;
       },
@@ -708,6 +708,6 @@ test("6.2 show_plan reads every arc's increments in one ask, however many arcs t
     const call = { library: counted, log, project, folder, caller: { session: "claude-1" }, writer: {}, quietMs: 60_000, agent: "orchestrator" } as Call;
     const plan = await acts.get("show_plan")!({} as never, call);
     for (const title of ["Launch", "Relaunch", "Sunset"]) assert.ok(plan.text.includes(`"${title} release"`), plan.text);
-    assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
+    assert.deepEqual(asked, { arcView: 0, arcViews: 0, boardArcs: 1 });
   });
 });

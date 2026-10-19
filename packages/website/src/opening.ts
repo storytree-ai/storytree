@@ -183,7 +183,7 @@ export function wireOpening() {
       const show = () => append(finale, line.replaceAll("{N}", String(count)), { stream: !instant });
       if (instant) show(); else later(i * 750, show);
     });
-    const actions = () => { better.hidden = false; joke.hidden = false; joke.textContent = round ? "restart chapter 1" : "i'll keep babysitting"; };
+    const actions = () => { better.hidden = false; joke.hidden = false; joke.textContent = round ? "restart the intro" : "i'll keep babysitting"; };
     if (instant) actions(); else later(copy.length * 750, actions);
   };
   // Chapter 1 ends on the pain line, said on the dark screen the turn leaves, then hands over (ADR-1091 D1).

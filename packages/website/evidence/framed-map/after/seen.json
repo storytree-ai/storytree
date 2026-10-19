@@ -1,0 +1,22 @@
+{
+  "wheel": {
+    "scrolled": 232,
+    "cameraMoved": 0
+  },
+  "keys": {
+    "cameraMoved": 0
+  },
+  "zoomIn": {
+    "cameraMoved": 34.76393400032114
+  },
+  "ctrlWheel": {
+    "cameraMoved": 12.160652628045993
+  },
+  "drag": {
+    "cameraMoved": 174.9708207861779
+  },
+  "phone": {
+    "tapLayerCovers": true,
+    "exitShown": true
+  }
+}

@@ -148,7 +148,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     assert.deepEqual(before, [], `website 2.10: the globe's setup stalls only behind the arrival's first words, never the dark beat before them (first words at ${measured.firstPainLineMs} ms)`);
     await page.waitForTimeout(3000); // Let the first camera flight arrive before its picture.
     await page.screenshot({ path: path.join(output, "handover-1440.png") });
-    await page.getByRole("button", { name: "Replay chapter 1" }).click();
+    await page.getByRole("button", { name: "Replay the intro" }).click();
     assert.equal(await page.locator("#website-forest .forest-canvas").count(), 0, "website 2.3: replay releases the globe while Chapter 1 is visible");
     await page.evaluate(() => scrollTo(0, document.querySelector("#opening").offsetHeight + 40));
     await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
@@ -171,7 +171,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     assert.equal(await fallback.locator("#website-forest .forest-canvas").count(), 0, "website 2.10: without IntersectionObserver, Run does not start a globe that could not pause");
     await fallback.getByRole("button", { name: "skip intro" }).click();
     await request;
-    await fallback.getByRole("button", { name: "Replay chapter 1" }).click();
+    await fallback.getByRole("button", { name: "Replay the intro" }).click();
     release();
     await fallback.waitForTimeout(1500);
     assert.equal(await fallback.locator("#website-forest .forest-canvas").count(), 0, "website 2.3: a scene arriving after Replay cannot mount");
@@ -270,7 +270,7 @@ export async function verifyOpening(browser, url, output) {
   assert.deepEqual(await counter(page), ["AGENTS: 15 ▲", "WAITING ON YOU: 15", "ANSWERED: 00"]);
   await better(page).waitFor();
   assert.ok(await page.evaluate(() => window.audioStarts) > 0);
-  await page.getByRole("button", { name: "restart chapter 1" }).focus();
+  await page.getByRole("button", { name: "restart the intro" }).focus();
   await page.keyboard.press("Enter");
   assert.equal(await page.evaluate(() => document.activeElement.id), "opening-run", "website 1.8: restarting returns keyboard focus to Run");
   await page.keyboard.press("Enter");
@@ -306,15 +306,15 @@ export async function verifyOpening(browser, url, output) {
   assert.ok(await page.locator("#website-forest").evaluate(el => el.getBoundingClientRect().top < innerHeight));
   await page.reload();
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
-  await page.getByRole("button", { name: "Replay chapter 1" }).click();
+  await page.getByRole("button", { name: "Replay the intro" }).click();
   assert.equal(await page.evaluate(() => document.activeElement.id), "opening-run", "Replay returns keyboard focus to the scene");
   await run(page).click();
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
-  await page.getByRole("button", { name: "Replay chapter 1" }).click();
+  await page.getByRole("button", { name: "Replay the intro" }).click();
   await page.getByRole("button", { name: "skip intro" }).click();
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
-  await page.getByRole("button", { name: "Replay chapter 1" }).click();
+  await page.getByRole("button", { name: "Replay the intro" }).click();
   await run(page).click();
   await page.evaluate(() => scrollTo(0, document.querySelector("#opening").offsetHeight + 40));
   await page.waitForFunction(() => document.querySelector("#opening").hidden);

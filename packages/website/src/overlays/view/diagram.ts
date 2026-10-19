@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Cards and journal on screen. The drawing of how a decision is kept inside the globe (ADR-1018 D7), shown in the
+ * Capability 9 · Cards and journal on screen. The drawing of how a decision is kept inside the globe (ADR-1018 D7), shown in the
  * decision card's depth and played by the website's tour: a drawing, not the globe, in three beats: an island seen from the side;
  * a decision glued to its underside; the decisions it stands on, each one step deeper, a tunnel down to the core. It is true to
  * the knowledge core's placement (@storytree/knowledge-core, shelves/positions.ts): a note hangs on the line from its island's

@@ -8,7 +8,7 @@ import { workStates } from "@storytree/arc-surface";
 import { mountArcSurface } from "@storytree/arc-surface/view";
 import { knowledge } from "@storytree/knowledge-core";
 import { createKnowledgeCore, KnowledgeNoteCard, type KnowledgeCore } from "@storytree/knowledge-core/view";
-import { decisionsDiagram } from "@storytree/learning-as-you-build/view";
+import { decisionsDiagram } from "./overlays/view/index.js";
 import saved from "./forest-snapshot.json" with { type: "json" };
 import shopSaved from "./shop-snapshot.json" with { type: "json" };
 import ownSaved from "./own-snapshot.json" with { type: "json" };

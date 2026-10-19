@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "license": "PolyForm-Shield-1.0.0",
+  "exports": {
+    "./overlays": "./src/overlays/index.ts",
+    "./overlays/view": "./src/overlays/view/index.ts"
+  },
   "scripts": {
     "build": "node --import tsx src/build.ts",
     "typecheck": "tsc -p ."
@@ -13,7 +17,6 @@
     "@storytree/forest": "workspace:*",
     "@storytree/forest-world": "workspace:*",
     "@storytree/knowledge-core": "workspace:*",
-    "@storytree/learning-as-you-build": "workspace:*",
     "@storytree/mark": "workspace:*",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -33,6 +36,7 @@
     "@storytree/app-setup": "workspace:*",
     "@remotion/bundler": "4.0.535",
     "@remotion/renderer": "4.0.535",
-    "remotion": "4.0.535"
+    "remotion": "4.0.535",
+    "happy-dom": "catalog:"
   }
 }

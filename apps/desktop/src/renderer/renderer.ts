@@ -16,8 +16,8 @@ import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveRea
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { drawingOf, drillDown, forestDrawn, forestReading, forestScene, keptDrawing, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
 import { mountJourneyConsent, mountJourneySettings } from "@storytree/app-setup/journey-events/view";
-import { journal, type Target } from "@storytree/learning-as-you-build";
-import { mountJournal, mountTeaching } from "@storytree/learning-as-you-build/view";
+import { journal, type Target } from "@storytree/website/overlays";
+import { mountJournal, mountTeaching } from "@storytree/website/overlays/view";
 import { mountLagRecorder } from "@storytree/app/lag/view";
 import type { AnnotatedTree } from "@storytree/library";
 

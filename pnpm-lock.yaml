@@ -66,9 +66,6 @@ importers:
       '@storytree/knowledge-core':
         specifier: workspace:*
         version: link:../../packages/knowledge-core
-      '@storytree/learning-as-you-build':
-        specifier: workspace:*
-        version: link:../../packages/learning-as-you-build
       '@storytree/library':
         specifier: workspace:*
         version: link:../../packages/library
@@ -90,6 +87,9 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../../packages/session-management
+      '@storytree/website':
+        specifier: workspace:*
+        version: link:../../packages/website
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -636,21 +636,6 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
-  packages/learning-as-you-build:
-    devDependencies:
-      '@types/node':
-        specifier: ^24.13.6
-        version: 24.13.6
-      happy-dom:
-        specifier: 'catalog:'
-        version: 20.14.5
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-      typescript:
-        specifier: ~7.0.2
-        version: 7.0.2
-
   packages/library:
     dependencies:
       '@google-cloud/cloud-sql-connector':
@@ -958,9 +943,6 @@ importers:
       '@storytree/knowledge-core':
         specifier: workspace:*
         version: link:../knowledge-core
-      '@storytree/learning-as-you-build':
-        specifier: workspace:*
-        version: link:../learning-as-you-build
       '@storytree/mark':
         specifier: workspace:*
         version: link:../mark
@@ -998,6 +980,9 @@ importers:
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
+      happy-dom:
+        specifier: 'catalog:'
+        version: 20.14.5
       pg:
         specifier: ^8.23.0
         version: 8.23.0

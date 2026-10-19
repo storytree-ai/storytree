@@ -57,7 +57,7 @@ export async function learnInDrain(world: LearnerWorld): Promise<string[]> {
 }
 
 /** The title a want is filed under: one per word and place. */
-export function wantTitle(want: Pick<Want, "where" | "word">): string {
+function wantTitle(want: Pick<Want, "where" | "word">): string {
   return `Agents type "${want.where} ${want.word}", which no command answers`;
 }
 
@@ -102,7 +102,7 @@ function labelOf({ command, tool }: Candidate): string {
 }
 
 /** The title a cut group's question is raised under: one per group. */
-export function cutTitle(group: string): string {
+function cutTitle(group: string): string {
   return `Cut, keep or merge the unused verbs in ${group}?`;
 }
 

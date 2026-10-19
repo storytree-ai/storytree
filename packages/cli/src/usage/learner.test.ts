@@ -8,7 +8,7 @@ import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { openActivityLog } from "@storytree/session-management";
 import { testServerUrl } from "@storytree/project-and-caller/testing/pg";
 
-import { learnInDrain, wantTitle, cutTitle } from "./learner.js";
+import { learnInDrain } from "./learner.js";
 import type { Surfaces } from "./learn.js";
 
 const agent = ["agent"] as const;
@@ -44,11 +44,11 @@ test("14.12 · the drain files a want as friction and raises a cut group as a qu
       assert.equal((await library.list("friction")).length, 0);
 
       const first = await learnInDrain(world);
-      const filed = (await library.list("friction")).filter((friction) => friction.fields.title === wantTitle({ where: "storytree", word: "plan" }));
+      const filed = (await library.list("friction")).filter((friction) => friction.fields.title === 'Agents type "storytree plan", which no command answers');
       assert.equal(filed.length, 1, first.join("\n"));
       assert.match(filed[0]?.fields.statement ?? "", new RegExp(wants.id), "it names the arc that measures the doors");
       const asked = await library.questions(cuts.id);
-      assert.deepEqual(asked.map((question) => question.fields.title).sort(), [cutTitle("storytree quality"), cutTitle("the tools with no command")]);
+      assert.deepEqual(asked.map((question) => question.fields.title).sort(), ["Cut, keep or merge the unused verbs in storytree quality?", "Cut, keep or merge the unused verbs in the tools with no command?"]);
       const held = (await library.list("increment")).filter((increment) => increment.fields.arc === cuts.id);
       assert.deepEqual(held.map((increment) => increment.fields.heldOn).sort(), asked.map((question) => [question.id]).sort(), "each group's increment is held on its question");
 

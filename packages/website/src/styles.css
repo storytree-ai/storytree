@@ -274,6 +274,13 @@ body:not(.immersive-home) h3 { margin: 0 0 10px; font-size: 18px; font-weight: 6
 @keyframes opening-flicker { 0%, 91%, 94%, 96%, 100% { opacity: 1; } 92% { opacity: .86; } 97% { opacity: .93; } }
 .opening-crt-line { position: absolute; z-index: 70; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1px; opacity: 0; background: #eafff0; box-shadow: 0 0 12px 3px rgba(138, 255, 168, .85), 0 0 40px 8px rgba(80, 255, 140, .45); pointer-events: none; }
 .opening-crt-dot { position: absolute; z-index: 70; left: 50%; top: 50%; width: 10px; height: 10px; border-radius: 50%; opacity: 0; background: #fff; transform: translate(-50%, -50%); box-shadow: 0 0 18px 8px rgba(138, 255, 168, .9), 0 0 60px 20px rgba(80, 255, 140, .5); pointer-events: none; }
+/* Chapter 1's last frame (ADR-1091 D1): the pain line on the dark screen the turn leaves, a line at a time, in the site's own type. */
+.opening-pain { position: absolute; z-index: 80; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px; background: #020403; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-align: center; }
+.opening-pain[hidden] { display: none; }
+#opening .opening-pain p { max-width: 860px; color: #f0f0e7; font-size: clamp(25px, 2.6vw, 38px); font-weight: 500; line-height: 1.18; letter-spacing: -.035em; text-wrap: balance; opacity: 0; }
+#opening .opening-pain p + p { margin-top: .45em; color: var(--green); }
+#opening .opening-pain p.on { opacity: 1; animation: opening-pain-in .8s ease both; }
+@keyframes opening-pain-in { from { opacity: 0; transform: translateY(8px); } }
 
 @media (max-width: 1259px) {
   .opening-stage { --cols: 3; --rows: 4; }
@@ -296,11 +303,13 @@ body:not(.immersive-home) h3 { margin: 0 0 10px; font-size: 18px; font-weight: 6
   #opening-finale { position: absolute; left: 0; right: 0; top: auto; bottom: 0; translate: none; width: auto; max-height: 100%; border-radius: 10px 10px 0 0; }
   #opening-finale .opening-lines { min-height: 0; }
   .opening-prompt { font-size: 12px; }
+  #opening .opening-pain p { font-size: 22px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .opening-caret, .term-cursor, .opening-scan, #opening-run, .opening-window.is-parked .term-status, #opening-count .tick, .opening-actions button:not([hidden]) { animation: none; }
   .opening-dimmer { transition: none; }
   .opening-grain { display: none; }
+  #opening .opening-pain p.on { animation: none; }
 }
 
 .waitlist h1 { font-size:clamp(48px,6vw,82px); margin-top:20px; }

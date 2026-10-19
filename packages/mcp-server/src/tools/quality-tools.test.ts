@@ -157,6 +157,7 @@ test("quality-assurance 2.3 and 4.4 · the shared server's quality_brief, qualit
 
       const file = "packages/forms/src/email.test.ts";
       const taken = await client.callTool({ name: "quality_take", arguments: { increment, return: {
+        review: 1,
         checks: [{ check: check.id, tripped: true, hits: [{ file, line: 1, found: "2 * BASE is the code's own formula" }] }],
         contracts: [{ contract: contract.id, met: true }],
       } } });
@@ -217,7 +218,7 @@ test("quality-assurance 5.1 and 5.3 · the shared server's graduate_check gradua
       assert.deepEqual((await checks(library)).find(({ id }) => id === whole.id)!.graduated, [{ part: "an assertion comparing a value with itself", enforcedBy: "self-equal-assertion", whole: true }]);
 
       await client.callTool({ name: "quality_brief", arguments: { increment, worktree } });
-      await client.callTool({ name: "quality_take", arguments: { increment, worktree, return: { checks: [{ check: check.id, tripped: false }], contracts: [{ contract: contract.id, met: true }] } } });
+      await client.callTool({ name: "quality_take", arguments: { increment, worktree, return: { review: 1, checks: [{ check: check.id, tripped: false }], contracts: [{ contract: contract.id, met: true }] } } });
       const { hits } = await (await openLedger(storytree)).rows(project);
       assert.deepEqual(hits.map(({ check: id, file, line, foundBy }) => ({ id, file, line, foundBy })).sort((a, b) => a.id.localeCompare(b.id)), [
         { id: check.id, file: "packages/forms/src/email.test.ts", line: 1, foundBy: "graduated" },

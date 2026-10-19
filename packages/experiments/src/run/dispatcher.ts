@@ -12,7 +12,7 @@
  * start now, with the engines running and the box's cap; `runner.mjs run` runs one lane on the engine its allowance allows.
  */
 import { execFile, spawn } from "node:child_process";
-import { appendFileSync, existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -270,6 +270,25 @@ export function stateFile(lanesDir: string, name: string): string {
   return path.join(lanesDir, `experiment-${name}.json`);
 }
 
+/** The run's status lines in the lanes folder, the hidden tests' counts among them. */
+export function statusFile(lanesDir: string, name: string): string {
+  return path.join(lanesDir, `experiment-${name}.status`);
+}
+
+/**
+ * Where one lane of arm `arm` writes: its brief, log and error log, and the reports and scratch files (a review's return)
+ * it writes itself, all in the arm's home's `lanes` folder, the one folder it is given. The run's own files (its state,
+ * status, pid and output, which carry the hidden tests' counts) stay in the box's lanes folder, which no arm lane is given,
+ * and another arm's lanes write in that arm's home: an arm lane's folder lists only its own arm's work.
+ */
+export function laneFiles({ arm, name, one, at }: { arm: ArmRun; name: string; one: Lane; at: string }): {
+  folder: string; brief: string; log: string; err: string; addDirs: string[];
+} {
+  const folder = path.join(arm.home, "lanes");
+  const base = path.join(folder, `experiment-${name}-${arm.arm}-${one.id}`);
+  return { folder, brief: `${base}-brief.md`, log: `${base}-${at}.log`, err: `${base}-${at}.err`, addDirs: [folder] };
+}
+
 /**
  * One arm lane: the agent pool's lane runner in `repo`, run as its own process in the arm's checkout, with the arm's home
  * as its storytree home, so the lane reads and writes the arm's library alone and its doors enforce the arm's switch.
@@ -293,7 +312,7 @@ export const PLAN_RULES = fileURLToPath(new URL("./arm-plan-rules.md", import.me
  * `rules`, or an arc to plan, ending with the planning rules `planRules`; each names the arm's home, library and checkout.
  */
 export function laneBrief({ arm, name, one, rules, planRules }: { arm: ArmRun; name: string; one: Lane; rules: string; planRules: string }): string {
-  const where = `You work in arm "${arm.arm}" of experiment "${name}": your storytree home is ${arm.home}, whose library is the arm's own (project ${arm.project}), and your repository is the one checked out at ${arm.checkout}.`;
+  const where = `You work in arm "${arm.arm}" of experiment "${name}": your storytree home is ${arm.home}, whose library is the arm's own (project ${arm.project}), your repository is the one checked out at ${arm.checkout}, and your lane folder is ${laneFiles({ arm, name, one, at: "" }).folder}.`;
   return (one.plan
     ? [`# Experiment planning lane: ${one.id}`, "", `Your arc: ${one.id} (${one.title}). ${where}`, "", planRules]
     : [`# Experiment lane: ${one.id}`, "", `Your increment: ${one.id}. ${where}`, "", rules]).join("\n");
@@ -331,7 +350,7 @@ function spawned({ command, args, cwd, env }: ReturnType<typeof armLaneCommand>,
  * `storytree experiment run`: the frozen record `record` in `library` (refused unfrozen), its arms' homes as `experiment arm
  * make` made them for the short name `name`, each with its repository cloned at `<home>/repo` (approved as its trunk
  * here, approveCheckouts), and the lane rules in `rulesFile`. Its status lines go to the lanes folder's experiment-<name>.status, its state to experiment-<name>.json;
- * the file experiment-<name>-stop there stops it. One run per experiment at a time. Resolves, with the state file, when the run ends.
+ * the file experiment-<name>-stop there stops it. Each lane's brief, logs and report go to its arm's lane folder (laneFiles). One run per experiment at a time. Resolves, with the state file, when the run ends.
  */
 export async function runRecorded({ library, server, record, name, rulesFile, say: tell = console.log }: {
   library: Library; server: Storytree; record: string; name: string; rulesFile: string; say?: (line: string) => void;
@@ -347,7 +366,7 @@ export async function runRecorded({ library, server, record, name, rulesFile, sa
   const other = Number(existsSync(pidFile) ? readFileSync(pidFile, "utf8").trim() : NaN);
   if (Number.isInteger(other) && other !== process.pid && alive(other)) throw new ExperimentRefusal(`experiment ${name} is already running (process ${other})`);
   writeFileSync(pidFile, `${process.pid}\n`);
-  const say = (line: string) => { appendFileSync(path.join(lanesDir, `experiment-${name}.status`), `${line}\n`); tell(line); };
+  const say = (line: string) => { appendFileSync(statusFile(lanesDir, name), `${line}\n`); tell(line); };
   const file = stateFile(lanesDir, name);
   await runExperiment({
     arms, rules,
@@ -359,10 +378,10 @@ export async function runRecorded({ library, server, record, name, rulesFile, sa
     points: () => curves(server, library.name, name),
     launch: async (arm, one, { engineUp }) => {
       await freshen(arm.checkout, say);
-      const base = path.join(lanesDir, `experiment-${name}-${arm.arm}-${one.id}`);
-      const at = new Date().toISOString().replace(/[-:]|\.\d{3}Z$/g, "");
-      writeFileSync(`${base}-brief.md`, laneBrief({ arm, name, one, rules: lanesRules, planRules }));
-      const lane = armLaneCommand({ arm, repo: CHECKOUT, brief: `${base}-brief.md`, log: `${base}-${at}.log`, err: `${base}-${at}.err`, addDirs: [lanesDir], env: process.env });
+      const files = laneFiles({ arm, name, one, at: new Date().toISOString().replace(/[-:]|\.\d{3}Z$/g, "") });
+      mkdirSync(files.folder, { recursive: true });
+      writeFileSync(files.brief, laneBrief({ arm, name, one, rules: lanesRules, planRules }));
+      const lane = armLaneCommand({ arm, repo: CHECKOUT, ...files, env: process.env });
       return spawned(lane, (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); });
     },
     state: {

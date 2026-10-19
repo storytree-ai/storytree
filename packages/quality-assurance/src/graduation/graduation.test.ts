@@ -93,6 +93,7 @@ test("5.2 · a check graduated whole is no longer in the review brief, so the re
       assert.doesNotMatch(briefText(brief), new RegExp(whole.id));
 
       const taken = await reviews.take(library.name, increment, {
+        review: 1,
         checks: [{ check: tautology, tripped: false }, { check: skips, tripped: false }],
         contracts: [{ contract, met: true }],
       }, await graduatedFindings(library, checkout));
@@ -111,6 +112,7 @@ test("5.3 · taking a review records what Architecture checks' graduated checks 
     await withCheckout({ [file]: "import assert from \"node:assert/strict\";\n\nassert.equal(valid(x), valid(x));\n" }, async (checkout, diff) => {
       await reviews.brief(library, increment, diff);
       const taken = await reviews.take(library.name, increment, {
+        review: 1,
         checks: [{ check: tautology, tripped: false }, { check: skips, tripped: false }],
         contracts: [{ contract, met: true }],
       }, await graduatedFindings(library, checkout));
@@ -134,6 +136,7 @@ test("5.3 · taking a review records what Architecture checks' graduated checks 
     try {
       await reviews.brief(library, increment, "diff --git a/packages/forms/src/b.ts b/packages/forms/src/b.ts\n+export const b = 2;\n");
       const taken = await reviews.take(library.name, increment, {
+        review: 2,
         checks: [{ check: tautology, tripped: false }, { check: skips, tripped: false }],
         contracts: [{ contract, met: true }],
         rejections: [],

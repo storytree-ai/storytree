@@ -110,12 +110,7 @@ const harnesses: Mark[] = [{ name: "Claude Code", src: "/harness/claude-code.png
  * {name} placeholders are the saved reading's own counts, filled in when the page is built.
  */
 export const steps: TourStep[] = [
-  // The owner's words, final (2026-10-04): the feeling leads, and the guide's line bridges to the value statement.
-  { id: "pain", explainer: "opening", kind: "beats", template: "statement", ...own, growth: "seed", title: "The problem", lines: [
-    "Right now, building with AI feels overwhelming, exhausting and disconnected.",
-    "Storytree is here to fix that.",
-  ], why: "Your attention is the scarcest resource in AI-driven development, and coding agents spend it on noise. Reading every line makes you the bottleneck the agents were meant to remove; trusting every line finds the problems in production. There's no in-between.",
-  decisions: [], surfaces: complete, framing: 240, laptop: ownLaptop, phone: ownPhone },
+  // The pain line that opened the tour now ends chapter 1 (ADR-1091 D1), so the tour opens on storytree itself.
   { id: "grow", explainer: "opening", kind: "beats", template: "claim", ...own, growth: { seconds: arrivalSeconds }, title: "Storytree, a living map", lines: [
     // The owner's words (2026-10-04), punctuation tidied.
     "This is storytree, a living map of your project, for both you and your agents.",

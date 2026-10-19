@@ -27,7 +27,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "../index.js";
+import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "../index.js";
 import { fieldValue, verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
 import { ADR_FAMILY } from "./adr.js";
 
@@ -354,6 +354,7 @@ const edit = verb({
   async act({ "<id>": given, "<fields>": values }, context: LibraryVerbContext) {
     const id = needed(given, "the record's id");
     const library = context.library;
+    if (id === ANCHOR_ID) return editAnchor(fieldsOf(values), context);
     const record = await library.get(id);
     if (record === null) throw new VerbRefusal(`no record "${id}" in this project`);
     if (record.type === "question" && record.fields.lifecycle === "settled") {
@@ -381,6 +382,18 @@ const edit = verb({
     return { text: `Edited ${record.type} ${id}: ${Object.keys(fields).join(", ")}.`, next: [{ command: `library read ${id}`, why: "read it back" }] };
   },
 });
+
+/**
+ * The project's anchor, written a half at a time (ADR-1085 D1): it is made on its first write, so `library edit`
+ * reaches it before it exists. Only its two halves are fields; anything else is refused with nothing written.
+ */
+async function editAnchor(fields: Fields, context: LibraryVerbContext): Promise<{ text: string; next: { command: string; why: string }[] }> {
+  const wrong = Object.keys(fields).filter((field) => field !== "what" && field !== "audience");
+  if (wrong.length > 0) throw new VerbRefusal(`the project's anchor has no ${wrong.join(" or ")}: it has what (what the project is) and audience (who it is for)`, { misuse: true });
+  if (Object.keys(fields).length === 0) return { text: `No fields given: ${ANCHOR_ID} is unchanged.`, next: [] };
+  await context.library.setAnchor(fields as never, context.writer!);
+  return { text: `Edited the project's anchor ${ANCHOR_ID}: ${Object.keys(fields).join(", ")}.`, next: [{ command: `library read ${ANCHOR_ID}`, why: "read it back" }] };
+}
 
 const refile = verb({
   command: { family: "library", name: "refile", summary: "rewrite an artifact as another kind under the same id, its links and history kept (ADR-1058 D2)", usage: "library refile <id> <kind> --<field> <value|@file> …" },

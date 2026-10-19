@@ -7,7 +7,7 @@
 import path from "node:path";
 
 import { importLines, importProject, ImportRefusedError } from "@storytree/app-setup/project";
-import { CONTRACT_DEFINITION, heldBack, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type DayWindow, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, heldBack, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type DayWindow, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
 import { z } from "zod";
 
 import { untestedContracts } from "@storytree/map/code-survey";
@@ -21,6 +21,11 @@ import { machineChecked } from "./work-tools.js";
 
 const title = z.string().min(1).describe("What it is called: a short name");
 const description = z.string().min(1).optional().describe("A sentence or two on what it is for");
+const audience = z
+  .string()
+  .min(1)
+  .optional()
+  .describe("Who uses what it delivers, named as a group they would recognise themselves in: the project's audience, or a named subset of it (ADR-1085 D1)");
 const intent = z.string().min(1).describe("What the arc exists to deliver, in a sentence");
 const endState = z.string().min(1).describe("What closed looks like: the condition under which it is delivered");
 const id = (what: string) => z.string().min(1).describe(`The id of the ${what}, as the plan shows it`);
@@ -56,10 +61,10 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_story",
-    "Plan a story: something a user of the project can do, with its founding decision: what it is for, and the one choice that shapes it. Plan its capabilities next.",
-    z.object({ title, description, founding }),
-    async ({ title: name, description: about, founding: decision }, { library, writer }) => {
-      const story = await library.addStory({ title: name, ...optional({ description: about }) }, writer);
+    "Plan a story: something a user of the project can do, with its founding decision: what it is for, and the one choice that shapes it, and its audience, who uses what it delivers. Plan its capabilities next.",
+    z.object({ title, description, audience, founding }),
+    async ({ title: name, description: about, audience: who, founding: decision }, { library, writer }) => {
+      const story = await library.addStory({ title: name, ...optional({ description: about, audience: who }) }, writer);
       const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: story.id }, writer);
       return {
         text: `Planned story ${quoted(name)} (${story.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its capabilities next.`,
@@ -109,9 +114,11 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "edit_plan",
-    "Correct an arc, story, capability, contract or increment in place: change only the fields you give. An increment's capabilities list is filled here by the session that claims it, as it plans (ADR-0949 D2). While you hold an increment, a change to a story, capability or contract planned before it waits on the increment as a pending change until its branch merges, and the live plan is unchanged (ADR-0966); one it planned changes at once.",
+    `Correct an arc, story, capability, contract or increment in place, or the project's anchor (id ${ANCHOR_ID}: what it is, and its audience, who it is for): change only the fields you give. An increment's capabilities list is filled here by the session that claims it, as it plans (ADR-0949 D2). While you hold an increment, a change to a story, capability or contract planned before it waits on the increment as a pending change until its branch merges, and the live plan is unchanged (ADR-0966); one it planned changes at once.`,
     z.object({
-      id: id("arc, story, capability, contract or increment to correct"),
+      id: id(`arc, story, capability, contract or increment to correct, or ${ANCHOR_ID} for the project's anchor`),
+      what: z.string().min(1).optional().describe("The project's anchor: what it is, in a few words (\"a software factory\")"),
+      audience: audience.describe("The anchor's or a story's audience: who uses what it delivers, named as a group they would recognise themselves in; a story's is the project's, or a named subset of it (ADR-1085 D1)"),
       title: title.optional(),
       description,
       story: z.string().min(1).optional().describe("A capability's story, to move it"),
@@ -237,26 +244,33 @@ interface Changes {
   capabilities?: string[] | undefined;
   links?: string[] | undefined;
   machine?: string | undefined;
+  what?: string | undefined;
+  audience?: string | undefined;
 }
 
 /** The fields each kind of plan record can have corrected, as the tool names them. */
 const EDITABLE = {
-  story: ["title", "description"],
+  story: ["title", "description", "audience"],
   capability: ["title", "description", "story", "depends_on", "covers"],
   contract: ["title", "description", "capability"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
   increment: ["title", "capabilities", "links", "machine"],
+  anchor: ["what", "audience"],
 } as const;
 
 async function editPlan(target: string, changes: Changes, call: Call): Promise<Answer> {
   const { library, storytree, writer } = call;
-  const kind = kindOf(await library.projectTree(), target) ?? ((await library.get(target))?.type === "increment" ? "increment" : undefined);
+  const kind = target === ANCHOR_ID ? "anchor" : (kindOf(await library.projectTree(), target) ?? ((await library.get(target))?.type === "increment" ? "increment" : undefined));
   if (kind === undefined) return { text: `Nothing in the plan has the id ${target}; show_plan lists every id.`, refused: true };
   const given = Object.entries(changes).filter(([, value]) => value !== undefined);
   const allowed: readonly string[] = EDITABLE[kind];
   const wrong = given.map(([field]) => field).filter((field) => !allowed.includes(field));
   if (wrong.length > 0) return { text: `A ${kind} has no ${wrong.join(" or ")} to correct; it has ${allowed.join(", ")}.`, refused: true };
   if (given.length === 0) return { text: `Nothing to correct: give the ${kind}'s ${allowed.join(", ")}.`, refused: true };
+  if (kind === "anchor") {
+    const anchor = (await library.setAnchor(optional({ what: changes.what, audience: changes.audience }), writer)).fields;
+    return { text: `Corrected the project's anchor: ${anchorLine(anchor)}.`, data: { id: target } };
+  }
   if (kind === "increment" && changes.capabilities !== undefined) {
     const shared = await sharedCapability(target, changes.capabilities, call);
     if (shared !== undefined) return { text: shared, refused: true };
@@ -358,10 +372,18 @@ async function showPlan({ library, log, project, quietMs }: Call, closed: DayWin
   };
 
   const out: string[] = [];
+  const gaps = anchorGaps(tree);
+  out.push(tree.anchor === undefined ? `The project has no anchor yet (${ANCHOR_ID}): say what it is and who it is for with edit_plan.` : `Anchor (${ANCHOR_ID}): ${anchorLine(tree.anchor)}`);
+  const unsaid = [
+    ...(gaps.anchor.length === 1 ? [`the anchor does not yet say ${gaps.anchor[0] === "what" ? "what the project is" : "who it is for"}`] : []),
+    ...(gaps.stories.length === 0 ? [] : [`${gaps.stories.length === 1 ? "1 story names" : `${gaps.stories.length} stories name`} no audience: ${gaps.stories.map((story) => quoted(story.title)).join(", ")}`]),
+  ];
+  if (unsaid.length > 0) out.push(`Plan health (it fails nothing): ${unsaid.join("; ")}.`);
   if (tree.stories.length === 0) out.push(`The plan of ${quoted(project)} is empty: plan a story with plan_story.`);
   for (const story of tree.stories) {
     // A mapped story carries no health of its own (ADR-0993 D3): it says what it is instead.
-    out.push(`Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "mapped: here before storytree, and assumed to be working"}`);
+    const forWhom = story.audience === undefined ? "names no audience" : `for ${story.audience}`;
+    out.push(`Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "mapped: here before storytree, and assumed to be working"}; ${forWhom}`);
     for (const capability of story.capabilities) {
       out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`);
       for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}`);
@@ -386,12 +408,19 @@ async function showPlan({ library, log, project, quietMs }: Call, closed: DayWin
   return {
     text: out.join("\n"),
     data: {
+      ...(tree.anchor === undefined ? {} : { anchor: tree.anchor }),
+      gaps,
       stories: tree.stories,
       arcs,
       claims,
       sessions,
     },
   };
+}
+
+/** The project's sentence as show_plan and edit_plan say it, a half not yet written said so. */
+function anchorLine(anchor: { what?: string | undefined; audience?: string | undefined }): string {
+  return `${anchor.what ?? "(what it is, not yet said)"}, for ${anchor.audience ?? "(who it is for, not yet said)"}`;
 }
 
 /** The kind of plan record `id` is, or undefined if the plan has none. */

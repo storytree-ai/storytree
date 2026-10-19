@@ -55,6 +55,8 @@ const LIBRARY_API = [
   "editArc",
   "projectTree",
   "arcsFor",
+  "anchor",
+  "setAnchor",
   "addIncrement",
   "advanceIncrement",
   "closeIncrement",
@@ -140,8 +142,10 @@ const LIBRARY_API = [
  * NEW_LINE joined it with ADR-1017 D3: the schema Session management checks each activity log line
  * against before it stores it in the library's database. connectionString joined it with contract 15.5:
  * the routed library's connection string, signed in, that `storytree auth connection` hands psql.
+ * ANCHOR_ID and anchorGaps joined it with ADR-1085 D1: where the project's anchor is kept, and the plan-health reading of it.
  */
 const RUNTIME_EXPORTS = [
+  "ANCHOR_ID",
   "CONTRACT_DEFINITION",
   "ConnectionError",
   "DependencyLoopError",
@@ -163,6 +167,7 @@ const RUNTIME_EXPORTS = [
   "SupersessionLoopError",
   "UnknownTypeError",
   "WaitLoopError",
+  "anchorGaps",
   "connect",
   "connectionString",
   "heldBack",

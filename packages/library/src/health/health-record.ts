@@ -17,7 +17,7 @@
 import { couldBeId, liveRecord, MissingReferenceError, recordNamed } from "../references.js";
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import type { FieldsOf, RecordType } from "../schema/types.js";
-import type { ArcNode, CapabilityNode, ContractNode, ParkedOn, ProjectTree, StoryNode, WorkModel } from "../work/index.js";
+import type { Anchor, ArcNode, CapabilityNode, ContractNode, ParkedOn, ProjectTree, StoryNode, WorkModel } from "../work/index.js";
 
 /** A column's state. A column with no entry reads `not-checked`, never `passing`. */
 export type HealthState = FieldsOf<"health">["state"];
@@ -193,6 +193,8 @@ export interface AnnotatedStory extends Omit<StoryNode, "capabilities"> {
 
 /** WorkModel.projectTree()'s tree with every story, capability and contract's health added. */
 export interface AnnotatedTree {
+  /** The project's sentence, when any of it is written (ADR-1085 D1). */
+  anchor?: Anchor;
   stories: AnnotatedStory[];
   arcs: ArcNode[];
   /** Present when nothing verifies this project's health: no verified entry exists anywhere in it (ADR-0630). */
@@ -291,6 +293,7 @@ export class HealthRecord {
     const unverified = ![...entries.values()].some(({ fields }) => fields.column === "verified");
     return {
       ...(unverified ? { unverified } : {}),
+      ...(plan.anchor === undefined ? {} : { anchor: { ...plan.anchor } }),
       stories: plan.stories.map((story) => {
         const capabilities = story.capabilities.map((capability) => {
           const contracts = capability.contracts.map((contract) => ({ ...contract, health: ownHealth(contract.id, entries) }));

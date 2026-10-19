@@ -70,6 +70,38 @@ test("17.1 · The library declares the library family first among storytree's fa
   assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed here");
 });
 
+test("17.3 · library edit project-anchor --what … --audience … writes the project's anchor, making it on its first write and refusing any other field with nothing written; library new story and library edit take a story's audience, and library read reads both back (ADR-1085 D1)", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  t.after(async () => {
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family.verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const context: LibraryVerbContext = { library, project, session: "person:owner", folder: tmpdir(), writer: { actor: "person:owner" }, claims: async () => [], testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const edit = (id: string, fields: Record<string, string>) => verbOf("edit").act({ "<id>": id, "<fields>": fields }, context, WORDS);
+
+  await assert.rejects(edit("project-anchor", { what: "a shop builder", title: "Shop" }), VerbRefusal);
+  assert.deepEqual(await library.history({ id: "project-anchor" }), [], "nothing was written");
+  await edit("project-anchor", { what: "a shop builder" });
+  await edit("project-anchor", { audience: "small shops" });
+  assert.deepEqual(await library.anchor(), { what: "a shop builder", audience: "small shops" });
+  const read = await verbOf("read").act({ ids: ["project-anchor"], linked: false, field: undefined } as never, context, WORDS);
+  assert.match(read.text, /what: a shop builder/);
+  assert.match(read.text, /audience: small shops/);
+
+  const made = await verbOf("new").act({ "<kind>": "story", "<fields>": { title: "Owner sees orders", audience: "shop owners" } } as never, context, WORDS);
+  const story = /story_[0-9a-f]{12}/.exec(made.text)![0];
+  assert.equal(((await library.get(story))?.fields as { audience?: string }).audience, "shop owners");
+  await edit(story, { audience: "shop owners and their staff" });
+  assert.equal(((await library.get(story))?.fields as { audience?: string }).audience, "shop owners and their staff");
+});
+
 test("17.2 · The library declares search_notes, open, write_note and correct_note as tools and none as a command; each artifact they show is handed to the door as a read, found as the session last saw it, and an artifact written with no place goes onto the shelf of the capability the session claimed last, inside the cover it opened last", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();

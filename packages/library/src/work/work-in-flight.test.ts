@@ -290,16 +290,19 @@ for (const backend of [memory, postgres]) {
     const link = await work.addCapability({ title: "Confirmation link", story: story.id });
     const promise = await work.addContract({ title: "Accepts a valid address", capability: form.id });
     const kept = await work.addContract({ title: "Rejects a bad address", capability: form.id });
+    await work.setAnchor({ what: "a shop builder", audience: "small shops" });
     const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
     await flight.advanceIncrement(increment.id, "active");
     const live = await work.projectTree();
-    assert.deepEqual(await flight.withPending(increment.id, live), live, "none pending: the live plan");
+    assert.deepEqual(await flight.withPending(increment.id, live), live, "none pending: the live plan, its anchor kept");
     assert.deepEqual(await flight.stalePending(increment.id), []);
 
     await flight.pendChange(increment.id, { record: form.id, fields: { title: "Address form", description: undefined, dependsOn: [link.id], story: other.id } });
     await flight.pendChange(increment.id, { record: promise.id, retire: "overtaken" });
     await flight.pendChange(increment.id, { record: kept.id, fields: { capability: link.id } });
+    await flight.pendChange(increment.id, { record: other.id, fields: { audience: "returning visitors" } });
     const branch = await flight.withPending(increment.id, live);
+    assert.equal(branch!.stories.find(({ id }) => id === other.id)?.audience, "returning visitors", "a story's pending audience is read on the branch");
     const signUp = branch!.stories.find(({ id }) => id === story.id);
     const signIn = branch!.stories.find(({ id }) => id === other.id);
     assert.deepEqual(signUp!.capabilities.map(({ id, contracts }) => [id, contracts.map(({ id }) => id)]), [[link.id, [kept.id]]], "the form moved out; the kept contract moved to the link");

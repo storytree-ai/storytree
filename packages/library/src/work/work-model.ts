@@ -64,9 +64,36 @@ export interface ContractWriteOptions extends WriteOptions {
 }
 /** An edit of an arc: some of its fields. A field set to undefined is removed. */
 export type ArcEdit = { [F in keyof NewArc]?: NewArc[F] | undefined };
+/** The project's sentence (ADR-1085 D1): what it is, and who it is for. Either half may be missing. */
+export type Anchor = FieldsOf<"anchor">;
+/** An edit of the anchor: some of its halves. A half set to undefined is removed. */
+export type AnchorEdit = { [F in keyof Anchor]?: Anchor[F] | undefined };
+/** The id the project's one anchor is kept at. */
+export const ANCHOR_ID = "project-anchor";
+
+/**
+ * The plan-health reading of rule 1 (ADR-1085 D1): what the plan has not yet said. It never fails anything,
+ * and it reads only that the words are there: the anchor's halves it lacks, and the stories with no audience.
+ */
+export interface AnchorGaps {
+  /** The anchor's halves not written, in the order the sentence reads: "what", then "audience". */
+  anchor: ("what" | "audience")[];
+  /** The stories that name no audience, in the plan's order. */
+  stories: { id: string; title: string }[];
+}
+
+/** `tree`'s anchor gaps (ADR-1085 D1): the anchor's halves it lacks, and its stories with no audience. */
+export function anchorGaps(tree: { anchor?: Anchor | undefined; stories: readonly { id: string; title: string; audience?: string | undefined }[] }): AnchorGaps {
+  return {
+    anchor: (["what", "audience"] as const).filter((half) => tree.anchor?.[half] === undefined),
+    stories: tree.stories.filter((story) => story.audience === undefined).map(({ id, title }) => ({ id, title })),
+  };
+}
 
 /** The plan of work as the forest reads it: story › capability › contract, and the arcs. */
 export interface ProjectTree {
+  /** The project's sentence, when any of it is written (ADR-1085 D1). */
+  anchor?: Anchor;
   /** Every story, in creation order, each holding its capabilities. */
   stories: StoryNode[];
   /** Every arc, in creation order. */
@@ -77,6 +104,8 @@ export interface StoryNode {
   id: string;
   title: string;
   description?: string;
+  /** Who uses what it delivers (ADR-1085 D1), when it names them. */
+  audience?: string;
   /** Where a mapped story's code is (ADR-0993 D2): its import, its package and the folders holding its code. */
   mapped?: { from: string; package: string; folders: string[] };
   /** The capabilities pointing at this story, in creation order. */
@@ -302,17 +331,20 @@ export class WorkModel {
    * has no place in it.
    */
   async projectTree(): Promise<ProjectTree> {
-    const [stories, capabilities, contracts, arcs] = await Promise.all([
+    const [stories, capabilities, contracts, arcs, anchor] = await Promise.all([
       this.#records.list("story"),
       this.#records.list("capability"),
       this.#records.list("contract"),
       this.#records.list("arc"),
+      this.anchor(),
     ]);
     const capabilitiesOf = childrenByParent(capabilities, (capability) => capability.fields.story);
     const contractsOf = childrenByParent(contracts, (contract) => contract.fields.capability);
     return {
+      ...(anchor === undefined ? {} : { anchor }),
       stories: stories.sort(byCreation).map((story) => ({
         ...nodeOf(story),
+        ...(story.fields.audience === undefined ? {} : { audience: story.fields.audience }),
         ...(story.fields.mapped === undefined ? {} : { mapped: { ...story.fields.mapped, folders: [...story.fields.mapped.folders] } }),
         capabilities: (capabilitiesOf.get(story.id) ?? []).map((capability) => ({
           ...nodeOf(capability),
@@ -324,6 +356,28 @@ export class WorkModel {
       })),
       arcs: arcs.sort(byCreation).map((arc) => ({ ...nodeOf(arc), stories: [...(arc.fields.stories ?? [])] })),
     };
+  }
+
+  /** The project's sentence as written (ADR-1085 D1), or undefined when neither half is. */
+  async anchor(): Promise<Anchor | undefined> {
+    const record = (await liveRecord(this.#records, ANCHOR_ID, ["anchor"])) as SchemaRecord<"anchor"> | null;
+    if (record === null || (record.fields.what === undefined && record.fields.audience === undefined)) return undefined;
+    return { ...record.fields };
+  }
+
+  /**
+   * Write the project's sentence (ADR-1085 D1): only the halves given change, and a half given as undefined is
+   * removed. The first write makes the anchor, at ANCHOR_ID; each is an edit like any other, so its writer is in
+   * the history. An empty half is refused, as the schema refuses it, with nothing written.
+   */
+  setAnchor(fields: AnchorEdit, options?: WriteOptions): Promise<SchemaRecord<"anchor">> {
+    return this.#serially(async () => {
+      if ((await liveRecord(this.#records, ANCHOR_ID, ["anchor"])) === null) {
+        const given = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+        return this.#records.create("anchor", given as Anchor, { ...options, id: ANCHOR_ID });
+      }
+      return (await this.#records.edit(ANCHOR_ID, fields, options)) as SchemaRecord<"anchor">;
+    });
   }
 
   /** The live arcs listing the story `storyId`, in creation order. */

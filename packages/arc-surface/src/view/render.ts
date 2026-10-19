@@ -126,12 +126,22 @@ function renderQuestion(question: QuestionReading): string {
     ${question.folds.map(({ label, text, words }) => `<details class="arc-fold" data-fold-key="${escape(question.id)}:${label}"><summary>${label} · ${words} words</summary><p class="arc-prose">${escape(text)}</p></details>`).join("")}</article>`;
 }
 
+const PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["week", "7 days"]] as const;
+/** The Closed tab's range bar (3.12), as the sessions History tab's: its presets, then a From–to of days. */
+function renderClosedRange(closed: NonNullable<BoardView["closed"]>): string {
+  const pressed = (preset: string) => "preset" in closed.range && closed.range.preset === preset;
+  return `<div class="arc-closed-range" role="group" aria-label="Arcs closed in">${PRESETS.map(([preset, name]) => `<button type="button" data-closed-range="${preset}" aria-pressed="${pressed(preset)}">${name}</button>`).join("")}`
+    + `<label>From <input type="date" data-closed-from value="${escape(closed.from)}" max="${escape(closed.to)}"></label><label>to <input type="date" data-closed-to value="${escape(closed.to)}" min="${escape(closed.from)}"></label></div>`;
+}
+
 /** HTML is a reading: every stored title and field is escaped before entering the page. */
 export function renderBoard(board: BoardView, picked?: string, openedQuestion?: string, expanded: ReadonlySet<string> = new Set()): string {
   const selected = board.lanes.find(({ id }) => id === picked) ?? board.lanes.find(({ id }) => id === board.selected);
   const detail = selected ? briefing(selected.view.arc.fields.intent, selected.view.questions, { parked: selected.view.state === "parked" }) : undefined;
   const question = detail?.questions.find(({ id }) => id === openedQuestion);
   return `<nav class="arc-scopes" aria-label="Arc lifecycle">${(["active", "parked", "closed"] as const).map((scope) => `<button type="button" data-arc-scope="${scope}" aria-pressed="${board.scope === scope}">${scope[0]!.toUpperCase() + scope.slice(1)}</button>`).join("")}</nav>
-    <div class="arc-panes"><div class="arc-lanes" aria-label="Arcs">${board.lanes.length ? board.queues.map((queue) => renderQueue(queue, new Map(board.lanes.map((lane) => [lane.id, lane])), selected?.id, expanded)).join("") : `<p class="arc-empty">No ${board.scope} arcs.</p>`}</div>
+    ${board.closed ? renderClosedRange(board.closed) : ""}
+    <div class="arc-panes"><div class="arc-lanes" aria-label="Arcs">${board.lanes.length ? board.queues.map((queue) => renderQueue(queue, new Map(board.lanes.map((lane) => [lane.id, lane])), selected?.id, expanded)).join("")
+      : board.closed?.reading ? `<p class="arc-empty" role="status">Reading closed arcs…</p>` : `<p class="arc-empty">No ${board.closed ? "arcs closed in this range" : `${board.scope} arcs`}.</p>`}</div>
     <aside class="arc-briefing" aria-label="Arc briefing">${question ? renderQuestion(question) : selected && detail ? renderPanel(selected, detail) : "<p>Pick an arc to read its briefing.</p>"}</aside></div>`;
 }

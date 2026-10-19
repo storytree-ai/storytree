@@ -1,6 +1,6 @@
 /** Capability 1 · Work states. Capability 1, contracts 1.4–1.6. The library decides whether waits/questions still hold;
  * Session management decides who holds work. This reading only gives those facts their display order. */
-import type { ArcState as Lifecycle, FieldsOf, Hold, NoteWait } from "@storytree/library";
+import type { ArcState as Lifecycle, BoardIncrement, Hold, NoteWait } from "@storytree/library";
 
 export type IncrementState = "landed" | "not-completed" | "waiting-on-you" | "queued" | "blocked" | "held" | "open";
 export type ArcState = "closed" | "parked" | "waiting" | "blocked" | "queued" | "in-progress" | "idle" | "ready" | "quiet";
@@ -41,7 +41,7 @@ export interface ArcFacts {
   increments?: readonly IncrementReading[];
 }
 
-export function incrementState(increment: FieldsOf<"increment">, facts: IncrementFacts = {}): IncrementReading {
+export function incrementState(increment: BoardIncrement["fields"], facts: IncrementFacts = {}): IncrementReading {
   if (increment.status === "closed") {
     const landed = increment.outcome?.disposition === "landed" || Boolean(increment.outcome?.pr);
     return {

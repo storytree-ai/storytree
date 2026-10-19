@@ -22,6 +22,11 @@
 .arc-scopes { display: flex; gap: 4px; padding: 5px 18px; border-bottom: 1px solid var(--line, #43504d); }
 .arc-scopes button { border: 0; border-radius: 4px; padding: 2px 10px; background: transparent; font-size: .75rem; }
 .arc-scopes button[aria-pressed=true] { background: var(--row-hover, #34443b); color: #78b396; }
+.arc-closed-range { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding: 4px 18px 6px; font-size: .72rem; color: var(--muted, #adb8b2); border-bottom: 1px solid var(--line, #43504d); }
+.arc-closed-range button { border: 1px solid var(--line, #43504d); border-radius: 4px; padding: 2px 8px; background: transparent; font-size: .72rem; }
+.arc-closed-range button[aria-pressed=true] { background: var(--row-hover, #34443b); color: #78b396; border-color: #79af95; }
+.arc-closed-range label { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+.arc-closed-range input { font: inherit; color: #d9dedb; background: #12181b99; border: 1px solid var(--line, #43504d); border-radius: 3px; padding: 1px 4px; color-scheme: dark; }
 .arc-panes { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); min-height: 0; flex: 1; }
 .arc-lanes, .arc-briefing { overflow: auto; overscroll-behavior: contain; }
 .arc-lanes { padding: 4px 0; border-right: 1px solid var(--line, #43504d); }

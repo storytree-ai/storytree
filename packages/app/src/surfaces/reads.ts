@@ -13,7 +13,7 @@ import path from "node:path";
 
 import { lookAsApp, projectFolder, openActivityLog, pruneTranscripts, readingLines, storedContextReading, storedSessionWindow, TranscriptCache, type ActivityLog } from "@storytree/session-management";
 import { idleAfterMs, importsOf, leaveAfterMs, machineOf, storytreeHome, standingDelegations } from "@storytree/project-and-caller";
-import type { FactoryLink, Library, Storytree } from "@storytree/library";
+import type { DayWindow, FactoryLink, Library, Storytree } from "@storytree/library";
 
 import type { PageReadsBridge } from "./bridge.js";
 
@@ -46,6 +46,14 @@ export interface PageReadsOptions {
   readonly transcriptCacheHome?: string;
   /** This machine's storytree home, which names the machine its imports are recorded for; the user's own when not given. */
   readonly home?: string;
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** A window of days as the page sent it, refused unless both ends are days (YYYY-MM-DD). */
+function dayWindow(window: unknown): DayWindow {
+  const { from, to } = (window ?? {}) as Partial<Record<"from" | "to", unknown>>;
+  if (typeof from !== "string" || typeof to !== "string" || !DAY.test(from) || !DAY.test(to)) throw new Error("a window of days needs a from and a to, each YYYY-MM-DD");
+  return { from, to };
 }
 
 /**
@@ -121,6 +129,8 @@ export function pageReads({ storytree, transcriptCacheHome, home }: PageReadsOpt
     relatedNotes: async (name, noteId) => (await library(await project(name))).relatedNotes(noteId as string),
     standingDelegations: async (name) => standingDelegations(await library(await project(name))),
     arcViews: async (name) => (await library(await project(name))).arcViews(),
+    boardArcs: async (name, closed) => (await library(await project(name))).boardArcs(dayWindow(closed)),
+    closedArcs: async (name, window) => (await library(await project(name))).closedArcs(dayWindow(window)),
     holds: async (name) => (await library(await project(name))).holds(),
     contextReadings: async (name, sessions) => {
       const known = await project(name);

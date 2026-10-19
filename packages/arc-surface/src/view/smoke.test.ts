@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { Window } from "happy-dom";
 import type { Line } from "@storytree/library";
 import { smokeArcSurface, type ArcDrawn, type BoardReads, type BoardSnapshot } from "../index.js";
+import { dayOf } from "../board/closed-range.js";
 import { record } from "../testing/records.js";
 import { mountArcSurface } from "./index.js";
 
@@ -23,7 +24,7 @@ test("3.6 the public smoke check visits the mounted scopes and expands queues, j
   });
 
   const arc = (id: string, state: "active" | "parked" | "closed" = "active") => ({
-    arc: record(id, "arc", { title: id, intent: `Build ${id}`, endState: "Done" }), state,
+    arc: record(id, "arc", { title: id, intent: `Build ${id}`, endState: "Done" }), state, ...(state === "closed" ? { closed: dayOf(Date.now()) } : {}),
     increments: [record(`${id}-work`, "increment", { arc: id, title: `${id} work`, objective: id, body: id, status: "proposal" })],
     questions: [],
   });
@@ -45,7 +46,7 @@ test("3.6 the public smoke check visits the mounted scopes and expands queues, j
   const reads: BoardReads = {
     changesSince: async () => ({ changes: [], cursor: 0 }),
     linesSince: async (_project, cursor) => ({ lines: lines.filter((line) => line.seq > cursor), cursor: 2 }),
-    arcViews: async () => snapshot.arcs,
+    boardArcs: async () => snapshot.arcs, closedArcs: async () => [],
     holds: async () => ({ waits: snapshot.waits, heldOn: snapshot.heldOn }),
   };
   surface = mountArcSurface(document.body, { project: "p", reads });
@@ -80,6 +81,6 @@ test("3.6 the public smoke check visits the mounted scopes and expands queues, j
   assert.equal(document.querySelector('[data-increment-id="release-work"]'), null);
 
   const missing = arc("missing");
-  assert.deepEqual(await smokeArcSurface(execution, "p", { ...reads, arcViews: async () => [...snapshot.arcs, missing] }),
+  assert.deepEqual(await smokeArcSurface(execution, "p", { ...reads, boardArcs: async () => [...snapshot.arcs, missing] }),
     ["arc not drawn: missing", "increment not drawn: missing work"]);
 });

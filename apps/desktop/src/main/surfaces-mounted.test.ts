@@ -20,7 +20,7 @@ import { pageReads, readSurfaces, setSurface, surfaceOn } from "@storytree/app";
 import { arcSmokeProblems, boardView, watchBoard, type BoardState } from "@storytree/arc-surface";
 import { arcSurfaces } from "@storytree/arc-surface/surfaces";
 import { forestSurfaces } from "@storytree/forest/surfaces";
-import { connect } from "@storytree/library";
+import { connect, type DayWindow } from "@storytree/library";
 import { partsPlugin } from "@storytree/plugin-loader";
 
 import unbundled from "./parts/surfaces.js";
@@ -70,7 +70,7 @@ test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed
     let state: BoardState | undefined;
     let fail = true;
     const ticks = new Map<number, () => void>();
-    const watcher = watchBoard({ project, reads: { ...reads, idleAfterMs: async () => 30 * 60_000, arcViews: async (p: string) => { if (fail) throw new Error("read unavailable"); return reads.arcViews(p); } },
+    const watcher = watchBoard({ project, reads: { ...reads, idleAfterMs: async () => 30 * 60_000, boardArcs: async (p: string, closed: DayWindow) => { if (fail) throw new Error("read unavailable"); return reads.boardArcs(p, closed); } },
       timers: { now: () => now, every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } }, onState: (next) => { state = next; } });
     stop = watcher.stop;
     assert.equal(state?.status, "loading");

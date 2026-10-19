@@ -68,7 +68,7 @@ try {
   // The renderer's own reads (updates, setup) are answered as idle here; they are not under test.
   const pick = (names) => Object.fromEntries(names.map((name) => [name, reads[name]]));
   const bridge = fakeBridge({
-    ...pick(['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcViews', 'holds']),
+    ...pick(['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcViews', 'boardArcs', 'closedArcs', 'holds']),
     projectSelection: async () => ({ current: project, projects: [project] }),
     readSurfaces: async () => undefined,
     agentConnections: async () => [],

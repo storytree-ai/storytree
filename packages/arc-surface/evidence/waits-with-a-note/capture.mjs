@@ -56,7 +56,7 @@ try {
   reads = pageReads({ storytree: store });
   const pick = (names) => Object.fromEntries(names.map((name) => [name, reads[name]]));
   const bridge = fakeBridge({
-    ...pick(['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'arcViews']),
+    ...pick(['listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'arcViews', 'boardArcs', 'closedArcs']),
     // The library's own holds, read as of three days on: the 'tomorrow' check-back has passed, the others have not.
     holds: async () => library.holds(later()),
     projectSelection: async () => ({ current: project, projects: [project] }),

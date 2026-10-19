@@ -150,10 +150,10 @@ test("2.10 · the time-lapse waits for its globe to be set up, then plays from i
   assert.deepEqual(globeOf(arrival[1]!, tour.state, tour.elapsed()), { map: "own", at: 3 });
 });
 
-test("2.12 · the intro's fifth step, after the fixes, is the harness claim over storytree's own map, the harnesses' marks its one support", () => {
+test("2.12 · the intro's last step, after the fixes, is the harness claim over storytree's own map, the harnesses' marks its one support", () => {
   const intro = tourSteps.filter(item => item.explainer === "opening");
-  assert.deepEqual(intro.map(item => item.id), ["pain", "grow", "value", "fixes", "harness"]);
-  const harness = intro[4]!;
+  assert.deepEqual(intro.map(item => item.id), ["grow", "value", "fixes", "harness"]);
+  const harness = intro[3]!;
   assert.deepEqual([harness.template, harness.kind, harness.map, harness.lines], ["claim", "beats", "own", ["Storytree works with your existing coding harness."]]);
   assert.ok(!harness.growth && !harness.panel && !harness.labels, "storytree's own globe, held whole as the other intro steps hold it, with nothing over it");
   assert.deepEqual(harness.marks?.map(mark => [mark.name, mark.src]), [["Claude Code", "/harness/claude-code.png"], ["Codex", "/harness/codex.png"], ["Pi", "/harness/pi.svg"]]);
@@ -572,9 +572,9 @@ test("2.25 · every step with depth offers it in one wording, and a narrated sta
   // A waiting step shows every line told, so a visitor who pauses can read the whole step.
   assert.deepEqual(linesOn(claims, 3, true), [true, true, true]);
   // The intro's beats keep their coda beneath the line before it; a claim's support stays with its claim.
-  const pain = tourSteps.find(s => s.id === "pain")!, fixes = tourSteps.find(s => s.id === "fixes")!;
-  assert.deepEqual(linesOn(pain, 1, false), [true, false]);
-  assert.deepEqual(linesOn(pain, 2, false), [true, true]);
+  const beats: TourStep = { ...step("beats", "opening", ["One", "Two"]), kind: "beats" }, fixes = tourSteps.find(s => s.id === "fixes")!;
+  assert.deepEqual(linesOn(beats, 1, false), [true, false]);
+  assert.deepEqual(linesOn(beats, 2, false), [true, true]);
   assert.deepEqual(linesOn(fixes, 2, false), [true, true, false]);
 });
 

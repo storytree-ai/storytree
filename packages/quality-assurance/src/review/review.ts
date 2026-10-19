@@ -16,7 +16,8 @@
  *   From the second review on it also holds each earlier hit with the implementer's answer, and the
  *   rejections the reviewer must judge (4.2).
  * - A return is taken whole or not at all: it answers every check and contract in its brief, and judges every
- *   rejection, and nothing else (2.2, 4.2).
+ *   rejection, and nothing else (2.2, 4.2), and names the review it answers, so a return left from an earlier
+ *   review, as one read from another folder's /tmp may be, is refused (2.9).
  * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1). With
  *   one standing after the tenth review, the eleventh brief is refused, naming the arc for the session's
  *   question (4.3); the refusal itself writes nothing.
@@ -72,6 +73,8 @@ export interface Base {
 
 /** What the change-reviewer returns for one brief. */
 export interface ReviewReturn {
+  /** The review it answers: its brief's number, so a return left from an earlier review is never taken for this one (contract 2.9). */
+  readonly review: number;
   readonly checks: readonly { readonly check: string; readonly tripped: boolean; readonly hits?: readonly { readonly file: string; readonly line: number; readonly found: string }[] }[];
   readonly contracts: readonly { readonly contract: string; readonly met: boolean; readonly why?: string }[];
   readonly rejections?: readonly { readonly hit: number; readonly accepted: boolean; readonly why?: string }[];
@@ -269,6 +272,9 @@ function unmetIn(review: ReviewReturn): Unmet[] {
 /** What a return gets wrong against its brief, each naming the check, contract or hit; none means it is taken. */
 function refusals(brief: Brief, review: ReviewReturn): string[] {
   const problems: string[] = [];
+  if (review.review !== brief.iteration) {
+    problems.push(`${review.review === undefined ? "the return names no review" : `the return is for review ${review.review}`}, and the brief awaiting one is review ${brief.iteration}: write this review's return, with "review": ${brief.iteration}`);
+  }
   const answered = (what: string, wanted: readonly (string | number)[], given: readonly (string | number)[]): void => {
     for (const id of wanted) {
       const times = given.filter((one) => one === id).length;
@@ -389,6 +395,7 @@ function contractLine(contract: Brief["contracts"][number], indent: string): str
 export function briefText(brief: Brief): string {
   return [
     `Review ${brief.iteration} of change ${brief.change} (project ${brief.project}); packages it touches: ${brief.packages.join(", ")}.`,
+    `Your return names this review, "review": ${brief.iteration}, or it is refused as another review's.`,
     "",
     `Checks (${brief.checks.length}): for each, say whether the change trips it, and where (file, line, what you found).`,
     ...brief.checks.map((check) => [

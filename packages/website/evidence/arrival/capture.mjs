@@ -1,5 +1,5 @@
-// Act 2's arrival (ADR-0889, contracts 2.11 and 2.12), from the locally built site: the pain on a dark screen,
-// storytree's own recorded growth replayed on the tour's clock, the value statement alone, the three fixes in each
+// Act 2's arrival (ADR-0889, contracts 2.11 and 2.12), from the locally built site: the pain line chapter 1 now ends on
+// (ADR-1091 D1), storytree's own recorded growth replayed on the tour's clock, the value statement alone, the three fixes in each
 // look, and the cut to the shop's three teaching islands.
 // pnpm --filter @storytree/website build && node packages/website/evidence/arrival/capture.mjs [--only <name>] [--check]
 import assert from "node:assert/strict";
@@ -50,14 +50,11 @@ const pause = async page => { if (await page.locator("#tour-play").getAttribute(
 const play = async page => { if (await page.locator("#tour-play").getAttribute("aria-label") === "Play the tour") await page.locator("#tour-play").click(); };
 
 const runs = {
-  // 2.11 with the live globe: the pain before any globe, the growth on the tour's clock, then whole.
+  // 2.11 with the live globe: the growth on the tour's clock, then whole.
   async arrival() {
     for (const [tag, viewport] of [["1440", { width: 1440, height: 900 }], ["390", { width: 390, height: 844 }]]) {
       const page = await open(viewport);
-      assert.equal(await stepOf(page), "pain", "Act 2 opens on the pain");
-      assert.deepEqual(await drawing(page), { globe: "own", growth: "0.00" }, "under the pain storytree's own globe is still its point");
-      assert.equal(await page.locator(".tour-heading h1").evaluate(node => getComputedStyle(node).opacity), "0", "nor is storytree named yet");
-      await page.waitForTimeout(9000); await shot(page, `${tag}-1-pain`);
+      assert.equal(await stepOf(page), "grow", "Act 2 opens on storytree's growth; the pain line ends chapter 1");
       await go(page, "grow");
       const moments = [];
       const sample = async (index, wait) => {
@@ -113,11 +110,9 @@ const runs = {
       await page.close();
     }
   },
-  // Reduced motion draws the shop whole at once, so under the pain nothing is drawn; without WebGL the still stays hidden.
+  // Reduced motion draws the globe whole at once; without WebGL the still stays hidden.
   async reduced() {
     const page = await open({ width: 1440, height: 900 }, { reducedMotion: "reduce" });
-    assert.equal(await page.locator("#website-forest").evaluate(node => getComputedStyle(node).opacity), "0", "reduced motion: no globe under the pain");
-    await shot(page, "1440-reduced-1-pain");
     await go(page, "value"); await page.waitForTimeout(800); await shot(page, "1440-reduced-3-value");
     await page.close();
     const still = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
@@ -128,34 +123,34 @@ const runs = {
       HTMLCanvasElement.prototype.getContext = function (kind, ...args) { return kind.startsWith("webgl") ? null : original.call(this, kind, ...args); };
     });
     await still.goto(url); await still.locator("#tour-play").waitFor();
-    assert.equal(await stepOf(still), "pain");
-    assert.equal(await still.locator(".storytree-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "no WebGL: storytree's saved still never stands in under the pain");
+    assert.equal(await stepOf(still), "grow");
+    assert.equal(await still.locator(".storytree-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "no WebGL: storytree's saved still never stands in for the growth");
     await go(still, "fixes"); await pause(still); await still.waitForTimeout(300);
     await still.screenshot({ path: path.join(pictures, "390-no-webgl-4-fixes.png") });
     await still.close();
-    // While the globe is still loading, storytree's saved still never stands in under the pain either.
+    // While the globe is still loading, storytree's saved still never stands in for the growth either.
     const loading = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     loading.on("pageerror", error => errors.push(error.message));
     await loading.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
     await loading.route(/forest-scene-[^/]*\.js$/, () => {});
     await loading.goto(url); await loading.locator("#tour-play").waitFor();
     await loading.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "loading");
-    assert.equal(await loading.locator(".storytree-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "loading: no still of storytree's globe under the pain");
+    assert.equal(await loading.locator(".storytree-still img").evaluate(node => node.checkVisibility({ visibilityProperty: true })), false, "loading: no still of storytree's globe before the growth");
     await loading.close();
-    observed.push("2.11 reduced motion, no WebGL and a loading globe keep the arrival dark under the pain: pass");
+    observed.push("2.11 no WebGL and a loading globe keep the arrival dark: pass");
   },
-  // A first-time visitor: Act 1 to its finale, out through its exit, onto the pain and the growth from its point of light.
+  // A first-time visitor: Act 1 to its finale, out through its exit and its pain line, onto the growth from its point of light.
   async handoff() {
     const page = await open({ width: 1440, height: 900 }, { firstVisit: true });
     await page.locator("#opening-run").click();
     await page.locator("#opening-better").waitFor({ state: "visible", timeout: 90_000 });
     await page.locator("#opening-better").click();
-    await page.waitForFunction(() => document.querySelector("#chapter2").dataset.tourStep === "pain" && document.querySelector("#opening")?.hidden !== false, null, { timeout: 15_000 }).catch(() => {});
     await page.waitForTimeout(1400); await shot(page, "1440-0a-turn");
     await page.waitForTimeout(3000); await shot(page, "1440-0b-pain");
-    assert.equal(await stepOf(page), "pain");
+    await page.waitForFunction(() => document.querySelector("#opening")?.hidden, null, { timeout: 15_000 });
+    assert.equal(await stepOf(page), "grow");
     await page.close();
-    observed.push("Act 1's exit lands on the pain: pass");
+    observed.push("Act 1's exit says its pain line, then lands on storytree's growth: pass");
   },
   // The map chapter's health beat: Checkout's recorded CI change; its last step offers the sourced comparison.
   async map() {
@@ -272,7 +267,7 @@ const runs = {
       "knowledge-reads-line-3": ["Checkout"], "knowledge-reads": ["Checkout"] };
     await chapterSteps({ chapter: "knowledge", folder: "knowledge-three-steps", lines: { "knowledge-inside": [3], "knowledge-shelf": [2], "knowledge-reads": [3] }, frames, phoneFrames: frames, known: [], extra: {} });
   },
-  // A clip of the arrival playing at the default 0.75×, pain to fixes.
+  // A clip of the arrival playing at the default 0.75×, growth to fixes.
   async clip() {
     const page = await open({ width: 1440, height: 900 }, { video: true });
     await page.waitForTimeout(500);

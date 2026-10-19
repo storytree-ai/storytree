@@ -143,6 +143,11 @@ export const FINALE_AGAIN = [
   "+ the better way is one click away.",
   "want me to show you?"
 ];
+// The owner's words, final (2026-10-04): chapter 1 ends on them, said on the dark screen the turn leaves (ADR-1091 D1).
+export const PAIN = [
+  "Right now, building with AI feels overwhelming, exhausting and disconnected.",
+  "Storytree is here to fix that."
+];
 // DRAFT (ADR-0888 1.5): the main exit, as a button and as the no-script link.
 export const EXIT = "show me where to look";
 // DRAFT: the line under the first screen.

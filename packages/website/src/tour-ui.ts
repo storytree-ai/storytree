@@ -23,8 +23,10 @@ export function wireTour() {
   let counts: Record<string, string> = {};
   try { counts = JSON.parse(document.getElementById("tour-counts")?.textContent ?? "{}") as Record<string, string>; } catch { /* The words keep their placeholders. */ }
   const text = (value: string) => fill(value, counts);
-  // The globe sets up behind the pain beat; the time-lapse waits until it is live, or has fallen back to its still (2.10).
-  const tour = createTour(steps, { ready: () => document.getElementById("website-forest")?.dataset.forestState !== "loading" });
+  // The globe sets up behind the arrival's first words; the time-lapse waits until it is live, or has fallen back to its still (2.10).
+  // Before its activation the globe reads "still" too, so it is set up once live, or once still with its layer mounted (fallen back).
+  const forest = document.getElementById("website-forest");
+  const tour = createTour(steps, { ready: () => !forest || forest.dataset.forestState === "live" || (forest.dataset.forestState === "still" && forest.querySelector(".forest-canvas") !== null) });
   const recorded = get("tour-recorded");
   const card = get("tour-card"), heading = get("tour-title"), lines = get("tour-lines"), chips = get("tour-chips"), marks = get("tour-marks"), marksNote = get("tour-marks-note");
   const depthToggle = get<HTMLButtonElement>("tour-depth"), depth = get("tour-why");

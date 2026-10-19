@@ -31,17 +31,18 @@ export async function verifyOpeningFrames(browser, url, output) {
     }
     // When chapter 1 hands the screen to chapter 2: from here the globe should draw at once.
     window.addEventListener("storytree-opening", event => { if (!event.detail.active && window.runAt) window.handoverAt ??= performance.now(); });
-    // Act 2's arrival: the pain beat the globe sets up behind, then the time-lapse's first drawn frame.
+    // Act 2's arrival: its first words, which the globe sets up behind, then the time-lapse's first drawn frame.
     window.painFrames = [];
-    window.addEventListener("storytree-tour", event => {
-      if (event.detail.step.id === "grow" && window.handoverAt !== undefined && window.growAt === undefined) { window.growAt = performance.now(); window.globesShownAtGrow = [...window.globesShown]; }
+    // The growth is told from the arrival's first frame, held at its start until the globe is set up: it starts once it moves.
+    window.addEventListener("storytree-tour-growth", event => {
+      if (event.detail.at > 0 && window.handoverAt !== undefined && window.growAt === undefined) { window.growAt = performance.now(); window.globesShownAtGrow = [...window.globesShown]; }
     });
     let last;
     const frame = now => {
       if (last !== undefined) {
         window.openingFrames[window.runAt ? "playing" : "ready"].push(now - last);
         if (window.runAt && !window.finaleAt) window.openingFrames[window.parkedAt ? "quiet" : "swarm"].push(now - last);
-        if (window.exitAt !== undefined && window.handoverAt === undefined) window.exitFrames.push(now - last);
+        if (window.exitAt !== undefined && window.painAt === undefined) window.exitFrames.push(now - last);
         if (window.handoverAt !== undefined && window.growAt === undefined) {
           window.painFrames.push(now - last);
           // Where each long frame fell, from the hand-over: its start and end.
@@ -69,6 +70,10 @@ export async function verifyOpeningFrames(browser, url, output) {
         const drawing = document.querySelector("#website-forest .forest-drawing");
         if (drawing && drawing.dataset.globe !== window.globesShown.at(-1)) window.globesShown.push(drawing.dataset.globe);
       }).observe(document.getElementById("website-forest"), { subtree: true, childList: true, attributes: true, attributeFilter: ["data-globe"] });
+      // The turn ends where chapter 1's pain line begins (ADR-1091 D1).
+      new MutationObserver(() => {
+        if (window.exitAt !== undefined && document.getElementById("opening").dataset.phase === "pain") window.painAt ??= performance.now();
+      }).observe(document.getElementById("opening"), { attributes: true, attributeFilter: ["data-phase"] });
       new MutationObserver(() => {
         if (window.runAt && !document.getElementById("opening-better").hidden && !window.finaleAt) window.finaleAt = performance.now();
       }).observe(document.getElementById("opening-better"), { attributes: true, attributeFilter: ["hidden"] });
@@ -124,7 +129,7 @@ export async function verifyOpeningFrames(browser, url, output) {
         handoverToActivateMs: activated - window.handoverAt, loadMs: ready - activated, handoverToLiveMs: ready - window.handoverAt,
         painBeatMs: window.growAt - window.handoverAt, liveBeforeGrowth: ready < window.growAt,
         painStallsMs: window.painStalls ?? [], firstPainLineMs: window.firstPainLine,
-        exitToHandoverMs: window.handoverAt - window.exitAt, globesBeforeGrowth: window.globesShownAtGrow ?? window.globesShown, turnLongestFrameMs: Math.max(...window.exitFrames, 0),
+        exitToPainMs: window.painAt - window.exitAt, globesBeforeGrowth: window.globesShownAtGrow ?? window.globesShown, turnLongestFrameMs: Math.max(...window.exitFrames, 0),
         painLongestFramesMs: sorted.slice(0, 3), painToFirstGrowthFrameMs: window.firstGrowthDraw - window.handoverAt,
         growToFirstGrowthFrameMs: window.firstGrowthDraw - window.growAt,
         activationsAfterHandover: performance.getEntriesByName("forest-activate").length,
@@ -132,15 +137,15 @@ export async function verifyOpeningFrames(browser, url, output) {
     }));
     await writeFile(path.join(output, "opening-frames.json"), JSON.stringify(measured, null, 2) + "\n");
     console.log(JSON.stringify({ handoverToLiveMs: measured.handoverToLiveMs, painBeatMs: measured.painBeatMs, painLongestFramesMs: measured.painLongestFramesMs, painStallsMs: measured.painStallsMs, firstPainLineMs: measured.firstPainLineMs, painToFirstGrowthFrameMs: measured.painToFirstGrowthFrameMs }));
-    console.log(JSON.stringify({ exitToHandoverMs: measured.exitToHandoverMs, turnLongestFrameMs: measured.turnLongestFrameMs }));
+    console.log(JSON.stringify({ exitToPainMs: measured.exitToPainMs, turnLongestFrameMs: measured.turnLongestFrameMs }));
     // The turn is about 1.1 s of animation; a loaded machine may stretch it, never freeze it.
-    assert.ok(measured.exitToHandoverMs < 2000, `website 1.9: the turn hands over in about the time it is drawn to take (${Math.round(measured.exitToHandoverMs)} ms)`);
+    assert.ok(measured.exitToPainMs < 2000, `website 1.9: the turn reaches the pain line in about the time it is drawn to take (${Math.round(measured.exitToPainMs)} ms)`);
     assert.ok(measured.painStallsMs.every(([start, end]) => start >= 0 || end - start < 1000), `website 1.9: the turn draws frames throughout (${JSON.stringify(measured.painStallsMs)})`);
-    assert.deepEqual(measured.globesBeforeGrowth, ["own"], "website 2.10: under the pain the drawing shows only storytree's own seed, never another globe");
+    assert.deepEqual(measured.globesBeforeGrowth, ["own"], "website 2.10: before the time-lapse the drawing shows only storytree's own seed, never another globe");
     assert.equal(measured.activationsAfterHandover, 1, "website 2.10: the hand-over starts one globe");
-    assert.ok(measured.liveBeforeGrowth, "website 2.10: the globe is set up behind the pain beat, before the time-lapse starts");
+    assert.ok(measured.liveBeforeGrowth, "website 2.10: the globe is set up behind the arrival's first words, before the time-lapse starts");
     const before = measured.painStallsMs.filter(([start]) => start >= 0 && start < measured.firstPainLineMs);
-    assert.deepEqual(before, [], `website 2.10: the globe's setup stalls only behind the pain words, never the dark beat before them (first words at ${measured.firstPainLineMs} ms)`);
+    assert.deepEqual(before, [], `website 2.10: the globe's setup stalls only behind the arrival's first words, never the dark beat before them (first words at ${measured.firstPainLineMs} ms)`);
     await page.waitForTimeout(3000); // Let the first camera flight arrive before its picture.
     await page.screenshot({ path: path.join(output, "handover-1440.png") });
     await page.getByRole("button", { name: "Replay chapter 1" }).click();
@@ -175,7 +180,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     await fallback.waitForTimeout(3000);
     await fallback.screenshot({ path: path.join(output, "handover-390.png") });
   } finally { release(); await fallback.close(); }
-  console.log("PASS contracts 1.9, 2.3 and 2.10: a turn that keeps its frames, nothing before Run, nothing of the globe in Act 1, set up behind the pain beat before the time-lapse, replay, scroll, return and no-observer fallback");
+  console.log("PASS contracts 1.9, 2.3 and 2.10: a turn that keeps its frames, nothing before Run, nothing of the globe in Act 1, set up behind the arrival's first words before the time-lapse, replay, scroll, return and no-observer fallback");
 }
 
 // ADR-0879 D6: nothing may overflow sideways and no window may cover the HUD row, at any size or zoom.
@@ -270,19 +275,33 @@ export async function verifyOpening(browser, url, output) {
   assert.equal(await page.evaluate(() => document.activeElement.id), "opening-run", "website 1.8: restarting returns keyboard focus to Run");
   await page.keyboard.press("Enter");
   await better(page).waitFor({ timeout: 50000 });
-  // ADR-0879 D6: the turn is a CRT switching off: windows, then a line, then a point, inside ~1.4 seconds.
-  const turn = await page.evaluate(() => new Promise(resolve => {
+  // ADR-0879 D6: the turn is a CRT switching off: windows, then a line, then a point, inside ~1.4 seconds. Chapter 1 then ends on
+  // the pain line, said a line at a time on the dark screen the turn leaves, and only then hands over (ADR-1091 D1).
+  const turn = page.evaluate(() => new Promise(resolve => {
     const root = document.querySelector("#opening"); const seen = []; const t0 = performance.now();
+    const said = () => [...document.querySelectorAll("#opening-pain p")].filter(p => p.checkVisibility({ opacityProperty: true })).map(p => p.textContent);
+    let pain, lines = [];
     new MutationObserver(() => {
       const phase = root.dataset.crt;
       if (phase && seen.at(-1)?.[0] !== phase) seen.push([phase, Math.round(performance.now() - t0)]);
-      if (root.hidden) resolve({ seen, total: performance.now() - t0 });
-    }).observe(root, { attributes: true, attributeFilter: ["data-crt", "hidden"] });
+      if (root.dataset.phase === "pain" && !root.hidden) pain ??= performance.now() - t0;
+      if (root.hidden) resolve({ seen, pain, lines, total: performance.now() - t0 });
+    }).observe(root, { attributes: true, attributeFilter: ["data-crt", "data-phase", "hidden"] });
+    // What the pain line shows, read every frame until the hand-over clears it.
+    const read = () => { if (root.hidden) return; if (root.dataset.phase === "pain") lines = said(); requestAnimationFrame(read); };
+    requestAnimationFrame(read);
     document.getElementById("opening-better").click();
   }));
-  assert.deepEqual(turn.seen.map(step => step[0]), ["line", "point"], "The screen collapses to a line, then to a point");
-  assert.ok(turn.total < 1500, `The turn takes under 1.5 seconds (took ${Math.round(turn.total)} ms)`);
-  console.log(`turn: line at ${turn.seen[0][1]} ms, point at ${turn.seen[1][1]} ms, handed over at ${Math.round(turn.total)} ms; finale reached ${Math.round(elapsed)} ms after Run`);
+  // Chapter 1's last frame, on a phone and on a desktop.
+  await page.waitForFunction(() => [...document.querySelectorAll("#opening-pain p")].every(p => p.classList.contains("on") && getComputedStyle(p).opacity === "1"), null, { timeout: 15000 });
+  await page.screenshot({ path: path.join(output, "390-pain.png") });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.screenshot({ path: path.join(output, "1440-pain.png") });
+  const ended = await turn;
+  assert.deepEqual(ended.seen.map(step => step[0]), ["line", "point"], "The screen collapses to a line, then to a point");
+  assert.ok(ended.pain < 1500, `The turn reaches the pain line in under 1.5 seconds (took ${Math.round(ended.pain)} ms)`);
+  assert.deepEqual(ended.lines, ["Right now, building with AI feels overwhelming, exhausting and disconnected.", "Storytree is here to fix that."], "website 1.8: chapter 1 ends on the pain line, both of its lines on screen before the hand-over");
+  console.log(`turn: line at ${ended.seen[0][1]} ms, point at ${ended.seen[1][1]} ms, pain at ${Math.round(ended.pain)} ms, handed over at ${Math.round(ended.total)} ms; finale reached ${Math.round(elapsed)} ms after Run`);
   assert.equal(page.url(), url, "The turn does not navigate or change the hash");
   assert.ok(await page.locator("#website-forest").evaluate(el => el.getBoundingClientRect().top < innerHeight));
   await page.reload();
@@ -321,9 +340,12 @@ export async function verifyOpening(browser, url, output) {
       await still.waitForFunction(() => document.querySelector("#opening").dataset.phase === "peak");
       assert.equal(await still.evaluate(() => document.querySelector("#opening").getAnimations({ subtree: true }).length), 0, "Changing motion preference cancels the collapse");
       assert.equal(await still.locator("#opening-finale").evaluate(el => getComputedStyle(el).opacity), "1");
-      // Reduced motion: the turn hands over at once, with no animation on the globe.
+      // Reduced motion: the turn says the pain line whole at once, then hands over with no animation on the globe.
       await better(still).click();
-      assert.equal(await still.evaluate(() => document.querySelector("#opening").hidden), true, "Reduced motion goes straight to chapter 2");
+      assert.equal(await still.locator("#opening-pain p.on").count(), 2, "Reduced motion shows the pain line whole, without the collapse");
+      assert.equal(await still.evaluate(() => document.querySelector("#opening").getAnimations({ subtree: true }).length), 0);
+      await still.clock.fastForward(12000);
+      assert.equal(await still.evaluate(() => document.querySelector("#opening").hidden), true, "Then it hands over to chapter 2");
       assert.equal(await still.evaluate(() => document.getElementById("website-forest").getAnimations().length), 0);
     }
     await still.close();

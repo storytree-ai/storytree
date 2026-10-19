@@ -54,3 +54,13 @@ test("2.2 every claim-ending event removes the holder, and a running command fol
   assert.equal(agentsOnBoard([...lines, { kind: "landed", source: "tool", session: "s2", capability: "part", seq: 6, at: at(6).toISOString(), project: "p" }], at(42)).on("part"), undefined);
   assert.equal(agentsOnBoard([...lines, { kind: "command-started", source: "hook", session: "s1", command: "tests", call: "c", seq: 6, at: at(6).toISOString(), project: "p" }], at(90)).on("i")?.activity, "live");
 });
+
+// The laptop's board threw on every news from 2026-10-19 00:13 to 01:29 UTC: a pull request's holder is no session (ADR-1037).
+test("2.2 a handed-over pull request's claims show on the board, held for it, though its holder is no session (ADR-1037)", () => {
+  const handedOver: Line = { kind: "claimed", source: "tool", harness: "watcher", session: "pull-request-12", increment: "held", reason: "handed over", seq: 6, at: at(6).toISOString(), project: "p" };
+  const agent = agentsOnBoard([...lines, handedOver], at(50)).on("held");
+  assert.equal(agent?.holder, "live");
+  assert.equal(agent?.label, "Pull request #12");
+  assert.equal(agent?.activity, "held for pull request #12 until it merges or closes");
+  assert.equal(agent?.quietMinutes, 44);
+});

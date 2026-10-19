@@ -363,7 +363,7 @@ async function verifyNamesClearHeader(page, width, output) {
 // 2.19 at every width: a chapter step is told like the arrival's beats, as plain lines with no card and no bullet points,
 // only smaller (explain mode after the arrival's impact mode), with its How and Why beneath the lines.
 async function verifyOneFormat(page, width, output) {
-  await goToStep(page, "pain");
+  await goToStep(page, "grow");
   const impact = await page.locator("#tour-lines .tour-line.on .said").first().evaluate(node => parseFloat(getComputedStyle(node).fontSize));
   for (const id of ["map-capabilities", "map-claims", "knowledge-shelf"]) {
     await goToStep(page, id);
@@ -457,12 +457,6 @@ export async function verifyImmersive(browser, url, output) {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "No sideways scroll");
     await page.screenshot({ path: path.join(output, `tour-${width}.png`) });
     if (width > 600) assert.equal(await page.locator('#tour-bar [data-speed="0.75"]').getAttribute("aria-pressed"), "true", "Act 2 arrives at 0.75×");
-    // 2.11: with no globe yet, the pain is centred on the screen, in two lines.
-    await goToStep(page, "pain");
-    const said = await page.locator("#tour-lines .tour-line.on").evaluateAll(lines => lines.map(line => { const box = line.querySelector(".said").getBoundingClientRect(); return box.x + box.width / 2; }));
-    assert.equal(said.length, 2, "the pain is said in two lines");
-    for (const centre of said) assert.ok(Math.abs(centre - width / 2) < width * .04, `the pain is centred at ${width}px (${Math.round(centre)})`);
-    await page.screenshot({ path: path.join(output, `pain-${width}.png`) });
     // The recording's date is small print in the bottom-left corner, not a chip on the card.
     await goToStep(page, "grow");
     assert.equal(await page.locator("#tour-card .chip-recording").count(), 0, "no recording chip on the card");

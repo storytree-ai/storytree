@@ -8,6 +8,7 @@ import { test } from "node:test";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 
 import { archiveArmRepositories, ARM_WORKFLOW_PATH, armWorkflow, makeArmRepository, type ArmCi, type Gh } from "./index.js";
+import { ARM_CODEOWNERS_PATH } from "./repositories.js";
 
 const CI: ArmCi = { checks: "npm test", verifier: { testsRepository: "storytree-ai/x-twin-build-tests", command: "bash .hidden-tests/run.sh" } };
 
@@ -64,7 +65,7 @@ test("3.2 · making an arm's repository creates it public in storytree-ai, seede
         };
         assert.deepEqual(JSON.parse(readFileSync(path.join(seed, ARM_WORKFLOW_PATH), "utf8")), armWorkflow(CI), "the seed carries the arm's CI");
       }
-      return "";
+      return args.join(" ") === "api user --jq .login" ? "factory-login\n" : "";
     };
 
     const secrets = { testsToken: "github_pat_tests_value", mergeQueueToken: "github_pat_queue_value" };
@@ -74,7 +75,7 @@ test("3.2 · making an arm's repository creates it public in storytree-ai, seede
     const create = calls.find((call) => call.args[0] === "repo" && call.args[1] === "create")!;
     assert.equal(create.args[2], repository);
     assert.ok(create.args.includes("--public") && create.args.includes("--push"));
-    assert.deepEqual(seeded, { files: [ARM_WORKFLOW_PATH, "package.json", "src/index.ts"], commits: "1" });
+    assert.deepEqual(seeded, { files: [ARM_CODEOWNERS_PATH, ARM_WORKFLOW_PATH, "package.json", "src/index.ts"], commits: "1" });
     assert.deepEqual(readdirSync(startingTree).sort(), ["package.json", "src"], "the starting tree is left as it was");
 
     for (const value of Object.values(secrets)) {
@@ -105,4 +106,31 @@ test("3.3 · ending an experiment archives each of its arms' repositories", () =
   const archived = archiveArmRepositories("twin-build", ["map-reads-on", "map-reads-off"], (args) => (calls.push(args), ""));
   assert.deepEqual(archived, ["storytree-ai/x-twin-build-map-reads-on", "storytree-ai/x-twin-build-map-reads-off"]);
   assert.deepEqual(calls, archived.map((repository) => ["repo", "archive", repository, "--yes"]));
+});
+
+test("3.4 · an arm's workflow, which runs the hidden tests with their token after each merge, changes only with a code owner's review, and its one code owner is the identity its lanes act as, so no lane can approve its own change", async () => {
+  await withTempDir((dir) => {
+    const startingTree = path.join(dir, "start");
+    mkdirSync(startingTree);
+    writeFileSync(path.join(startingTree, "package.json"), "{}");
+
+    let owners: string | undefined;
+    const calls: { args: readonly string[]; input?: string | undefined }[] = [];
+    const gh: Gh = (args, input) => {
+      calls.push({ args, input });
+      if (args[0] === "repo" && args[1] === "create") owners = readFileSync(path.join(args[args.indexOf("--source") + 1]!, ARM_CODEOWNERS_PATH), "utf8");
+      return args.join(" ") === "api user --jq .login" ? "factory-login\n" : "";
+    };
+    const repository = makeArmRepository({ experiment: "twin-build", arm: "map-reads-on", startingTree, ci: CI, secrets: { testsToken: "t", mergeQueueToken: "q" } }, gh);
+
+    assert.equal(owners, "/.github/ @factory-login\n", "everything under .github, this file and the workflow included, is owned by the identity that made the repository");
+    const ruleset = calls.find((call) => call.args.includes(`repos/${repository}/rulesets`))!;
+    const rules = (JSON.parse(ruleset.input!) as { rules: { type: string; parameters: { require_code_owner_review?: boolean } }[] }).rules;
+    assert.equal(rules.find((rule) => rule.type === "pull_request")?.parameters.require_code_owner_review, true, "main takes a change to an owned file only with its owner's review");
+
+    const anonymous: Gh = (args) => (calls.push({ args }), "");
+    const before = calls.length;
+    assert.throws(() => makeArmRepository({ experiment: "twin-build", arm: "map-reads-on", startingTree, ci: CI, secrets: { testsToken: "t", mergeQueueToken: "q" } }, anonymous), /code owner/);
+    assert.ok(calls.slice(before).every((call) => !(call.args[0] === "repo" && call.args[1] === "create")), "with no identity to own the workflow, no repository is made");
+  });
 });

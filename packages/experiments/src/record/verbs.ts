@@ -33,7 +33,7 @@ const curvesVerb = verb({
   command: { family: "experiment", name: "curves", summary: "an experiment's points, one per merge on each arm's repository, as a series per arm (ADR-1064 D4)", usage: "experiment curves <experiment> [--json]" },
   tool: { absent: "the curves are read at the command line, by whoever reads the experiment" },
   inputs: {
-    experiment: { kind: "text", word: 0, describe: "the experiment's name, as its arms' repositories are named" },
+    experiment: { kind: "text", word: 0, describe: "the experiment's name, as its arms' repositories are named, or its record's id" },
     json: { kind: "switch", describe: "the series as JSON, arm by arm, ready to plot" },
   },
   async act({ experiment, json }, context) {
@@ -46,19 +46,20 @@ const curvesVerb = verb({
 
 const pointsVerb = verb({
   consumers: ["user"],
-  command: { family: "experiment", name: "points", summary: "record each arm's new merges, and the seed, as points: what `experiment run` does at every look (ADR-1064 D4)", usage: "experiment points <experiment> [--arms a,b]" },
+  command: { family: "experiment", name: "points", summary: "record each arm's new merges, and the seed, as points: what `experiment run` does at every look (ADR-1064 D4)", usage: "experiment points <experiment> [--arms a,b] [--record <record>]" },
   tool: { absent: "points are recorded on the Mint box by whoever runs the experiment, never by a lane" },
   inputs: {
     experiment: { kind: "text", word: 0, describe: "the experiment's name, as its arms' repositories are named" },
     arms: { kind: "text", optional: true, describe: "the arms to record, comma-separated; every arm made for the experiment in this storytree home by default" },
+    record: { kind: "text", optional: true, describe: "the experiment record the points are for, by its id, so `experiment curves` reads them by it too; the arms' points recorded without it are tied to it" },
   },
   // The door hands the whole library server: recording reads the arms' own projects and the activity log beside them.
-  async act({ experiment, arms }: { experiment: string; arms: string | undefined }, context: VerbContext & { readonly server?: Storytree }) {
+  async act({ experiment, arms, record }: { experiment: string; arms: string | undefined; record: string | undefined }, context: VerbContext & { readonly server?: Storytree }) {
     if (context.server === undefined) throw new VerbRefusal("an experiment's points are kept on the library server, which this door has not opened");
     const names = arms === undefined ? madeArms(experiment) : arms.split(",").map((arm) => arm.trim()).filter((arm) => arm !== "");
     if (names.length === 0) throw new VerbRefusal(`experiment ${experiment} has no arms made in this storytree home: name them with --arms, or record on the machine that made them`);
     const { recordArms, recordedLines } = await import("../points/points.js");
-    const lines = recordedLines(await recordArms(context.server, context.library.name, experiment, names));
+    const lines = recordedLines(await recordArms(context.server, context.library.name, experiment, names, record === undefined ? {} : { record }));
     return { text: lines.join("\n"), next: [{ command: `experiment curves ${experiment}`, why: "read each arm's curve" }] };
   },
 });

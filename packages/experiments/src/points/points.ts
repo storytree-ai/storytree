@@ -19,6 +19,10 @@
  * and nothing else catches that: so each point says whether the workflow at its commit still equals the one the arm was
  * seeded with, `armWorkflowText` of its CI when the recorder is given it, else the workflow at the seed commit, which
  * only the import pushed. `experiment run` records its arms this way at every look, and `experiment points` by hand.
+ *
+ * Points are keyed by the experiment's short name, the one its arms' repositories are named with, which its frozen record
+ * does not carry; so each point also names the record it was run for, when the recorder is given it, and `curves` reads
+ * an experiment by either. A record given ties the arm's points recorded before it was given to it too.
  */
 import type { Storytree } from "@storytree/library";
 import { openActivityLog, tokensSpent } from "@storytree/session-management";
@@ -61,6 +65,8 @@ const SCHEMA: readonly string[] = [
   // The tree's structure at the merge: imports crossing capability lines, and the source lines they are counted over.
   `ALTER TABLE experiment_points ADD COLUMN IF NOT EXISTS cross_imports integer`,
   `ALTER TABLE experiment_points ADD COLUMN IF NOT EXISTS lines integer`,
+  // The experiment record the point was run for, by its id: `curves` reads an experiment by its record or its short name.
+  `ALTER TABLE experiment_points ADD COLUMN IF NOT EXISTS record text`,
 ];
 
 /** How many merges back a removed line counts as rework when one of them added it: the twin build's measure, "within 5 merges". */
@@ -101,12 +107,14 @@ export interface Recorded {
 
 /**
  * The arm whose merges are recorded: the experiment's and arm's names, as its repository is named, and the CI it was
- * seeded with, when known; without it, the workflow at the seed commit is the one each merge's is compared with.
+ * seeded with, when known; without it, the workflow at the seed commit is the one each merge's is compared with. `record`
+ * is the id of the experiment record the run is for, when known.
  */
 export interface ArmOfExperiment {
   readonly experiment: string;
   readonly arm: string;
   readonly ci?: ArmCi;
+  readonly record?: string;
 }
 
 function database(server: Server) {
@@ -229,8 +237,11 @@ export async function recordPoints(server: Storytree, project: string, of: ArmOf
   }
 }
 
-async function recordFrom(server: Storytree, project: string, { experiment, arm, ci }: ArmOfExperiment, gh: Gh, trees: Structure, armProject: string, repository: string): Promise<Recorded> {
+async function recordFrom(server: Storytree, project: string, { experiment, arm, ci, record }: ArmOfExperiment, gh: Gh, trees: Structure, armProject: string, repository: string): Promise<Recorded> {
   const pool = await database(server);
+  if (record !== undefined) {
+    await pool.query("UPDATE experiment_points SET record = $4 WHERE project = $1 AND experiment = $2 AND arm = $3 AND record IS NULL", [project, experiment, arm, record]);
+  }
   const { rows } = await pool.query<{ pr: number; sha: string }>("SELECT pr, sha FROM experiment_points WHERE project = $1 AND experiment = $2 AND arm = $3", [project, experiment, arm]);
   const recorded = new Set(rows.map((row) => row.pr));
   const last = (await pool.query<{ merged_at: Date; tokens: string | null }>(
@@ -262,10 +273,10 @@ async function recordFrom(server: Storytree, project: string, { experiment, arm,
   const written: Point[] = [];
   const write = async (point: Point): Promise<void> => {
     await pool.query(
-      `INSERT INTO experiment_points (project, experiment, arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework, cross_imports, lines)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) ON CONFLICT DO NOTHING`,
+      `INSERT INTO experiment_points (project, experiment, arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework, cross_imports, lines, record)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) ON CONFLICT DO NOTHING`,
       [project, experiment, arm, point.merge, point.pr, point.mergedAt, point.commit, point.passed ?? null, point.total ?? null, point.files, point.bytes, point.workflowIntact,
-        point.tokens ?? null, point.claimRefusals, point.reds, point.conflicts, point.rework, point.crossImports, point.lines],
+        point.tokens ?? null, point.claimRefusals, point.reds, point.conflicts, point.rework, point.crossImports, point.lines, record ?? null],
     );
     written.push(point);
   };
@@ -320,12 +331,13 @@ export interface ArmRecorded {
 /**
  * Records each of the experiment's `arms` in turn (recordPoints, with the seed's workflow as the reference), one that
  * fails kept with its reason, so it stops none of the others. `structure` gives an arm's tree reader; the default clones.
+ * `record` is the experiment record's id, written on each point.
  */
-export async function recordArms(server: Storytree, project: string, experiment: string, arms: readonly string[], { gh = ghCli, structure }: { gh?: Gh; structure?: (arm: string) => Structure } = {}): Promise<ArmRecorded[]> {
+export async function recordArms(server: Storytree, project: string, experiment: string, arms: readonly string[], { gh = ghCli, structure, record }: { gh?: Gh; structure?: (arm: string) => Structure; record?: string } = {}): Promise<ArmRecorded[]> {
   const results: ArmRecorded[] = [];
   for (const arm of arms) {
     try {
-      results.push({ arm, recorded: await recordPoints(server, project, { experiment, arm }, gh, structure?.(arm)) });
+      results.push({ arm, recorded: await recordPoints(server, project, { experiment, arm, ...(record === undefined ? {} : { record }) }, gh, structure?.(arm)) });
     } catch (error) {
       results.push({ arm, error: String((error as Error).message).split("\n")[0]! });
     }
@@ -361,11 +373,11 @@ interface PointRow {
   cross_imports: number | null; lines: number | null;
 }
 
-/** The experiment's curves in `project`: every point it has, grouped by arm. */
+/** The experiment's curves in `project`, named by its short name or its record's id: every point it has, grouped by arm. */
 export async function curves(server: Server, project: string, experiment: string): Promise<Curves> {
   const pool = await database(server);
   const { rows } = await pool.query<PointRow>(
-    "SELECT arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework, cross_imports, lines FROM experiment_points WHERE project = $1 AND experiment = $2 ORDER BY arm, merge",
+    "SELECT arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework, cross_imports, lines FROM experiment_points WHERE project = $1 AND (experiment = $2 OR record = $2) ORDER BY arm, merge",
     [project, experiment],
   );
   const series: Record<string, Point[]> = {};

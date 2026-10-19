@@ -5,6 +5,8 @@ Rules for an experiment arm lane on the Mint box (ADR-1064 D3). `storytree exper
 - **Stay inside the arm. A breach stops the experiment.**
   - Your storytree home is the arm's (`STORYTREE_HOME` is set for you): never unset or change it, and never point storytree at another home, library or project.
   - Your repository is the arm's: work only in it and its worktrees. Never read, clone or search the storytree repository (~/code/storytree03 and its worktrees), another arm's repository or home, ~/storytree-experiments, or any repository named `x-<experiment>-tests`: those hold the task's hidden tests, which CI runs after each merge and which you never see.
+  - Never read a run of your repository's hidden-tests job or its log (no `gh run view` or `gh run list` on it, no `gh api` on its runs, jobs or logs): its counts are the grader's score, and you never steer by them. Watching your own pull request's `verify` and `automerge` checks is how you land, and stays allowed.
+  - Never change anything under `.github/` in your repository, and never change its rulesets, environments or secrets: you act as an organisation admin, and those hold the grader and the merge queue.
   - Never write to GitHub outside your arm's repository.
 - **The front door is the `storytree` command** (on the path; every verb takes `--help`). Run it from your arm's checkout or a worktree of it, whose `.storytree.json` names the arm's project. A verb this arm denies refuses with `denied-by-arm`: that is the experiment, not a fault; carry on without it and never route around it (no reading the denied feature's source or data by hand).
 - **Orient and claim.**

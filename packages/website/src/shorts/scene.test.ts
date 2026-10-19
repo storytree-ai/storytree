@@ -9,9 +9,10 @@ import { drawable } from "./font.js";
 import { rgbOf } from "./render.js";
 import { FIRST_SHORT } from "./root.js";
 import { drawScene, focusIn, spritesAt } from "./scene.js";
-import { BUBBLE, beats, chatAt, columnsOf, END_CARD, GLYPH, HALF, layBubble, LENGTH, PAD, POSES, PROPS, readingTime, SCREEN, SMALL, TITLE,
+import { BUBBLE, beats, chatAt, columnsOf, END_CARD, GLYPH, HALF, HALF_WIDTH, layBubble, LENGTH, PAD, POSES, PROPS, readingTime, ROLL, SCREEN, SEAT, SMALL, TITLE,
   type Rect, type Side } from "./script.js";
-import { GROUNDING, MAP_PALETTE, mapProps, PANEL, quantise, snapshot } from "./view.js";
+import { GRAPH, GROUNDING, layGraph, MAP_PALETTE, mapProps, PANEL, quantise, snapshot, WISHLIST } from "./view.js";
+import shop from "../shop-snapshot.json" with { type: "json" };
 
 const sprites = new URL("./public/sprites/", import.meta.url);
 const cast = JSON.parse(await readFile(new URL("cast.json", sprites), "utf8")) as CastMap;
@@ -36,7 +37,7 @@ test("6.4 · every bubble's words fit their box unbroken on their own half, and 
     assert.equal(laid.lines.join(" "), beat.think, `"${beat.think}" keeps its words whole`);
     assert.ok(laid.lines.length <= BUBBLE.rows, `"${beat.think}" fits ${BUBBLE.rows} lines`);
     assert.ok(laid.lines.every(line => line.length * GLYPH <= BUBBLE.width - 2 * PAD), `"${beat.think}" fits across inside its padding`);
-    assert.ok(laid.x >= HALF[side] && laid.x + laid.width <= HALF[side] + 160, `"${beat.think}" stays on its half`);
+    assert.ok(laid.x >= HALF[side] && laid.x + laid.width <= HALF[side] + HALF_WIDTH, `"${beat.think}" stays on its half`);
   }
   const columns = columnsOf(SCREEN.full.width, SMALL.advance) - 2;
   for (const side of sides) for (const said of chatAt(side, script[side], END_CARD)) {
@@ -78,17 +79,62 @@ test("6.5 · the storytree side's map is the forest's glass sheet of the saved p
   assert.deepEqual([...shown].sort(), ["full", "room"], "the map shows in the room and in a full view of the screen");
 });
 
-test("6.8 · the island's panel lists the real island's parts, and the storytree side's short prompt names one of them while the long one names none", () => {
-  assert.equal(PANEL.title, "The website", "the island is the website's own");
-  assert.deepEqual(PANEL.parts.slice(0, 5).map(part => part.title),
-    ["1 · Home page", "2 · The forest on the site", "3 · Saved snapshot", "4 · Publish on merge", "5 · Waitlist"], "its parts, in number order");
-  assert.equal(GROUNDING.capability, "5 · Waitlist");
+test("6.8 · the new story's capability graph names its real parts, and the storytree side's short prompt names one of them while the long one names none", () => {
+  assert.equal(PANEL.title, "Wishlist", "the island is the new story's");
+  const shown = layGraph({ ...SCREEN.full, x: HALF.with + SCREEN.full.x }).cards.filter(card => card.own).map(card => card.title).sort();
+  assert.deepEqual(shown, ["1 · Wishlist store", "2 · Heart button", "3 · Wishlist page", "4 · Move to cart"], "its graph's own cards are its parts");
+  assert.deepEqual(PANEL.parts.map(part => part.title), shown, "the parts its island's land is drawn from");
+  assert.equal(GROUNDING.capability, "4 · Move to cart");
   const typed = (side: Side) => script[side].flatMap(beat => beat.typed ? [beat.typed.toLowerCase()] : []);
   const named = (prompt: string) => PANEL.parts.filter(part => prompt.includes(part.title.toLowerCase()));
   assert.ok(typed("with").some(prompt => named(prompt).length === 1 && prompt.includes(PANEL.title.toLowerCase())), "a short prompt names the island and one part");
   assert.ok(typed("with").every(prompt => prompt.length <= 60), "every prompt on the storytree side is short");
   assert.ok(typed("without").every(prompt => named(prompt).length === 0), "the other side never names a part");
   assert.ok(Math.max(...typed("without").map(prompt => prompt.length)) > 4 * Math.max(...typed("with").map(prompt => prompt.length)), "its description is far longer");
+});
+
+test("6.12 · the storytree side's map is the shop's, with the story he asked for as one new island, and its graph is the app's layout of that story", () => {
+  const saved = shop as unknown as typeof snapshot;
+  assert.deepEqual(snapshot.scene.islands.slice(0, -1), saved.scene.islands, "every island of the shop, as saved");
+  assert.deepEqual(snapshot.scene.islands.map(island => island.title).at(-1), "Wishlist", "and one new island, the wishlist");
+  const taken = saved.places.map(place => place.place);
+  assert.ok(!taken.includes(WISHLIST.place), "on a place no island of the shop holds, so none moves");
+  const typed = script.with.flatMap(beat => beat.typed ? [beat.typed] : []);
+  assert.ok(script.without.concat(script.with).some(beat => beat.typed === "add a wishlist to the shop"), "the story both halves asked Claude for");
+  const own = GRAPH.layout.cards.filter(card => card.own).map(card => card.id).sort();
+  assert.deepEqual(own, WISHLIST.parts.map(part => part.id).sort(), "the graph's own cards are the new story's parts");
+  const outside = GRAPH.layout.cards.filter(card => !card.own).map(card => card.title).sort();
+  assert.deepEqual(outside, ["2 · Cart store", "3 · Page shell", "4 · Product page", "6 · Accounts store"], "with the shop's parts they build on");
+  const screen = { ...SCREEN.full, x: HALF.with + SCREEN.full.x }, { cards } = layGraph(screen);
+  for (const card of cards) {
+    assert.ok(card.box.x >= screen.x && card.box.x + card.box.width <= screen.x + screen.width && card.box.y >= screen.y && card.box.y + card.box.height <= screen.y + screen.height, `"${card.title}" fits on the screen`);
+    assert.equal(card.lines.join(" "), card.title, `"${card.title}" is drawn whole`);
+    for (const other of cards) if (other !== card)
+      assert.ok(card.box.x + card.box.width <= other.box.x || other.box.x + other.box.width <= card.box.x || card.box.y + card.box.height <= other.box.y || other.box.y + other.box.height <= card.box.y, `"${card.title}" and "${other.title}" do not overlap`);
+  }
+  assert.ok(typed.some(prompt => prompt.includes(cards.find(card => card.asked)!.title.toLowerCase())), "the part he asks about is a card he saw in the graph");
+});
+
+test("6.13 · standing up, his chair rolls back once he is clear of it, and he walks out behind it, never through it", () => {
+  const leaving = frames.filter(seconds => { const beat = script.with.find(each => seconds >= each.from && seconds < each.to); return beat?.view === "room" && ["standing", "walking", "gone"].includes(beat.pose); });
+  assert.ok(leaving.length > 0);
+  let rolled = 0;
+  for (const seconds of leaving) {
+    const sprites = spritesAt("with", seconds, cast), chair = sprites.find(sprite => sprite.frame === cast.props.chair);
+    const pose = script.with.find(beat => seconds >= beat.from && seconds < beat.to)!.pose;
+    if (!chair) { assert.equal(pose, "standing", `the chair is drawn apart from ${seconds.toFixed(2)} s on`); continue; }
+    assert.equal(sprites.at(-1), chair, `at ${seconds.toFixed(2)} s the chair is drawn in front of him`);
+    assert.ok(chair.x - (HALF.with + SEAT.x) >= rolled, `at ${seconds.toFixed(2)} s it never rolls back toward the desk`);
+    rolled = chair.x - (HALF.with + SEAT.x);
+  }
+  assert.equal(rolled, ROLL.x, "it ends rolled back");
+  const walking = leaving.filter(seconds => script.with.find(beat => seconds >= beat.from && seconds < beat.to)!.pose === "walking");
+  for (const seconds of walking) {
+    const [him, chair] = spritesAt("with", seconds, cast);
+    assert.ok(him!.y < chair!.y, `at ${seconds.toFixed(2)} s he walks on a line further from the viewer than the rolled-back chair`);
+  }
+  const last = spritesAt("with", walking.at(-1)!, cast)[0]!;
+  assert.ok(last.x + 68 >= HALF.with + HALF_WIDTH, "and he is off his half by the time the walk ends: the mirrored figure starts at its column 68");
 });
 
 /** Each stretch of frames a text a viewer must read stays on its side, with its first frame and its last. */

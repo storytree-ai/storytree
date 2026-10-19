@@ -1,12 +1,13 @@
 /** Capability 6 · Pixel-art shorts. The first short, "seeing what agents built", as data (the owner's notes of 2026-10-18,
- * question_dd86ec9c0809, polished against increment_ea834305fe2d's bar): the same developer at the same desk on both halves,
- * in the room of the owner's reference. Each beat names his pose, what his screen shows and whether the half cuts to a full
- * view of it; the screen's words are read in the full view, never on the monitor in the room. Every position here is in the
- * 320×180 frame's own pixels. */
+ * question_dd86ec9c0809, and of 2026-10-19, question_325b76dba4ae, polished against increment_ea834305fe2d's bar): the same
+ * developer at the same desk on both halves, in the room of the owner's reference. Both ask Claude for a wishlist for the shop.
+ * Each beat names his pose, what his screen shows and whether the half cuts to a full view of it; the screen's words are read in
+ * the full view, never on the monitor in the room. Every position here is in the 480×270 frame's own pixels. */
 
-/** The low-resolution frame every short is drawn at, and the whole number it is scaled up by to 1920×1080. */
-export const LOW = { width: 320, height: 180 } as const;
-export const SCALE = 6;
+/** The low-resolution frame every short is drawn at, and the whole number it is scaled up by to 1920×1080: 1.5 times the room
+ * of the first cuts' 320×180 (the owner, 2026-10-19: "i'd 1.5x what every current setting is"), ADR-1084 D1. */
+export const LOW = { width: 480, height: 270 } as const;
+export const SCALE = 4;
 /** The pixel font (OFL, committed beside its licence), drawn at its native size: every glyph is 8 pixels wide and tall. */
 export const FONT = "Press Start 2P";
 export const GLYPH = 8;
@@ -18,28 +19,31 @@ export const SMALL = { advance: 4, line: 6 } as const;
 export const TITLE = 14;
 
 export type Side = "without" | "with";
-/** Where each half starts across the frame. */
-export const HALF = { without: 0, with: 160 } as const;
+/** Where each half starts across the frame, and how wide it is. */
+export const HALF = { without: 0, with: 240 } as const;
+export const HALF_WIDTH = 240;
 /** A thought bubble's box in its half's own pixels, and the most lines it holds: a strip above the monitor. */
-export const BUBBLE = { x: 4, y: 17, width: 152, rows: 2 } as const;
+export const BUBBLE = { x: 6, y: 18, width: 228, rows: 2 } as const;
 export type Rect = { x: number; y: number; width: number; height: number };
-/** The monitor's screen: in the room, the box round the set's screen (its mask is in the cast); in a cut to a full view of
- * it, the screen below the bubble strip, in a half's own pixels. */
-export const SCREEN: Record<View, Rect> = { room: { x: 21, y: 83, width: 40, height: 33 }, full: { x: 4, y: 48, width: 152, height: 128 } };
+/** The monitor's screen: in the room, the box round the room's screen (its mask is in the cast); in a cut to a full view of
+ * it, the screen below the bubble strip, in a half's own pixels: 228×214, past 1.5 times the first cuts' 152×128. */
+export const SCREEN: Record<View, Rect> = { room: { x: 21, y: 121, width: 40, height: 33 }, full: { x: 6, y: 50, width: 228, height: 214 } };
 /** Where the developer's 128×128 cell stands in his half: his hands on the keyboard, his wheels on the floor. */
-export const SEAT = { x: -6, y: 52 } as const;
-/** Where the window hangs on the room's right wall. */
-export const WINDOW = { x: 104, y: 44 } as const;
+export const SEAT = { x: -6, y: 90 } as const;
+/** How far his chair rolls back as he stands up (right, and down toward the viewer), and how long it takes. */
+export const ROLL = { x: 24, y: 10, seconds: 0.5 } as const;
 
-/** The developer's poses: every one is a sequence of frames in the cast's sheet. "gone" draws only his empty chair. */
-export const POSES = ["typing", "scratching", "leaning", "standing", "walking"] as const;
+/** The developer's poses: every one is a sequence of frames in the cast's sheet. "gone" draws only his empty chair. None is
+ * frustrated: he types, reads with his chin on his fist, leans back, stands up and walks out. */
+export const POSES = ["typing", "reading", "leaning", "standing", "walking"] as const;
 export type Pose = typeof POSES[number] | "gone";
 /** The props the scene draws from the same sheet. */
-export const PROPS = ["chair", "room", "window"] as const;
+export const PROPS = ["chair", "room"] as const;
 export type Prop = typeof PROPS[number];
 
 export type View = "room" | "full";
-export type App = "claude" | "code" | "map";
+/** What the screen shows: Claude Code, the code, the map, or a story's capability graph opened full size from its panel. */
+export type App = "claude" | "code" | "map" | "graph";
 export type Beat = {
   /** Seconds from the start, and the second it ends. */
   from: number; to: number;
@@ -59,8 +63,8 @@ export type Beat = {
 /** How long the short runs, in seconds, and the end card's start. */
 export const LENGTH = 56;
 export const END_CARD = 52;
-/** The poster frame, in seconds: the island's panel open on the storytree side while the other digs through code. */
-export const POSTER = 16;
+/** The poster frame, in seconds: the new story's capability graph on the storytree side while the other reads through code. */
+export const POSTER = 17;
 /** Typing speed, in characters a second: about the same on both halves, so the paragraph takes as long as its length. */
 export const TYPED_PER_SECOND = { without: 42, with: 30 } as const;
 /** How long Claude takes to answer once a prompt is typed. */
@@ -73,52 +77,56 @@ export type Grounding = { island: string; capability: string };
 
 /** The very long description the developer without storytree types to say which part he means. It is a wall of words,
  * there to be seen pouring out, not read. */
-export const PARAGRAPH = "ok so the waitlist thing you built. not the page, the part that takes the email after someone hits the button on the"
-  + " home page and saves it somewhere, i think it's in src/waitlist or maybe it's in main.ts, there's a function that checks"
-  + " the email first? the one with the regex, not the one that sends it. does that part stop the same email being saved twice?";
+export const PARAGRAPH = "ok so the wishlist thing you built. not the page with the list, the bit where you press the button on a saved item"
+  + " and it goes into the cart. i think it's in src/cart or maybe in the wishlist folder, there's a function that moves it?"
+  + " the one that adds it to the cart, not the heart. does that take the item off the list after, or leave it there too?";
 
 /** The prompt the developer with storytree types instead: grounded in the names the map showed him. */
-export const groundedPrompt = ({ island, capability }: Grounding) => `${island.toLowerCase()} / ${capability.toLowerCase()}: does it stop duplicate emails?`;
+export const groundedPrompt = ({ island, capability }: Grounding) => `${island.toLowerCase()} / ${capability.toLowerCase()}: does it empty the list?`;
 
 const OPENING: readonly Beat[] = [
   { from: 0, to: 1.5, pose: "typing", app: "claude", view: "room" },
-  { from: 1.5, to: 10, pose: "typing", app: "claude", view: "full", typed: "add a waitlist to the website", rate: 14,
-    reply: "done: a form, a store and a page. 7 files changed." },
+  { from: 1.5, to: 10, pose: "typing", app: "claude", view: "full", typed: "add a wishlist to the shop", rate: 14,
+    reply: "done: shoppers can save items for later. 9 files changed." },
 ];
 
-/** Both halves, beat by beat. Their turns line up: both dig in at 10 s, both go back to Claude at 22 s (the paragraph typed as fast as the short prompt, so it takes its length), and while the one
- * with storytree leaves the room the other is still answering questions. */
+/** Both halves, beat by beat. Their turns line up and cut together: both open what was built at 10 s and change view at 19 s,
+ * both go back to Claude at 22 s (the paragraph typed as fast as the short prompt, so it takes its length), and while the one
+ * with storytree leaves the room the other is still answering questions. The one without never despairs: he keeps reading,
+ * file after file, working out what was built. */
 export function beats(grounding: Grounding): Record<Side, readonly Beat[]> {
   return {
     without: [
       ...OPENING,
-      { from: 10, to: 11, pose: "scratching", app: "code", view: "room", file: "src/main.ts" },
-      { from: 11, to: 15, pose: "scratching", app: "code", view: "full", file: "src/main.ts", think: "what did it build?" },
-      { from: 15, to: 18.5, pose: "scratching", app: "code", view: "full", file: "src/waitlist/store.ts", think: "which part is the form?" },
-      { from: 18.5, to: 22, pose: "scratching", app: "code", view: "full", file: "src/waitlist/check.ts", think: "what calls this?!" },
+      { from: 10, to: 11, pose: "reading", app: "code", view: "room", file: "src/routes/wishlist.ts" },
+      { from: 11, to: 15, pose: "reading", app: "code", view: "full", file: "src/routes/wishlist.ts", think: "ok. what did it build?" },
+      { from: 15, to: 19, pose: "reading", app: "code", view: "full", file: "src/wishlist/store.ts", think: "so this saves the list..." },
+      { from: 19, to: 22, pose: "reading", app: "code", view: "full", file: "src/cart/move.ts", think: "and this moves it?" },
       { from: 22, to: 23, pose: "typing", app: "claude", view: "room" },
-      { from: 23, to: 32.6, pose: "typing", app: "claude", view: "full", typed: PARAGRAPH, reply: "which one: check.ts or the handler in main.ts?" },
-      { from: 32.6, to: 36.5, pose: "scratching", app: "claude", view: "full", think: "uh..." },
-      { from: 36.5, to: 37.5, pose: "scratching", app: "code", view: "room", file: "src/waitlist/check.ts" },
-      { from: 37.5, to: 41, pose: "scratching", app: "code", view: "full", file: "src/waitlist/check.ts", think: "the check, maybe?" },
+      { from: 23, to: 32.6, pose: "typing", app: "claude", view: "full", typed: PARAGRAPH, reply: "which one: move in cart, or the button?" },
+      { from: 32.6, to: 36.5, pose: "reading", app: "claude", view: "full", think: "let me look." },
+      { from: 36.5, to: 37.5, pose: "reading", app: "code", view: "room", file: "src/cart/move.ts" },
+      { from: 37.5, to: 41, pose: "reading", app: "code", view: "full", file: "src/cart/move.ts", think: "this one, i think." },
       { from: 41, to: 42, pose: "typing", app: "claude", view: "room" },
-      { from: 42, to: 48, pose: "typing", app: "claude", view: "full", typed: "the check i think", rate: 60,
-        reply: "and should it match the email exactly, or ignore case?" },
-      { from: 48, to: 49, pose: "scratching", app: "code", view: "room", file: "src/waitlist/store.ts" },
-      { from: 49, to: END_CARD, pose: "scratching", app: "code", view: "full", file: "src/waitlist/store.ts", think: "hang on..." },
+      { from: 42, to: 48, pose: "typing", app: "claude", view: "full", typed: "the cart one i think", rate: 60,
+        reply: "and should it stay on the wishlist after?" },
+      { from: 48, to: 49, pose: "reading", app: "code", view: "room", file: "src/wishlist/store.ts" },
+      { from: 49, to: END_CARD, pose: "reading", app: "code", view: "full", file: "src/wishlist/store.ts", think: "let me check..." },
     ],
     with: [
       ...OPENING,
       { from: 10, to: 11, pose: "typing", app: "map", view: "room" },
-      { from: 11, to: 19, pose: "typing", app: "map", view: "full", clicks: true },
-      { from: 19, to: 22, pose: "leaning", app: "map", view: "room", think: "looks almost right." },
+      { from: 11, to: 15.5, pose: "typing", app: "map", view: "full", clicks: true },
+      { from: 15.5, to: 17.4, pose: "typing", app: "graph", view: "full" },
+      { from: 17.4, to: 19, pose: "typing", app: "graph", view: "full", think: "looks about right. let me just check one thing." },
+      { from: 19, to: 22, pose: "leaning", app: "graph", view: "room", think: "looks about right. let me just check one thing." },
       { from: 22, to: 23, pose: "typing", app: "claude", view: "room" },
       { from: 23, to: 34.5, pose: "typing", app: "claude", view: "full", typed: groundedPrompt(grounding),
-        reply: "yes: one row per email. a repeat is ignored, but case still counts." },
-      { from: 34.5, to: 39.5, pose: "typing", app: "claude", view: "full", typed: "good. now build the welcome email.", reply: "on it." },
-      { from: 39.5, to: 40.5, pose: "standing", app: "claude", view: "room" },
-      { from: 40.5, to: 42, pose: "walking", app: "claude", view: "room" },
-      { from: 42, to: 45, pose: "gone", app: "claude", view: "room" },
+        reply: "no: it moves the item to the cart and keeps it on the list. no test yet." },
+      { from: 34.5, to: 39.5, pose: "typing", app: "claude", view: "full", typed: "good. now build sharing a list.", reply: "on it." },
+      { from: 39.5, to: 41, pose: "standing", app: "claude", view: "room" },
+      { from: 41, to: 43, pose: "walking", app: "claude", view: "room" },
+      { from: 43, to: 45, pose: "gone", app: "claude", view: "room" },
       { from: 45, to: END_CARD, pose: "gone", app: "claude", view: "full" },
     ],
   };
@@ -126,8 +134,8 @@ export function beats(grounding: Grounding): Record<Side, readonly Beat[]> {
 
 /** What Claude does on the storytree side once its developer has left the room, seen in the full view of its screen: one step
  * every WORKING_EVERY seconds from just after the cut to it. */
-export const WORKING = ["edit src/waitlist/store.ts", "write src/waitlist/welcome.ts", "run tests: 19 passed", "update the map: 5 · waitlist"] as const;
-export const WORKING_EVERY = 1, WORKING_AFTER = 0.3;
+export const WORKING = ["write src/wishlist/share.ts", "write src/wishlist/share.test.ts", "run tests: 31 passed", "update the map: 5 · share link"] as const;
+export const WORKING_EVERY = 0.9, WORKING_AFTER = 0.3;
 
 /** The beat playing at `seconds` on a side; past the last it holds the last. */
 export function beatAt(side: readonly Beat[], seconds: number): Beat {

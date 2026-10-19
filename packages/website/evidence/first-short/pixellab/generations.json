@@ -939,6 +939,146 @@
           "note": "the window on the room's right wall"
         }
       ]
+    },
+    {
+      "date": "2026-10-19",
+      "balance_before": 1951,
+      "balance_after": 1918,
+      "generations_used": 33,
+      "route": "inpaint-v3 (240x256) round the desk set for the wider room of the 480x270 frame (ADR-1084) -> animate-with-text-v3 (4 frames) from seated.png for a calm reading pose and a lean-back. The walk out reuses standing-0..8: the chair is drawn apart and rolls back from frame 3 (assemble-cast.mjs).",
+      "calls": [
+        {
+          "endpoint": "POST /inpaint-v3",
+          "request": {
+            "description": "simple pixel art of a dark cosy bedroom at night, seen from behind the desk: plain dark slate walls meeting in a vertical corner, the wooden desk continues to the left, a small window with a night sky and crescent moon on the right wall with a wooden frame and sill, a dark wooden floor with a faint rug. muted colours, low detail, same style as the desk.",
+            "seed": 31,
+            "no_background": false,
+            "crop_to_mask": true,
+            "inpainting_image": "<png: pixellab/set.png placed at (0, 72) of 240x256, its edges stretched out>",
+            "mask_image": "<png: white but for set.png's desk, monitor, keyboard, mug and the shadow under the desk>"
+          },
+          "ids": {
+            "background_job_id": "ae10c29f-8718-467d-8675-9c384165d897",
+            "generation_id": "d19c2ff2-0dba-41c0-996f-70eb7e30b193"
+          },
+          "generations": 10,
+          "outputs": null,
+          "note": "explored, not used: the set kept whole (its wall and floor too) left a lighter rectangle round the desk where the inpaint met it"
+        },
+        {
+          "endpoint": "POST /inpaint-v3",
+          "request": {
+            "description": "simple pixel art of a dark cosy bedroom at night, seen from behind a wooden desk: plain dark slate-blue walls meeting in a vertical corner on the right, softly shaded, a wooden window frame with a night sky and crescent moon on the right wall with a sill, a dark wooden plank floor with a muted rug, a faint glow from the monitor. muted colours, low detail, clean pixel art, the same style as the desk.",
+            "seed": 32,
+            "no_background": false,
+            "crop_to_mask": true,
+            "inpainting_image": "<png: pixellab/set.png placed at (0, 72) of 240x256, its edges stretched out>",
+            "mask_image": "<png: white but for set.png's desk, monitor, keyboard, mug and the shadow under the desk>"
+          },
+          "ids": {
+            "background_job_id": "fa6b70b6-3e49-4f4c-b74d-1822e1a9da52",
+            "generation_id": "51290cde-6adc-4cf8-ba53-b61a05a9a622"
+          },
+          "generations": 10,
+          "outputs": null,
+          "note": "explored, not used: only the desk and what is on it kept (mask by colour, holes filled), set at (0, 72); the walls took a green glow from the screen and the window ran off the right edge"
+        },
+        {
+          "endpoint": "POST /inpaint-v3",
+          "request": {
+            "description": "simple pixel art of a dark cosy bedroom at night, seen from behind a wooden desk: plain dark slate-blue walls meeting in a vertical corner, evenly shaded, no green light anywhere on the walls. on the right wall a whole small wooden-framed window with a night sky and crescent moon, fully inside the picture, with a sill. a low bed against the right wall, a dark wooden plank floor with a muted rug. muted colours, low detail, clean pixel art, the same style as the desk.",
+            "seed": 33,
+            "no_background": false,
+            "crop_to_mask": true,
+            "inpainting_image": "<png: pixellab/set.png placed at (0, 72) of 240x256, its edges stretched out>",
+            "mask_image": "<png: white but for set.png's desk, monitor, keyboard, mug and the shadow under the desk>"
+          },
+          "ids": {
+            "background_job_id": "7badd9b9-b128-4374-b2fb-90ff9f0904dd",
+            "generation_id": "5edb93be-33c4-478a-80b1-b1e9ab2f64eb"
+          },
+          "generations": 10,
+          "outputs": [
+            "pixellab/room.png"
+          ],
+          "note": "the room: the desk set kept as it is at (0, 72) of a 240x256 half, the walls, a corner, a whole window, a bed and the floor inpainted round it; output 0 kept (output 1 is its quantized copy)"
+        },
+        {
+          "endpoint": "POST /animate-with-text-v3",
+          "request": {
+            "first_frame": {
+              "type": "base64",
+              "base64": "<image omitted: pixellab/seated.png>",
+              "format": "png"
+            },
+            "action": "calmly reading code on the screen: his right hand rests on the mouse beside the keyboard and scrolls with one finger, his left hand rests on the desk, his head tilts a little as he reads; the chair and legs stay still",
+            "frame_count": 4,
+            "seed": 41,
+            "no_background": true
+          },
+          "ids": {
+            "background_job_id": "18c7ebc3-3361-4680-86ef-2ee6a5855980",
+            "generation_id": "784537d6-b80d-42c6-ba7b-4d1273957788"
+          },
+          "generations": 1,
+          "outputs": null,
+          "note": "explored, not used: a hand on the mouse barely moves, so it read as typing"
+        },
+        {
+          "endpoint": "POST /animate-with-text-v3",
+          "request": {
+            "first_frame": {
+              "type": "base64",
+              "base64": "<image omitted: pixellab/seated.png>",
+              "format": "png"
+            },
+            "action": "leans far back in the chair and laces both hands behind his head, elbows out, relaxed and content; the chair stays in place",
+            "frame_count": 4,
+            "seed": 42,
+            "no_background": true
+          },
+          "ids": {
+            "background_job_id": "20c805f1-ca70-4dc3-a3ab-694d8bda9fb7",
+            "generation_id": "33b9672a-60b9-486a-8d56-ddd47788d8cc"
+          },
+          "generations": 1,
+          "outputs": [
+            "pixellab/leaning-back-0.png",
+            "pixellab/leaning-back-1.png",
+            "pixellab/leaning-back-2.png",
+            "pixellab/leaning-back-3.png",
+            "pixellab/leaning-back-4.png"
+          ],
+          "note": "leaning back with his hands behind his head (\"looks about right\"), replacing the lean that read as typing; plays 1, 3, 4 and holds"
+        },
+        {
+          "endpoint": "POST /animate-with-text-v3",
+          "request": {
+            "first_frame": {
+              "type": "base64",
+              "base64": "<image omitted: pixellab/seated.png>",
+              "format": "png"
+            },
+            "action": "leans forward toward the screen and rests his chin on his left fist, reading closely and calmly; his right hand stays on the mouse to the right of the keyboard and clicks; the chair and legs stay still",
+            "frame_count": 4,
+            "seed": 43,
+            "no_background": true
+          },
+          "ids": {
+            "background_job_id": "95624929-c27f-47a0-9269-de7889b6f45b",
+            "generation_id": "4a75ecfb-2861-42a8-98d0-b4e555ebe600"
+          },
+          "generations": 1,
+          "outputs": [
+            "pixellab/reading-0.png",
+            "pixellab/reading-1.png",
+            "pixellab/reading-2.png",
+            "pixellab/reading-3.png",
+            "pixellab/reading-4.png"
+          ],
+          "note": "reading calmly, chin on his fist: the left developer's pose while he works through the code, replacing the head-scratch (the owner: \"don't show the dev frustrated at all\"); plays 2, 3, 4, 3"
+        }
+      ]
     }
   ]
 }

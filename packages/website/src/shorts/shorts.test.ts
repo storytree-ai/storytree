@@ -16,7 +16,7 @@ before(async () => {
 }, { timeout: 300_000 });
 after(() => rm(scratch, { recursive: true, force: true }));
 
-test("6.1 · a rendered still is crisp pixel art: every 6×6 block of the lossless frame is one colour", { timeout: 300_000 }, async () => {
+test("6.1 · a rendered still is crisp pixel art: every 4×4 block of the lossless frame is one colour", { timeout: 300_000 }, async () => {
   const still = path.join(scratch, "crisp.png");
   await renderPng(serveUrl, FIRST_SHORT.id, FRAME, still);
   const rgb = await rgbOf(still);

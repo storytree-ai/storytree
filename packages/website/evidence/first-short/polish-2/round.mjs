@@ -1,5 +1,5 @@
-// node --import tsx packages/website/evidence/first-short/polish/round.mjs <N> [--no-render]
-// One round of the first short's polish loop (increment_ea834305fe2d): renders the cut (../render.mjs), then writes what the
+// node --import tsx packages/website/evidence/first-short/polish-2/round.mjs <N> [--no-render]
+// One round of the first short's polish loops (increment_ea834305fe2d's in ../polish, increment_fa48e88589f9's here): renders the cut (../render.mjs), then writes what the
 // director is shown into ./round-N/: contact sheets of frames every 0.25 s plus the frames either side of every cut
 // (contact-NN.png, each frame labelled with its time, a cut marked), a 960x540 still of every beat (beat-*.png) and the
 // script's timing table (timing.md). The director's findings go beside them (findings.md). The director sees sampled
@@ -34,7 +34,7 @@ function png({ w, h, buf }) {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(raw, { level: 9 })), chunk("IEND", Buffer.alloc(0))]);
 }
 const image = (w, h, fill = [16, 18, 24]) => { const buf = Buffer.alloc(w * h * 3); for (let i = 0; i < w * h; i++) buf.set(fill, i * 3); return { w, h, buf } };
-/** A frame of the cut at `seconds`, one pixel per block of `step` (6: the short's own 320x180; 2: 960x540). */
+/** A frame of the cut at `seconds`, one pixel per block of `step` (4: the short's own 480x270; 2: 960x540). */
 async function frameAt(seconds, step) {
   const rgb = await rgbOf(video, seconds), w = LOW.width * SCALE / step, h = LOW.height * SCALE / step, img = image(w, h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) rgb.copy(img.buf, (y * w + x) * 3, ((y * step) * LOW.width * SCALE + x * step) * 3, ((y * step) * LOW.width * SCALE + x * step) * 3 + 3);
@@ -54,8 +54,8 @@ for (let t = 0; t < LENGTH; t += 0.25) times.set(Math.round(t * FPS), false);
 for (const cut of cuts) for (const d of [-1, 0, 1]) times.set(Math.round(cut * FPS) + d, d === 0);
 const frames = [...times].filter(([f]) => f >= 0 && f < LENGTH * FPS).sort((a, b) => a[0] - b[0]);
 
-// ---- contact sheets: 6 x 5 frames a page, each 320x180 over a label strip -----------------------
-const COLS = 6, ROWS = 5, CELL = { w: LOW.width + 6, h: LOW.height + 18 };
+// ---- contact sheets: 4 x 5 frames a page, each 480x270 over a label strip -----------------------
+const COLS = 4, ROWS = 5, CELL = { w: LOW.width + 6, h: LOW.height + 18 };
 for (let page = 0; page * COLS * ROWS < frames.length; page++) {
   const sheet = image(COLS * CELL.w, ROWS * CELL.h);
   const on = frames.slice(page * COLS * ROWS, (page + 1) * COLS * ROWS);

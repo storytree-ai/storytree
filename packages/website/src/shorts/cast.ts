@@ -6,15 +6,23 @@ import type { Pose, Prop } from "./script.js";
 export type Rect = { x: number; y: number; w: number; h: number };
 export type CastMap = {
   image: string; width: number; height: number;
-  poses: Record<string, { fps: number; frames: Rect[] }>;
+  /** A pose that plays `once` holds its last frame; from frame `chairApart` on, the pose is drawn without the chair, which the
+   * scene draws apart. */
+  poses: Record<string, { fps: number; frames: Rect[]; once?: boolean; chairApart?: number }>;
   props: Record<string, Rect>;
   holes: Record<string, Rect>;
 };
 
-/** The frame of `pose` showing at `seconds` into its beat: the pose loops at its own frame rate. */
+/** Which of `pose`'s frames shows at `seconds` into its beat: the pose loops at its own frame rate, or plays once and holds. */
+export function poseIndex(cast: CastMap, pose: Pose, seconds: number): number {
+  const { fps, frames, once } = cast.poses[pose] ?? { fps: 1, frames: [] };
+  const step = Math.floor(Math.max(0, seconds) * fps);
+  return once ? Math.min(step, frames.length - 1) : step % Math.max(1, frames.length);
+}
+
+/** The frame of `pose` showing at `seconds` into its beat. */
 export function poseFrame(cast: CastMap, pose: Pose, seconds: number): Rect {
-  const { fps, frames } = cast.poses[pose] ?? { fps: 1, frames: [] };
-  const frame = frames[Math.floor(Math.max(0, seconds) * fps) % Math.max(1, frames.length)];
+  const frame = cast.poses[pose]?.frames[poseIndex(cast, pose, seconds)];
   if (frame === undefined) throw new Error(`The cast has no frame for the pose "${pose}"`);
   return frame;
 }

@@ -1,8 +1,9 @@
 /** Capability 6 · Pixel-art shorts. The first short, "seeing what agents built" (increment_9294d76b04cf, ADR-1046, reworked
- * from the owner's notes in increment_4695144e6847 and polished in increment_ea834305fe2d): the same developer at the same desk
- * on both halves, and on the storytree side's screen the real map. The forest's own view draws storytree's glass sheet off
- * screen (view.ts's MAP), at the app's own opening view of it, and lit by the selection when the developer clicks it; each frame
- * draws it by hand and hands it to the scene, which draws the one 320×180 canvas the page shows ×6 with no smoothing. */
+ * from the owner's notes in increment_4695144e6847 and polished in increment_ea834305fe2d and increment_fa48e88589f9): the same
+ * developer at the same desk on both halves, and on the storytree side's screen the real map. The forest's own view draws the
+ * shop's glass sheet, with the wishlist's new island, off screen (view.ts's MAP), lit by the selection when the developer clicks
+ * it; each frame draws it by hand and hands it to the scene, which draws the one 480×270 canvas the page shows ×4 with no
+ * smoothing. */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AbsoluteFill, continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import type { RootState } from "@react-three/fiber";

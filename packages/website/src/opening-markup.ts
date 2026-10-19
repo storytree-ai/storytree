@@ -1,5 +1,5 @@
 /** Capability 1 · Home page. */
-import { AGENTS, BANNER, EXIT, FINALE, FOOTNOTE, THINK } from "./opening-copy.js";
+import { AGENTS, BANNER, EXIT, FINALE, FOOTNOTE, PAIN, THINK } from "./opening-copy.js";
 import { openingClock } from "./opening-clock.js";
 import { escapeHtml } from "./escape-html.js";
 import { OPENING_SEED, mulberry32 } from "./opening-seed.js";
@@ -35,6 +35,7 @@ export function openingMarkup() {
       <canvas class="opening-grain" aria-hidden="true"></canvas>
       <div class="opening-scan" aria-hidden="true"></div>
     </div>
+    <div id="opening-pain" class="opening-pain" aria-live="polite" hidden>${PAIN.map(text => `<p>${escapeHtml(text)}</p>`).join("")}</div>
     <div id="opening-crt-line" class="opening-crt-line" aria-hidden="true" hidden></div>
     <div id="opening-crt-dot" class="opening-crt-dot" aria-hidden="true" hidden></div>
   </section>`;

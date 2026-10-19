@@ -70,12 +70,12 @@ test("quality-assurance 2.1, 2.2 and 4.1 · `quality brief`, `take`, `answer` an
     assert.match(brief.stdout, new RegExp(`Review 1 of change ${increment.id}`));
     assert.match(brief.stdout, new RegExp(`${check.id}[\\s\\S]*${contract.id}[\\s\\S]*valid\\(x\\), valid\\(x\\)`));
 
-    writeFileSync(path.join(world.folder, "return.json"), JSON.stringify({ checks: [{ check: check.id, tripped: true, hits: [{ file: "packages/forms/src/email.test.ts", line: 2, found: "compares the code with itself" }] }], contracts: [] }));
+    writeFileSync(path.join(world.folder, "return.json"), JSON.stringify({ review: 1, checks: [{ check: check.id, tripped: true, hits: [{ file: "packages/forms/src/email.test.ts", line: 2, found: "compares the code with itself" }] }], contracts: [] }));
     const refused = await world.run(["quality", "take", increment.id, "--return", "@return.json"]);
     assert.equal(refused.code, 1);
     assert.match(refused.stderr, new RegExp(contract.id));
 
-    writeFileSync(path.join(world.folder, "return.json"), JSON.stringify({ checks: [{ check: check.id, tripped: true, hits: [{ file: "packages/forms/src/email.test.ts", line: 2, found: "compares the code with itself" }] }], contracts: [{ contract: contract.id, met: true }] }));
+    writeFileSync(path.join(world.folder, "return.json"), JSON.stringify({ review: 1, checks: [{ check: check.id, tripped: true, hits: [{ file: "packages/forms/src/email.test.ts", line: 2, found: "compares the code with itself" }] }], contracts: [{ contract: contract.id, met: true }] }));
     const taken = await world.run(["quality", "take", increment.id, "--return", "@return.json"]);
     assert.equal(taken.code, 0, taken.stderr);
     assert.match(taken.stdout, /Architecture checks' graduated checks did not run, so nothing of theirs is recorded/);

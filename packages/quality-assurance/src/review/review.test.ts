@@ -101,6 +101,32 @@ test("2.4 · a contract the increment rewords pending its merge is briefed in it
   });
 });
 
+test("2.10 · a plan-only change, whose diff touches no file, gets a brief listing its pending plan changes, and its return is taken; one with neither a diff nor a pending change is refused", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    await assert.rejects(reviews.brief(library, increment, ""), /The diff touches no file/);
+
+    await library.advanceIncrement(increment, "active");
+    await library.pendChange(increment, { record: contracts[0]!, fields: { title: "1.1 · A bad email is refused, saying why" } });
+    await library.pendChange(increment, { record: contracts[1]!, retire: "overtaken by 1.1" });
+    const brief = await reviews.brief(library, increment, "");
+
+    assert.deepEqual(brief.packages, ["plan"]);
+    assert.deepEqual(brief.plan, [
+      { record: contracts[0], type: "contract", title: "1.1 · A bad email is refused", after: { title: "1.1 · A bad email is refused, saying why" } },
+      { record: contracts[1], type: "contract", title: "1.2 · A good email is kept", retire: "overtaken by 1.1" },
+    ]);
+    const text = briefText(brief);
+    assert.match(text, new RegExp(`Pending plan changes \\(2\\)[^]*${contracts[0]}  contract  1\\.1 · A bad email is refused\\n    becomes: \\{"title":"1\\.1 · A bad email is refused, saying why"\\}`));
+    assert.match(text, new RegExp(`${contracts[1]}  contract  1\\.2 · A good email is kept\\n    retired: overtaken by 1\\.1`));
+    assert.match(text, /The diff touches no file: the change under review is its pending plan changes\./);
+
+    const taken = await reviews.take(library.name, increment, clean(checks, [contracts[0]!], { [checks[0]!]: [{ file: contracts[1]!, line: 1, found: "retired while its test still runs" }] }));
+    assert.deepEqual(taken.hits.map(({ check, file }) => ({ check, file })), [{ check: checks[0], file: contracts[1] }]);
+  });
+});
+
 test("2.5 · the brief lists each contract under its story and capability, so two stories' contracts sharing a number both appear, each with its story, and a named capability with no contracts still shows", async () => {
   await withLibrary(async (library, storytree) => {
     const forest = await library.addStory({ title: "The world" });

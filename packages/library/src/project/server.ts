@@ -191,6 +191,9 @@ export function newPool(config: WaitingPoolConfig): Pool {
   // An idle connection that drops (a server restart, a dropped database) is discarded by the pool
   // and the next query reconnects or fails loudly. Without a listener Node would crash instead.
   pool.on("error", () => {});
+  // So is one a caller holds between queries, which the pool stops listening to while it is out:
+  // the holder's next query fails instead.
+  pool.on("connect", (client) => client.on("error", () => {}));
   return pool;
 }
 

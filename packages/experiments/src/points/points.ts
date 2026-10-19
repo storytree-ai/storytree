@@ -94,7 +94,7 @@ export interface Point {
   readonly conflicts?: number;
   /** The lines this merge removed that one of the REWORK_WINDOW merges before it added. */
   readonly rework?: number;
-  /** The imports in the tree at the merge whose two files the Map's survey places in different capabilities, and its source lines. */
+  /** The imports in the tree at the merge whose two files the Map's survey places in different capabilities (unmeasured when it places none), and its source lines. */
   readonly crossImports?: number;
   readonly lines?: number;
 }
@@ -276,7 +276,7 @@ async function recordFrom(server: Storytree, project: string, { experiment, arm,
       `INSERT INTO experiment_points (project, experiment, arm, merge, pr, merged_at, sha, passed, total, files, bytes, workflow_intact, tokens, claim_refusals, reds, conflicts, rework, cross_imports, lines, record)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) ON CONFLICT DO NOTHING`,
       [project, experiment, arm, point.merge, point.pr, point.mergedAt, point.commit, point.passed ?? null, point.total ?? null, point.files, point.bytes, point.workflowIntact,
-        point.tokens ?? null, point.claimRefusals, point.reds, point.conflicts, point.rework, point.crossImports, point.lines, record ?? null],
+        point.tokens ?? null, point.claimRefusals, point.reds, point.conflicts, point.rework, point.crossImports ?? null, point.lines, record ?? null],
     );
     written.push(point);
   };
@@ -394,7 +394,8 @@ export async function curves(server: Server, project: string, experiment: string
       ...(row.tokens === null ? {} : { tokens: Number(row.tokens) }),
       ...(row.claim_refusals === null || row.reds === null || row.conflicts === null ? {} : { claimRefusals: row.claim_refusals, reds: row.reds, conflicts: row.conflicts }),
       ...(row.rework === null ? {} : { rework: row.rework }),
-      ...(row.cross_imports === null || row.lines === null ? {} : { crossImports: row.cross_imports, lines: row.lines }),
+      ...(row.cross_imports === null ? {} : { crossImports: row.cross_imports }),
+      ...(row.lines === null ? {} : { lines: row.lines }),
     });
   }
   return series;

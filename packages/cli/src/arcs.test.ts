@@ -27,7 +27,7 @@ const arcs = family(ARC_FAMILIES.find((declared) => declared.name === "arc")!);
 before(() => command.build());
 after(() => command.remove());
 
-test("4.5 `arc list` names each live arc with the library's state", async () => {
+test("4.5 `arc list` names each live arc with the library's state, and the arcs closed yesterday or today; older closed arcs by a closing-day window (--closed today|yesterday|week, or --from and --to), refusing a wrong one", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const first = await anArc(world);
@@ -37,34 +37,52 @@ test("4.5 `arc list` names each live arc with the library's state", async () => 
     await library.parkArc(dated, { until: "2099-01-01" });
     const retired = await anArc(world);
     await library.retire(retired, "Duplicate plan");
+    const today = await aClosedArc(world, localToday());
+    const old = await aClosedArc(world, "2026-01-02");
     const ran = await world.run(["arc", "list"]);
     assert.equal(ran.code, 0, ran.stderr);
-    for (const id of [first, parked]) {
+    for (const id of [first, parked, today]) {
       const view = await library.arcView(id);
       const line = ran.stdout.split("\n").find((line) => line.includes(id));
       assert.ok(line?.includes(view!.arc.fields.title) && line.includes(view!.state), ran.stdout);
     }
     assert.ok(ran.stdout.split("\n").find((line) => line.includes(dated))?.includes("parked until 2099-01-01"), ran.stdout);
     assert.ok(!ran.stdout.includes(retired), ran.stdout);
+    assert.ok(!ran.stdout.includes(old), `an arc closed before yesterday is left out:\n${ran.stdout}`);
+
+    const window = await world.run(["arc", "list", "--from", "2026-01-01", "--to", "2026-01-02"]);
+    assert.equal(window.code, 0, window.stderr);
+    assert.ok(window.stdout.split("\n").find((line) => line.includes(old))?.includes("closed 2026-01-02"), window.stdout);
+    for (const id of [first, parked, today]) assert.ok(!window.stdout.includes(id), `a window lists closed arcs alone:\n${window.stdout}`);
+    const week = await world.run(["arc", "list", "--closed", "week"]);
+    assert.ok(week.stdout.includes(today) && !week.stdout.includes(old) && !week.stdout.includes(first), week.stdout);
+
+    for (const wrong of [["--closed", "month"], ["--from", "2026-01-01"], ["--from", "2026-1-1", "--to", "2026-01-02"], ["--from", "2026-01-03", "--to", "2026-01-02"], ["--closed", "week", "--from", "2026-01-01", "--to", "2026-01-02"]]) {
+      const refused = await world.run(["arc", "list", ...wrong]);
+      assert.equal(refused.code, 1, `${wrong.join(" ")} was taken`);
+      assert.match(refused.stderr, /--closed|--from|--to/);
+    }
   });
 });
 
-test("4.5 `arc list` reads every arc in one ask, however many arcs the project has (ADR-0836 D3)", async () => {
+test("4.5 `arc list` reads the board's arcs in one ask, or the closed arcs in one, however many arcs the project has (ADR-0836 D3)", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     for (let n = 0; n < 3; n++) await anArc(world);
-    const asked = { arcView: 0, arcViews: 0 };
+    const asked = { arcView: 0, arcViews: 0, boardArcs: 0, closedArcs: 0 };
     const counted = new Proxy(library, {
       get(target, key) {
-        if (key === "arcView" || key === "arcViews") asked[key]++;
+        if (typeof key === "string" && key in asked) asked[key as keyof typeof asked]++;
         const value = Reflect.get(target, key) as unknown;
         return typeof value === "function" ? value.bind(target) : value;
       },
     });
     const list = arcs.verbs.find((verb) => verb.name === "list")!;
-    const answer = await list.act(parseArgs([], [], world.folder), { cwd: world.folder, activityContext: async () => ({ library: counted }) } as unknown as Context);
-    assert.match(answer.text, /^3 arcs:/);
-    assert.deepEqual(asked, { arcView: 0, arcViews: 1 });
+    const listed = (words: string[]) => list.act(parseArgs(words, [], world.folder), { cwd: world.folder, activityContext: async () => ({ library: counted }) } as unknown as Context);
+    assert.match((await listed([])).text, /^3 arcs:/);
+    assert.deepEqual(asked, { arcView: 0, arcViews: 0, boardArcs: 1, closedArcs: 0 });
+    await listed(["--closed", "week"]);
+    assert.deepEqual(asked, { arcView: 0, arcViews: 0, boardArcs: 1, closedArcs: 1 });
   });
 });
 
@@ -220,6 +238,21 @@ function today(): string {
 }
 
 /** An arc written straight into the library, for a test that is about something else. */
+/** Today as a local day (YYYY-MM-DD), the day `arc list` counts from. */
+function localToday(): string {
+  const day = new Date();
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+}
+
+/** An arc whose one increment landed on `date`, so the arc closed that day. */
+async function aClosedArc(world: World, date: string): Promise<string> {
+  const library = await world.library();
+  const arc = await anArc(world);
+  const increment = await library.addIncrement({ arc, title: "Schema", objective: "Tables", body: "…" });
+  await library.closeIncrement(increment.id, { pr: "#1", disposition: "landed", date });
+  return arc;
+}
+
 async function anArc(world: World): Promise<string> {
   const arc = await (await world.library()).createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up" });
   return arc.id;

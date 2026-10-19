@@ -1,7 +1,7 @@
 # The first short's polish loop (increment_ea834305fe2d)
 
 Five rounds, each: render the 1080p cut, build contact sheets (frames every 0.25 s plus the frames either side of every cut,
-each labelled), a still of every beat and the script's timing table (`round.mjs`), then a fresh-context director subagent
+each labelled), a still of every beat and the script's timing table (`round.mjs`, since moved to `../polish-2/round.mjs`, which writes the second loop's rounds), then a fresh-context director subagent
 given only the rubric, those pictures and the table (never the builder's reasoning) returns numbered findings with a
 timestamp and a severity and a pass or fail on each rubric item. Every blocker and major was worked before the next round;
 the loop stops at no blocker and no major, or after round 5. It stopped after round 5.
@@ -21,7 +21,7 @@ depth; in front: through it). The director cannot see motion between sampled fra
 cursor's path and the panel's slide were never judged.
 
 Every round's contact sheets, timing table and findings are kept; the beat stills only for round 5, the cut that lands. The
-pictures are stored as 256-colour PNGs (they come from the compressed MP4 anyway); `round.mjs` writes them full-colour.
+pictures are stored as 256-colour PNGs (they come from the compressed MP4 anyway); the round script writes them full-colour.
 
 After round 5 the composition was made to wait until the forest's drawing is the same picture several times running before
 its first frame (the renders' tests had caught two renders of one frame differing on a busy machine: the roads round the

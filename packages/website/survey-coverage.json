@@ -1,12 +1,12 @@
 {
  "src/build.ts": {
-  "1": 12,
+  "1": 24,
   "2": 4,
   "4": 4,
   "5": 4
  },
  "src/escape-html.ts": {
-  "1": 3,
+  "1": 6,
   "2": 1,
   "4": 1,
   "5": 1
@@ -23,30 +23,40 @@
   "1": 5,
   "2": 10
  },
+ "src/map-recording.ts": {
+  "2": 1836,
+  "3": 136
+ },
+ "src/mark.ts": {
+  "1": 30,
+  "2": 5,
+  "4": 5,
+  "5": 5
+ },
  "src/opening-audio.ts": {
   "1": 7,
   "2": 4
  },
  "src/opening-clock.ts": {
-  "1": 15,
+  "1": 30,
   "2": 5,
   "4": 5,
   "5": 5
  },
  "src/opening-lines.ts": {
-  "1": 8,
+  "1": 14,
   "2": 6,
   "4": 2,
   "5": 2
  },
  "src/opening-markup.ts": {
-  "1": 24,
+  "1": 48,
   "2": 8,
   "4": 8,
   "5": 8
  },
  "src/opening-seed.ts": {
-  "1": 8,
+  "1": 14,
   "2": 5,
   "4": 2,
   "5": 2
@@ -55,11 +65,34 @@
   "1": 72,
   "2": 43
  },
+ "src/overlays/cards.ts": {
+  "2": 80,
+  "3": 4,
+  "7": 2,
+  "8": 3,
+  "9": 10
+ },
+ "src/overlays/encounters.ts": {
+  "8": 39,
+  "9": 35
+ },
+ "src/overlays/journal.ts": {
+  "8": 27,
+  "9": 45
+ },
+ "src/overlays/view/diagram.ts": {
+  "2": 297,
+  "3": 22,
+  "9": 55
+ },
+ "src/overlays/view/mount.ts": {
+  "9": 115
+ },
  "src/own-growth.ts": {
   "3": 24
  },
  "src/publish-source.ts": {
-  "4": 20
+  "4": 48
  },
  "src/publish.ts": {
   "4": 40
@@ -71,29 +104,59 @@
   "3": 4
  },
  "src/refresh-shop.ts": {
-  "3": 6
+  "3": 12
  },
  "src/saved-growth.ts": {
-  "3": 337
+  "3": 405
  },
  "src/shop-growth.ts": {
-  "3": 89
+  "3": 179
+ },
+ "src/shorts/cast.ts": {
+  "6": 42
+ },
+ "src/shorts/font.ts": {
+  "6": 38
+ },
+ "src/shorts/render.ts": {
+  "6": 48
+ },
+ "src/shorts/scene.ts": {
+  "6": 203
+ },
+ "src/shorts/script.ts": {
+  "6": 153
+ },
+ "src/shorts/short.tsx": {
+  "6": 10
+ },
+ "src/shorts/view.ts": {
+  "6": 143
+ },
+ "src/testing/pg.ts": {
+  "3": 2
+ },
+ "src/tour-camera.ts": {
+  "2": 216,
+  "3": 2
  },
  "src/tour-copy.ts": {
   "1": 6,
-  "2": 103
+  "2": 239,
+  "3": 12
  },
  "src/tour-counts.ts": {
-  "1": 34,
-  "2": 14,
-  "4": 11,
-  "5": 11
+  "1": 85,
+  "2": 206,
+  "3": 14,
+  "4": 14,
+  "5": 14
  },
  "src/tour-reading.ts": {
-  "2": 72
+  "2": 174
  },
  "src/tour-snapshot.ts": {
-  "3": 193
+  "3": 265
  },
  "src/tour-ui.ts": {
   "1": 23,
@@ -101,7 +164,8 @@
  },
  "src/tour.ts": {
   "1": 14,
-  "2": 503
+  "2": 2821,
+  "3": 204
  },
  "src/waitlist.ts": {
   "2": 5,

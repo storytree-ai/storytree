@@ -3,7 +3,7 @@
 // --retake to replace the committed pictures.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, captureSeed, runCapture } from '../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, captureSeed, runCapture } from '../../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, 'dist');
 await buildCapture({ dist });

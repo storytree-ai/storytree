@@ -1,6 +1,6 @@
 /** Capability 2 · The forest on the site. */
 import type { GlobeSurfaces, GlobeTarget } from "@storytree/forest/view";
-import { cardOf } from "@storytree/learning-as-you-build";
+import { cardOf } from "./overlays/index.js";
 import type { Chip, Decision, Explainer, Group, Mark, TourStep } from "./tour.js";
 
 /** When the comparisons were checked against each tool's own documentation (definition_b0b80acc7330). */

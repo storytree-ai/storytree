@@ -11,7 +11,7 @@ import { aim, createTour, depthLink, flight, globeOf, groups, insetAt, islandsKe
 import { decisionLabel, freePlayLines, steps as tourSteps } from "./tour-copy.js";
 import { fill, growthCounts } from "./tour-counts.js";
 import { globeSide } from "./tour-camera.js";
-import { decisionsDiagram } from "@storytree/learning-as-you-build/view";
+import { decisionsDiagram } from "./overlays/view/index.js";
 
 const step = (id: string, explainer: TourStep["explainer"], lines = ["One two three four five six seven eight nine ten"]): TourStep => ({
   id, title: id, explainer, lines, decisions: [], surfaces: {},

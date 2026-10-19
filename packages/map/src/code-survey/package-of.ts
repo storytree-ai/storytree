@@ -29,7 +29,6 @@ const PACKAGE_NAMED_OTHERWISE: Readonly<Record<string, string>> = {
   story_7722ddb5461e: "arc-surface", // Work board
   story_a93c6fb1a257: "app", // Desktop app
   story_b91056a06337: "app-setup", // Setup
-  story_7d7b0ffccf55: "learning-as-you-build", // Onboarding overlays
   story_b2051c0f7372: "agent-pool", // Agent runner (ADR-1071 D3): the package kept its name, so the box's live paths did not move.
   story_08790ee19bbf: "mark", // Marketing artifacts (ADR-1071 D3): The mark renamed, its package kept.
 };

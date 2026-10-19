@@ -2,6 +2,13 @@
   "enabledMcpjsonServers": [
     "storytree"
   ],
+  "permissions": {
+    "allow": [
+      "mcp__storytree",
+      "Bash(pnpm storytree:*)",
+      "Bash(pnpm -s storytree:*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {

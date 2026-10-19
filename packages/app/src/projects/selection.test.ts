@@ -98,7 +98,7 @@ test("2.3 reopening follows the last picker choice, --project wins, and a missin
   assert.equal((await explicit.choose("z-site")).current, "z-site");
 });
 
-test("2.15 the selection says where the project on show sits among factories: a product's factory, the product a factory goes back to, or no factory", async (t) => {
+test("2.15 the selection says where the project on show sits among factories: a product's factory, the product a factory goes back to, a factory that builds itself, or no factory", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "app-projects-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const links: Record<string, FactoryLink> = {
@@ -107,6 +107,8 @@ test("2.15 the selection says where the project on show sits among factories: a 
     "b-site": { kind: "product", factory: "my-factory" },
     "loose": { kind: "none" },
     "orphan": { kind: "product", factory: "gone-factory" },
+    "lone-factory": { kind: "factory" },
+    "own-factory": { kind: "factory" },
   };
   const app = projectSelection({
     file: path.join(dir, "project-choice.json"),
@@ -115,11 +117,15 @@ test("2.15 the selection says where the project on show sits among factories: a 
       if (name === "broken") throw new Error("the library is not reachable");
       return links[name]!;
     },
+    // A factory with a folder of its own builds itself (ADR-1086 D3).
+    buildsItself: async (name) => name === "own-factory",
   });
   assert.deepEqual((await app.choose("b-site")).factory, { place: "product", factory: "my-factory" });
   assert.deepEqual((await app.choose("my-factory")).factory, { place: "factory", product: "b-site" }, "back to the product it came from");
   assert.deepEqual((await projectSelection({ file: path.join(dir, "other.json"), listProjects: async () => Object.keys(links).sort(), lineageOf: async (name) => links[name]! })
     .read("my-factory")).factory, { place: "factory", product: "a-site" }, "with none remembered, the first product naming it");
+  assert.deepEqual((await app.choose("own-factory")).factory, { place: "factory", product: undefined, itself: true }, "a factory no product builds with, building itself");
+  assert.deepEqual((await app.choose("lone-factory")).factory, { place: "factory", product: undefined }, "a library-only factory no product builds with yet");
   assert.deepEqual((await app.choose("loose")).factory, { place: "none" });
   assert.deepEqual((await app.choose("orphan")).factory, { place: "none" }, "a factory that is not here is no factory yet");
   // A lineage that cannot be read is no factory, never a broken selection.

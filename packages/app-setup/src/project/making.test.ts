@@ -11,13 +11,13 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import path from "node:path";
 import { test } from "node:test";
 
-import { findProject, MARKER_FILE, requireApproval, type ProjectLookup } from "@storytree/project-and-caller";
+import { findProject, forgetTrunk, machineOf, MARKER_FILE, registerTrunk, requireApproval, type ProjectLookup } from "@storytree/project-and-caller";
 import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 import { openReviews } from "@storytree/quality-assurance";
 
-import { firstCommit, makeRepository, setUpProject, suggestProjectName } from "./making.js";
+import { firstCommit, makeRepository, setUpProject, suggestProjectName, userFactory } from "./making.js";
 
 /** The project a lookup found and the folder holding its marker, leaving aside the database identity the marker records. */
 function named(lookup: ProjectLookup): { project: string; folder: string } | ProjectLookup {
@@ -351,6 +351,30 @@ test("6.10 a folder in no git repository gets one, whose first commit holds the 
     assert.equal(missing.state, "could not");
     assert.match(missing.state === "could not" ? missing.reason : "", /git is not installed/);
     assert.equal(existsSync(path.join(gitless, ".git")), false);
+  });
+});
+
+test("6.11 the user's factory is found by its mark: with none of storytree's names, a factory the user brought, marked and with a folder of its own, is found, the first by name of several; one of storytree's names comes first, and a marked project with no folder is not found (ADR-1086 D4)", async () => {
+  const [shipped, early, late, stray, plain] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  const [first, second] = [early, late].sort();
+  await withTempDir(async (dir) => {
+    const machine = machineOf(machines(dir).laptop);
+    await withStorytree([shipped, early, late, stray, plain], async (storytree) => {
+      for (const name of [early, late, stray]) await (await storytree.openProject(name)).markFactory();
+      await storytree.openProject(plain);
+      const trunked = [first!, second!, plain];
+      for (const project of trunked) await registerTrunk(storytree, { project, machine: machine.id, machineName: machine.name, folder: path.join(dir, project) }, "setup");
+      try {
+        // Only these projects are looked at, so no other test's factory is found.
+        assert.equal(await userFactory(storytree, shipped, [plain, stray, second!]), second, "found by its mark and its folder, under none of storytree's names");
+        assert.equal(await userFactory(storytree, shipped, [second!, first!, plain, stray]), first, "of several, the first by name");
+        assert.equal((await storytree.listProjects()).includes(shipped), false, "and no factory is made");
+        assert.equal(await userFactory(storytree, shipped, [plain, stray]), shipped, "a marked project with no folder is not found: storytree's own is made");
+        assert.equal(await userFactory(storytree, shipped, [first!, shipped, plain]), shipped, "one of storytree's names comes first");
+      } finally {
+        for (const project of trunked) await forgetTrunk(storytree, { project });
+      }
+    });
   });
 });
 

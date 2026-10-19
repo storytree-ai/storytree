@@ -125,7 +125,8 @@ export async function approveCheckouts(server: Storytree, arms: readonly ArmRun[
  * plans (launch.mjs): for the first arc its look would plan whose state differs from the one the arm last planned it in
  * (kept in `state`), never while a planning lane of that arm runs. The arm's first look after its planning lane ends
  * checks it: with nothing ready and the arc still in the state it was planned in, the lane changed nothing, so the arc
- * is offered again once `backoffMs` has passed since the lane ended (kept in `state`), or sooner if its state changes. Ends, after its lanes end, on the owner's stop or once every arm has stopped.
+ * is offered again once `backoffMs` has passed since the lane ended (kept in `state`), or sooner if its state changes. An arc
+ * its look no longer lists (its work is open) is forgotten as planned, so it is offered again when it returns. Ends, after its lanes end, on the owner's stop or once every arm has stopped.
  */
 export async function runExperiment({ arms, rules, look, record, points, launch, state, stopped, sleep, now, say, pollMs = 60_000, backoffMs = 30 * 60_000 }: {
   arms: readonly ArmRun[];
@@ -197,6 +198,14 @@ export async function runExperiment({ arms, rules, look, record, points, launch,
             dated(`plan ${arc} in arm ${arm.arm} changed nothing: offered again after the back-off`);
           }
           delete kept.checking;
+          await state.save(saved);
+        }
+        // An arc leaves the list while its work is open, so one that returns is offered again even in its first state.
+        const gone = seen.plans && !planning.has(arm.arm) ? Object.keys(kept.planned ?? {}).filter((arc) => !seen.plans!.some((one) => one.id === arc)) : [];
+        if (gone.length) {
+          const rest = Object.fromEntries(Object.entries(kept.planned!).filter(([arc]) => !gone.includes(arc)));
+          if (Object.keys(rest).length) kept.planned = rest;
+          else delete kept.planned;
           await state.save(saved);
         }
         const open = seen.ready.filter((one) => !running.has(one.id) && !(now() < (ended.get(one.id) ?? -Infinity) + backoffMs));

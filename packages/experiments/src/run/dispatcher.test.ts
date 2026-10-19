@@ -278,3 +278,20 @@ test("7.12 · a run restarted while an unchanged arc waits out its back-off keep
   assert.deepEqual(second.launched, ["map-reads-on:plan:arc_on"], "the lane ended at 00:02, so the restarted run, from 00:04, offers the arc again at 00:32, its 28th look, not at once");
   assert.ok(second.lines.some((line) => line.startsWith("2026-10-17T00:32:00Z plan arc_on")), second.lines.join("\n"));
 });
+
+test("7.13 · an arc that leaves an arm's plannable list while its work is open is offered again when it returns, even in the state it was first planned in; one still listed keeps its plan", async () => {
+  const box = fakeBox({
+    rounds: 6,
+    real: () => idle(0, 4),
+    arms: { "map-reads-on": (round) => (round === 1 ? ["on1"] : []), "map-reads-off": () => [] },
+    plans: {
+      "map-reads-on": (round) => (round === 0 || round >= 4 ? [{ id: "arc_on", title: "On's arc", state: "s0" }] : []),
+      "map-reads-off": () => [{ id: "arc_off", title: "Off's arc", state: "t1" }],
+    },
+    state: { arms: { "map-reads-off": { launches: 0, planned: { arc_off: "t1" } } } },
+  });
+  assert.equal(await box.run(), 0);
+  assert.deepEqual(box.launched, ["map-reads-on:plan:arc_on", "map-reads-on:on1", "map-reads-on:plan:arc_on"],
+    "round 0: on's arc is planned at s0; rounds 1-3: its work is open, so the arc is not listed; round 4: every increment has closed and the arc is back at s0, so it is planned again; off's arc stays listed in the state it was planned in");
+  assert.deepEqual(box.saved.at(-1)?.arms["map-reads-off"]?.planned, { arc_off: "t1" });
+});

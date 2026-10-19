@@ -9,7 +9,8 @@ import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
 import { auth } from "./auth.js";
 import { capabilities } from "./capability.js";
-import { doors } from "./doors.js";
+import { commandsOf, doors } from "./doors.js";
+import { learning, twinsOf } from "./drain.js";
 import { plan } from "./tree.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
@@ -31,6 +32,13 @@ const KEPT: readonly Family[] = [
 ];
 
 export const FAMILIES: readonly Family[] = [...declared].sort((a, b) => a.order - b.order).reduce(
-  (families, family) => families.toSpliced(family.order - 1, 0, mounted(family)),
+  (families, family) => families.toSpliced(family.order - 1, 0, learning(mounted(family), surfaces)),
   KEPT,
 );
+
+/** The surfaces the doors learner judges in the friction drain: every command, every tool served in `cwd`, and the verbs both mount. */
+async function surfaces(cwd: string) {
+  const { servedTools } = await import("@storytree/mcp-server");
+  const tools = (await servedTools(cwd)).map(({ name, consumers }) => ({ verb: name, consumers }));
+  return { commands: commandsOf(FAMILIES), tools, twins: twinsOf(declared) };
+}

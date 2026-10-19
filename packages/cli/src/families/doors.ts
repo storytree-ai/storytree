@@ -17,7 +17,7 @@ const usage = "doors [--days <n>] [--trend <n>] [--json]";
  * Every command the door answers, as its door-answered lines name it, with its consumers: a family's verbs, its bare
  * command, and its families' within it.
  */
-function commandsOf(families: readonly Family[], path = "storytree"): DeclaredVerb[] {
+export function commandsOf(families: readonly Family[], path = "storytree"): DeclaredVerb[] {
   return families.filter((family) => family.waitsOn === undefined).flatMap((family) => {
     const at = `${path} ${family.name}`;
     const named = (verb: string, declared: Verb) => ({ verb, consumers: consumersOf(declared) });

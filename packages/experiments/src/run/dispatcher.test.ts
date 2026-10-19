@@ -1,7 +1,7 @@
 /** Capability 7 · Experiment dispatcher: a fake box (engines, cap, the real pool's ready work, each arm's) and fake lanes. */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -12,7 +12,7 @@ import type { Experiment } from "../record/record.js";
 import type { Curves, Point } from "../points/points.js";
 import { ExperimentRefusal } from "../record/record.js";
 import { withLibrary } from "../testing/pg.js";
-import { approveCheckouts, armLaneCommand, armRuns, laneBrief, PLAN_RULES, runExperiment, stateFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
+import { approveCheckouts, armLaneCommand, armRuns, laneBrief, laneFiles, PLAN_RULES, runExperiment, stateFile, statusFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
 
 const RULES = { flatMerges: 2, wallClockMs: 3600_000, wallClock: "1 hour" };
 const ARMS: ArmRun[] = [
@@ -315,4 +315,30 @@ test("7.14 · an arm whose planning lane changes nothing on three consecutive tr
   assert.match(stops[0]!, /its planning lane changed nothing on 3 consecutive tries/);
   assert.match(box.saved.at(-1)?.arms["map-reads-on"]?.stopped ?? "", /^declared done/);
   assert.equal(box.saved.at(-1)?.arms["map-reads-off"]?.stopped, undefined);
+});
+
+test("7.15 · an arm lane's folders list none of the run's state, status or output, nor another arm's review returns: each lane writes in its arm's home, and the run's lanes folder is never given to it", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "experiment-blind-"));
+  try {
+    const lanesDir = path.join(root, "storytree-lanes");
+    const [on, off] = ARMS.map((arm) => ({ ...arm, home: path.join(root, arm.arm), checkout: path.join(root, arm.arm, "repo") }));
+    for (const dir of [lanesDir, on!.checkout, off!.checkout]) mkdirSync(dir, { recursive: true });
+    writeFileSync(stateFile(lanesDir, "twin"), "{}\n");
+    writeFileSync(statusFile(lanesDir, "twin"), "map-reads-on: recorded merge 1 (#4, 372/372)\n");
+    writeFileSync(path.join(lanesDir, "experiment-twin.out"), "372/372\n");
+    for (const [arm, one] of [[on!, "increment_on"], [off!, "increment_off"]] as const) {
+      const files = laneFiles({ arm, name: "twin", one: { id: one, title: one }, at: "20261020T000000" });
+      mkdirSync(files.folder, { recursive: true });
+      for (const file of [files.brief, files.log, files.err]) writeFileSync(file, "");
+      writeFileSync(path.join(files.folder, `review-${one}-1.json`), "{}\n");
+    }
+    const lane = laneFiles({ arm: on!, name: "twin", one: { id: "increment_on", title: "On" }, at: "20261020T000000" });
+    const command = armLaneCommand({ arm: on!, repo: "/code/storytree03", ...lane, env: {} });
+    const listed = [command.cwd, ...command.args.slice(5)].flatMap((dir) => readdirSync(dir, { recursive: true }).map(String));
+    assert.ok(listed.includes(path.basename(lane.brief)), "the lane lists its own brief");
+    for (const hidden of ["experiment-twin.json", "experiment-twin.status", "experiment-twin.out", "review-increment_off-1.json"]) {
+      assert.ok(!listed.some((name) => name.endsWith(hidden)), `${hidden} is not in an arm lane's listing`);
+    }
+    assert.ok(!command.args.includes(lanesDir), "the run's lanes folder is not given to the lane");
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

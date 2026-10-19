@@ -704,7 +704,7 @@ test("6.67 show_plan says a mapped story is mapped, here before storytree and as
       const plan = await agent.call("show_plan");
       const lines = plan.text.split("\n");
       const story = lines.find((each) => each.includes(`(${shop!.id})`)) ?? "";
-      assert.match(story, /: mapped: here before storytree, and assumed to be working$/, plan.text);
+      assert.match(story, /: mapped: here before storytree, and assumed to be working; names no audience$/, plan.text);
       assert.doesNotMatch(story, /reported|verified|checked|passing/);
       assert.match(lines.find((each) => each.includes(`(${capability})`)) ?? "", /reported not checked, verified not checked/, plan.text);
     });

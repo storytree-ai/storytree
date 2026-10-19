@@ -1,7 +1,7 @@
 // Capability 3 · The Mint pool's dispatcher (ADR-0955 D2), which the box's launcher execs:
 // node --import tsx packages/agent-pool/src/launch.mjs pool            (one dispatcher over every active arc's ready increments; exits 3 to restart on its own code change)
 // node packages/agent-pool/src/launch.mjs slots                       (engines running now, and the cap)
-// node --import tsx packages/agent-pool/src/launch.mjs ready [project] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now)
+// node --import tsx packages/agent-pool/src/launch.mjs ready [project] [--drained] (as JSON: engines running, the cap, the lanes folder and the work the pool would start now)
 import { execFile, spawn } from "node:child_process";
 import { appendFileSync, existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { laneSettings } from "./engine.mjs";
-import { blind, pickPlan, pickPool, readOnly, surveyLibrary } from "./feed.mjs";
+import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary } from "./feed.mjs";
 import { codeVersion, composeBrief, countEngines, holdRunner, waitForSlot } from "./queue.mjs";
 import { runLane as runEngineLane } from "./runner.mjs";
 import { readLanePace } from "./pace.mjs";
@@ -217,10 +217,11 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
  * `ready`: what the box would do now for `project` (by default storytree), read by another dispatcher that shares the box's
  * cap (the experiment dispatcher, ADR-1064 D3): the engines running, the cap, the lanes folder, every increment
  * pickPool would start, with its arc's priority when it has one, and every arc pickPlan would plan with nothing ready, in
- * its order, each with the state it would be planned in (the reader keeps which it planned). The library is the one this
- * process's storytree home names.
+ * its order, each with the state it would be planned in (the reader keeps which it planned); with `drained`, every arc
+ * drained of its work (closed, no question open) after them, as an experiment arm plans its one arc. The library is the
+ * one this process's storytree home names.
  */
-async function ready(b, project = "storytree") {
+async function ready(b, project = "storytree", { drained = false } = {}) {
   const found = withHandOffs(await b.survey(project), await handedOff(join(b.lanesDir, "watch")));
   const { picks } = pickPool(found, { max: Infinity, now: b.now() });
   const work = picks.map((one) => ({ id: one.id, title: one.title, ...(one.priority === undefined ? {} : { priority: one.priority }) }));
@@ -229,6 +230,8 @@ async function ready(b, project = "storytree") {
     offered.set(arc.id, arc.state);
     plans.push({ id: arc.id, title: arc.title, state: arc.state });
   }
+  // An arc drained of its work reads closed, so pickPlan never offers it; an experiment arm's one arc still wants planning then.
+  if (drained) for (const arc of (found.arcs ?? []).filter((one) => one.state === "closed" && !one.openQuestions)) plans.push({ id: arc.id, title: arc.title, state: planState(found, arc.id) });
   (b.out ?? console.log)(JSON.stringify({ running: await b.count(), cap: await b.maxLanes(), lanesDir: b.lanesDir, ready: work, plans }));
   return 0;
 }
@@ -241,8 +244,8 @@ export async function main(args, box = {}) {
     return 0;
   }
   if (args[0] === "pool") return pool(b);
-  if (args[0] === "ready") return ready(b, args[1]);
-  (b.out ?? console.error)("usage: launch.mjs pool | slots | ready [project]");
+  if (args[0] === "ready") return ready(b, args[1], { drained: args.includes("--drained") });
+  (b.out ?? console.error)("usage: launch.mjs pool | slots | ready [project] [--drained]");
   return 2;
 }
 

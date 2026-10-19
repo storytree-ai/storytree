@@ -21,10 +21,11 @@ const ARMS: ArmRun[] = [
 ];
 
 /** A box whose real pool and arms are scripted per look; the dispatcher runs until `rounds` looks have passed. */
-function fakeBox({ rounds, real, arms, plans = {}, planRounds = 0, points = async () => ({}), record = async () => [], state = { arms: {} } as RunState, launchCode = 0, start = "2026-10-17T00:00:00Z" }: {
+function fakeBox({ rounds, real, arms, rules = RULES, plans = {}, planRounds = 0, points = async () => ({}), record = async () => [], state = { arms: {} } as RunState, launchCode = 0, start = "2026-10-17T00:00:00Z" }: {
   rounds: number;
   real: (round: number) => Look;
   arms: Record<string, (round: number) => string[]>;
+  rules?: typeof RULES;
   plans?: Record<string, (round: number) => { id: string; title: string; state: string }[]>;
   planRounds?: number;
   points?: (round: number) => Promise<Curves>;
@@ -43,7 +44,7 @@ function fakeBox({ rounds, real, arms, plans = {}, planRounds = 0, points = asyn
   return {
     lines, launched, saved,
     run: () => runExperiment({
-      arms: ARMS, rules: RULES, pollMs: 60_000, backoffMs: 30 * 60_000,
+      arms: ARMS, rules, pollMs: 60_000, backoffMs: 30 * 60_000,
       look: async (arm) => (arm === undefined
         ? real(round)
         : { running: 0, cap: 0, lanesDir: "/l", ready: (arms[arm.arm]?.(round) ?? []).map((id) => ({ id, title: id })), plans: plans[arm.arm]?.(round) ?? [] }),
@@ -199,7 +200,7 @@ test("7.8 · an arm with nothing ready is given one planning lane for its first 
     "round 0: one planning lane for on, not two, while off builds; rounds 1-3: on's lane runs, then its arc is unchanged, and off's arc was planned in its state before the restart; round 4: on's arc changed");
   assert.ok(box.lines.some((line) => /plan arc_on \(On's arc\) in arm map-reads-on: nothing ready/.test(line)));
   assert.deepEqual(box.saved.at(-1)?.arms, {
-    "map-reads-on": { launches: 2, firstLane: "2026-10-17T00:00:00.000Z", planned: { arc_on: "s2" }, checking: "arc_on" },
+    "map-reads-on": { launches: 2, firstLane: "2026-10-17T00:00:00.000Z", planned: { arc_on: "s2" }, idlePlans: 1, checking: "arc_on" },
     "map-reads-off": { launches: 1, firstLane: "2026-10-17T00:00:00.000Z", planned: { arc_off: "t1" } },
   });
 });
@@ -294,4 +295,24 @@ test("7.13 · an arc that leaves an arm's plannable list while its work is open 
   assert.deepEqual(box.launched, ["map-reads-on:plan:arc_on", "map-reads-on:on1", "map-reads-on:plan:arc_on"],
     "round 0: on's arc is planned at s0; rounds 1-3: its work is open, so the arc is not listed; round 4: every increment has closed and the arc is back at s0, so it is planned again; off's arc stays listed in the state it was planned in");
   assert.deepEqual(box.saved.at(-1)?.arms["map-reads-off"]?.planned, { arc_off: "t1" });
+});
+
+test("7.14 · an arm whose planning lane changes nothing on three consecutive tries, the back-off between them, is stopped as declared done, said once and kept; the other arm runs on", async () => {
+  const box = fakeBox({
+    rounds: 70, planRounds: 1, rules: { ...RULES, wallClockMs: 6 * 3600_000, wallClock: "6 hours" },
+    real: () => idle(0, 4),
+    arms: { "map-reads-on": () => [], "map-reads-off": (round) => (round === 1 ? ["off1"] : []) },
+    plans: {
+      "map-reads-on": () => [{ id: "arc_on", title: "On's arc", state: "[0,[]]" }],
+      "map-reads-off": () => [{ id: "arc_off", title: "Off's arc", state: "t1" }],
+    },
+  });
+  assert.equal(await box.run(), 0);
+  assert.deepEqual(box.launched.filter((one) => one.startsWith("map-reads-on")), ["map-reads-on:plan:arc_on", "map-reads-on:plan:arc_on", "map-reads-on:plan:arc_on"],
+    "on's arc is planned at rounds 0, 31 and 62; the third lane, like the two before it, changes nothing, so no fourth is offered");
+  const stops = box.lines.filter((line) => line.includes("stopped arm map-reads-on: declared done"));
+  assert.equal(stops.length, 1, box.lines.join("\n"));
+  assert.match(stops[0]!, /its planning lane changed nothing on 3 consecutive tries/);
+  assert.match(box.saved.at(-1)?.arms["map-reads-on"]?.stopped ?? "", /^declared done/);
+  assert.equal(box.saved.at(-1)?.arms["map-reads-off"]?.stopped, undefined);
 });

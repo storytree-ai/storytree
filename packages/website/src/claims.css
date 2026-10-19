@@ -13,7 +13,8 @@
 @media (max-width:600px) {
   #claims { padding:28px 12px 64px; }
   .claim { padding:40px 0 44px; }
-  .claim-fix { font-size:32px; }
+  /* Shrinks below 214 px wide (a 390 px phone at 200% zoom) so no word outruns the column (ADR-0879 D6). */
+  .claim-fix { font-size:min(32px, 15vw); overflow-wrap:break-word; }
   /* Edge to edge, so the film's two halves and their "without" and "with" labels read at a phone's width. */
   .claim-short { margin:28px -12px 0; }
   .claim-short video { border-inline:0; border-radius:0; }

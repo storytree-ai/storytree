@@ -15,7 +15,7 @@ function reads(fail: () => boolean): BoardReads {
   return {
     changesSince: async () => { if (fail()) throw new Error("timeout exceeded"); return { changes: [], cursor: 1 }; },
     linesSince: async () => ({ lines: [], cursor: 0 }),
-    arcViews: async () => { if (fail()) throw new Error("timeout exceeded"); return snapshot.arcs; },
+    boardArcs: async () => { if (fail()) throw new Error("timeout exceeded"); return snapshot.arcs; }, closedArcs: async () => [],
     holds: async () => ({ waits: {}, heldOn: {} }),
   };
 }

@@ -153,6 +153,29 @@ export interface ArcView {
   readonly questions: SchemaRecord<"question">[];
 }
 
+/** The increment fields the arc board draws (10.22): never its planning body, links, remedies or pending changes. */
+export const BOARD_INCREMENT_FIELDS = ["arc", "title", "objective", "status", "parked", "capabilities", "waits", "waitsFor", "heldOn", "outcome"] as const;
+
+/** An increment as the arc board reads it: its record with only the fields the board draws. */
+export type BoardIncrement = Omit<SchemaRecord<"increment">, "fields"> & { fields: Pick<FieldsOf<"increment">, (typeof BOARD_INCREMENT_FIELDS)[number]> };
+
+/** An arc as the arc board reads it (10.22): an ArcView with its increments' drawn fields, and, closed, its closing day. */
+export interface BoardArcView {
+  readonly arc: SchemaRecord<"arc">;
+  readonly state: ArcState;
+  readonly wakes?: string;
+  /** Closed, the day it closed: the latest outcome day among its increments (YYYY-MM-DD). */
+  readonly closed?: string;
+  readonly increments: BoardIncrement[];
+  readonly questions: SchemaRecord<"question">[];
+}
+
+/** A window of days, YYYY-MM-DD, from `from` up to but not including `to`. */
+export interface DayWindow {
+  readonly from: string;
+  readonly to: string;
+}
+
 /**
  * An increment was asked to move backward, to stay where it is, or on from closed, which is final.
  * The message names the increment, where it is, and where it was asked to go.
@@ -721,6 +744,66 @@ export class WorkInFlight {
     const questionsOf = byArc([...questions].sort(byCreation));
     return [...arcs].sort(byCreation).map((arc) => {
       return arcViewOf(arc, incrementsOf.get(arc.id) ?? [], questionsOf.get(arc.id) ?? [], at);
+    });
+  }
+
+  /**
+   * The arc board's reading at `at` (10.22): every live arc (active or parked), and each closed arc
+   * whose closing day falls in `closed`, oldest arc first, its increments carrying only the fields the
+   * board draws. Closed arcs outside the window are never read past the facts that decide their state.
+   */
+  boardArcs(closed: DayWindow, at: Date = new Date()): Promise<BoardArcView[]> {
+    return this.#boardArcs(closed, true, at);
+  }
+
+  /** Only the closed arcs whose closing day falls in `window`, read as boardArcs reads them (10.22). */
+  closedArcs(window: DayWindow, at: Date = new Date()): Promise<BoardArcView[]> {
+    return this.#boardArcs(window, false, at);
+  }
+
+  /**
+   * The closing day is worked out here, not stored or asked of SQL: a first pass selects only the
+   * fields that decide each arc's state and its increments' outcome days, then the arcs kept are read.
+   */
+  async #boardArcs(window: DayWindow, live: boolean, at: Date): Promise<BoardArcView[]> {
+    const [arcFacts, incrementFacts, questionFacts] = await Promise.all([
+      this.#records.select("arc", ["waits", "parked", "parkedUntil"]),
+      this.#records.select("increment", ["arc", "status", "waits", "waitsFor", "heldOn", "outcome"]),
+      this.#records.select("question", ["arc", "lifecycle"]),
+    ]);
+    const group = <T extends { fields: { arc: string } }>(records: readonly T[]): Map<string, T[]> => {
+      const grouped = new Map<string, T[]>();
+      for (const record of records) grouped.set(record.fields.arc, [...(grouped.get(record.fields.arc) ?? []), record]);
+      return grouped;
+    };
+    const incrementsOf = group([...incrementFacts].sort(byCreation));
+    const questionsOf = group(questionFacts);
+    const kept = new Map<string, string | undefined>();
+    for (const arc of arcFacts) {
+      const increments = incrementsOf.get(arc.id) ?? [];
+      if (arcState(arc, increments, questionsOf.get(arc.id) ?? [], at) !== "closed") {
+        if (live) kept.set(arc.id, undefined);
+        continue;
+      }
+      const day = increments.map(({ fields }) => fields.outcome?.date ?? "").sort().at(-1) ?? "";
+      if (day >= window.from && day < window.to) kept.set(arc.id, day);
+    }
+    const ids = [...kept.keys()];
+    if (ids.length === 0) return [];
+    const [arcs, increments, questionRecords] = await Promise.all([
+      this.#records.list("arc", { ids }),
+      this.#records.select("increment", BOARD_INCREMENT_FIELDS, { ids: ids.flatMap((id) => (incrementsOf.get(id) ?? []).map((increment) => increment.id)) }),
+      this.#records.list("question", { ids: ids.flatMap((id) => (questionsOf.get(id) ?? []).map((question) => question.id)) }),
+    ]);
+    const drawnOf = group([...increments].sort(byCreation));
+    const askedOf = group([...questionRecords].sort(byCreation));
+    return [...arcs].sort(byCreation).map((arc): BoardArcView => {
+      const facts = incrementsOf.get(arc.id) ?? [];
+      const questions = askedOf.get(arc.id) ?? [];
+      const state = arcState(arc, facts, questions, at);
+      const wakes = state !== "parked" ? undefined : isParked(arc, at) ? arc.fields.parkedUntil : asleepUntil(arc, facts, questions, at);
+      const closed = kept.get(arc.id);
+      return { arc, state, ...(wakes === undefined ? {} : { wakes }), ...(closed === undefined ? {} : { closed }), increments: drawnOf.get(arc.id) ?? [], questions };
     });
   }
 

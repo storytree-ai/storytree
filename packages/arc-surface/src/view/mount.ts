@@ -3,6 +3,7 @@ import type { BoardReads } from "../board/reads.js";
 import { isBoardSnapshot, watchBoard, type BoardState } from "../board/live-board.js";
 import { pageKept } from "../live-reading/kept.js";
 import type { BoardScope } from "../board/board.js";
+import type { ClosedRange } from "../board/closed-range.js";
 import type { ArcDrawn } from "../board/smoke.js";
 import type { Timers } from "../live-reading/live-reading.js";
 import type { PageReading } from "../live-reading/page-reading.js";
@@ -26,6 +27,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   const status = root.querySelector<HTMLElement>(".arc-status")!;
   let scope = saved.scope;
   let picked = saved.picked;
+  let closedRange: ClosedRange = { preset: "today" };
   let question: string | undefined;
   let watching: ReturnType<typeof watchBoard> | undefined;
   let state: BoardState | undefined;
@@ -55,7 +57,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     if (question && !selected?.view.questions.some(({ id }) => id === question)) question = undefined;
     remember();
     const focused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-    const focusAttributes = ["data-arc-select", "data-arc-scope", "data-arc-queue", "data-question-open", "data-question-back"];
+    const focusAttributes = ["data-arc-select", "data-arc-scope", "data-arc-queue", "data-closed-range", "data-question-open", "data-question-back"];
     const focusAttribute = focusAttributes.find((name) => focused?.hasAttribute(name));
     const focusKey = focusAttribute ? focused?.getAttribute(focusAttribute) : undefined;
     const focusedFold = focused?.tagName === "SUMMARY" ? focused.parentElement?.dataset.foldKey : undefined;
@@ -76,7 +78,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
       if (!drawer.hidden) return;
       drawer.hidden = false; launch.hidden = true; launch.setAttribute("aria-expanded", "true");
       remember();
-      watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, keptFresh: readFresh, onState: draw });
+      watching = watchBoard({ ...options, kept: pageKept(`storytree.arc-surface.board.v1:${options.project}`, isBoardSnapshot), scope, keptFresh: readFresh, closedRange, onState: draw });
       drawer.querySelector<HTMLButtonElement>("[data-close-arcs]")!.focus();
     },
     close() {
@@ -104,6 +106,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
     if (!button) return;
     if (button.dataset.arcSelect) { picked = button.dataset.arcSelect; question = undefined; if (state) draw(state, false); }
     if (button.dataset.arcScope) { scope = button.dataset.arcScope as BoardScope; picked = undefined; question = undefined; watching?.setScope(scope); remember(); }
+    if (button.dataset.closedRange) { closedRange = { preset: button.dataset.closedRange as "today" | "yesterday" | "week" }; picked = undefined; question = undefined; watching?.setClosedRange(closedRange); }
     if (button.dataset.arcQueue) {
       const id = button.dataset.arcQueue;
       if (queues.has(id)) queues.delete(id); else queues.add(id);
@@ -119,6 +122,15 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
       if (state) draw(state, false);
       [...body.querySelectorAll<HTMLButtonElement>("[data-question-open]")].find((node) => node.dataset.questionOpen === previous)?.focus({ preventScroll: true });
     }
+  });
+  // 3.12: a From–to day picked asks for that range, its other end kept as shown.
+  body.addEventListener("change", (event) => {
+    const input = event.target as HTMLInputElement;
+    if (!input.matches("[data-closed-from], [data-closed-to]") || !input.value) return;
+    const shown = state?.board?.closed;
+    if (!shown) return;
+    closedRange = input.hasAttribute("data-closed-from") ? { from: input.value, to: shown.to } : { from: shown.from, to: input.value };
+    picked = undefined; question = undefined; watching?.setClosedRange(closedRange);
   });
   body.addEventListener("toggle", (event) => {
     const detail = event.target as HTMLDetailsElement;

@@ -76,10 +76,10 @@ try {
   await library.addIncrement({ arc: closed.id, title: 'Alternative layout', objective: 'Explore', body: 'Explore', outcome: { disposition: 'withdrawn', note: 'Kept the smaller layout.' } });
   reads = pageReads({ storytree: store });
   let failRead = false;
-  const bridge = { ...reads, projectSelection: async () => ({ current: project, projects: [project] }), arcViews: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.arcViews(...args); },
+  const bridge = { ...reads, projectSelection: async () => ({ current: project, projects: [project] }), boardArcs: async (...args) => { if (failRead) throw new Error('temporary read failure'); return reads.boardArcs(...args); },
     // The renderer asks for its surfaces setting first; an unread setting means every surface is on.
     readSurfaces: async () => undefined };
-  const allowed = ['projectSelection', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcViews', 'holds', 'idleAfterMs', 'readSurfaces'];
+  const allowed = ['projectSelection', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcViews', 'boardArcs', 'closedArcs', 'holds', 'idleAfterMs', 'readSurfaces'];
   server = createServer((req, res) => {
     const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
     if (!['index.html', 'renderer.js', 'styles.css', 'app-setup.css', 'arc-surface.css', 'forest.css'].includes(name)) { res.writeHead(404).end(); return; }

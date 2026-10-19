@@ -1,6 +1,7 @@
 /** Capability 3 · Arc surface. */
 import { logReading, type LogReading } from "@storytree/session-management/readings";
-import type { ArcView, Hold, Line, NoteWait } from "@storytree/library";
+import type { BoardArcView, Hold, Line, NoteWait } from "@storytree/library";
+import type { ClosedRange } from "./closed-range.js";
 import { agentsOnBoard, type BoardAgent } from "../agents/agents.js";
 import { firstBriefing } from "../briefing/briefing.js";
 import { arcQueues, waitsOnBoard, type ArcQueue, type NamedWait, type WorkName } from "../waits/waits.js";
@@ -8,7 +9,7 @@ import { arcState, incrementState, questionsBehind, type ArcState, type Incremen
 
 export type BoardScope = "active" | "parked" | "closed";
 export interface BoardSnapshot {
-  arcs: ArcView[];
+  arcs: BoardArcView[];
   waits: Record<string, Hold[]>;
   heldOn: Record<string, string[]>;
   /** Each open increment's waits for the owner or an event (ADR-0938); a board kept by an older build has none. */
@@ -37,7 +38,7 @@ export interface Lane {
   title: string;
   /** The arc's priority, 1 first; an unranked arc has none (ADR-0963). */
   priority?: number;
-  view: ArcView;
+  view: BoardArcView;
   bars: Bar[];
   agents: BoardAgent[];
   state: ArcState;
@@ -57,6 +58,8 @@ export interface BoardView {
   lanes: Lane[];
   queues: ArcQueue[];
   selected: string | undefined;
+  /** On the Closed tab, its range and the days it covers, both ends included, and whether a wider range is still being read (3.12). */
+  closed?: { range: ClosedRange; from: string; to: string; reading: boolean };
 }
 const rank: Record<ArcState, number> = { waiting: 0, blocked: 1, queued: 1, "in-progress": 2, idle: 3, ready: 4, quiet: 5, parked: 6, closed: 7 };
 const time = (at: string) => Date.parse(at) || 0;
@@ -79,7 +82,7 @@ export function boardView(snapshot: BoardSnapshot, log: readonly Line[] | LogRea
     ...openWork.filter(({ id }) => live.some((agent) => agent.increment === id)).flatMap(({ id, fields }) => (fields.capabilities ?? []).map((capability): [string, string] => [capability, id])),
     ...live.flatMap(({ capability, under }): [string, string][] => capability !== undefined && under !== undefined && openWork.some(({ id }) => id === under) ? [[capability, under]] : []),
   ]);
-  const blockedBy = (increment: ArcView["increments"][number]) => (increment.fields.capabilities ?? []).map((capability) => holding.get(capability)).find((holder) => holder !== undefined && holder !== increment.id);
+  const blockedBy = (increment: BoardArcView["increments"][number]) => (increment.fields.capabilities ?? []).map((capability) => holding.get(capability)).find((holder) => holder !== undefined && holder !== increment.id);
   const questionTitles = new Map(snapshot.arcs.flatMap(({ questions }) => questions.map((question): [string, string] => [question.id, question.fields.title])));
   const lanes = snapshot.arcs.filter(({ state }) => state === scope).map((view): Lane => {
     const { arc, increments, questions } = view;

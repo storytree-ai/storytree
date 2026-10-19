@@ -6,8 +6,11 @@ export { RetireRefusedError } from "./owner-questions.js";
 export type { NewQuestion, QuestionEdit, QuestionLease, Settlement } from "./owner-questions.js";
 export { WaitLoopError } from "./waits.js";
 export type { Hold, Holds, NoteWait, WaitFor } from "./waits.js";
-export { CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, planGuidance, WorkModel } from "./work-model.js";
+export { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, planGuidance, WorkModel } from "./work-model.js";
 export type {
+  Anchor,
+  AnchorEdit,
+  AnchorGaps,
   ArcEdit,
   ArcNode,
   CapabilityEdit,

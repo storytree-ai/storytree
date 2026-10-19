@@ -253,20 +253,25 @@ function onScreen(screen: Rect, map: NonNullable<SceneInputs["map"]>, mark: Mark
  * the cursor pressing the panel's button that opens the graph full size. */
 function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: number, { view, map: drawn }: SceneInputs): void {
   const { x, y, width, height } = screen;
+  const since = clickedFor(SCRIPT.with, seconds), open = panelOpen(SCRIPT.with, seconds);
+  // As the panel opens the map slides aside by half its width, as the app's does, so the island he clicked stays in view.
+  const aside = Math.round(open * PANEL_WIDTH / 2), shown = { ...screen, x: x - aside };
   ctx.fillStyle = INK.map;
   ctx.fillRect(x, y, width, height);
-  ctx.drawImage(view, x, y, width, height);
-  const since = clickedFor(SCRIPT.with, seconds), open = panelOpen(SCRIPT.with, seconds);
-  const islands = drawn?.marks?.islands.map(mark => ({ mark, at: onScreen(screen, drawn, mark) })) ?? [];
+  ctx.drawImage(view, shown.x, y, width, height);
+  const islands = drawn?.marks?.islands.map(mark => ({ mark, at: onScreen(shown, drawn, mark) })) ?? [];
   // Each island is lettered under it, the selected one first, and a name that would overlap one already lettered is left off.
   const lettered: Rect[] = open ? [panelBox(screen, open)] : [];
   const order = [...islands].sort((a, b) => Number(b.mark.story === PANEL.story) - Number(a.mark.story === PANEL.story));
   for (const { mark, at } of order) {
     const lines = wrap(mark.title, 12), selected = since !== undefined && mark.story === PANEL.story;
-    const top = at.y + at.height + 1, wide = Math.max(...lines.map(line => line.length)) * SMALL.advance - 1;
-    const plate = { x: Math.round(at.x + at.width / 2 - wide / 2) - 2, y: top - 2, width: wide + 4, height: lines.length * SMALL.line + 3 };
-    if (plate.x < x || plate.x + plate.width > x + width || plate.y + plate.height > y + height) continue;
-    if (lettered.some(other => plate.x < other.x + other.width && other.x < plate.x + plate.width && plate.y < other.y + other.height && other.y < plate.y + plate.height)) continue;
+    const wide = Math.max(...lines.map(line => line.length)) * SMALL.advance - 1, tall = lines.length * SMALL.line + 3;
+    const clear = (plate: Rect) => plate.x >= x && plate.x + plate.width <= x + width && plate.y >= y && plate.y + plate.height <= y + height
+      && !lettered.some(other => plate.x < other.x + other.width && other.x < plate.x + plate.width && plate.y < other.y + other.height && other.y < plate.y + plate.height);
+    // Under the island, as the app letters it; above it where a name already lettered is in the way.
+    const plate = [at.y + at.height - 1, at.y - tall - 1].map(py => ({ x: Math.round(at.x + at.width / 2 - wide / 2) - 2, y: py, width: wide + 4, height: tall })).find(clear);
+    if (!plate) continue;
+    const top = plate.y + 2;
     lettered.push(plate);
     // The island he clicked is named on a gold plate, as the app lights a selection.
     box(ctx, plate.x, plate.y, plate.width, plate.height, selected ? INK.plate : INK.nameplate, selected ? INK.plate : INK.nameplate);

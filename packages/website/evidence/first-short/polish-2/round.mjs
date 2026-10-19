@@ -48,7 +48,10 @@ function label(dst, text, x0, y0, colour, zoom = 2) {
 }
 
 // ---- when to look ----------------------------------------------------------------------------
-const cuts = [...new Set(Object.values(SCRIPT).flatMap(beats => beats.map(beat => beat.from)).concat(END_CARD))].filter(at => at > 0).sort((a, b) => a - b);
+// A cut is where a half's picture changes: to or from a full view, to another app, or to another file; a new pose or thought
+// inside one view is not a cut.
+const cutsOf = beats => beats.filter((beat, i) => i > 0 && (beat.view !== beats[i - 1].view || beat.app !== beats[i - 1].app || beat.file !== beats[i - 1].file)).map(beat => beat.from);
+const cuts = [...new Set(Object.values(SCRIPT).flatMap(cutsOf).concat(END_CARD))].filter(at => at > 0).sort((a, b) => a - b);
 const times = new Map();
 for (let t = 0; t < LENGTH; t += 0.25) times.set(Math.round(t * FPS), false);
 for (const cut of cuts) for (const d of [-1, 0, 1]) times.set(Math.round(cut * FPS) + d, d === 0);
@@ -84,7 +87,7 @@ for (const side of Object.keys(SCRIPT)) {
 }
 writeFileSync(path.join(out, "timing.md"), `# Round ${round}: the script's timing
 
-${LENGTH} s at ${FPS} fps; the end card from ${END_CARD} s. Cuts (either half): ${cuts.map(c => c.toFixed(2)).join(", ")}.
+${LENGTH} s at ${FPS} fps; the end card from ${END_CARD} s. Cuts (a change of view, app or file; a new pose or thought inside one view is not a cut): left ${cutsOf(SCRIPT.without).map(c => c.toFixed(2)).join(", ")}; right ${cutsOf(SCRIPT.with).map(c => c.toFixed(2)).join(", ")}; the end card ${END_CARD.toFixed(2)}.
 
 ## Without storytree (left half)
 

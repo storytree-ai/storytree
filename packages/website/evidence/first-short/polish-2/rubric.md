@@ -15,6 +15,10 @@ items 6 to 10 are the owner's notes of 2026-10-19 on that loop's cut.
    - The map is storytree's current glass sheet: a lit perspective slab resting at a tabletop tilt, with thick land and
      islands in rows by depth. It is not a globe. (`../../freeplay-shop-panels/freeplay-shop-story-1440.png` is the app's own screenshot of this shop's sheet, with a story's panel and its capability graph open.)
    - The island's side panel and the capability graph show the story's real parts.
+   - Facts about the app, for judging: it fills a part's land green when proven, yellow when not yet proven ("asks for
+     attention"), red when failing; dark land with dots or a hatch is code no contract has surveyed. Its screenshot named
+     above is an earlier capture of the shop, so some part names and numbers in it differ from the shop's saved plan the short
+     draws.
 3. **Legibility.**
    - No sprite or prop covers text that is the beat's focus.
    - Every line a viewer must read is held at least its reading time: about 2.5 words a second, plus 1 second (`timing.md`

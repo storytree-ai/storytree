@@ -77,7 +77,7 @@ export const GRAPH: { panel: StoryPanel; layout: TreeLayout } = (() => {
  * drawn on a canvas four times the full screen's size (so its lit edges survive being shrunk) and aimed once, before the first
  * frame, at the shop's middle row, close enough to read the islands and far enough to see the slab's corner and edge, with the
  * wishlist left of where the panel opens. */
-export const MAP = { width: 912, height: 856, aim: { framing: 0.0013, sideOffset: -110, story: "story_b393a0c5a8de" } } as const;
+export const MAP = { width: 912, height: 856, aim: { framing: 0.0017, sideOffset: 45, story: "story_b393a0c5a8de" } } as const;
 
 /** The short's palette for the map: the forest's drawing, shrunk to the screen, is put into these colours, so it is pixel art
  * with hard edges like everything around it: the void past the sheet, the glass in three tones (its far side, its lit middle,

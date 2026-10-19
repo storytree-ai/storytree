@@ -61,8 +61,8 @@ export type Beat = {
 };
 
 /** How long the short runs, in seconds, and the end card's start. */
-export const LENGTH = 56;
-export const END_CARD = 52;
+export const LENGTH = 58;
+export const END_CARD = 54;
 /** The poster frame, in seconds: the new story's capability graph on the storytree side while the other reads through code. */
 export const POSTER = 17;
 /** Typing speed, in characters a second: about the same on both halves, so the paragraph takes as long as its length. */
@@ -90,8 +90,9 @@ const OPENING: readonly Beat[] = [
     reply: "done: shoppers can save items for later. 9 files changed." },
 ];
 
-/** Both halves, beat by beat. Their turns line up and cut together: both open what was built at 10 s and change view at 19 s,
- * both go back to Claude at 22 s (the paragraph typed as fast as the short prompt, so it takes its length), and while the one
+/** Both halves, beat by beat. Their turns line up and cut together: both open what was built at 10 s, change what they look at
+ * at 15.5 s and 19 s, go back to Claude at 22 s, and cut to the room at 41 s and to the screen again at 48 s,
+ * the paragraph typed as fast as the short prompt (so it takes its length); and while the one
  * with storytree leaves the room the other is still answering questions. The one without never despairs: he keeps reading,
  * file after file, working out what was built. */
 export function beats(grounding: Grounding): Record<Side, readonly Beat[]> {
@@ -99,14 +100,14 @@ export function beats(grounding: Grounding): Record<Side, readonly Beat[]> {
     without: [
       ...OPENING,
       { from: 10, to: 11, pose: "reading", app: "code", view: "room", file: "src/routes/wishlist.ts" },
-      { from: 11, to: 15, pose: "reading", app: "code", view: "full", file: "src/routes/wishlist.ts", think: "ok. what did it build?" },
-      { from: 15, to: 19, pose: "reading", app: "code", view: "full", file: "src/wishlist/store.ts", think: "so this saves the list..." },
+      { from: 11, to: 15.5, pose: "reading", app: "code", view: "full", file: "src/routes/wishlist.ts", think: "ok. what did it build?" },
+      { from: 15.5, to: 19, pose: "reading", app: "code", view: "full", file: "src/wishlist/store.ts", think: "so this saves the list..." },
       { from: 19, to: 22, pose: "reading", app: "code", view: "full", file: "src/cart/move.ts", think: "and this moves it?" },
       { from: 22, to: 23, pose: "typing", app: "claude", view: "room" },
       { from: 23, to: 32.6, pose: "typing", app: "claude", view: "full", typed: PARAGRAPH, reply: "which one: move in cart, or the button?" },
-      { from: 32.6, to: 36.5, pose: "reading", app: "claude", view: "full", think: "let me look." },
-      { from: 36.5, to: 37.5, pose: "reading", app: "code", view: "room", file: "src/cart/move.ts" },
-      { from: 37.5, to: 41, pose: "reading", app: "code", view: "full", file: "src/cart/move.ts", think: "this one, i think." },
+      { from: 32.6, to: 37.5, pose: "reading", app: "claude", view: "full", think: "let me look." },
+      { from: 37.5, to: 38.5, pose: "reading", app: "code", view: "room", file: "src/cart/move.ts" },
+      { from: 38.5, to: 41, pose: "reading", app: "code", view: "full", file: "src/cart/move.ts", think: "this one?" },
       { from: 41, to: 42, pose: "typing", app: "claude", view: "room" },
       { from: 42, to: 48, pose: "typing", app: "claude", view: "full", typed: "the cart one i think", rate: 60,
         reply: "and should it stay on the wishlist after?" },
@@ -123,11 +124,11 @@ export function beats(grounding: Grounding): Record<Side, readonly Beat[]> {
       { from: 22, to: 23, pose: "typing", app: "claude", view: "room" },
       { from: 23, to: 34.5, pose: "typing", app: "claude", view: "full", typed: groundedPrompt(grounding),
         reply: "no: it moves the item to the cart and keeps it on the list. no test yet." },
-      { from: 34.5, to: 39.5, pose: "typing", app: "claude", view: "full", typed: "good. now build sharing a list.", reply: "on it." },
-      { from: 39.5, to: 41, pose: "standing", app: "claude", view: "room" },
-      { from: 41, to: 43, pose: "walking", app: "claude", view: "room" },
-      { from: 43, to: 45, pose: "gone", app: "claude", view: "room" },
-      { from: 45, to: END_CARD, pose: "gone", app: "claude", view: "full" },
+      { from: 34.5, to: 41, pose: "typing", app: "claude", view: "full", typed: "good. now build sharing a list.", reply: "on it." },
+      { from: 41, to: 42.5, pose: "standing", app: "claude", view: "room" },
+      { from: 42.5, to: 44.5, pose: "walking", app: "claude", view: "room" },
+      { from: 44.5, to: 48, pose: "gone", app: "claude", view: "room" },
+      { from: 48, to: END_CARD, pose: "gone", app: "claude", view: "full" },
     ],
   };
 }
@@ -135,7 +136,7 @@ export function beats(grounding: Grounding): Record<Side, readonly Beat[]> {
 /** What Claude does on the storytree side once its developer has left the room, seen in the full view of its screen: one step
  * every WORKING_EVERY seconds from just after the cut to it. */
 export const WORKING = ["write src/wishlist/share.ts", "write src/wishlist/share.test.ts", "run tests: 31 passed", "update the map: 5 · share link"] as const;
-export const WORKING_EVERY = 0.9, WORKING_AFTER = 0.3;
+export const WORKING_EVERY = 0.6, WORKING_AFTER = 0.3;
 
 /** The beat playing at `seconds` on a side; past the last it holds the last. */
 export function beatAt(side: readonly Beat[], seconds: number): Beat {

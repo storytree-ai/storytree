@@ -73,7 +73,11 @@ test("6.5 · the storytree side's map is the forest's glass sheet of the saved p
     const beat = script.with.find(each => seconds >= each.from && seconds < each.to)!;
     if (beat.app !== "map") { assert.deepEqual(copies, [], `no map at ${seconds}s`); continue; }
     const screen = SCREEN[beat.view];
-    assert.deepEqual(copies, [[HALF.with + screen.x, screen.y, screen.width, screen.height]], `one copy of the view fills the ${beat.view} screen at ${seconds}s`);
+    assert.equal(copies.length, 1, `one copy of the view at ${seconds}s`);
+    const [x, y, width, height] = copies[0]!;
+    assert.deepEqual([y, width, height], [screen.y, screen.width, screen.height], `the copy is the ${beat.view} screen's size at ${seconds}s`);
+    // On a full view it slides aside, as the app's map does, by up to half the panel's width while the panel opens.
+    assert.ok(x! <= HALF.with + screen.x && x! >= HALF.with + screen.x - (beat.view === "full" ? 50 : 0), `the copy starts at the ${beat.view} screen's left, or slid at most 50 px left of it, at ${seconds}s`);
     shown.add(beat.view);
   }
   assert.deepEqual([...shown].sort(), ["full", "room"], "the map shows in the room and in a full view of the screen");

@@ -1372,7 +1372,7 @@ test("3.35 a shell command that changes or deletes files in an imported folder w
   });
 });
 
-test("3.36 a shell command that changes files in a capability its session's increment does not list, or that another live session holds, is told to the agent at once by the hook after it that the harness waits for, as the hook before an edit tool would refuse it; a change to a listed capability, or none, says nothing; past the guard's time, a slow machine's, the worktree's changes say nothing, as an edit the gate could not judge goes ahead (ADR-0949 D3)", async () => {
+test("3.36 a shell command that changes files in a capability its session's increment does not list, or that another live session holds, is told to the agent at once by the hook after it that the harness waits for, as the hook before an edit tool would refuse it; a change to a listed capability, or none, says nothing; a command that returns such a file to the branch's base content, as a git checkout undoing the trespass does, says nothing; past the guard's time, a slow machine's, the worktree's changes say nothing, as an edit the gate could not judge goes ahead (ADR-0949 D3)", async () => {
   await withTempDir(async (dir) => {
     const project = uniqueProjectName();
     const home = storytreeHome(dir, true);
@@ -1425,6 +1425,8 @@ test("3.36 a shell command that changes files in a capability its session's incr
       assert.equal(heldBy?.hookEventName, "PostToolUse");
       assert.match(heldBy?.additionalContext ?? "", /form\.ts.*"1 · Email form".*session holder holds it/s);
       assert.match(heldBy?.additionalContext ?? "", /Back off/);
+      git(folder, "checkout", "--", "packages/visitor-can-sign-up/src/form.ts");
+      assert.equal(told(await guard("claude-code", "post-tool-use-bash")), undefined, "the held file restored to the branch's base is no trespass");
     } finally {
       await log.close();
       await storytree.close();

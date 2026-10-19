@@ -1,6 +1,6 @@
 // Neighbour rings' capture instrument: the planet-pathways bundle with the same two observation hooks.
 // Bundle the real desktop page. The only additions expose rendering/navigation state.
-import { mkdirSync, readFileSync, copyFileSync } from 'node:fs';
+import { mkdirSync, copyFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,25 +12,13 @@ const { build } = require('esbuild');
 const out = path.join(here, 'dist');
 mkdirSync(out, { recursive: true });
 
-function replace(source, needle, value) {
-  if (!source.includes(needle)) throw new Error(`Capture observation hook moved: ${needle}`);
-  return source.replace(needle, value);
-}
 
 await build({
   absWorkingDir: path.join(root, 'apps/desktop'),
   entryPoints: [path.join(root, 'apps/desktop/src/renderer/renderer.ts')],
   outfile: path.join(out, 'renderer.js'), bundle: true, logLevel: 'warning',
   sourcemap: true, platform: 'browser', format: 'iife', target: 'es2023', loader: { '.glb': 'binary' },
-  banner: { js: "globalThis.__storytreeCaptureGlobe = get => Object.defineProperty(globalThis, '__globe', { get, configurable: true });" },
-  plugins: [{ name: 'neighbour-rings-observation', setup(builder) {
-    builder.onLoad({ filter: /planet-view\.tsx$/ }, args => ({
-      contents: replace(readFileSync(args.path, 'utf8'),
-        'const { camera, gl, scene, size, invalidate } = useThree();',
-        'const { camera, gl, scene, size, invalidate } = useThree(); globalThis.__nav = { rotation, onRotate };'),
-      loader: 'tsx', resolveDir: path.dirname(args.path),
-    }));
-  } }],
+  banner: { js: "globalThis.__storytreeCaptureGlobe = get => Object.defineProperty(globalThis, '__globe', { get, configurable: true }); globalThis.__storytreeCaptureNavigation = nav => { globalThis.__nav = nav; };" },
 });
 for (const name of ['index.html', 'styles.css']) {
   copyFileSync(path.join(root, 'apps/desktop/src/renderer', name), path.join(out, name));

@@ -18,8 +18,8 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-health", "claude-code-mod", "cli", "dev-loop", "experiments", "forest", "forest-world", "friction", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "session-management", "website"];
-// agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3); the dev loop depends on it one way, for the forwarders at its old lanes paths.
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "friction", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "session-management", "website"];
+// agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3), which holds the Claude Code mod in src/claude-code-mod (ADR-1076 D5); the dev loop depends on it one way, for the forwarders at its old lanes paths.
 // app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
 // dev-loop: story_95ed402f9bd3 (The dev loop, ADR-0805 D3).
@@ -37,7 +37,6 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-hea
 // plugin-loader: story_09e58d68f87c (Plugin loader, ADR-1021).
 // website: story_769e230c466d (Website), which holds Onboarding overlays in src/overlays (ADR-1076 D4).
 // experiments: story_c2dbcf855db2 (Experiments, ADR-1064 D1).
-// claude-code-mod: story_3def3732e802 (The Claude Code mod, ADR-1056 D3).
 // mark: story_08790ee19bbf (Marketing artifacts, ADR-1071 D3), out of Website again.
 
 /**

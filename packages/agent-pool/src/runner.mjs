@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "@storytree/claude-code-mod";
+import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./claude-code-mod/index.mjs";
 
 import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pickEngine, pickFresh, readLatestAllowance, readOptional } from "./engine.mjs";
 

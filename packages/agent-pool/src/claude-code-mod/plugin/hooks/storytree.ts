@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Forwards hook events through the tool server (the Claude Code mod, ADR-1056 D3). Claude Code runs
+ * Capability 5 · Forwards hook events through the tool server (Agent runner's Claude Code mod, ADR-1056 D3, ADR-1076 D5). Claude Code runs
  * this module in a worker of its own for each session that loads the mod: no Node, no database, everything reached
  * through the engine's `$`. For each hook event storytree's command hooks record, it hands the event to the session's
  * already-connected tool server (`$.mcp`, its hook_event tool) and then lets the chain go on (`next(e)`).
@@ -10,12 +10,12 @@
  * record the event as before. A hook here never fails the chain: a throw is skipped by the engine, and the hooks
  * beneath run in its place.
  *
- * Capability 1 also keeps the session's heartbeat (contract 1.2): from `session.start` it beats on the engine's own timer,
+ * Capability 5 also keeps the session's heartbeat (contract 5.2): from `session.start` it beats on the engine's own timer,
  * so a session that is merely quiet (a long test run) still beats and one that died stops, and at `session.end` it says
  * the session ended; at start it writes the session's id where a Mint lane's runner reads it.
  *
- * Capability 3 reports the session's live usage (`$.session.usage()`: context fill, rate-limit windows, cost) as a mod-only
- * hook event the command hooks never send: at each main-loop turn's end, with why the turn ended (contracts 3.1, 3.2), and
+ * Capability 7 reports the session's live usage (`$.session.usage()`: context fill, rate-limit windows, cost) as a mod-only
+ * hook event the command hooks never send: at each main-loop turn's end, with why the turn ended (contracts 7.1, 7.2), and
  * each minute while the figures move, so an idle or ended session sends none.
  *
  * The API is early access and moves between releases (read from Claude Code 2.1.284's own declarations), so this

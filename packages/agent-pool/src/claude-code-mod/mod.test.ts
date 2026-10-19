@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { BEAT_MS, DELIVERY_WAIT_MS, register, USAGE_MS, type Engine, type Input, type Usage } from "../plugin/hooks/storytree.js";
+import { BEAT_MS, DELIVERY_WAIT_MS, register, USAGE_MS, type Engine, type Input, type Usage } from "./plugin/hooks/storytree.js";
 import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./index.mjs";
 
 type Hook = (engine: Engine, e: Input, next: (e: Input) => Promise<unknown>) => Promise<unknown>;
@@ -79,7 +79,7 @@ function loaded(answer: () => Promise<unknown> = async () => ({ content: [] }), 
 
 const base = { session_id: "session-1", transcript_path: "/home/dev/.claude/projects/p/session-1.jsonl", cwd: "/work/site", permission_mode: "default" };
 
-test("1.1 · Each recorded classic event reaches the tool server's hook_event tool before the settings hooks beneath it run; a storytree tool's PreToolUse and an unrecorded event are passed on untouched; a failed or slow delivery still runs the hooks beneath", { timeout: 20_000 }, async () => {
+test("5.1 · Each recorded classic event reaches the tool server's hook_event tool before the settings hooks beneath it run; a storytree tool's PreToolUse and an unrecorded event are passed on untouched; a failed or slow delivery still runs the hooks beneath", { timeout: 20_000 }, async () => {
   // A prompt: its whole input, delivered before the foreground hook beneath looks for the tool's note.
   {
     const { raise, happened, sent } = loaded();
@@ -144,7 +144,7 @@ test("1.1 · Each recorded classic event reaches the tool server's hook_event to
   }
 });
 
-test("1.2 · From session.start the mod beats on its own timer for the session's current id, writes that id where STORYTREE_SESSION_FILE names, and at session.end reports the end; a /clear beats on under the new id, and a failed beat never fails the chain", async () => {
+test("5.2 · From session.start the mod beats on its own timer for the session's current id, writes that id where STORYTREE_SESSION_FILE names, and at session.end reports the end; a /clear beats on under the new id, and a failed beat never fails the chain", async () => {
   const { own, tick, sent, timers, env, written, become } = loaded();
   const beats = () => sent.filter((one) => one.tool === "heartbeat").map((one) => one.args);
   env.set(SESSION_FILE, "/lanes/lane.session");
@@ -184,7 +184,7 @@ test("1.2 · From session.start the mod beats on its own timer for the session's
 /** A main-loop turn's end, as the engine raises it, or a subagent's with `agentId`. */
 const turn = (turnId: string, reason: string, extra: Input = {}): Input => ({ answer: "", durationMs: 10, isAborted: reason === "aborted", turnId, reason, ...extra });
 
-test("3.1 · At each main-loop turn's end, and each minute while a turn runs when a figure moved, the session's usage reaches hook_event; an idle or ended session sends none", async () => {
+test("7.1 · At each main-loop turn's end, and each minute while a turn runs when a figure moved, the session's usage reaches hook_event; an idle or ended session sends none", async () => {
   const { own, tick, sent, timers, measure } = loaded();
   const reports = () => sent.filter((one) => one.tool === "hook_event").map((one) => one.args?.input as Input);
   await own("session.start", { cwd: "/work/start" });
@@ -217,7 +217,7 @@ test("3.1 · At each main-loop turn's end, and each minute while a turn runs whe
   assert.equal(reports().length, 2, "an ended session sends none");
 });
 
-test("3.2 · A main-loop turn ended by an API error or a refusal is reported with its reason; an answered or interrupted one as usage alone, and a subagent's turn sends nothing of its own", async () => {
+test("7.2 · A main-loop turn ended by an API error or a refusal is reported with its reason; an answered or interrupted one as usage alone, and a subagent's turn sends nothing of its own", async () => {
   const { own, sent } = loaded();
   const reports = () => sent.filter((one) => one.tool === "hook_event").map((one) => one.args?.input as Input);
   const end = (e: Input) => own("turn.complete", e);
@@ -228,7 +228,7 @@ test("3.2 · A main-loop turn ended by an API error or a refusal is reported wit
   assert.deepEqual(reports().map((one) => [one.hook_event_name, one.turn_id, one.reason]), [["TurnComplete", "t-error", "error"], ["TurnComplete", "t-refusal", "refusal"], ["TurnComplete", "t-aborted", "aborted"]]);
 });
 
-test("2.1 · The package names a plugin folder Claude Code accepts: its manifest, and hooks.json naming the hooks module that exports register", async () => {
+test("6.1 · The mod names a plugin folder Claude Code accepts: its manifest, and hooks.json naming the hooks module that exports register", async () => {
   const manifest = JSON.parse(readFileSync(path.join(PLUGIN_FOLDER, ".claude-plugin", "plugin.json"), "utf8")) as { name: string };
   assert.equal(manifest.name, "storytree");
   const hooks = JSON.parse(readFileSync(path.join(PLUGIN_FOLDER, "hooks", "hooks.json"), "utf8")) as { modules: string[] };

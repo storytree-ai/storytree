@@ -356,3 +356,28 @@ test("3.19 · `ready` prints, as JSON, the engines running, the cap, the lanes f
     ],
   });
 });
+
+test("3.21 · `ready --drained` also lists, after the arcs it would plan, every arc drained of its work (closed, no question open) with its state; plain `ready` never does", async (t) => {
+  const b = await box(t, {
+    maxLanes: async () => 4, count: async () => 0,
+    survey: async () => ({
+      ...poolWork([]),
+      arcs: [
+        { id: "arc_drained", state: "closed", title: "Drained", created: "2026-10-01T00:00:00Z", openQuestions: 0 },
+        { id: "arc_parked", state: "parked", title: "Parked", created: "2026-10-01T00:00:00Z", openQuestions: 0 },
+        { id: "arc_active", state: "active", title: "Active", created: "2026-10-02T00:00:00Z", openQuestions: 0 },
+      ],
+    }),
+  });
+  const plans = async (args) => {
+    const out = [];
+    b.out = (line) => out.push(line);
+    assert.equal(await main(args, b), 0);
+    return JSON.parse(out.join("\n")).plans;
+  };
+  assert.deepEqual(await plans(["ready", "x-twin-map-reads-on", "--drained"]), [
+    { id: "arc_active", title: "Active", state: "[0,[]]" },
+    { id: "arc_drained", title: "Drained", state: "[0,[]]" },
+  ]);
+  assert.deepEqual(await plans(["ready", "x-twin-map-reads-on"]), [{ id: "arc_active", title: "Active", state: "[0,[]]" }]);
+});

@@ -50,8 +50,8 @@ export interface Look {
 /**
  * What a run keeps across its restarts, per arm: when its first lane was dispatched, its lanes so far (planning lanes
  * among them), each arc it planned with the state it planned it in, the arc whose planning lane it has not yet looked
- * past, each arc whose planning lane changed nothing with the state it was left in and when its back-off ends, and why
- * it stopped.
+ * past, each arc whose planning lane changed nothing with the state it was left in and when its back-off ends, how many
+ * planning lanes in a row changed nothing, and why it stopped.
  */
 export interface RunState {
   arms: Record<string, {
@@ -60,6 +60,7 @@ export interface RunState {
     planned?: Record<string, string>;
     checking?: string;
     retries?: Record<string, { state: string; until: string }>;
+    idlePlans?: number;
     stopped?: string;
   }>;
 }
@@ -116,6 +117,13 @@ export async function approveCheckouts(server: Storytree, arms: readonly ArmRun[
 }
 
 /**
+ * How many planning lanes in a row must change nothing before an arm is stopped as declared done (increment_fad7353f8cf8,
+ * a disclosed amendment to the frozen stop rules): one empty plan can be one lane's misreading, and three fresh lanes,
+ * the back-off between each, agreeing that nothing is left is the factory's own verdict, at about an hour's cost.
+ */
+export const DECLARED_DONE = 3;
+
+/**
  * The run's loop, every outside reading injected: `look()` is the real pool and `look(arm)` an arm's library; `record`
  * writes the arms' new merges as points and gives the lines to say of it; `points` the experiment's curves; `launch` runs one lane and resolves with its exit (calling `engineUp` once its engine runs, so it
  * counts among the box's engines); `stopped` is the owner's stop. Each look: the arms whose stop rules hold are stopped
@@ -126,7 +134,8 @@ export async function approveCheckouts(server: Storytree, arms: readonly ArmRun[
  * (kept in `state`), never while a planning lane of that arm runs. The arm's first look after its planning lane ends
  * checks it: with nothing ready and the arc still in the state it was planned in, the lane changed nothing, so the arc
  * is offered again once `backoffMs` has passed since the lane ended (kept in `state`), or sooner if its state changes. An arc
- * its look no longer lists (its work is open) is forgotten as planned, so it is offered again when it returns. Ends, after its lanes end, on the owner's stop or once every arm has stopped.
+ * its look no longer lists (its work is open) is forgotten as planned, so it is offered again when it returns. An arm
+ * whose planning lanes change nothing `DECLARED_DONE` times in a row is stopped as declared done. Ends, after its lanes end, on the owner's stop or once every arm has stopped.
  */
 export async function runExperiment({ arms, rules, look, record, points, launch, state, stopped, sleep, now, say, pollMs = 60_000, backoffMs = 30 * 60_000 }: {
   arms: readonly ArmRun[];
@@ -191,13 +200,20 @@ export async function runExperiment({ arms, rules, look, record, points, launch,
         const kept = of(arm);
         if (kept.checking !== undefined && !planning.has(arm.arm)) {
           const arc = kept.checking, unchanged = seen.plans?.find((one) => one.id === arc && one.state === kept.planned?.[arc]);
+          delete kept.checking;
           if (!seen.ready.length && unchanged) {
             const { [arc]: _, ...rest } = kept.planned!;
             kept.planned = rest;
+            kept.idlePlans = (kept.idlePlans ?? 0) + 1;
+            if (kept.idlePlans >= DECLARED_DONE) {
+              kept.stopped = `declared done: its planning lane changed nothing on ${DECLARED_DONE} consecutive tries`;
+              await state.save(saved);
+              dated(`stopped arm ${arm.arm}: ${kept.stopped}`);
+              continue;
+            }
             kept.retries = { ...kept.retries, [arc]: { state: unchanged.state, until: new Date((ended.get(arc) ?? now()) + backoffMs).toISOString() } };
             dated(`plan ${arc} in arm ${arm.arm} changed nothing: offered again after the back-off`);
-          }
-          delete kept.checking;
+          } else delete kept.idlePlans;
           await state.save(saved);
         }
         // An arc leaves the list while its work is open, so one that returns is offered again even in its first state.
@@ -288,7 +304,7 @@ const exec = promisify(execFile);
 /** `launch.mjs ready` for `project`, as the storytree home `home` (this process's when omitted) sees it. */
 async function lookWith(project: string, home?: string): Promise<Look> {
   const env = home === undefined ? process.env : { ...process.env, STORYTREE_HOME: home };
-  const { stdout } = await exec(process.execPath, ["--import", "tsx", path.join(CHECKOUT, "packages/agent-pool/src/launch.mjs"), "ready", project],
+  const { stdout } = await exec(process.execPath, ["--import", "tsx", path.join(CHECKOUT, "packages/agent-pool/src/launch.mjs"), "ready", project, ...(home === undefined ? [] : ["--drained"])],
     { cwd: CHECKOUT, env, maxBuffer: 16 * 1024 * 1024 });
   return JSON.parse(stdout) as Look;
 }

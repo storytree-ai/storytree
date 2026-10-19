@@ -217,6 +217,12 @@ test("2.22 · an arc whose own wait holds is not offered for planning; one whose
   assert.equal(pickPlan(work, { planned: new Map([["arc_stale", planState(work, "arc_stale")]]) }), undefined);
 });
 
+test("2.26 · an arc made in the last half hour is left to the session that made it, and offered for planning after (arc_c331455caee0 planned twice on 2026-10-19)", () => {
+  const work = survey([], { arcs: [{ id: "arc_new", state: "active", title: "New", created: "2026-10-07T02:45:00Z", openQuestions: 0 }] });
+  assert.equal(pickPlan(work, { now }), undefined, "fifteen minutes old: its author may still be parking its work");
+  assert.equal(pickPlan(work, { now: now + 15 * 60_000 })?.id, "arc_new", "thirty minutes old: planning takes it");
+});
+
 test("2.11 · work whose session ended without a hand-off is offered again after a back-off, and not before", () => {
   const ran = Date.parse("2026-10-07T01:00:00Z"), minute = 60_000;
   const attempts = new Map([["bounced", { at: ran }], ["handed", { at: ran }]]);

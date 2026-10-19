@@ -149,7 +149,7 @@ test("8.4 · importing a task puts its image and tests in a private tests reposi
         const texts = Object.fromEntries(filesUnder(seed).map((file) => [file, readFileSync(path.join(seed, file), "utf8")]));
         created.push({ repository: args[2]!, visibility: args[3]!, files: Object.keys(texts), read: (file) => texts[file]! });
       }
-      return "";
+      return args.join(" ") === "api user --jq .login" ? "factory-login" : "";
     };
     const parked: { home: string; project: string; intent: string }[] = [];
     const park = async (home: string, project: string, arc: { intent: string }) => {
@@ -173,7 +173,7 @@ test("8.4 · importing a task puts its image and tests in a private tests reposi
     assert.deepEqual(JSON.parse(tests!.read("total.json")), { total: 372 }, "the task's total sits beside the counting script, in the private repository only");
     assert.deepEqual(armRepositories.map((made) => [made.repository, made.visibility]), [["storytree-ai/x-twin-map-reads-on", "--public"], ["storytree-ai/x-twin-map-reads-off", "--public"]]);
     for (const made of armRepositories) {
-      assert.deepEqual(made.files, [".github/workflows/arm.yml", ".storytree.json", "apps/page.tsx"], "the starting tree, its project and its CI; never the tests or the image");
+      assert.deepEqual(made.files, [".github/CODEOWNERS", ".github/workflows/arm.yml", ".storytree.json", "apps/page.tsx"], "the starting tree, its project and its CI; never the tests or the image");
       assert.deepEqual(JSON.parse(made.read(".storytree.json")), { project: made.repository.slice("storytree-ai/".length) });
       const workflow = JSON.parse(made.read(".github/workflows/arm.yml")) as ReturnType<typeof armWorkflow> & { jobs: Record<string, { steps: { with?: Record<string, string>; env?: Record<string, string> }[] }> };
       const hidden = workflow.jobs["hidden-tests"]!.steps;

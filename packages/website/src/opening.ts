@@ -1,6 +1,5 @@
 /** Capability 1 · Home page. */
-import { AGENTS, BANNER, EXTRA, FINALE, FINALE_AGAIN, THINK } from "./opening-copy.js";
-import { createOpeningAudio } from "./opening-audio.js";
+import type { createOpeningAudio } from "./opening-audio.js";
 import type { OpeningClock } from "./opening-clock.js";
 import { OPENING_PROMPT, lineClass, lineText } from "./opening-lines.js";
 import { OPENING_SEED, mulberry32 } from "./opening-seed.js";
@@ -17,6 +16,10 @@ const reading = (text: string) => Math.max(2800, text.split(" ").length / 2.6 * 
 const PAIN_BEAT = 400, PAIN_REST = 1200;
 // Where the three agents the joke adds appear, as [column, row] on the 4-column and 3-column grids.
 const EXTRA_SLOTS = [[0.55, 1.3, 0.5, 1.35], [1.7, 0.4, 1.4, 0.45], [2.6, 1.45, 1.8, 2.4]] as const;
+// The words and the sound load on the visitor's first act; the first frame is the built markup (contract 2.3).
+type Copy = typeof import("./opening-copy.js");
+let copyLoad: Promise<Copy> | undefined;
+const loadCopy = () => copyLoad ??= import("./opening-copy.js").catch(error => { copyLoad = undefined; throw error; });
 
 export function wireOpening() {
   const root = document.querySelector<HTMLElement>("#opening");
@@ -43,7 +46,8 @@ export function wireOpening() {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   const timers = new Set<number>();
   const initialAgents = agents.innerHTML;
-  const audio = createOpeningAudio();
+  let audio: ReturnType<typeof createOpeningAudio> | undefined;
+  let soundAsk = 0;
   let typing = mulberry32(OPENING_SEED ^ 0x7e57);
   let enabled = false;
   let count = 1;
@@ -59,9 +63,9 @@ export function wireOpening() {
   // Sound is off until the visitor turns it on.
   const detune = (element: HTMLElement) => (Number(element.dataset.agent ?? 3) * 0.37) % 1;
   const sfx = {
-    tick: (element: HTMLElement) => { if (enabled) audio.tick(detune(element)); },
-    blip: () => { if (enabled) audio.blip(); },
-    bell: (element: HTMLElement) => { if (enabled) audio.bell(detune(element)); },
+    tick: (element: HTMLElement) => { if (enabled) audio?.tick(detune(element)); },
+    blip: () => { if (enabled) audio?.blip(); },
+    bell: (element: HTMLElement) => { if (enabled) audio?.bell(detune(element)); },
   };
 
   // The arcade counter: two digits, an arrow once there is more than one agent, a pulse on each change.
@@ -78,6 +82,9 @@ export function wireOpening() {
   };
 
   const lines = (element: HTMLElement) => element.querySelector<HTMLElement>(".opening-lines")!;
+  // The banner and the reduced-motion finale are restored from what the build drew.
+  const initialBanner = lines(lead).innerHTML;
+  const initialFinale = lines(finale).innerHTML;
   const status = (element: HTMLElement, text: string) => { element.querySelector(".term-status")!.textContent = text; };
   const cursor = () => { const span = document.createElement("span"); span.className = "term-cursor"; span.setAttribute("aria-hidden", "true"); span.textContent = "▌"; return span; };
   const powerOn = (element: HTMLElement) => {
@@ -164,7 +171,7 @@ export function wireOpening() {
   };
   const leave = (move = true, bloom = false) => {
     endTurn(); stop(); remember(); root.hidden = true;
-    enabled = false; audio.close(); sound.textContent = "sound off"; sound.setAttribute("aria-pressed", "false");
+    enabled = false; soundAsk++; audio?.close(); sound.textContent = "sound off"; sound.setAttribute("aria-pressed", "false");
     syncGrain();
     replay.hidden = false;
     window.dispatchEvent(new CustomEvent("storytree-opening", { detail: { active: false } }));
@@ -183,9 +190,9 @@ export function wireOpening() {
       const show = () => append(finale, line.replaceAll("{N}", String(count)), { stream: !instant });
       if (instant) show(); else later(i * 750, show);
     });
-    const actions = () => { better.hidden = false; joke.hidden = false; joke.textContent = round ? "restart the intro" : "i'll keep babysitting"; };
-    if (instant) actions(); else later(copy.length * 750, actions);
+    if (instant) finaleActions(); else later(copy.length * 750, finaleActions);
   };
+  const finaleActions = () => { better.hidden = false; joke.hidden = false; joke.textContent = round ? "restart the intro" : "i'll keep babysitting"; };
   // Chapter 1 ends on the pain line, said on the dark screen the turn leaves, then hands over (ADR-1091 D1).
   const sayPain = () => {
     root.dataset.phase = "pain"; syncGrain(); pain.hidden = false;
@@ -203,10 +210,11 @@ export function wireOpening() {
     window.dispatchEvent(new CustomEvent("storytree-opening", { detail: { active: true } }));
     agents.innerHTML = initialAgents; round = 0; count = 1; waiting = 0;
     run.hidden = reduced.matches; run.disabled = false;
-    lines(lead).replaceChildren(); BANNER.forEach(line => append(lead, line, { kind: "is-banner" }));
+    lines(lead).innerHTML = initialBanner;
     if (reduced.matches) {
       count = 12; waiting = 12; countEl.hidden = false; lead.classList.add("is-parked"); status(lead, "waiting on you");
-      counter(); showFinale(FINALE, true);
+      counter();
+      root.dataset.phase = "peak"; finale.hidden = false; lines(finale).innerHTML = initialFinale; finaleActions();
     } else {
       countEl.hidden = true; finale.hidden = true; lead.classList.remove("is-parked"); status(lead, "idle");
       agents.querySelectorAll<HTMLElement>(".opening-agent").forEach(agent => { agent.hidden = true; agent.classList.remove("is-parked"); lines(agent).replaceChildren(); status(agent, "running"); });
@@ -214,9 +222,19 @@ export function wireOpening() {
     }
     syncGrain();
   };
-  run.addEventListener("click", () => {
+  // Hovering or focusing a button that needs the words fetches them early.
+  for (const button of [run, joke]) for (const event of ["pointerenter", "focus"]) button.addEventListener(event, () => void loadCopy().catch(() => {}));
+  // A load that fails puts chapter 1 back as it was; one that a skip or a reset overtook does nothing.
+  const words = async () => {
+    const id = turnId;
+    try { const loaded = await loadCopy(); return id === turnId ? loaded : undefined; } catch { if (id === turnId) reset(); return undefined; }
+  };
+  run.addEventListener("click", async () => {
     if (root.dataset.phase !== "ready") return;
     root.dataset.phase = "running"; run.disabled = true;
+    const loaded = await words();
+    if (!loaded) return;
+    const { AGENTS, FINALE, THINK } = loaded;
     count = 1; waiting = 0; countEl.hidden = false; counter();
     lines(lead).replaceChildren(); append(lead, `~/shop $ ${OPENING_PROMPT}`, { kind: "is-cmd" });
     status(lead, "thinking"); powerOn(lead);
@@ -233,12 +251,13 @@ export function wireOpening() {
     later(clock.lead, () => park(lead, "awaiting instructions"));
     later(clock.finale, () => showFinale(FINALE));
   });
-  const extraWindow = (agent: (typeof EXTRA)[number], i: number) => {
+  const extraWindow = (agent: Copy["EXTRA"][number], i: number) => {
     const [c4, r4, c3, r3] = EXTRA_SLOTS[i]!;
     const window = document.createElement("article");
     window.className = `opening-window opening-agent${i === 1 ? " ph-amber" : ""}`;
-    window.style.cssText = `--i:${AGENTS.length + i};--c4:${c4};--r4:${r4};--c3:${c3};--r3:${r3};--jx:0px;--jy:0px`;
-    window.dataset.agent = String(AGENTS.length + i);
+    const n = clock.helpers.length + i;
+    window.style.cssText = `--i:${n};--c4:${c4};--r4:${r4};--c3:${c3};--r3:${r3};--jx:0px;--jy:0px`;
+    window.dataset.agent = String(n);
     const header = document.createElement("header");
     const dots = document.createElement("span"); dots.className = "term-dots"; dots.setAttribute("aria-hidden", "true"); dots.textContent = "● ● ●";
     const name = document.createElement("span"); name.className = "term-name"; name.textContent = agent.n;
@@ -249,9 +268,13 @@ export function wireOpening() {
     powerOn(window); age(); sfx.blip(); count++; counter(); append(window, agent.l, { stream: true });
     if (reduced.matches) park(window, agent.d); else later(500, () => park(window, agent.d));
   };
-  joke.addEventListener("click", () => {
+  joke.addEventListener("click", async () => {
     if (round) { reset(); (reduced.matches ? better : run).focus({ preventScroll: true }); return; }
+    if (root.dataset.phase === "running") return;
     round++; finale.hidden = true; root.dataset.phase = "running";
+    const loaded = await words();
+    if (!loaded) return;
+    const { EXTRA, FINALE_AGAIN } = loaded;
     EXTRA.forEach((agent, i) => {
       if (reduced.matches) {
         extraWindow(agent, i);
@@ -293,11 +316,20 @@ export function wireOpening() {
     try { await glow.finished; } catch { return; /* A reset or an exit cancelled the turn. */ }
     if (id === turnId) sayPain();
   });
-  sound.addEventListener("click", () => {
-    if (enabled) { enabled = false; audio.setOn(false); }
+  const unavailable = () => { sound.textContent = "sound unavailable"; sound.setAttribute("aria-pressed", "false"); };
+  sound.addEventListener("click", async () => {
+    const ask = ++soundAsk;
+    if (enabled) { enabled = false; audio?.setOn(false); }
     else {
-      try { audio.unlock(); audio.setOn(true); enabled = true; }
-      catch { sound.textContent = "sound unavailable"; sound.setAttribute("aria-pressed", "false"); return; }
+      // The context is made inside the click, which is what lets a browser start its sound (Safari's gesture rule).
+      let context: AudioContext;
+      try { context = new AudioContext(); } catch { unavailable(); return; }
+      try {
+        const { createOpeningAudio } = await import("./opening-audio.js");
+        if (ask !== soundAsk) { void context.close().catch(() => {}); return; }
+        audio ??= createOpeningAudio();
+        audio.unlock(context); audio.setOn(true); enabled = true;
+      } catch { void context.close().catch(() => {}); unavailable(); return; }
     }
     sound.textContent = enabled ? "sound on" : "sound off"; sound.setAttribute("aria-pressed", String(enabled));
   });

@@ -328,7 +328,8 @@ export async function runRecorded({ library, server, record, name, rulesFile, sa
     arms, rules,
     look: (arm) => (arm === undefined ? lookWith(library.name) : lookWith(arm.project, arm.home)),
     // Only what a look wrote, or failed to, is said: an arm waiting on a run, or with nothing new, says nothing every minute.
-    record: async () => recordedLines((await recordArms(server, library.name, name, arms.map((arm) => arm.arm)))
+    // Each point names the record it was run for, so `experiment curves` reads it by the record's id as well as by name.
+    record: async () => recordedLines((await recordArms(server, library.name, name, arms.map((arm) => arm.arm), { record }))
       .filter(({ recorded }) => recorded === undefined || recorded.written.length > 0)),
     points: () => curves(server, library.name, name),
     launch: async (arm, one, { engineUp }) => {

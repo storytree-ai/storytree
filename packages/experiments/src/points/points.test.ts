@@ -395,3 +395,19 @@ test("5.10 · recording an experiment records each of its arms in turn, an arm t
     assert.deepEqual(again, ["map-reads-on: nothing new to record"]);
   });
 });
+
+test("5.11 · points a run records for its frozen record under the run's short name are read by experiment curves given either the record or the short name, and points recorded before the record was named are tied to it at the next record", async () => {
+  await withLibrary(async (library, server) => {
+    const on: Merge[] = [
+      { seed: true, number: 0, mergedAt: "2026-10-17T08:00:00Z", sha: "sss", passed: 0, total: 372, files: [1] },
+      { number: 1, mergedAt: "2026-10-17T09:00:00Z", sha: "aaa", passed: 12, total: 372, files: [1] },
+    ];
+    await recordArms(server, library.name, "twin", ["map-reads-on"], { gh: github(on), structure: () => NO_STRUCTURE });
+    on.push({ number: 2, mergedAt: "2026-10-17T10:00:00Z", sha: "bbb", passed: 20, total: 372, files: [1] });
+    await recordArms(server, library.name, "twin", ["map-reads-on"], { gh: github(on), structure: () => NO_STRUCTURE, record: "experiment_twin" });
+    for (const name of ["experiment_twin", "twin"]) {
+      assert.deepEqual((await curves(server, library.name, name))["map-reads-on"]?.map(({ merge, passed }) => [merge, passed]), [[0, 0], [1, 12], [2, 20]], `curves read by ${name}`);
+      assert.match(await curvesAnswer(library, server, name, false), /map-reads-on: 3 merges/);
+    }
+  });
+});

@@ -44,6 +44,7 @@ export const qualityToolParts = [(): ToolExtension => qualityTools()];
 
 /** What the change-reviewer returns, as a tool's argument; the loop itself refuses a return that does not answer its brief. */
 const reviewReturn = z.object({
+  review: z.number().int().optional().describe("The review it answers, as its brief numbers it: a return naming none, or another, is refused"),
   checks: z.array(z.object({ check: z.string(), tripped: z.boolean(), hits: z.array(z.object({ file: z.string(), line: z.number(), found: z.string() })).optional() })).describe("Every check in the brief: tripped or not, and where tripped each file, line and what was found"),
   contracts: z.array(z.object({ contract: z.string(), met: z.boolean(), why: z.string().optional() })).describe("Every contract in the brief: met or not, and why not"),
   rejections: z.array(z.object({ hit: z.number(), accepted: z.boolean(), why: z.string().optional() })).optional().describe("Each rejection the brief asks to judge: whether its reason is accepted"),

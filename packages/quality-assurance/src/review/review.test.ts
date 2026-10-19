@@ -42,9 +42,10 @@ async function plan(library: Library) {
   return { arc: arc.id, increment: increment.id, contracts: [first.id, second.id], checks: [tautology.id, skips.id].sort() };
 }
 
-/** A return that answers every check (none tripped unless given) and every contract (met). */
-function clean(checks: readonly string[], contracts: readonly string[], tripped: Record<string, { file: string; line: number; found: string }[]> = {}): ReviewReturn {
+/** Review `review`'s return that answers every check (none tripped unless given) and every contract (met). */
+function clean(checks: readonly string[], contracts: readonly string[], tripped: Record<string, { file: string; line: number; found: string }[]> = {}, review = 1): ReviewReturn {
   return {
+    review,
     checks: checks.map((check) => ({ check, tripped: (tripped[check] ?? []).length > 0, hits: tripped[check] ?? [] })),
     contracts: contracts.map((contract) => ({ contract, met: true })),
   };
@@ -149,6 +150,31 @@ test("2.2 · a return answering every check and contract is taken and its hits r
     assert.equal(rows.runs.length, 4);
     assert.equal(rows.hits.length, 1);
     await assert.rejects(reviews.take(library.name, increment, clean(checks, contracts)), /no brief/);
+  });
+});
+
+test("2.9 · a return names the review it answers, and take refuses one naming another review, such as a return left from an earlier review, recording nothing", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const ledger = await openLedger(storytree);
+    const file = "packages/forest-world/src/camera.test.ts";
+    assert.match(briefText(await reviews.brief(library, increment, DIFF)), /"review": 1/);
+    const first = { ...clean(checks, contracts, {}, 1), contracts: [{ contract: contracts[0]!, met: false, why: "a bad email is kept" }, { contract: contracts[1]!, met: true }] };
+    await reviews.take(library.name, increment, first);
+
+    const second = await reviews.brief(library, increment, DIFF);
+    assert.match(briefText(second), /"review": 2/);
+    const before = await ledger.rows(library.name);
+    await assert.rejects(reviews.take(library.name, increment, first), /review 1.*review 2/);
+    const { review: _unnamed, ...unnamed } = clean(checks, contracts, {}, 2);
+    await assert.rejects(reviews.take(library.name, increment, unnamed as ReviewReturn), /names no review.*review 2/);
+    assert.deepEqual(await ledger.rows(library.name), before);
+    assert.deepEqual(await reviews.unmet(library.name, increment), [{ contract: contracts[0], why: "a bad email is kept" }]);
+
+    const taken = await reviews.take(library.name, increment, clean(checks, contracts, { [checks[0]!]: [{ file, line: 2, found: "a" }] }, 2));
+    assert.equal(taken.review, `${increment}#2`);
+    assert.deepEqual(await reviews.unmet(library.name, increment), []);
   });
 });
 
@@ -326,7 +352,7 @@ test("4.1 · a change's standing findings are its unanswered hits and unaccepted
     assert.deepEqual((await reviews.standing(library.name, increment)).map(({ id }) => id), [rejected!.id]);
 
     const second = await reviews.brief(library, increment, DIFF);
-    await reviews.take(library.name, increment, { ...clean(checks, contracts), rejections: second.judge.map((hit) => ({ hit, accepted: true })) });
+    await reviews.take(library.name, increment, { ...clean(checks, contracts, {}, 2), rejections: second.judge.map((hit) => ({ hit, accepted: true })) });
     assert.deepEqual(await reviews.standing(library.name, increment), []);
   });
 });
@@ -345,7 +371,7 @@ test("4.1 · a contract the latest review found not met stands, and take and sta
     assert.match(standingText([], await reviews.unmet(library.name, increment)), new RegExp(`contract ${contracts[0]} not met: a bad email is kept`));
 
     await reviews.brief(library, increment, DIFF);
-    const met = await reviews.take(library.name, increment, clean(checks, contracts));
+    const met = await reviews.take(library.name, increment, clean(checks, contracts, {}, 2));
     assert.deepEqual(await reviews.unmet(library.name, increment), []);
     assert.match(takenText(met), /ready for the gate/);
   });
@@ -371,11 +397,11 @@ test("4.2 · the second brief holds each earlier hit with its answer, and a retu
     assert.deepEqual(second.judge, [rejected!.id]);
 
     const before = await ledger.rows(library.name);
-    await assert.rejects(reviews.take(library.name, increment, clean(checks, contracts)), new RegExp(`${rejected!.id}`));
-    await assert.rejects(reviews.take(library.name, increment, { ...clean(checks, contracts), rejections: [{ hit: rejected!.id, accepted: true }, { hit: fixed!.id, accepted: true }] }), new RegExp(`${fixed!.id}`));
+    await assert.rejects(reviews.take(library.name, increment, clean(checks, contracts, {}, 2)), new RegExp(`${rejected!.id}`));
+    await assert.rejects(reviews.take(library.name, increment, { ...clean(checks, contracts, {}, 2), rejections: [{ hit: rejected!.id, accepted: true }, { hit: fixed!.id, accepted: true }] }), new RegExp(`${fixed!.id}`));
     assert.deepEqual(await ledger.rows(library.name), before);
 
-    await reviews.take(library.name, increment, { ...clean(checks, contracts), rejections: [{ hit: rejected!.id, accepted: false, why: "BASE is imported from the code" }] });
+    await reviews.take(library.name, increment, { ...clean(checks, contracts, {}, 2), rejections: [{ hit: rejected!.id, accepted: false, why: "BASE is imported from the code" }] });
     assert.deepEqual((await reviews.standing(library.name, increment)).map(({ id }) => id), [rejected!.id]);
   });
 });
@@ -389,7 +415,7 @@ test("4.3 · with a finding standing after the tenth review an eleventh brief is
     for (let iteration = 1; iteration <= REVIEW_LIMIT; iteration += 1) {
       const brief = await reviews.brief(library, increment, DIFF);
       assert.equal(brief.iteration, iteration);
-      const { hits } = await reviews.take(library.name, increment, iteration === 1 ? clean(checks, contracts, { [checks[0]!]: [{ file, line: 2, found: "a" }] }) : clean(checks, contracts));
+      const { hits } = await reviews.take(library.name, increment, clean(checks, contracts, iteration === 1 ? { [checks[0]!]: [{ file, line: 2, found: "a" }] } : {}, iteration));
       open ??= hits[0]!.id;
     }
     assert.equal(REVIEW_LIMIT, 10);

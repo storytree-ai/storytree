@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { MARK_LINKS, inlineMark, writeMarkFiles } from "./mark.js";
 import { openingMarkup } from "./opening-markup.js";
+import { claimsMarkup, FIRST_SHORT } from "./claims.js";
 import { fill, tourCounts } from "./tour-counts.js";
 import type { TourSnapshot } from "./forest-data.js";
 
@@ -47,7 +48,7 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   const counts = tourCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "forest-snapshot.json"), "utf8")) as TourSnapshot);
   for (const page of ["index.html", "waitlist.html", "404.html"]) {
     const template = fill(await readFile(path.join(packageRoot, "src", page), "utf8"), counts);
-    const html = template.replace("<!-- OPENING -->", openingMarkup()).replaceAll("<!-- MARK -->", inlineMark())
+    const html = template.replace("<!-- OPENING -->", openingMarkup()).replace("<!-- CLAIMS -->", claimsMarkup()).replaceAll("<!-- MARK -->", inlineMark())
       .replace("<!-- MARK LINKS -->", MARK_LINKS)
       .replace(/\/assets\/(main|forest|styles)\.(?:js|css)/g, (_, name: string) => {
         const entry = entries.get(name);
@@ -63,6 +64,11 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+  // The first short is served from where it was rendered (evidence/first-short), so the site and the evidence keep one copy.
+  const short = path.join(packageRoot, "evidence", "first-short");
+  await mkdir(path.join(output, path.dirname(FIRST_SHORT.src)), { recursive: true });
+  await cp(path.join(short, "seeing-what-agents-built-1080p.mp4"), path.join(output, FIRST_SHORT.src));
+  await cp(path.join(short, "seeing-what-agents-built-poster.png"), path.join(output, FIRST_SHORT.poster));
   await writeMarkFiles(output);
   return result.metafile;
 }

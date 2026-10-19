@@ -7,6 +7,8 @@ import { test } from "node:test";
 import { readIco, readPng } from "@storytree/mark";
 
 import { buildWebsite } from "./build.js";
+import { escapeHtml } from "./escape-html.js";
+import { fixes } from "./tour-copy.js";
 
 test("2.3 · the initial page downloads less than 20 KiB of JavaScript before activating the forest", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-lazy-"));
@@ -167,4 +169,25 @@ test("5.3 · the built storage manifest permits public insertion and explicitly 
     access: { insert: "public", read: "owner", update: "owner", delete: "owner" },
     rateLimit: "10/hour/ip",
   } } });
+});
+
+test("1.13 · below the map the built home shows the three claims in order, claim 1 carrying the first short served by the site", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-claims-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const html = await readFile(path.join(output, "index.html"), "utf8");
+  const claims = [...html.matchAll(/<section class="claim"[\s\S]*?<\/section>/g)].map(([section]) => section);
+  assert.equal(claims.length, fixes.pairs.length, "one section per claim, and no other");
+  assert.ok(html.indexOf('id="map-frame"') < html.indexOf('class="claim"'), "the claims sit below the map");
+  fixes.pairs.forEach(({ pain, fix }, i) => {
+    assert.ok(claims[i]!.includes(escapeHtml(pain)) && claims[i]!.includes(escapeHtml(fix)), `claim ${i + 1} reads "${pain}" then "${fix}"`);
+  });
+  const videos = claims.map(section => section.match(/<video\b[^>]*>/)?.[0]);
+  assert.ok(videos[0] && videos.slice(1).every(video => !video), "only claim 1 carries a short");
+  for (const attribute of ["muted", "playsinline", "controls"]) assert.match(videos[0]!, new RegExp(`\\s${attribute}[\\s>]`), attribute);
+  for (const name of ["src", "poster"]) {
+    const asset = videos[0]!.match(new RegExp(`\\s${name}="(/[^"]+)"`))?.[1];
+    assert.ok(asset, name);
+    assert.ok((await stat(path.join(output, asset))).size > 0, `${asset} is served by the built site`);
+  }
 });

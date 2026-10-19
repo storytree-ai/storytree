@@ -9,10 +9,23 @@ import type { ConnectOptions } from "@storytree/library";
 
 import { withConnectTimeout } from "@storytree/project-and-caller";
 
+import { AFTER_TOOL } from "./at-once.js";
+import { TOOL_GRACE_MS } from "./codex-delivery.js";
+
 /** The longest a hook may run, start to finish. Reaching storytree is given up well before this. */
 export const DEADLINE_MS = 5_000;
 /** The longest the look around the machine a hook hands on may run: asking GitHub alone may take 10 s. */
 export const UPKEEP_DEADLINE_MS = 20_000;
+
+/**
+ * The longest a hook run with `flags` may run, the look around the machine apart (UPKEEP_DEADLINE_MS). One run `--after-tool` first waits up to TOOL_GRACE_MS for the tool
+ * server's note of its event, so it is given that wait on top: without it, the copy a hook hands its line to was cut
+ * off while it connected to a store slow to answer, and the line was lost rather than left waiting (seen on CI,
+ * 2026-10-19). Nothing waits on such a hook, which is `async`, so the longer bound costs the agent nothing.
+ */
+export function hookDeadline(flags: readonly string[]): number {
+  return flags.includes(AFTER_TOOL) ? DEADLINE_MS + TOOL_GRACE_MS : DEADLINE_MS;
+}
 
 /** `library` as a hook reaches it: each new handshake given up after `connectTimeoutMs`, and each statement ended by the server at `deadlineMs`. */
 export function withDeadline(library: ConnectOptions, connectTimeoutMs: number, deadlineMs = DEADLINE_MS): ConnectOptions {

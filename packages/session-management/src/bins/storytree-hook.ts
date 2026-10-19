@@ -7,7 +7,7 @@
  * It always exits 0, and prints only what the prompt hook adds for the agent (the project's
  * definitions for the prompt's terms) and, at session start in a folder that isn't a storytree
  * project, the setup question for the agent to ask: whatever happens, the agent it runs beside is untouched. It
- * also never outlives DEADLINE_MS, whatever it is waiting on. With `--background` (Codex's hooks
+ * also never outlives its deadline (hooks/deadlines.ts), whatever it is waiting on. With `--background` (Codex's hooks
  * before a shell command and at the end of a turn) it hands the writing to a copy of itself that it
  * leaves running, detached and with nothing of the harness's open, and exits at once. Claude Code's end hook, and in a
  * `claude -p` session each of its hooks after a tool, hand off so before anything else, deaf to the SIGTERM Claude Code
@@ -30,7 +30,7 @@ import { storytreeHome } from "@storytree/project-and-caller";
 
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
 import { deafIfHandingOffAtOnce } from "../hooks/at-once.js";
-import { BACKGROUND, DEADLINE_MS, HANDED, HookClock, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
+import { BACKGROUND, HANDED, HookClock, hookDeadline, recordHookTime, runHook, statusLine, UPKEEP, UPKEEP_DEADLINE_MS } from "../hooks/index.js";
 
 export type { DeclaredCapabilities };
 
@@ -38,7 +38,7 @@ export type { DeclaredCapabilities };
 export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabilities?: DeclaredCapabilities; guardMs?: number } = {}): void {
   const clock = new HookClock();
   if (process.argv[2] !== "statusline") process.on("exit", () => recordHookTime(storytreeHome(), clock.reading(process.argv[2] ?? "", process.argv.slice(3))));
-  setTimeout(() => process.exit(0), process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : DEADLINE_MS).unref();
+  setTimeout(() => process.exit(0), process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : hookDeadline(process.argv.slice(3))).unref();
   process.on("uncaughtException", () => process.exit(0));
   process.on("unhandledRejection", () => process.exit(0));
   const [harness = "", ...flags] = process.argv.slice(2);

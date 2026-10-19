@@ -1,18 +1,18 @@
 {
-  "renderedAt": "2026-10-19T05:51:08.776Z",
+  "renderedAt": "2026-10-19T06:02:48.626Z",
   "composition": {
     "id": "seeing-what-agents-built",
     "fps": 30,
-    "frames": 1680
+    "frames": 1740
   },
   "seconds": {
-    "bundle": 1.89,
-    "poster": 2.808,
-    "socialMp4": 154.659
+    "bundle": 2.85,
+    "poster": 2.798,
+    "socialMp4": 162.608
   },
   "bytes": {
     "seeing-what-agents-built-poster.png": 23198,
-    "seeing-what-agents-built-1080p.mp4": 870930
+    "seeing-what-agents-built-1080p.mp4": 825824
   },
   "stills": [
     {

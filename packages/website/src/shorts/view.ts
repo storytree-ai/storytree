@@ -84,7 +84,7 @@ export const MAP = { width: 912, height: 856, aim: { framing: 0.0017, sideOffset
  * its lit rim), the roads in three beiges (so a thin road shrunk into the glass stays a road), the land's greens and the grey of
  * land not yet built, the yellow of land that asks for attention, and the selection's gold. */
 export const MAP_PALETTE = ["#101418", "#18242d", "#22343f", "#7f95a3", "#6e6248", "#a8956a", "#e6d18c", "#4f6b3e", "#6f8f55", "#95af78",
-  "#c2d69a", "#5c6670", "#8a94a0", "#3fae6a", "#c9a227", "#f2d16b", "#e5534b", "#ffd34d"] as const;
+  "#c2d69a", "#5c6670", "#8a94a0", "#3fae6a", "#c9a227", "#f2d16b", "#e5534b", "#ffd34d", "#e8eef0"] as const;
 const RGB = MAP_PALETTE.map(hex => [1, 3, 5].map(at => parseInt(hex.slice(at, at + 2), 16)) as [number, number, number]);
 
 /** Puts RGBA pixels into the map's palette in place: each pixel becomes the palette's nearest colour, fully opaque. */
@@ -138,8 +138,19 @@ export function layPanel(box: Rect): { title: { lines: string[]; box: Rect }; de
   const columns = columnsOf(box.width, SMALL.advance), lines = wrap(PANEL.title, columns);
   const title = { lines, box: { x: box.x + 3, y: box.y + 4, width: Math.max(...lines.map(line => line.length)) * SMALL.advance - 1, height: lines.length * SMALL.line - 1 } };
   const said = wrap(PANEL.description, columns), below = title.box.y + lines.length * SMALL.line + 3;
-  const frame = { x: box.x + 3, y: below + said.length * SMALL.line + 4, width: box.width - 6, height: Math.round((box.width - 6) * 0.8) };
+  const top = below + said.length * SMALL.line + 4, frame = { x: box.x + 3, y: top, width: box.width - 6, height: box.y + box.height - 4 - top };
   return { title, description: { lines: said, x: box.x + 3, y: below }, frame, open: { x: frame.x + frame.width - 11, y: frame.y + 2, width: 9, height: 9 } };
+}
+
+/** A part's title wrapped to `columns`, its number kept with the first word of its name ("6 · accounts", never "6 ·" alone). */
+export function wrapTitle(title: string, columns: number): string[] {
+  return wrap(glue(title), columns).map(line => line.replaceAll("\u2060", " "));
+}
+/** A part's title with its number and first word joined into one word (by word joiners, which wrap never breaks at). */
+const glue = (title: string) => title.replace(/^(\d+) · (\S+)/, "$1\u2060·\u2060$2");
+/** The longest run a title's wrap can never break, in characters. */
+export function longestWord(title: string): number {
+  return Math.max(...glue(title).split(/\s+/).map(word => word.length));
 }
 
 export type GraphCard = { id: string; title: string; story?: string; own: boolean; status: string; lines: string[]; box: Rect; asked: boolean };
@@ -154,9 +165,9 @@ export function layGraph(box: Rect, words = true): { cards: GraphCard[]; links: 
   const top = box.y + Math.round((box.height - layout.height * down) / 2);
   const placed = new Map(layout.cards.map(card => {
     // Another story's card is widened, if it must be, to name its story whole in its strip.
-    const width = words ? Math.max(Math.round(card.width * across), (card.story ?? "").length * SMALL.advance + 5) : Math.max(3, Math.round(card.width * across)), height = words ? 9 + 3 * SMALL.line + 2 : Math.max(3, Math.round(card.height * across));
+    const width = words ? Math.max(Math.round(card.width * across), (card.story ?? "").length * SMALL.advance + 5, longestWord(card.title ?? "") * SMALL.advance + 5) : Math.max(3, Math.round(card.width * across)), height = words ? 9 + 3 * SMALL.line + 2 : Math.max(3, Math.round(card.height * across));
     const at = { x: box.x + Math.round((card.x + card.width / 2) * across - width / 2), y: top + Math.round((card.y + card.height / 2) * down - height / 2), width, height };
-    const title = card.title ?? "", lines = wrap(title, Math.floor((at.width - 4) / SMALL.advance)).slice(0, 3);
+    const title = card.title ?? "", lines = wrapTitle(title, Math.floor((at.width - 4) / SMALL.advance)).slice(0, 3);
     return [card.id, { id: card.id, title, ...(card.story === undefined ? {} : { story: card.story }), own: card.own, status: card.status, lines, box: at,
       asked: title === asked!.title }] as const;
   }));

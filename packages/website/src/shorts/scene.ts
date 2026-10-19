@@ -18,7 +18,7 @@ export const INK = {
   editor: "#1b1e28", tabBar: "#13151c", tab: "#2a2f3d", gutter: "#4b5263", code: "#d7dae0", keyword: "#c678dd",
   text: "#98c379", note: "#5c6370",
   map: "#101418", panel: "#1e222b", panelEdge: "#3a404d", hover: "#2c3442", healthy: "#3fae6a", untested: "#c9a227", failing: "#e5534b",
-  plate: "#ffd34d", plateWords: "#1b1f2b", name: "#c9ced8", nameplate: "#1a1f27",
+  plate: "#ffd34d", plateWords: "#1b1f2b", name: "#c9ced8", nameplate: "#1a1f27", forest: "#efe2b4", shop: "#c6e3a4",
   cursor: "#ffffff", cursorEdge: "#08090d",
   without: "#ff7a6b", with: "#7ee07e", caption: "#ffffff", url: "#ffd34d",
 } as const;
@@ -218,6 +218,9 @@ function clickAt(ctx: CanvasRenderingContext2D, x: number, y: number): void {
 
 /** The panel's box on a full view of the map, slid in by `open`. */
 const PANEL_WIDTH = 100;
+/** How much of the full screen's width and height the map is drawn at, at `seconds`: all of it, until the panel opens beside
+ * it, when the whole sheet is fitted into the room the panel leaves, as the app fits its map aside. */
+export const mapFit = (seconds: number) => 1 - panelOpen(SCRIPT.with, seconds) * PANEL_WIDTH / SCREEN.full.width;
 const panelBox = (screen: Rect, open: number): Rect => ({ x: screen.x + screen.width - Math.round(PANEL_WIDTH * open), y: screen.y + 1, width: PANEL_WIDTH, height: screen.height - 2 });
 
 /** The island's detail panel, as the app's: its title and description, then its capability graph, too small to read, in a frame
@@ -254,11 +257,13 @@ function onScreen(screen: Rect, map: NonNullable<SceneInputs["map"]>, mark: Mark
 function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: number, { view, map: drawn }: SceneInputs): void {
   const { x, y, width, height } = screen;
   const since = clickedFor(SCRIPT.with, seconds), open = panelOpen(SCRIPT.with, seconds);
-  // As the panel opens the map slides aside by half its width, as the app's does, so the island he clicked stays in view.
-  const aside = Math.round(open * PANEL_WIDTH / 2), shown = { ...screen, x: x - aside };
+  // As the panel opens the whole sheet is fitted into the room it leaves, as the app fits its map aside, so the island he
+  // clicked and every other stay in view; the view is drawn at that size already, so it is copied pixel for pixel.
+  const fit = mapFit(seconds), [w, h] = [Math.round(width * fit), Math.round(height * fit)];
+  const shown = { x, y: y + Math.round((height - h) / 2), width: w, height: h };
   ctx.fillStyle = INK.map;
   ctx.fillRect(x, y, width, height);
-  ctx.drawImage(view, shown.x, y, width, height);
+  ctx.drawImage(view, shown.x, shown.y, w, h);
   const islands = drawn?.marks?.islands.map(mark => ({ mark, at: onScreen(shown, drawn, mark) })) ?? [];
   // Each island is lettered under it, the selected one first, and a name that would overlap one already lettered is left off.
   const lettered: Rect[] = open ? [panelBox(screen, open)] : [];
@@ -277,6 +282,7 @@ function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: n
     box(ctx, plate.x, plate.y, plate.width, plate.height, selected ? INK.plate : INK.nameplate, selected ? INK.plate : INK.nameplate);
     lines.forEach((line, row) => small(ctx, line, plate.x + 2 + Math.round((wide - (line.length * SMALL.advance - 1)) / 2), top + row * SMALL.line, selected ? INK.plateWords : INK.name));
   }
+  chrome(ctx, screen);
   const local = since === undefined ? 0 : since + CLICK_AT;
   const pressed = since !== undefined && local >= POPPED;
   if (open) panel(ctx, panelBox(screen, open), open, pressed);
@@ -285,7 +291,8 @@ function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: n
   const [tx, ty] = [Math.round(target.x + target.width / 2), Math.round(target.y + target.height / 2)];
   const button = layPanel(panelBox(screen, 1)).open, rest = { x: button.x + 5, y: button.y + 5 };
   const t = Math.max(0, Math.min(1, (seconds - beat.from - 0.3) / (CLICK_AT - 0.3)));
-  let [px, py] = [Math.round(tx + (1 - t) * 40), Math.round(ty + (1 - t) * 30)];
+  // The cursor comes in from above and to the right, so it never crosses the island's name under it.
+  let [px, py] = [Math.round(tx + (1 - t) * 40), Math.round(ty - (1 - t) * 30)];
   if (since !== undefined && local > PANEL_AT + 0.4) {
     const u = Math.min(1, (local - (PANEL_AT + 0.4)) / (POP_AT - PANEL_AT - 0.4));
     [px, py] = [Math.round(tx + u * (rest.x - tx)), Math.round(ty + u * (rest.y - ty))];
@@ -293,6 +300,28 @@ function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: n
   pointer(ctx, px, py);
   if (since !== undefined && since < 0.3) clickAt(ctx, px, py);
   if (pressed && local < POPPED + 0.3) clickAt(ctx, px, py);
+}
+
+/** The app's own frame round its map, as its screenshot shows it: the switches along the top (the forest lit, the library, and
+ * the project, the shop) and the sessions strip along the bottom, one session, Claude Code's. */
+function chrome(ctx: CanvasRenderingContext2D, screen: Rect): void {
+  const { x, y, width, height } = screen;
+  box(ctx, x + 3, y + 3, 63, 11, INK.panel, INK.panelEdge);
+  box(ctx, x + 4, y + 4, 28, 9, INK.forest, INK.forest);
+  small(ctx, "forest", x + 6, y + 6, INK.plateWords);
+  small(ctx, "library", x + 35, y + 6, INK.code);
+  box(ctx, x + 69, y + 3, 53, 11, INK.panel, INK.panelEdge);
+  small(ctx, "project", x + 71, y + 6, INK.gutter);
+  box(ctx, x + 100, y + 4, 21, 9, INK.shop, INK.shop);
+  small(ctx, "shop", x + 103, y + 6, INK.plateWords);
+  ctx.fillStyle = INK.panel;
+  ctx.fillRect(x, y + height - 14, width, 14);
+  ctx.fillStyle = INK.panelEdge;
+  ctx.fillRect(x, y + height - 14, width, 1);
+  small(ctx, "sessions 1", x + 4, y + height - 10, INK.you);
+  ctx.fillStyle = "#e05bb5";
+  ctx.fillRect(x + 50, y + height - 9, 3, 3);
+  small(ctx, "claude code", x + 56, y + height - 10, INK.code);
 }
 
 /** The map on the monitor in the room: the same drawing, shrunk, with the panel a grey strip once it is open. */

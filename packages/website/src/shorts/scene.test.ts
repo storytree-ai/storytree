@@ -75,9 +75,11 @@ test("6.5 · the storytree side's map is the forest's glass sheet of the saved p
     const screen = SCREEN[beat.view];
     assert.equal(copies.length, 1, `one copy of the view at ${seconds}s`);
     const [x, y, width, height] = copies[0]!;
-    assert.deepEqual([y, width, height], [screen.y, screen.width, screen.height], `the copy is the ${beat.view} screen's size at ${seconds}s`);
-    // On a full view it slides aside, as the app's map does, by up to half the panel's width while the panel opens.
-    assert.ok(x! <= HALF.with + screen.x && x! >= HALF.with + screen.x - (beat.view === "full" ? 50 : 0), `the copy starts at the ${beat.view} screen's left, or slid at most 50 px left of it, at ${seconds}s`);
+    // On a full view, while the panel opens, the whole sheet is fitted into the room the panel leaves, as the app's map is.
+    assert.equal(x, HALF.with + screen.x, `the copy starts at the ${beat.view} screen's left at ${seconds}s`);
+    assert.ok(width! <= screen.width && height! <= screen.height && Math.abs(width! / height! - screen.width / screen.height) < 0.02, `the copy is the ${beat.view} screen, or smaller in proportion, at ${seconds}s`);
+    assert.ok(Math.abs(y! + height! / 2 - (screen.y + screen.height / 2)) <= 1, `the copy is centred down the ${beat.view} screen at ${seconds}s`);
+    if (beat.view === "room") assert.deepEqual([width, height], [screen.width, screen.height], `the room's screen shows the whole map at ${seconds}s`);
     shown.add(beat.view);
   }
   assert.deepEqual([...shown].sort(), ["full", "room"], "the map shows in the room and in a full view of the screen");

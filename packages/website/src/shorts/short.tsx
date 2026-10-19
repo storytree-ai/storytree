@@ -10,7 +10,7 @@ import type { RootState } from "@react-three/fiber";
 import { PlanetView, type GlobeControls } from "@storytree/forest/view";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 import type { CastMap } from "./cast.js";
-import { drawScene, SCRIPT, type Marks, type Words } from "./scene.js";
+import { drawScene, mapFit, SCRIPT, type Marks, type Words } from "./scene.js";
 import { FONT, LOW, SCALE, SCREEN } from "./script.js";
 import { MAP, mapProps, quantise, selectedAt, snapshot } from "./view.js";
 
@@ -54,15 +54,16 @@ async function loadAssets(): Promise<{ cast: CastMap; sheet: HTMLImageElement }>
   return { cast, sheet };
 }
 
-/** The forest's drawing at the moment, shrunk to the full screen by averaging (so its thin lit edges survive) and put into the
- * map's palette. */
-function shrinkView(state: RootState, at: number): HTMLCanvasElement | OffscreenCanvas {
+/** The forest's drawing at the moment, shrunk by averaging (so its thin lit edges survive) to the full screen, or to `fit` of it
+ * while the panel stands beside it, and put into the map's palette. */
+function shrinkView(state: RootState, at: number, fit = 1): HTMLCanvasElement | OffscreenCanvas {
   state.advance(at);
-  const map = new OffscreenCanvas(SCREEN.full.width, SCREEN.full.height).getContext("2d", { willReadFrequently: true })!;
+  const [width, height] = [Math.round(SCREEN.full.width * fit), Math.round(SCREEN.full.height * fit)];
+  const map = new OffscreenCanvas(width, height).getContext("2d", { willReadFrequently: true })!;
   map.imageSmoothingEnabled = true;
   map.imageSmoothingQuality = "high";
-  map.drawImage(state.gl.domElement, 0, 0, SCREEN.full.width, SCREEN.full.height);
-  const pixels = map.getImageData(0, 0, SCREEN.full.width, SCREEN.full.height);
+  map.drawImage(state.gl.domElement, 0, 0, width, height);
+  const pixels = map.getImageData(0, 0, width, height);
   quantise(pixels.data);
   map.putImageData(pixels, 0, 0);
   return map.canvas;
@@ -106,7 +107,7 @@ export function SeeingWhatAgentsBuilt({ lateBy = 0 }: { lateBy?: number }) {
     // The view takes a selection on its own renderer's next pass, so the frame is drawn once that has run.
     const drawing = delayRender(`frame ${frame}`);
     void new Promise(done => setTimeout(done, lateBy)).then(nextFrame).then(() => {
-      const map = shrinkView(get(), frame * 1000 / fps);
+      const map = shrinkView(get(), frame * 1000 / fps, mapFit(seconds));
       const ctx = shown.current!.getContext("2d")!;
       pixelText(ctx, drawScene(ctx, { seconds, frames: durationInFrames, cast: assets.cast, sheet: assets.sheet, view: map,
         map: { width: MAP.width, height: MAP.height, marks } }));

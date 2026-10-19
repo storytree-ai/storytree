@@ -51,7 +51,7 @@ export function codexToolArguments(event: string): { harness: "codex"; input: Re
 }
 
 /**
- * The fields that name a Claude Code event both ways, by event: Claude Code's mod (packages/claude-code-mod) sends a
+ * The fields that name a Claude Code event both ways, by event: Claude Code's mod (packages/agent-pool/src/claude-code-mod) sends a
  * PreToolUse rebuilt from the tool call's envelope, without the stdin's `prompt_id`, `permission_mode` or transcript,
  * and with the session's folder; the call's id names a tool call alone. Every other event's input it sends whole.
  */

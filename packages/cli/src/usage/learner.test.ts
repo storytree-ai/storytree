@@ -84,5 +84,6 @@ test("14.13 · a want is filed on the learner's own branch, so it never spends t
     // The landing session's own three still file.
     const own = { title: "A session's own", description: "Its own.", statement: "Its own.", evidence: "`pnpm test` failed", impact: "Slow." };
     for (const branch of ["claude/lane", "claude/lane", "claude/lane"]) await recordFriction(library, { ...own, branch });
+    assert.equal((await library.list("friction")).length, 6);
   });
 });

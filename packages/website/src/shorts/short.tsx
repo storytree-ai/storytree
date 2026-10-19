@@ -1,8 +1,9 @@
 /** Capability 6 · Pixel-art shorts. The first short, "seeing what agents built" (increment_9294d76b04cf, ADR-1046, reworked
- * from the owner's notes in increment_4695144e6847 and polished in increment_ea834305fe2d): the same developer at the same desk
- * on both halves, and on the storytree side's screen the real map. The forest's own view draws storytree's glass sheet off
- * screen (view.ts's MAP), at the app's own opening view of it, and lit by the selection when the developer clicks it; each frame
- * draws it by hand and hands it to the scene, which draws the one 320×180 canvas the page shows ×6 with no smoothing. */
+ * from the owner's notes in increment_4695144e6847 and polished in increment_ea834305fe2d and increment_fa48e88589f9): the same
+ * developer at the same desk on both halves, and on the storytree side's screen the real map. The forest's own view draws the
+ * shop's glass sheet, with the wishlist's new island, off screen (view.ts's MAP), lit by the selection when the developer clicks
+ * it; each frame draws it by hand and hands it to the scene, which draws the one 480×270 canvas the page shows ×4 with no
+ * smoothing. */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AbsoluteFill, continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import type { RootState } from "@react-three/fiber";
@@ -11,7 +12,7 @@ import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 import type { CastMap } from "./cast.js";
 import { drawScene, SCRIPT, type Marks, type Words } from "./scene.js";
 import { FONT, LOW, SCALE, SCREEN } from "./script.js";
-import { MAP, mapProps, quantise, selectedAt, snapshot } from "./view.js";
+import { aimAt, MAP, mapProps, quantise, selectedAt, snapshot, type Aim } from "./view.js";
 
 const TITLES = new Map(snapshot.scene.islands.map(island => [island.story, island.title]));
 /** The seam the forest hands an evidence capture its canvas's live state through (PlanetWorldCanvas's CAPTURE_SEAM). */
@@ -57,20 +58,35 @@ async function loadAssets(): Promise<{ cast: CastMap; sheet: HTMLImageElement }>
  * map's palette. */
 function shrinkView(state: RootState, at: number): HTMLCanvasElement | OffscreenCanvas {
   state.advance(at);
-  const map = new OffscreenCanvas(SCREEN.full.width, SCREEN.full.height).getContext("2d", { willReadFrequently: true })!;
+  const { width, height } = SCREEN.full;
+  const map = new OffscreenCanvas(width, height).getContext("2d", { willReadFrequently: true })!;
   map.imageSmoothingEnabled = true;
   map.imageSmoothingQuality = "high";
-  map.drawImage(state.gl.domElement, 0, 0, SCREEN.full.width, SCREEN.full.height);
-  const pixels = map.getImageData(0, 0, SCREEN.full.width, SCREEN.full.height);
+  map.drawImage(state.gl.domElement, 0, 0, width, height);
+  const pixels = map.getImageData(0, 0, width, height);
   quantise(pixels.data);
   map.putImageData(pixels, 0, 0);
   return map.canvas;
 }
 
-/** Aims the view, then waits until it has drawn every island in the same place, and the same picture, several times running:
- * its roads are routed after its islands draw, later on a busy machine. Then hands back where each island is. */
-async function settled(controls: GlobeControls, get: () => RootState): Promise<Marks> {
-  controls.stop({ target: { kind: "story", story: MAP.aim.story }, framing: MAP.aim.framing, sideOffset: MAP.aim.sideOffset, duration: 0 });
+/** Aims the view at once (the page asks for reduced motion, so the view jumps where the app would glide). */
+function aim(controls: GlobeControls, to: Aim): void {
+  const { story, framing, sideOffset } = MAP.aims[to];
+  controls.stop({ target: { kind: "story", story }, framing, sideOffset, duration: 0 });
+}
+
+/** Tilts the sheet toward the eye by the app's own key for it (r, a step at a time), so the shop's rows stand taller; then for
+ * each aim, aims the view and waits until it has drawn every island in the same place, and the same picture, several times
+ * running (its roads are routed after its islands draw, later on a busy machine), and hands back where each island is. The view
+ * is left at the last aim. */
+async function settled(controls: GlobeControls, get: () => RootState): Promise<Record<Aim, Marks>> {
+  for (let step = 0; step < MAP.tilt; step++) window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" }));
+  const marks = {} as Record<Aim, Marks>;
+  for (const to of Object.keys(MAP.aims) as Aim[]) { aim(controls, to); marks[to] = await steady(controls, get); }
+  return marks;
+}
+
+async function steady(controls: GlobeControls, get: () => RootState): Promise<Marks> {
   let last = "", same = 0;
   for (;;) {
     await new Promise(done => setTimeout(done, 150));
@@ -90,7 +106,8 @@ export function SeeingWhatAgentsBuilt({ lateBy = 0 }: { lateBy?: number }) {
   const shown = useRef<HTMLCanvasElement>(null);
   const [get, setGet] = useState<() => RootState>();
   const [controls, setControls] = useState<GlobeControls>();
-  const [marks, setMarks] = useState<Marks>();
+  const [marks, setMarks] = useState<Record<Aim, Marks>>();
+  const aimed = useRef<Aim>("island");
   const [assets, setAssets] = useState<{ cast: CastMap; sheet: HTMLImageElement }>();
   const [loading] = useState(() => delayRender("The map, the pixel font and the cast load"));
   const core = useMemo(() => createKnowledgeCore(snapshot.project), []);
@@ -98,20 +115,21 @@ export function SeeingWhatAgentsBuilt({ lateBy = 0 }: { lateBy?: number }) {
   useEffect(() => { void loadAssets().then(setAssets); }, []);
   useEffect(() => { if (controls && get) void settled(controls, get).then(setMarks); }, [controls, get]);
   useEffect(() => { if (get && assets && marks) continueRender(loading); }, [get, assets, marks, loading]);
-  const seconds = frame / fps, selected = selectedAt(SCRIPT.with, seconds);
+  const seconds = frame / fps, selected = selectedAt(SCRIPT.with, seconds), at = aimAt(SCRIPT.with, seconds);
   const ignore = useCallback(() => {}, []);
   useLayoutEffect(() => {
     if (!get || !assets || !marks) return;
     // The view takes a selection on its own renderer's next pass, so the frame is drawn once that has run.
     const drawing = delayRender(`frame ${frame}`);
+    if (aimed.current !== at) { aim(controls!, at); aimed.current = at; }
     void new Promise(done => setTimeout(done, lateBy)).then(nextFrame).then(() => {
       const map = shrinkView(get(), frame * 1000 / fps);
       const ctx = shown.current!.getContext("2d")!;
       pixelText(ctx, drawScene(ctx, { seconds, frames: durationInFrames, cast: assets.cast, sheet: assets.sheet, view: map,
-        map: { width: MAP.width, height: MAP.height, marks } }));
+        map: { width: MAP.width, height: MAP.height, marks: marks[at] } }));
       continueRender(drawing);
     });
-  }, [get, assets, marks, frame, fps, seconds, durationInFrames, selected, lateBy]);
+  }, [get, controls, assets, marks, frame, fps, seconds, durationInFrames, selected, at, lateBy]);
   return <AbsoluteFill style={{ background: "#000" }}>
     <div style={{ position: "absolute", left: 0, top: 0, width: MAP.width, height: MAP.height, isolation: "isolate", zIndex: 0 }}>
       <PlanetView {...mapProps(selected)} core={core} onPick={ignore} onNote={ignore} onControls={setControls} />

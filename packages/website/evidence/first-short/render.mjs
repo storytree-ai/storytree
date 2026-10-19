@@ -1,6 +1,6 @@
 // node --import tsx packages/website/evidence/first-short/render.mjs
 // Renders the first short, "seeing what agents built" (increment_9294d76b04cf, reworked in increment_4695144e6847, polished in
-// increment_ea834305fe2d). Into this
+// increment_ea834305fe2d and increment_fa48e88589f9). Into this
 // folder only: the 1920×1080 MP4 for social media, its poster frame, a lossless still of each beat, and measurements.json
 // (sizes, render times, broken pixel blocks in each still). Nothing goes into the site's public folder: the owner has not
 // said where on storytree.dev the short goes (2026-10-18), so no cut of it is published there.
@@ -14,10 +14,11 @@ import { POSTER } from "../../src/shorts/script.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const NAME = "seeing-what-agents-built";
-/** One still per beat, in seconds: the shared opening, the map cut, the panel, "looks almost right", the two prompts, the walk
- * out, Claude's questions on the left while it works on the right, the end card. */
-const BEATS = { opening: 6, "map-full-view": 12, "panel-open": 16, "almost-right": 20.5, "long-prompt": 27, "short-prompt": 32,
-  "leaves-the-room": 41, "claude-asks": 44, "claude-works": 50, "end-card": 54 };
+/** One still per beat, in seconds: the shared opening, the shop's map with its new island, the island's panel, its capability
+ * graph, "looks about right", the two prompts, the walk out, Claude's questions on the left while it works on the right, the end
+ * card. */
+const BEATS = { opening: 6, "map-full-view": 12, "panel-open": 14, "capability-graph": 17, "about-right": 20.5, "long-prompt": 27,
+  "short-prompt": 32, "leaves-the-room": 41.6, "claude-asks": 44, "claude-works": 50, "end-card": 54 };
 
 const timed = async run => { const start = performance.now(); await run(); return Math.round(performance.now() - start) / 1000; };
 let serveUrl;

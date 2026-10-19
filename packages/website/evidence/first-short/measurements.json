@@ -1,18 +1,18 @@
 {
-  "renderedAt": "2026-10-18T14:15:04.773Z",
+  "renderedAt": "2026-10-19T06:33:47.785Z",
   "composition": {
     "id": "seeing-what-agents-built",
     "fps": 30,
-    "frames": 1680
+    "frames": 1740
   },
   "seconds": {
-    "bundle": 2.282,
-    "poster": 19.412,
-    "socialMp4": 379.412
+    "bundle": 1.985,
+    "poster": 3.739,
+    "socialMp4": 151.29
   },
   "bytes": {
-    "seeing-what-agents-built-poster.png": 24692,
-    "seeing-what-agents-built-1080p.mp4": 1496468
+    "seeing-what-agents-built-poster.png": 23191,
+    "seeing-what-agents-built-1080p.mp4": 831853
   },
   "stills": [
     {
@@ -29,14 +29,20 @@
     },
     {
       "beat": "panel-open",
-      "seconds": 16,
+      "seconds": 14,
       "file": "still-panel-open.png",
       "brokenBlocks": 0
     },
     {
-      "beat": "almost-right",
+      "beat": "capability-graph",
+      "seconds": 17,
+      "file": "still-capability-graph.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "about-right",
       "seconds": 20.5,
-      "file": "still-almost-right.png",
+      "file": "still-about-right.png",
       "brokenBlocks": 0
     },
     {
@@ -53,7 +59,7 @@
     },
     {
       "beat": "leaves-the-room",
-      "seconds": 41,
+      "seconds": 41.6,
       "file": "still-leaves-the-room.png",
       "brokenBlocks": 0
     },

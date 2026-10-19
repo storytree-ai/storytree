@@ -6,6 +6,7 @@ import { build } from "esbuild";
 import { MARK_LINKS, inlineMark, writeMarkFiles } from "./mark.js";
 import { openingMarkup } from "./opening-markup.js";
 import { claimsMarkup, FIRST_SHORT } from "./claims.js";
+import { pageEndMarkup } from "./page-end.js";
 import { fill, tourCounts } from "./tour-counts.js";
 import type { TourSnapshot } from "./forest-data.js";
 
@@ -48,7 +49,7 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   const counts = tourCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "forest-snapshot.json"), "utf8")) as TourSnapshot);
   for (const page of ["index.html", "waitlist.html", "404.html"]) {
     const template = fill(await readFile(path.join(packageRoot, "src", page), "utf8"), counts);
-    const html = template.replace("<!-- OPENING -->", openingMarkup()).replace("<!-- CLAIMS -->", claimsMarkup()).replaceAll("<!-- MARK -->", inlineMark())
+    const html = template.replace("<!-- OPENING -->", openingMarkup()).replace("<!-- CLAIMS -->", claimsMarkup()).replace("<!-- PAGE END -->", pageEndMarkup()).replaceAll("<!-- MARK -->", inlineMark())
       .replace("<!-- MARK LINKS -->", MARK_LINKS)
       .replace(/\/assets\/(main|forest|styles)\.(?:js|css)/g, (_, name: string) => {
         const entry = entries.get(name);

@@ -22,7 +22,7 @@ export const fixes = {
 // evidence/harness-pi/ READMEs). Another harness is one more entry here, once storytree watches it; one that only speaks MCP
 // is covered by the line beneath the marks (ADR-1007 D5, as ADR-1018 D11 words it).
 export const harness = {
-  title: "Works with your harness.",
+  title: "Works with your existing harness",
   // The owner's line (2026-10-13).
   claim: "Storytree works with your existing coding harness.",
   how: "Storytree doesn't replace the agent you code with. When you set up a project it looks for Claude Code and Codex, and joins their sessions through hooks and an MCP server: the hooks tell storytree what each session reads and changes, and the MCP server gives the agent storytree's tools for the plan and the library. Any other harness that speaks MCP can connect to the server too: it gets the plan, claims and the library, though storytree doesn't watch its session.",

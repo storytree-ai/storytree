@@ -9,7 +9,7 @@ import { Window as HappyWindow } from "happy-dom";
 import { readIco, readPng } from "@storytree/mark";
 
 import { buildWebsite } from "./build.js";
-import { fixes } from "./tour-copy.js";
+import { fixes, harness } from "./tour-copy.js";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -195,4 +195,23 @@ test("1.13 · below the map the built home shows the three claims in order, clai
     assert.match(asset ?? "", /^\//, name);
     assert.ok((await readFile(path.join(output, asset!))).equals(await readFile(path.join(rendered, file))), `${asset} is the rendered ${file}`);
   }
+});
+
+test("1.14 · after the claims the built home says it works with your harness, with its marks, and ends on the waitlist", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-harness-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const page = new HappyWindow().document;
+  page.write(await readFile(path.join(output, "index.html"), "utf8"));
+  const section = page.querySelector("#harness")!;
+  assert.ok(page.querySelector("#claims")!.compareDocumentPosition(section) & 4, "the harness sits below the claims");
+  assert.ok(section.textContent!.includes(harness.claim) && section.textContent!.includes(harness.marksNote), "the owner's line, then any harness that speaks MCP");
+  const marks = [...section.querySelectorAll("img")];
+  assert.deepEqual(marks.map(mark => mark.getAttribute("alt")), harness.marks.map(({ name }) => name), "one mark per harness storytree watches");
+  for (const mark of marks) assert.ok((await stat(path.join(output, mark.getAttribute("src")!))).size > 0, `${mark.getAttribute("src")} is served`);
+  const sections = [...page.querySelectorAll("main > section")];
+  const last = sections.at(-1)!;
+  assert.ok(sections.indexOf(section) === sections.length - 2, "nothing comes between the harness and the end of the page");
+  assert.ok(last.querySelector('a[href="/waitlist.html"]'), "the page ends on the waitlist");
+  assert.equal(page.querySelectorAll('main a[href="/waitlist.html"]').length, 1, "the waitlist is offered once, at the bottom");
 });

@@ -26,8 +26,8 @@ Quality control on one green change before the gate: a fresh-context reviewer th
 4. For each contract, judge whether the change does what it says, from the diff and the tests in it; not met needs a one-line why.
 5. From the second review on, judge each rejection the brief lists: accept its reason when it answers the check (the expected value really is a worked number, the case really is out of the check's reach), otherwise do not, saying why. A reasoned rejection is a legitimate answer ("A compliance gate turns a judgment ceremony into theatre"); do not hold out for a fix you merely prefer.
 6. Write the return as JSON to `/tmp/qa-<increment>-return.json`, a path unique to the increment you review: lanes on one machine share `/tmp`, so a fixed name lets another lane's reviewer overwrite your return before you take it. Then run `pnpm -s storytree quality take <increment> --return @/tmp/qa-<increment>-return.json`:
-   `{"checks":[{"check":"<id>","tripped":true,"hits":[{"file":"packages/x/src/a.test.ts","line":12,"found":"…"}]},{"check":"<id>","tripped":false}],"contracts":[{"contract":"<id>","met":true},{"contract":"<id>","met":false,"why":"…"}],"rejections":[{"hit":7,"accepted":false,"why":"…"}]}`
-   Leave `rejections` out when the brief lists none. A refused return names what it gets wrong and records nothing: correct it and take it again.
+   `{"review":<the brief's review number>,"checks":[{"check":"<id>","tripped":true,"hits":[{"file":"packages/x/src/a.test.ts","line":12,"found":"…"}]},{"check":"<id>","tripped":false}],"contracts":[{"contract":"<id>","met":true},{"contract":"<id>","met":false,"why":"…"}],"rejections":[{"hit":7,"accepted":false,"why":"…"}]}`
+   `review` is the number the brief opens with ("Review <n> of change …"): a return naming another review, such as an earlier one's file left under another `/tmp`, is refused. Leave `rejections` out when the brief lists none. A refused return names what it gets wrong and records nothing: correct it and take it again.
 7. Answer the implementer with the take's output whole, and end.
 
 

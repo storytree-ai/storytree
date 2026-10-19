@@ -2,7 +2,7 @@ import path from "node:path";
 
 // Website contracts 2.1–2.3, shared with the verified acceptance visitor.
 export async function verifyForest(browser, url, out, step, picture) {
-  // 2.3, 2.1: the text and waitlist entry come first; then the live scene draws the saved plan's islands.
+  // 2.3, 2.1: the text and the waitlist call at the page's end come first; then the live scene draws the saved plan's islands.
   const live = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   await live.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
   let release;
@@ -11,8 +11,8 @@ export async function verifyForest(browser, url, out, step, picture) {
   await live.route(/forest-scene-[^/]*\.js$/, async (route) => { requested = true; await held; await route.continue(); });
   await live.goto(url, { waitUntil: "load" });
   await step("2.3", "before the 3D scene's code arrives, the explanation and waitlist entry are available", async () => {
-    const ready = (await live.locator("#forest-title").isVisible()) && (await live.locator("#map-waitlist").isVisible());
-    const href = await live.locator('#map-waitlist').getAttribute('href');
+    const ready = (await live.locator("#forest-title").isVisible()) && (await live.locator("#call-action").isVisible());
+    const href = await live.locator('#call-action').getAttribute('href');
     // Read before the code arrives; the form's own page needs none of it, so the scene need not wait on it past the page's startup timeout.
     const early = requested; release();
     const form = await browser.newPage();
@@ -126,7 +126,7 @@ export async function verifyForest(browser, url, out, step, picture) {
         await page.locator("[data-close-arcs]").click();
         if (!arcs) failures.push("the arcs panel did not open");
       }
-      await page.locator("#map-waitlist").click();
+      await page.locator("#call-action").click();
       await page.locator("#waitlist-email").waitFor({ state: "visible" });
       const usable = (await page.locator("#waitlist-email").isVisible()) && (await page.locator("#waitlist-submit").isVisible());
       if (!usable) failures.push("the waitlist is not usable");

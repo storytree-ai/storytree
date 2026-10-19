@@ -31,6 +31,9 @@ test("2.3 · the initial page downloads less than 20 KiB of JavaScript before ac
   assert.ok(initial.size > 0);
   const bytes = [...initial].reduce((sum, name) => sum + outputs[name]!.bytes, 0);
   assert.ok(bytes < 20 * 1024, `Initial JavaScript was ${bytes} bytes; the renderer must wait for activation`);
+  // Chapter 1's words and its sound wait for the visitor's first act, so the intro can grow within the cap.
+  const loadedFirst = [...initial].flatMap(name => Object.keys(outputs[name]!.inputs));
+  for (const later of ["src/opening-copy.ts", "src/opening-audio.ts"]) assert.ok(!loadedFirst.includes(later), `${later} is in the initial download`);
 });
 
 test("1.1 · a static build serves its home page and every local asset without an app server", async (t) => {

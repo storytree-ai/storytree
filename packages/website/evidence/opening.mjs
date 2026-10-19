@@ -323,9 +323,17 @@ export async function verifyOpening(browser, url, output) {
     await still.screenshot({ path: path.join(output, options.javaScriptEnabled === false ? "390-no-script.png" : "390-reduced-motion.png") });
     if (options.reducedMotion) {
       assert.equal(await still.evaluate(() => document.querySelector("#opening").getAnimations({ subtree: true }).length), 0);
+      // The joke's words load on its click, here with no Run before it (contract 2.3).
+      await still.getByRole("button", { name: "i'll keep babysitting" }).click();
+      await still.getByRole("button", { name: "restart the intro" }).waitFor();
+      assert.deepEqual(await counter(still), ["AGENTS: 15 ▲", "WAITING ON YOU: 15", "ANSWERED: 00"], "website 1.8: the reduced-motion joke adds its three agents");
+      await still.getByRole("button", { name: "restart the intro" }).click();
+      assert.deepEqual(await counter(still), peak);
       await still.clock.install();
       await still.emulateMedia({ reducedMotion: "no-preference" });
       await run(still).click();
+      // Run starts once chapter 1's words have loaded; only then are its timers set.
+      await still.locator("#opening-lead .is-cmd").waitFor();
       await still.clock.fastForward(46000);
       await better(still).click();
       await still.emulateMedia({ reducedMotion: "reduce" });

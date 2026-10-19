@@ -3,12 +3,15 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { Window as HappyWindow } from "happy-dom";
 
 import { readIco, readPng } from "@storytree/mark";
 
 import { buildWebsite } from "./build.js";
-import { escapeHtml } from "./escape-html.js";
 import { fixes } from "./tour-copy.js";
+
+const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
 test("2.3 · the initial page downloads less than 20 KiB of JavaScript before activating the forest", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-lazy-"));
@@ -176,18 +179,20 @@ test("1.13 · below the map the built home shows the three claims in order, clai
   t.after(() => rm(output, { recursive: true, force: true }));
   await buildWebsite(output);
   const html = await readFile(path.join(output, "index.html"), "utf8");
-  const claims = [...html.matchAll(/<section class="claim"[\s\S]*?<\/section>/g)].map(([section]) => section);
-  assert.equal(claims.length, fixes.pairs.length, "one section per claim, and no other");
-  assert.ok(html.indexOf('id="map-frame"') < html.indexOf('class="claim"'), "the claims sit below the map");
-  fixes.pairs.forEach(({ pain, fix }, i) => {
-    assert.ok(claims[i]!.includes(escapeHtml(pain)) && claims[i]!.includes(escapeHtml(fix)), `claim ${i + 1} reads "${pain}" then "${fix}"`);
-  });
-  const videos = claims.map(section => section.match(/<video\b[^>]*>/)?.[0]);
+  const page = new HappyWindow().document;
+  page.write(html);
+  const claims = [...page.querySelectorAll("section.claim")];
+  assert.deepEqual(claims.map(claim => ({ pain: claim.querySelector(".claim-pain")?.textContent, fix: claim.querySelector(".claim-fix")?.textContent })),
+    fixes.pairs, "one section per claim, in order, each reading its pain then its fix, and no other");
+  assert.ok(page.querySelector("#map-frame")!.compareDocumentPosition(claims[0]!) & 4, "the claims sit below the map");
+  const videos = claims.map(claim => claim.querySelector("video"));
   assert.ok(videos[0] && videos.slice(1).every(video => !video), "only claim 1 carries a short");
-  for (const attribute of ["muted", "playsinline", "controls"]) assert.match(videos[0]!, new RegExp(`\\s${attribute}[\\s>]`), attribute);
-  for (const name of ["src", "poster"]) {
-    const asset = videos[0]!.match(new RegExp(`\\s${name}="(/[^"]+)"`))?.[1];
-    assert.ok(asset, name);
-    assert.ok((await stat(path.join(output, asset))).size > 0, `${asset} is served by the built site`);
+  for (const attribute of ["muted", "playsinline", "controls"]) assert.ok(videos[0]!.hasAttribute(attribute), attribute);
+  // What the site serves is the short and the poster as rendered.
+  const rendered = path.join(packageRoot, "evidence", "first-short");
+  for (const [name, file] of [["src", "seeing-what-agents-built-1080p.mp4"], ["poster", "seeing-what-agents-built-poster.png"]] as const) {
+    const asset = videos[0]!.getAttribute(name);
+    assert.match(asset ?? "", /^\//, name);
+    assert.ok((await readFile(path.join(output, asset!))).equals(await readFile(path.join(rendered, file))), `${asset} is the rendered ${file}`);
   }
 });

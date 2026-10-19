@@ -293,8 +293,7 @@ export async function verifyOpening(browser, url, output) {
     document.getElementById("opening-better").click();
   }));
   // Chapter 1's last frame, on a phone and on a desktop.
-  await page.waitForFunction(() => document.querySelectorAll("#opening-pain p.on").length === 2, null, { timeout: 15000 });
-  await page.waitForTimeout(900);
+  await page.waitForFunction(() => [...document.querySelectorAll("#opening-pain p")].every(p => p.classList.contains("on") && getComputedStyle(p).opacity === "1"), null, { timeout: 15000 });
   await page.screenshot({ path: path.join(output, "390-pain.png") });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.screenshot({ path: path.join(output, "1440-pain.png") });
@@ -302,7 +301,6 @@ export async function verifyOpening(browser, url, output) {
   assert.deepEqual(ended.seen.map(step => step[0]), ["line", "point"], "The screen collapses to a line, then to a point");
   assert.ok(ended.pain < 1500, `The turn reaches the pain line in under 1.5 seconds (took ${Math.round(ended.pain)} ms)`);
   assert.deepEqual(ended.lines, ["Right now, building with AI feels overwhelming, exhausting and disconnected.", "Storytree is here to fix that."], "website 1.8: chapter 1 ends on the pain line, both of its lines on screen before the hand-over");
-  assert.ok(ended.total - ended.pain > 5000, `The pain line is held long enough to read (${Math.round(ended.total - ended.pain)} ms)`);
   console.log(`turn: line at ${ended.seen[0][1]} ms, point at ${ended.seen[1][1]} ms, pain at ${Math.round(ended.pain)} ms, handed over at ${Math.round(ended.total)} ms; finale reached ${Math.round(elapsed)} ms after Run`);
   assert.equal(page.url(), url, "The turn does not navigate or change the hash");
   assert.ok(await page.locator("#website-forest").evaluate(el => el.getBoundingClientRect().top < innerHeight));

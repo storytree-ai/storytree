@@ -1,6 +1,6 @@
 /** Capability 2 · The forest on the site. */
 import { pageReading, type BoardReads, type Timers } from "@storytree/arc-surface";
-import type { Line } from "@storytree/library";
+import type { BoardArcView, DayWindow, Line } from "@storytree/library";
 import { createKnowledgeCore, type CoreReads } from "@storytree/knowledge-core/view";
 import type { SessionsReads } from "@storytree/forest/view";
 import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
@@ -30,9 +30,13 @@ export function savedReading(snapshot: TourSnapshot, { replay = false, until }: 
       return () => { jobs.delete(job); };
     },
   };
+  const arcViews = async () => until === undefined || replay ? snapshot.arcs : arcsAt(snapshot.arcs, lines, until);
   const reads: SessionsReads & BoardReads & CoreReads = {
     projectTree: async () => snapshot.tree,
-    arcViews: async () => until === undefined || replay ? snapshot.arcs : arcsAt(snapshot.arcs, lines, until),
+    arcViews,
+    // The arcs drawer's reads (3.12): the live arcs with those closed in the window, or the closed ones alone.
+    boardArcs: async (_project, window) => boardViews(await arcViews()).filter(view => view.closed === undefined || within(view, window)),
+    closedArcs: async (_project, window) => boardViews(await arcViews()).filter(view => view.closed !== undefined && within(view, window)),
     holds: async () => snapshot.holds,
     changesSince: async (_project, cursor) => ({ changes: snapshot.changes.filter(change => change.seq > cursor), cursor: snapshot.changes.at(-1)?.seq ?? cursor }),
     linesSince: async (_project, cursor) => {
@@ -72,6 +76,12 @@ export function recordedView(snapshot: TourSnapshot, { replay = false }: { repla
   const stopHearing = recording.reading.subscribe({ onNews: news => core.take(snapshot.changes, news.lines) });
   return { recording, core, stop() { stopHearing(); core.dispose(); recording.reading.stop(); } };
 }
+
+/** The arcs as the board reads them: each closed one with its closing day, its increments' latest outcome day. */
+function boardViews(arcs: TourSnapshot["arcs"]): BoardArcView[] {
+  return arcs.map(view => view.state !== "closed" ? view : { ...view, closed: view.increments.map(({ fields }) => fields.outcome?.date ?? "").sort().at(-1) ?? "" });
+}
+const within = ({ closed }: BoardArcView, { from, to }: DayWindow) => closed !== undefined && closed >= from && closed < to;
 
 /**
  * The arcs as they stood at `until`, from the recorded activity: an increment closed by then is closed, one claimed by then is

@@ -44,8 +44,11 @@ test("2.14 · free play on the shop reads its story panels, its arcs and its rec
     const stories = tree.stories.map(story => story.title);
     for (const title of ["Browsing", "Cart", "Checkout"]) assert.ok(stories.includes(title), `${title} has a story panel`);
     assert.ok(tree.stories.every(story => story.capabilities.every(capability => capability.health?.verified)), "each capability carries its verified health");
-    // The arcs drawer: the shop's own two arcs, both closed.
-    assert.deepEqual((await recording.reads.arcViews(reading.project)).map(view => [view.arc.fields.title, view.state]), [["Swag Labs copy", "closed"], ["A proper shop", "closed"]]);
+    // The arcs drawer: the shop's own two arcs, both closed on the growth's day, read by the days they closed (3.12).
+    const recent = await recording.reads.boardArcs(reading.project, { from: "2026-10-04", to: "2026-10-06" });
+    assert.deepEqual(recent.map(view => [view.arc.fields.title, view.state, view.closed]), [["Swag Labs copy", "closed", "2026-10-05"], ["A proper shop", "closed", "2026-10-05"]]);
+    assert.deepEqual(await recording.reads.boardArcs(reading.project, { from: "2026-10-06", to: "2026-10-08" }), [], "closed before the window, neither is in the routine read");
+    assert.deepEqual((await recording.reads.closedArcs(reading.project, { from: "2026-10-01", to: "2026-10-08" })).map(view => view.arc.fields.title), ["Swag Labs copy", "A proper shop"]);
     // The sessions list: every recorded line, at rest at the growth's end.
     const { lines } = await recording.reads.linesSince(reading.project, 0);
     assert.equal(lines.length, reading.recording.lines.length);

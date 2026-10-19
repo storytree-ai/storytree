@@ -237,7 +237,6 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** An arc written straight into the library, for a test that is about something else. */
 /** Today as a local day (YYYY-MM-DD), the day `arc list` counts from. */
 function localToday(): string {
   const day = new Date();
@@ -253,6 +252,7 @@ async function aClosedArc(world: World, date: string): Promise<string> {
   return arc;
 }
 
+/** An arc written straight into the library, for a test that is about something else. */
 async function anArc(world: World): Promise<string> {
   const arc = await (await world.library()).createArc({ title: "Launch v1", intent: "Ship sign-up", endState: "Visitors sign up" });
   return arc.id;

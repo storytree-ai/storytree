@@ -1,5 +1,5 @@
 /** Capability 2 · Agents on the board: decorate Session management's own claim/session readings, never infer another holder. */
-import { logReading, type Claim, type LogReading } from "@storytree/session-management/readings";
+import { logReading, pullOf, type Claim, type LogReading } from "@storytree/session-management/readings";
 import type { Line } from "@storytree/library";
 
 export type BoardAgent = Claim & {
@@ -25,8 +25,14 @@ export function agentsOnBoard(log: readonly Line[] | LogReading, now: Date = new
   const { fold } = logReading(log);
   const sessions = new Map(fold.sessions(judged).map((session) => [session.session, session]));
   const all = fold.claims(judged).map((claim): BoardAgent => {
-    // A claim is itself a session line, so every claim has a session reading.
-    const session = sessions.get(claim.session)!;
+    const session = sessions.get(claim.session);
+    // A claim is a session line, so it has a session reading, unless a handed-over pull request holds it (ADR-1037).
+    if (session === undefined) {
+      const pr = pullOf(claim.session);
+      const quietMinutes = Math.max(0, Math.floor((now.getTime() - Date.parse(claim.since)) / 60_000));
+      return { ...claim, label: `Pull request #${pr}`, startedAt: claim.since, lastSeenAt: claim.since, hooksRunning: false, quietMinutes,
+        activity: `held for pull request #${pr} until it merges or closes` };
+    }
     const quietMinutes = Math.max(0, Math.floor((now.getTime() - Date.parse(session.lastSeenAt)) / 60_000));
     return {
       ...claim,

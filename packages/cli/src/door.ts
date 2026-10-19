@@ -157,8 +157,10 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
   // The command as this door names it, as far as its words reached, and how it was answered (ADR-0983 D1).
   const heard: Heard = { verb: "storytree" };
   let outcome: DoorOutcome | undefined;
+  // The word a pointer ran its command for, and where it was typed (ADR-1045 D4).
+  let pointed: { readonly word: string; readonly pointedFrom: string } | undefined;
   try {
-    const answer = await dispatch(argv, heard, {
+    const context: Context = {
       cwd: io.cwd,
       ...(io.script === undefined ? {} : { script: io.script }),
       out: (text) => io.out(render({ text })),
@@ -170,14 +172,23 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
       writer: () => (writer ??= commandWriter()),
       journey: () => (journey ??= import("@storytree/app-setup/journey-events/runtime").then(({ createJourneyRuntime }) =>
         createJourneyRuntime({ appVersion: sourceVersion()?.version ?? "0.3.0" }))),
+    };
+    const answer = await dispatch(argv, heard, context).catch(async (thrown: unknown) => {
+      // A word the doors learner pointed in this place runs its command with the words after it, and says so (ADR-1045 D4).
+      const to = thrown instanceof Unheard ? await opened.pointer(thrown.where, thrown.word) : undefined;
+      if (to === undefined) throw thrown;
+      const unheard = thrown as Unheard;
+      pointed = { word: unheard.word, pointedFrom: unheard.where };
+      const ran = await dispatch([...to.split(" ").slice(1), ...unheard.rest], heard, context);
+      return { ...ran, text: `"${unheard.where} ${unheard.word}" is pointed to ${to} (ADR-1045 D4): the sessions it was refused in before went on to run that.\n${ran.text}` };
     });
     io.out(render(writer === undefined ? answer : { ...answer, text: `${answer.text}\nWriter: ${writer.actor}` }));
-    outcome = { outcome: "answered", next: stepVerbs(answer.next) };
+    outcome = { outcome: "answered", next: stepVerbs(answer.next), ...pointed };
     return 0;
   } catch (thrown) {
     // A word the door does not have is worded only now, with the hints its own history offers (ADR-1045 D2, D3).
-    const error = thrown instanceof Unheard ? await repointed(thrown, opened, io.cwd) : thrown;
-    outcome = outcomeOf(error);
+    const error = thrown instanceof Unheard && pointed === undefined ? await repointed(thrown, opened, io.cwd) : thrown;
+    outcome = { ...outcomeOf(error), ...pointed };
     if (error instanceof Refusal) {
       io.err(render({ text: error.message, next: error.next }));
       return error.code;
@@ -218,6 +229,7 @@ class DeniedByArm extends Refusal {}
 interface DoorOutcome {
   readonly outcome: "answered" | "unknown" | "refused" | "failed" | "denied-by-arm";
   readonly word?: string;
+  readonly pointedFrom?: string;
   readonly named?: string;
   readonly class?: string;
   readonly next: string[];
@@ -273,7 +285,7 @@ async function dispatch(argv: readonly string[], heard: Heard, context: Context)
   const family = FAMILIES.find((candidate) => candidate.name === first || candidate.aliases?.includes(first));
   if (family === undefined) {
     const named = FAMILIES.filter((candidate) => candidate.waitsOn === undefined).map((candidate) => ({ name: candidate.name, command: candidate.name }));
-    throw unknown("storytree", first, Object.hasOwn(GUESSES, first) ? GUESSES[first] : undefined, "Its families", named);
+    throw unknown("storytree", first, Object.hasOwn(GUESSES, first) ? GUESSES[first] : undefined, "Its families", named, rest);
   }
   return dispatchIn(family, family.name, rest, heard, context);
 }
@@ -307,7 +319,7 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   const retired = Object.hasOwn(family.retired ?? {}, second) ? family.retired?.[second] : undefined;
   if (retired !== undefined) throw new Refusal(`storytree ${path} ${second} is retired: ${retired.why}\nRun storytree ${retired.instead}`, { code: 2, next: [] });
   const guessed = Object.hasOwn(family.guesses ?? {}, second) ? family.guesses?.[second] : undefined;
-  throw unknown(`storytree ${path}`, second, guessed, "Its commands", named);
+  throw unknown(`storytree ${path}`, second, guessed, "Its commands", named, rest);
 }
 
 /**
@@ -332,18 +344,21 @@ class Unheard extends UnknownCommand {
   readonly handPicked: string | undefined;
   readonly spelled: readonly string[];
   readonly choices: string;
+  /** The words typed after it. */
+  readonly rest: readonly string[];
 
-  constructor(where: string, word: string, handPicked: string | undefined, spelled: readonly string[], choices: string) {
+  constructor(where: string, word: string, handPicked: string | undefined, spelled: readonly string[], choices: string, rest: readonly string[]) {
     super(`${where} has no "${word}"\n${choices}`, word, undefined, { code: 2 });
     this.where = where;
+    this.rest = rest;
     this.handPicked = handPicked;
     this.spelled = spelled;
     this.choices = choices;
   }
 }
 
-function unknown(where: string, word: string, handPicked: string | undefined, listed: string, named: readonly { name: string; command: string }[]): Unheard {
-  return new Unheard(where, word, handPicked, nearby(word, named), `${listed}: ${named.map((one) => one.name).join(", ")}.`);
+function unknown(where: string, word: string, handPicked: string | undefined, listed: string, named: readonly { name: string; command: string }[], rest: readonly string[]): Unheard {
+  return new Unheard(where, word, handPicked, nearby(word, named), `${listed}: ${named.map((one) => one.name).join(", ")}.`, rest);
 }
 
 /**
@@ -528,6 +543,17 @@ class Opened {
       return await readLearned(await this.#activityLog(), this.#routed().project, where, word, new Date());
     } catch {
       return [];
+    }
+  }
+
+  /** The command `word`, typed in `where`, is pointed to (ADR-1045 D4): none where the folder does not route, its pointer fell back, or on any error. */
+  async pointer(where: string, word: string): Promise<string | undefined> {
+    if (route(this.#cwd).status !== "routed") return undefined;
+    try {
+      const { readPointer } = await import("./usage/read.js");
+      return await readPointer(await this.#activityLog(), this.#routed().project, where, word);
+    } catch {
+      return undefined;
     }
   }
 

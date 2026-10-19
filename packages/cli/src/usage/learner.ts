@@ -3,6 +3,9 @@
  * no timer and no model. It reads the 28 days of door-answered lines to the drain, learns from them (./learn.ts) and acts
  * on the lesson, so a second drain duplicates nothing.
  *
+ * - A pointer is written as a `door-pointer` line in the activity log, the data the command line reads (ADR-1045 D4), with
+ *   the evidence that made it; a pointer that fell back is a line with no target. The latest line for a word in a place is
+ *   its state, so a word already pointed, or already fallen back, is not written again.
  * - A want is filed under the learner's own branch name, so it never spends the landing session's three a day (ADR-0716),
  *   and a want past the learner's own three waits for a later drain while the rest of the step still runs.
  * - A want is filed as friction naming the arc that measures the doors (friction links only to other notes), with the reading as evidence, under one
@@ -13,10 +16,10 @@
  *   one whose question is answered is raised again only for verbs that question did not name.
  * - Door gaps are reported in the drain's answer, never cut.
  */
-import type { Library, SchemaRecord, WriteOptions } from "@storytree/library";
+import type { Library, NewLine, SchemaRecord, WriteOptions } from "@storytree/library";
 import { CaptureError, recordFriction, reinforceFriction } from "@storytree/friction";
 
-import { BARS, learnDoors, type Candidate, type CutGroup, type Surfaces, type Want } from "./learn.js";
+import { BARS, evidenceOf, learnDoors, type Candidate, type CutGroup, type Fallback, type NewPointer, type Pointer, type Surfaces, type Want } from "./learn.js";
 import { doorLineOf, type DoorsLog } from "./read.js";
 import type { DoorLine } from "./reading.js";
 
@@ -30,9 +33,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** The most door gaps the drain's answer names. */
 const GAPS_SHOWN = 5;
 
-/** What the learner reads and writes through: the project's log and library, the drain's writer, the doors' surfaces, and the arcs it writes on. */
+/** What the learner reads and writes through: the project's log and library, the drain's writer and session, the doors' surfaces, and the arcs it writes on. */
 export interface LearnerWorld {
-  readonly log: DoorsLog;
+  readonly log: DoorsLog & { append(project: string, line: NewLine, options?: { readonly at?: string }): Promise<unknown> };
+  /** The session running the drain, which a pointer's line is written on. */
+  readonly caller: { readonly session: string; readonly harness?: string };
   readonly project: string;
   readonly library: Library;
   readonly writer?: WriteOptions;
@@ -49,8 +54,11 @@ export async function learnInDrain(world: LearnerWorld): Promise<string[]> {
   for (const arc of [world.arcs.wants, world.arcs.cuts]) if ((await world.library.get(arc))?.type !== "arc") return [];
   const since = new Date(world.now.getTime() - BARS.days * DAY_MS).toISOString();
   const lines = (await world.log.lines(world.project, { kinds: ["door-answered"], since })).flatMap((line) => doorLineOf(line) ?? []);
-  const lesson = learnDoors(lines, world.surfaces, since);
-  const said = [`The doors learner read ${lines.length} door-answered lines from ${lesson.sessions} sessions over ${BARS.days} days (ADR-1045 D5, D6).`];
+  const pointers = (await world.log.lines(world.project, { kinds: ["door-pointer"], latestBy: ["where", "word"] })).flatMap((line) =>
+    line.kind === "door-pointer" ? [{ where: line.where, word: line.word, ...(line.to === undefined ? {} : { to: line.to }), others: line.others, at: new Date(line.at).toISOString() } satisfies Pointer] : []);
+  const lesson = learnDoors(lines, world.surfaces, since, pointers);
+  const said = [`The doors learner read ${lines.length} door-answered lines from ${lesson.sessions} sessions over ${BARS.days} days (ADR-1045 D4 to D6).`];
+  said.push(...await writePointers(world, lesson.pointers, lesson.fallbacks));
   said.push(...await fileWants(world, lesson.wants, lines));
   said.push(...lesson.cuts === undefined
     ? [`  No cut candidates judged: disuse needs ${BARS.days} days of lines and ${BARS.cutSessions} sessions.`]
@@ -71,7 +79,7 @@ async function fileWants(world: LearnerWorld, wants: readonly Want[], lines: rea
   const said: string[] = [];
   for (const want of wants) {
     const title = wantTitle(want);
-    const evidence = evidenceOf(want, world.now);
+    const evidence = `${readingTo(world.now)}: ${evidenceOf(want)}`;
     const earlier = filed.get(title);
     if (earlier === undefined) {
       const friction = await recordFriction(world.library, {
@@ -103,9 +111,26 @@ async function fileWants(world: LearnerWorld, wants: readonly Want[], lines: rea
   return said;
 }
 
-function evidenceOf(want: Want, now: Date): string {
-  const followed = want.followed.length === 0 ? "no hint was followed" : `hints followed: ${want.followed.map(({ target, count }) => `${target} ${count}`).join(", ")}`;
-  return `\`storytree doors --days ${BARS.days}\` to ${now.toISOString().slice(0, 10)}: "${want.where} ${want.word}" refused as unknown ${want.refusals} times in ${want.sessions} sessions; ${followed}.`;
+/** Where the evidence was read: the reading of the 28 days to `now`. */
+function readingTo(now: Date): string {
+  return `\`storytree doors --days ${BARS.days}\` to ${now.toISOString().slice(0, 10)}`;
+}
+
+async function writePointers(world: LearnerWorld, pointers: readonly NewPointer[], fallbacks: readonly Fallback[]): Promise<string[]> {
+  const said: string[] = [];
+  const write = (line: { where: string; word: string; to?: string; others: readonly string[]; evidence: string }) => world.log.append(world.project, {
+    session: world.caller.session, ...(world.caller.harness === undefined ? {} : { harness: world.caller.harness }), source: "tool", kind: "door-pointer",
+    where: line.where, word: line.word, ...(line.to === undefined ? {} : { to: line.to }), others: [...line.others], evidence: `${readingTo(world.now)}: ${line.evidence}`,
+  }, { at: world.now.toISOString() });
+  for (const pointer of pointers) {
+    await write(pointer);
+    said.push(`  Pointer written: "${pointer.where} ${pointer.word}" now runs ${pointer.to} (${pointer.follows} follows from ${pointer.sessions} sessions).`);
+  }
+  for (const fallback of fallbacks) {
+    await write({ where: fallback.where, word: fallback.word, others: [], evidence: fallback.evidence });
+    said.push(`  Pointer fallen back: "${fallback.where} ${fallback.word}" is refused with hints again, ${fallback.left} of ${fallback.calls} pointed calls having left ${fallback.to}.`);
+  }
+  return said;
 }
 
 /** A candidate as its doors name it. */

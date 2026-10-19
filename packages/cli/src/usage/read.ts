@@ -1,7 +1,8 @@
 /**
  * Capability 14 · Reading the doors' use. A project's door-answered lines for the longest window asked, read once from its activity log and
  * narrowed on the server by kind and time (Session management 2.7), with the prompts of the sessions
- * in it; each window is then counted from those lines. And, for one refused word, what its sessions ran next (./repoint.ts).
+ * in it; each window is then counted from those lines. And, for one refused word, what its sessions ran next (./repoint.ts), and
+ * the command a pointer runs for it.
  */
 import type { Line, LineKind } from "@storytree/library";
 
@@ -15,7 +16,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * of the one call and the filter fields it uses (ADR-1017 D2).
  */
 export interface DoorsLog {
-  lines(project: string, filter: { readonly kinds: readonly LineKind[]; readonly since?: string; readonly sessions?: readonly string[]; readonly omit?: readonly string[]; readonly where?: Readonly<Record<string, string>>; readonly newest?: number }): Promise<Line[]>;
+  lines(project: string, filter: { readonly kinds: readonly LineKind[]; readonly since?: string; readonly sessions?: readonly string[]; readonly omit?: readonly string[]; readonly where?: Readonly<Record<string, string>>; readonly newest?: number; readonly latestBy?: readonly string[] }): Promise<Line[]>;
 }
 
 /** One reading for each of `days`, each the window of that many days ending at `until`. */
@@ -53,10 +54,16 @@ export async function readLearned(log: DoorsLog, project: string, where: string,
   return learnedTargets(lines, where, word);
 }
 
+/** The command `word`, typed in `where`, is pointed to: its latest pointer line's target, none when it has none or fell back (ADR-1045 D4). */
+export async function readPointer(log: DoorsLog, project: string, where: string, word: string): Promise<string | undefined> {
+  const [latest] = await log.lines(project, { kinds: ["door-pointer"], where: { where, word }, newest: 1 });
+  return latest?.kind === "door-pointer" ? latest.to : undefined;
+}
+
 /** A log line as the reading needs it, or nothing when it is not a door-answered line. */
 export function doorLineOf(line: Line): DoorLine | undefined {
   if (line.kind !== "door-answered") return undefined;
-  const { session, at, harness, machine, door, verb, outcome, word, named, next } = line;
+  const { session, at, harness, machine, door, verb, outcome, word, named, next, pointedFrom } = line;
   return {
     session, at: new Date(at).toISOString(), door, verb, outcome, next,
     ...(harness === undefined ? {} : { harness }),
@@ -64,5 +71,6 @@ export function doorLineOf(line: Line): DoorLine | undefined {
     ...(word === undefined ? {} : { word }),
     ...(named === undefined ? {} : { named }),
     ...(line.class === undefined ? {} : { class: line.class }),
+    ...(pointedFrom === undefined ? {} : { pointedFrom }),
   };
 }

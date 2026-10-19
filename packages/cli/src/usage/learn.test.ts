@@ -1,4 +1,4 @@
-/** The command line 14.10 and 14.11: what the doors learn from 28 days of their own lines. */
+/** The command line 14.10, 14.11 and 14.14: what the doors learn from 28 days of their own lines. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -79,4 +79,40 @@ test("14.11 · an agent-only verb with no call across 100 sessions in a covered 
   const late = lines.map((one) => ({ ...one, at: new Date(Date.parse(one.at) + 2 * 24 * 60 * 60 * 1000).toISOString() }));
   assert.equal(learnDoors(late, surfaces, SINCE).cuts, undefined, "lines that begin after the window's first day cannot judge disuse");
   assert.equal(learnDoors(lines.slice(3), surfaces, SINCE).cuts, undefined, "99 sessions are too few");
+});
+
+test("14.14 · a guessed word whose follows clear the bar is pointed to its leading target, once; a pointer its pointed calls mostly leave falls back, and only follows after a fallback count again", () => {
+  // Twelve refusals of `adr show`: eight sessions followed `adr pull`, one `adr list`: 8 of 9 clears the 70% bar.
+  const show = refusals("storytree adr", "show", 12, (index) => (index < 8 ? line("", "storytree adr pull") : index === 8 ? line("", "storytree adr list") : undefined));
+  // A tool's name typed as a command is a mistake, never pointed, however its follows agree.
+  const focus = refusals("storytree", "focus", 12, () => line("", "storytree map"));
+  const fresh = learnDoors([...show, ...focus], surfaces, SINCE);
+  assert.deepEqual(fresh.pointers.map(({ where, word, to, others, follows, sessions }) => ({ where, word, to, others, follows, sessions })), [
+    { where: "storytree adr", word: "show", to: "storytree adr pull", others: ["storytree adr list"], follows: 8, sessions: 8 },
+  ]);
+  assert.match(fresh.pointers[0]!.evidence, /refused as unknown 12 times in 12 sessions; hints followed: storytree adr pull 8, storytree adr list 1/);
+  assert.deepEqual(fresh.fallbacks, []);
+
+  const pointer = { where: "storytree adr", word: "show", to: "storytree adr pull", others: ["storytree adr list"], at: line("x", "storytree adr list").at };
+  assert.deepEqual(learnDoors(show, surfaces, SINCE, [pointer]).pointers, [], "a word already pointed is not pointed again");
+
+  /** A pointed call of `adr show` in session `p<index>`, answered or not, then that session's next command when given. */
+  const pointed = (index: number, outcome: DoorLine["outcome"], next?: string) => [
+    line(`p${index}`, "storytree adr pull", { outcome, word: "show", pointedFrom: "storytree adr" }),
+    ...(next === undefined ? [] : [line(`p${index}`, next)]),
+  ];
+  // Four of six pointed calls leave: two went on to `adr list`, another of its followed targets, one more did, and one was refused.
+  const left = [...pointed(0, "answered", "storytree adr list"), ...pointed(1, "answered", "storytree adr list"), ...pointed(2, "refused"),
+    ...pointed(3, "answered", "storytree adr list"), ...pointed(4, "answered", "storytree arc show"), ...pointed(5, "answered")];
+  assert.deepEqual(learnDoors([...show, ...left], surfaces, SINCE, [pointer]).fallbacks.map(({ where, word, to, calls, left: away }) => ({ where, word, to, calls, left: away })), [
+    { where: "storytree adr", word: "show", to: "storytree adr pull", calls: 6, left: 4 },
+  ]);
+  assert.deepEqual(learnDoors([...show, ...left.slice(0, 6)], surfaces, SINCE, [pointer]).fallbacks, [], "four pointed calls are too few to judge");
+  const stayed = [0, 1, 2, 3, 4, 5].flatMap((index) => pointed(index, "answered", index === 0 ? "storytree adr list" : "storytree arc show"));
+  assert.deepEqual(learnDoors([...show, ...stayed], surfaces, SINCE, [pointer]).fallbacks, [], "pointed calls that mostly stay keep the pointer");
+
+  const fallen = { where: "storytree adr", word: "show", others: [], at: line("x", "storytree adr list").at };
+  assert.deepEqual(learnDoors(show, surfaces, SINCE, [fallen]).pointers, [], "follows before a fallback do not point the word again");
+  const again = refusals("storytree adr", "show", 5, () => line("", "storytree adr list"));
+  assert.deepEqual(learnDoors([...show, ...again], surfaces, SINCE, [fallen]).pointers.map(({ to, follows }) => ({ to, follows })), [{ to: "storytree adr list", follows: 5 }]);
 });

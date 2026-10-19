@@ -1,4 +1,4 @@
-/** The command line 14.12 and 14.13: the learner in the friction drain files each want and raises each cut group once, against a real Postgres. */
+/** The command line 14.12, 14.13 and 14.15: the learner in the friction drain files each want, raises each cut group and writes each pointer once, against a real Postgres. */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
@@ -40,7 +40,7 @@ async function inProject(words: readonly string[], body: (world: LearnerWorld, l
           : { verb: "storytree", outcome: "unknown" as const, word };
         await log.append(project, { ...common, session: `s${index}`, kind: "door-answered", door: "command", next: [], ...line }, { at: day(27.5 - index * 0.27) });
       }
-      await body({ log, project, library, surfaces, arcs: { wants: wants.id, cuts: cuts.id }, now }, library);
+      await body({ log, project, library, surfaces, arcs: { wants: wants.id, cuts: cuts.id }, now, caller: { session: "drain-1", harness: "claude-code" } }, library);
     } finally {
       await library.close();
     }
@@ -85,5 +85,38 @@ test("14.13 · a want is filed on the learner's own branch, so it never spends t
     const own = { title: "A session's own", description: "Its own.", statement: "Its own.", evidence: "`pnpm test` failed", impact: "Slow." };
     for (const branch of ["claude/lane", "claude/lane", "claude/lane"]) await recordFriction(library, { ...own, branch });
     assert.equal((await library.list("friction")).length, 6);
+  });
+});
+
+test("14.15 · the drain writes a word's pointer line once, with its evidence, and its fallback line once; a second drain writes neither again", async () => {
+  await inProject([], async (world) => {
+    const common = { harness: "claude-code", source: "tool" as const, kind: "door-answered" as const, door: "command" as const, next: [] as string[] };
+    const minute = (offset: number) => new Date(world.now.getTime() + offset * 60 * 1000).toISOString();
+    // Six sessions refuse `adr show`, offered `adr pull`, and take it: above the bar.
+    for (let index = 0; index < 6; index += 1) {
+      await world.log.append(world.project, { ...common, session: `show-${index}`, verb: "storytree adr", outcome: "unknown", word: "show", next: ["storytree adr pull"] }, { at: minute(-60 + index * 2) });
+      await world.log.append(world.project, { ...common, session: `show-${index}`, verb: "storytree adr pull", outcome: "answered" }, { at: minute(-59 + index * 2) });
+    }
+    const pointers = () => world.log.lines(world.project, { kinds: ["door-pointer"] });
+
+    const said = await learnInDrain(world);
+    const written = await pointers();
+    assert.deepEqual(written.map((line) => line.kind === "door-pointer" && { where: line.where, word: line.word, to: line.to, session: line.session }), [
+      { where: "storytree adr", word: "show", to: "storytree adr pull", session: world.caller.session },
+    ], said.join("\n"));
+    assert.match(written[0]?.kind === "door-pointer" ? written[0].evidence : "", /"storytree adr show" refused as unknown 6 times in 6 sessions; hints followed: storytree adr pull 6/);
+    await learnInDrain(world);
+    assert.equal((await pointers()).length, 1, "a second drain writes no second pointer");
+
+    // Six pointed calls, each refused: the sessions left it.
+    for (let index = 0; index < 6; index += 1) {
+      await world.log.append(world.project, { ...common, session: `pointed-${index}`, verb: "storytree adr pull", outcome: "refused", word: "show", pointedFrom: "storytree adr" }, { at: minute(1 + index) });
+    }
+    const later = { ...world, now: new Date(world.now.getTime() + 60 * 60 * 1000) };
+    await learnInDrain(later);
+    const fallen = await pointers();
+    assert.deepEqual(fallen.map((line) => line.kind === "door-pointer" && line.to), ["storytree adr pull", undefined], "the pointer falls back");
+    await learnInDrain(later);
+    assert.equal((await pointers()).length, 2, "a second drain writes no second fallback");
   });
 });

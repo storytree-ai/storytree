@@ -638,12 +638,16 @@ for (const backend of [memory, postgres]) {
     await assert.rejects(work.addStory({ title: "Admin", audience: "" }), schemaError("story", ["audience"]));
     await assert.rejects(work.editStory(billing.id, { audience: "" }), schemaError("story", ["audience"]));
     assert.deepEqual(await transactions.history(), before, "nothing was written");
-    let { stories } = await work.projectTree();
+    const tree = async () => {
+      const { stories } = await work.projectTree();
+      return [signUp.id, billing.id].map((id) => stories.find((story) => story.id === id)!);
+    };
+    let stories = await tree();
     assert.deepEqual(stories.map((story) => story.audience), ["first-time visitors", undefined]);
     assert.ok(!("audience" in stories[1]!), "a story that names none carries no audience");
     await work.editStory(billing.id, { audience: "account owners" });
     await work.editStory(signUp.id, { audience: undefined });
-    ({ stories } = await work.projectTree());
+    stories = await tree();
     assert.deepEqual(stories.map((story) => story.audience), [undefined, "account owners"]);
   });
 

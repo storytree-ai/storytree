@@ -663,6 +663,38 @@ test("6.29 show_plan gives each capability's word, and for one not healthy its r
   });
 });
 
+test("6.92 show_plan lists live arcs and those closed yesterday or today; given closed (today, yesterday, week) or from and to, only the arcs closed in that window", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc: live } = await planned(agent);
+      const closedOn = async (date: string) => {
+        const arc = idOf(await agent.call("plan_arc", { title: `Closed ${date}`, intent: "Ship it", end_state: "Shipped" }));
+        const increment = await library.addIncrement({ arc, title: "Ship it", objective: "Ship it", body: "Red then green" });
+        await library.closeIncrement(increment.id, { pr: "#1", disposition: "landed", date });
+        return arc;
+      };
+      const now = new Date();
+      const today = await closedOn(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`);
+      const old = await closedOn("2026-01-02");
+      const arcsIn = (answer: { text: string; data: Record<string, unknown> }) => {
+        const said = [live, today, old].filter((id) => answer.text.split("\n").some((line) => line.startsWith("Arc ") && line.includes(id)));
+        assert.deepEqual((answer.data.arcs as { id: string }[]).map(({ id }) => id).sort(), [...said].sort(), "the data's arcs are the text's");
+        return said;
+      };
+
+      const plan = await agent.call("show_plan");
+      assert.deepEqual(arcsIn(plan), [live, today], plan.text);
+      assert.match(plan.text.split("\n").find((line) => line.includes(today))!, /, closed \d{4}-\d{2}-\d{2},/, plan.text);
+      const window = await agent.call("show_plan", { from: "2026-01-01", to: "2026-01-02" });
+      assert.deepEqual(arcsIn(window), [old], window.text);
+      assert.deepEqual(arcsIn(await agent.call("show_plan", { closed: "today" })), [today]);
+      for (const wrong of [{ closed: "month" }, { from: "2026-01-01" }, { closed: "week", from: "2026-01-01", to: "2026-01-02" }, { from: "2026-01-03", to: "2026-01-01" }]) {
+        assert.equal((await agent.call("show_plan", wrong)).isError, true, JSON.stringify(wrong));
+      }
+    });
+  });
+});
+
 test("6.67 show_plan says a mapped story is mapped, here before storytree and assumed to be working, and gives it no health reading; a capability planned on it keeps its own", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {

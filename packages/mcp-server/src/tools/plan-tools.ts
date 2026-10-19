@@ -7,7 +7,7 @@
 import path from "node:path";
 
 import { importLines, importProject, ImportRefusedError } from "@storytree/app-setup/project";
-import { CONTRACT_DEFINITION, heldBack, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
+import { CONTRACT_DEFINITION, heldBack, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type DayWindow, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
 import { z } from "zod";
 
 import { untestedContracts } from "@storytree/map/code-survey";
@@ -188,8 +188,18 @@ export function registerPlanTools(define: Define): void {
     },
   );
 
-  define("show_plan", "See the plan: every story, capability and contract with its health, who holds what, and which sessions are about.", z.object({}), async (_args, call) =>
-    showPlan(call),
+  define(
+    "show_plan",
+    "See the plan: every story, capability and contract with its health, who holds what, which sessions are about, and the live arcs with those closed yesterday or today. Give closed, or from and to, for only the arcs closed in that window instead.",
+    z.object({
+      closed: z.enum(["today", "yesterday", "week"]).optional().describe("Only the arcs closed today, yesterday or this week (the last seven days)"),
+      from: z.string().regex(DAY).optional().describe("Only the arcs closed from this day (YYYY-MM-DD), with to"),
+      to: z.string().regex(DAY).optional().describe("Only the arcs closed up to this day (YYYY-MM-DD), included, with from"),
+    }),
+    async ({ closed, from, to }, call) => {
+      const window = closedWindowOf(closed, from, to, Date.now());
+      return typeof window === "string" ? { text: window, refused: true } : showPlan(call, window);
+    },
   );
 
   define(
@@ -309,9 +319,36 @@ async function sharedCapability(target: string, capabilities: readonly string[],
   return undefined;
 }
 
-async function showPlan({ library, log, project, quietMs }: Call): Promise<Answer> {
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A local day (YYYY-MM-DD), `offset` days from `at`'s, as the arc board's Closed tab counts them (capability 3.12). */
+function dayOf(at: number, offset = 0): string {
+  const day = new Date(at);
+  day.setDate(day.getDate() + offset);
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * The closing days show_plan reads closed arcs by, as `arc list` does: none given, undefined (the live arcs and those
+ * closed yesterday or today); a preset, or from and to, both included, as the library's window (its end left out); or why not.
+ */
+function closedWindowOf(closed: "today" | "yesterday" | "week" | undefined, from: string | undefined, to: string | undefined, now: number): DayWindow | undefined | string {
+  if (closed !== undefined && (from !== undefined || to !== undefined)) return "Give closed, or from and to, not both.";
+  if (closed !== undefined) return { from: dayOf(now, { today: 0, yesterday: -1, week: -6 }[closed]), to: dayOf(now, closed === "yesterday" ? 0 : 1) };
+  if (from === undefined && to === undefined) return undefined;
+  if (from === undefined || to === undefined) return "from and to are given together: the first and last closing day, both included.";
+  if (from > to) return `from ${from} is after to ${to}.`;
+  return { from, to: dayOf(Date.parse(`${to}T12:00:00`), 1) };
+}
+
+async function showPlan({ library, log, project, quietMs }: Call, closed: DayWindow | undefined): Promise<Answer> {
   // Who holds what, and the sessions the running-sessions list shows: read from what decides them alone (contract 2.7).
-  const [tree, views, claims, inView] = await Promise.all([library.projectTree(), library.arcViews(), readClaims(log, project, { quietMs }), readSessions(log, project, { quietMs, of: "in-view" })]);
+  // The arcs as the board reads them (10.22): live ones and the recently closed, or a window's closed arcs alone.
+  const now = Date.now();
+  const arcRead = closed === undefined ? library.boardArcs({ from: dayOf(now, -1), to: dayOf(now, 1) }) : library.closedArcs(closed);
+  const [tree, views, claims, inView] = await Promise.all([library.projectTree(), arcRead, readClaims(log, project, { quietMs }), readSessions(log, project, { quietMs, of: "in-view" })]);
+  const closedOn = new Map(views.map((view) => [view.arc.id, view.closed]));
+  const arcs = tree.arcs.filter((arc) => closedOn.has(arc.id));
   const incrementsOf = new Map(views.map((view) => [view.arc.id, view.increments]));
   const sessions = inView.filter((session) => session.listing !== "hidden");
   const holderOf = new Map(claims.map((claim) => [claim.capability ?? claim.increment, claim]));
@@ -333,9 +370,10 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
   // Ranked arcs first, 1 first; the sort is stable, so the unranked and each priority's arcs keep creation order (ADR-0963 D2).
   const priorityOf = new Map(views.map((view) => [view.arc.id, view.arc.fields.priority]));
   const rank = (id: string) => priorityOf.get(id) ?? Infinity;
-  for (const arc of [...tree.arcs].sort((one, other) => rank(one.id) - rank(other.id) || 0)) {
+  for (const arc of [...arcs].sort((one, other) => rank(one.id) - rank(other.id) || 0)) {
     const priority = priorityOf.get(arc.id);
-    out.push(`Arc ${quoted(arc.title)} (${arc.id})${priority === undefined ? "" : `, priority ${priority},`} grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
+    const day = closedOn.get(arc.id);
+    out.push(`Arc ${quoted(arc.title)} (${arc.id})${priority === undefined ? "" : `, priority ${priority},`}${day === undefined ? "" : `, closed ${day},`} grows ${arc.stories.length === 0 ? "no stories yet" : arc.stories.join(", ")}`);
     for (const increment of incrementsOf.get(arc.id) ?? []) {
       out.push(`  Increment ${quoted(increment.fields.title)} (${increment.id}): ${increment.fields.status}; ${heldBy(increment.id)}`);
     }
@@ -349,7 +387,7 @@ async function showPlan({ library, log, project, quietMs }: Call): Promise<Answe
     text: out.join("\n"),
     data: {
       stories: tree.stories,
-      arcs: tree.arcs,
+      arcs,
       claims,
       sessions,
     },

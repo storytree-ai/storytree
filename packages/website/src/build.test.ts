@@ -208,7 +208,10 @@ test("1.14 · after the claims the built home says it works with your harness, w
   assert.ok(section.textContent!.includes(harness.claim) && section.textContent!.includes(harness.marksNote), "the owner's line, then any harness that speaks MCP");
   const marks = [...section.querySelectorAll("img")];
   assert.deepEqual(marks.map(mark => mark.getAttribute("alt")), harness.marks.map(({ name }) => name), "one mark per harness storytree watches");
-  for (const mark of marks) assert.ok((await stat(path.join(output, mark.getAttribute("src")!))).size > 0, `${mark.getAttribute("src")} is served`);
+  for (const mark of marks) {
+    const src = mark.getAttribute("src")!;
+    assert.ok((await readFile(path.join(output, src))).equals(await readFile(path.join(packageRoot, "public", src))), `${src} is the maker's mark as published`);
+  }
   const sections = [...page.querySelectorAll("main > section")];
   const last = sections.at(-1)!;
   assert.ok(sections.indexOf(section) === sections.length - 2, "nothing comes between the harness and the end of the page");

@@ -411,3 +411,44 @@ test("5.11 · points a run records for its frozen record under the run's short n
     }
   });
 });
+
+test("5.12 · an arm whose tree keeps its code outside its stories' packages, as the twin build's vinext/ does, still counts its source lines at each merge, and its crossings are unmeasured, never zero", async () => {
+  await withLibrary(async (library, server) => {
+    const experiment = `t-${randomBytes(4).toString("hex")}`;
+    const armProject = `x-${experiment}-map-reads-on`;
+    const arm = await server.openProject(armProject);
+    const repository = await mkdtemp(path.join(tmpdir(), "arm-repository-"));
+    try {
+      // The arms plan stories titled as sentences, so their packages would be packages/<sentence>/, which no arm tree has.
+      const story = await arm.addStory({ title: "A Next.js Pages Router app runs unchanged on vinext" });
+      await arm.addCapability({ title: "1 · Pages render", story: story.id });
+      execFileSync("git", ["init", "--quiet", "--initial-branch=main", repository]);
+      const sha = await commit(repository, {
+        "vinext/package.json": JSON.stringify({ name: "vinext", type: "module" }),
+        "vinext/src/index.js": "import { route } from \"./router.js\";\n\nexport const serve = (url) => route(url);\n",
+        "vinext/src/router.ts": "export const route = (url: string) => url;\n",
+        "vinext/test/router.test.js": "import { test } from \"node:test\";\nimport { route } from \"../src/router.js\";\ntest(\"routes\", () => route(\"/\"));\n",
+        "vinext/test/helpers.js": "export const page = () => \"/\";\n",
+        "vinext/src/testing/stub.js": "export const stub = 1;\n",
+        "vinext/src/types.d.ts": "export type Url = string;\n",
+        "vinext/dist/index.js": "export const built = 1;\n",
+        "apps/basic/pages/index.tsx": "export default function Home() {\n  return null;\n}\n",
+        "e2e/pages.spec.ts": "import { test } from \"@playwright/test\";\ntest(\"home\", () => {});\n",
+        "node_modules/react/index.js": "module.exports = {};\n",
+        "run_tests.sh": "#!/bin/sh\nnpx playwright test\n",
+      });
+      const merges: Merge[] = [{ number: 1, mergedAt: "2026-10-17T09:00:00Z", sha, passed: 1, total: 372, files: [1] }];
+      const { written } = await recordPoints(server, library.name, { experiment, arm: "map-reads-on", ci: CI }, github(merges, `storytree-ai/${armProject}`, repository));
+      assert.deepEqual(written.map(({ crossImports, lines }) => [crossImports, lines]), [[undefined, 6]], "vinext/src's two files and apps' page; no test, helper, declaration, build or dependency");
+
+      const json = JSON.parse(await curvesAnswer(library, server, experiment, true)) as { arms: Record<string, { crossImports?: number; lines: number }[]> };
+      assert.deepEqual(json.arms["map-reads-on"]!.map(({ crossImports, lines }) => [crossImports, lines]), [[undefined, 6]]);
+      const text = await curvesAnswer(library, server, experiment, false);
+      assert.deepEqual(["crossings", "lines"].map((name) => column(text, name, 1)), ["-", "6"]);
+    } finally {
+      await arm.close();
+      await dropTestDatabases([`storytree_${armProject}`]);
+      await rm(repository, { recursive: true, force: true });
+    }
+  });
+});

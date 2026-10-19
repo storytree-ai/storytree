@@ -86,26 +86,60 @@ const measure = page => page.evaluate(() => {
 const rowsShown = page => page.getByRole('complementary', { name: 'Running sessions', exact: true }).locator('.session-row').evaluateAll(list => list.map(row => row.dataset.sessionId));
 const rest = async (page, settle) => { if (!smoke) await page.waitForTimeout(1500); await settle(page, 24); };
 
+// Each phase goes to stderr as it starts, so a run killed from outside still says where it was (four macOS runs were killed
+// at a fixed 180 s limit with nothing said, increment_724389f3f21d).
+const started = performance.now();
+const phase = message => console.error(`[traversal +${Math.round(performance.now() - started)} ms] ${message}`);
+// A loaded runner draws the page's frames seconds apart, so a wait goes on while frames keep coming and fails, naming what it
+// waited for, when none comes for STALL_MS (the page cannot draw) or at its cap (frames came, but the target never was drawn).
+const STALL_MS = 30_000;
+const framesDrawn = page => page.evaluate(() => {
+  if (window.__captureFrames === undefined) {
+    window.__captureFrames = 0;
+    const tick = () => { window.__captureFrames++; requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  }
+  return window.__captureFrames;
+});
+const whileFramesCome = async (page, target, predicate, arg, capMs) => {
+  phase(`wait for ${target}`);
+  const from = performance.now();
+  let seen = await framesDrawn(page);
+  for (;;) {
+    const left = capMs - (performance.now() - from);
+    if (left <= 0) break;
+    const slice = Math.min(STALL_MS, left);
+    const done = await page.waitForFunction(predicate, arg, { timeout: slice }).then(() => true, error => { if (error.name !== 'TimeoutError') throw error; return false; });
+    if (done) return phase(`${target}: drawn`);
+    const now = await framesDrawn(page);
+    if (now === seen && slice === STALL_MS) throw new Error(`${target}: no new frame for ${STALL_MS} ms (${now} frames drawn): rendering stalled`);
+    seen = now;
+  }
+  throw new Error(`${target}: still not drawn after ${capMs} ms, though frames kept coming`);
+};
+
 const results = { label, sessions: SESSIONS, selected: SELECTED, colours: colour, reads };
+phase('launch the browser and load the page');
 await runCapture({
   folder: here, dist: path.join(here, 'dist', smoke ? 'smoke' : label), seed, survey,
   answers: { windowReading, windowReadings: async (project, sessions) => Promise.all(sessions.map(one => windowReading(project, one))), idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000 },
   prepare: async ({ page }) => {
+    phase('page loaded');
     // The traversal is drawn on the knowledge graph under the glass sheet, which the Library face turns the sheet over to (ADR-1043 D3).
-    await page.waitForFunction(() => document.body.dataset.state === 'ready' && !!document.querySelector('[data-globe-switch="library"]'), undefined, { timeout: 120000 });
+    await whileFramesCome(page, 'the ready page and its Library switch', () => document.body.dataset.state === 'ready' && !!document.querySelector('[data-globe-switch="library"]'), undefined, 120_000);
     await page.evaluate(() => document.querySelector('[data-globe-switch="library"][aria-pressed="false"]')?.click());
-    await page.waitForFunction(ids => {
+    await whileFramesCome(page, 'the glass sheet over every island', ids => {
       const state = window.__globe;
       if (document.body.dataset.state !== 'ready' || !state || !window.__nav || !state.scene.getObjectByName('sheet:under')) return false;
       return ids.every(id => !!state.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground'));
-    }, seed.tree.stories.map(s => s.id), { timeout: 120000 });
-    await page.waitForFunction(() => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, { timeout: 60000 });
+    }, seed.tree.stories.map(s => s.id), 120_000);
+    await whileFramesCome(page, 'the claimed territories and file circles', () => { let outlines = 0, files = 0; window.__globe.scene.traverse(o => { if (o.name.startsWith('territory-claim:')) outlines++; if (o.name.startsWith('file:')) files++; }); return outlines > 0 && files > 0; }, undefined, 60_000);
     for (const button of ['Close help', 'Close app menu']) { const b = page.getByRole('button', { name: button, exact: true }); if (await b.isVisible().catch(() => false)) await b.click(); }
     await page.evaluate(() => { for (const menu of document.querySelectorAll('[popover]')) if (menu.matches(':popover-open')) menu.hidePopover(); });
   },
   views: [{
     name: `${label}-none-selected`, ...(smoke ? { picture: false } : {}),
-    prepare: async ({ page, settle }) => { await page.mouse.move(2, 2); await rest(page, settle); if (!smoke) await page.waitForTimeout(11_000); await rest(page, settle); },
+    prepare: async ({ page, settle }) => { phase('view: none selected'); await page.mouse.move(2, 2); await rest(page, settle); if (!smoke) await page.waitForTimeout(11_000); await rest(page, settle); },
     measure: async ({ page, browser }) => {
       results.browser = await browser.version();
       results.rows = await rowsShown(page);
@@ -119,14 +153,16 @@ await runCapture({
       // Pointing at the row lights its session's islands, the globe's first draw of that highlight, which compiles six new shaders
       // (slow in software GL on a busy Windows runner). The click waits until that highlight is drawn, so its press and release
       // do not queue behind the compile (a click timed out there, PR #764's Windows run).
+      phase('view: one selected; point at its row');
       await row.hover();
-      await page.waitForFunction(story => !!window.__globe.scene.getObjectByName(`session-highlight:${story}`), storyId(SESSIONS[SELECTED].story), { timeout: 30000 });
+      await whileFramesCome(page, 'the pointed row\'s island highlight', story => !!window.__globe.scene.getObjectByName(`session-highlight:${story}`), storyId(SESSIONS[SELECTED].story), 60_000);
       await settle(page);
+      phase('click the row');
       await row.click();
-      await page.waitForFunction(([want, hsl]) => {
+      await whileFramesCome(page, 'the selected window\'s notes in its colour', ([want, hsl]) => {
         const lit = {}; window.__globe.scene.traverse(o => { if (o.name.startsWith('knowledge-point:') && o.userData.window) lit[o.userData.id] = o.userData.colour; });
         return want.every(note => lit[note] === hsl);
-      }, [reads[SELECTED], colour[SELECTED]], { timeout: 30000 });
+      }, [reads[SELECTED], colour[SELECTED]], 60_000);
       await rest(page, settle);
     },
     measure: async ({ page, errors }) => {
@@ -138,6 +174,7 @@ await runCapture({
 });
 const summary = view => ({ trails: view.trails.length, trailColours: [...new Set(view.trails.map(t => t.colour))].length, litNotes: Object.keys(view.litNotes).length,
   windowNotes: Object.keys(view.windowNotes).length, litFiles: view.litFiles.length, claimedTerritories: view.claimed.length });
+phase('browser closed');
 results.summary = { rows: results.rows.length, noneSelected: summary(results.noneSelected), oneSelected: summary(results.oneSelected), windowsAskedWithNoneSelected: results.noneSelected.windowsAsked.length };
 writeFileSync(path.join(captureOutput(here), `measurements-${label}.json`), JSON.stringify(results, null, 1) + '\n');
 console.log(label, JSON.stringify(results.summary));

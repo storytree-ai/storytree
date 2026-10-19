@@ -2,13 +2,17 @@
 
 2026-10-11, Mint box, increment_79ffbda05255, website contract 2.2.
 
+**A dated record.** The tour and the shop's stills have since left the page (increment_64f8fcb95d79), and `shop-stills.mjs`
+with them: storytree's stills are now retaken from the framed map by [`../forest/forest-stills.mjs`](../forest/forest-stills.mjs)
+(2026-10-20). The commands below no longer run.
+
 Without WebGL (or when the scene's code fails to load), every view the globe would draw now shows a saved picture of that same
 project, or says plainly why no picture can stand for it:
 
 | View | What the visitor sees without WebGL |
 | --- | --- |
 | A tour step on the shop (the map and knowledge chapters) | A note above the narration, clear of the panels a step opens on the right and above the scrim behind the words: the map can't draw in this browser, this step replays a moment of the shop's recorded build that no single picture shows truthfully, the words play on, and free play shows the finished shop. Narration, timing, How and Why are unchanged. |
-| Free play on the shop | The shop's own still (`public/shop-desktop.png`, `public/shop-phone.png`): the finished shop's eight islands and roads, drawn by the website's live renderer in free play and cropped square from its canvas by [`../forest/shop-stills.mjs`](../forest/shop-stills.mjs). Never storytree's still. |
+| Free play on the shop | The shop's own still (`public/shop-desktop.png`, `public/shop-phone.png`): the finished shop's eight islands and roads, drawn by the website's live renderer in free play and cropped square from its canvas by `shop-stills.mjs`. Never storytree's still. |
 | Free play on storytree | storytree's still, as before, now centred and larger on phones. |
 | The arrival (storytree's growth) | Dark, as before (contract 2.11). |
 

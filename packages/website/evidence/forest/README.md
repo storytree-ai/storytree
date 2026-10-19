@@ -8,7 +8,7 @@ none of which the site has now. It was removed rather than repaired, because its
 
 | What it did | Where that is done now |
 | --- | --- |
-| Captured storytree's stills, `public/forest-*.png` | `shop-stills.mjs storytree` (its argument arrives with PR #1236), from the website's own live drawing of free play ([FOREST.md](../../FOREST.md)) |
+| Captured storytree's stills, `public/forest-*.png` | `forest-stills.mjs`, from the website's own live drawing of the framed map ([FOREST.md](../../FOREST.md)) |
 | Contracts 2.2 and 2.3: text before the renderer, the still on missing WebGL or a failed scene download | `node packages/website/evidence/capture.mjs <out> --verify-forest` (2.1 to 2.3, at 1440, 1280, 390 and 320 px); all seven checks passed on 2026-10-12 |
 | Doubled text at 320 px | `--verify-enlarged` |
 | The globe's turn buttons at 320 px, doubled text | Nothing: the buttons are gone; the globe is turned by direct manipulation (`tour.mjs`) |

@@ -319,9 +319,10 @@ test("1.12 a connection a caller holds when another computer deletes its project
     const project = await storytree.openProject(site);
     const held = await project.pool.connect();
     try {
+      const ended = new Promise((resolve) => held.once("end", resolve));
       await dropTestDatabases([databaseOf(site)]);
-      // An error the held connection raised with no one listening would fail this test as uncaught while it waits.
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      // An error the held connection raised with no one listening would fail this test as uncaught before it ends.
+      await ended;
       await assert.rejects(held.query("SELECT 1"));
     } finally {
       held.release(true);

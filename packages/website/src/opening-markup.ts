@@ -22,7 +22,7 @@ export function openingMarkup() {
   }).join("");
   // The pace is computed here, at build, so the page's own script stays small (contract 2.3).
   const clock = JSON.stringify(openingClock(AGENTS, THINK.length)); // numbers only: safe in single quotes
-  return `<section id="opening" data-phase="peak" data-clock='${clock}' aria-label="Chapter 1: the agent swarm">
+  return `<section id="opening" data-phase="peak" data-clock='${clock}' aria-label="The intro: the agent swarm">
     <div class="opening-screen">
       <div class="opening-hud"><span class="opening-wordmark">storytree<span class="opening-caret" aria-hidden="true">▌</span></span><p id="opening-count"><span>AGENTS: 12 ▲</span><span class="opening-waiting">WAITING ON YOU: 12</span><span class="opening-answered">ANSWERED: 00</span></p><div class="opening-keys"><button id="opening-sound" type="button" aria-pressed="false" hidden>sound off</button><button id="opening-skip" type="button" hidden>skip intro →</button></div></div>
       <div class="opening-stage">

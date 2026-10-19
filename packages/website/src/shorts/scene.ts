@@ -217,7 +217,7 @@ function clickAt(ctx: CanvasRenderingContext2D, x: number, y: number): void {
 }
 
 /** The panel's box on a full view of the map, slid in by `open`. */
-const PANEL_WIDTH = 100;
+const PANEL_WIDTH = 84;
 /** How much of the full screen's width and height the map is drawn at, at `seconds`: all of it, until the panel opens beside
  * it, when the whole sheet is fitted into the room the panel leaves, as the app fits its map aside. */
 export const mapFit = (seconds: number) => 1 - panelOpen(SCRIPT.with, seconds) * PANEL_WIDTH / SCREEN.full.width;
@@ -273,8 +273,10 @@ function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: n
     const wide = Math.max(...lines.map(line => line.length)) * SMALL.advance - 1, tall = lines.length * SMALL.line + 3;
     const clear = (plate: Rect) => plate.x >= x && plate.x + plate.width <= x + width && plate.y >= y && plate.y + plate.height <= y + height
       && !lettered.some(other => plate.x < other.x + other.width && other.x < plate.x + plate.width && plate.y < other.y + other.height && other.y < plate.y + plate.height);
-    // Under the island, as the app letters it; above it where a name already lettered is in the way.
-    const plate = [at.y + at.height - 1, at.y - tall - 1].map(py => ({ x: Math.round(at.x + at.width / 2 - wide / 2) - 2, y: py, width: wide + 4, height: tall })).find(clear);
+    // Under the island, as the app letters it; above it, or beside it, where a name already lettered is in the way.
+    const centred = Math.round(at.x + at.width / 2 - wide / 2) - 2, middle = Math.round(at.y + at.height / 2 - tall / 2);
+    const plate = [{ x: centred, y: at.y + at.height - 1 }, { x: centred, y: at.y - tall - 1 }, { x: at.x + at.width + 1, y: middle }, { x: at.x - wide - 5, y: middle }]
+      .map(spot => ({ ...spot, width: wide + 4, height: tall })).find(clear);
     if (!plate) continue;
     const top = plate.y + 2;
     lettered.push(plate);

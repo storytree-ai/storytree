@@ -72,6 +72,8 @@ function shrinkView(state: RootState, at: number, fit = 1): HTMLCanvasElement | 
 /** Aims the view, then waits until it has drawn every island in the same place, and the same picture, several times running:
  * its roads are routed after its islands draw, later on a busy machine. Then hands back where each island is. */
 async function settled(controls: GlobeControls, get: () => RootState): Promise<Marks> {
+  // The sheet tilted toward the eye by the app's own key for it (r, a step at a time), so the shop's rows stand taller.
+  for (let step = 0; step < MAP.tilt; step++) window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" }));
   controls.stop({ target: { kind: "story", story: MAP.aim.story }, framing: MAP.aim.framing, sideOffset: MAP.aim.sideOffset, duration: 0 });
   let last = "", same = 0;
   for (;;) {

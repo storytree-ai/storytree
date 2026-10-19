@@ -1,0 +1,89 @@
+/** The command line 14.12 and 14.13: the learner in the friction drain files each want and raises each cut group once, against a real Postgres. */
+import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import { test } from "node:test";
+
+import { connect, type Library } from "@storytree/library";
+import { recordFriction } from "@storytree/friction";
+import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { openActivityLog, type ActivityLog } from "@storytree/session-management";
+import { testServerUrl } from "@storytree/project-and-caller/testing/pg";
+
+import { learnInDrain, type LearnerWorld } from "./learner.js";
+import type { Surfaces } from "./learn.js";
+
+const agent = ["agent"] as const;
+const surfaces: Surfaces = {
+  commands: [{ verb: "storytree adr pull", consumers: agent }, { verb: "storytree quality graduate", consumers: agent }],
+  tools: [{ verb: "quality_brief", consumers: agent }],
+  twins: [],
+};
+
+/** A fresh project with both arcs and 100 sessions over the whole 28 days, twelve for each of `words` typing it where no command answers it, handed to `body` with the learner's world. */
+async function inProject(words: readonly string[], body: (world: LearnerWorld, library: Library) => Promise<void>): Promise<void> {
+  const project = `t-${randomBytes(4).toString("hex")}`;
+  const storytree = await connect({ url: testServerUrl() });
+  const log: ActivityLog = await openActivityLog(testServerUrl());
+  try {
+    const library = await storytree.openProject(project);
+    try {
+      const wants = await library.createArc({ title: "Doors", intent: "Measure the doors", endState: "Measured" });
+      const cuts = await library.createArc({ title: "Prune the front doors", intent: "Prune", endState: "Pruned" });
+      const now = new Date("2026-11-20T00:00:00.000Z");
+      const day = (offset: number) => new Date(now.getTime() - offset * 24 * 60 * 60 * 1000).toISOString();
+      const common = { harness: "claude-code", source: "tool", machine: "box" } as const;
+      // 100 sessions over the whole 28 days, so disuse can be judged; twelve of them for each word type it where no command answers it.
+      for (let index = 0; index < 100; index += 1) {
+        const word = words[Math.floor(index / 12)];
+        const line = word === undefined
+          ? { verb: "storytree adr pull", outcome: "answered" as const }
+          : { verb: "storytree", outcome: "unknown" as const, word };
+        await log.append(project, { ...common, session: `s${index}`, kind: "door-answered", door: "command", next: [], ...line }, { at: day(27.5 - index * 0.27) });
+      }
+      await body({ log, project, library, surfaces, arcs: { wants: wants.id, cuts: cuts.id }, now }, library);
+    } finally {
+      await library.close();
+    }
+  } finally {
+    await log.close();
+    await storytree.close();
+    await dropTestDatabases([`storytree_${project}`]);
+  }
+}
+
+const CUT_TITLES = ["Cut, keep or merge the unused verbs in storytree quality?", "Cut, keep or merge the unused verbs in the tools with no command?"];
+
+test("14.12 · the drain files a want as friction and raises a cut group as a question with an increment held on it, a second drain duplicates neither, and a project without the arcs learns nothing", async () => {
+  await inProject(["plan"], async (world, library) => {
+    assert.deepEqual(await learnInDrain({ ...world, arcs: { wants: "arc_000000000000", cuts: world.arcs.cuts } }), [], "a project without the arcs learns nothing");
+    assert.equal((await library.list("friction")).length, 0);
+
+    const first = await learnInDrain(world);
+    const filed = (await library.list("friction")).filter((friction) => friction.fields.title === 'Agents type "storytree plan", which no command answers');
+    assert.equal(filed.length, 1, first.join("\n"));
+    assert.match(filed[0]?.fields.statement ?? "", new RegExp(world.arcs.wants), "it names the arc that measures the doors");
+    const asked = await library.questions(world.arcs.cuts);
+    assert.deepEqual(asked.map((question) => question.fields.title).sort(), CUT_TITLES);
+    const held = (await library.list("increment")).filter((increment) => increment.fields.arc === world.arcs.cuts);
+    assert.deepEqual(held.map((increment) => increment.fields.heldOn).sort(), asked.map((question) => [question.id]).sort(), "each group's increment is held on its question");
+
+    await learnInDrain(world);
+    assert.equal((await library.list("friction")).length, 1, "a second drain files no second want");
+    assert.equal((await library.questions(world.arcs.cuts)).length, 2, "a second drain raises no second question");
+    assert.equal((await library.list("increment")).length, 2, "a second drain parks no second increment");
+  });
+});
+
+test("14.13 · a want is filed on the learner's own branch, so it never spends the landing session's three, and one past the learner's three waits while the rest of the step runs", async () => {
+  await inProject(["plan", "story", "wait", "contract"], async (world, library) => {
+    const said = await learnInDrain(world);
+    const filed = await library.list("friction");
+    assert.deepEqual(filed.map((friction) => friction.fields.provenance?.branch), ["(doors learner)", "(doors learner)", "(doors learner)"], said.join("\n"));
+    assert.ok(said.includes("  1 more want waits for a later drain: the learner has filed its three for today."), said.join("\n"));
+    assert.equal((await library.questions(world.arcs.cuts)).length, 2, "the cut groups are raised all the same");
+    // The landing session's own three still file.
+    const own = { title: "A session's own", description: "Its own.", statement: "Its own.", evidence: "`pnpm test` failed", impact: "Slow." };
+    for (const branch of ["claude/lane", "claude/lane", "claude/lane"]) await recordFriction(library, { ...own, branch });
+    assert.equal((await library.list("friction")).length, 6);
+  });
+});

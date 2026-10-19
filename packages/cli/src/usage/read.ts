@@ -53,7 +53,8 @@ export async function readLearned(log: DoorsLog, project: string, where: string,
   return learnedTargets(lines, where, word);
 }
 
-function doorLineOf(line: Line): DoorLine | undefined {
+/** A log line as the reading needs it, or nothing when it is not a door-answered line. */
+export function doorLineOf(line: Line): DoorLine | undefined {
   if (line.kind !== "door-answered") return undefined;
   const { session, at, harness, machine, door, verb, outcome, word, named, next } = line;
   return {

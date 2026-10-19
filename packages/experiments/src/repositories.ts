@@ -132,11 +132,14 @@ export function armWorkflow(ci: ArmCi): Record<string, unknown> {
             uses: "actions/checkout@v4",
             with: { repository: ci.verifier.testsRepository, token: "${{ secrets.EXPERIMENT_TESTS_TOKEN }}", path: ".hidden-tests" },
           },
+          // The checkout can only land in the workspace, which the verifier mounts into the container the arm's code runs
+          // in; out of it, that code can neither read the tests nor rewrite the script that counts their results.
+          { name: "Move the hidden tests out of the workspace", run: `mv .hidden-tests "$RUNNER_TEMP/hidden-tests"` },
           {
             name: "Run the verifier",
             env: {
               VERIFIER_COMMAND: ci.verifier.command,
-              HIDDEN_TESTS: "${{ github.workspace }}/.hidden-tests",
+              HIDDEN_TESTS: "${{ runner.temp }}/hidden-tests",
               VERIFIER_RESULT: "${{ runner.temp }}/verifier-result.json",
               REPORT_COUNTS,
             },

@@ -10,11 +10,11 @@ import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { archiveArmRepositories, ARM_WORKFLOW_PATH, armWorkflow, makeArmRepository, type ArmCi, type Gh } from "./index.js";
 import { ARM_CODEOWNERS_PATH } from "./repositories.js";
 
-const CI: ArmCi = { checks: "npm test", verifier: { testsRepository: "storytree-ai/x-twin-build-tests", command: "bash .hidden-tests/run.sh" } };
+const CI: ArmCi = { checks: "npm test", verifier: { testsRepository: "storytree-ai/x-twin-build-tests", command: 'bash "$HIDDEN_TESTS/run.sh"' } };
 
 interface Job { readonly "runs-on": string; readonly if?: string; readonly environment?: string; readonly steps: readonly { readonly uses?: string; readonly with?: Record<string, string>; readonly env?: Record<string, string>; readonly run?: string }[] }
 
-test("3.1 · an arm's CI runs on Linux only: its own checks gate every pull request and merge-queue entry, and the task's hidden tests run only on each merge to main, fetched with a secret, reporting counts alone", async () => {
+test("3.1 · an arm's CI runs on Linux only: its own checks gate every pull request and merge-queue entry, and the task's hidden tests run only on each merge to main, fetched with a secret, out of the reach of the arm's code, reporting counts alone", async () => {
   const workflow = armWorkflow(CI) as { on: Record<string, unknown>; jobs: Record<string, Job> };
   assert.deepEqual(Object.keys(workflow.on).sort(), ["merge_group", "pull_request", "push"]);
   for (const [name, job] of Object.entries(workflow.jobs)) assert.equal(job["runs-on"], "ubuntu-latest", `${name} runs on Linux`);
@@ -28,9 +28,27 @@ test("3.1 · an arm's CI runs on Linux only: its own checks gate every pull requ
   assert.equal(hidden.environment, "hidden-tests", "their token is the main-only environment's");
   const fetch = hidden.steps.find((step) => step.with?.repository === CI.verifier.testsRepository);
   assert.equal(fetch?.with?.token, "${{ secrets.EXPERIMENT_TESTS_TOKEN }}");
+  const run = hidden.steps.at(-1)!;
+
+  // The steps between the fetch and the verifier, run here on a fake runner: the tests' checkout, counting script and
+  // all, leaves the workspace the verifier mounts into the arm's container, and the verifier finds it where it went.
+  await withTempDir((dir) => {
+    const workspace = path.join(dir, "workspace");
+    const temp = path.join(dir, "runner-temp");
+    mkdirSync(path.join(workspace, fetch!.with!.path!), { recursive: true });
+    mkdirSync(temp);
+    writeFileSync(path.join(workspace, fetch!.with!.path!, "counts.mjs"), "");
+    const expand = (text: string) => text.replaceAll("${{ github.workspace }}", workspace).replaceAll("${{ runner.temp }}", temp);
+    for (const step of hidden.steps.slice(hidden.steps.indexOf(fetch!) + 1, -1)) {
+      execFileSync("bash", ["-c", expand(step.run!)], { cwd: workspace, env: { ...process.env, GITHUB_WORKSPACE: workspace, RUNNER_TEMP: temp }, stdio: "pipe" });
+    }
+    assert.deepEqual(readdirSync(workspace), [], "nothing of the tests is left in the tree the arm's code runs in");
+    const tests = expand(run.env!.HIDDEN_TESTS!);
+    assert.ok(path.relative(workspace, tests).startsWith(".."), "the verifier finds the tests outside the workspace");
+    assert.ok(existsSync(path.join(tests, "counts.mjs")), "with the counting script beside them");
+  });
 
   // The verifier step itself, run here: whatever the tests print stays out of the log; only the counts reach it.
-  const run = hidden.steps.at(-1)!;
   await withTempDir((dir) => {
     const result = path.join(dir, "result.json");
     const summary = path.join(dir, "summary.md");

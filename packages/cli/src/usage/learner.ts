@@ -3,6 +3,8 @@
  * no timer and no model. It reads the 28 days of door-answered lines to the drain, learns from them (./learn.ts) and acts
  * on the lesson, so a second drain duplicates nothing.
  *
+ * - A want is filed under the learner's own branch name, so it never spends the landing session's three a day (ADR-0716),
+ *   and a want past the learner's own three waits for a later drain while the rest of the step still runs.
  * - A want is filed as friction naming the arc that measures the doors (friction links only to other notes), with the reading as evidence, under one
  *   title per word and place. While that friction is open nothing more is written; once it is routed, 10 more refusals
  *   since its last filing or recurrence reinforce it, which reopens it.
@@ -12,7 +14,7 @@
  * - Door gaps are reported in the drain's answer, never cut.
  */
 import type { Library, SchemaRecord, WriteOptions } from "@storytree/library";
-import { recordFriction, reinforceFriction } from "@storytree/friction";
+import { CaptureError, recordFriction, reinforceFriction } from "@storytree/friction";
 
 import { BARS, learnDoors, type Candidate, type CutGroup, type Surfaces, type Want } from "./learn.js";
 import { doorLineOf, type DoorsLog } from "./read.js";
@@ -21,17 +23,19 @@ import type { DoorLine } from "./reading.js";
 /** storytree's own arcs: the one that measures the front doors, where a want is filed, and "Prune the front doors", where each cut group waits for the owner (ADR-1045 D6). */
 export const ARCS = { wants: "arc_32e1fe58d6a6", cuts: "arc_4a62104e4de4" } as const;
 
+/** The branch a want is filed on: the learner's own, not the landing session's. */
+export const LEARNER_BRANCH = "(doors learner)";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** The most door gaps the drain's answer names. */
 const GAPS_SHOWN = 5;
 
-/** What the learner reads and writes through: the project's log and library, the drain's writer and branch, the doors' surfaces, and the arcs it writes on. */
+/** What the learner reads and writes through: the project's log and library, the drain's writer, the doors' surfaces, and the arcs it writes on. */
 export interface LearnerWorld {
   readonly log: DoorsLog;
   readonly project: string;
   readonly library: Library;
   readonly writer?: WriteOptions;
-  readonly branch: string;
   readonly surfaces: Surfaces;
   readonly arcs: { readonly wants: string; readonly cuts: string };
   readonly now: Date;
@@ -76,8 +80,16 @@ async function fileWants(world: LearnerWorld, wants: readonly Want[], lines: rea
         statement: `Agents typed "${want.where} ${want.word}" ${want.refusals} times in ${want.sessions} sessions, and the door refused it as unknown each time; no command its refusal offered was taken often enough to stand for it (ADR-1045 D4, D5). The nearest surface is ${want.where}, measured on ${world.arcs.wants}. Find what they want before building it: a command, a pointer, or a refusal that names the right one.`,
         evidence,
         impact: "Each refusal costs the session a call and another guess at the command it wanted.",
-        branch: world.branch,
-      }, world.writer);
+        branch: LEARNER_BRANCH,
+      }, world.writer).catch((error: unknown) => {
+        if (error instanceof CaptureError) return undefined;
+        throw error;
+      });
+      if (friction === undefined) {
+        const left = wants.length - wants.indexOf(want);
+        said.push(`  ${left} more ${left === 1 ? "want waits" : "wants wait"} for a later drain: the learner has filed its three for today.`);
+        break;
+      }
       said.push(`  Want filed as ${friction.id}: "${want.where} ${want.word}", refused ${want.refusals} times.`);
       continue;
     }
@@ -85,7 +97,7 @@ async function fileWants(world: LearnerWorld, wants: readonly Want[], lines: rea
     const last = [earlier.createdAt.slice(0, 10), ...(earlier.fields.reinforcedBy ?? []).map(({ date }) => date)].sort().at(-1)!;
     const since = lines.filter((line) => line.at.slice(0, 10) > last && line.door === "command" && line.outcome === "unknown" && line.verb === want.where && line.word === want.word).length;
     if (since < BARS.wantRefusals) continue;
-    await reinforceFriction(world.library, earlier.id, { branch: world.branch, evidence }, world.writer);
+    await reinforceFriction(world.library, earlier.id, { branch: LEARNER_BRANCH, evidence }, world.writer);
     said.push(`  Want ${earlier.id} reinforced: "${want.where} ${want.word}", refused ${since} more times since ${last}.`);
   }
   return said;

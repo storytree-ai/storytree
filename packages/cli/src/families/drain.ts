@@ -36,6 +36,6 @@ export function learning(family: Family, surfaces: (cwd: string) => Promise<Surf
 }
 
 async function learn(context: Context, surfaces: (cwd: string) => Promise<Surfaces>): Promise<string[]> {
-  const [{ log, project, library, branch }, { ARCS, learnInDrain }] = await Promise.all([context.activityContext(), import("../usage/learner.js")]);
-  return learnInDrain({ log, project, library, writer: context.writer(), branch: branch ?? "(no branch)", surfaces: await surfaces(context.cwd), arcs: ARCS, now: new Date() });
+  const [{ log, project, library }, { ARCS, learnInDrain }] = await Promise.all([context.activityContext(), import("../usage/learner.js")]);
+  return learnInDrain({ log, project, library, writer: context.writer(), surfaces: await surfaces(context.cwd), arcs: ARCS, now: new Date() });
 }

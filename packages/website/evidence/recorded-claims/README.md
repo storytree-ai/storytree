@@ -1,5 +1,7 @@
 # Recorded capability claims, as flags
 
+Retired 2026-10-20 (increment_64f8fcb95d79): the map chapter left the site with the slide tour (ADR-1091 D3), so `recorded-claims.mjs` and the map chapter's window onto the shop's record (`src/map-recording.ts`) were removed; the pictures stay as the record.
+
 Re-taken 2026-10-10 on the Mint box for increment_56c04a002c2a, the website's half of ADR-0968: a claimed capability carries a flag in its session's colour, and on an island with no code yet its share of the island is marked as a lot, a dashed line with the flag in it. The renderer's half (the flag, the lot, their arrival and lift) landed in #1081; this page's replay now lets signing in's claims through before its code lands, which the map chapter's five steps (ADR-0891, amended twice on 2026-10-10) show in their second step. Earlier captures in this folder showed ADR-0923's outlines; they are replaced.
 
 ## What the replay shows

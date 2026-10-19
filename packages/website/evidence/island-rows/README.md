@@ -1,5 +1,7 @@
 # The shop's four islands: a column today, rows at their own plan's places
 
+Retired 2026-10-20 (increment_64f8fcb95d79): the map chapter left the site with the slide tour (ADR-1091 D3), so this folder's `capture.mjs` and `src/map-recording.ts` were removed; the pictures stay as the record.
+
 An investigation, not a landing: nothing on the site changed. The owner, 2026-10-10, on the map chapter: "the
 current layout of the islands looks wrong, if browsing, cart and checkout are all dependant on signing-in they
 should appear directly above signin as a row, or should be browsing second row, and the rest third row, if card

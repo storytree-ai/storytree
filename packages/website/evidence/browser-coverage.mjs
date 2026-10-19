@@ -7,6 +7,25 @@ import { recordBrowserCoverage } from "@storytree/dev-loop/browser-coverage";
 
 const pkgDir = fileURLToPath(new URL("..", import.meta.url));
 
+// Whether each function ran is all the recorder reads, so coverage is binary: counting every call (what Playwright's
+// startJSCoverage asks for) slows the framed map's setup past its 15-second startup timeout. Each local script's source is
+// read as it is parsed, so a page that navigates away still reports the scripts it ran.
+async function startCoverage(page) {
+  const cdp = await page.context().newCDPSession(page);
+  const sources = new Map();
+  cdp.on("Debugger.scriptParsed", ({ scriptId, url }) => {
+    if (/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(url)) sources.set(scriptId, cdp.send("Debugger.getScriptSource", { scriptId }).then(({ scriptSource }) => scriptSource, () => undefined));
+  });
+  await cdp.send("Debugger.enable");
+  await cdp.send("Profiler.enable");
+  await cdp.send("Profiler.startPreciseCoverage", { callCount: false, detailed: false });
+  return async () => {
+    const { result } = await cdp.send("Profiler.takePreciseCoverage");
+    await cdp.send("Profiler.stopPreciseCoverage");
+    return Promise.all(result.filter(entry => sources.has(entry.scriptId)).map(async entry => ({ ...entry, source: await sources.get(entry.scriptId) })));
+  };
+}
+
 /** Collect execution only for a journey whose existing assertions all pass. */
 export async function withBrowserCoverage(browser, { proof, dist, output }, run) {
   const scripts = [];
@@ -68,10 +87,10 @@ export async function withBrowserCoverage(browser, { proof, dist, output }, run)
         const page = await target.newPage(options);
         const close = page.close.bind(page);
         const instrumented = options?.javaScriptEnabled !== false;
-        let finished;
+        let finished, stop;
         const finish = (...args) => finished ??= (async () => {
           try {
-            if (instrumented) await collect(await page.coverage.stopJSCoverage());
+            if (stop) await collect(await stop());
           }
           finally {
             pages.delete(finish);
@@ -80,7 +99,7 @@ export async function withBrowserCoverage(browser, { proof, dist, output }, run)
         })();
         try {
           // The no-script fallback still runs its assertions, without claiming JS execution.
-          if (instrumented) await page.coverage.startJSCoverage({ resetOnNavigation: false });
+          if (instrumented) stop = await startCoverage(page);
         } catch (error) {
           await close();
           throw error;

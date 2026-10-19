@@ -39,28 +39,20 @@ drawn. Missing WebGL, download or initialization failures, a 15-second startup
 timeout, and context loss leave the still in place. No JavaScript is needed for
 the still. The map renders on demand and is turned by dragging it.
 
-Refresh the two stills (`public/forest-*.png`) whenever the JSON or shared renderer changes. They are captured, as the shop's
-are, from the website's own live drawing of free play, switched to storytree's project. From the checkout root, after refreshing
-the snapshot above:
+Refresh the two stills (`public/forest-*.png`) whenever the JSON or shared renderer changes. They are captured from the
+website's own live drawing of the framed map, with the frame's buttons and notes hidden. From the checkout root, after
+refreshing the snapshot above:
 
 ```sh
 pnpm --filter @storytree/website build
-node packages/website/evidence/forest/shop-stills.mjs storytree
-```
-
-The shop's two stills (`public/shop-*.png`, shown in free play on the shop without WebGL) are captured from the website's own
-live drawing of that free play; refresh them when `shop-snapshot.json` or the renderer changes:
-
-```sh
-pnpm --filter @storytree/website build
-node packages/website/evidence/forest/shop-stills.mjs
+node packages/website/evidence/forest/forest-stills.mjs
 ```
 
 This needs Playwright's Chromium installed. The capture serves the built site; it does not
 access the running app or a database. Commit the snapshot, `public/forest-*.png` and renewed
-evidence together. The square stills are central crops of the actual rendered canvas,
-preserving its short-side framing at other viewport sizes. They are not separately drawn
-illustrations. Do not present the saved health as independently verified health.
+evidence together. Each still is the rendered canvas's full width, cut to a band round
+the sheet's names (1440 × 1000 at device scale 1, and 390 × 844 at scale 2). They are not
+separately drawn illustrations. Do not present the saved health as independently verified health.
 
 The still and loading behaviour (contracts 2.1 to 2.3: text and waitlist before the scene's
 code, the live scene replacing the still, a saved picture of each view's own project when

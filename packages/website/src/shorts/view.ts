@@ -73,11 +73,15 @@ export const GRAPH: { panel: StoryPanel; layout: TreeLayout } = (() => {
   return { panel, layout: layoutTree(panel) };
 })();
 
-/** The forest's view as the short mounts it: the glass sheet at its tabletop tilt, no nameplates (the scene letters its own),
- * drawn on a canvas four times the full screen's size (so its lit edges survive being shrunk) and aimed once, before the first
- * frame, at the shop's middle row, close enough to read the islands and far enough to see the slab's corner and edge, with the
- * wishlist left of where the panel opens. */
-export const MAP = { width: 912, height: 856, tilt: 1, aim: { framing: 0.0015, sideOffset: 35, story: "story_b393a0c5a8de" } } as const;
+/** The forest's view as the short mounts it: the glass sheet tilted a step toward the eye from its tabletop rest, no nameplates
+ * (the scene letters its own), drawn on a canvas four times the full screen's size (so its lit edges survive being shrunk). It
+ * has two aims, both settled before the first frame: the whole shop's sheet, and, once he has clicked the wishlist, that island
+ * close up, left of the panel, as the app flies to the island a click selects. */
+export const MAP = { width: 912, height: 856, tilt: 1, aims: {
+  sheet: { framing: 0.0015, sideOffset: 35, story: "story_b393a0c5a8de" },
+  island: { framing: 0.0008, sideOffset: -120, story: WISHLIST.story },
+} } as const;
+export type Aim = keyof typeof MAP.aims;
 
 /** The short's palette for the map: the forest's drawing, shrunk to the screen, is put into these colours, so it is pixel art
  * with hard edges like everything around it: the void past the sheet, the glass in three tones (its far side, its lit middle,
@@ -119,6 +123,9 @@ export function clickedFor(beats: readonly Beat[], seconds: number): number | un
 
 /** The island selected on the map at `seconds`: the wishlist's, once he has clicked it. */
 export const selectedAt = (beats: readonly Beat[], seconds: number) => clickedFor(beats, seconds) === undefined ? undefined : PANEL.story;
+
+/** Where the view is aimed at `seconds`: at the whole sheet, until his click flies it to the island he clicked. */
+export const aimAt = (beats: readonly Beat[], seconds: number): Aim => clickedFor(beats, seconds) === undefined ? "sheet" : "island";
 
 /** How far the panel has slid in, 0 to 1. */
 export function panelOpen(beats: readonly Beat[], seconds: number): number {

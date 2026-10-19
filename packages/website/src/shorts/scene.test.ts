@@ -73,13 +73,7 @@ test("6.5 · the storytree side's map is the forest's glass sheet of the saved p
     const beat = script.with.find(each => seconds >= each.from && seconds < each.to)!;
     if (beat.app !== "map") { assert.deepEqual(copies, [], `no map at ${seconds}s`); continue; }
     const screen = SCREEN[beat.view];
-    assert.equal(copies.length, 1, `one copy of the view at ${seconds}s`);
-    const [x, y, width, height] = copies[0]!;
-    // On a full view, while the panel opens, the whole sheet is fitted into the room the panel leaves, as the app's map is.
-    assert.equal(x, HALF.with + screen.x, `the copy starts at the ${beat.view} screen's left at ${seconds}s`);
-    assert.ok(width! <= screen.width && height! <= screen.height && Math.abs(width! / height! - screen.width / screen.height) < 0.02, `the copy is the ${beat.view} screen, or smaller in proportion, at ${seconds}s`);
-    assert.ok(Math.abs(y! + height! / 2 - (screen.y + screen.height / 2)) <= 1, `the copy is centred down the ${beat.view} screen at ${seconds}s`);
-    if (beat.view === "room") assert.deepEqual([width, height], [screen.width, screen.height], `the room's screen shows the whole map at ${seconds}s`);
+    assert.deepEqual(copies, [[HALF.with + screen.x, screen.y, screen.width, screen.height]], `one copy of the view fills the ${beat.view} screen at ${seconds}s`);
     shown.add(beat.view);
   }
   assert.deepEqual([...shown].sort(), ["full", "room"], "the map shows in the room and in a full view of the screen");

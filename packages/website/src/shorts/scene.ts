@@ -218,9 +218,6 @@ function clickAt(ctx: CanvasRenderingContext2D, x: number, y: number): void {
 
 /** The panel's box on a full view of the map, slid in by `open`. */
 const PANEL_WIDTH = 84;
-/** How much of the full screen's width and height the map is drawn at, at `seconds`: all of it, until the panel opens beside
- * it, when the whole sheet is fitted into the room the panel leaves, as the app fits its map aside. */
-export const mapFit = (seconds: number) => 1 - panelOpen(SCRIPT.with, seconds) * PANEL_WIDTH / SCREEN.full.width;
 const panelBox = (screen: Rect, open: number): Rect => ({ x: screen.x + screen.width - Math.round(PANEL_WIDTH * open), y: screen.y + 1, width: PANEL_WIDTH, height: screen.height - 2 });
 
 /** The island's detail panel, as the app's: its title and description, then its capability graph, too small to read, in a frame
@@ -257,14 +254,10 @@ function onScreen(screen: Rect, map: NonNullable<SceneInputs["map"]>, mark: Mark
 function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: number, { view, map: drawn }: SceneInputs): void {
   const { x, y, width, height } = screen;
   const since = clickedFor(SCRIPT.with, seconds), open = panelOpen(SCRIPT.with, seconds);
-  // As the panel opens the whole sheet is fitted into the room it leaves, as the app fits its map aside, so the island he
-  // clicked and every other stay in view; the view is drawn at that size already, so it is copied pixel for pixel.
-  const fit = mapFit(seconds), [w, h] = [Math.round(width * fit), Math.round(height * fit)];
-  const shown = { x, y: y + Math.round((height - h) / 2), width: w, height: h };
   ctx.fillStyle = INK.map;
   ctx.fillRect(x, y, width, height);
-  ctx.drawImage(view, shown.x, shown.y, w, h);
-  const islands = drawn?.marks?.islands.map(mark => ({ mark, at: onScreen(shown, drawn, mark) })) ?? [];
+  ctx.drawImage(view, x, y, width, height);
+  const islands = drawn?.marks?.islands.map(mark => ({ mark, at: onScreen(screen, drawn, mark) })) ?? [];
   // Each island is lettered under it, the selected one first, and a name that would overlap one already lettered is left off.
   const lettered: Rect[] = open ? [panelBox(screen, open)] : [];
   const order = [...islands].sort((a, b) => Number(b.mark.story === PANEL.story) - Number(a.mark.story === PANEL.story));

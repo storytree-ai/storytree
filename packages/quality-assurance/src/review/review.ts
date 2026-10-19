@@ -13,6 +13,9 @@
  *   contracts, so two stories' contracts sharing a number both appear, each with its story (2.5).
  *   A contract the increment changes pending its merge (ADR-0966 D1) is briefed as the change leaves it: in
  *   its pending text, marked pending, and one it retires listed as retired with the reason, not answered (2.4).
+ *   Every change the increment makes to the plan pending its merge is listed too, so a plan-only change, whose diff touches no file,
+ *   is briefed with those changes as the thing under review, in the package `plan`, where a hit names the record as its file;
+ *   with neither a diff nor a pending change the brief is refused (2.10).
  *   From the second review on it also holds each earlier hit with the implementer's answer, and the
  *   rejections the reviewer must judge (4.2).
  * - A return is taken whole or not at all: it answers every check and contract in its brief, and judges every
@@ -46,7 +49,7 @@ export interface Brief {
   readonly diff: string;
   /** The branch the diff was read against, when it was read from a worktree: `local` when the repository has no origin/main (contract 2.7). */
   readonly base?: Base;
-  /** The packages the diff touches (`root` for files outside any package). */
+  /** The packages the diff touches (`root` for files outside any package), and `plan` when the increment changes the plan pending its merge (contract 2.10). */
   readonly packages: readonly string[];
   /** Each capability the increment names, with its story, in story then capability order (contract 2.5). Absent from briefs issued before 2.5. */
   readonly capabilities?: readonly { readonly id: string; readonly title: string; readonly story: { readonly id: string; readonly title: string } }[];
@@ -57,6 +60,11 @@ export interface Brief {
   readonly contracts: readonly { readonly id: string; readonly title: string; readonly description?: string; readonly pending?: true; readonly capability?: string }[];
   /** The contracts the increment retires pending its merge, with the reason: not judged (contract 2.4). Absent from briefs issued before 2.4. */
   readonly retired?: readonly { readonly id: string; readonly title: string; readonly reason: string }[];
+  /**
+   * Each change the increment makes to the plan pending its merge, by the record's live title: the fields it sets, or its retirement
+   * with the reason (contract 2.10). Absent when it makes none, and from briefs issued before 2.10.
+   */
+  readonly plan?: readonly PlanEntry[];
   /** Each live check not graduated whole; one graduated in part names the parts Architecture checks now enforces, which the reviewer does not judge (contract 5.2). */
   readonly checks: readonly { readonly id: string; readonly title: string; readonly question: string; readonly graduated?: readonly Graduated[] }[];
   /** Each hit earlier reviews of this change made, with the implementer's answer. */
@@ -64,6 +72,11 @@ export interface Brief {
   /** The earlier hits rejected for a reason no review has accepted yet: the return judges each. */
   readonly judge: readonly number[];
 }
+
+/** One pending plan change as the brief lists it. */
+export type PlanEntry =
+  | { readonly record: string; readonly type: string; readonly title: string; readonly after: Readonly<Record<string, unknown>> }
+  | { readonly record: string; readonly type: string; readonly title: string; readonly retire: string };
 
 /** The branch a change's diff is read against; `local` when it is the repository's own default branch, for want of an origin/main. */
 export interface Base {
@@ -119,6 +132,14 @@ export async function openReviews(server: Pick<Storytree, "ownDatabase">): Promi
   return new PgReviews(await ledgerDatabase(server));
 }
 
+/** The package a review of an increment's pending plan changes runs in: a hit on one names its record as the file (contract 2.10). */
+const PLAN_PACKAGE = "plan";
+
+/** The package a hit in `brief`'s change is in: `plan` for a record the change edits or retires pending its merge, else the file's. */
+function hitPackage(brief: Brief, file: string): string {
+  return (brief.plan ?? []).some(({ record }) => record === file) ? PLAN_PACKAGE : packageOf(file);
+}
+
 /** The package a repository path belongs to: `packages/<name>/…` and `apps/<name>/…` name theirs, anything else is `root`. */
 export function packageOf(file: string): string {
   const match = /^(?:packages|apps)\/([^/]+)\//.exec(file.replace(/\\/g, "/"));
@@ -145,8 +166,9 @@ class PgReviews implements Reviews {
   async brief(library: Library, change: string, diff: string, base?: Base): Promise<Brief> {
     const increment = await library.get(change);
     if (increment === null || increment.type !== "increment") throw new Error(`${change} is not an increment in project "${library.name}": a change is reviewed by its increment.`);
-    const packages = diffPackages(diff);
-    if (packages.length === 0) throw new Error("The diff touches no file: commit the change, then review it.");
+    const pendingChanges = (increment.fields as { pending?: PendingChange[] }).pending ?? [];
+    const packages = [...diffPackages(diff), ...(pendingChanges.length === 0 ? [] : [PLAN_PACKAGE])].sort();
+    if (packages.length === 0) throw new Error("The diff touches no file and the increment changes nothing in the plan: commit the change, then review it.");
     const project = library.name;
     const taken = await this.#taken(project, change);
     const earlier = await this.#hits(project, change, "TRUE");
@@ -163,7 +185,7 @@ class PgReviews implements Reviews {
       ].join("\n"));
     }
     const capabilities = new Set((increment.fields as { capabilities?: string[] }).capabilities ?? []);
-    const pending = new Map(((increment.fields as { pending?: PendingChange[] }).pending ?? []).map((change) => [change.record, change]));
+    const pending = new Map(pendingChanges.map((change) => [change.record, change]));
     const byTitle = (a: { id: string; title: string }, b: { id: string; title: string }): number => a.title.localeCompare(b.title, "en", { numeric: true }) || a.id.localeCompare(b.id);
     const named = (await library.list("contract"))
       .map((contract) => ({ contract, change: pending.get(contract.id) }))
@@ -190,8 +212,13 @@ class PgReviews implements Reviews {
     const retired = named
       .flatMap(({ contract, change }) => (change !== undefined && "retire" in change ? [{ id: contract.id, title: contract.fields.title, reason: change.retire }] : []))
       .sort(byTitle);
+    const plan = await Promise.all(pendingChanges.map(async (change): Promise<PlanEntry> => {
+      const head = { record: change.record, type: change.type, title: title(await library.get(change.record)) ?? change.record };
+      return "retire" in change ? { ...head, retire: change.retire } : { ...head, after: change.after };
+    }));
     const brief: Brief = {
       project, change, iteration: taken + 1, diff, ...(base === undefined ? {} : { base }), packages, capabilities: listed, contracts, retired,
+      ...(plan.length === 0 ? {} : { plan }),
       checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
       judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
@@ -218,7 +245,7 @@ class PgReviews implements Reviews {
       const written = await writeReview(client, {
         project, review: name, change, packages: brief.packages,
         ran: [
-          ...review.checks.map(({ check, hits }) => ({ check, hits: (hits ?? []).map(({ file, line, found }) => ({ package: packageOf(file), file, line, found })) })),
+          ...review.checks.map(({ check, hits }) => ({ check, hits: (hits ?? []).map(({ file, line, found }) => ({ package: hitPackage(brief, file), file, line, found })) })),
           // A graduated check's trip outside the packages the brief's diff touches is not part of the change reviewed.
           ...(graduated?.ran ? graduated.checks : []).map(({ check, hits }) => ({
             check, foundBy: "graduated" as const,
@@ -293,7 +320,7 @@ function refusals(brief: Brief, review: ReviewReturn): string[] {
       if (typeof file !== "string" || file.trim() === "") problems.push(`check ${check} has a hit with no file`);
       if (!Number.isInteger(line) || line < 1) problems.push(`check ${check}'s hit in ${file} has line ${line}: a line is a whole number from 1`);
       if (typeof found !== "string" || found.trim() === "") problems.push(`check ${check}'s hit at ${file}:${line} does not say what was found`);
-      if (typeof file === "string" && !brief.packages.includes(packageOf(file))) problems.push(`check ${check}'s hit at ${file}:${line} is in package ${packageOf(file)}, which the diff does not touch`);
+      if (typeof file === "string" && !brief.packages.includes(hitPackage(brief, file))) problems.push(`check ${check}'s hit at ${file}:${line} is in package ${hitPackage(brief, file)}, which the diff does not touch`);
     }
   }
   for (const { contract, met, why } of review.contracts ?? []) {
@@ -417,6 +444,11 @@ export function briefText(brief: Brief): string {
       `Retired contracts (${brief.retired!.length}): not yours to judge, and not answered in the return.`,
       ...brief.retired!.map((contract) => `  ${contract.id}  ${contract.title}\n    retired by this change, pending its merge: ${contract.reason}`),
     ]),
+    ...((brief.plan ?? []).length === 0 ? [] : [
+      "",
+      `Pending plan changes (${brief.plan!.length}): what this change does to the plan on its merge; judge them with the checks and contracts above; a hit on one names its record as the file, at line 1.`,
+      ...brief.plan!.map((entry) => `  ${entry.record}  ${entry.type}  ${entry.title}\n    ${"retire" in entry ? `retired: ${entry.retire}` : `becomes: ${JSON.stringify(entry.after)}`}`),
+    ]),
     ...(brief.earlier.length === 0 ? [] : [
       "",
       `Earlier hits (${brief.earlier.length}), with the implementer's answer:`,
@@ -424,7 +456,7 @@ export function briefText(brief: Brief): string {
       `Judge each of these rejections, accepting its reason or not: ${brief.judge.length === 0 ? "none" : brief.judge.map((id) => `hit ${id}`).join(", ")}.`,
     ]),
     "",
-    brief.base?.local ? `The diff against ${brief.base.ref}, this repository's own default branch: it has no origin/main.` : `The diff against ${brief.base?.ref ?? "origin/main"}:`,
+    diffPackages(brief.diff).length === 0 ? "The diff touches no file: the change under review is its pending plan changes." : brief.base?.local ? `The diff against ${brief.base.ref}, this repository's own default branch: it has no origin/main.` : `The diff against ${brief.base?.ref ?? "origin/main"}:`,
     brief.diff,
   ].join("\n");
 }

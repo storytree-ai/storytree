@@ -22,7 +22,7 @@ import { roundDue, worklist } from "@storytree/library/librarian";
 import { z } from "zod";
 
 import { nameThisMachine } from "@storytree/session-management/machines";
-import { recordFriction, route } from "@storytree/friction";
+import { recordFriction, route } from "@storytree/session-management/friction";
 import type { ToolExtension } from "./index.js";
 import { readClaims } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/project-and-caller";

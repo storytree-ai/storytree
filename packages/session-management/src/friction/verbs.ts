@@ -1,5 +1,5 @@
 /**
- * Capability 3 · Friction's verbs (the Friction story, ADR-1077 D1). The `friction` and `resteer` verbs, declared once here
+ * Capability 17 · Friction, its verbs (ADR-1097). The `friction` and `resteer` verbs, declared once here
  * (ADR-0969 D2) and mounted by both front doors: by the command line as its families of those names, 13th and 14th
  * (ADR-1033), and by the MCP server as the tools record_friction, reinforce, friction_drain, route and record_resteer.
  * File friction or a re-steer, add a recurrence, and drain and route the friction a landing's pass judges.
@@ -95,7 +95,7 @@ const drain = verb({
     description: "Drain friction for the landing's pass: up to three open reports other branches filed, most recurrences first, leased to this session for a few minutes. Read each whole, then route it.",
   },
   inputs: {},
-  // It leases what it lists to the asking session (2.6).
+  // It leases what it lists to the asking session (17.13).
   writes: true,
   async act(_input, context: VerbContext) {
     const { leaseFriction, openFriction } = await import("./drain/drain.js");
@@ -180,5 +180,5 @@ export const frictionGuidance: readonly string[] = [
   "File what fought you: `record_friction` when something got in your way, with concrete evidence, and `reinforce` the existing item when it happens again, with its own; `record_resteer` when the owner redirects you, quoting their own words. Before landing, `friction_drain` hands you up to three reports other sessions filed: read each, then `route` it with its reason.",
 ];
 
-/** Friction's verbs that are tools, which the MCP server mounts (3.2). */
+/** Friction's verbs that are tools, which the MCP server mounts (17.18). */
 export const FRICTION_TOOLS = FRICTION_FAMILIES.flatMap((family) => family.verbs);

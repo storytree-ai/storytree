@@ -302,9 +302,6 @@ importers:
       '@storytree/forest':
         specifier: workspace:*
         version: link:../forest
-      '@storytree/friction':
-        specifier: workspace:*
-        version: link:../friction
       '@storytree/guardrails':
         specifier: workspace:*
         version: link:../guardrails
@@ -547,25 +544,6 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
-  packages/friction:
-    dependencies:
-      '@storytree/library':
-        specifier: workspace:*
-        version: link:../library
-    devDependencies:
-      '@storytree/local-postgres':
-        specifier: workspace:*
-        version: link:../local-postgres
-      '@types/node':
-        specifier: ^24.13.6
-        version: 24.13.6
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-      typescript:
-        specifier: ~7.0.2
-        version: 7.0.2
-
   packages/guardrails:
     dependencies:
       '@storytree/map':
@@ -763,9 +741,6 @@ importers:
       '@storytree/experiments':
         specifier: workspace:*
         version: link:../experiments
-      '@storytree/friction':
-        specifier: workspace:*
-        version: link:../friction
       '@storytree/guardrails':
         specifier: workspace:*
         version: link:../guardrails
@@ -892,9 +867,6 @@ importers:
 
   packages/session-management:
     dependencies:
-      '@storytree/friction':
-        specifier: workspace:*
-        version: link:../friction
       '@storytree/library':
         specifier: workspace:*
         version: link:../library

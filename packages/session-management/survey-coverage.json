@@ -117,6 +117,18 @@
  "src/context/window.ts": {
   "9": 164
  },
+ "src/friction/drain/drain.ts": {
+  "17": 199
+ },
+ "src/friction/filing/capture.ts": {
+  "17": 95
+ },
+ "src/friction/testing/pg.ts": {
+  "17": 38
+ },
+ "src/friction/verbs.ts": {
+  "17": 133
+ },
  "src/hooks/antigravity.ts": {
   "3": 18
  },

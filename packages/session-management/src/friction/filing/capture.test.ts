@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Filing: one test per contract 1.1-1.7 in the Friction story, filing through Friction's declared verbs
+ * Capability 17 · Friction, its filing: one test per contract 17.1-17.7, filing through the declared friction verbs
  * (both doors mount them) and its public capture functions, each in a fresh project's library on the real Postgres
  * `pnpm test` provides.
  */
@@ -43,7 +43,7 @@ async function inFolder(branch: string | undefined, body: (folder: string) => Pr
 const report = (title: string, evidence = `src/${title}.ts: Error`) => ({ title, description: title, statement: title, evidence, impact: "Lost time" });
 const resteer = { title: "Simpler", description: "Less UI", doing: "Many fields", redirect: "Just email", disposition: "taste", "judged-by": "owner" };
 
-test("1.1 · friction with vague evidence is refused and writes nothing; concrete evidence is captured with its writer", async () => {
+test("17.1 · friction with vague evidence is refused and writes nothing; concrete evidence is captured with its writer", async () => {
   await withLibrary(async (library) => {
     await inFolder("fix/mail", async (folder) => {
       await assert.rejects(run(library, folder, "session:s", "friction", "new", report("Slow", "It was slow and annoying")), (error: Error) => error instanceof CaptureError && /evidence must be concrete/.test(error.message));
@@ -59,7 +59,7 @@ test("1.1 · friction with vague evidence is refused and writes nothing; concret
   });
 });
 
-test("1.2 · a re-steer whose evidence is a paraphrase is refused; the quote and the self-report stay apart", async () => {
+test("17.2 · a re-steer whose evidence is a paraphrase is refused; the quote and the self-report stay apart", async () => {
   await withLibrary(async (library) => {
     await inFolder(undefined, async (folder) => {
       await assert.rejects(run(library, folder, "session:s", "resteer", "new", { ...resteer, evidence: "The owner wanted fewer fields" }), CaptureError);
@@ -74,7 +74,7 @@ test("1.2 · a re-steer whose evidence is a paraphrase is refused; the quote and
   });
 });
 
-test("1.3 · reinforce appends a dated recurrence on the calling branch to the existing friction, keeping the route of a routed one", async (t) => {
+test("17.3 · reinforce appends a dated recurrence on the calling branch to the existing friction, keeping the route of a routed one", async (t) => {
   pinDay(t);
   await withLibrary(async (library) => {
     await inFolder("fix/mail", async (folder) => {
@@ -97,7 +97,7 @@ test("1.3 · reinforce appends a dated recurrence on the calling branch to the e
   });
 });
 
-test("1.4 · capture stamps the calling folder's branch and UTC date and refuses a fourth report on that branch that day, routed ones counted, naming the cap and friction reinforce, with nothing written; a defect with no failure mode is refused", async (t) => {
+test("17.4 · capture stamps the calling folder's branch and UTC date and refuses a fourth report on that branch that day, routed ones counted, naming the cap and friction reinforce, with nothing written; a defect with no failure mode is refused", async (t) => {
   pinDay(t);
   await withLibrary(async (library) => {
     await inFolder("fix/mail", async (folder) => {
@@ -126,7 +126,7 @@ test("1.4 · capture stamps the calling folder's branch and UTC date and refuses
   });
 });
 
-test("1.5 · reinforcing through the public capture function appends dated concrete evidence to the same item, keeps a routed one's route and reopens a dismissed one; invalid recurrences write nothing", async (t) => {
+test("17.5 · reinforcing through the public capture function appends dated concrete evidence to the same item, keeps a routed one's route and reopens a dismissed one; invalid recurrences write nothing", async (t) => {
   pinDay(t);
   await withLibrary(async (library) => {
     const friction = await recordFriction(library, report("Slow mail", "src/mail.ts: TimeoutError"));
@@ -146,7 +146,7 @@ test("1.5 · reinforcing through the public capture function appends dated concr
   });
 });
 
-test("1.6 · the daily cap counts each writer's own reports: on a branch every session shares, a second session's report is accepted after another filed three that day, and each is still refused its own fourth; a report whose writer was not recorded counts toward every writer's three", async (t) => {
+test("17.6 · the daily cap counts each writer's own reports: on a branch every session shares, a second session's report is accepted after another filed three that day, and each is still refused its own fourth; a report whose writer was not recorded counts toward every writer's three", async (t) => {
   pinDay(t);
   await withLibrary(async (library) => {
     await inFolder("main", async (folder) => {
@@ -163,7 +163,7 @@ test("1.6 · the daily cap counts each writer's own reports: on a branch every s
   });
 });
 
-test("1.7 · a re-steer whose evidence is the user's exact words without quotation marks is refused naming the step that passes, and the same words inside double quotation marks are then recorded", async () => {
+test("17.7 · a re-steer whose evidence is the user's exact words without quotation marks is refused naming the step that passes, and the same words inside double quotation marks are then recorded", async () => {
   await withLibrary(async (library) => {
     await inFolder(undefined, async (folder) => {
       const words = "I know Your Feed was meant for part 5, but the tests expect the tab to be there as soon as people can sign in. Can you add it now?";

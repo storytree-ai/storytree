@@ -17,7 +17,7 @@
  * - Door gaps are reported in the drain's answer, never cut.
  */
 import type { Library, NewLine, SchemaRecord, WriteOptions } from "@storytree/library";
-import { CaptureError, recordFriction, reinforceFriction } from "@storytree/friction";
+import { CaptureError, recordFriction, reinforceFriction } from "@storytree/session-management/friction";
 
 import { BARS, evidenceOf, learnDoors, type Candidate, type CutGroup, type Fallback, type NewPointer, type Pointer, type Surfaces, type Want } from "./learn.js";
 import { doorLineOf, type DoorsLog } from "./read.js";

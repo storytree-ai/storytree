@@ -45,7 +45,7 @@ import { findProject, idleAfterMs, locateStorytree, route, storytreeHome, type L
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
-import { FRICTION_TOOLS } from "@storytree/friction/verbs";
+import { FRICTION_TOOLS } from "@storytree/session-management/friction/verbs";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
 import { appDatabaseWork } from "@storytree/session-management/processes/listing";
 import type { z } from "zod";

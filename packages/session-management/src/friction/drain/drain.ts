@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Drain and route (the Friction story, ADR-1077 D1): friction is looked at on each landing's pass, and
+ * Capability 17 · Friction, its drain and route (ADR-1097): friction is looked at on each landing's pass, and
  * nothing is closed without a reason. The drain is 0.2's bounded one (ADR-0168 D4): at most the
  * three open reports, most recurrences first (ADR-0716), oldest first on ties, never one the session's own branch filed, so a
  * session never marks its own homework; a report with no provenance counts as another's, so the queue
@@ -34,7 +34,7 @@ export const DRAIN = 3;
 /**
  * How long the drain holds a report for the session it handed it to. Ten minutes covers one landing's
  * pass over its three: reading each whole, parking a remedy, routing. A session that ends without
- * routing frees them soon, and a judgement that outlasts its lease is still guarded by route (2.7).
+ * routing frees them soon, and a judgement that outlasts its lease is still guarded by route (17.14).
  */
 export const LEASE_MINUTES = 10;
 
@@ -48,7 +48,7 @@ export interface DrainOptions {
 
 /**
  * Three open reports from other branches, most recurrences first and oldest first on ties, leased to
- * the writer's session for LEASE_MINUTES (2.6). A report another session holds is passed over; each
+ * the writer's session for LEASE_MINUTES (17.13). A report another session holds is passed over; each
  * lease is taken inside the write, so two drains at once never take one report.
  */
 export async function frictionDrain(library: Library, options: DrainOptions): Promise<SchemaRecord<"friction">[]> {
@@ -120,14 +120,14 @@ export async function route(library: Library, id: string, to: Route, reason: str
     );
     if (!remedy) throw new RouteRefusal(`routing to ${to} needs a live increment whose remedies names ${id}; park the fix on its owning arc, or supply dischargedBy when the remedy has already landed`);
   }
-  // Checked again inside the write (2.7): another pass may have routed it since this one read it.
+  // Checked again inside the write (17.14): another pass may have routed it since this one read it.
   return (await library.editNote(id, {
     route: to, routeReason: reason, lease: undefined,
     ...(dischargedBy === undefined ? {} : { dischargedBy }),
   }, { ...writer, checkCurrent: (current) => refuseAnotherRoute(current, to) })) as SchemaRecord<"friction">;
 }
 
-/** Another pass's route is not replaced in silence: a routed report is routed again only the same way (2.4). */
+/** Another pass's route is not replaced in silence: a routed report is routed again only the same way (17.11). */
 function refuseAnotherRoute(report: Note, to: Route): void {
   if (report.type !== "friction") throw new RouteRefusal(`${report.id} is not a live friction report`);
   const earlier = report.fields.route;

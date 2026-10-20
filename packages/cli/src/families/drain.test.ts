@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { FRICTION_FAMILIES } from "@storytree/friction/verbs";
+import { FRICTION_FAMILIES } from "@storytree/session-management/friction/verbs";
 
 import { parseArgs } from "../args.js";
 import type { Context, Family } from "../door.js";

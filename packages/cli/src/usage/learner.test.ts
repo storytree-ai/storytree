@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 
 import { connect, type Library } from "@storytree/library";
-import { recordFriction } from "@storytree/friction";
+import { recordFriction } from "@storytree/session-management/friction";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { openActivityLog, type ActivityLog } from "@storytree/session-management";
 import { testServerUrl } from "@storytree/project-and-caller/testing/pg";

@@ -21,7 +21,7 @@ import { EXPERIMENT_FAMILIES } from "@storytree/experiments/verbs";
 import { LAG_FAMILIES } from "@storytree/app/lag/verbs";
 import { SESSION_FAMILIES } from "@storytree/session-management/verbs";
 import { WORKSPACE_FAMILIES } from "@storytree/session-management/workspace-verbs";
-import { FRICTION_FAMILIES } from "@storytree/friction/verbs";
+import { FRICTION_FAMILIES } from "@storytree/session-management/friction/verbs";
 import { SETUP_FAMILIES } from "@storytree/app-setup/verbs";
 import { PROCESSES_FAMILIES } from "@storytree/session-management/processes/verbs";
 import { ARC_FAMILIES } from "@storytree/arc-surface/verbs";

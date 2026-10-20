@@ -1,6 +1,6 @@
 /**
- * Capability 3 · Friction's verbs, and capability 2's drain and route as verbs (2.8, 2.9): the `friction` and `resteer`
- * verbs Friction declares for both front doors, run with a context of a fresh project's library on the real Postgres
+ * Capability 17 · Friction, its verbs (17.15-17.18): the `friction` and `resteer`
+ * verbs Session management declares for both front doors, run with a context of a fresh project's library on the real Postgres
  * `pnpm test` provides.
  */
 import assert from "node:assert/strict";
@@ -19,7 +19,7 @@ import { FRICTION_FAMILIES, FRICTION_TOOLS } from "./verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("3.1 · Friction declares the `friction` and `resteer` families the command line lists 13th and 14th: friction filed on one branch, with its links and the writer, is drained on another", async () => {
+test("17.17 · Friction declares the `friction` and `resteer` families the command line lists 13th and 14th: friction filed on one branch, with its links and the writer, is drained on another", async () => {
   await withLibrary(async (library) => {
     const [friction, resteer] = ["friction", "resteer"].map((name) => FRICTION_FAMILIES.find((family) => family.name === name)!);
     assert.deepEqual([friction!.order, resteer!.order], [13, 14]);
@@ -65,7 +65,7 @@ async function onBranch(library: Library, branch: string, body: (context: VerbCo
   }
 }
 
-test("2.8 · `friction route` records the route and reason with the writer; a tool route with no remedy is refused unchanged and writes nothing", async () => {
+test("17.15 · `friction route` records the route and reason with the writer; a tool route with no remedy is refused unchanged and writes nothing", async () => {
   await withLibrary(async (library) => {
     await onBranch(library, "main", async (context) => {
       const note = await recordFriction(library, { title: "Slow mail", description: "Delay", statement: "Timeout", evidence: "src/mail.ts: TimeoutError", impact: "Readers cannot join" });
@@ -81,7 +81,7 @@ test("2.8 · `friction route` records the route and reason with the writer; a to
   });
 });
 
-test("2.9 · `friction drain` lists the unrouted reports other branches filed for the calling branch, most recurrences first, and says how many more wait", async () => {
+test("17.16 · `friction drain` lists the unrouted reports other branches filed for the calling branch, most recurrences first, and says how many more wait", async () => {
   await withLibrary(async (library) => {
     const fields = { description: "Delay", statement: "Timeout", evidence: "src/mail.ts: Error", impact: "Wait" };
     const provenance = (branch: string) => ({ branch, date: "2026-09-29", source: "retro" as const });
@@ -103,7 +103,7 @@ test("2.9 · `friction drain` lists the unrouted reports other branches filed fo
   });
 });
 
-test("3.2 · Friction declares record_friction, reinforce, record_resteer, friction_drain and route as tools, the drain an agent's alone, and its refusals are verb refusals, which each door answers as a refusal", async () => {
+test("17.18 · Friction declares record_friction, reinforce, record_resteer, friction_drain and route as tools, the drain an agent's alone, and its refusals are verb refusals, which each door answers as a refusal", async () => {
   const tools = FRICTION_TOOLS.flatMap((one) => (mounted(one.tool) ? [one.tool.name] : []));
   assert.deepEqual(tools.sort(), ["friction_drain", "record_friction", "record_resteer", "reinforce", "route"]);
   assert.deepEqual(consumersOf(FRICTION_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "friction_drain")!), ["agent"]);

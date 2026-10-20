@@ -292,7 +292,8 @@ async function dispatch(argv: readonly string[], heard: Heard, context: Context)
   if (family === undefined) {
     if (Object.hasOwn(POINTERS, first)) return pointedBy(first, rest, heard, context);
     const named = FAMILIES.filter((candidate) => candidate.waitsOn === undefined).map((candidate) => ({ name: candidate.name, command: candidate.name }));
-    throw unknown("storytree", first, Object.hasOwn(GUESSES, first) ? GUESSES[first] : undefined, "Its families", named, rest);
+    const guessed = [`${first} ${rest[0]}`, first].find((words) => Object.hasOwn(GUESSES, words));
+    throw unknown("storytree", first, guessed === undefined ? undefined : GUESSES[guessed], "Its families", named, rest);
   }
   return dispatchIn(family, family.name, rest, heard, context);
 }

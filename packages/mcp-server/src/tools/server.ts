@@ -46,7 +46,6 @@ import { mount } from "@storytree/plugin-loader";
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
-import { FRICTION_TOOLS } from "@storytree/friction/verbs";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
 import { appDatabaseWork } from "@storytree/session-management/processes/listing";
 import type { z } from "zod";
@@ -54,13 +53,14 @@ import type { z } from "zod";
 // The other stories' tools (ADR-0643 D6), in their manifests' order: the plugin loader composes them from the
 // manifests of the story packages this server depends on (ADR-1021).
 import TOOL_PARTS from "#parts/tools";
+import VERB_PARTS from "#parts/verbs";
 
 import { habitsCard } from "../instructions/habits.js";
 import { failureOf, isUnreachable, libraryDown, NOT_RUNNING_ANSWER, outcomeOf, refusalOf, result, type Answer, type DoorOutcome } from "./answers.js";
 import { registerClaimTools } from "./claim-tools.js";
 import { registerContextTools } from "./context-tools.js";
 import { Connections } from "./connections.js";
-import { mountTools } from "./mount.js";
+import { mountTools, verbsOf } from "./mount.js";
 import { registerPlanTools } from "./plan-tools.js";
 import { registerMapTools } from "./map-tools.js";
 import { registerSetupTools, registerStarterPackTool, type SetupToolOptions } from "./setup-tools.js";
@@ -328,11 +328,14 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   });
   registerClaimTools(define, extensions, options.merges);
   registerWorkTools(define);
-  // The library's artifact tools, declared in The library (ADR-1035 D3), and Friction's, declared in Friction (ADR-1077 D1).
+  // The library's artifact tools, declared in The library (ADR-1035 D3), which is core.
   mountTools(define, NOTE_TOOLS);
-  mountTools(define, FRICTION_TOOLS);
   registerPipelineTools(define, options.protection);
-  registerContextTools(define, options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir)));
+  const verbHome = options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir));
+  registerContextTools(define, verbHome);
+  // Every verb a mounted part's command families declare a tool for (Friction's, Session management's), from their
+  // manifests: a part switched off takes its tools with it (ADR-1095).
+  mountTools(define, mount(VERB_PARTS, off).mounted.flatMap(verbsOf), verbHome);
   for (const extension of extensions) extension.registerTools?.(define);
   for (const extension of extensions) extension.registerHarnessTools?.(defineForHarness);
 

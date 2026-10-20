@@ -38,9 +38,15 @@ test("6.95 the tool server serves no tool of a part this computer switches off, 
   };
   const all = await served([]);
   assert.ok(all.includes("quality_brief") && all.includes("hook_event"), "both parts' tools are served with nothing off");
+  const declaredTools = ["record_friction", "friction_drain", "route", "name_session", "close_out"];
+  for (const tool of declaredTools) assert.ok(all.includes(tool), `${tool}, declared on a verb, is served with nothing off`);
   const qualityOff = await served(["quality-assurance"]);
   assert.ok(!qualityOff.includes("quality_brief"), "quality assurance's tools are not served");
   assert.ok(qualityOff.includes("hook_event") && qualityOff.includes("check_setup"), "the rest still are");
   const frictionOff = await served(["friction"]);
   assert.ok(!frictionOff.includes("hook_event") && !frictionOff.includes("quality_brief"), "Session management stands on friction, and quality assurance on it: theirs go with it");
+  for (const tool of declaredTools) assert.ok(!frictionOff.includes(tool), `${tool}, declared on Friction's or Session management's verbs, goes with friction`);
+  const sessionsOff = await served(["session-management"]);
+  assert.ok(!sessionsOff.includes("name_session") && !sessionsOff.includes("close_out"), "Session management's verb tools go with it");
+  assert.ok(sessionsOff.includes("record_friction"), "Friction, which it stands on, stays");
 });

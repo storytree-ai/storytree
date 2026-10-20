@@ -7,6 +7,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+import { partName, type PartsGraph } from "../switch/switch.js";
+
 /** One part a story package adds: the module a host imports and the name the declarations are exported under. */
 export interface StoryPart {
   readonly package: string;
@@ -45,13 +47,27 @@ export function hostOf(from: string): string {
 const exported = (exports: unknown, from: string): boolean =>
   typeof exports === "object" && exports !== null && !Array.isArray(exports) && Object.hasOwn(exports, from);
 
-/** The parts of `kind` the story packages `host` depends on declare, lowest order first (see 1.3). */
-export function storyParts(host: string, kind: string): StoryPart[] {
+/** The story packages `host` depends on, sorted by name, each with its installed package.json. */
+function dependencies(host: string): { name: string; pkg: PackageJson | undefined }[] {
   const own = readJson(path.join(host, "package.json"));
   const names = [...new Set([...Object.keys(own.dependencies ?? {}), ...Object.keys(own.devDependencies ?? {})])].sort();
+  return names.map((name) => ({ name, pkg: installed(name, host) }));
+}
+
+const manifested = (pkg: PackageJson | undefined): boolean => typeof pkg?.storytree === "object" && pkg.storytree !== null;
+
+/** The parts `host` depends on (capability 4): each package with a manifest, by part name, with those of them its package.json depends on. */
+export function partsGraph(host: string): PartsGraph {
+  const parts = dependencies(host).filter(({ pkg }) => manifested(pkg));
+  const names = new Set(parts.map(({ name }) => name));
+  return Object.fromEntries(parts.map(({ name, pkg }) =>
+    [partName(name), Object.keys(pkg!.dependencies ?? {}).filter((one) => names.has(one)).map(partName).sort()]));
+}
+
+/** The parts of `kind` the story packages `host` depends on declare, lowest order first (see 1.3). */
+export function storyParts(host: string, kind: string): StoryPart[] {
   const found: { part: StoryPart; order: number; position: number }[] = [];
-  for (const name of names) {
-    const pkg = installed(name, host);
+  for (const { name, pkg } of dependencies(host)) {
     const manifest = pkg?.storytree;
     if (typeof manifest !== "object" || manifest === null) continue;
     const entries = (manifest as Record<string, unknown>)[kind];

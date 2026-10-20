@@ -32,9 +32,12 @@ export interface SetupToolContext {
   readonly connections: Connections;
   readonly callerOf: (context: ServerContext) => Caller;
   readonly journey?: JourneyMilestones;
+  /** The habits card this server hands as its instructions, without the parts switched off here (ADR-1095). */
+  readonly card?: string;
 }
 
-export function registerSetupTools({ server, folder, setup, connections, callerOf, journey }: SetupToolContext): void {
+export function registerSetupTools({ server, folder, setup, connections, callerOf, journey, card = habitsCard() }: SetupToolContext): void {
+  const withCard = (text: string): string => cardAfter(text, card);
   server.registerTool(
     "check_setup",
     {
@@ -220,8 +223,8 @@ function newerPackSentence({ seeded, current, factory }: StarterPackStatus): str
  * characters of a server's instructions and Codex shows none, while every agent is told to call check_setup
  * first: its answer is where the whole card reaches them.
  */
-function withCard(text: string): string {
-  return `${text}\n\nHow to work with storytree in this project, whole (your harness may have shown you only the start of it):\n\n${habitsCard()}`;
+function cardAfter(text: string, card: string): string {
+  return `${text}\n\nHow to work with storytree in this project, whole (your harness may have shown you only the start of it):\n\n${card}`;
 }
 
 /**

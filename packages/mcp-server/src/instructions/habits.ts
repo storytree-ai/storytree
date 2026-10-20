@@ -11,10 +11,13 @@
  * closing are the server's own: what storytree is and what to do when it is not running speak of storytree as a
  * whole, and belong to no one story.
  *
+ * A part this computer switches off (ADR-1095) takes its section with it, and the card names it switched off instead.
+ *
  * The card names each tool in backticks, and uses backticks for nothing else: its tests hold it to
  * naming exactly the tools the server has, within 60 lines.
  */
 import { CONTRACT_DEFINITION } from "@storytree/library";
+import { mount } from "@storytree/plugin-loader";
 import GUIDANCE from "#parts/guidance";
 
 /** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (6.57). */
@@ -24,9 +27,9 @@ const OPENING = "storytree keeps the plan of this project and records what you d
 
 const CLOSING = "If storytree says it isn't running, carry on without it.";
 
-const HABITS_CARD = [OPENING, ...GUIDANCE, CLOSING].join("\n\n");
-
-/** The habits card, as the tool server hands it to the agent. */
-export function habitsCard(): string {
-  return HABITS_CARD;
+/** The habits card, as the tool server hands it to the agent, without the sections of the parts `off` switches off. */
+export function habitsCard(off: readonly string[] = []): string {
+  const { mounted, off: switched } = mount(GUIDANCE, off);
+  const said = switched.length === 0 ? [] : [`Switched off on this computer, so not served here: ${switched.map(({ part }) => part).join(", ")}. The user switches one on with: storytree settings set part <part> on`];
+  return [OPENING, ...mounted, ...said, CLOSING].join("\n\n");
 }

@@ -430,5 +430,5 @@ test("1.21 · `storytree` mounts the families its story packages' manifests decl
     assert.match(bare.stderr, /^this needs --reason.*\nusage: storytree workspace <increment\|capability> --reason <text>/, "its bare name runs the declared verb");
   });
   assert.equal(import.meta.resolve("#parts/verbs"), new URL("./parts/verbs.ts", import.meta.url).href, "the command line's #parts/verbs is its composing module");
-  assert.deepEqual(new Set(unbundled), new Set(DECLARED));
+  assert.deepEqual(new Set(unbundled.parts), new Set(DECLARED));
 });

@@ -111,6 +111,7 @@ interface Stored {
   library?: LibraryLocation;
   surfaces?: SurfaceChoices;
   experiment?: ExperimentArm;
+  "parts-off"?: readonly string[];
 }
 
 /**
@@ -195,6 +196,43 @@ export function readExperiment(home: string = storytreeHome()): ExperimentArm | 
   } catch (error) {
     throw new Error(`Invalid settings file "${file}": ${(error as Error).message} Repair it before storytree can say which experiment arm this home runs.`, { cause: error });
   }
+}
+
+/**
+ * The story parts switched off on this computer (ADR-1092 D2, ADR-1095), by part name, sorted; none when it names none.
+ * Read on its own, like the library, since every host reads it as it starts; a damaged value is reported naming the file.
+ */
+export function readPartsOff(home: string = storytreeHome()): readonly string[] {
+  const file = path.join(home, "settings.json");
+  let text: string;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT" && lstatSync(file, { throwIfNoEntry: false }) === undefined) return [];
+    throw new Error(`Cannot read settings file "${file}": ${(error as Error).message}`, { cause: error });
+  }
+  try {
+    const stored: unknown = JSON.parse(text);
+    if (stored === null || typeof stored !== "object" || Array.isArray(stored)) throw new Error("expected a JSON object of setting names and values");
+    const value = (stored as Record<string, unknown>)[PARTS_OFF];
+    return value === undefined ? [] : checkedPartsOff(value);
+  } catch (error) {
+    throw new Error(`Invalid settings file "${file}": ${(error as Error).message} Repair it before storytree can say which parts are switched off.`, { cause: error });
+  }
+}
+
+/**
+ * Switch the story part `part` off or on for this computer, and return the parts now off. The core is refused: this
+ * story's own copy of the plugin loader's (ADR-1017 D2), which never leaves it out. Whether `part` is one a host has is
+ * the switch's to check, since only a host knows its parts.
+ */
+export function setPartOff(part: string, off: boolean, home: string = storytreeHome()): readonly string[] {
+  if (CORE.includes(part)) refuse(`${part} is the core, which every host stands on, so it is never switched off.`);
+  const stored = readStored(home);
+  const rest = (stored[PARTS_OFF] ?? []).filter((one) => one !== part);
+  const parts = off ? [...rest, part].sort() : rest;
+  write(home, { ...stored, [PARTS_OFF]: parts });
+  return parts;
 }
 
 /** Persist a user's choice in the same home as project-choice.json, after checking its type. */
@@ -353,6 +391,16 @@ function checkedExperiment(value: unknown): ExperimentArm {
   return { name, arm, denies: { tools, commands } };
 }
 
+const PARTS_OFF = "parts-off";
+
+/** The core, never switched off. */
+const CORE: readonly string[] = ["library", "project-and-caller"];
+
+function checkedPartsOff(value: unknown): readonly string[] {
+  if (!Array.isArray(value) || !value.every((one) => typeof one === "string" && one !== "")) refuse(`${PARTS_OFF} must list the names of the story parts switched off, such as ["forest"].`);
+  return [...new Set(value as string[])].sort();
+}
+
 function checkedSurfaces(value: unknown): SurfaceChoices {
   const usage = "surfaces must map each surface's id to its choices: `on` true or false, and each setting's id to the text of its choice.";
   if (value === null || typeof value !== "object" || Array.isArray(value)) return refuse(usage);
@@ -388,6 +436,10 @@ function readStored(home: string): Stored {
       }
       if (name === "experiment") {
         settings.experiment = checkedExperiment(value);
+        continue;
+      }
+      if (name === PARTS_OFF) {
+        settings[PARTS_OFF] = checkedPartsOff(value);
         continue;
       }
       checkName(name);

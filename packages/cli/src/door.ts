@@ -28,7 +28,7 @@ import type { Consumer } from "@storytree/library/verbs";
 import { Refusal, render, UnknownCommand, type Answer, type Next } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
 import { changedByQuoting } from "./handed.js";
-import { FAMILIES, GUESSES, POINTERS } from "./families/index.js";
+import { FAMILIES, familiesOff, GUESSES, POINTERS } from "./families/index.js";
 import { commandSession, commandWriter, person } from "./writer.js";
 
 /**
@@ -280,9 +280,15 @@ function verbOf(command: string): string | undefined {
 
 async function dispatch(argv: readonly string[], heard: Heard, context: Context): Promise<Answer> {
   const [first, ...rest] = argv;
-  if (first === undefined || first === "--help" || first === "-h" || first === "help") return families();
+  if (first === undefined || first === "--help" || first === "-h" || first === "help") return await families();
   if (first === "--version") return version();
   const family = FAMILIES.find((candidate) => candidate.name === first || candidate.aliases?.includes(first));
+  const off = family === undefined ? undefined : (await switchedOffNow()).get(family.name);
+  if (off !== undefined) {
+    heard.verb = `storytree ${family!.name}`;
+    const { offSaid } = await import("@storytree/plugin-loader");
+    throw new Refusal(`storytree ${family!.name} is not mounted: ${offSaid(off)}`, { next: [{ command: `storytree settings set part ${off.because} on`, why: "switch it on" }] });
+  }
   if (family === undefined) {
     if (Object.hasOwn(POINTERS, first)) return pointedBy(first, rest, heard, context);
     const named = FAMILIES.filter((candidate) => candidate.waitsOn === undefined).map((candidate) => ({ name: candidate.name, command: candidate.name }));
@@ -474,10 +480,18 @@ function helpOf(verb: Verb): Answer {
   return { text: `storytree ${verb.usage}\n    ${verb.summary}` };
 }
 
-/** `storytree` alone: the families. */
-function families(): Answer {
-  const width = Math.max(...FAMILIES.map((family) => family.name.length));
-  const lines = FAMILIES.map((family) => `  ${family.name.padEnd(width)}   ${family.summary}${family.waitsOn === undefined ? "" : " (not built yet)"}`);
+/** The declared families this computer's setting switches off (ADR-1095), read afresh for each command. */
+async function switchedOffNow(): Promise<ReturnType<typeof familiesOff>> {
+  const { readPartsOff } = await import("@storytree/project-and-caller");
+  return familiesOff(readPartsOff());
+}
+
+/** `storytree` alone: the families, but those a switched-off part declares. */
+async function families(): Promise<Answer> {
+  const off = await switchedOffNow();
+  const listed = FAMILIES.filter((family) => !off.has(family.name));
+  const width = Math.max(...listed.map((family) => family.name.length));
+  const lines = listed.map((family) => `  ${family.name.padEnd(width)}   ${family.summary}${family.waitsOn === undefined ? "" : " (not built yet)"}`);
   return {
     text: ["storytree: read and change your project's records from a terminal.", "", "Families:", ...lines].join("\n"),
     next: [{ command: "storytree <family>", why: "a family's verbs" }],

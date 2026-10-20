@@ -5,7 +5,7 @@
  * it is the app setup's setup check.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -19,10 +19,12 @@ import { decisionRights } from "@storytree/project-and-caller";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
-async function sessionStart(harness = "claude-code"): Promise<{ client: Client; harnessTools: readonly string[]; close(): Promise<void> }> {
+async function sessionStart(harness = "claude-code", off?: readonly string[]): Promise<{ client: Client; harnessTools: readonly string[]; close(): Promise<void> }> {
   // A user's folder, not this checkout: storytree's own project also serves the librarian's tools.
   const folder = mkdtempSync(path.join(tmpdir(), "habits-card-"));
-  const tools = createAgentTools({ folder, env: {} });
+  // Parts switched off are named in a storytree home of the folder's own.
+  if (off !== undefined) writeFileSync(path.join(folder, "settings.json"), JSON.stringify({ "parts-off": off }));
+  const tools = createAgentTools({ folder, env: {}, ...(off === undefined ? {} : { setup: { storytreeHome: folder } }) });
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   await tools.server.connect(serverSide);
   const client = new Client({ name: harness, version: "test" });
@@ -46,6 +48,22 @@ test("7.1 the card names every tool the server has, and no tool the server lacks
     const taught = [...new Set([...habitsCard().matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort();
     assert.deepEqual(taught, offered);
     for (const tool of ["list_own_runs", "list_all_runs", "stop_own_run", "clear_own_runs"]) assert.ok(taught.includes(tool), tool);
+  } finally {
+    await session.close();
+  }
+});
+
+test("7.12 with a part switched off, the card handed at session start leaves out its section and those of the parts standing on it, names them switched off, and names no tool the server lacks", async () => {
+  const session = await sessionStart("claude-code", ["quality-assurance"]);
+  try {
+    const card = session.client.getInstructions() ?? "";
+    const offered = (await session.client.listTools()).tools.map((tool) => tool.name).filter((tool) => !session.harnessTools.includes(tool)).sort();
+    const taught = [...new Set([...card.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort();
+    assert.deepEqual(taught.filter((tool) => !offered.includes(tool)), [], "every tool it teaches is served");
+    assert.ok(!taught.includes("quality_brief") && !offered.includes("quality_brief"), "quality assurance's tools are neither served nor taught");
+    assert.match(card, /Switched off on this computer, so not served here: app-setup, quality-assurance\. The user switches one on with: storytree settings set part <part> on/);
+    assert.equal(card, habitsCard(["quality-assurance"]));
+    assert.ok(card.length < habitsCard().length, "its section is left out");
   } finally {
     await session.close();
   }

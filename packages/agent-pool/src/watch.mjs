@@ -21,7 +21,7 @@ import { promisify } from "node:util";
 
 import { poolConfig } from "./pool-config.mjs";
 import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
-import { attempted, failedJob, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, watchReleases } from "./release-watch.mjs";
+import { attempted, failedJob, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, watchReleases } from "./release-watch.mjs";
 
 /**
  * The code the watcher runs (4.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
@@ -66,7 +66,9 @@ export function readPull(pull, { since, now, graceMs }) {
     return { state: "red", head, why: `it conflicts with main: merge origin/main and resolve the conflicts${why ? `; also ${why}` : ""}`, logs,
       checks: names, conflict: true, branch: pull.headRefName };
   }
-  if (failed.length) return { state: "red", head, why, logs, checks: names };
+  // The Actions runs its failed checks belong to, when every one names one, so the watcher can ask whether only the runner failed them (4.29).
+  const runs = failed.map((check) => /\/actions\/runs\/(\d+)\//.exec(check.detailsUrl ?? "")?.[1]);
+  if (failed.length) return { state: "red", head, why, logs, checks: names, ...(runs.every(Boolean) ? { runs: [...new Set(runs.map(Number))] } : {}) };
   const removal = pull.timelineItems?.nodes?.at(-1);
   const removedAt = Date.parse(removal?.createdAt);
   if (!pull.mergeQueueEntry && EJECTED.has(removal?.reason?.toUpperCase()) && removedAt > Date.parse(since) && now - removedAt > graceMs) {
@@ -86,7 +88,16 @@ const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(ow
 export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 10 * 60_000 }) {
   const { stdout } = await run("gh", ["api", "graphql", "-f", "owner=storytree-ai", "-f", "name=storytree", "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
     { cwd: repo, maxBuffer: 16 * 1024 * 1024 });
-  return readPull(JSON.parse(stdout).data.repository.pullRequest, { since, now: now(), graceMs });
+  const pull = readPull(JSON.parse(stdout).data.repository.pullRequest, { since, now: now(), graceMs });
+  if (pull.state !== "red" || pull.conflict || !pull.runs) return pull;
+  const runs = [];
+  for (const id of pull.runs) {
+    const one = await ghJson(repo, `${REPO}/actions/runs/${id}`);
+    const jobs = await jobsOf(repo, one);
+    runs.push({ id, attempt: one.run_attempt, status: one.status, repo: one.repository?.full_name ?? REPO.replace(/^repos\//, ""), jobs,
+      log: one.run_attempt < RUNNER_ATTEMPTS ? await failedLog(repo, one, jobs) : "" });
+  }
+  return { ...pull, runner: runnerReruns(runs) };
 }
 
 const REPO = "repos/storytree-ai/storytree";
@@ -97,9 +108,19 @@ async function jobsOf(repo, run) {
   const key = `${run.id}:${run.run_attempt}`;
   if (jobsSeen.has(key)) return jobsSeen.get(key);
   const jobs = (await ghJson(repo, `${REPO}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`)).jobs
-    .map((job) => ({ name: job.name, conclusion: job.conclusion, steps: job.steps?.length ?? 0 }));
+    .map((job) => ({ name: job.name, conclusion: job.conclusion, steps: job.steps?.length ?? 0, runner: job.runner_name ?? "" }));
   if (run.status === "completed") jobsSeen.set(key, jobs);
   return jobs;
+}
+const logsSeen = new Map();
+/** A completed attempt's failed steps' log, read once and only when a job that ran ended red (runnerFault reads it). */
+async function failedLog(repo, one, jobs) {
+  const key = `${one.id}:${one.run_attempt}`;
+  if (logsSeen.has(key)) return logsSeen.get(key);
+  if (one.status !== "completed" || !jobs.some((job) => job.steps > 0 && job.conclusion === "failure")) return "";
+  const log = (await run("gh", ["run", "view", String(one.id), "--log-failed"], { cwd: repo, maxBuffer: 64 * 1024 * 1024 }).catch(() => ({ stdout: "" }))).stdout;
+  logsSeen.set(key, log);
+  return log;
 }
 const asRun = (run, jobs) => ({ id: run.id, sha: run.head_sha, created: run.created_at, updated: run.updated_at, status: run.status,
   conclusion: run.conclusion, attempt: run.run_attempt, url: run.html_url, repo: run.repository?.full_name ?? REPO.replace(/^repos\//, ""), job: jobs && failedJob(jobs) });
@@ -117,7 +138,9 @@ export async function releasesOnGitHub({ repo, now = Date.now }) {
   }
   const main = (await ghJson(repo, `${REPO}/actions/workflows/ci.yml/runs?branch=main&event=push&per_page=30`)).workflow_runs;
   const head = main[0] && main[0].status === "completed" && main[0].conclusion !== "success" ? await jobsOf(repo, main[0]) : undefined;
-  return { release, ...judgeReleases({ release, attempts, main: main.map((run, i) => asRun(run, i === 0 ? head : undefined)), now: now() }) };
+  // Whether only the runner failed main's red head, read while it may still earn a rerun for that (4.29).
+  const fault = head && main[0].run_attempt < RUNNER_ATTEMPTS ? runnerFault(head, await failedLog(repo, main[0], head)) : null;
+  return { release, ...judgeReleases({ release, attempts, main: main.map((run, i) => i === 0 ? { ...asRun(run, head), fault } : asRun(run)), now: now() }) };
 }
 
 const recordPath = (dir, pr) => join(dir, `${pr}.json`);
@@ -239,9 +262,10 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * holds no claim on the noticeboard; a refusal that named none waits `backoff` after it and for no other fix session to run (4.14).
  * Conflicts are merged one at a time, lowest pull request first: siblings that conflict on one file would refuse
  * each other's claims if their merge sessions ran together (4.15). A hand-off on an increment that had already
- * closed has no wait to clear and nothing to close, and past its limit is only said (4.13).
+ * closed has no wait to clear and nothing to close, and past its limit is only said (4.13). A red only the runner
+ * caused (`pull.runner`, from runnerReruns) is rerun instead of fixed, bounded by its runs' attempts (4.29).
  */
-export async function watchOnce({ dir, look, storytree, startFix, alive, room, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, startFix, rerun, alive, room, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -298,6 +322,22 @@ export async function watchOnce({ dir, look, storytree, startFix, alive, room, l
       continue;
     }
     if (pull.state !== "red") continue;
+    // A red only the runner caused is rerun with no model session while its runs are below RUNNER_ATTEMPTS (4.29). A
+    // refused rerun is looked at again first, since rerun-unrun.yml may have rerun it; refused twice on one attempt, it goes on as any red.
+    if (pull.runner && rerun) {
+      const key = pull.runner.runs.map((one) => `${one.id}:${one.attempt}`).join(",");
+      if (record.rerunRefused !== key) {
+        try {
+          for (const one of pull.runner.runs) await rerun(one);
+          dated(`PR #${pr} red on the runner only (${pull.runner.why}): rerun, with no fix session`);
+        } catch (error) {
+          record.rerunRefused = key;
+          await save(dir, record);
+          dated(`PR #${pr} red on the runner only (${pull.runner.why}): the rerun was refused (${error.message.split("\n")[0]}); looking again next time`);
+        }
+        continue;
+      }
+    }
     const allowed = pull.conflict ? limit + 1 : limit;
     const last = record.fixes.at(-1);
     if (pull.conflict && last && !last.refused && !last.moved && last.head && last.head !== pull.head) {

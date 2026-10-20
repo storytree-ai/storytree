@@ -1,7 +1,8 @@
 // Capability 4 · The watcher also owns a stopped release (ADR-1032 D2). Every few minutes its look loop reads the
 // latest published release, the "Release installed app" runs and main's own CI runs from GitHub, with no model. A
-// release attempt or main's newest CI run that failed is rerun once; if releases are still stopped after that, one
-// fix session is started for the stop, and after the fix limit the owner is asked on the release arc.
+// release attempt or main's newest CI run that failed is rerun once (main's again, bounded, while only the runner
+// failed it); if releases are still stopped after that, one fix session is started for the stop, and after the fix
+// limit the owner is asked on the release arc.
 //
 // The retry lives here rather than in a workflow beside rerun-unrun.yml: the once-only retry and the alarm read the
 // same runs and the same attempt numbers, so one reader decides both and its decisions are pure and tested (4.16),
@@ -29,8 +30,49 @@ export const attempted = (jobs) => jobs.some((job) => !/^source\b/.test(job.name
 export const failedJob = (jobs) => jobs.find((job) => job.steps > 0 && RED.has(job.conclusion))?.name;
 
 /**
+ * How many attempts a CI run red only on the runner may reach before it is judged as any red is: run 39460677369 on
+ * main needed three (a browser crash at launch, then a macOS job no runner took, then green), so three reruns.
+ */
+export const RUNNER_ATTEMPTS = 4;
+/** ci.yml's jobs that only read the `platforms` jobs' result, so fail when one of those does, whatever failed it. */
+const FOLLOWERS = new Set(["verify", "automerge"]);
+
+/**
+ * Why a red run's failures are all the hosted runner's, from its jobs ({ name, conclusion, steps, runner }) and its
+ * failed steps' log (`gh run view --log-failed`, each line led by its job's name and a tab), or null when any failure
+ * may be the code's (4.29). The runner's are a job cancelled with no step run and no runner named (GitHub found no
+ * runner for it, as rerun-unrun.yml reads it) and a job whose log says the browser died of SIGSEGV at launch, before
+ * any of our code ran in it (apps/desktop/src/capture/launch.ts). A job that failed beside that crash for another
+ * reason still reads as the runner's; the bound on attempts is what keeps that from rerunning forever.
+ */
+export function runnerFault(jobs, log = "") {
+  const red = jobs.filter((job) => RED.has(job.conclusion) && !FOLLOWERS.has(job.name));
+  if (!red.length) return null;
+  const why = [];
+  for (const job of red) {
+    const said = log.split("\n").filter((line) => line.startsWith(`${job.name}\t`)).join("\n");
+    if (job.conclusion === "cancelled" && !job.steps && !job.runner) why.push(`${job.name}: no runner took it`);
+    else if (/browserType\.launch\b/.test(said) && /signal=SIGSEGV/.test(said)) why.push(`${job.name}: the browser crashed at launch`);
+    else return null;
+  }
+  return why.join("; ");
+}
+
+/** A pull request's failed CI runs ({ id, attempt, status, jobs, log }) to rerun because only the runner failed each, below RUNNER_ATTEMPTS; null when any is the code's or spent (4.29). */
+export function runnerReruns(runs) {
+  if (!runs.length) return null;
+  const why = [];
+  for (const run of runs) {
+    const fault = run.status === "completed" && run.attempt < RUNNER_ATTEMPTS && runnerFault(run.jobs, run.log);
+    if (!fault) return null;
+    why.push(fault);
+  }
+  return { runs, why: why.join("; ") };
+}
+
+/**
  * From the latest published release ({ tag, sha, at }), the release runs that attempted a release and main's push CI
- * runs (each newest first: { id, sha, created, updated, status, conclusion, attempt, url, job }), decide what to rerun
+ * runs (each newest first: { id, sha, created, updated, status, conclusion, attempt, url, job, fault }), decide what to rerun
  * and whether releases are stopped. Only attempts made since the latest release, and the run that published it, count:
  * an older one is no part of this stop, and rerunning it could publish an older build. While a rerun is running nothing
  * is alarmed.
@@ -46,8 +88,9 @@ export function judgeReleases({ release, attempts, main, now, limitMs = RELEASE_
   if (since[0]?.status === "completed" && RED.has(since[0].conclusion) && since[0].attempt === 1) {
     reruns.push({ what: "release", run: since[0], why: `release run ${since[0].id} ended ${since[0].conclusion}` });
   }
-  if (head?.status === "completed" && MAIN_RED.has(head.conclusion) && head.attempt === 1) {
-    reruns.push({ what: "main", run: head, why: `main's CI run ${head.id} on ${head.sha.slice(0, 8)} ended ${head.conclusion}` });
+  // A red only the runner caused (its `fault`, from runnerFault) is rerun again, up to RUNNER_ATTEMPTS (4.29).
+  if (head?.status === "completed" && MAIN_RED.has(head.conclusion) && (head.attempt === 1 || (head.fault && head.attempt < RUNNER_ATTEMPTS))) {
+    reruns.push({ what: "main", run: head, why: `main's CI run ${head.id} on ${head.sha.slice(0, 8)} ended ${head.conclusion}${head.fault ? ` on the runner (${head.fault})` : ""}` });
   }
   const retrying = [since[0], head].some((run) => run && run.attempt > 1 && run.status !== "completed");
   if (reruns.length || retrying) return { reruns, alarm: null };

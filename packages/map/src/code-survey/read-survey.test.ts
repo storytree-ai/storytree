@@ -12,7 +12,7 @@ import { test } from "node:test";
 
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
-import { capabilitiesOfFiles, codeSurveyReader, offThreadSurveyReader, readCodeSurvey, testedNumbers } from "./read-survey.js";
+import { capabilitiesOfFiles, codeSurveyReader, offThreadSurveyReader, readCodeSurvey, testedNumbers, untestedContracts } from "./read-survey.js";
 import { focusProject } from "../read.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
 import "./survey-worker.js";
@@ -799,6 +799,24 @@ test("8.30 a story that owns several packages has each package's files surveyed 
       ["packages/shop-store/src/store.ts", { capability: "cap-store", inferred: true }],
     ]);
     assert.deepEqual(await testedNumbers(folder, plan, "cap-store", { alsoOwned }), ["2.1", "2.2"]);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("8.32 a numbered test carries its contract's number whatever its test file's script extension, so the untested list never names it", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-extensions-"));
+  const contracts = ["1.1 · ts", "1.2 · mjs", "1.3 · cjs", "1.4 · mts", "1.5 · none"].map((title) => ({ title }));
+  const plan = { arcs: [], stories: [{ id: "story-lanes", title: "Lanes", capabilities: [{ id: "cap-run", title: "1 · Run", contracts }] }] } as unknown as AnnotatedTree;
+  try {
+    await mkdir(path.join(folder, "packages/lanes/src"), { recursive: true });
+    await writeFile(path.join(folder, "packages/lanes/src/run.mjs"), "export const run = 1;\n");
+    for (const [extension, number] of [["ts", "1.1"], ["mjs", "1.2"], ["cjs", "1.3"], ["mts", "1.4"]]) {
+      await writeFile(path.join(folder, `packages/lanes/src/run.test.${extension}`), `import { run } from "./run.mjs";\ntest("${number} · runs", () => run);\n`);
+    }
+    const tested = await testedNumbers(folder, plan, "cap-run");
+    assert.deepEqual([...tested].sort(), ["1.1", "1.2", "1.3", "1.4"]);
+    assert.deepEqual(untestedContracts(plan, "cap-run", tested), ["1.5 · none"]);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

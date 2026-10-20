@@ -88,16 +88,17 @@ test("3.1 an unbundled host importing #parts/<kind>, which its imports map to it
   assert.deepEqual(composed.pages.parts, []);
 });
 
-test("4.1 a composed list names the part each declaration came from, by package name without its scope, and the host's parts graph: each package with a manifest and those of them it depends on", async (t) => {
+test("4.1 a composed list names the part each declaration came from, by package name without its scope, and the host's parts graph: each package with a manifest, those it reaches only through one of them included, and the parts it depends on", async (t) => {
   const dir = host(t, [
-    surfaces("@s/forest", "forestSurfaces", ["globe", "library"], 1, ["@s/library", "left-pad"]),
+    surfaces("@s/forest", "forestSurfaces", ["globe", "library"], 1, ["@s/library", "@s/friction", "left-pad"]),
     surfaces("@s/arcs", "arcSurfaces", ["arcs"], 2, ["@s/forest"]),
     { name: "@s/library", exports: { ".": "./index.js" }, manifest: {} },
+    { name: "@s/friction", exports: { ".": "./index.js" }, manifest: {}, dependencies: ["@s/library"] },
     { name: "left-pad", exports: { ".": "./index.js" } },
-  ]);
+  ], ["@s/forest", "@s/arcs", "@s/library", "left-pad"]);
   const composed = await composeParts(path.join(dir, "entry.js"), "surfaces");
   assert.deepEqual(composed.owners, ["forest", "forest", "arcs"]);
-  assert.deepEqual(composed.graph, { arcs: ["forest"], forest: ["library"], library: [] });
+  assert.deepEqual(composed.graph, { arcs: ["forest"], forest: ["friction", "library"], friction: ["library"], library: [] });
 });
 
 test("4.2 a host mounts every declaration but those of a part the setting names off and of every part standing on it, however deep, each said off because of the named one; the core and names the host lacks are ignored", () => {

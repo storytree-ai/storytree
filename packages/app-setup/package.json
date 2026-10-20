@@ -2,6 +2,9 @@
   "name": "@storytree/app-setup",
   "private": true,
   "type": "module",
+  "imports": {
+    "#parts/hooks": "./src/bins/parts/hooks.ts"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./bridge": "./src/help/bridge.ts",

@@ -1,6 +1,15 @@
-/** Capability 8 · Setup check: contract 8.25, the file-to-capability lookup the hook command setup registers gives the gate before each edit. */
+/**
+ * Capability 8 · Setup check: contract 8.25, the file-to-capability lookup the hook command setup registers gives the gate
+ * before each edit; contract 8.34, the hook command runs none of Session management's work while that part is switched off.
+ */
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import type { AnnotatedTree } from "@storytree/library";
 
@@ -17,4 +26,21 @@ test("8.25 the hook command setup registers places an edited file in its capabil
   };
   const placed = await declaredCapabilities("/nowhere", Object.keys(texts), tree, (file) => texts[file]!);
   assert.deepEqual(Object.fromEntries(placed), { [`${src}/form.ts`]: "cap_form", [`${src}/reset.test.ts`]: "cap_reset" });
+});
+
+test("8.34 with Session management switched off on this computer, or a part it stands on, the hook command setup registers runs none of its work: it prints and records nothing, where switched on it records its time", { timeout: 60_000 }, async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-hook-off-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const entry = fileURLToPath(new URL("./storytree-hook.ts", import.meta.url));
+  const hookIn = async (partsOff: readonly string[]): Promise<{ stdout: string; home: string[] }> => {
+    const home = mkdtempSync(path.join(dir, "home-"));
+    writeFileSync(path.join(home, "settings.json"), JSON.stringify({ "parts-off": partsOff }));
+    const child = promisify(execFile)(process.execPath, ["--import", import.meta.resolve("tsx"), entry, "claude-code"], { cwd: dir, env: { ...process.env, STORYTREE_HOME: home }, timeout: 30_000 });
+    child.child.stdin!.end(JSON.stringify({ hook_event_name: "SessionEnd", session_id: "session-off", cwd: dir }));
+    const { stdout } = await child;
+    return { stdout, home: readdirSync(home).sort() };
+  };
+  assert.deepEqual(await hookIn(["session-management"]), { stdout: "", home: ["settings.json"] });
+  assert.deepEqual(await hookIn(["friction"]), { stdout: "", home: ["settings.json"] }, "off because a part it stands on is off");
+  assert.ok((await hookIn(["forest"])).home.includes("hook-times.jsonl"), "switched on, it runs and records how long it took");
 });

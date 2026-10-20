@@ -40,6 +40,12 @@
     "typescript": "~7.0.2"
   },
   "storytree": {
+    "hooks": [
+      {
+        "from": "./hook-command",
+        "export": "HOOK_COMMANDS"
+      }
+    ],
     "tools": [
       {
         "from": ".",

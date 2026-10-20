@@ -67,6 +67,9 @@ export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabil
   });
 }
 
+/** The hook command as the part a hook entry mounts (ADR-1021): switched off with this story, an entry runs none of it (ADR-1095). */
+export const HOOK_COMMANDS: readonly (typeof hookCommand)[] = [hookCommand];
+
 /** Start this script again for `harness` with `flags`, detached, with `input` on its stdin, and resolve once it has the input. */
 function handOff(harness: string, input: string, flags: readonly string[] = []): Promise<void> {
   return new Promise((resolve) => {

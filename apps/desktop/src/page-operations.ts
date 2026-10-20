@@ -4,6 +4,7 @@
  * methods here, and the main process's answers. Data and functions only: safe for the page, the preload and the main process.
  */
 import type { AnnotatedTree } from "@storytree/library";
+import { mount, offSaid, type Composition } from "@storytree/plugin-loader/switch";
 
 /** A story's page operations: each method of its bridge, and the channel that method travels on. */
 export type PageChannels<Bridge> = { readonly [Method in keyof Bridge]: string };
@@ -57,10 +58,21 @@ export interface PageFrame {
 /** A story's page part, as its manifest's `pageAnswers` names it: given the frame, its channels and the answers to them, or none here. */
 export type PagePart = (frame: PageFrame) => { readonly channels: PageChannelMap; readonly answers: object } | undefined;
 
-/** The main process answers every page part's channels, each made with the frame. */
-export function answerPageParts(handlers: PageHandlers, parts: readonly PagePart[], frame: PageFrame): void {
-  for (const part of parts) {
+/**
+ * The main process answers every page part's channels, each made with the frame, but those of a part `off` switches off
+ * (ADR-1095): the page still has their channels, so each is answered with a refusal saying the part is off and how to
+ * switch it on, rather than left unanswered.
+ */
+export function answerPageParts(handlers: PageHandlers, parts: Composition<PagePart>, channels: Composition<PageChannelMap>, frame: PageFrame, off: readonly string[] = []): void {
+  const { mounted, off: switched } = mount(parts, off);
+  for (const part of mounted) {
     const page = part(frame);
     if (page !== undefined) answerPage(handlers, page.channels, page.answers as { readonly [method: string]: (...args: never[]) => unknown });
+  }
+  for (const each of switched) {
+    const refused = () => Promise.reject(new Error(offSaid(each)));
+    for (const [index, map] of channels.parts.entries()) {
+      if (channels.owners[index] === each.part) for (const channel of Object.values(map)) handlers.handle(channel, refused);
+    }
   }
 }

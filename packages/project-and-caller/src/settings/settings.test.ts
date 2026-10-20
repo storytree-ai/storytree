@@ -270,3 +270,32 @@ test("2.15 settings.json may name the experiment and arm a lane runs in, and the
     }
   });
 });
+
+test("2.16 settings.json may name the story parts switched off on this computer: switched off and on by name, read back sorted, the other settings untouched; the core is refused with the reason, and a damaged value is reported naming the file", async () => {
+  await withTempDir((home) => {
+    const file = path.join(home, "settings.json");
+    assert.deepEqual(agentLink.readPartsOff(home), [], "no settings file: nothing off");
+    agentLink.setSetting("idle-after", "10m", home);
+    assert.deepEqual(agentLink.setPartOff("forest", true, home), ["forest"]);
+    assert.deepEqual(agentLink.setPartOff("arc-surface", true, home), ["arc-surface", "forest"]);
+    assert.deepEqual(agentLink.setPartOff("forest", true, home), ["arc-surface", "forest"], "switching an off part off again changes nothing");
+    assert.deepEqual(agentLink.readPartsOff(home), ["arc-surface", "forest"]);
+    assert.equal(agentLink.readSettings(home)["idle-after"].value, "10m", "the other settings still read beside it");
+    assert.deepEqual(agentLink.setPartOff("forest", false, home), ["arc-surface"]);
+
+    for (const core of ["library", "project-and-caller"]) {
+      assert.throws(() => agentLink.setPartOff(core, true, home), new RegExp(`${core} is the core`));
+    }
+    assert.deepEqual(agentLink.readPartsOff(home), ["arc-surface"], "a refused switch writes nothing");
+
+    for (const damaged of ["forest", [""], [1], null]) {
+      writeFileSync(file, JSON.stringify({ "parts-off": damaged }));
+      for (const read of [() => agentLink.readPartsOff(home), () => agentLink.readSettings(home)]) {
+        assert.throws(read, (error: unknown) => {
+          assert.ok(error instanceof Error && error.message.includes(file) && /parts-off/.test(error.message), String(error));
+          return true;
+        }, JSON.stringify(damaged));
+      }
+    }
+  });
+});

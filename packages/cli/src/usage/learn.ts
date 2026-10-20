@@ -105,6 +105,8 @@ export interface Lesson {
   readonly pointers: readonly NewPointer[];
   readonly fallbacks: readonly Fallback[];
   readonly cuts?: readonly CutGroup[];
+  /** The agent-only verbs with no call in the 28 days, grouped as cuts are, whatever the sessions; absent when the lines do not cover the window. */
+  readonly unused?: readonly CutGroup[];
   readonly gaps: readonly Gap[];
 }
 
@@ -138,6 +140,7 @@ export function learnDoors(lines: readonly DoorLine[], surfaces: Surfaces, since
     }),
     fallbacks: fallbacks(lines, pointers),
     ...(covered && sessions >= BARS.cutSessions ? { cuts } : {}),
+    ...(covered ? { unused: cuts } : {}),
     gaps,
   };
 }

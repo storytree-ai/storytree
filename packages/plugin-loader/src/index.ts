@@ -2,3 +2,4 @@
 export { storyParts, type StoryPart } from "./manifests/manifests.js";
 export { partsPlugin, type PartsPlugin } from "./compose/parts-plugin.js";
 export { composeParts } from "./runtime/compose-parts.js";
+export { CORE, mount, offSaid, partName, switchedOff, type Composition, type PartsGraph, type SwitchedOff } from "./switch/switch.js";

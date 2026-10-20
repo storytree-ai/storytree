@@ -143,9 +143,10 @@ foreach ($entry in $entries) {
   const env = { ...process.env };
   // A parent PowerShell 7's module path can break Windows PowerShell 5's built-in cmdlets.
   for (const key of Object.keys(env)) if (key.toUpperCase() === "PSMODULEPATH") delete env[key];
+  // Starting PowerShell 5 and compiling the type above has passed 30 s on a loaded Windows CI runner.
   execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
     ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
-    { input: JSON.stringify(entries), env, windowsHide: true, timeout: 30_000, stdio: ["pipe", "pipe", "pipe"] });
+    { input: JSON.stringify(entries), env, windowsHide: true, timeout: 120_000, stdio: ["pipe", "pipe", "pipe"] });
 }
 
 /** When a project's newest successful snapshot was taken, read from its file name; undefined when it has none. */

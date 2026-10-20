@@ -154,6 +154,9 @@ importers:
       '@storytree/mark':
         specifier: workspace:*
         version: link:../mark
+      '@storytree/plugin-loader':
+        specifier: workspace:*
+        version: link:../plugin-loader
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller

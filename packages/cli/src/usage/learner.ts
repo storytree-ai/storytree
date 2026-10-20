@@ -15,10 +15,12 @@
  *   increment held on it, question first, so the pool cannot take it. A group with an open question is not raised again;
  *   one whose question is answered is raised again only for verbs that question did not name.
  * - Door gaps are reported in the drain's answer, never cut.
+ * - Last, the weekly doors check (./doors-check.ts, ADR-1090 D2) runs when a week has passed since the last one.
  */
 import type { Library, NewLine, SchemaRecord, WriteOptions } from "@storytree/library";
 import { CaptureError, recordFriction, reinforceFriction } from "@storytree/session-management/friction";
 
+import { checkDoors } from "./doors-check.js";
 import { BARS, evidenceOf, learnDoors, type Candidate, type CutGroup, type Fallback, type NewPointer, type Pointer, type Surfaces, type Want } from "./learn.js";
 import { doorLineOf, type DoorsLog } from "./read.js";
 import type { DoorLine } from "./reading.js";
@@ -65,6 +67,7 @@ export async function learnInDrain(world: LearnerWorld): Promise<string[]> {
     : await raiseCuts(world, lesson.cuts, lesson.sessions));
   for (const gap of lesson.gaps.slice(0, GAPS_SHOWN)) said.push(`  Door gap, not cut: ${gap.unused} has no call while ${gap.carriedBy} carries it (${gap.calls}).`);
   if (lesson.gaps.length > GAPS_SHOWN) said.push(`  ${lesson.gaps.length - GAPS_SHOWN} more door gaps: storytree doors --days ${BARS.days}.`);
+  said.push(...await checkDoors(world, lesson, pointers, { want: (where, word) => wantTitle({ where, word }), cut: cutTitle }));
   return said;
 }
 

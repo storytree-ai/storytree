@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { attempted, judgeReleases, RELEASE_LIMIT_MS, watchReleases } from "./release-watch.mjs";
+import { attempted, judgeReleases, RELEASE_LIMIT_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, watchReleases } from "./release-watch.mjs";
 
 const at = Date.parse("2026-10-13T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -70,6 +70,44 @@ test("4.16 · a stopped release is rerun once, then judged an alarm; a quiet mai
   const late = judge({ main: green, now: 5 + 15 + limit + 1 });
   assert.equal(late.alarm.run.id, 2);
   assert.match(late.alarm.why, /green on main .* in no published release/);
+});
+
+test("4.29 · a red only the runner caused (no runner took a job, the browser crashed at launch) is told apart from a code red and rerun, bounded", () => {
+  const ran = (name, conclusion = "success") => ({ name, conclusion, steps: 9, runner: "GitHub Actions 7" });
+  const unrun = { name: "verify on macOS", conclusion: "cancelled", steps: 0, runner: "" };
+  const crashed = ran("verify on macOS", "failure");
+  const follower = ran("verify", "failure");
+  const crash = "verify on macOS\ttest\t2026-10-20T10:00:00Z browserType.launch: Target page, context or browser has been closed\n"
+    + "verify on macOS\ttest\t2026-10-20T10:00:00Z <process did exit: exitCode=null, signal=SIGSEGV>";
+  // run 39460677369's two attempts: each is the runner's, and `verify`, which only reads the platforms, follows them.
+  assert.match(runnerFault([ran("verify on Linux"), unrun, follower]), /verify on macOS: no runner took it/);
+  assert.match(runnerFault([ran("verify on Linux"), crashed, follower], crash), /verify on macOS: the browser crashed at launch/);
+  // A job that ran and failed for any other reason is the code's, even beside a runner's failure.
+  assert.equal(runnerFault([ran("verify on Linux"), crashed, follower], "verify on macOS\ttest\tAssertionError: 3.55 expected 2"), null);
+  assert.equal(runnerFault([ran("verify on Windows", "failure"), unrun, follower], crash), null);
+  assert.equal(runnerFault([{ ...unrun, steps: 4, runner: "GitHub Actions 3" }]), null, "a job the time limit cancelled ran");
+  // The crash said by another job does not excuse this one.
+  assert.equal(runnerFault([crashed], crash.replaceAll("verify on macOS", "verify on Linux")), null);
+  assert.equal(runnerFault([ran("verify on Linux")]), null, "nothing red");
+
+  // A pull request's red runs are rerun while each is the runner's and below the bound; one code red or a spent bound reruns none.
+  const run = (id, attempt, jobs, log = "") => ({ id, attempt, status: "completed", jobs, log });
+  assert.deepEqual(runnerReruns([run(5, 2, [unrun, follower])])?.runs.map((one) => one.id), [5]);
+  assert.equal(runnerReruns([run(5, RUNNER_ATTEMPTS, [unrun, follower])]), null);
+  assert.equal(runnerReruns([run(5, 1, [unrun]), run(6, 1, [ran("lint", "failure")])]), null);
+  assert.equal(runnerReruns([]), null);
+
+  // Main's CI red on the runner is rerun past its once-only retry, up to the bound; a code red is not.
+  const head = (attempt, fault) => [{ ...mainRun({ id: 3, sha: "c2", created: 10, conclusion: "failure", attempt, job: "verify on macOS" }), fault },
+    mainRun({ id: 1, sha: "c0", created: -20 })];
+  const again = judge({ main: head(2, "verify on macOS: no runner took it") });
+  assert.deepEqual(again.reruns.map((rerun) => [rerun.what, rerun.run.id]), [["main", 3]]);
+  assert.match(again.reruns[0].why, /no runner took it/);
+  assert.equal(again.alarm, null);
+  assert.deepEqual(judge({ main: head(2) }).reruns, []);
+  const spent = judge({ main: head(RUNNER_ATTEMPTS, "verify on macOS: no runner took it") });
+  assert.deepEqual(spent.reruns, []);
+  assert.match(spent.alarm.why, /main's CI/);
 });
 
 async function box(t, { judged, release: latest = release } = {}) {

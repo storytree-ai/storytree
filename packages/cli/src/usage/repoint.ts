@@ -6,7 +6,8 @@
  *   command that answered. A refused or failed next call, or a tool, teaches nothing.
  * - Offered: a mistake (a real verb, of either door, in the wrong place) leads with the right command for its job, the
  *   learned one first, else the hand-picked one; the rest, and every hint of a guess (a verb nowhere), are the most
- *   learned, then the hand-picked, then the nearest by spelling, rotated by `turn` so position does not choose.
+ *   learned, then the hand-picked, then the nearest by spelling, rotated by `turn` so position does not choose. The
+ *   hand-picked one always keeps a place, however many were learned.
  */
 import type { DoorLine } from "./reading.js";
 
@@ -43,7 +44,10 @@ export function repointHints(candidates: { readonly right?: Hint; readonly learn
     seen.add(hint.command);
     rest.push(hint);
   }
-  const offered = rest.slice(0, right === undefined ? MOST : MOST - 1);
+  const room = right === undefined ? MOST : MOST - 1;
+  // The hand-picked command keeps the last place when the learned ones would crowd it out.
+  const picked = rest.findIndex((hint) => hint.command === handPicked?.command);
+  const offered = picked >= room ? [...rest.slice(0, room - 1), rest[picked]!] : rest.slice(0, room);
   const shift = offered.length === 0 ? 0 : ((turn % offered.length) + offered.length) % offered.length;
   return [...(right === undefined ? [] : [right]), ...offered.slice(shift), ...offered.slice(0, shift)];
 }

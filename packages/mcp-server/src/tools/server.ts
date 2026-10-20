@@ -41,11 +41,11 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { callLines, endMergedClaims, type ActivityLog, type MergeWatch } from "@storytree/session-management";
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
 import { verdictOf } from "@storytree/experiments";
-import { findProject, idleAfterMs, locateStorytree, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
+import { findProject, idleAfterMs, locateStorytree, readPartsOff, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
+import { mount } from "@storytree/plugin-loader";
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
-import { FRICTION_TOOLS } from "@storytree/session-management/friction/verbs";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
 import { appDatabaseWork } from "@storytree/session-management/processes/listing";
 import type { z } from "zod";
@@ -53,13 +53,14 @@ import type { z } from "zod";
 // The other stories' tools (ADR-0643 D6), in their manifests' order: the plugin loader composes them from the
 // manifests of the story packages this server depends on (ADR-1021).
 import TOOL_PARTS from "#parts/tools";
+import VERB_PARTS from "#parts/verbs";
 
 import { habitsCard } from "../instructions/habits.js";
 import { failureOf, isUnreachable, libraryDown, NOT_RUNNING_ANSWER, outcomeOf, refusalOf, result, type Answer, type DoorOutcome } from "./answers.js";
 import { registerClaimTools } from "./claim-tools.js";
 import { registerContextTools } from "./context-tools.js";
 import { Connections } from "./connections.js";
-import { mountTools } from "./mount.js";
+import { mountTools, verbsOf } from "./mount.js";
 import { registerPlanTools } from "./plan-tools.js";
 import { registerMapTools } from "./map-tools.js";
 import { registerSetupTools, registerStarterPackTool, type SetupToolOptions } from "./setup-tools.js";
@@ -185,11 +186,17 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   // Who calls each tool, where it is not both: setting up a project is the user's ask (the habits card's).
   const consumers = new Map<string, readonly Consumer[]>([["set_up_project", ["user"]]]);
   const host: ToolHost = { project: findProject(options.folder).project, tools: () => servedTools };
+  // The machine whose approved trunks let this folder reach its project (ADR-0942): the home setup records them in.
+  const home = options.setup?.storytreeHome ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
+  // The parts this computer switches off (ADR-1095), read as the server starts: their tools are not served, and the card
+  // leaves out their sections and names them, so an agent asks for none of them.
+  const off = readPartsOff(home);
   const extensions = [
-    ...TOOL_PARTS.flatMap((part) => part(host) ?? []),
+    ...mount(TOOL_PARTS, off).mounted.flatMap((part) => part(host) ?? []),
     ...options.extensions ?? [],
   ];
-  const instructions = [habitsCard(), ...extensions.flatMap((extension) => extension.instructions === undefined ? [] : [extension.instructions])].join("\n");
+  const card = habitsCard(off);
+  const instructions = [card, ...extensions.flatMap((extension) => extension.instructions === undefined ? [] : [extension.instructions])].join("\n");
   const server = new McpServer({ name: "storytree", version: "0.3.0" }, { instructions });
   const connections = new Connections();
   const env = options.env ?? process.env;
@@ -197,8 +204,6 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   const ownSession = `storytree-mcp-${randomUUID()}`;
   const locate: LocateOptions = options.dataDir === undefined ? {} : { dataDir: options.dataDir };
   const callerOf = (context: ServerContext): Caller => callerFrom(server, context, env, ownSession);
-  // The machine whose approved trunks let this folder reach its project (ADR-0942): the home setup records them in.
-  const home = options.setup?.storytreeHome ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
 
   const define: Define = (name, description, input, act, defined = {}) => {
     servedTools.push(name);
@@ -287,6 +292,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     setup: { ...(options.dataDir === undefined ? {} : { storytreeHome: path.dirname(options.dataDir) }), ...options.setup },
     connections,
     callerOf,
+    card,
     ...(options.journey === undefined ? {} : { journey: options.journey }),
   });
   registerStarterPackTool(define);
@@ -322,11 +328,14 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   });
   registerClaimTools(define, extensions, options.merges);
   registerWorkTools(define);
-  // The library's artifact tools, declared in The library (ADR-1035 D3), and Friction's, declared in Friction (ADR-1077 D1).
+  // The library's artifact tools, declared in The library (ADR-1035 D3), which is core.
   mountTools(define, NOTE_TOOLS);
-  mountTools(define, FRICTION_TOOLS);
   registerPipelineTools(define, options.protection);
-  registerContextTools(define, options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir)));
+  const verbHome = options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir));
+  registerContextTools(define, verbHome);
+  // Every verb a mounted part's command families declare a tool for (Friction's, Session management's), from their
+  // manifests: a part switched off takes its tools with it (ADR-1095).
+  mountTools(define, mount(VERB_PARTS, off).mounted.flatMap(verbsOf), verbHome);
   for (const extension of extensions) extension.registerTools?.(define);
   for (const extension of extensions) extension.registerHarnessTools?.(defineForHarness);
 

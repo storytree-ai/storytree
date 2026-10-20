@@ -27,6 +27,15 @@ export const declaredCapabilities = async (checkout: string, files: readonly str
 // Claude Code stops by SIGTERM is deaf to it before the rest of the command loads (a separate chunk, imported after).
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   deafIfHandingOffAtOnce();
-  const { hookCommand } = await import("@storytree/session-management/hook-command");
-  hookCommand({ declaredCapabilities });
+  const [{ default: hooks }, { mount }, { readPartsOff }] = await Promise.all([import("#parts/hooks"), import("@storytree/plugin-loader/switch"), import("@storytree/project-and-caller")]);
+  for (const hookCommand of mount(hooks, partsOff(readPartsOff)).mounted) hookCommand({ declaredCapabilities });
+}
+
+/** The parts this computer switches off; a damaged setting switches none off here, since a hook never stops the agent beside it. */
+function partsOff(read: () => readonly string[]): readonly string[] {
+  try {
+    return read();
+  } catch {
+    return [];
+  }
 }

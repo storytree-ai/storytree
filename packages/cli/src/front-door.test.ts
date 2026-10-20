@@ -28,7 +28,8 @@ import { ARC_FAMILIES } from "@storytree/arc-surface/verbs";
 import { LIBRARY_FAMILIES } from "@storytree/library/commands";
 import type { Reading } from "./usage/reading.js";
 
-import { FAMILIES } from "./families/index.js";
+import type { Family } from "./door.js";
+import { FAMILIES, inOrder } from "./families/index.js";
 import unbundled from "./parts/verbs.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
@@ -111,7 +112,7 @@ test("1.5 `storytree` alone lists the families", async () => {
   });
 });
 
-test("1.6 `--help` after a command prints its usage and summary, and runs nothing", async () => {
+test("1.6 `--help` after a command prints its usage and summary, and runs nothing; an inner family's help heads with its full path", async () => {
   await inWorld(command, async (world) => {
     // In a folder that is no project, and without the --arc it needs: run, it would refuse.
     const ran = await storytree(command.script, ["question", "new", "--help"], { cwd: world.elsewhere, home: world.home });
@@ -119,6 +120,10 @@ test("1.6 `--help` after a command prints its usage and summary, and runs nothin
     assert.equal(ran.code, 0, ran.stderr);
     assert.match(ran.stdout, /storytree question new --arc <arc>/);
     assert.match(ran.stdout, /raise a question for the owner/);
+
+    const inner = await storytree(command.script, ["experiment", "arm", "--help"], { cwd: world.elsewhere, home: world.home });
+    assert.equal(inner.code, 0, inner.stderr);
+    assert.match(inner.stdout, /^storytree experiment arm: /);
   });
 });
 
@@ -131,6 +136,14 @@ test("1.7 a command it does not have answers with the real command for that job,
       [["arc", "increment", "ready", "x"], /ADR-0909 retired[^\n]*claiming a proposal starts it[\s\S]*storytree workspace <increment\b/],
       [["claim", "x"], /storytree workspace <increment\b/],
       [["board"], /storytree noticeboard/],
+      // `plan` is a read unless its next word names what to plan: the plan_* tools' twins.
+      [["plan"], /: run storytree tree \[<story>\]/],
+      [["plan", "show"], /: run storytree tree \[<story>\]/],
+      [["plan", "--help"], /: run storytree tree \[<story>\]/],
+      [["plan", "contract", "--help"], /: run storytree library new contract --capability <capability>/],
+      [["plan", "story"], /: run storytree library new <story\|capability\|contract>/],
+      [["plan", "arc"], /: run storytree arc new --title <t>/],
+      [["plan", "increment"], /: run storytree arc increment new --arc <arc>/],
       [["library", "serch", "mailer"], /storytree library search <words…>/],
       [["questoin", "list"], /storytree question\b/],
     ];
@@ -395,14 +408,16 @@ test("1.19 storytree lag prints Lag in real use's report over the lag readings k
   });
 });
 
-test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: the library's library 1st, CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the library core's adr 4th with its guesses, Friction's friction and resteer 13th and 14th, the app setup's doctor 8th and setup, project and import 20th to 22nd, Processes' processes 24th, the Experiments story's experiment 27th, Session management's workspace among the rest, its bare name making a workspace, and its session and machine last", async () => {
+test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: the library's library 1st, CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the library core's adr 4th with its guesses, Friction's friction and resteer 13th and 14th, the app setup's doctor 8th and setup, project and import 20th to 22nd, Processes' processes 24th, the Experiments story's experiment 27th, Session management's workspace among the rest, its bare name making a workspace, each listed in ascending order of its place, so a family at an unused or fractional place moves no other", async () => {
   await inWorld(command, async (world) => {
     const listed = await world.run([]);
     assert.equal(listed.code, 0, listed.stderr);
     const names = [...listed.stdout.split("Families:")[1]!.split("next:")[0]!.matchAll(/^  ([\w-]+) /gm)].map((line) => line[1]);
     assert.deepEqual(names, FAMILIES.map((family) => family.name), "the bundle lists the families in the order run unbundled");
-    for (const family of DECLARED) assert.equal(names.indexOf(family.name) + 1, family.order, `${family.name} at its place`);
-    assert.deepEqual(names.slice(-2), ["session", "machine"]);
+    const declaredNames = new Set(DECLARED.map((family) => family.name));
+    assert.deepEqual(names.filter((name) => declaredNames.has(name)), [...DECLARED].sort((a, b) => a.order - b.order).map((family) => family.name), "the declared families in ascending order of their places");
+    const at = (name: string, order: number) => ({ order, family: { name } as Family });
+    assert.deepEqual(inOrder([at("library", 1), at("doors", 6), at("arc", 2), at("new", 6.5), at("late", 40)]).map((family) => family.name), ["library", "arc", "doors", "new", "late"], "a family at an unused or fractional place moves no other");
 
     const quit = await world.run(["app", "quit", "extra"]);
     assert.equal(quit.code, 2, quit.stderr);
@@ -423,5 +438,5 @@ test("1.21 · `storytree` mounts the families its story packages' manifests decl
     assert.match(bare.stderr, /^this needs --reason.*\nusage: storytree workspace <increment\|capability> --reason <text>/, "its bare name runs the declared verb");
   });
   assert.equal(import.meta.resolve("#parts/verbs"), new URL("./parts/verbs.ts", import.meta.url).href, "the command line's #parts/verbs is its composing module");
-  assert.deepEqual(new Set(unbundled), new Set(DECLARED));
+  assert.deepEqual(new Set(unbundled.parts), new Set(DECLARED));
 });

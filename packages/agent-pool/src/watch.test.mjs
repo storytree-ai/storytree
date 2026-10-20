@@ -626,3 +626,38 @@ test("4.28 · every start of the watcher writes the one log its status names, th
   assert.deepEqual(started, [log], "a hand-over that starts the watcher sends its output to the log");
   assert.ok(outs.includes(`log: ${log}`), outs.join("\n"));
 });
+
+test("4.29 · a pull request red only on the runner is rerun with no fix session; a refused rerun falls to one on its second look", async (t) => {
+  const b = await box(t);
+  const reruns = [];
+  let refuse = false;
+  b.options.rerun = async (run) => { if (refuse) throw new Error("run 5 cannot be rerun"); reruns.push(run.id); };
+  await handOff(b);
+  const runner = { runs: [{ id: 5, attempt: 1, repo: "storytree-ai/storytree" }], why: "verify on macOS: no runner took it" };
+  b.looks[41] = { ...red, why: "verify on macOS failed", runner };
+  await watchOnce(b.options);
+  assert.deepEqual(reruns, [5]);
+  assert.equal(b.fixes.length, 0, "no model session for the runner's red");
+  assert.match(b.lines.at(-1), /PR #41 .*runner.*no runner took it.*rerun/);
+  // Rerun again on a later attempt's runner red; the bound is the reader's (runnerReruns), so a red without one is the code's.
+  b.looks[41] = { ...red, runner: { ...runner, runs: [{ ...runner.runs[0], attempt: 2 }] } };
+  await watchOnce(b.options);
+  assert.deepEqual(reruns, [5, 5]);
+  refuse = true;
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 0, "a refused rerun is looked at again first: rerun-unrun.yml may have rerun it");
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 1, "refused twice on one attempt: a fix session");
+  b.looks[41] = red;
+  b.live.clear();
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 2, "a code red starts a fix session as before");
+  assert.deepEqual(reruns, [5, 5]);
+});
+
+test("4.29 · a failed check is read as its CI run when every failed check names an Actions run", () => {
+  const options = { since: minutes(-60), now: at, graceMs: 10 * 60_000 };
+  const job = (name, run) => ({ ...failed, name, detailsUrl: `https://github.com/storytree-ai/storytree/actions/runs/${run}/job/7${run}` });
+  assert.deepEqual(readPull(pull({ checks: [passed, job("verify on macOS", 5), job("verify", 5)] }), options).runs, [5]);
+  assert.equal(readPull(pull({ checks: [job("verify on macOS", 5), failed] }), options).runs, undefined);
+});

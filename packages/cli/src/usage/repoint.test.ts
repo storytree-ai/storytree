@@ -45,3 +45,15 @@ test("14.9 · a mistake leads with the right command for its job, whatever the t
     assert.deepEqual(new Set(offered.slice(1).map(({ command }) => command)), new Set(["library search", "arc show"]));
   }
 });
+
+test("14.9 · the hand-picked command keeps a place among the three, whatever the turn, however many commands were learned", () => {
+  const hint = (command: string) => ({ command, why: command });
+  for (const turn of [0, 1, 2]) {
+    const guessed = repointHints({ learned: [hint("capability"), hint("library read"), hint("map")], handPicked: hint("tree"), spelled: [], turn });
+    const mistaken = repointHints({ right: hint("capability"), learned: [hint("capability"), hint("library read"), hint("map")], handPicked: hint("tree"), spelled: [], turn });
+    assert.ok(guessed.some(({ command }) => command === "tree"), `turn ${turn}: ${guessed.map(({ command }) => command).join(", ")}`);
+    assert.equal(guessed.length, 3);
+    assert.ok(mistaken.some(({ command }) => command === "tree"), `turn ${turn}: ${mistaken.map(({ command }) => command).join(", ")}`);
+    assert.equal(mistaken[0]?.command, "capability");
+  }
+});

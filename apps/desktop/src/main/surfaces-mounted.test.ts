@@ -48,10 +48,10 @@ test("3.12 the desktop app's Surfaces menu lists the surfaces its story packages
   t.after(() => rmSync(out, { recursive: true, force: true }));
   const outfile = path.join(out, "surfaces.mjs");
   await build({ stdin: { contents: `export { default } from "#parts/surfaces";`, resolveDir: desktop }, outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", plugins: [partsPlugin()] });
-  const { default: mounted } = await import(pathToFileURL(outfile).href) as { default: unknown };
-  assert.deepEqual(mounted, [...forestSurfaces, ...arcSurfaces]);
+  const { default: mounted } = await import(pathToFileURL(outfile).href) as { default: { parts: unknown } };
+  assert.deepEqual(mounted.parts, [...forestSurfaces, ...arcSurfaces]);
   assert.equal(import.meta.resolve("#parts/surfaces"), new URL("./parts/surfaces.ts", import.meta.url).href, "the app's #parts/surfaces is its composing module");
-  assert.deepEqual(unbundled, [...forestSurfaces, ...arcSurfaces]);
+  assert.deepEqual(unbundled.parts, [...forestSurfaces, ...arcSurfaces]);
 });
 
 test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed read, sees a claim on its next poll, ages without new lines and reports what it drew", async () => {

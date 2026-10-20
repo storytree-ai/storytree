@@ -29,7 +29,7 @@ test("1.18 a story's page operations its package's manifest names are answered i
   const home = mkdtempSync(path.join(tmpdir(), "storytree-page-parts-"));
   t.after(() => rmSync(home, { recursive: true, force: true }));
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
-  answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, {
+  answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, pageChannels, {
     home,
     appVersion: "0.3.99",
     library: () => { throw new Error("the library is not open"); },
@@ -57,7 +57,7 @@ test("1.18 the settings panel's page operations its manifest names are answered 
   const home = mkdtempSync(path.join(tmpdir(), "storytree-page-settings-"));
   t.after(() => rmSync(home, { recursive: true, force: true }));
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
-  answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, {
+  answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, pageChannels, {
     home,
     appVersion: "0.3.99",
     library: () => { throw new Error("the library is not open"); },
@@ -84,7 +84,7 @@ test("1.18 the forest's code survey its manifest names is answered from what the
   writeFileSync(path.join(checkout, "packages", "shop", "src", "claim.ts"), "export const claim = 1;\n");
   const tree = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [{ id: "cap-claims", title: "3 · Claims" }] }] } as unknown as AnnotatedTree;
   const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
-  answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, {
+  answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, pageChannels, {
     home: folder,
     appVersion: "0.3.99",
     library: () => ({
@@ -101,4 +101,22 @@ test("1.18 the forest's code survey its manifest names is answered from what the
   const survey = await page.codeSurvey("shop");
   assert.deepEqual(survey["story-shop"]?.files, [{ path: "src/claim.ts", lines: 1 }]);
   assert.deepEqual(await page.codeSurvey("elsewhere"), {}, "a project with no checkout here has no survey");
+});
+
+test("1.20 the page operations of a part this computer switches off are not answered: each of its channels refuses, saying the part is off and how to switch it on, and the rest are answered", async (t) => {
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-page-parts-off-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+  answerPageParts({ handle: (channel, listener) => { handlers.set(channel, listener); } }, pageAnswers, pageChannels, {
+    home,
+    appVersion: "0.3.99",
+    library: () => { throw new Error("the library is not open"); },
+    treeRead: () => undefined,
+    surveyWorker: path.join(home, "survey-worker.cjs"),
+  }, ["app"]);
+
+  const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args));
+  await assert.rejects(page.recordLag([]), /app is switched off on this computer\. Switch it on with: storytree settings set part app on/);
+  assert.deepEqual(readReadings(home), [], "nothing was kept");
+  assert.equal((await page.saveSetting("context-guidance", ["420000"])).ok, true, "the core's settings panel is still answered");
 });

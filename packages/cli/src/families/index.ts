@@ -1,9 +1,12 @@
 /**
  * Capability 1 · Front door. The families `storytree` answers, in the order `storytree` alone lists them: the capabilities of
  * the command line story, each a front door onto its owning story. A family its owning story declares in its manifest
- * (`#parts/verbs`, ADR-1033) is mounted from there, at the place it declares among those still kept here.
+ * (`#parts/verbs`, ADR-1033) is mounted from there, at the place it declares among those still kept here: listed by place,
+ * not counted into a position, so a new family takes an unused place and no other's moves. A declared family whose part
+ * this computer switches off (ADR-1095) stays in the table, so asking for it is answered with how to switch it on.
  */
 import declared from "#parts/verbs";
+import { switchedOff, type SwitchedOff } from "@storytree/plugin-loader";
 
 import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
@@ -15,11 +18,19 @@ import { plan } from "./tree.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
 
-/** Words agents try for a family storytree does not have, each with the command for that job. */
+/**
+ * Words agents try for a family storytree does not have, each with the command for that job. A key of two words is the
+ * word with the one after it, which names the job more exactly than the word alone and is named before it.
+ */
 export const GUESSES: Readonly<Record<string, string>> = {
   claim: "workspace <increment|capability> --reason <text>",
   board: "noticeboard",
-  plan: "library new <story|capability|contract> --<field> <value|@file> …",
+  plan: "tree [<story>]",
+  "plan contract": "library new contract --capability <capability> --title <t>",
+  "plan story": "library new <story|capability|contract> --<field> <value|@file> …",
+  "plan capability": "library new <story|capability|contract> --<field> <value|@file> …",
+  "plan arc": "arc new --title <t> --intent <text|@file> --end-state <text|@file>",
+  "plan increment": "arc increment new --arc <arc> --title <t> --objective <o> --body <text|@file>",
   contract: "library new contract --capability <capability> --title <t>",
   story: "tree [<story>]",
 };
@@ -37,24 +48,45 @@ export const POINTERS: Readonly<Record<string, string>> = {
   "arc increment show": "library read",
 };
 
-/** The families still kept here, in their order once the declared ones take their places. */
-const KEPT: readonly Family[] = [
-  doors,
-  plan,
-  mapFamily,
-  affectedFamily,
-  capabilities,
-  auth,
+/** The families still kept here, each at the place it takes among the declared ones in `storytree`'s list. */
+const KEPT: readonly Placed[] = [
+  { order: 6, family: doors },
+  { order: 15, family: plan },
+  { order: 16, family: mapFamily },
+  { order: 17, family: affectedFamily },
+  { order: 19, family: capabilities },
+  { order: 32, family: auth },
 ];
 
-export const FAMILIES: readonly Family[] = [...declared].sort((a, b) => a.order - b.order).reduce(
-  (families, family) => families.toSpliced(family.order - 1, 0, learning(mounted(family), surfaces)),
-  KEPT,
-);
+export const FAMILIES: readonly Family[] = inOrder([...KEPT, ...declared.parts.map((family) => ({ order: family.order, family: learning(mounted(family), surfaces) }))]);
+
+/** The family that switches a part back on, mounted whatever is off, so the way back is never switched off with its part. */
+const WAY_BACK = "settings";
+
+/** Each declared family a switched-off part declares, by name, with why, when the setting names `off` (ADR-1095). */
+export function familiesOff(off: readonly string[]): ReadonlyMap<string, SwitchedOff> {
+  const switched = switchedOff(declared.graph, off);
+  return new Map(declared.parts.flatMap((family, index) => {
+    const part = declared.owners[index]!;
+    const because = switched.get(part);
+    return because === undefined || family.name === WAY_BACK ? [] : [[family.name, { part, because }] as const];
+  }));
+}
+
+/** A family and the place it takes in `storytree`'s list: any number, so a place between two others shifts neither. */
+export interface Placed {
+  readonly order: number;
+  readonly family: Family;
+}
+
+/** The families in ascending order of their places, those sharing one by name. */
+export function inOrder(placed: readonly Placed[]): Family[] {
+  return [...placed].sort((a, b) => a.order - b.order || a.family.name.localeCompare(b.family.name)).map(({ family }) => family);
+}
 
 /** The surfaces the doors learner judges in the friction drain: every command, every tool served in `cwd`, and the verbs both mount. */
 async function surfaces(cwd: string) {
   const { servedTools } = await import("@storytree/mcp-server");
   const tools = (await servedTools(cwd)).map(({ name, consumers }) => ({ verb: name, consumers }));
-  return { commands: commandsOf(FAMILIES), tools, twins: twinsOf(declared) };
+  return { commands: commandsOf(FAMILIES), tools, twins: twinsOf(declared.parts) };
 }

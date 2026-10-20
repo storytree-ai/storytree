@@ -41,13 +41,12 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { callLines, endMergedClaims, type ActivityLog, type MergeWatch } from "@storytree/session-management";
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
 import { verdictOf } from "@storytree/experiments";
-import { findProject, idleAfterMs, locateStorytree, readPartsOff, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
+import { findProject, idleAfterMs, readPartsOff, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
 import { mount } from "@storytree/plugin-loader";
 import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
-import { appDatabaseWork } from "@storytree/session-management/processes/listing";
 import type { z } from "zod";
 
 // The other stories' tools (ADR-0643 D6), in their manifests' order: the plugin loader composes them from the
@@ -58,14 +57,12 @@ import VERB_PARTS from "#parts/verbs";
 import { habitsCard } from "../instructions/habits.js";
 import { failureOf, isUnreachable, libraryDown, NOT_RUNNING_ANSWER, outcomeOf, refusalOf, result, type Answer, type DoorOutcome } from "./answers.js";
 import { registerClaimTools } from "./claim-tools.js";
-import { registerContextTools } from "./context-tools.js";
 import { Connections } from "./connections.js";
 import { mountTools, verbsOf } from "./mount.js";
 import { registerPlanTools } from "./plan-tools.js";
 import { registerMapTools } from "./map-tools.js";
 import { registerSetupTools, registerStarterPackTool, type SetupToolOptions } from "./setup-tools.js";
 import { registerWorkTools } from "./work-tools.js";
-import { OWN_TOOLS, registerOwnTools } from "./own-tools.js";
 import { registerPipelineTools } from "./pipeline-tools.js";
 
 export { NOT_RUNNING_ANSWER, lineOf };
@@ -159,9 +156,31 @@ export interface HarnessCall {
 /** Registers one harness's tool: its name, what it is for, its arguments and what it does with them. */
 export type DefineForHarness = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: HarnessCall) => Promise<Answer>) => void;
 
+/** Who started a run, as the process ledger is handed it (ADR-1017 D2). */
+export interface RunOwner {
+  readonly session: string;
+  readonly harness?: string;
+  readonly agent?: "orchestrator" | "unknown" | { readonly subagent: string; readonly type?: string | undefined; readonly task?: string | undefined };
+  readonly parentSession?: string;
+}
+
+/** What a process ledger's tool has for one call: the calling agent, when it could be resolved, and where it looks for storytree. */
+export interface OwnerCall {
+  readonly owner: RunOwner | undefined;
+  readonly locate: LocateOptions;
+}
+
+/**
+ * Registers one tool of the process ledger, answered offline with no library needed: the calling agent is resolved
+ * first, from its hooks when the library is up, unless the tool reads every session's (`anyCaller`).
+ */
+export type DefineForOwner = <S extends z.ZodObject>(name: string, description: string, input: S, act: (args: z.output<S>, call: OwnerCall) => Promise<Answer>, options?: { readonly anyCaller?: boolean }) => void;
+
 /** Another story's contribution to the one tool server (ADR-0643 D6). */
 export interface ToolExtension {
   readonly registerTools?: (define: Define) => void;
+  /** Tools of the process ledger, answered offline: no call recorded, and the caller resolved without needing the library. */
+  readonly registerOwnerTools?: (define: DefineForOwner) => void;
   /** Tools a harness calls rather than the model (ADR-1056 D2): served apart from the agent's, recording no call, and off the card. */
   readonly registerHarnessTools?: (define: DefineForHarness) => void;
   /** A short addition to the habits card, naming the added tools in backticks. */
@@ -170,10 +189,16 @@ export interface ToolExtension {
   readonly landNext?: (capability: string, call: Call) => Promise<string | undefined> | string | undefined;
 }
 
-/** What a story's tool part is given: the project the server serves (none outside a project) and the tools it serves. */
+/**
+ * What a story's tool part is given: the project the server serves (none outside a project), the tools it serves, the
+ * storytree home its readings use and where its run ledger is kept, when not the usual ones, and how merges are watched.
+ */
 export interface ToolHost {
   readonly project: string | undefined;
   readonly tools: () => readonly string[];
+  readonly home?: string;
+  readonly ledger?: string;
+  readonly merges?: MergeWatch;
 }
 
 /** A story's tool part, as its manifest's `tools` names it: its extension for this server, or none where it serves nothing. */
@@ -182,10 +207,15 @@ export type ToolPart = (host: ToolHost) => ToolExtension | undefined;
 export function createAgentTools(options: AgentToolOptions): AgentTools {
   // Which project each part serves is the part's own call (the librarian's is storytree's own library first, ADR-0644 U1);
   // their behaviour stays in their packages, and this is the shared registration point for other stories (ADR-0643 D6).
-  const servedTools = ["check_setup", "set_up_project", ...OWN_TOOLS];
+  const servedTools = ["check_setup", "set_up_project"];
   // Who calls each tool, where it is not both: setting up a project is the user's ask (the habits card's).
   const consumers = new Map<string, readonly Consumer[]>([["set_up_project", ["user"]]]);
-  const host: ToolHost = { project: findProject(options.folder).project, tools: () => servedTools };
+  const verbHome = options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir));
+  const host: ToolHost = {
+    project: findProject(options.folder).project, tools: () => servedTools,
+    ...(verbHome === undefined ? {} : { home: verbHome, ledger: path.join(path.dirname(options.dataDir!), "own") }),
+    ...(options.merges === undefined ? {} : { merges: options.merges }),
+  };
   // The machine whose approved trunks let this folder reach its project (ADR-0942): the home setup records them in.
   const home = options.setup?.storytreeHome ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
   // The parts this computer switches off (ADR-1095), read as the server starts: their tools are not served, and the card
@@ -285,6 +315,42 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     server.registerTool(name, { description, inputSchema: input }, handle as never);
   };
 
+  // A process ledger's tool answers offline (ADR-1017 D2): its caller is resolved from the hooks when the library is up,
+  // from the harness alone when it is down, and its call is not recorded.
+  const ownerOf = async (context: ServerContext): Promise<RunOwner | undefined> => {
+    let caller = callerOf(context);
+    const meta = metaOf(context);
+    let agent: Agent = caller.harness === "codex" ? agentOf([], meta) : "unknown";
+    const where = route(options.folder, locate);
+    if (where.status === 'routed') {
+      try {
+        const { log } = await connections.reach(where.library, where.project, where.identity, { folder: where.folder, home });
+        const lines = await callLines(log, where.project, meta);
+        caller = seenCaller(lines, caller, meta);
+        agent = requestOf(lines, meta) || caller.harness === "codex" ? agentOf(lines, meta) : "unknown";
+      } catch (error) {
+        if (!libraryDown(error)) throw error;
+        await connections.close();
+      }
+    }
+    // Claude shares one MCP server with subagents: only a correlated hook identifies a call.
+    // Codex carries its caller thread on the request, including while the app is down.
+    if (caller.session === ownSession || agent === "unknown") return undefined;
+    return { ...caller, agent };
+  };
+  const defineForOwner: DefineForOwner = (name, description, input, act, defined = {}) => {
+    servedTools.push(name);
+    const handle = async (args: unknown, context: ServerContext): Promise<CallToolResult> => {
+      try {
+        // All-session inspection is available even if the library cannot resolve this caller.
+        return result(await act(args as never, { owner: defined.anyCaller === true ? undefined : await ownerOf(context), locate }));
+      } catch (error) {
+        return result({ text: refusalOf(error), refused: true });
+      }
+    };
+    server.registerTool(name, { description, inputSchema: input }, handle as never);
+  };
+
   registerSetupTools({
     server,
     folder: options.folder,
@@ -298,45 +364,16 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   registerStarterPackTool(define);
   registerPlanTools(define);
   registerMapTools(define);
-  registerOwnTools({
-    server,
-    ...(options.dataDir === undefined ? {} : { home: path.join(path.dirname(options.dataDir), 'own') }),
-    async owner(context) {
-      let caller = callerOf(context);
-      const meta = metaOf(context);
-      let agent: Agent = caller.harness === 'codex' ? agentOf([], meta) : 'unknown';
-      const where = route(options.folder, locate);
-      if (where.status === 'routed') {
-        try {
-          const { log } = await connections.reach(where.library, where.project, where.identity, { folder: where.folder, home });
-          const lines = await callLines(log, where.project, meta);
-          caller = seenCaller(lines, caller, meta);
-          agent = requestOf(lines, meta) || caller.harness === 'codex' ? agentOf(lines, meta) : 'unknown';
-        } catch (error) {
-          if (!libraryDown(error)) throw error;
-          await connections.close();
-        }
-      }
-      // Claude shares one MCP server with subagents: only a correlated hook identifies a call.
-      // Codex carries its caller thread on the request, including while the app is down.
-      if (caller.session === ownSession || agent === 'unknown') return undefined;
-      return { ...caller, agent };
-    },
-    shared() {
-      return [appDatabaseWork(locateStorytree(locate).running)];
-    },
-  });
-  registerClaimTools(define, extensions, options.merges);
+  registerClaimTools(define, extensions);
   registerWorkTools(define);
   // The library's artifact tools, declared in The library (ADR-1035 D3), which is core.
   mountTools(define, NOTE_TOOLS);
   registerPipelineTools(define, options.protection);
-  const verbHome = options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir));
-  registerContextTools(define, verbHome);
   // Every verb a mounted part's command families declare a tool for (Friction's, Session management's), from their
   // manifests: a part switched off takes its tools with it (ADR-1095).
   mountTools(define, mount(VERB_PARTS, off).mounted.flatMap(verbsOf), verbHome);
   for (const extension of extensions) extension.registerTools?.(define);
+  for (const extension of extensions) extension.registerOwnerTools?.(defineForOwner);
   for (const extension of extensions) extension.registerHarnessTools?.(defineForHarness);
 
   return {

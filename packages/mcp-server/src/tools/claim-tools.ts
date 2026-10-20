@@ -1,8 +1,6 @@
 /**
- * Capability 6 · Agent tools (the MCP server). The claiming and reporting tools: claim or release a capability or an increment (claiming an
- * increment starts it, ADR-0643 D1), report a contract red or green, and report a capability
- * landed. A claim on waiting work is refused, naming what it waits for (W2, ADR-0643 D2). And make
- * a workspace already claimed for a piece of work, in one step (ADR-0653, the owner's K1). A landing
+ * Capability 6 · Agent tools (the MCP server). The reporting tools: report a contract red or green, and report a capability
+ * landed. Claiming, releasing and making a workspace are Session management's tools, mounted from its manifest. A landing
  * that would leave a source file of the capability's story package reached by no numbered test is held
  * until each is placed, through the Guardrails story's allocation rule, the code `storytree check` runs
  * (ADR-0911 D4, contract 6.37).
@@ -12,140 +10,14 @@ import type { Library } from "@storytree/library";
 import { packagesOf, testedNumbers as testedNumbersIn, untestedContracts as untestedIn } from "@storytree/map/code-survey";
 import { z } from "zod";
 
-import { attachWorkspace, claim, claimAll, CLAIM_REASON_LIMIT, currentBranch, increments, land, makeWorkspace, release, staleClaims, type Claim, type ClaimAnswer, type ClaimContext, type MergeWatch, type WorkspaceRefusal } from "@storytree/session-management";
+import { land } from "@storytree/session-management";
+import { claimContext, holderOf, titleOf } from "@storytree/session-management/tools";
 import { refusalOf } from "./answers.js";
-import { lineOf, type Call, type Define, type ToolExtension } from "./server.js";
-import { quoted } from "./text.js";
+import type { Call, Define, ToolExtension } from "./server.js";
 
 const capabilityId = z.string().min(1).describe("The id of the capability, as the plan shows it");
-/** What a claim is on: a capability or an increment, exactly one. */
-const part = {
-  capability: capabilityId.optional(),
-  increment: z.string().min(1).optional().describe("The id of the increment, as the plan shows it: claiming one starts it"),
-};
-const ONE_PART = "Name a capability or an increment to claim, exactly one.";
-const ONE_CLAIM = "Name a capability, several capabilities or an increment to claim, exactly one of them.";
-/** Claiming work and the workspace it is built in are an agent session's (ADR-1045 D1). */
-const AGENT = { consumers: ["agent"] } as const;
 
-export function registerClaimTools(define: Define, extensions: readonly ToolExtension[] = [], merges: MergeWatch = {}): void {
-  define(
-    "claim",
-    "Pass exactly one target per call: capability, capabilities or increment. To claim an increment and a capability, call claim twice, once for each target. Claim a capability before you build it, or the increment you drive, with a one-line reason: your edits then count toward it, and claiming an increment starts it. Once you hold your increment, claim every capability you already know you need in one call, as capabilities: all are claimed or none is (ADR-1079 D2). If another live session holds it you are told who, and if it waits on other work you are told what; either way, pick other work.",
-    z.object({
-      ...part,
-      capabilities: z.array(capabilityId).min(1).optional().describe("Several capabilities' ids, claimed in ascending id order, all or nothing: at the first refusal none is held"),
-      reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`),
-    }),
-    async ({ capability, capabilities, increment, reason }, call) => {
-      const id = capability ?? increment;
-      if ([capability, capabilities, increment].filter((given) => given !== undefined).length !== 1) return { text: ONE_CLAIM, refused: true, data: { held: false } };
-      if (capabilities !== undefined) {
-        const all = await claimAll(claimContext(call), capabilities, reason);
-        if (!all.ok) return { text: `${await refusalText(call.library, all.id, all.refusal)} You hold none of the ${capabilities.length} you asked for.`, refused: true, data: { held: false } };
-        const names = await Promise.all(all.claims.map(({ claim: { capability: held, increment: on } }) => titleOf(call.library, (held ?? on)!)));
-        return { text: `You hold ${names.join(", ")} now. Write each contract's failing test and report it red, make it pass and report it green, then land it.`, data: { held: true } };
-      }
-      if (id === undefined) return { text: ONE_CLAIM, refused: true, data: { held: false } };
-      const answer = await claim(claimContext(call), id, reason);
-      if (!answer.ok) return { text: await refusalText(call.library, id, answer), refused: true, data: { held: false } };
-      const name = await titleOf(call.library, id);
-      const taken = answer.takenOverFrom === undefined ? "" : ` You took it over from ${holderOf(answer.takenOverFrom)}, who had gone quiet.`;
-      const next =
-        increment === undefined
-          ? "Write each contract's failing test and report it red, make it pass and report it green, then land it."
-          : "It is active now. When it is done, close it with its outcome and its pull request.";
-      return { text: `You hold ${name} now.${taken} ${next}`, data: { held: true } };
-    },
-    AGENT,
-  );
-
-  define(
-    "make_workspace",
-    "Make a claimed Claude Code workspace, or prepare a Codex app workspace: check the work is free and fetch main. For Codex, pass the returned ref and name to the app's create_worktree, then call attach_workspace with its returned folder. Refused if held, waiting or already yours; pick other work. Refused too if an open pull request was already made for the work, naming it: carry that one on, or close it, or pass despite_open_pulls to build beside it.",
-    z.object({
-      ...part,
-      reason: z.string().min(1).describe(`What you are about to do, in ${CLAIM_REASON_LIMIT} characters or fewer: it names your session in the sessions list`),
-      despite_open_pulls: z.boolean().optional().describe("Make it even though open pull requests were already made for this work; only once you have read them and know why"),
-    }),
-    async ({ capability, increment, reason, despite_open_pulls }, call) => {
-      const id = capability ?? increment;
-      if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { made: false } };
-      const made = await makeWorkspace(claimContext(call), id, reason, {}, { despiteOpenPulls: despite_open_pulls === true });
-      if (!made.ok) return { text: await workspaceRefusalText(call.library, id, made), refused: true, data: { made: false } };
-      if (made.status === "prepared") {
-        const { ref, name, base, status } = made;
-        return {
-          text: `Work is available; nothing is claimed yet. Call the Codex app's create_worktree with ${JSON.stringify({ ref, name })} (the exact commit from freshly fetched ${base}), then call attach_workspace for ${id} with its returned folder, this ref and name, and your reason. Use the returned directory explicitly: the app does not change your cwd or permissions. If it returns a worktree with a registration error, attach that directory; do not create another as a retry. If create_worktree is unavailable (a headless lane), make it yourself: git worktree add --detach <folder> ${ref}, then attach that folder the same way.`,
-          data: { made: false, status, ref, name, base },
-        };
-      }
-      if (made.existing) {
-        return {
-          text: `You hold ${await titleOf(call.library, id)} in the workspace you are in, ${made.folder}, on branch ${made.branch}: no worktree was made.`,
-          data: { made: false, status: made.status, folder: made.folder, branch: made.branch, base: made.base },
-        };
-      }
-      return {
-        text: `Made a workspace at ${made.folder}, on branch ${made.branch} from ${made.base} as just fetched, and you hold ${await titleOf(call.library, id)} there. Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it, and set it up as this project does at session start (install its packages).`,
-        data: { made: true, status: made.status, folder: made.folder, branch: made.branch, base: made.base },
-      };
-    },
-    AGENT,
-  );
-
-  define(
-    "attach_workspace",
-    "Attach an app-made worktree and claim the work there. Codex: after make_workspace and the app's create_worktree, pass the returned folder, ref and name; it verifies the exact prepared commit and names a detached branch codex/<name>. Claude Code: attach the linked worktree this session is already in (folder defaults to the session's), claimed on the branch it is on; no ref or name. A refusal keeps the folder; do not recreate it.",
-    z.object({
-      ...part,
-      reason: z.string().min(1),
-      folder: z.string().min(1).optional().describe("Codex: the directory returned by the app's create_worktree. Claude Code: the linked worktree this session is in; defaults to the session's folder"),
-      ref: z.string().min(1).optional().describe("Codex only: the exact commit returned by make_workspace and passed to create_worktree"),
-      name: z.string().min(1).optional().describe("Codex only: the work-derived name returned by make_workspace"),
-    }),
-    async ({ capability, increment, reason, folder, ref, name }, call) => {
-      const id = capability ?? increment;
-      if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true, data: { attached: false } };
-      const attached = await attachWorkspace(claimContext(call), id, reason, { folder: folder ?? call.folder, ...(ref === undefined ? {} : { ref }), ...(name === undefined ? {} : { name }) });
-      if (!attached.ok) return { text: `${await workspaceRefusalText(call.library, id, attached)} The worktree is kept.`, refused: true, data: { attached: false } };
-      return {
-        text: `Attached ${attached.folder}, on branch ${attached.branch} at ${attached.base}; you hold ${await titleOf(call.library, id)} there. Use that directory explicitly for your commands and set it up as this project does at session start (install its packages).`,
-        data: { attached: true, folder: attached.folder, branch: attached.branch, base: attached.base },
-      };
-    },
-    AGENT,
-  );
-
-  define("release", "Release a capability or an increment you hold, without landing or closing it, so another session can take it.", z.object(part), async ({ capability, increment }, call) => {
-    const id = capability ?? increment;
-    if (id === undefined || (capability !== undefined && increment !== undefined)) return { text: ONE_PART, refused: true };
-    const answer = await release(claimContext(call), id);
-    if (answer.ok) return { text: `You released ${await titleOf(call.library, id)}${answer.returned ? ": nobody holds it, so it is a proposal again" : ""}.` };
-    return {
-      text: answer.holder === undefined ? `You don't hold ${id}, and nobody else does.` : `You don't hold ${id}: ${holderOf(answer.holder)} does.`,
-      refused: true,
-    };
-  }, AGENT);
-
-  define(
-    "stale_claims",
-    "For the session manager: the claimed increments whose holder is quiet, with no command running and no open pull request, oldest first, each with its route (ADR-0953 D4). Release a gone holder's with `storytree workspace release <increment> --holder <session> --reason …`; ask a quiet holder first. Reading it ends nothing.",
-    z.object({}),
-    async (_args, call) => {
-      const { claims, pullsUnread } = await staleClaims({ log: call.log, project: call.project, folder: call.folder }, {
-        quietMs: call.quietMs,
-        ...(merges.allOpenPulls === undefined ? {} : { allOpenPulls: merges.allOpenPulls }),
-      });
-      const unread = pullsUnread ? ["GitHub could not be asked which pull requests are open: check each branch before releasing."] : [];
-      if (claims.length === 0) return { text: ["No claimed increment is stale.", ...unread].join("\n"), data: { claims, ...(pullsUnread ? { pullsUnread } : {}) } };
-      const rows = await Promise.all(claims.map(async (stale) =>
-        `- ${await titleOf(call.library, stale.increment)}: ${stale.label} session ${stale.holder} (${stale.reason}), last seen ${stale.lastSeenAt}${stale.branch === undefined ? "" : `, on ${stale.branch}`}. ${
-          stale.route === "release" ? `Gone: release it for its holder (--holder ${stale.holder}).` : "Quiet: ask its holder, and release it only once it stays quiet."}`));
-      return { text: [`${claims.length} claimed increment${claims.length === 1 ? " is" : "s are"} stale:`, ...rows, ...unread].join("\n"), data: { claims, ...(pullsUnread ? { pullsUnread } : {}) } };
-    },
-  );
-
+export function registerClaimTools(define: Define, extensions: readonly ToolExtension[] = []): void {
   define(
     "report",
     "Report a contract's test red (written, and failing) or green (passing). Storytree keeps what you report apart from what it verifies itself.",
@@ -228,52 +100,4 @@ async function untestedContracts(call: Call, capability: string): Promise<string
 /** The contract numbers the numbered tests in `capability`'s story package carry, in the checkout the session works in. */
 export async function testedNumbers({ library, folder }: Call, capability: string, tree?: Awaited<ReturnType<Library["projectTree"]>>): Promise<string[]> {
   return testedNumbersIn(checkoutOf(folder), tree ?? (await library.projectTree()), capability);
-}
-
-function claimContext({ log, library, project, caller, folder, quietMs, writer }: Call): ClaimContext & { readonly folder: string } {
-  const branch = currentBranch(folder);
-  return { log, library, project, ...lineOf(caller), folder, quietMs, writer, ...(branch === undefined ? {} : { branch }) };
-}
-
-/** Why a claim was refused, as the agent is told it. */
-async function refusalText(library: Library, id: string, answer: Exclude<ClaimAnswer, { ok: true }>): Promise<string> {
-  switch (answer.refused) {
-    case "held":
-      return `${await titleOf(library, id)} is held by ${holderOf(answer.holder, answer.heldFor)}. Pick other work: nobody queues${answer.heldFor.length === 0 ? "" : `; this is free once ${answer.heldFor[0]} closes`}.`;
-    case "closed":
-      return `${await titleOf(library, id)} is closed: there is nothing left to claim. Pick other work.`;
-    case "waiting": {
-      const waits = answer.waits.map((wait) =>
-        wait.onOwner === true ? `${wait.increment} is waiting on the owner: it is held on their open question ${wait.on}`
-          : wait.waitsFor !== undefined ? `${wait.increment} waits for ${wait.on}: ${wait.reason}${wait.checkBack === undefined ? "" : ` (check back ${wait.checkBack})`}`
-          : `${wait.increment} waits on ${wait.on} (${wait.reason})${wait.forGood ? ", which will never release" : ""}`,
-      );
-      return `${await titleOf(library, id)} is waiting work: ${waits.join("; ")}. Pick other work until it releases.`;
-    }
-    case "unknown-capability":
-      return `There is no capability or increment ${id} in this project's plan; plan it first, or find its id with show_plan.`;
-    case "reason-too-long":
-      return `Your reason is ${answer.length} characters; a claim's reason is the session's name in the sessions list, so keep it to ${answer.limit} or fewer and claim again.`;
-  }
-}
-
-async function workspaceRefusalText(library: Library, id: string, answer: WorkspaceRefusal): Promise<string> {
-  if (answer.refused === "yours") return `You already hold ${await titleOf(library, id)}${answer.claim.branch === undefined ? "" : `, on branch ${answer.claim.branch}`}: work there, or release it first.`;
-  if (answer.refused === "no-workspace") return `Workspace setup refused: ${answer.why}.`;
-  return refusalText(library, id, answer);
-}
-
-/** Who holds a claim, for which increments when they are known, and why, as a sentence names them. */
-function holderOf(claim: Claim, heldFor: readonly string[] = []): string {
-  return `${claim.label} session ${claim.session}${heldFor.length === 0 ? "" : ` for ${heldFor.join(", ")}`} (${claim.reason})${claim.binds === undefined ? "" : `; binds: ${claim.binds}`}`;
-}
-
-/** A capability's or an increment's title, quoted, or its id when the plan has no such thing. */
-async function titleOf(library: Library, id: string): Promise<string> {
-  for (const story of (await library.projectTree()).stories) {
-    const found = story.capabilities.find((node) => node.id === id);
-    if (found !== undefined) return `${quoted(found.title)} (${id})`;
-  }
-  const increment = (await increments(library)).find((one) => one.id === id);
-  return increment === undefined ? id : `${quoted(increment.fields.title)} (${id})`;
 }

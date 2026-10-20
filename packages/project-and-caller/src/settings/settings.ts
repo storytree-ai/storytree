@@ -393,8 +393,8 @@ function checkedExperiment(value: unknown): ExperimentArm {
 
 const PARTS_OFF = "parts-off";
 
-/** The core, never switched off. */
-const CORE: readonly string[] = ["library", "project-and-caller"];
+/** The core, never switched off: this story's own copy of the plugin loader's (ADR-1017 D2). */
+export const CORE: readonly string[] = ["library", "project-and-caller"];
 
 function checkedPartsOff(value: unknown): readonly string[] {
   if (!Array.isArray(value) || !value.every((one) => typeof one === "string" && one !== "")) refuse(`${PARTS_OFF} must list the names of the story parts switched off, such as ["forest"].`);

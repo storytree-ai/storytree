@@ -346,7 +346,7 @@ test("app-setup 8.22 a session that sets its project up finishes the setup in th
       for (const [name, agentFor] of [[claudes, claudeCode], [codexes, codex]] as const) {
         const answer = await setUp(name, agentFor);
         assert.equal(answer.isError, false, answer.text);
-        assert.deepEqual(answer.data.starterRoles, ["orchestrator", "librarian", "change-reviewer", "explorer", "story-author", "frontend-builder", "blind-reviewer", "corpus-investigator"]);
+        assert.deepEqual(answer.data.starterRoles, [], "the bare bones hold no role (ADR-1094 D1)");
         assert.deepEqual(answer.data.fixes, ["new-session"], "no edit or command test, which only a session started in the project could complete");
         assert.match(answer.text, /new session/);
         assert.doesNotMatch(answer.text, /type \/hooks/);
@@ -413,7 +413,7 @@ test("app-setup 8.11 a Claude Code or Codex session calling check_setup is signe
   });
 });
 
-test("app-setup 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them is told of none", async () => {
+test("app-setup 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them, a new one on the bare bones included, is told of none", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const [seeded, older] = [uniqueProjectName(), uniqueProjectName()];
@@ -424,11 +424,16 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
       mkdirSync(newFolder);
       await withAgent(newFolder, agentIn(newFolder), async (agent) => {
         assert.equal((await agent.call("set_up_project", { name: seeded })).isError, false);
+        assert.deepEqual((await agent.call("check_setup")).data.starterRoles, [], "the bare bones hold no role");
+        // The user asks for three roles back (ADR-1094 D2).
+        const took = await agent.call("take_starter_pack", { include: ["change-reviewer", "orchestrator", "librarian"] });
+        assert.equal(took.isError, false, took.text);
         const checked = await agent.call("check_setup");
-        assert.deepEqual(checked.data.starterRoles, ["orchestrator", "librarian", "change-reviewer", "explorer", "story-author", "frontend-builder", "blind-reviewer", "corpus-investigator"]);
-        assert.match(checked.text, /orchestrator/);
-        assert.match(checked.text, /librarian/);
-        assert.match(checked.text, /change-reviewer/);
+        assert.deepEqual(checked.data.starterRoles, ["orchestrator", "librarian", "change-reviewer"]);
+        assert.match(checked.text, /holds the orchestrator, librarian and change-reviewer roles/);
+        const refused = await agent.call("take_starter_pack", { include: ["tester"] });
+        assert.equal(refused.isError, true);
+        assert.match(refused.text, /"tester" is no part of the starter pack/);
       });
       // A project set up before the starter pack: its library has no roles to name.
       const oldFolder = path.join(dir, older);

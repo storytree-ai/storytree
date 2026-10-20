@@ -2,7 +2,8 @@
  * Capability 6 · Make a folder a project: contract 6.12, an existing project moving onto the user's factory (ADR-1040).
  *
  * Each library is a throwaway project on the real Postgres `pnpm test` provides, named with uniqueProjectName()
- * and dropped afterwards, pass or fail. The project made before factories is stood in for by a seeded library.
+ * and dropped afterwards, pass or fail. The project made before factories is stood in for by a library holding every
+ * part of the pack, as the pack seeded it before the bare bones (ADR-1094 D1), and its factory by one holding the same.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -11,8 +12,8 @@ import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/p
 import { connect, type Library, type Storytree } from "@storytree/library";
 
 import { moveOntoFactory } from "./factory-move.js";
-import { PRINCIPLES } from "./starter-notes.js";
-import { seedStarterPack } from "./starter-pack.js";
+import { GUARDRAILS, PATTERNS, PRINCIPLES, PROCESSES } from "./starter-notes.js";
+import { STARTER_CHECKS, STARTER_ROLES, takeStarterPack } from "./starter-pack.js";
 
 async function withStorytree(projects: readonly string[], body: (storytree: Storytree) => Promise<void>): Promise<void> {
   const storytree = await connect({ url: testServerUrl() });
@@ -38,13 +39,20 @@ async function opened<T>(storytree: Storytree, project: string, read: (library: 
 
 const principle = (title: string) => PRINCIPLES.find((note) => note.title === title)!;
 
+/** Every part of the pack, by title: what it seeded before the bare bones. */
+const WHOLE_PACK = [...STARTER_ROLES, ...STARTER_CHECKS, ...[...PRINCIPLES, ...GUARDRAILS, ...PATTERNS, ...PROCESSES].map((note) => note.title)];
+
 test("6.12 moving an existing project onto the user's factory drops each copy of the system it holds unedited that the factory holds too, keeps each it edited or added as its own, and names the factory; links to a dropped copy read the factory's, moving again changes nothing, and a factory is refused", async () => {
   const [project, factory] = [uniqueProjectName(), uniqueProjectName()];
   await withStorytree([project, factory], async (storytree) => {
+    await opened(storytree, factory, async (library) => {
+      await library.markFactory();
+      await takeStarterPack(library, undefined, WHOLE_PACK);
+    }, true);
     // A project set up before factories: the whole pack seeded, one principle and one role edited, one principle its own,
     // and one copy unedited from a pack that no longer carries it.
     const ids = await opened(storytree, project, async (library) => {
-      await seedStarterPack(library);
+      await takeStarterPack(library, undefined, WHOLE_PACK);
       const notes = await library.list("principle");
       const id = (title: string) => notes.find((note) => note.fields.title === title)!.id;
       await library.editNote(id("Minimum to green"), { statement: "Our team's own statement." }, { actor: "session:the-user" });
@@ -57,7 +65,7 @@ test("6.12 moving an existing project onto the user's factory drops each copy of
     }, true);
 
     const moved = await moveOntoFactory({ storytree, project, factory });
-    assert.equal(moved.factory, factory, "the factory is made the first time");
+    assert.equal(moved.factory, factory, "the factory is found by its mark");
     const kept = moved.kept.map(({ kind, title, why }) => `${kind}: ${title} (${why})`).sort();
     assert.deepEqual(kept, ["agent: orchestrator (own)", "principle: A note the pack dropped (not in the factory)", "principle: Minimum to green (own)", "principle: Name things plainly (own)"]);
     const factoryHolds = await opened(storytree, factory, async (library) => (await Promise.all(["principle", "guardrail", "pattern", "process", "check", "agent"].map(async (kind) => (await library.list(kind as "principle")).length))).reduce((a, b) => a + b));

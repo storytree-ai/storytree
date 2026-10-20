@@ -19,8 +19,8 @@ const surfaces: Surfaces = {
   twins: [],
 };
 
-/** A fresh project with both arcs and 100 sessions over the whole 28 days, twelve for each of `words` typing it where no command answers it, handed to `body` with the learner's world. */
-async function inProject(words: readonly string[], body: (world: LearnerWorld, library: Library) => Promise<void>): Promise<void> {
+/** A fresh project with both arcs and `sessions` sessions (100 unless named) over the whole 28 days, twelve for each of `words` typing it where no command answers it, handed to `body` with the learner's world. */
+async function inProject(words: readonly string[], body: (world: LearnerWorld, library: Library) => Promise<void>, sessions = 100): Promise<void> {
   const project = `t-${randomBytes(4).toString("hex")}`;
   const storytree = await connect({ url: testServerUrl() });
   const log: ActivityLog = await openActivityLog(testServerUrl());
@@ -32,8 +32,8 @@ async function inProject(words: readonly string[], body: (world: LearnerWorld, l
       const now = new Date("2026-11-20T00:00:00.000Z");
       const day = (offset: number) => new Date(now.getTime() - offset * 24 * 60 * 60 * 1000).toISOString();
       const common = { harness: "claude-code", source: "tool", machine: "box" } as const;
-      // 100 sessions over the whole 28 days, so disuse can be judged; twelve of them for each word type it where no command answers it.
-      for (let index = 0; index < 100; index += 1) {
+      // Sessions over the whole 28 days, so disuse can be judged; twelve of them for each word type it where no command answers it.
+      for (let index = 0; index < sessions; index += 1) {
         const word = words[Math.floor(index / 12)];
         const line = word === undefined
           ? { verb: "storytree adr pull", outcome: "answered" as const }
@@ -119,4 +119,45 @@ test("14.15 · the drain writes a word's pointer line once, with its evidence, a
     await learnInDrain(later);
     assert.equal((await pointers()).length, 2, "a second drain writes no second fallback");
   });
+});
+
+test("14.16 · a drain a week or more after the last doors check reads the trailing week and files at most three standing-out items, skipping what the learner filed or raised, and records the check; a drain within the week does nothing", async () => {
+  await inProject([], async (world, library) => {
+    const common = { harness: "claude-code", source: "tool" as const, kind: "door-answered" as const, door: "command" as const };
+    const hour = (offset: number) => new Date(world.now.getTime() - offset * 60 * 60 * 1000).toISOString();
+    // In the last week: "storytree story" refused 6 times, below a want's 10; "storytree wait" 4 times, below the check's bar.
+    for (let index = 0; index < 10; index += 1) {
+      await world.log.append(world.project, { ...common, session: `guess-${index}`, verb: "storytree", outcome: "unknown", word: index < 6 ? "story" : "wait", next: [] }, { at: hour(100 - index) });
+    }
+    // The hint "storytree quality graduate" offered 25 times and never taken.
+    for (let index = 0; index < 26; index += 1) {
+      await world.log.append(world.project, { ...common, session: "hinted", verb: "storytree adr pull", outcome: "answered", next: index < 25 ? ["storytree quality graduate"] : [] }, { at: hour(50 - index) });
+    }
+    const checks = async () => (await world.log.lines(world.project, { kinds: ["door-checked"] })).map((line) => (line.kind === "door-checked" ? [...line.filed].sort() : []));
+    const checked = async () => (await library.list("friction")).filter((friction) => friction.fields.provenance?.branch === "(doors check)");
+
+    // 50 sessions: too few for the learner to raise cuts, so the unused groups are the check's.
+    const said = await learnInDrain(world);
+    const first = await checked();
+    assert.deepEqual(first.map((friction) => friction.fields.title).sort(), [
+      'Agents rarely take the hint "storytree quality graduate"',
+      'Agents type "storytree story", which no command answers',
+      "No agent called these verbs in storytree quality for 28 days",
+    ], said.join("\n"));
+    assert.deepEqual(await checks(), [first.map((friction) => friction.id).sort()], "the check is recorded with what it filed");
+    assert.ok(said.includes("  More stood out than the 3 a check files; the rest wait for next week's."), said.join("\n"));
+
+    const again = await learnInDrain({ ...world, now: new Date(world.now.getTime() + 6 * 24 * 60 * 60 * 1000) });
+    assert.equal((await checks()).length, 1, "a drain within the week checks nothing");
+    assert.ok(again.some((line) => line.includes("the next weekly check is due from 2026-11-27")), again.join("\n"));
+
+    const week = new Date(world.now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    // A week later the check runs again; the open three are not filed again, and the one left waiting meets the branch's three for today.
+    const later = await learnInDrain({ ...world, now: week });
+    assert.equal((await checked()).length, 3, later.join("\n"));
+    assert.ok(later.includes("  The rest wait for next week's check: the check has filed its three for today."), later.join("\n"));
+    assert.deepEqual(await checks(), [first.map((friction) => friction.id).sort(), []], "a check that filed nothing is still recorded");
+    await learnInDrain({ ...world, now: new Date(week.getTime() + 24 * 60 * 60 * 1000) });
+    assert.equal((await checks()).length, 2, "and it counts as the week's check");
+  }, 50);
 });

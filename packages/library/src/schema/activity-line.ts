@@ -130,6 +130,13 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    */
   z.object({ ...common, kind: z.literal("door-pointer"), where: z.string().min(1), word: z.string().min(1), to: z.string().min(1).optional(),
     others: z.array(z.string().min(1)), evidence: z.string().min(1) }).strict(),
+  /**
+   * A weekly doors check the friction drain ran (ADR-1090 D2): the window it read, `since` to `until`, and the friction it
+   * `filed` for what stood out, none when nothing did. Written even then, since only a look finds silence; the latest line
+   * says when the doors were last checked.
+   */
+  z.object({ ...common, kind: z.literal("door-checked"), since: z.string().datetime({ offset: true }), until: z.string().datetime({ offset: true }),
+    filed: z.array(z.string().min(1)) }).strict(),
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
   /**
    * A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3).

@@ -6,7 +6,8 @@ const MASTER_GAIN = 0.15;
 /**
  * Chapter 1's sound, all synthesized (0.2's palette): a filtered-noise typing tick throttled to one per 65 ms,
  * a square-wave power-on thump for a window, and a two-partial bell when a demand parks. Nothing exists until
- * the visitor turns sound on: `unlock` is called from that click and creates the context.
+ * the visitor turns sound on: `unlock` is called from that click with the context the click made, and closes it
+ * when it already has one.
  */
 export function createOpeningAudio() {
   let context: AudioContext | undefined;
@@ -14,9 +15,9 @@ export function createOpeningAudio() {
   let noise: AudioBuffer | undefined;
   let lastTick = -Infinity;
 
-  const unlock = () => {
-    if (context) { void context.resume().catch(() => {}); return; }
-    context = new AudioContext();
+  const unlock = (given?: AudioContext) => {
+    if (context) { if (given) void given.close().catch(() => {}); void context.resume().catch(() => {}); return; }
+    context = given ?? new AudioContext();
     master = context.createGain();
     master.gain.value = MASTER_GAIN;
     const compressor = context.createDynamicsCompressor();

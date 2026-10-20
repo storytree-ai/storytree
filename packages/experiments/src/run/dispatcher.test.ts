@@ -12,7 +12,7 @@ import type { Experiment } from "../record/record.js";
 import type { Curves, Point } from "../points/points.js";
 import { ExperimentRefusal } from "../record/record.js";
 import { withLibrary } from "../testing/pg.js";
-import { approveCheckouts, armLaneCommand, armRuns, laneBrief, laneFiles, PLAN_RULES, runExperiment, stateFile, statusFile, type ArmRun, type Look, type RunState } from "./dispatcher.js";
+import { approveCheckouts, armLaneCommand, armRuns, laneBrief, laneFiles, PLAN_RULES, readyArgs, runExperiment, stateFile, statusFile, type ArmRun, type Lane, type Look, type RunState } from "./dispatcher.js";
 
 const RULES = { flatMerges: 2, wallClockMs: 3600_000, wallClock: "1 hour" };
 const ARMS: ArmRun[] = [
@@ -21,10 +21,14 @@ const ARMS: ArmRun[] = [
 ];
 
 /** A box whose real pool and arms are scripted per look; the dispatcher runs until `rounds` looks have passed. */
-function fakeBox({ rounds, real, arms, rules = RULES, plans = {}, planRounds = 0, points = async () => ({}), record = async () => [], state = { arms: {} } as RunState, launchCode = 0, start = "2026-10-17T00:00:00Z" }: {
+function fakeBox({ rounds, real, arms, looks = {}, lane = async () => {}, rules = RULES, plans = {}, planRounds = 0, points = async () => ({}), record = async () => [], state = { arms: {} } as RunState, launchCode = 0, start = "2026-10-17T00:00:00Z" }: {
   rounds: number;
   real: (round: number) => Look;
   arms: Record<string, (round: number) => string[]>;
+  /** An arm's look read for real, in place of its scripted `arms` and `plans`. */
+  looks?: Record<string, (arm: ArmRun) => Promise<Look>>;
+  /** What a lane does to its arm's library before it ends. */
+  lane?: (arm: ArmRun, one: Lane) => Promise<void>;
   rules?: typeof RULES;
   plans?: Record<string, (round: number) => { id: string; title: string; state: string }[]>;
   planRounds?: number;
@@ -47,6 +51,7 @@ function fakeBox({ rounds, real, arms, rules = RULES, plans = {}, planRounds = 0
       arms: ARMS, rules, pollMs: 60_000, backoffMs: 30 * 60_000,
       look: async (arm) => (arm === undefined
         ? real(round)
+        : looks[arm.arm] ? looks[arm.arm]!(arm)
         : { running: 0, cap: 0, lanesDir: "/l", ready: (arms[arm.arm]?.(round) ?? []).map((id) => ({ id, title: id })), plans: plans[arm.arm]?.(round) ?? [] }),
       points: () => points(round),
       record: () => record(round),
@@ -54,9 +59,9 @@ function fakeBox({ rounds, real, arms, rules = RULES, plans = {}, planRounds = 0
         launched.push(`${arm.arm}:${one.plan ? "plan:" : ""}${one.id}`);
         engineUp();
         if (one.plan && planRounds > 0) return new Promise((done) => planning.push({ until: round + planRounds, end: () => done(launchCode) }));
-        const lane = Promise.resolve(launchCode);
-        lanes.push(lane);
-        return lane;
+        const ended = lane(arm, one).then(() => launchCode);
+        lanes.push(ended);
+        return ended;
       },
       state: { load: async () => structuredClone(state), save: async (next) => { saved.push(structuredClone(next)); } },
       stopped: async () => { const done = round >= rounds; if (done) endPlans(true); return done; },
@@ -280,21 +285,44 @@ test("7.12 · a run restarted while an unchanged arc waits out its back-off keep
   assert.ok(second.lines.some((line) => line.startsWith("2026-10-17T00:32:00Z plan arc_on")), second.lines.join("\n"));
 });
 
-test("7.13 · an arc that leaves an arm's plannable list while its work is open is offered again when it returns, even in the state it was first planned in; one still listed keeps its plan", async () => {
-  const box = fakeBox({
-    rounds: 6,
-    real: () => idle(0, 4),
-    arms: { "map-reads-on": (round) => (round === 1 ? ["on1"] : []), "map-reads-off": () => [] },
-    plans: {
-      "map-reads-on": (round) => (round === 0 || round >= 4 ? [{ id: "arc_on", title: "On's arc", state: "s0" }] : []),
-      "map-reads-off": () => [{ id: "arc_off", title: "Off's arc", state: "t1" }],
-    },
-    state: { arms: { "map-reads-off": { launches: 0, planned: { arc_off: "t1" } } } },
-  });
-  assert.equal(await box.run(), 0);
-  assert.deepEqual(box.launched, ["map-reads-on:plan:arc_on", "map-reads-on:on1", "map-reads-on:plan:arc_on"],
-    "round 0: on's arc is planned at s0; rounds 1-3: its work is open, so the arc is not listed; round 4: every increment has closed and the arc is back at s0, so it is planned again; off's arc stays listed in the state it was planned in");
-  assert.deepEqual(box.saved.at(-1)?.arms["map-reads-off"]?.planned, { arc_off: "t1" });
+test("7.13 · an arc that leaves an arm's plannable list while its work is open is offered again when it drains, as the real ready reads it, even in the state it was first planned in; one still listed keeps its plan", async () => {
+  // The agent pool is a devDependency here, imported by a string so the .mjs needs no types; ready runs in process, since counting engines runs `ps`.
+  const launch: string = "@storytree/agent-pool/launch", feed: string = "@storytree/agent-pool/feed";
+  const [{ main }, { readSurvey }] = await Promise.all([import(launch), import(feed)]);
+  const lanesDir = mkdtempSync(path.join(tmpdir(), "experiment-ready-"));
+  try {
+    await withLibrary(async (library) => {
+      const arc = await library.createArc({ title: "On's arc", intent: "Build the task", endState: "The task works" });
+      const ready = async (arm: ArmRun): Promise<Look> => {
+        const out: string[] = [];
+        const box = { survey: () => readSurvey({ library, claims: async () => [] }), count: async () => 0, maxLanes: async () => 4, lanesDir, now: Date.now, out: (line: string) => out.push(line) };
+        assert.equal(await main(readyArgs(arm.project, { arm: true }), box), 0);
+        return JSON.parse(out.join("\n")) as Look;
+      };
+      const box = fakeBox({
+        rounds: 3,
+        real: () => idle(0, 4),
+        arms: { "map-reads-off": () => [] },
+        looks: { "map-reads-on": ready },
+        plans: { "map-reads-off": () => [{ id: "arc_off", title: "Off's arc", state: "t1" }] },
+        state: { arms: { "map-reads-off": { launches: 0, planned: { arc_off: "t1" } } } },
+        lane: async (arm, one) => {
+          if (arm.arm !== "map-reads-on") return;
+          if (one.plan) await library.addIncrement({ arc: one.id, title: "The task", objective: "It works", body: "Build it." });
+          else {
+            await library.advanceIncrement(one.id, "active");
+            await library.closeIncrement(one.id, { disposition: "landed", pr: "1" });
+          }
+        },
+      });
+      assert.equal(await box.run(), 0);
+      const built = box.launched[1]?.replace("map-reads-on:", "");
+      assert.deepEqual(box.launched, [`map-reads-on:plan:${arc.id}`, `map-reads-on:${built}`, `map-reads-on:plan:${arc.id}`],
+        "round 0: on's arc has no work, so it is planned at [0,[]]; round 1: the increment its lane parked is ready and the arc is not listed; round 2: that increment closed, the arc reads closed and only the arm's drained listing offers it, at [0,[]] again, so it is planned again; off's arc stays listed in the state it was planned in");
+      assert.match(built ?? "", /^increment_/);
+      assert.deepEqual(box.saved.at(-1)?.arms["map-reads-off"]?.planned, { arc_off: "t1" });
+    });
+  } finally { rmSync(lanesDir, { recursive: true, force: true }); }
 });
 
 test("7.14 · an arm whose planning lane changes nothing on three consecutive tries, the back-off between them, is stopped as declared done, said once and kept; the other arm runs on", async () => {

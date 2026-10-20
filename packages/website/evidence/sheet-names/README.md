@@ -20,4 +20,5 @@ reason. The run before this change failed 2.22 at every phone view and 2.23 at e
 the right edge, as in `../sheet-tour/sheet/1440-grow.png` and `320-freeplay.png`).
 
 The saved stills in `public/` (`forest-*.png`, `shop-*.png`, shown when WebGL cannot draw) are retaken from the sheet by
-`../forest/shop-stills.mjs`, now cut to the sheet's band instead of a square.
+`shop-stills.mjs`, now cut to the sheet's band instead of a square. (Since 2026-10-20 storytree's are retaken from the framed
+map by [`../forest/forest-stills.mjs`](../forest/forest-stills.mjs), and the shop's have left the page.)

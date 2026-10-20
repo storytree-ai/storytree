@@ -3,10 +3,15 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { Window as HappyWindow } from "happy-dom";
 
 import { readIco, readPng } from "@storytree/mark";
 
 import { buildWebsite } from "./build.js";
+import { fixes, harness } from "./tour-copy.js";
+
+const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
 test("2.3 · the initial page downloads less than 20 KiB of JavaScript before activating the forest", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-lazy-"));
@@ -26,6 +31,9 @@ test("2.3 · the initial page downloads less than 20 KiB of JavaScript before ac
   assert.ok(initial.size > 0);
   const bytes = [...initial].reduce((sum, name) => sum + outputs[name]!.bytes, 0);
   assert.ok(bytes < 20 * 1024, `Initial JavaScript was ${bytes} bytes; the renderer must wait for activation`);
+  // Chapter 1's words and its sound wait for the visitor's first act, so the intro can grow within the cap.
+  const loadedFirst = [...initial].flatMap(name => Object.keys(outputs[name]!.inputs));
+  for (const later of ["src/opening-copy.ts", "src/opening-audio.ts"]) assert.ok(!loadedFirst.includes(later), `${later} is in the initial download`);
 });
 
 test("1.1 · a static build serves its home page and every local asset without an app server", async (t) => {
@@ -167,4 +175,49 @@ test("5.3 · the built storage manifest permits public insertion and explicitly 
     access: { insert: "public", read: "owner", update: "owner", delete: "owner" },
     rateLimit: "10/hour/ip",
   } } });
+});
+
+test("1.13 · below the map the built home shows the three claims in order, claim 1 carrying the first short served by the site", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-claims-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const html = await readFile(path.join(output, "index.html"), "utf8");
+  const page = new HappyWindow().document;
+  page.write(html);
+  const claims = [...page.querySelectorAll("section.claim")];
+  assert.deepEqual(claims.map(claim => ({ pain: claim.querySelector(".claim-pain")?.textContent, fix: claim.querySelector(".claim-fix")?.textContent })),
+    fixes.pairs, "one section per claim, in order, each reading its pain then its fix, and no other");
+  assert.ok(page.querySelector("#map-frame")!.compareDocumentPosition(claims[0]!) & 4, "the claims sit below the map");
+  const videos = claims.map(claim => claim.querySelector("video"));
+  assert.ok(videos[0] && videos.slice(1).every(video => !video), "only claim 1 carries a short");
+  for (const attribute of ["muted", "playsinline", "controls"]) assert.ok(videos[0]!.hasAttribute(attribute), attribute);
+  // What the site serves is the short and the poster as rendered.
+  const rendered = path.join(packageRoot, "evidence", "first-short");
+  for (const [name, file] of [["src", "seeing-what-agents-built-1080p.mp4"], ["poster", "seeing-what-agents-built-poster.png"]] as const) {
+    const asset = videos[0]!.getAttribute(name);
+    assert.match(asset ?? "", /^\//, name);
+    assert.ok((await readFile(path.join(output, asset!))).equals(await readFile(path.join(rendered, file))), `${asset} is the rendered ${file}`);
+  }
+});
+
+test("1.14 · after the claims the built home says it works with your harness, with its marks, and ends on the waitlist", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-harness-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const page = new HappyWindow().document;
+  page.write(await readFile(path.join(output, "index.html"), "utf8"));
+  const section = page.querySelector("#harness")!;
+  assert.ok(page.querySelector("#claims")!.compareDocumentPosition(section) & 4, "the harness sits below the claims");
+  assert.ok(section.textContent!.includes(harness.claim) && section.textContent!.includes(harness.marksNote), "the owner's line, then any harness that speaks MCP");
+  const marks = [...section.querySelectorAll("img")];
+  assert.deepEqual(marks.map(mark => mark.getAttribute("alt")), harness.marks.map(({ name }) => name), "one mark per harness storytree watches");
+  for (const mark of marks) {
+    const src = mark.getAttribute("src")!;
+    assert.ok((await readFile(path.join(output, src))).equals(await readFile(path.join(packageRoot, "public", src))), `${src} is the maker's mark as published`);
+  }
+  const sections = [...page.querySelectorAll("main > section")];
+  const last = sections.at(-1)!;
+  assert.ok(sections.indexOf(section) === sections.length - 2, "nothing comes between the harness and the end of the page");
+  assert.ok(last.querySelector('a[href="/waitlist.html"]'), "the page ends on the waitlist");
+  assert.equal(page.querySelectorAll('main a[href="/waitlist.html"]').length, 1, "the waitlist is offered once, at the bottom");
 });

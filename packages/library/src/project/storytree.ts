@@ -228,32 +228,58 @@ class ServerConnection implements Storytree {
     }
   }
 
-  /** `inherit: false` opens a factory for the product reading it, which reads no factory of its own. */
+  /**
+   * `inherit: false` opens a factory for the product reading it, which reads no factory of its own. An open that only
+   * reaches an existing project, finds its database and then loses its connection (no SQLSTATE, or 57P01, or 3D000 for
+   * a database gone) may be racing the project's deletion: it is refused as gone if the database is gone, or marked
+   * invalid as a drop does before removing it, within five seconds. A forced drop ends the open's connection before it
+   * waits for the ended backends to exit, which a slow machine's server can take more than a second over.
+   */
   async #openProject(name: string, options: OpenOptions & { readonly inherit?: boolean }): Promise<Project> {
     assertProjectName(name); // before anything touches the server
     const database = projectDatabase(name);
+    let identity: string | undefined;
     try {
       if (options.create !== false) await this.#createDatabaseIfMissing(database);
-      const identity = await this.#databaseIdentity(database);
+      identity = await this.#databaseIdentity(database);
       if (identity === undefined || (options.create === false && options.identity !== undefined && identity !== options.identity)) throw new ProjectGoneError(name);
-      const pool = this.#server.pool(database, await this.#owningRole(database));
-      try {
-        await openTables(pool, name);
-      } catch (error) {
-        await pool.end();
-        throw error;
-      }
-      const factory = options.inherit === false ? undefined : await this.#factoryOf(pool, name).catch(async (error: unknown) => {
-        await pool.end();
-        throw error;
-      });
-      const domain = { server: vectorServerIdentity(pool, this.#cloudInstance), database, identity };
-      const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder, factory);
-      this.#projects.add(project);
-      return project;
+      return await this.#openFound(name, database, identity, options);
     } catch (error) {
+      const lost = identity !== undefined && !(error instanceof ProjectGoneError) && [undefined, "57P01", "3D000"].includes(sqlState(error));
+      if (options.create === false && lost && (await this.#goneWithin(database, 5_000))) throw new ProjectGoneError(name);
       throw this.#server.explain(error);
     }
+  }
+
+  /**
+   * Whether `database` is gone, or being dropped (marked invalid, datconnlimit -2), or is either within `ms`; a look that
+   * fails counts as not gone.
+   */
+  async #goneWithin(database: string, ms: number): Promise<boolean> {
+    const look = "SELECT 1 FROM pg_database WHERE datname = $1 AND datconnlimit <> -2";
+    for (const until = Date.now() + ms; ; await new Promise((resolve) => setTimeout(resolve, 50))) {
+      const live = await this.#server.admin.query(look, [database]).then(({ rowCount }) => (rowCount ?? 0) > 0, () => true);
+      if (!live) return true;
+      if (Date.now() >= until) return false;
+    }
+  }
+
+  async #openFound(name: string, database: string, identity: string, options: OpenOptions & { readonly inherit?: boolean }): Promise<Project> {
+    const pool = this.#server.pool(database, await this.#owningRole(database));
+    try {
+      await openTables(pool, name);
+    } catch (error) {
+      await pool.end();
+      throw error;
+    }
+    const factory = options.inherit === false ? undefined : await this.#factoryOf(pool, name).catch(async (error: unknown) => {
+      await pool.end();
+      throw error;
+    });
+    const domain = { server: vectorServerIdentity(pool, this.#cloudInstance), database, identity };
+    const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder, factory);
+    this.#projects.add(project);
+    return project;
   }
 
   /**

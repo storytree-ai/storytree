@@ -7,7 +7,7 @@ const run = page => page.getByRole("button", { name: "Run", exact: true });
 const better = page => page.getByRole("button", { name: "show me where to look" });
 const peak = ["AGENTS: 12 ▲", "WAITING ON YOU: 12", "ANSWERED: 00"];
 
-// Contracts 2.3 and 2.10: measure real page frames with the globe below the fold, then prove its handover.
+// Contracts 2.3 and 2.10: measure real page frames with the map below the fold, then prove its handover.
 // The caller launches SwiftShader explicitly; no virtual clock or hidden chapter changes the load.
 export async function verifyOpeningFrames(browser, url, output) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -23,31 +23,24 @@ export async function verifyOpeningFrames(browser, url, output) {
           if (this.canvas.closest("#website-forest")) {
             window.globeDraws++;
             if (window.handoverAt !== undefined) window.firstDrawAfterHandover ??= performance.now();
-            if (window.growAt !== undefined) window.firstGrowthDraw ??= performance.now();
           }
           return draw.apply(this, args);
         };
       }
     }
-    // When chapter 1 hands the screen to chapter 2: from here the globe should draw at once.
+    // When chapter 1 hands the screen to the page: from here the framed map may set up.
     window.addEventListener("storytree-opening", event => { if (!event.detail.active && window.runAt) window.handoverAt ??= performance.now(); });
-    // Act 2's arrival: its first words, which the globe sets up behind, then the time-lapse's first drawn frame.
     window.painFrames = [];
-    // The growth is told from the arrival's first frame, held at its start until the globe is set up: it starts once it moves.
-    window.addEventListener("storytree-tour-growth", event => {
-      if (event.detail.at > 0 && window.handoverAt !== undefined && window.growAt === undefined) { window.growAt = performance.now(); window.globesShownAtGrow = [...window.globesShown]; }
-    });
     let last;
     const frame = now => {
       if (last !== undefined) {
         window.openingFrames[window.runAt ? "playing" : "ready"].push(now - last);
         if (window.runAt && !window.finaleAt) window.openingFrames[window.parkedAt ? "quiet" : "swarm"].push(now - last);
         if (window.exitAt !== undefined && window.painAt === undefined) window.exitFrames.push(now - last);
-        if (window.handoverAt !== undefined && window.growAt === undefined) {
+        // From the turn to the live map: where each long frame fell, from the hand-over, its start and end.
+        if (window.exitAt !== undefined && window.liveAt === undefined) {
           window.painFrames.push(now - last);
-          // Where each long frame fell, from the hand-over: its start and end.
-          if (now - last > 100) (window.painStalls ??= []).push([Math.round(last - window.handoverAt), Math.round(now - window.handoverAt)]);
-          if (window.firstPainLine === undefined && document.querySelector("#chapter2 .tour-line.on")?.checkVisibility({ opacityProperty: true })) window.firstPainLine = Math.round(now - window.handoverAt);
+          if (now - last > 100) (window.painStalls ??= []).push([Math.round(last - (window.handoverAt ?? now)), Math.round(now - (window.handoverAt ?? now))]);
         }
       }
       last = now;
@@ -64,12 +57,14 @@ export async function verifyOpeningFrames(browser, url, output) {
       };
     }, true);
     document.addEventListener("DOMContentLoaded", () => {
-      // Every globe the drawing shows, in order, from its first mount.
+      // Every project the drawing shows, in order, from its first mount, and when the map goes live.
       window.globesShown = [];
+      const host = document.getElementById("website-forest");
       new MutationObserver(() => {
-        const drawing = document.querySelector("#website-forest .forest-drawing");
+        const drawing = host.querySelector(".forest-drawing");
         if (drawing && drawing.dataset.globe !== window.globesShown.at(-1)) window.globesShown.push(drawing.dataset.globe);
-      }).observe(document.getElementById("website-forest"), { subtree: true, childList: true, attributes: true, attributeFilter: ["data-globe"] });
+        if (host.dataset.forestState === "live" && window.handoverAt !== undefined) window.liveAt ??= performance.now();
+      }).observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-globe", "data-forest-state"] });
       // The turn ends where chapter 1's pain line begins (ADR-1091 D1).
       new MutationObserver(() => {
         if (window.exitAt !== undefined && document.getElementById("opening").dataset.phase === "pain") window.painAt ??= performance.now();
@@ -115,48 +110,45 @@ export async function verifyOpeningFrames(browser, url, output) {
     });
     await writeFile(path.join(output, "opening-frames.json"), JSON.stringify(measured, null, 2) + "\n");
     console.log(JSON.stringify(measured));
-    assert.deepEqual(measured.beforeRun, { activations: 0, sceneRequested: false }, "website 2.3: nothing about the globe starts or is requested before Run");
-    assert.equal(measured.activationCount, 0, "website 2.10: Act 1 starts nothing of the globe");
+    assert.deepEqual(measured.beforeRun, { activations: 0, sceneRequested: false }, "website 2.3: nothing about the map starts or is requested before Run");
+    assert.equal(measured.activationCount, 0, "website 2.10: Act 1 starts nothing of the map");
     assert.equal(measured.sceneRequested, false, "website 2.10: nor requests its scene");
-    assert.equal(measured.mountedLayers, 0, "website 2.10: no globe is mounted while Act 1 plays");
-    assert.equal(measured.globeDraws, 0, "website 2.10: the globe draws nothing while Act 1 plays");
+    assert.equal(measured.mountedLayers, 0, "website 2.10: no map is mounted while Act 1 plays");
+    assert.equal(measured.globeDraws, 0, "website 2.10: the map draws nothing while Act 1 plays");
     await better(page).click();
-    await page.waitForFunction(() => window.firstGrowthDraw !== undefined, null, { timeout: 60000 });
+    await page.waitForFunction(() => window.liveAt !== undefined && window.firstDrawAfterHandover !== undefined, null, { timeout: 60000 });
     Object.assign(measured, await page.evaluate(() => {
       const activated = performance.getEntriesByName("forest-activate").at(-1).startTime, ready = performance.getEntriesByName("forest-ready").at(-1).startTime;
       const sorted = [...window.painFrames].sort((a, b) => b - a);
       return {
         handoverToActivateMs: activated - window.handoverAt, loadMs: ready - activated, handoverToLiveMs: ready - window.handoverAt,
-        painBeatMs: window.growAt - window.handoverAt, liveBeforeGrowth: ready < window.growAt,
-        painStallsMs: window.painStalls ?? [], firstPainLineMs: window.firstPainLine,
-        exitToPainMs: window.painAt - window.exitAt, globesBeforeGrowth: window.globesShownAtGrow ?? window.globesShown, turnLongestFrameMs: Math.max(...window.exitFrames, 0),
-        painLongestFramesMs: sorted.slice(0, 3), painToFirstGrowthFrameMs: window.firstGrowthDraw - window.handoverAt,
-        growToFirstGrowthFrameMs: window.firstGrowthDraw - window.growAt,
+        painStallsMs: window.painStalls ?? [], exitToPainMs: window.painAt - window.exitAt, globesShown: window.globesShown,
+        turnLongestFrameMs: Math.max(...window.exitFrames, 0), painLongestFramesMs: sorted.slice(0, 3),
+        handoverToFirstDrawMs: window.firstDrawAfterHandover - window.handoverAt,
         activationsAfterHandover: performance.getEntriesByName("forest-activate").length,
       };
     }));
     await writeFile(path.join(output, "opening-frames.json"), JSON.stringify(measured, null, 2) + "\n");
-    console.log(JSON.stringify({ handoverToLiveMs: measured.handoverToLiveMs, painBeatMs: measured.painBeatMs, painLongestFramesMs: measured.painLongestFramesMs, painStallsMs: measured.painStallsMs, firstPainLineMs: measured.firstPainLineMs, painToFirstGrowthFrameMs: measured.painToFirstGrowthFrameMs }));
+    console.log(JSON.stringify({ handoverToLiveMs: measured.handoverToLiveMs, handoverToFirstDrawMs: measured.handoverToFirstDrawMs, painLongestFramesMs: measured.painLongestFramesMs, painStallsMs: measured.painStallsMs }));
     console.log(JSON.stringify({ exitToPainMs: measured.exitToPainMs, turnLongestFrameMs: measured.turnLongestFrameMs }));
     // The turn is about 1.1 s of animation; a loaded machine may stretch it, never freeze it.
     assert.ok(measured.exitToPainMs < 2000, `website 1.9: the turn reaches the pain line in about the time it is drawn to take (${Math.round(measured.exitToPainMs)} ms)`);
     assert.ok(measured.painStallsMs.every(([start, end]) => start >= 0 || end - start < 1000), `website 1.9: the turn draws frames throughout (${JSON.stringify(measured.painStallsMs)})`);
-    assert.deepEqual(measured.globesBeforeGrowth, ["own"], "website 2.10: before the time-lapse the drawing shows only storytree's own seed, never another globe");
-    assert.equal(measured.activationsAfterHandover, 1, "website 2.10: the hand-over starts one globe");
-    assert.ok(measured.liveBeforeGrowth, "website 2.10: the globe is set up behind the arrival's first words, before the time-lapse starts");
-    const before = measured.painStallsMs.filter(([start]) => start >= 0 && start < measured.firstPainLineMs);
-    assert.deepEqual(before, [], `website 2.10: the globe's setup stalls only behind the arrival's first words, never the dark beat before them (first words at ${measured.firstPainLineMs} ms)`);
+    assert.ok(measured.handoverToActivateMs > 0, "website 2.10: the map sets up only once the intro hands the screen to the page");
+    assert.equal(measured.activationsAfterHandover, 1, "website 2.10: the hand-over sets up one map");
+    assert.deepEqual(measured.globesShown, ["storytree"], "website 2.10: the framed map shows storytree's own project, and nothing before it");
+    assert.ok(measured.handoverToFirstDrawMs > 0, "website 2.10: the map draws once the hand-over sets it up");
     await page.waitForTimeout(3000); // Let the first camera flight arrive before its picture.
     await page.screenshot({ path: path.join(output, "handover-1440.png") });
-    await page.getByRole("button", { name: "Replay chapter 1" }).click();
-    assert.equal(await page.locator("#website-forest .forest-canvas").count(), 0, "website 2.3: replay releases the globe while Chapter 1 is visible");
+    await page.getByRole("button", { name: "Replay the intro" }).click();
+    assert.equal(await page.locator("#website-forest .forest-canvas").count(), 0, "website 2.3: replay releases the map while Chapter 1 is visible");
     await page.evaluate(() => scrollTo(0, document.querySelector("#opening").offsetHeight + 40));
     await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
-    assert.equal(await page.locator("#website-forest .forest-canvas").count(), 1, "website 2.3: scroll remounts one globe");
+    assert.equal(await page.locator("#website-forest .forest-canvas").count(), 1, "website 2.3: scroll remounts one map");
     await page.reload();
     await page.waitForFunction(() => document.querySelector("#website-forest").dataset.forestState === "live", null, { timeout: 30000 });
   } finally { await page.close(); }
-  // Without IntersectionObserver the globe cannot tell it is off screen, so even Run leaves it until the handover.
+  // Without IntersectionObserver the map cannot tell it is off screen, so even Run leaves it until the handover.
   const fallback = await browser.newPage({ viewport: { width: 390, height: 844 } });
   let release;
   const held = new Promise(resolve => { release = resolve; });
@@ -168,10 +160,10 @@ export async function verifyOpeningFrames(browser, url, output) {
     await fallback.goto(url);
     await run(fallback).click();
     await fallback.waitForTimeout(1500);
-    assert.equal(await fallback.locator("#website-forest .forest-canvas").count(), 0, "website 2.10: without IntersectionObserver, Run does not start a globe that could not pause");
+    assert.equal(await fallback.locator("#website-forest .forest-canvas").count(), 0, "website 2.10: without IntersectionObserver, Run does not start a map that could not pause");
     await fallback.getByRole("button", { name: "skip intro" }).click();
     await request;
-    await fallback.getByRole("button", { name: "Replay chapter 1" }).click();
+    await fallback.getByRole("button", { name: "Replay the intro" }).click();
     release();
     await fallback.waitForTimeout(1500);
     assert.equal(await fallback.locator("#website-forest .forest-canvas").count(), 0, "website 2.3: a scene arriving after Replay cannot mount");
@@ -180,7 +172,7 @@ export async function verifyOpeningFrames(browser, url, output) {
     await fallback.waitForTimeout(3000);
     await fallback.screenshot({ path: path.join(output, "handover-390.png") });
   } finally { release(); await fallback.close(); }
-  console.log("PASS contracts 1.9, 2.3 and 2.10: a turn that keeps its frames, nothing before Run, nothing of the globe in Act 1, set up behind the arrival's first words before the time-lapse, replay, scroll, return and no-observer fallback");
+  console.log("PASS contracts 1.9, 2.3 and 2.10: a turn that keeps its frames, nothing before Run, nothing of the map in Act 1, one framed map set up and drawing after the hand-over, replay, scroll, return and no-observer fallback");
 }
 
 // ADR-0879 D6: nothing may overflow sideways and no window may cover the HUD row, at any size or zoom.
@@ -270,7 +262,7 @@ export async function verifyOpening(browser, url, output) {
   assert.deepEqual(await counter(page), ["AGENTS: 15 ▲", "WAITING ON YOU: 15", "ANSWERED: 00"]);
   await better(page).waitFor();
   assert.ok(await page.evaluate(() => window.audioStarts) > 0);
-  await page.getByRole("button", { name: "restart chapter 1" }).focus();
+  await page.getByRole("button", { name: "restart the intro" }).focus();
   await page.keyboard.press("Enter");
   assert.equal(await page.evaluate(() => document.activeElement.id), "opening-run", "website 1.8: restarting returns keyboard focus to Run");
   await page.keyboard.press("Enter");
@@ -306,15 +298,15 @@ export async function verifyOpening(browser, url, output) {
   assert.ok(await page.locator("#website-forest").evaluate(el => el.getBoundingClientRect().top < innerHeight));
   await page.reload();
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
-  await page.getByRole("button", { name: "Replay chapter 1" }).click();
+  await page.getByRole("button", { name: "Replay the intro" }).click();
   assert.equal(await page.evaluate(() => document.activeElement.id), "opening-run", "Replay returns keyboard focus to the scene");
   await run(page).click();
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
-  await page.getByRole("button", { name: "Replay chapter 1" }).click();
+  await page.getByRole("button", { name: "Replay the intro" }).click();
   await page.getByRole("button", { name: "skip intro" }).click();
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
-  await page.getByRole("button", { name: "Replay chapter 1" }).click();
+  await page.getByRole("button", { name: "Replay the intro" }).click();
   await run(page).click();
   await page.evaluate(() => scrollTo(0, document.querySelector("#opening").offsetHeight + 40));
   await page.waitForFunction(() => document.querySelector("#opening").hidden);
@@ -331,9 +323,17 @@ export async function verifyOpening(browser, url, output) {
     await still.screenshot({ path: path.join(output, options.javaScriptEnabled === false ? "390-no-script.png" : "390-reduced-motion.png") });
     if (options.reducedMotion) {
       assert.equal(await still.evaluate(() => document.querySelector("#opening").getAnimations({ subtree: true }).length), 0);
+      // The joke's words load on its click, here with no Run before it (contract 2.3).
+      await still.getByRole("button", { name: "i'll keep babysitting" }).click();
+      await still.getByRole("button", { name: "restart the intro" }).waitFor();
+      assert.deepEqual(await counter(still), ["AGENTS: 15 ▲", "WAITING ON YOU: 15", "ANSWERED: 00"], "website 1.8: the reduced-motion joke adds its three agents");
+      await still.getByRole("button", { name: "restart the intro" }).click();
+      assert.deepEqual(await counter(still), peak);
       await still.clock.install();
       await still.emulateMedia({ reducedMotion: "no-preference" });
       await run(still).click();
+      // Run starts once chapter 1's words have loaded; only then are its timers set.
+      await still.locator("#opening-lead .is-cmd").waitFor();
       await still.clock.fastForward(46000);
       await better(still).click();
       await still.emulateMedia({ reducedMotion: "reduce" });

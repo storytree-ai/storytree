@@ -1,0 +1,36 @@
+{
+  "desktop": {
+    "claims": [
+      "See your whole project as a map",
+      "Agents see each other working on the map",
+      "Every decision remembered, anchored to the map"
+    ],
+    "inView": {
+      "paused": false,
+      "time": 11
+    },
+    "leftView": {
+      "paused": true,
+      "time": 11.2
+    }
+  },
+  "phone": {
+    "claims": [
+      "See your whole project as a map",
+      "Agents see each other working on the map",
+      "Every decision remembered, anchored to the map"
+    ],
+    "inView": {
+      "paused": false,
+      "time": 11
+    },
+    "leftView": {
+      "paused": true,
+      "time": 11.2
+    }
+  },
+  "reducedMotion": {
+    "paused": true,
+    "time": 0
+  }
+}

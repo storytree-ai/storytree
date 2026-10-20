@@ -55,8 +55,8 @@ function observe(host: HTMLElement) {
   let stop: (() => void) | undefined;
   const opening = document.getElementById("opening");
   const openingVisible = () => opening && !opening.hidden && opening.getBoundingClientRect().bottom > 0;
-  // Act 1 loads nothing of the globe. After the hand-over it waits for Act 2's first words, so its setup stalls
-  // only a screen of still text (2.10); a slow or missing tour lets it start anyway.
+  // Act 1 loads nothing of the map. After the hand-over it waits for the page beneath to paint (main.ts says so), or
+  // four seconds if it never does, before it sets up (2.10).
   let awaitingWords = false;
   const schedule = () => {
     if (scheduled || awaitingWords || openingVisible()) return;

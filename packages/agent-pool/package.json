@@ -10,6 +10,7 @@
   },
   "exports": {
     "./claude-code-mod": "./src/claude-code-mod/index.mjs",
+    "./feed": "./src/feed.mjs",
     "./launch": "./src/launch.mjs",
     "./runner": "./src/runner.mjs",
     "./watch": "./src/watch.mjs"

@@ -26,51 +26,26 @@
     <a class="skip-link" href="#main">Skip to content</a>
     <!-- OPENING -->
     <main id="main">
-      <section id="chapter2" class="tour-section forest-workspace" data-theme="dark" data-tour-kind="statement" data-fixes-look="beside" aria-labelledby="forest-title">
-        <div class="tour-heading"><h1 id="forest-title"><!-- MARK -->storytree<span aria-hidden="true">.</span></h1><button id="opening-replay" type="button" hidden>Replay chapter 1</button></div>
-        <p id="tour-note" class="tour-note">storytree’s own project · saved {saved} · read only</p>
-        <div id="tour-project" class="tour-project" role="group" aria-label="Project to explore" hidden><span class="tp-label" aria-hidden="true">Project</span><button type="button" data-project="shop" aria-pressed="true">The shop</button><button type="button" data-project="storytree" aria-pressed="false">storytree</button></div>
-        <div class="tour-stage">
+      <section id="chapter2" class="map-section" data-theme="dark" aria-labelledby="forest-title">
+        <div class="map-heading"><h1 id="forest-title"><!-- MARK -->storytree<span aria-hidden="true">.</span></h1><button id="opening-replay" type="button" hidden>Replay the intro</button></div>
+        <p class="map-lead">A living map of your project, for you and your agents.</p>
+        <div id="map-frame" class="map-frame">
           <div id="website-forest" data-forest-state="still" aria-label="Storytree’s project map">
             <picture class="forest-still storytree-still">
               <source media="(max-width: 600px)" srcset="/forest-phone.png">
-              <img src="/forest-desktop.png" width="1440" height="664" loading="lazy" alt="A saved map of storytree’s project: its story islands, named, and the roads between them on a tilted glass sheet.">
-            </picture>
-            <picture class="forest-still shop-still">
-              <source media="(max-width: 600px)" srcset="/shop-phone.png">
-              <img src="/shop-desktop.png" width="1440" height="529" loading="lazy" alt="A saved picture of the online shop’s finished map: its eight story islands, green, joined by roads on a tilted glass sheet.">
+              <img src="/forest-desktop.png" width="1238" height="516" loading="lazy" alt="A saved map of storytree’s project: its story islands, named, and the roads between them on a tilted glass sheet.">
             </picture>
           </div>
-          <p class="forest-unavailable" role="note"><strong>The map can’t draw in this browser: it needs WebGL.</strong> This step replays a moment of the shop’s recorded build, and no single saved picture can show that truthfully, so the words play on without it. Free play shows a saved picture of the finished shop.</p>
-          <div id="tour-tags" class="tour-tags" aria-hidden="true"></div>
-          <article id="tour-card" class="tour-card is-in" aria-labelledby="tour-title">
-            <h2 id="tour-title" class="tour-title">Storytree builds a map of your project and glues it to your code.</h2>
-            <ul id="tour-lines" class="tour-lines">
-              <li class="tour-line on"><span class="said">The map grows as your agents work, and says what needs you and what doesn't.</span></li>
-            </ul>
-            <ul id="tour-marks" class="tour-marks" aria-label="Works with" hidden></ul>
-            <p id="tour-marks-note" class="tour-marks-note" hidden></p>
-            <div id="tour-chips" class="tour-chips"></div>
-            <button id="tour-depth" class="tour-depth" type="button" aria-expanded="false" aria-controls="tour-why" hidden>Read more</button>
-            <div id="tour-why" class="tour-why" hidden></div>
-          </article>
+          <p class="forest-unavailable" role="note"><strong>The map can’t draw in this browser: it needs WebGL.</strong> This is a saved picture of it instead.</p>
+          <div class="map-zoom" role="group" aria-label="Zoom the map"><button type="button" data-zoom="in" aria-label="Zoom in">+</button><button type="button" data-zoom="out" aria-label="Zoom out">−</button></div>
+          <button class="map-tap" type="button" data-map-tap hidden><span>Tap to explore</span></button>
+          <button class="map-exit" type="button" data-map-exit hidden>Done exploring</button>
         </div>
-        <p id="tour-recorded" class="tour-recorded" hidden></p>
-        <div id="tour-freeplay" class="tour-freeplay" hidden></div>
-        <div id="tour-bar" class="tour-bar" role="group" aria-label="Tour controls" hidden>
-          <button id="tour-play" class="tb-btn tb-play" type="button" aria-label="Pause the tour"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z" fill="currentColor"/></svg></button>
-          <div class="tb-speed" role="group" aria-label="Tour speed"><button type="button" data-speed="0.75" aria-pressed="true">0.75×</button><button type="button" data-speed="1" aria-pressed="false">1×</button><button type="button" data-speed="1.5" aria-pressed="false">1.5×</button></div>
-          <button id="tour-speed-cycle" class="tb-btn tb-speed-cycle" type="button" aria-label="Tour speed 0.75×, change it">0.75×</button>
-          <div class="tb-where"><ol id="tour-pips" class="tb-pips" aria-label="Tour steps"></ol><span id="tour-label" class="tb-label"></span><span id="tour-held" class="tb-held" hidden></span></div>
-          <button id="tour-next" class="tb-btn" type="button">Next <span aria-hidden="true">→</span></button>
-          <button id="tour-skip" class="tb-btn" type="button" aria-label="Skip to free play"><span class="lbl-long">Skip to free play</span><svg class="lbl-short" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3l6 5-6 5zM8 3l6 5-6 5z" fill="currentColor"/></svg></button>
-          <button id="tour-replay" class="tb-btn" type="button" aria-label="Replay the tour"><span class="lbl-long">Replay</span><svg class="lbl-short" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 2v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
-          <button id="tour-everything" class="tb-switch" type="button" role="switch" aria-checked="false" aria-label="Show everything"><span class="trk" aria-hidden="true"></span><span class="lbl-long">Show everything</span><span class="lbl-short">All</span></button>
-        </div>
-        <a id="tour-hatch" class="tour-hatch" href="/waitlist.html">Join the waitlist <span aria-hidden="true">→</span></a>
-        <p id="tour-live" class="tour-sr" role="status" aria-live="polite" aria-atomic="true"></p>
+        <p id="map-note" class="map-note">Storytree’s own project · saved {saved} · read only</p>
+        <p class="map-after">Storytree builds a map of your project and glues it to your code. It grows as your agents work, and says what needs you and what doesn’t.</p>
       </section>
+      <!-- CLAIMS -->
+      <!-- PAGE END -->
     </main>
-    <!-- COUNTS -->
   </body>
 </html>

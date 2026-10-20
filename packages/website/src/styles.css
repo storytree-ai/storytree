@@ -1,5 +1,6 @@
-@import "./tour.css";
-@import "./freeplay.css";
+@import "./map.css";
+@import "./claims.css";
+@import "./page-end.css";
 
 :root {
   color-scheme: dark;
@@ -27,8 +28,10 @@ a { color: inherit; text-underline-offset: .3em; }
 a:hover { text-decoration-thickness: 2px; }
 a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #bdd6a6; outline-offset: 6px; }
 .paper a:focus-visible, .paper button:focus-visible, .paper input:focus-visible, .paper summary:focus-visible { outline-color: #375535; }
+/* Where the intro hands focus (opening.ts): a landing place for the keyboard, not a control, so it draws no ring. */
+[tabindex="-1"]:focus { outline: none; }
 [hidden] { display: none !important; }
-body:not(.immersive-home) p, .immersive-home :is(.tour-copy, #opening) p { margin: 0; }
+body:not(.immersive-home) p, .immersive-home #opening p { margin: 0; }
 .shell { width: min(1180px, calc(100% - 96px)); margin-inline: auto; }
 .skip-link { position: absolute; z-index: 10; left: 24px; top: -100px; background: var(--paper); color: var(--ink); padding: 16px 24px; }
 .skip-link:focus { top: 16px; }
@@ -67,8 +70,7 @@ h1 em { font-style: normal; color: var(--green); }
 .forest-canvas { visibility: hidden; }
 #website-forest[data-forest-state="live"] .forest-canvas { visibility: visible; }
 #website-forest[data-forest-state="live"] .forest-still { visibility: hidden; }
-/* The shop's still and its replay note show only where the tour puts the shop on the globe (tour.css). */
-.shop-still, .forest-unavailable { display: none; }
+.forest-unavailable { display: none; }
 .forest-key { border-top: 1px solid var(--line); padding-top: 19px; display: flex; justify-content: space-between; gap: 24px; font-size: 12px; line-height: 1.7; color: var(--muted); }
 .forest-key p:first-child { color: #d4ddd0; }
 .paper { background: var(--paper); color: var(--ink); color-scheme: light; }

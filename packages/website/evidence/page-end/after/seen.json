@@ -1,0 +1,40 @@
+{
+ "desktop": {
+  "last": "call",
+  "marks": [
+   {
+    "alt": "Claude Code",
+    "drawn": true
+   },
+   {
+    "alt": "Codex",
+    "drawn": true
+   },
+   {
+    "alt": "Pi",
+    "drawn": true
+   }
+  ],
+  "callInView": true,
+  "harnessTop": 57
+ },
+ "phone": {
+  "last": "call",
+  "marks": [
+   {
+    "alt": "Claude Code",
+    "drawn": true
+   },
+   {
+    "alt": "Codex",
+    "drawn": true
+   },
+   {
+    "alt": "Pi",
+    "drawn": true
+   }
+  ],
+  "callInView": true,
+  "harnessTop": 43
+ }
+}

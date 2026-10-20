@@ -13,11 +13,12 @@
  *
  * Given the map's rule for which capability a file declares, it also compares the session's own worktree with a baseline
  * of its own, and tells the agent of each changed file the hook before an edit tool would have refused: in a capability
- * its increment does not list, or another live session holds (ADR-0949 D3). That needs storytree; unreached in time, it
- * says nothing of them, as the gate lets an edit go ahead.
+ * its increment does not list, or another live session holds (ADR-0949 D3), unless the file is back as the branch's base
+ * has it. That needs storytree; unreached in time, it says nothing of them, as the gate lets an edit go ahead.
  * Like every hook it never breaks the agent: on any failure it says nothing.
  */
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { NewLine, Storytree } from "@storytree/library";
@@ -83,7 +84,8 @@ export async function shellGuard(harness: string, input: unknown, made: HookLine
     const edits = imports.flatMap(({ folder }) => shellEdits(baselines(home), folder, line, (error) => failed("observe", error)));
     // The session's own worktree, observed apart from the ordinary hooks' baseline, whose lines record the same edits.
     const root = declared === undefined ? undefined : worktreeRoot(made.folder);
-    const own = root === undefined ? [] : shellEdits(worktreeBaselines(home), root, line, (error) => failed("observe", error)).flatMap((edit) => (edit.kind === "file-edited" ? edit.files : []));
+    const touched = root === undefined ? [] : shellEdits(worktreeBaselines(home), root, line, (error) => failed("observe", error)).flatMap((edit) => (edit.kind === "file-edited" ? edit.files : []));
+    const own = touched.length === 0 ? touched : offBase(root!, touched);
     if (edits.length === 0 && own.length === 0) return undefined;
     if (edits.length > 0) enqueue(home, where.project, edits);
     const changed = edits.flatMap((edit) => (edit.kind === "file-edited" ? edit.files.map((file) => ({ folder: edit.folder!, file })) : []));
@@ -129,6 +131,32 @@ function notice(changed: readonly { folder: string; file: string }[]): string {
  */
 export function watchWorktree(home: string, root: string, line: NewLine, failed: (stage: HookFailure["stage"], error: unknown) => void): void {
   if (["session-started", "command-started", "file-edited"].includes(line.kind)) shellEdits(worktreeBaselines(home), root, line, (error) => failed("observe", error));
+}
+
+/**
+ * Of `files` in the worktree at `root`, those whose content is not what the branch's base has: the merge base with
+ * origin/main, else HEAD. A command that returns a file there, as a git checkout undoing a trespass does, changed
+ * nothing the branch carries (friction_53b3f12c30aa). When Git cannot say, every file counts as changed.
+ */
+function offBase(root: string, files: readonly string[]): string[] {
+  const git = (args: string[], input?: string) => execFileSync("git", ["--no-optional-locks", ...args], {
+    cwd: root, input, encoding: "utf8", timeout: GUARD_MS, maxBuffer: 8 * 1024 * 1024, stdio: ["pipe", "pipe", "ignore"], windowsHide: true,
+  });
+  try {
+    let base: string;
+    try { base = git(["merge-base", "HEAD", "origin/main"]).trim(); } catch { base = git(["rev-parse", "--verify", "HEAD^{commit}"]).trim(); }
+    const was = new Map<string, string>();
+    for (const entry of git(["--literal-pathspecs", "ls-tree", "-r", "-z", base, "--", ...files]).split("\0")) {
+      const tab = entry.indexOf("\t");
+      if (tab > 0) was.set(entry.slice(tab + 1), entry.slice(0, tab).split(" ")[2]!);
+    }
+    const present = files.filter((file) => existsSync(path.join(root, file)));
+    const hashes = present.length === 0 ? [] : git(["hash-object", "--stdin-paths"], present.map((file) => JSON.stringify(file)).join("\n") + "\n").trim().split("\n");
+    const now = new Map(present.map((file, index) => [file, hashes[index]] as const));
+    return files.filter((file) => now.get(file) !== was.get(file));
+  } catch {
+    return [...files];
+  }
 }
 
 /** Where the imported folders' baselines are kept: apart from the worktrees' own. */

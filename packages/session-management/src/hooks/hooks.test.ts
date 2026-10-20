@@ -19,7 +19,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { connect as connectTcp, createServer, type AddressInfo } from "node:net";
+import { connect as connectTcp, createServer, type AddressInfo, type Server } from "node:net";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -1008,10 +1008,9 @@ test("4.33 a hook run from a subfolder of a project with no git repository recor
   });
 });
 
-test("3.19 a Claude Code session's end is recorded though Claude Code stops its end hook after 1.5 s and the store takes longer than that to answer: the hook, run as setup registers it, hands its line to one that outlives it", async () => {
-  const project = uniqueProjectName();
+/** A store that answers late: every connection made to it is passed on to the test Postgres `delayMs` after it opens. */
+async function slowStore(delayMs: number): Promise<Server> {
   const owner = JSON.parse(readFileSync(`${testServerDataDir()}.owner.json`, "utf8")) as { port: number };
-  // A store that answers only after 1.6 s: every connection is passed on to the test Postgres late.
   const slow = createServer((client) => {
     client.pause();
     setTimeout(() => {
@@ -1021,9 +1020,16 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
       });
       upstream.on("error", () => client.destroy());
       client.on("error", () => upstream.destroy());
-    }, 1_600);
+    }, delayMs);
   });
   await new Promise<void>((resolve) => slow.listen(0, "127.0.0.1", resolve));
+  return slow;
+}
+
+test("3.19 a Claude Code session's end is recorded though Claude Code stops its end hook after 1.5 s and the store takes longer than that to answer: the hook, run as setup registers it, hands its line to one that outlives it", async () => {
+  const project = uniqueProjectName();
+  // A store that answers only after 1.6 s.
+  const slow = await slowStore(1_600);
   try {
     await withTempDir(async (dir) => {
       const home = path.join(dir, "slow-home");
@@ -1050,27 +1056,34 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
   }
 });
 
-test("3.45 a `claude -p` session's last turn is recorded without the mod though Claude Code stops its async hooks as the process exits: the hook, run as setup registers it, hands its line to one that outlives it", { skip: process.platform === "win32" && "platform:posix: Claude Code stops a hook by SIGTERM, which Windows does not deliver" }, async () => {
+test("3.45 a `claude -p` session's last turn is recorded without the mod though Claude Code stops its async hooks as the process exits and the store is slow to answer: the hook, run as setup registers it, hands its line to one that outlives it (regression: that copy ran out of time while it connected, seen on CI, 2026-10-19)", { skip: process.platform === "win32" && "platform:posix: Claude Code stops a hook by SIGTERM, which Windows does not deliver", timeout: 30_000 }, async () => {
   const project = uniqueProjectName();
-  await withTempDir(async (dir) => {
-    const home = storytreeHome(dir, true);
-    const folder = await projectFolder(dir, project, home);
-    // As setup registers Claude Code's end-of-turn hook (the app setup's hooks-config.ts): async, with --after-tool.
-    const child = spawn(process.execPath, [hook, "claude-code", AFTER_TOOL], { env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_ENTRYPOINT: "sdk-cli" }, stdio: ["pipe", "ignore", "ignore"], shell: false });
-    // As `claude -p` does at its turn's end (2.1.284, measured on the Mint box): SIGTERM soon after the hook starts, then gone when it exits.
-    const term = setTimeout(() => child.kill("SIGTERM"), 100);
-    const kill = setTimeout(() => child.kill("SIGKILL"), 400);
-    await new Promise<void>((resolve) => {
-      child.on("exit", () => resolve());
-      child.stdin.end(recorded("claude-code", "stop", folder));
-    });
-    clearTimeout(term);
-    clearTimeout(kill);
+  // A store that answers only after 1.2 s a connection, within the hook's connect timeout, as a busy runner's or one reached over Tailscale may.
+  const slow = await slowStore(1_200);
+  try {
+    await withTempDir(async (dir) => {
+      const home = path.join(dir, "slow-home");
+      const folder = await projectFolder(dir, project, home);
+      placeTestServer(path.join(home, "pgdata"), { port: (slow.address() as AddressInfo).port });
+      // As setup registers Claude Code's end-of-turn hook (the app setup's hooks-config.ts): async, with --after-tool.
+      const child = spawn(process.execPath, [hook, "claude-code", AFTER_TOOL], { env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_ENTRYPOINT: "sdk-cli" }, stdio: ["pipe", "ignore", "ignore"], shell: false });
+      // As `claude -p` does at its turn's end (2.1.284, measured on the Mint box): SIGTERM soon after the hook starts, then gone when it exits.
+      const term = setTimeout(() => child.kill("SIGTERM"), 100);
+      const kill = setTimeout(() => child.kill("SIGKILL"), 400);
+      await new Promise<void>((resolve) => {
+        child.on("exit", () => resolve());
+        child.stdin.end(recorded("claude-code", "stop", folder));
+      });
+      clearTimeout(term);
+      clearTimeout(kill);
 
-    const deadline = Date.now() + 8_000;
-    while (!(await linesOf(project)).some((line) => line.kind === "turn-ended") && Date.now() < deadline) await sleep(100);
-    assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"]);
-  });
+      const deadline = Date.now() + 12_000;
+      while (!(await linesOf(project)).some((line) => line.kind === "turn-ended") && Date.now() < deadline) await sleep(100);
+      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"]);
+    });
+  } finally {
+    slow.close();
+  }
 });
 
 test("4.10 a pull request's merge is recorded on its branch by the hooks though GitHub takes longer to answer than a hook may run (regression: no hook had ever recorded one, 2026-09-30)", { skip: process.platform === "win32" && "platform:posix: a stand-in gh on PATH must be an .exe on Windows", timeout: 30_000 }, async () => {
@@ -1372,7 +1385,7 @@ test("3.35 a shell command that changes or deletes files in an imported folder w
   });
 });
 
-test("3.36 a shell command that changes files in a capability its session's increment does not list, or that another live session holds, is told to the agent at once by the hook after it that the harness waits for, as the hook before an edit tool would refuse it; a change to a listed capability, or none, says nothing; past the guard's time, a slow machine's, the worktree's changes say nothing, as an edit the gate could not judge goes ahead (ADR-0949 D3)", async () => {
+test("3.36 a shell command that changes files in a capability its session's increment does not list, or that another live session holds, is told to the agent at once by the hook after it that the harness waits for, as the hook before an edit tool would refuse it; a change to a listed capability, or none, says nothing; a command that returns such a file to the branch's base content, as a git checkout undoing the trespass does, says nothing; past the guard's time, a slow machine's, the worktree's changes say nothing, as an edit the gate could not judge goes ahead (ADR-0949 D3)", async () => {
   await withTempDir(async (dir) => {
     const project = uniqueProjectName();
     const home = storytreeHome(dir, true);
@@ -1425,6 +1438,8 @@ test("3.36 a shell command that changes files in a capability its session's incr
       assert.equal(heldBy?.hookEventName, "PostToolUse");
       assert.match(heldBy?.additionalContext ?? "", /form\.ts.*"1 · Email form".*session holder holds it/s);
       assert.match(heldBy?.additionalContext ?? "", /Back off/);
+      git(folder, "checkout", "--", "packages/visitor-can-sign-up/src/form.ts");
+      assert.equal(told(await guard("claude-code", "post-tool-use-bash")), undefined, "the held file restored to the branch's base is no trespass");
     } finally {
       await log.close();
       await storytree.close();

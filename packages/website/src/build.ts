@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { MARK_LINKS, inlineMark, writeMarkFiles } from "./mark.js";
 import { openingMarkup } from "./opening-markup.js";
-import { fill, growthCounts, tourCounts } from "./tour-counts.js";
-import type { GrowthSnapshot, TourSnapshot } from "./forest-data.js";
+import { claimsMarkup, FIRST_SHORT } from "./claims.js";
+import { pageEndMarkup } from "./page-end.js";
+import { fill, tourCounts } from "./tour-counts.js";
+import type { TourSnapshot } from "./forest-data.js";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -43,15 +45,12 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   const entries = new Map(Object.entries(result.metafile.outputs)
     .filter(([, asset]) => asset.entryPoint)
     .map(([name, asset]) => [path.basename(asset.entryPoint!, path.extname(asset.entryPoint!)), `/assets/${path.basename(name)}`]));
-  // The tour's numbers come from the saved reading the page draws, so the words never outrun the data.
-  const counts = { ...tourCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "forest-snapshot.json"), "utf8")) as TourSnapshot),
-    ...growthCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "own-snapshot.json"), "utf8")) as GrowthSnapshot,
-      JSON.parse(await readFile(path.join(packageRoot, "src", "shop-snapshot.json"), "utf8")) as GrowthSnapshot) };
-  const countsScript = `<script type="application/json" id="tour-counts">${JSON.stringify(counts).replaceAll("<", "\\u003c")}</script>`;
+  // The page's numbers come from the saved reading its map draws, so the words never outrun the data.
+  const counts = tourCounts(JSON.parse(await readFile(path.join(packageRoot, "src", "forest-snapshot.json"), "utf8")) as TourSnapshot);
   for (const page of ["index.html", "waitlist.html", "404.html"]) {
     const template = fill(await readFile(path.join(packageRoot, "src", page), "utf8"), counts);
-    const html = template.replace("<!-- OPENING -->", openingMarkup()).replaceAll("<!-- MARK -->", inlineMark())
-      .replace("<!-- MARK LINKS -->", MARK_LINKS).replace("<!-- COUNTS -->", countsScript)
+    const html = template.replace("<!-- OPENING -->", openingMarkup()).replace("<!-- CLAIMS -->", claimsMarkup()).replace("<!-- PAGE END -->", pageEndMarkup()).replaceAll("<!-- MARK -->", inlineMark())
+      .replace("<!-- MARK LINKS -->", MARK_LINKS)
       .replace(/\/assets\/(main|forest|styles)\.(?:js|css)/g, (_, name: string) => {
         const entry = entries.get(name);
         if (!entry) throw new Error(`Missing website entry: ${name}`);
@@ -66,6 +65,11 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+  // The first short is served from where it was rendered (evidence/first-short), so the site and the evidence keep one copy.
+  const short = path.join(packageRoot, "evidence", "first-short");
+  await mkdir(path.join(output, path.dirname(FIRST_SHORT.src)), { recursive: true });
+  await cp(path.join(short, "seeing-what-agents-built-1080p.mp4"), path.join(output, FIRST_SHORT.src));
+  await cp(path.join(short, "seeing-what-agents-built-poster.png"), path.join(output, FIRST_SHORT.poster));
   await writeMarkFiles(output);
   return result.metafile;
 }

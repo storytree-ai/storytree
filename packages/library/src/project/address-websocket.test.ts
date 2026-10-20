@@ -235,9 +235,12 @@ test("15.6 a wss:// library that asks for the password in plain text is refused 
   const keys = home();
   const received: Buffer[] = [];
   const sockets = new Set<Socket>();
-  // Asks for the password in plain text (AuthenticationCleartextPassword), then reads whatever comes.
+  let hungUp: () => void;
+  const closed = new Promise<void>((resolve) => { hungUp = resolve; });
+  // Asks for the password in plain text (AuthenticationCleartextPassword), then reads whatever comes until the client hangs up.
   const asker: Server = createServer((socket) => {
     sockets.add(socket);
+    socket.on("close", () => hungUp());
     socket.on("error", () => {});
     socket.on("data", (data) => received.push(data));
     socket.once("data", () => socket.write(Buffer.from([0x52, 0, 0, 0, 8, 0, 0, 0, 3])));
@@ -257,7 +260,7 @@ test("15.6 a wss:// library that asks for the password in plain text is refused 
       assert.equal(explained.problem, "untrusted-server");
       return true;
     });
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await closed;
     assert.ok(received.length > 0, "the peer heard nothing");
     assert.ok(!Buffer.concat(received).includes("synthetic-wss-password"), "the password was sent");
   } finally {

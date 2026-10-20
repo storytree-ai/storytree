@@ -60,7 +60,7 @@ export function mapTools(): ToolExtension {
           // The folders this machine imports, where the map reads the mapped stories (ADR-0993 D2).
           const imports = await importsOf(storytree, library.name, machineOf(storytreeHome()).id);
           if (crossing !== undefined) {
-            const answer = await crossingProject(library, folder, { patterns: crossing, ...(select === undefined ? {} : { story: select.slice(6) }), ...(mode === undefined ? {} : { mode }) }, imports);
+            const answer = await crossingProject(library, folder, { patterns: crossing, ...(select === undefined ? {} : { story: select.slice(6) }), ...(mode === undefined || mode === "dry_run" ? {} : { mode }) }, imports);
             return { text: formatCrossing(answer), data: { ...answer }, refused: answer.refused };
           }
           const answer = await focusProject(library, folder, {

@@ -1001,7 +1001,7 @@ test("5.45 a session on a handed-over pull request's branch, its fix session, ta
   });
 });
 
-test("5.50 a hand-over holds only the claims taken on the pull request's branch: a session driving a second increment on another branch keeps it, and claims it again without refusal (ADR-1037 D1)", async () => {
+test("5.50 a hand-over holds none of the claims taken on another branch: a session driving a second increment on another branch keeps it, and claims it again without refusal (ADR-1037 D1)", async () => {
   await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
     const { park } = await arcOf(library);
     const signup = await park("email form", [emailForm]);

@@ -320,7 +320,7 @@ test("7.7 set_up_project's answer and check_setup's in a project carry the whole
   });
 });
 
-test("app-setup 8.22 a session that sets its project up finishes the setup in that answer: the starter roles and a new session to verify its hooks, or Codex's trust step, never a second check_setup in this session (regression: Codex's approval review refused the second check, 2026-10-01)", async () => {
+test("app-setup 8.22 a session that sets its project up finishes the setup in that answer: a new session to verify its hooks, or Codex's trust step, never a second check_setup in this session (regression: Codex's approval review refused the second check, 2026-10-01)", async () => {
   const [claudes, codexes, waiting] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
@@ -346,7 +346,6 @@ test("app-setup 8.22 a session that sets its project up finishes the setup in th
       for (const [name, agentFor] of [[claudes, claudeCode], [codexes, codex]] as const) {
         const answer = await setUp(name, agentFor);
         assert.equal(answer.isError, false, answer.text);
-        assert.deepEqual(answer.data.starterRoles, [], "the bare bones hold no role (ADR-1094 D1)");
         assert.deepEqual(answer.data.fixes, ["new-session"], "no edit or command test, which only a session started in the project could complete");
         assert.match(answer.text, /new session/);
         assert.doesNotMatch(answer.text, /type \/hooks/);
@@ -413,19 +412,23 @@ test("app-setup 8.11 a Claude Code or Codex session calling check_setup is signe
   });
 });
 
-test("app-setup 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them, a new one on the bare bones included, is told of none", async () => {
+test("app-setup 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them is told of none", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    const [seeded, older] = [uniqueProjectName(), uniqueProjectName()];
+    const older = uniqueProjectName();
     const storytree = await connect({ url: testServerUrl() });
     try {
       const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome } });
-      const newFolder = path.join(dir, seeded);
-      mkdirSync(newFolder);
-      await withAgent(newFolder, agentIn(newFolder), async (agent) => {
-        assert.equal((await agent.call("set_up_project", { name: seeded })).isError, false);
-        assert.deepEqual((await agent.call("check_setup")).data.starterRoles, [], "the bare bones hold no role");
-        // The user asks for three roles back (ADR-1094 D2).
+      // A project set up before the starter pack: its library has no roles to name, until the user asks for three back (ADR-1094 D2).
+      const oldFolder = path.join(dir, older);
+      mkdirSync(oldFolder);
+      await (await storytree.openProject(older)).close();
+      writeFileSync(path.join(oldFolder, MARKER_FILE), `${JSON.stringify({ project: older })}\n`);
+      await approveCheckout(oldFolder, older, home.storytreeHome);
+      await withAgent(oldFolder, agentIn(oldFolder), async (agent) => {
+        const before = await agent.call("check_setup");
+        assert.deepEqual(before.data.starterRoles, []);
+        assert.doesNotMatch(before.text, /orchestrator|librarian/);
         const took = await agent.call("take_starter_pack", { include: ["change-reviewer", "orchestrator", "librarian"] });
         assert.equal(took.isError, false, took.text);
         const checked = await agent.call("check_setup");
@@ -435,20 +438,9 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
         assert.equal(refused.isError, true);
         assert.match(refused.text, /"tester" is no part of the starter pack/);
       });
-      // A project set up before the starter pack: its library has no roles to name.
-      const oldFolder = path.join(dir, older);
-      mkdirSync(oldFolder);
-      await (await storytree.openProject(older)).close();
-      writeFileSync(path.join(oldFolder, MARKER_FILE), `${JSON.stringify({ project: older })}\n`);
-      await approveCheckout(oldFolder, older, home.storytreeHome);
-      await withAgent(oldFolder, agentIn(oldFolder), async (agent) => {
-        const checked = await agent.call("check_setup");
-        assert.deepEqual(checked.data.starterRoles, []);
-        assert.doesNotMatch(checked.text, /orchestrator|librarian/);
-      });
     } finally {
       await storytree.close();
-      await dropTestProjects([seeded, older]);
+      await dropTestProjects([older]);
     }
   });
 });

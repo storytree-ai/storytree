@@ -5,6 +5,7 @@ export { findProject, inMainCheckout, locateApp, locateLibrary, locateStorytree,
 export { approveTrunk, forgetTrunk, importsOf, machineOf, ProjectFolderError, recordImport, registerTrunk, rememberApproval, TRUNKS_DATABASE, trunkedProjects, trunksOn, trunksPool } from "./routing/index.js";
 export type { ImportedFolder, LocateOptions, Machine, ProjectLookup, Route, StorytreeAddress, Trunk } from "./routing/index.js";
 export { keepOnThisComputer, readProjectChoice, recordProjectChoice, recordRemovedProjects, removedProjects, type HiddenProject } from "./routing/project-choice.js";
+export { partsSaid, switchedSaid, switchPart, type PartsSwitched } from "./settings/parts.js";
 export { idleAfterMs, leaveAfterMs, readExperiment, readLibrary, readPartsOff, readSettings, readSurfaceChoices, setLibrary, setPartOff, setSetting, setSurfaceChoice } from "./settings/settings.js";
 export type { ExperimentArm, LibraryLocation, LibraryReading, SettingGroup, SettingReading, SettingsReading, SurfaceChoices } from "./settings/settings.js";
 export { decisionRights, decisionRightsGuidance } from "./settings/decision-rights.js";

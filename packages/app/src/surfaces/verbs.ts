@@ -6,7 +6,7 @@
  * as it starts. The command line mounts them as its `settings` family (SETTINGS_FAMILIES); they have no tool.
  */
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
-import { CORE, switchedOff, type PartsGraph } from "@storytree/plugin-loader";
+import { switchedOff, type PartsGraph } from "@storytree/plugin-loader";
 
 import type { SurfaceDeclaration, SurfaceReading } from "./switches.js";
 
@@ -25,11 +25,12 @@ const show = verb({
   inputs: {},
   callerless: true,
   async act(_input, { surfaces, parts }: SettingsPlace) {
-    const { readPartsOff, readSettings } = await import("@storytree/project-and-caller");
+    const { partsSaid, readPartsOff, readSettings } = await import("@storytree/project-and-caller");
     const { readSurfaces } = await import("./switches.js");
     const read = readSettings();
+    const graph = await parts();
     const settings = Object.values(read).map((reading) => reading.name === "library" ? librarySaid(reading) : settingSaid(reading)).join("\n\n");
-    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${partsSaid(await parts(), readPartsOff())}` };
+    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${partsSaid(Object.keys(graph), switchedOff(graph, readPartsOff()))}` };
   },
 });
 
@@ -45,14 +46,11 @@ const set = verb({
   inputs: { words: { kind: "text", word: 0, many: true, describe: "the setting's name and its value" } },
   callerless: true,
   async act({ words }, { surfaces, parts }: SettingsPlace) {
-    const { setLibrary, setPartOff, setSetting } = await import("@storytree/project-and-caller");
+    const { setLibrary, setSetting, switchedSaid, switchPart } = await import("@storytree/project-and-caller");
     if (words[0] === "library" && words.length >= 2) return { text: librarySaid(setLibrary(words.slice(1))), next: NEXT };
     if (words[0] === "part" && words.length === 3) {
-      const [, part, state] = words as [string, string, string];
-      if (state !== "on" && state !== "off") throw new VerbRefusal(`a part is switched on or off, not ${JSON.stringify(state)}`, { misuse: true });
       const graph = await parts();
-      if (!CORE.includes(part) && !Object.hasOwn(graph, part)) throw new VerbRefusal(`there is no part called ${part} here. Parts: ${switchable(graph).join(", ")}.`);
-      return { text: switchedSaid(graph, setPartOff(part, state === "off")), next: NEXT };
+      return { text: switchedSaid(switchedOff(graph, switchPart(words[1]!, words[2]!, Object.keys(graph)))), next: NEXT };
     }
     if (words[0] === "surface" && words.length >= 3) {
       const { setSurface } = await import("./switches.js");
@@ -97,27 +95,6 @@ function librarySaid(reading: LibraryReading): string {
   const where = reading.location === "cloudsql" ? `cloudsql ${reading.instance} as ${reading.user}`
     : reading.location === "postgres" ? `postgres ${reading.address} (its password the key postgres)` : "local";
   return `library: ${where} (${reading.source})\n  Default: ${reading.default}.\n  ${reading.meaning}`;
-}
-
-/** The host's parts but the core, which is never switched off. */
-const switchable = (graph: PartsGraph): string[] => Object.keys(graph).filter((part) => !CORE.includes(part)).sort();
-
-/** The parts switched off now, each that is off with another named with it, and when a host takes the change. */
-function switchedSaid(graph: PartsGraph, off: readonly string[]): string {
-  const switched = [...switchedOff(graph, off)].sort(([a], [b]) => a.localeCompare(b));
-  const listed = switched.map(([part, because]) => because === part ? part : `${part} (with ${because}, which it stands on)`);
-  const said = listed.length === 0 ? "No part is switched off on this computer." : `Switched off on this computer: ${listed.join(", ")}.`;
-  return `${said}\nThe command line takes it at its next command; restart the app and your sessions' MCP servers for them to take it.`;
-}
-
-function partsSaid(graph: PartsGraph, off: readonly string[]): string {
-  const switched = switchedOff(graph, off);
-  const lines = Object.keys(graph).sort().map((part) => {
-    const because = switched.get(part);
-    const state = CORE.includes(part) ? "always on (the core)" : because === undefined ? "on" : because === part ? "off" : `off, with ${because}`;
-    return `  ${part}: ${state}`;
-  });
-  return `Parts of storytree (switch one with \`storytree settings set part <part> on|off\`):\n${lines.join("\n")}`;
 }
 
 function surfacesSaid(surfaces: readonly SurfaceReading[]): string {

@@ -15,7 +15,9 @@ import { InMemoryTransport } from "@modelcontextprotocol/server";
 
 import { createAgentTools } from "../index.js";
 import { storyParts } from "@storytree/plugin-loader";
+import { setupGuidance } from "@storytree/app-setup/setup";
 import { decisionRights } from "@storytree/project-and-caller";
+import { qualityGuidance } from "@storytree/quality-assurance";
 import { CONTRACT_DEFINITION, habitsCard } from "./habits.js";
 
 /** A client connected in memory to a fresh tool server, as a harness is at session start. */
@@ -62,8 +64,7 @@ test("7.12 with a part switched off, the card handed at session start leaves out
     assert.deepEqual(taught.filter((tool) => !offered.includes(tool)), [], "every tool it teaches is served");
     assert.ok(!taught.includes("quality_brief") && !offered.includes("quality_brief"), "quality assurance's tools are neither served nor taught");
     assert.match(card, /Switched off on this computer, so not served here: app-setup, quality-assurance\. The user switches one on with: storytree settings set part <part> on/);
-    assert.equal(card, habitsCard(["quality-assurance"]));
-    assert.ok(card.length < habitsCard().length, "its section is left out");
+    for (const section of [...qualityGuidance, ...setupGuidance]) assert.ok(!card.includes(section), `its section is left out: ${section.slice(0, 60)}`);
   } finally {
     await session.close();
   }

@@ -201,7 +201,8 @@ test("2.12 the library is set to a Postgres address without its password, and an
 test("2.12 the library is set to a wss:// address without its password, and one carrying a password is refused, the file untouched", async () => {
   await withTempDir((home) => {
     const address = "wss://me@library.example.com/postgres";
-    assert.deepEqual(agentLink.setLibrary(["postgres", address], home).address, address);
+    const initial = agentLink.readSettings(home).library;
+    assert.deepEqual(agentLink.setLibrary(["postgres", address], home), { ...initial, location: "postgres", address, source: "set" });
     const file = path.join(home, "settings.json");
     assert.deepEqual(JSON.parse(readFileSync(file, "utf8")).library, { location: "postgres", address });
 

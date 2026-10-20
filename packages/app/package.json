@@ -31,7 +31,8 @@
     "electron-updater": "6.8.9",
     "pg": "^8.23.0",
     "@storytree/project-and-caller": "workspace:*",
-    "@storytree/forest": "workspace:*"
+    "@storytree/forest": "workspace:*",
+    "@storytree/plugin-loader": "workspace:*"
   },
   "devDependencies": {
     "@storytree/local-postgres": "workspace:*",

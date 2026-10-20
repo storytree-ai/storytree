@@ -2,9 +2,11 @@
  * Capability 1 · Front door. The families `storytree` answers, in the order `storytree` alone lists them: the capabilities of
  * the command line story, each a front door onto its owning story. A family its owning story declares in its manifest
  * (`#parts/verbs`, ADR-1033) is mounted from there, at the place it declares among those still kept here: listed by place,
- * not counted into a position, so a new family takes an unused place and no other's moves.
+ * not counted into a position, so a new family takes an unused place and no other's moves. A declared family whose part
+ * this computer switches off (ADR-1095) stays in the table, so asking for it is answered with how to switch it on.
  */
 import declared from "#parts/verbs";
+import { switchedOff, type SwitchedOff } from "@storytree/plugin-loader";
 
 import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
@@ -48,7 +50,20 @@ const KEPT: readonly Placed[] = [
   { order: 32, family: auth },
 ];
 
-export const FAMILIES: readonly Family[] = inOrder([...KEPT, ...declared.map((family) => ({ order: family.order, family: learning(mounted(family), surfaces) }))]);
+export const FAMILIES: readonly Family[] = inOrder([...KEPT, ...declared.parts.map((family) => ({ order: family.order, family: learning(mounted(family), surfaces) }))]);
+
+/** The family that switches a part back on, mounted whatever is off, so the way back is never switched off with its part. */
+const WAY_BACK = "settings";
+
+/** Each declared family a switched-off part declares, by name, with why, when the setting names `off` (ADR-1095). */
+export function familiesOff(off: readonly string[]): ReadonlyMap<string, SwitchedOff> {
+  const switched = switchedOff(declared.graph, off);
+  return new Map(declared.parts.flatMap((family, index) => {
+    const part = declared.owners[index]!;
+    const because = switched.get(part);
+    return because === undefined || family.name === WAY_BACK ? [] : [[family.name, { part, because }] as const];
+  }));
+}
 
 /** A family and the place it takes in `storytree`'s list: any number, so a place between two others shifts neither. */
 export interface Placed {
@@ -65,5 +80,5 @@ export function inOrder(placed: readonly Placed[]): Family[] {
 async function surfaces(cwd: string) {
   const { servedTools } = await import("@storytree/mcp-server");
   const tools = (await servedTools(cwd)).map(({ name, consumers }) => ({ verb: name, consumers }));
-  return { commands: commandsOf(FAMILIES), tools, twins: twinsOf(declared) };
+  return { commands: commandsOf(FAMILIES), tools, twins: twinsOf(declared.parts) };
 }

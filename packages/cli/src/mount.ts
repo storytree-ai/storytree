@@ -9,6 +9,7 @@
  * mounted with the families within it, its bare verb, its guesses and its retired words.
  */
 import type { Library } from "@storytree/library";
+import type { PartsGraph } from "@storytree/plugin-loader";
 import { consumersOf, mounted, VerbRefusal, type DoorWords, type Verb, type VerbContext, type VerbFamilies, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
 
 import { Refusal, type Next } from "./answer.js";
@@ -38,6 +39,8 @@ export interface CommandPlace extends VerbPlace {
   journey: Context["journey"];
   out(text: string): void;
   surfaces(): Promise<readonly SurfaceDeclaration[]>;
+  /** The host's parts, each with the parts it stands on (ADR-1095): what `settings set part` switches. */
+  parts(): Promise<PartsGraph>;
   /** The project's claims, which the library's `edit` and `retire` read for the increment the caller holds (ADR-0966). */
   claims(): Promise<readonly Claim[]>;
   /** The contract numbers `capability`'s story package's numbered tests carry in this checkout, and its planned contracts none carries. */
@@ -47,9 +50,18 @@ export interface CommandPlace extends VerbPlace {
 /** A surface a story's manifest declares: the door hands the list on and reads none of its fields (ADR-1017 D2). */
 export type SurfaceDeclaration = object;
 
-/** The app's surfaces, as each story's manifest declares them (ADR-0750, ADR-1021), in the order the Surfaces menu lists them. */
+/**
+ * The app's surfaces, as each story's manifest declares them (ADR-0750, ADR-1021), in the order the Surfaces menu lists
+ * them, but those of a part this computer switches off (ADR-1095).
+ */
 async function surfaces(): Promise<readonly SurfaceDeclaration[]> {
-  return (await import("#parts/surfaces")).default;
+  const [{ mount }, { readPartsOff }] = await Promise.all([import("@storytree/plugin-loader"), import("@storytree/project-and-caller")]);
+  return mount((await import("#parts/surfaces")).default, readPartsOff()).mounted;
+}
+
+/** The host's parts graph: the same for every kind it composes. */
+async function parts(): Promise<PartsGraph> {
+  return (await import("#parts/surfaces")).default.graph;
 }
 
 /**
@@ -87,7 +99,7 @@ export function command(declared: Verb<VerbInputs, CommandCaller & CommandPlace>
       try {
         const input = commandInput(declared, { word: (index) => args.words[index], flag: (name) => args.text(name), flags: (name) => args.texts(name), has: (name) => args.has(name), names: () => args.names });
         if (declared.agentOnly !== undefined && commandSession() === undefined) throw new Refusal(`Run storytree ${face.family} ${face.name} from the agent's shell: ${declared.agentOnly}.`);
-        const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces, claims: () => context.claims(), testedNumbers: async (capability) => testedNumbersOf(context.cwd, await context.library(), capability) };
+        const place: CommandPlace = { folder: context.cwd, ...(context.script === undefined ? {} : { script: context.script }), journey: () => context.journey(), out: (text) => context.out(text), surfaces, parts, claims: () => context.claims(), testedNumbers: async (capability) => testedNumbersOf(context.cwd, await context.library(), capability) };
         const caller = declared.callerless ? { ...place, ...soleSession() } as CommandCaller & CommandPlace : { ...place, ...await context.activityContext() };
         const answer = await declared.act(input, declared.writes ? writing(caller, context) : caller, WORDS);
         if (answer.raw) return { text: answer.text, raw: true };

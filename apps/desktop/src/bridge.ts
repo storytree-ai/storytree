@@ -55,6 +55,6 @@ export function createBridge(
     ...pageMethods<Omit<SetupHelpBridge, "feedbackIdentity">>(SETUP_HELP_CHANNELS, invoke),
     ...pageMethods<PageReadsBridge>(PAGE_READS_CHANNELS, invoke),
     // The stories whose manifests name their page channels (ADR-1030); the page's type above still names them for the renderer.
-    ...(Object.assign({}, ...PAGE_CHANNELS.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey"> & SettingsBridge),
+    ...(Object.assign({}, ...PAGE_CHANNELS.parts.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey"> & SettingsBridge),
   };
 }

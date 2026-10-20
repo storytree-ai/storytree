@@ -39,8 +39,11 @@ import path from "node:path";
 // The app's surfaces (ADR-0750), in the Surfaces menu's order: the plugin loader composes them into the bundle
 // from the manifests of the story packages this app depends on (ADR-1021; build.mjs).
 import SURFACES from "#parts/surfaces";
-// The page operations the stories' manifests name, composed in the same way.
+// The page operations the stories' manifests name, composed in the same way, with the channels they travel on.
 import PAGE_ANSWERS from "#parts/pageAnswers";
+import PAGE_CHANNELS from "#parts/pageChannels";
+import { mount } from "@storytree/plugin-loader/switch";
+import { readPartsOff } from "@storytree/project-and-caller";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, safeStorage, shell, Tray } from "electron";
 
 import {
@@ -140,6 +143,8 @@ let shutDown: Promise<void> | undefined;
 let updates: ReturnType<typeof mainUpdates> | undefined;
 let backups: ReturnType<typeof keepBackups> | undefined;
 let journey: JourneyRuntime | undefined;
+/** The parts this computer switches off, read once as the app starts (ADR-1095). */
+let partsOff: readonly string[] = [];
 /** An installed app's release updater, which answers the gear's Updates panel in its place. */
 let releases: ReturnType<typeof followReleases>;
 /** What the window was opened with, so it can be opened again after it is closed. */
@@ -224,16 +229,18 @@ async function run(): Promise<void> {
   answerPage(ipcMain, JOURNEY_CHANNELS, journey);
   // The tree the page last read for each project, which the code survey surveys rather than reading it a second time.
   const treesRead = new Map<unknown, AnnotatedTree>();
+  // The parts this computer switches off (ADR-1095), read as the app starts: their surfaces and page operations are not mounted.
+  partsOff = readPartsOff(home.dir);
   // The page operations the stories' manifests name, each answered with what the frame offers (ADR-1021, ADR-1030 D2).
-  answerPageParts(ipcMain, PAGE_ANSWERS, {
+  answerPageParts(ipcMain, PAGE_ANSWERS, PAGE_CHANNELS, {
     home: home.dir,
     appVersion,
     library: open,
     treeRead: (project) => treesRead.get(project),
     surveyWorker: path.join(__dirname, "survey-worker.cjs"),
-  });
+  }, partsOff);
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
-  const surfaces = surfacesActions(SURFACES, home.dir);
+  const surfaces = surfacesActions(mount(SURFACES, partsOff).mounted, home.dir);
   answerPage(ipcMain, SURFACES_CHANNELS, surfaces);
   // Setup help stays in the frame (ADR-1030 D4): its actions need Electron's dialog, shell and clipboard, the license
   // file's path and the open library, and adding a project also tells the journey, which the frame holds.
@@ -617,7 +624,7 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
       return { title: pick.querySelector("summary .row-title").innerText, contracts: pick.querySelectorAll("[data-contract-id]").length };
     })()`)) as { title: string; contracts: number } | null;
     // A surface switched off draws nothing to judge (ADR-0750); the forest's globe is always on.
-    const read = await surfacesActions(SURFACES, home.dir).readSurfaces();
+    const read = await surfacesActions(mount(SURFACES, partsOff).mounted, home.dir).readSurfaces();
     const arcsOn = !read.ok || surfaceOn(read.value, "arcs");
     const arcProblems = project !== undefined && state === "ready" && arcsOn ? await smokeArcSurface(window.webContents, project, open()) : [];
     if (state === "ready" && args.forestMode !== undefined) {

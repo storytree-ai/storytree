@@ -132,5 +132,32 @@ test("1.20 · `storytree settings show` lists the surfaces its story packages' m
   const listed = [...shown.stdout.split("Surfaces of the app")[1]!.matchAll(/^  .+ \(([\w-]+)\): /gm)].map((line) => line[1]);
   assert.deepEqual(listed, expected.map((surface) => surface.id), "the bundle's Surfaces, in the menu's order");
   assert.equal(import.meta.resolve("#parts/surfaces"), new URL("./parts/surfaces.ts", import.meta.url).href, "the command line's #parts/surfaces is its composing module");
-  assert.deepEqual(unbundled, expected);
+  assert.deepEqual(unbundled.parts, expected);
+});
+
+test("1.37 · a family a switched-off part declares is not listed, and asking for it says it is switched off, because of which part, and how to switch it on; `settings` stays mounted, the way back", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "storytree-parts-off-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = path.join(dir, "home");
+  const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
+
+  const off = await invoke(["settings", "set", "part", "arc-surface", "off"]);
+  assert.equal(off.code, 0, off.stderr);
+  assert.match(off.stdout, /Switched off on this computer: app \(with arc-surface, which it stands on\), arc-surface, forest \(with arc-surface/);
+
+  const listed = await invoke([]);
+  assert.equal(listed.code, 0, listed.stderr);
+  for (const family of ["arc", "question", "app"]) assert.doesNotMatch(listed.stdout, new RegExp(`^  ${family}\\b`, "m"), family);
+  assert.match(listed.stdout, /^  settings\b/m);
+  assert.match(listed.stdout, /^  library\b/m);
+
+  const arc = await invoke(["arc", "list"]);
+  assert.equal(arc.code, 1, arc.stdout);
+  assert.match(arc.stderr, /storytree arc is not mounted: arc-surface is switched off on this computer\. Switch it on with: storytree settings set part arc-surface on/);
+  const app = await invoke(["app"]);
+  assert.match(app.stderr, /app is switched off on this computer because arc-surface, which it stands on, is off/);
+
+  const on = await invoke(["settings", "set", "part", "arc-surface", "on"]);
+  assert.equal(on.code, 0, on.stderr);
+  assert.match((await invoke([])).stdout, /^  arc\b/m);
 });

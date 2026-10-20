@@ -15,7 +15,7 @@
 // Each unit's deadline is learned from this machine's history (unitLimit, ADR-0785):
 // twice its slowest recent pass, doubled after each kill since it last passed, or what an agent set
 // for it here with a reason. Until a unit has enough history its deadline is the run's default:
-// STORYTREE_UNIT_LIMIT_MS when given (CI gives one, as its runners never have history), else UNIT_LIMIT_MS;
+// STORYTREE_UNIT_LIMIT_MS when given (CI gives one, its runners having little history), else UNIT_LIMIT_MS;
 // or twice its slowest recent pass at any concurrency, when that is longer (increment_3f535ac2dc4e).
 // A run that gives its own default never gives a learned deadline under it: CI carries its history
 // from main's runs, and a pull request's kills are never carried back to grow it (increment_d51b4f1d9fc8).
@@ -240,8 +240,8 @@ function stillRunning(runningFile) {
 
 /**
  * The deadline for a unit with too little history (and for named files): STORYTREE_UNIT_LIMIT_MS
- * when the run gives one, else UNIT_LIMIT_MS. CI gives one, since its fresh runners never have
- * history (increment_3bd2b051ab67); so does a test of the deadline itself.
+ * when the run gives one, else UNIT_LIMIT_MS. CI gives one (increment_3bd2b051ab67), which is also
+ * the least a learned deadline may be there (increment_d51b4f1d9fc8); so does a test of the deadline itself.
  */
 export function defaultUnitLimit(env = process.env) {
   const ms = Number(env.STORYTREE_UNIT_LIMIT_MS);

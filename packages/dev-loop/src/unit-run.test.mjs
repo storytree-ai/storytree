@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
 
-import { clearUnitLimit, DEADLINE_GRACE_MS, recordTimings, runUnit, setUnitLimit, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
+import { clearUnitLimit, DEADLINE_GRACE_MS, recordTimings, runUnit, setUnitLimit, TIMING_ROWS_KEPT, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
 
 function fixture(t, files) {
   // Its real path: on macOS the temporary folder is a link, and node names test files by their real one.
@@ -277,8 +277,31 @@ test("a unit with too little history takes the run's own default deadline when i
   const env = { STORYTREE_UNIT_LIMIT_MS: "360000" };
   assert.deepEqual(unitLimit("cli", { home, ...machine, env }), { ms: 360_000, source: "STORYTREE_UNIT_LIMIT_MS" });
   assert.deepEqual(unitLimit("cli", { home, ...machine }), { ms: UNIT_LIMIT_MS, source: "default" });
-  const learned = history(t, passes("cli", 50_000, 50_000, 50_000, 50_000, 50_000));
-  assert.deepEqual(unitLimit("cli", { home: learned, ...machine, env }), { ms: 100_000, source: "learned" }, "a learned deadline still wins");
+  const learned = history(t, passes("cli", 200_000, 200_000, 200_000, 200_000, 200_000));
+  assert.deepEqual(unitLimit("cli", { home: learned, ...machine, env }), { ms: 400_000, source: "learned" }, "a longer learned deadline still wins");
+});
+
+// increment_d51b4f1d9fc8: CI carries each runner's history from main's runs, but a pull request's
+// kills are never carried back, so on CI a learned deadline may only raise the run's own default.
+test("6.16 · a run that gives its own default deadline never gives a unit a learned one under it", (t) => {
+  const env = { STORYTREE_UNIT_LIMIT_MS: "360000" };
+  const fast = history(t, passes("cli", 50_000, 50_000, 50_000, 50_000, 50_000));
+  assert.deepEqual(unitLimit("cli", { home: fast, ...machine, env }), { ms: 360_000, source: "STORYTREE_UNIT_LIMIT_MS, above its learned 100 s" });
+  assert.deepEqual(unitLimit("cli", { home: fast, ...machine }), { ms: 100_000, source: "learned" }, "without one, the learned deadline stands");
+  const drifting = history(t, passes("session-management", 235_000, 300_000, 357_000, 250_000, 240_000));
+  assert.deepEqual(unitLimit("session-management", { home: drifting, ...machine, env }), { ms: 714_000, source: "learned" });
+});
+
+test("6.17 · the timing history keeps each unit's most recent rows on each machine, so a history carried from run to run stays small", (t) => {
+  const home = history(t, [...Array.from({ length: TIMING_ROWS_KEPT + 5 }, (_, i) => ["cli", "pass", 1_000 + i]), ...passes("forest", 7_000)]);
+  const rows = () => readFileSync(path.join(home, "test-timings.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  const before = rows().length;
+  recordTimings({ forest: { result: "pass", ms: 8_000 } }, { home, trimAt: before });
+  const kept = rows();
+  assert.deepEqual(kept.filter((row) => row.unit === "cli").map((row) => row.ms), Array.from({ length: TIMING_ROWS_KEPT }, (_, i) => 1_005 + i), "the oldest rows go first");
+  assert.deepEqual(kept.filter((row) => row.unit === "forest").map((row) => row.ms), [7_000, 8_000]);
+  recordTimings({ forest: { result: "pass", ms: 9_000 } }, { home });
+  assert.equal(rows().length, kept.length + 1, "under its size the history is only added to");
 });
 
 test("with enough passes, a unit's deadline is twice its slowest recent pass, never under the floor", (t) => {

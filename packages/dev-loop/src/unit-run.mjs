@@ -17,6 +17,8 @@
 // for it here with a reason. Until a unit has enough history its deadline is the run's default:
 // STORYTREE_UNIT_LIMIT_MS when given (CI gives one, as its runners never have history), else UNIT_LIMIT_MS;
 // or twice its slowest recent pass at any concurrency, when that is longer (increment_3f535ac2dc4e).
+// A run that gives its own default never gives a learned deadline under it: CI carries its history
+// from main's runs, and a pull request's kills are never carried back to grow it (increment_d51b4f1d9fc8).
 import { execFileSync, spawn } from "node:child_process";
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -38,6 +40,8 @@ export const UNIT_LIMIT_CEILING_MS = 900_000;
 export const DEADLINE_GRACE_MS = 30_000; // past the run's deadline, longer than a cut unit takes to be killed and tabled
 const LEARN_FROM_PASSES = 5; // fewer passes than this on this machine: the fixed deadline
 const RECENT_PASSES = 20;
+export const TIMING_ROWS_KEPT = 2 * RECENT_PASSES; // per unit, machine and concurrency, once the history is trimmed
+const TRIM_TIMINGS_AT = 5_000; // rows; past this a recorded run trims the history
 const defaultHome = () => process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3");
 const limitsFile = (home) => path.join(home, "test-limits.json");
 
@@ -265,7 +269,11 @@ export function unitLimit(unit, { home = defaultHome(), platform = process.platf
   const anyPasses = recent(here);
   let { ms, source } = defaultUnitLimit(env);
   if (set) [ms, source] = [set.ms, `set: ${set.reason}`];
-  else if (passes.length >= LEARN_FROM_PASSES) [ms, source] = [Math.max(UNIT_LIMIT_FLOOR_MS, twiceSlowest(passes)), "learned"];
+  else if (passes.length >= LEARN_FROM_PASSES) {
+    const learned = Math.max(UNIT_LIMIT_FLOOR_MS, twiceSlowest(passes));
+    if (source === "STORYTREE_UNIT_LIMIT_MS" && learned < ms) source = `STORYTREE_UNIT_LIMIT_MS, above its learned ${learned / 1000} s`;
+    else [ms, source] = [learned, "learned"];
+  }
   else if (anyPasses.length > 0 && twiceSlowest(anyPasses) > ms) [ms, source] = [Math.min(UNIT_LIMIT_CEILING_MS, twiceSlowest(anyPasses)), "twice its slowest pass, too few to learn from"];
   const lastPass = rows.findLastIndex((row) => row.result === "pass");
   const kills = rows.slice(lastPass + 1).filter((row) => row.timedOut).length;
@@ -345,15 +353,29 @@ export function unitReason({ ms, timedOut, running = [], exitHung = [], unitLimi
   return `timed out after ${took} (${limit}), killed; ${what}`;
 }
 
-/** Add this run's unit times, and how many units it tested at once, to the machine's history, which unitLimit learns each deadline from. */
-export function recordTimings(units, { home = defaultHome(), jobs = 1 } = {}) {
+/**
+ * Add this run's unit times, and how many units it tested at once, to the machine's history, which
+ * unitLimit learns each deadline from. Past `trimAt` rows the history keeps only each unit's last
+ * TIMING_ROWS_KEPT on each machine at each concurrency, so one carried from run to run stays small.
+ */
+export function recordTimings(units, { home = defaultHome(), jobs = 1, trimAt = TRIM_TIMINGS_AT } = {}) {
   const at = new Date().toISOString();
   const lines = Object.entries(units).map(([unit, { result, ms, timedOut = false }]) =>
     JSON.stringify({ at, platform: process.platform, arch: process.arch, unit, result, ms, timedOut, jobs }),
   );
   if (lines.length === 0) return;
   mkdirSync(home, { recursive: true });
-  appendFileSync(path.join(home, "test-timings.jsonl"), `${lines.join("\n")}\n`);
+  const file = path.join(home, "test-timings.jsonl");
+  appendFileSync(file, `${lines.join("\n")}\n`);
+  const rows = readJsonLines(file);
+  if (rows.length <= trimAt) return;
+  const seen = new Map();
+  const kept = rows.toReversed().filter((row) => {
+    const key = JSON.stringify([row.unit, row.platform, row.arch, row.jobs ?? 1]);
+    seen.set(key, (seen.get(key) ?? 0) + 1);
+    return seen.get(key) <= TIMING_ROWS_KEPT;
+  });
+  writeFileSync(file, `${kept.toReversed().map((row) => JSON.stringify(row)).join("\n")}\n`);
 }
 
 /** Each unit's slowest recent passing time on this machine, at any number of units at once: what a pool orders by. */

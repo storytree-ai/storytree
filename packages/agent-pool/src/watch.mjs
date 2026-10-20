@@ -169,7 +169,7 @@ export async function hand({ dir, pr, increment, session, branch, keepOpen = fal
   if (refused && last) Object.assign(last, { refused: true, refusedAt: new Date(now()).toISOString() }, holder ? { holder } : {});
   const held = !session ? "no session id, so no claims are held for it"
     : !branch ? "its branch could not be read, so no claims are held for it"
-    : (await storytree(["workspace", "hold", String(pr), "--holder", session, "--branch", branch])
+    : (await storytree(["workspace", "hold", String(pr), "--holder", session, "--branch", branch, "--increment", increment])
       .catch((error) => `its claims could not be held (${error.message.split("\n")[0]}), so its close-out releases them`)).trim();
   await save(dir, { fixes: [], fixing: null, ...old, pr, increment, session, keepOpen, closed, ...(project ? { project } : {}), handedAt: new Date(now()).toISOString() });
   await startWatcher();

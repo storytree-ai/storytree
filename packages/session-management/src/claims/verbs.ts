@@ -209,17 +209,18 @@ const holdForPr = verb({
     family: "workspace",
     name: "hold",
     summary: "the watcher's: keep the claims a session took on its handed-over pull request's branch for it until it merges or closes (ADR-1037 D1)",
-    usage: "workspace hold <pr> --holder <session> --branch <branch>",
+    usage: "workspace hold <pr> --holder <session> --branch <branch> [--increment <increment>]",
   },
   tool: { absent: "the Mint box's watcher runs it when a session hands a pull request over" },
   inputs: {
     pr,
     holder: { kind: "text", describe: "the session that handed the pull request over" },
     branch: { kind: "text", describe: "the pull request's branch: its merge ends the claims" },
+    increment: { kind: "text", optional: true, describe: "the increment handed over: the session's claims on it, or under it, taken on no branch are held too" },
   },
-  async act({ pr: typed, holder, branch }, context: SessionVerbContext) {
+  async act({ pr: typed, holder, branch, increment }, context: SessionVerbContext) {
     const { holdForPull } = await import("./claims.js");
-    const held = await holdForPull(context, holder, prNumber(typed), branch);
+    const held = await holdForPull(context, holder, prNumber(typed), branch, increment);
     return { text: held.length === 0 ? `${holder} holds nothing, so nothing is held for PR #${typed}.` : `Held for PR #${typed} until it merges or closes: ${held.join(", ")}.` };
   },
 });

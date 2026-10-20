@@ -8,7 +8,8 @@
   },
   "imports": {
     "#parts/tools": "./src/parts/tools.ts",
-    "#parts/guidance": "./src/parts/guidance.ts"
+    "#parts/guidance": "./src/parts/guidance.ts",
+    "#parts/verbs": "./src/parts/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."

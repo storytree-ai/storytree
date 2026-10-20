@@ -12,7 +12,7 @@ import { z } from "zod";
 import type { Line } from "@storytree/library";
 import type { NoteRead, NoteToolContext } from "@storytree/library/commands";
 import { currentBranch, presentersOf, readClaims } from "@storytree/session-management";
-import { consumersOf, mounted, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbInput, type VerbInputs } from "@storytree/library/verbs";
+import { consumersOf, mounted, VerbRefusal, type DoorWords, type Verb, type VerbAnswer, type VerbFamilies, type VerbInput, type VerbInputs } from "@storytree/library/verbs";
 import type { SessionVerbContext } from "@storytree/session-management/verbs";
 
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
@@ -61,6 +61,11 @@ async function recordReads(call: Call, reads: readonly NoteRead[]): Promise<void
   for (const read of reads) {
     await call.log.append(call.project, { ...lineOf(call.caller), source: "tool", folder: call.folder, kind: "note-read", ...read, agent: call.agent, ...(call.request === undefined ? {} : { causedBy: call.request }) });
   }
+}
+
+/** Every verb of `family`, its bare verb and its nested families' included: those that declare a tool are served. */
+export function verbsOf(family: VerbFamilies<ToolContext>): Verb<VerbInputs, ToolContext>[] {
+  return [...family.verbs, ...(family.bare === undefined ? [] : [family.bare]), ...(family.families ?? []).flatMap(verbsOf)];
 }
 
 /**

@@ -73,6 +73,25 @@ test("2.1 a bundle importing #parts/<kind> gets every part's declarations, conca
   assert.deepEqual(bundled.pages.parts, []);
 });
 
+test("2.1 two hosts in one bundle importing the same #parts/<kind> each get their own parts, the host being each importing file's package", async (t) => {
+  // A story package that is itself a host, mounting its own dependencies' parts, bundled into another host.
+  const inner: Story = {
+    name: "@s/inner",
+    dependencies: ["@s/arcs"],
+    exports: { ".": "./index.js" },
+    files: { "index.js": `import surfaces from "#parts/surfaces";\nexport { surfaces };\n` },
+  };
+  const dir = host(t, [surfaces("@s/arcs", "arcSurfaces", ["arcs"], 2), surfaces("@s/forest", "forestSurfaces", ["globe"], 1), inner], ["@s/arcs", "@s/forest", "@s/inner"]);
+  mkdirSync(path.join(dir, "src"));
+  writeFileSync(path.join(dir, "src", "entry.js"), `import surfaces from "#parts/surfaces";\nimport { surfaces as inner } from "@s/inner";\nexport { surfaces, inner };\n`);
+  const outfile = path.join(dir, "out.mjs");
+  await build({ entryPoints: [path.join(dir, "src", "entry.js")], outfile, bundle: true, format: "esm", platform: "node", logLevel: "silent", absWorkingDir: dir, plugins: [partsPlugin()] });
+  rmSync(path.join(dir, "node_modules"), { recursive: true, force: true });
+  const bundled = await import(pathToFileURL(outfile).href) as { surfaces: { parts: unknown }; inner: { parts: unknown } };
+  assert.deepEqual(bundled.surfaces.parts, [{ id: "globe" }, { id: "arcs" }], "the outer host's dependencies' parts");
+  assert.deepEqual(bundled.inner.parts, [{ id: "arcs" }], "the inner host's own dependencies' parts, not the outer's");
+});
+
 test("3.1 an unbundled host importing #parts/<kind>, which its imports map to its own module calling composeParts, gets every part's declarations in storyParts' order, and an empty list for a kind no manifest names", async (t) => {
   const dir = host(t, [surfaces("@s/arcs", "arcSurfaces", ["arcs"], 2), surfaces("@s/forest", "forestSurfaces", ["globe", "library"], 1)]);
   const manifest = JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as Record<string, unknown>;

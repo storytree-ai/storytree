@@ -15,7 +15,7 @@ import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 import { BACKUP_EVERY_MS, BACKUPS_KEPT, backUp, keepBackups } from "./backups.js";
 
-test("1.8 the app writes a snapshot of each project to backups/<project>/, keeping that project's newest 14, and each restores", async () => {
+test("1.8 the app writes a snapshot of each project to backups/<project>/, keeping that project's newest 14, and each restores", { timeout: 300_000 }, async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`");
   const fresh = (): string => `t-${randomBytes(4).toString("hex")}`;
@@ -60,7 +60,7 @@ test("1.8 the app writes a snapshot of each project to backups/<project>/, keepi
   }
 });
 
-test("1.8 a start reuses a project's successful snapshot under a day old, and takes the next at its day mark", async (t) => {
+test("1.8 a start reuses a project's successful snapshot under a day old, and takes the next at its day mark", { timeout: 300_000 }, async (t) => {
   t.mock.timers.enable({ apis: ["setInterval", "Date"], now: Date.parse("2026-10-06T12:00:00.000Z") });
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-backups-due-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

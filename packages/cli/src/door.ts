@@ -28,7 +28,7 @@ import type { Consumer } from "@storytree/library/verbs";
 import { Refusal, render, UnknownCommand, type Answer, type Next } from "./answer.js";
 import { parseArgs, type Args } from "./args.js";
 import { changedByQuoting } from "./handed.js";
-import { FAMILIES, GUESSES } from "./families/index.js";
+import { FAMILIES, GUESSES, POINTERS } from "./families/index.js";
 import { commandSession, commandWriter, person } from "./writer.js";
 
 /**
@@ -284,10 +284,18 @@ async function dispatch(argv: readonly string[], heard: Heard, context: Context)
   if (first === "--version") return version();
   const family = FAMILIES.find((candidate) => candidate.name === first || candidate.aliases?.includes(first));
   if (family === undefined) {
+    if (Object.hasOwn(POINTERS, first)) return pointedBy(first, rest, heard, context);
     const named = FAMILIES.filter((candidate) => candidate.waitsOn === undefined).map((candidate) => ({ name: candidate.name, command: candidate.name }));
     throw unknown("storytree", first, Object.hasOwn(GUESSES, first) ? GUESSES[first] : undefined, "Its families", named, rest);
   }
   return dispatchIn(family, family.name, rest, heard, context);
+}
+
+/** Run the command `words` (after `storytree`) are hand-pointed to, with the words after them, saying so unless the answer is raw. */
+async function pointedBy(words: string, rest: readonly string[], heard: Heard, context: Context): Promise<Answer> {
+  const to = POINTERS[words]!;
+  const ran = await dispatch([...to.split(" "), ...rest], heard, context);
+  return ran.raw === true ? ran : { ...ran, text: `storytree ${words} is storytree ${to}\n${ran.text}` };
 }
 
 /** `storytree --version`: the 0.3.<n> of the build this command comes from (ADR-0753 D2). */
@@ -307,6 +315,8 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   const verb = family.verbs.find((candidate) => candidate.name === second);
   if (verb !== undefined) heard.verb = `storytree ${path} ${verb.name}`;
   if (verb !== undefined) return asksHelp(rest) ? helpOf(verb) : act(verb, parseArgs(rest, verb.switches ?? [], context.cwd), context, heard);
+  const pointer = `${path} ${second}`;
+  if (second !== undefined && Object.hasOwn(POINTERS, pointer)) return pointedBy(pointer, rest, heard, context);
   const help = second === undefined || second === "--help" || second === "-h";
   if (family.bare !== undefined && !(help && second !== undefined)) {
     return act(family.bare, parseArgs(words, family.bare.switches ?? [], context.cwd), context, heard);
@@ -365,7 +375,7 @@ function unknown(where: string, word: string, handPicked: string | undefined, li
  * The door's answer to a word it does not have (ADR-1045 D2, D3): up to three next steps, the commands sessions ran
  * after the word was refused there before, the hand-picked one and the nearest by spelling, rotated so position does
  * not choose. A mistake (a real verb, of either door, in the wrong place) leads with, says and names its right command
- * for the job; a guess (a word nowhere) names none.
+ * for the job; a guess (a word nowhere) names only its hand-picked command, when it has one (ADR-1090 D1).
  */
 async function repointed(unheard: Unheard, opened: Opened, folder: string): Promise<UnknownCommand> {
   const { repointHints } = await import("./usage/repoint.js");
@@ -381,7 +391,7 @@ async function repointed(unheard: Unheard, opened: Opened, folder: string): Prom
   const spelled = unheard.spelled.map((command) => hint(command, "nearest by spelling"));
   const taught = learned.map(({ verb, count }) => ({ command: verb, why: `run next after this word ${count} time${count === 1 ? "" : "s"}` }));
   const mistake = await isVerb(unheard.word, folder);
-  const right = mistake ? (taught[0] === undefined ? handPicked : { ...taught[0], why: "the command for this job" }) : undefined;
+  const right = mistake && taught[0] !== undefined ? { ...taught[0], why: "the command for this job" } : handPicked;
   const hints = repointHints({
     ...(right === undefined ? {} : { right }),
     learned: taught,
@@ -470,10 +480,7 @@ function families(): Answer {
   const lines = FAMILIES.map((family) => `  ${family.name.padEnd(width)}   ${family.summary}${family.waitsOn === undefined ? "" : " (not built yet)"}`);
   return {
     text: ["storytree: read and change your project's records from a terminal.", "", "Families:", ...lines].join("\n"),
-    next: [
-      { command: "storytree <family>", why: "a family's verbs" },
-      { command: "storytree setup install", why: "register storytree's hooks and command" },
-    ],
+    next: [{ command: "storytree <family>", why: "a family's verbs" }],
   };
 }
 

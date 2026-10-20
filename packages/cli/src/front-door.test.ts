@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33 and 1.35 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35 and 1.36 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
@@ -214,7 +214,7 @@ test("1.15 a command kept waiting on the library, here for another session's wri
   });
 });
 
-test("1.17 every answer is recorded on the calling session as a door-answered line: the command, how it went, and the next steps offered as commands; an unknown word with the command its refusal named, which a guess leaves out", async () => {
+test("1.17 every answer is recorded on the calling session as a door-answered line: the command, how it went, and the next steps offered as commands; an unknown word with the command its refusal named, which a guess with no hand-picked command leaves out", async () => {
   await inWorld(command, async (world) => {
     await (await world.library()).defineTerm({ term: "Mailer", meaning: "Sends the sign-up email" });
     const session = { CLAUDE_CODE_SESSION_ID: "door-1" };
@@ -222,10 +222,13 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
     const searched = await world.run(["library", "search", "Mailer"], session);
     const guessed = await world.run(["arc", "increment", "show", "x"], session);
     const misspelt = await world.run(["questoin", "list"], session);
+    const planned = await world.run(["plan", "story"], session);
 
     assert.equal(searched.code, 0, searched.stderr);
     assert.equal(guessed.code, 2, guessed.stderr);
     assert.equal(misspelt.code, 2, misspelt.stderr);
+    assert.equal(planned.code, 2, planned.stderr);
+    assert.match(planned.stderr, /run storytree library new <story\|capability\|contract>/);
     const log = await openActivityLog(testServerUrl());
     try {
       const lines = await log.lines(world.project, { sessions: ["door-1"], kinds: ["door-answered"] });
@@ -237,6 +240,7 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
         { door: "command", verb: "storytree library search", outcome: "answered", word: undefined, named: undefined, next: ["storytree library read"] },
         { door: "command", verb: "storytree arc increment", outcome: "unknown", word: "show", named: "storytree library read", next: ["storytree library read"] },
         { door: "command", verb: "storytree", outcome: "unknown", word: "questoin", named: undefined, next: ["storytree question"] },
+        { door: "command", verb: "storytree", outcome: "unknown", word: "plan", named: "storytree library new", next: ["storytree library new"] },
       ]);
     } finally {
       await log.close();
@@ -288,6 +292,20 @@ test("1.35 a word pointed in its place runs the pointed command with the words a
     } finally {
       await log.close();
     }
+  });
+});
+
+test("1.36 a word agents guess for a job a command already does runs that command with the words after it, and its answer says so", async () => {
+  await inWorld(command, async (world) => {
+    const waited = await world.run(["wait", "--help"]);
+    const shown = await world.run(["adr", "show", "--help"]);
+
+    assert.equal(waited.code, 0, waited.stderr);
+    assert.match(waited.stdout, /storytree wait is storytree arc increment wait\n/);
+    assert.match(waited.stdout, /storytree arc increment wait <increment>/);
+    assert.equal(shown.code, 0, shown.stderr);
+    assert.match(shown.stdout, /storytree adr show is storytree adr pull\n/);
+    assert.match(shown.stdout, /storytree adr pull <decision>/);
   });
 });
 
@@ -393,7 +411,7 @@ test("1.21 · `storytree` mounts the families its story packages' manifests decl
     assert.match(signIn.stdout, /^  storytree sign-in$/m, signIn.stdout + signIn.stderr);
     const verbs = await world.run(["machine"]);
     assert.match(verbs.stdout, /^  storytree machine this$/m, verbs.stdout + verbs.stderr);
-    const guessed = await world.run(["adr", "show", "ADR-0001"]);
+    const guessed = await world.run(["adr", "read", "ADR-0001"]);
     assert.match(guessed.stderr, /storytree adr pull <decision>/, guessed.stdout + guessed.stderr);
     const health = await world.run(["health"]);
     assert.match(health.stdout, /^  storytree health worklist$/m, health.stdout + health.stderr);

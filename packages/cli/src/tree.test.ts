@@ -185,7 +185,7 @@ test("10.7 `storytree health worklist` says on a proposed capability's line when
     const unbuilt = await world.run(["health", "worklist"]);
     assert.equal(unbuilt.code, 0, unbuilt.stderr);
     assert.doesNotMatch(unbuilt.stdout, /already pass|capability built/);
-    assert.match(unbuilt.stdout, /storytree arc increment new/);
+    assert.match(unbuilt.stdout, new RegExp(`storytree library read ${form.id}`));
 
     await library.recordVerified(check.id, "passing");
     const ran = await world.run(["health", "worklist"]);

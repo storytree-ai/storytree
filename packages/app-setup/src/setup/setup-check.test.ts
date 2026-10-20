@@ -530,7 +530,7 @@ test("8.9 in a throwaway home, the first start puts a storytree command on the p
     assert.equal((await start()).command, "installed");
     // It runs as the user would run it: by its name, through their shell, found on the path.
     const ran = spawnSync("storytree", [], { shell: true, encoding: "utf8", env: { ...process.env, PATH: bin, Path: bin } });
-    assert.match(`${ran.stdout}${ran.stderr}`, /storytree setup/, `it is storytree's command: ${ran.stdout}${ran.stderr}`);
+    assert.match(`${ran.stdout}${ran.stderr}`, /storytree: read and change your project's records/, `it is storytree's command: ${ran.stdout}${ran.stderr}`);
     const first = readFileSync(file);
 
     assert.equal((await start()).command, "already installed");

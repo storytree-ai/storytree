@@ -259,6 +259,6 @@ export const ADR_FAMILY: VerbFamily = {
   name: "adr",
   summary: "the decision log: new, pull, push, compose, list",
   order: 4,
-  guesses: { show: "adr pull <decision>", read: "adr pull <decision>", get: "adr pull <decision>", open: "adr pull <decision>" },
+  guesses: { read: "adr pull <decision>", get: "adr pull <decision>", open: "adr pull <decision>" },
   verbs: [list, create, pull, push, compose],
 };

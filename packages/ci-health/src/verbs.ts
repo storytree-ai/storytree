@@ -26,8 +26,8 @@ const worklist = verb({
     if (listed.length > shown.length) lines.push(`${listed.length - shown.length} more wait.`);
     if (held !== undefined) lines.push(held);
     const built = shown.filter(({ contractsPass }) => contractsPass).map(({ capability }) => ({ command: `capability built ${capability}`, why: "its tests already pass: switch its proposed flag off (ADR-0744 D2)" }));
-    const unbuilt = shown.some(({ contractsPass }) => !contractsPass);
-    return { text: lines.join("\n"), next: [...built, ...(unbuilt ? [{ command: "arc increment new --arc <arc> --title <t> --objective <o> --body <text> --capabilities <capability> [--held-on <question>]", why: "route one: an increment whose capabilities list names it, held on a question when it needs the owner" }] : [])] };
+    const unbuilt = shown.find(({ contractsPass }) => !contractsPass);
+    return { text: lines.join("\n"), next: [...built, ...(unbuilt === undefined ? [] : [{ command: `library read ${unbuilt.capability}`, why: "read it whole before routing it" }])] };
   },
 });
 

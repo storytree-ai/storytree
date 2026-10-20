@@ -228,7 +228,7 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
       `  - event  Apple reviews build 12 — ${release.id}  Release, on ${launch}  Launch v1; check back 2099-01-01`,
     ]);
     assert.deepEqual(asked, { arcView: 0, arcViews: 1, holds: 1, waitsFor: 0 });
-    assert.ok(answer.next?.some((step) => step.command.startsWith("storytree arc increment unwait")), JSON.stringify(answer.next));
+    assert.ok(answer.next?.some((step) => step.command.startsWith("storytree arc show")), JSON.stringify(answer.next));
   });
 });
 

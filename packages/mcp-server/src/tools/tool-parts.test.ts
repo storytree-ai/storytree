@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { setupToolParts } from "@storytree/app-setup/tools";
 import { librarianToolParts } from "@storytree/library/librarian";
+import { mapToolParts } from "@storytree/map/tools";
 import { qualityToolParts } from "@storytree/quality-assurance";
 import { hookToolParts } from "@storytree/session-management";
 import { sessionToolParts } from "@storytree/session-management/tools";
@@ -14,15 +16,15 @@ import toolParts from "../parts/tools.js";
 import { createAgentTools, type ToolPart } from "./server.js";
 
 // The stories restate the server's extension point rather than import it (ADR-1017 D2); this is where the two are checked to fit.
-const declared: readonly ToolPart[] = [...librarianToolParts, ...qualityToolParts, ...hookToolParts, ...sessionToolParts];
+const declared: readonly ToolPart[] = [...librarianToolParts, ...qualityToolParts, ...hookToolParts, ...sessionToolParts, ...mapToolParts, ...setupToolParts];
 
-test("6.75 the tool server mounts the tool parts its story packages' manifests name: the librarian's, then quality assurance's, then Session management's hook event tool and its claim, context and runs tools, each given the project served and the server's tool names", () => {
+test("6.75 the tool server mounts the tool parts its story packages' manifests name: the librarian's, then quality assurance's, then Session management's hook event tool and its claim, context and runs tools, then the map's, then App setup's, each given the project served and the server's tool names", () => {
   assert.equal(import.meta.resolve("#parts/tools"), new URL("../parts/tools.ts", import.meta.url).href, "the package's #parts/tools is its composing module");
   assert.deepEqual(toolParts.parts, declared);
   const tools = () => ["check_setup"];
   const served = (project: string | undefined) => toolParts.parts.map((part) => part({ project, tools }) !== undefined);
-  assert.deepEqual(served("storytree"), [true, true, true, true], "storytree's own library gets the librarian's tools, quality assurance's and Session management's");
-  assert.deepEqual(served("another-project"), [false, true, true, true], "another project gets quality assurance's and Session management's, not the librarian's (ADR-0644 U1)");
+  assert.deepEqual(served("storytree"), [true, true, true, true, true, true], "storytree's own library gets the librarian's tools, quality assurance's, Session management's, the map's and App setup's");
+  assert.deepEqual(served("another-project"), [false, true, true, true, true, true], "another project gets all but the librarian's (ADR-0644 U1)");
 });
 
 test("6.95 the tool server serves no tool of a part this computer switches off, nor of one standing on it, and serves the rest", async (t) => {
@@ -51,4 +53,14 @@ test("6.95 the tool server serves no tool of a part this computer switches off, 
   for (const tool of partTools) assert.ok(!sessionsOff.includes(tool), `${tool}, in Session management's tool part, goes with it`);
   assert.ok(!sessionsOff.includes("hook_event") && !sessionsOff.includes("quality_brief"), "quality assurance stands on Session management: its tools go with it");
   assert.ok(sessionsOff.includes("check_setup"), "the server's own tools stay");
+  const mapTools = ["focus", "health_worklist"];
+  const setupTools = ["wire_pipeline", "import_project", "take_starter_pack", "move_onto_factory"];
+  for (const tool of [...mapTools, ...setupTools]) assert.ok(all.includes(tool), `${tool} is served with nothing off`);
+  const mapOff = await served(["map"]);
+  for (const tool of mapTools) assert.ok(!mapOff.includes(tool), `${tool}, in the map's tool part, goes with it`);
+  for (const tool of setupTools) assert.ok(!mapOff.includes(tool), `${tool}: App setup stands on the map, so its tools go with it`);
+  assert.ok(mapOff.includes("show_plan") && mapOff.includes("plan_contract"), "the library's plan tools stay");
+  const setupOff = await served(["app-setup"]);
+  for (const tool of setupTools) assert.ok(!setupOff.includes(tool), `${tool}, in App setup's tool part, goes with it`);
+  for (const tool of ["check_setup", "set_up_project", ...mapTools]) assert.ok(setupOff.includes(tool), `${tool} stays with App setup off`);
 });

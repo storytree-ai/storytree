@@ -60,10 +60,8 @@ import { registerClaimTools } from "./claim-tools.js";
 import { Connections } from "./connections.js";
 import { mountTools, verbsOf } from "./mount.js";
 import { registerPlanTools } from "./plan-tools.js";
-import { registerMapTools } from "./map-tools.js";
-import { registerSetupTools, registerStarterPackTool, type SetupToolOptions } from "./setup-tools.js";
+import { registerSetupTools, type SetupToolOptions } from "./setup-tools.js";
 import { registerWorkTools } from "./work-tools.js";
-import { registerPipelineTools } from "./pipeline-tools.js";
 
 export { NOT_RUNNING_ANSWER, lineOf };
 export type { Answer, Caller };
@@ -199,6 +197,8 @@ export interface ToolHost {
   readonly home?: string;
   readonly ledger?: string;
   readonly merges?: MergeWatch;
+  /** How wire_pipeline reads whether a repository's plan allows branch protection, when not through `gh`. */
+  readonly protection?: ProtectionReader;
 }
 
 /** A story's tool part, as its manifest's `tools` names it: its extension for this server, or none where it serves nothing. */
@@ -215,6 +215,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     project: findProject(options.folder).project, tools: () => servedTools,
     ...(verbHome === undefined ? {} : { home: verbHome, ledger: path.join(path.dirname(options.dataDir!), "own") }),
     ...(options.merges === undefined ? {} : { merges: options.merges }),
+    ...(options.protection === undefined ? {} : { protection: options.protection }),
   };
   // The machine whose approved trunks let this folder reach its project (ADR-0942): the home setup records them in.
   const home = options.setup?.storytreeHome ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
@@ -359,16 +360,14 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     connections,
     callerOf,
     card,
+    served: () => servedTools,
     ...(options.journey === undefined ? {} : { journey: options.journey }),
   });
-  registerStarterPackTool(define);
   registerPlanTools(define);
-  registerMapTools(define);
   registerClaimTools(define, extensions);
   registerWorkTools(define);
   // The library's artifact tools, declared in The library (ADR-1035 D3), which is core.
   mountTools(define, NOTE_TOOLS);
-  registerPipelineTools(define, options.protection);
   // Every verb a mounted part's command families declare a tool for (Friction's, Session management's), from their
   // manifests: a part switched off takes its tools with it (ADR-1095).
   mountTools(define, mount(VERB_PARTS, off).mounted.flatMap(verbsOf), verbHome);

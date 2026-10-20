@@ -453,7 +453,7 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
   });
 });
 
-test("app-setup 8.26 in a project an earlier starter pack seeded, or a product project whose factory it seeded, the check names the seeded and current versions and offers take_starter_pack while it would add or replace something, taken into the factory for the product; once taken, or in a project never seeded, it offers nothing", async () => {
+test("app-setup 8.26 in a project an earlier starter pack seeded, or a product project whose factory it seeded, the check names the seeded and current versions and offers take_starter_pack while it would add or replace something and the server serves it, taken into the factory for the product; once taken, or in a project never seeded, it offers nothing", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const [earlier, never, factory, product] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
@@ -484,7 +484,16 @@ test("app-setup 8.26 in a project an earlier starter pack seeded, or a product p
       await built.recordFactory(factory);
       await built.close();
 
-      await withAgent(await projectFolder(earlier), agentIn(path.join(dir, earlier)), async (agent) => {
+      const earlierFolder = await projectFolder(earlier);
+      // With App setup switched off take_starter_pack is not served, so the check offers it not (ADR-1095).
+      writeFileSync(path.join(home.storytreeHome, "settings.json"), JSON.stringify({ "parts-off": ["app-setup"] }));
+      await withAgent(earlierFolder, agentIn(path.join(dir, earlier)), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.deepEqual(checked.data.starterPack, { seeded: 1, current: STARTER_PACK_VERSION, offered: true });
+        assert.doesNotMatch(answered(checked.text), /take_starter_pack/);
+      });
+      rmSync(path.join(home.storytreeHome, "settings.json"));
+      await withAgent(earlierFolder, agentIn(path.join(dir, earlier)), async (agent) => {
         const offered = await agent.call("check_setup");
         assert.deepEqual(offered.data.starterPack, { seeded: 1, current: STARTER_PACK_VERSION, offered: true });
         assert.match(offered.text, new RegExp(`starter pack v1\\b.*v${STARTER_PACK_VERSION}\\b`));

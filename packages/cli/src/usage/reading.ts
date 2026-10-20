@@ -37,6 +37,8 @@ export interface DoorLine {
   readonly named?: string;
   readonly class?: string;
   readonly next: readonly string[];
+  /** Where the `word` a pointer ran this command for was typed (ADR-1045 D4). */
+  readonly pointedFrom?: string;
 }
 
 /** One declared verb, as its door names it, with the consumers its story declared for it. */

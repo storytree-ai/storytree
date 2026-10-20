@@ -117,10 +117,19 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    * typed and the command the refusal `named`, when it named one. `refused` is a guard's or the
    * library's "no", `failed` anything else, each with the error's `class` when one was thrown. `denied-by-arm` is a verb the
    * experiment arm the line names denies (ADR-1064 D2): refused before it ran, logged so a denied attempt is itself a measure.
+   * A command a pointer ran (ADR-1045 D4) carries the `word` typed and the place it was typed, `pointedFrom` (`storytree adr`).
    */
   z.object({ ...common, kind: z.literal("door-answered"), door: z.enum(["command", "tool"]), verb: z.string().min(1),
     outcome: z.enum(["answered", "unknown", "refused", "failed", "denied-by-arm"]), word: z.string().optional(), named: z.string().min(1).optional(),
-    class: z.string().min(1).optional(), next: z.array(z.string().min(1)) }).strict(),
+    class: z.string().min(1).optional(), next: z.array(z.string().min(1)), pointedFrom: z.string().min(1).optional() }).strict(),
+  /**
+   * A pointer the doors learner wrote in the friction drain (ADR-1045 D4): a guessed `word`, typed in `where` (`storytree adr`),
+   * now runs the command `to`, which its followed hints confirmed, with the word's `others` followed targets and the `evidence`
+   * that made it. A line with no `to` is the pointer fallen back to a refusal with hints, its evidence saying why. The latest
+   * line for a word in a place is its state.
+   */
+  z.object({ ...common, kind: z.literal("door-pointer"), where: z.string().min(1), word: z.string().min(1), to: z.string().min(1).optional(),
+    others: z.array(z.string().min(1)), evidence: z.string().min(1) }).strict(),
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
   /**
    * A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3).

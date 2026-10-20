@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21 and 1.33 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33 and 1.35 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
@@ -258,6 +258,36 @@ test("1.33 a refused word offers, as next steps, the commands sessions ran after
     assert.equal(learned.code, 2, learned.stderr);
     assert.match(learned.stderr, /next:\n[\s\S]*- storytree library search <words…>/);
     assert.doesNotMatch(learned.stderr, /run storytree/);
+  });
+});
+
+test("1.35 a word pointed in its place runs the pointed command with the words after it, says it was pointed, and records an answered line carrying the word; a fallen pointer refuses again", async () => {
+  await inWorld(command, async (world) => {
+    await (await world.library()).defineTerm({ term: "Mailer", meaning: "Sends the sign-up email" });
+    const session = { CLAUDE_CODE_SESSION_ID: "pointed-1" };
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const point = (to?: string) => log.append(world.project, { session: "drain-1", source: "tool", kind: "door-pointer", where: "storytree library", word: "zzfind",
+        ...(to === undefined ? {} : { to }), others: [], evidence: "the doors learner's reading" });
+
+      await point("storytree library search");
+      const pointed = await world.run(["library", "zzfind", "Mailer"], session);
+      assert.equal(pointed.code, 0, pointed.stderr);
+      assert.match(pointed.stdout, /"storytree library zzfind" is pointed to storytree library search/);
+      assert.match(pointed.stdout, /Mailer/);
+      const lines = await log.lines(world.project, { sessions: ["pointed-1"], kinds: ["door-answered"] });
+      assert.deepEqual(lines.map((line) => {
+        const { verb, outcome, word, pointedFrom } = line as Extract<typeof line, { kind: "door-answered" }>;
+        return { verb, outcome, word, pointedFrom };
+      }), [{ verb: "storytree library search", outcome: "answered", word: "zzfind", pointedFrom: "storytree library" }]);
+
+      await point();
+      const fallen = await world.run(["library", "zzfind", "Mailer"], session);
+      assert.equal(fallen.code, 2, fallen.stderr);
+      assert.match(fallen.stderr, /storytree library has no "zzfind"/);
+    } finally {
+      await log.close();
+    }
   });
 });
 

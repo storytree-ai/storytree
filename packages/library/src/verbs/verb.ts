@@ -169,8 +169,9 @@ export interface VerbFamilies<C extends VerbPlace = VerbContext> {
 }
 
 /**
- * A command family a story declares in its manifest's `verbs` (ADR-1033), listed `order`th among `storytree`'s
- * families, counted from 1, so a family keeps its place in the help as it moves.
+ * A command family a story declares in its manifest's `verbs` (ADR-1033), listed among `storytree`'s families in
+ * ascending `order`, so a family keeps its place in the help as it moves. Places need not be contiguous: any unused
+ * number, fractional included, places a new family without moving another.
  */
 export interface VerbFamily<C extends VerbPlace = VerbContext> extends VerbFamilies<C> {
   readonly order: number;

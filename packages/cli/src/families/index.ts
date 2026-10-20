@@ -1,7 +1,8 @@
 /**
  * Capability 1 · Front door. The families `storytree` answers, in the order `storytree` alone lists them: the capabilities of
  * the command line story, each a front door onto its owning story. A family its owning story declares in its manifest
- * (`#parts/verbs`, ADR-1033) is mounted from there, at the place it declares among those still kept here.
+ * (`#parts/verbs`, ADR-1033) is mounted from there, at the place it declares among those still kept here: listed by place,
+ * not counted into a position, so a new family takes an unused place and no other's moves.
  */
 import declared from "#parts/verbs";
 
@@ -37,20 +38,28 @@ export const POINTERS: Readonly<Record<string, string>> = {
   "arc increment show": "library read",
 };
 
-/** The families still kept here, in their order once the declared ones take their places. */
-const KEPT: readonly Family[] = [
-  doors,
-  plan,
-  mapFamily,
-  affectedFamily,
-  capabilities,
-  auth,
+/** The families still kept here, each at the place it takes among the declared ones in `storytree`'s list. */
+const KEPT: readonly Placed[] = [
+  { order: 6, family: doors },
+  { order: 15, family: plan },
+  { order: 16, family: mapFamily },
+  { order: 17, family: affectedFamily },
+  { order: 19, family: capabilities },
+  { order: 32, family: auth },
 ];
 
-export const FAMILIES: readonly Family[] = [...declared].sort((a, b) => a.order - b.order).reduce(
-  (families, family) => families.toSpliced(family.order - 1, 0, learning(mounted(family), surfaces)),
-  KEPT,
-);
+export const FAMILIES: readonly Family[] = inOrder([...KEPT, ...declared.map((family) => ({ order: family.order, family: learning(mounted(family), surfaces) }))]);
+
+/** A family and the place it takes in `storytree`'s list: any number, so a place between two others shifts neither. */
+export interface Placed {
+  readonly order: number;
+  readonly family: Family;
+}
+
+/** The families in ascending order of their places, those sharing one by name. */
+export function inOrder(placed: readonly Placed[]): Family[] {
+  return [...placed].sort((a, b) => a.order - b.order || a.family.name.localeCompare(b.family.name)).map(({ family }) => family);
+}
 
 /** The surfaces the doors learner judges in the friction drain: every command, every tool served in `cwd`, and the verbs both mount. */
 async function surfaces(cwd: string) {

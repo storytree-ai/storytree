@@ -27,8 +27,11 @@ export type SurveyedTest = {
   readonly imports: readonly FileImport[];
 };
 
-/** One import behind a derived edge: the importing file, the file that defines what it takes (absent when it cannot be found), and whether it took types alone. */
-export type EdgeFile = { readonly from: string; readonly to?: string; readonly typeOnly: boolean };
+/**
+ * One import behind a derived edge: the importing file, the file that defines what it takes (absent when it cannot be found), and whether it took types alone.
+ * A forwarder's importing file declares nothing of its own and only passes on names from one other story (ADR-1085 D3).
+ */
+export type EdgeFile = { readonly from: string; readonly to?: string; readonly typeOnly: boolean; readonly forwarder?: true };
 
 /**
  * An edge the code derives from a story to another (ADR-0991 D1, D2): from its capability to the other

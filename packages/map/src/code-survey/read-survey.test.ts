@@ -390,8 +390,31 @@ test("8.19 a derived edge with no capability at an end is kept as a story edge n
     const survey = await codeSurveyReader().read(folder, stories);
     assert.deepEqual(survey["story-shop"]?.edges, [
       { story: "story-bank", from: "cap-cart", typeOnly: false, files: [{ from: "src/cart.ts", to: "src/vault.ts", typeOnly: false }] },
-      { story: "story-till", to: "cap-prices", typeOnly: false, files: [{ from: "src/loose.ts", to: "src/prices.ts", typeOnly: false }] },
+      { story: "story-till", to: "cap-prices", typeOnly: false, files: [{ from: "src/loose.ts", to: "src/prices.ts", typeOnly: false, forwarder: true }] },
     ]);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("8.31 an edge file whose source declares nothing of its own, imports nothing of its own package and passes on names from one other story's package is marked a forwarder", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-forwarders-"));
+  const stories = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [] }, ...tillAndBankStories] } as unknown as AnnotatedTree;
+  try {
+    await writePackages(folder, {
+      ...tillAndBank,
+      shop: {
+        "package.json": JSON.stringify({ name: "@x/shop" }),
+        "src/forward.ts": 'import { price } from "@x/till";\nexport { price };\nexport type { Money } from "@x/till";\n',
+        // Each of these does something of its own: a declaration, an own-package import, a second story.
+        "src/declares.ts": 'export { price } from "@x/till";\nexport const tax = 1;\n',
+        "src/own.ts": 'export { price } from "@x/till";\nexport { tax } from "./declares.js";\n',
+        "src/two.ts": 'export { price } from "@x/till";\nexport { vault } from "@x/bank";\n',
+      },
+    });
+    const survey = await codeSurveyReader().read(folder, stories);
+    const forwarders = (survey["story-shop"]?.edges ?? []).flatMap((edge) => edge.files).filter((file) => file.forwarder === true).map((file) => file.from);
+    assert.deepEqual([...new Set(forwarders)], ["src/forward.ts"]);
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

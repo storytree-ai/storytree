@@ -59,14 +59,15 @@ test("5.2 · the front-door frames' imports and the declared composition root's 
 });
 
 test("5.3 · a forwarder the code survey detects, and a build step or cleanup storytree.check.json declares, is listed as plumbing by its kind, not counted", async (t: TestContext) => {
-  const { placements } = await placementReport(plant(t, {
+  const { placements, stale, text } = await placementReport(plant(t, {
     ...pkg("core", "export const core = 1;\n"),
     ...pkg("bridge", 'export { core } from "core";\n'),
     ...pkg("tools", 'import { core } from "core";\nexport const build = core;\n'),
     ...pkg("setup", 'import { core } from "core";\nexport const forget = core;\n'),
   }), { placement: { plumbing: [
-    { kind: "build step", file: "packages/tools/src/index.ts", reaches: "core", by: "the owner", on: "2026-10-21" },
-    { kind: "cleanup", file: "packages/setup/src/index.ts", reaches: "core", by: "the owner", on: "2026-10-21" },
+    { from: "packages/tools/src/index.ts", to: "core", kind: "build step", said: "the owner", on: "2026-10-21" },
+    { from: "packages/setup/src/index.ts", to: "core", kind: "cleanup", said: "the owner", on: "2026-10-21" },
+    { from: "packages/setup/src/index.ts", to: "bridge", kind: "cleanup", said: "the owner", on: "2026-10-21" },
   ] } });
   const core = of(placements, "packages/core");
   assert.deepEqual(core.callers, []);
@@ -75,6 +76,8 @@ test("5.3 · a forwarder the code survey detects, and a build step or cleanup st
     { caller: "packages/setup", kind: "cleanup", file: "packages/setup/src/index.ts" },
     { caller: "packages/tools", kind: "build step", file: "packages/tools/src/index.ts" },
   ]);
+  assert.deepEqual(stale.map(({ from, to }) => `${from} ${to}`), ["packages/setup/src/index.ts bridge"]);
+  assert.match(text, /Stale: the cleanup packages\/setup\/src\/index\.ts → bridge in storytree\.check\.json's placement\.plumbing matches no import/);
 });
 
 test("5.4 · each count implies a placement: at or above the threshold its own story, one caller inside that story, none its own story, between them separate ways; one placed differently from today is named, with the loop moving it would make", async (t: TestContext) => {

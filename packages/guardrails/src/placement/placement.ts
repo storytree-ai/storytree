@@ -7,7 +7,8 @@
  *   as the map's code survey reads them (storyEdges, in packages/map). Tests and testing helpers make no edges.
  * - Not counted, but listed: imports from the delivery mechanisms (the front-door frames, the driving adapters, and the
  *   frame storytree.check.json marks `"compositionRoot": true`), and plumbing calls: a forwarder the survey marks, and
- *   the build steps and cleanups the checkout declares under `placement.plumbing`, since no code shows them.
+ *   the build steps and cleanups the checkout declares under `placement.plumbing`, since no code shows them. A
+ *   declared call that matches no import is named as stale.
  * - Each count implies a placement: at or above the threshold (`placement.threshold`, default two) its own story; one
  *   caller, inside that story; none, its own story; between one and the threshold, separate ways. Today every package
  *   is its own story, so the report names each placed otherwise, with the loop moving it inside its caller would make:
@@ -26,10 +27,10 @@ export type PlacementFrame = Frame & { readonly compositionRoot?: boolean };
 
 /** A plumbing call no code shows: the file making it, the story (its package's folder name) it reaches, who said so and when. */
 export interface Plumbing {
+  readonly from: string;
+  readonly to: string;
   readonly kind: "build step" | "cleanup";
-  readonly file: string;
-  readonly reaches: string;
-  readonly by: string;
+  readonly said: string;
   readonly on: string;
 }
 
@@ -68,6 +69,8 @@ export interface Placement {
 export interface PlacementReport {
   readonly threshold: number;
   readonly placements: readonly Placement[];
+  /** Declared plumbing that matches no import. */
+  readonly stale: readonly Plumbing[];
   readonly text: string;
 }
 
@@ -93,6 +96,7 @@ export async function placementReport(root: string, declared: PlacementDeclarati
   const counted = new Map(dirs.map((dir) => [dir, new Set<string>()]));
   const uncounted = new Map<string, Map<string, { caller: string; kind: Uncounted; file: string }>>(dirs.map((dir) => [dir, new Map()]));
   const imports = new Map(dirs.map((dir) => [dir, new Set<string>()]));
+  const matched = new Set<Plumbing>();
   for (const [story, { edges = [] }] of Object.entries(survey)) {
     for (const edge of edges) {
       const target = `packages/${edge.story}`;
@@ -101,8 +105,9 @@ export async function placementReport(root: string, declared: PlacementDeclarati
         const caller = dirOf(from);
         if (caller === undefined || caller === target || !counted.has(target)) continue;
         imports.get(caller)!.add(target);
-        const declaredKind = plumbing.find((call) => call.file === from && call.reaches === edge.story)?.kind;
-        const kind: Uncounted | undefined = delivery.has(caller) ? "delivery mechanism" : file.forwarder === true ? "forwarder" : declaredKind;
+        const call = plumbing.find((declaredCall) => declaredCall.from === from && declaredCall.to === edge.story);
+        if (call !== undefined) matched.add(call);
+        const kind: Uncounted | undefined = delivery.has(caller) ? "delivery mechanism" : file.forwarder === true ? "forwarder" : call?.kind;
         if (kind === undefined) counted.get(target)!.add(caller);
         else uncounted.get(target)!.set(`${caller} ${kind}`, { caller, kind, file: from });
       }
@@ -145,10 +150,12 @@ export async function placementReport(root: string, declared: PlacementDeclarati
     return `  - ${placed.package}: ${count}: ${where}${not}.`;
   };
   const differing = placements.filter((placed) => placed.differs);
+  const stale = plumbing.filter((call) => !matched.has(call));
   const text = [
     `The placement report (rule 5 of the journey principle, threshold ${threshold}; it never fails the check):`,
     ...placements.map(said),
     differing.length === 0 ? "  Every package is placed as today." : `  Placed differently from today: ${differing.map((placed) => placed.package).join(", ")}.`,
+    ...stale.map((call) => `  Stale: the ${call.kind} ${call.from} → ${call.to} in storytree.check.json's placement.plumbing matches no import; take it off the list.`),
   ].join("\n");
-  return { threshold, placements, text };
+  return { threshold, placements, stale, text };
 }

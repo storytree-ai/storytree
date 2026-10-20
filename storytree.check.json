@@ -9,9 +9,8 @@
   "placement": {
     "threshold": 2,
     "plumbing": [
-      { "kind": "build step", "file": "packages/app-setup/src/bins/build.ts", "reaches": "plugin-loader", "by": "the owner (ADR-1085 D3)", "on": "2026-10-19" },
-      { "kind": "build step", "file": "packages/app-setup/src/bins/build.ts", "reaches": "session-management", "by": "the owner (ADR-1085 D3)", "on": "2026-10-19" },
-      { "kind": "cleanup", "file": "packages/app-setup/src/project/index.ts", "reaches": "quality-assurance", "by": "the owner (ADR-1085 D3)", "on": "2026-10-19" }
+      { "from": "packages/app-setup/src/bins/build.ts", "to": "plugin-loader", "kind": "build step", "said": "ADR-1085 D3 (decision_daed4099168f), the owner's call", "on": "2026-10-19" },
+      { "from": "packages/app-setup/src/project/index.ts", "to": "quality-assurance", "kind": "cleanup", "said": "ADR-1085 D3 (decision_daed4099168f), the owner's call", "on": "2026-10-19" }
     ]
   }
 }

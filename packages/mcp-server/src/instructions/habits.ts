@@ -37,5 +37,5 @@ const CLOSING = "If storytree says it isn't running, carry on without it.";
 export function habitsCard(off: readonly string[] = []): string {
   const { mounted, off: switched } = mount(GUIDANCE, off);
   const said = switched.length === 0 ? [] : [`Switched off on this computer, so not served here: ${switched.map(({ part }) => part).join(", ")}. The user switches one on with: storytree settings set part <part> on`];
-  return [OPENING, SETUP, ...mounted, ...said, CLOSING].join("\n\n");
+  return [`${OPENING} ${SETUP}`, ...mounted, ...said, CLOSING].join("\n\n");
 }

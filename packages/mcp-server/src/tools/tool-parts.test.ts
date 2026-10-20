@@ -22,7 +22,7 @@ test("6.75 the tool server mounts the tool parts its story packages' manifests n
   assert.equal(import.meta.resolve("#parts/tools"), new URL("../parts/tools.ts", import.meta.url).href, "the package's #parts/tools is its composing module");
   assert.deepEqual(toolParts.parts, declared);
   const tools = () => ["check_setup"];
-  const served = (project: string | undefined) => toolParts.parts.map((part) => part({ project, tools }) !== undefined);
+  const served = (project: string | undefined) => toolParts.parts.map((part) => part({ project, tools, imports: async () => [], heldBack: () => undefined }) !== undefined);
   assert.deepEqual(served("storytree"), [true, true, true, true, true, true], "storytree's own library gets the librarian's tools, quality assurance's, Session management's, the map's and App setup's");
   assert.deepEqual(served("another-project"), [false, true, true, true, true, true], "another project gets all but the librarian's (ADR-0644 U1)");
 });

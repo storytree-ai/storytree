@@ -710,16 +710,13 @@ importers:
       '@babel/parser':
         specifier: ^7.29.9
         version: 7.29.9
-      '@storytree/library':
-        specifier: workspace:*
-        version: link:../library
-      '@storytree/project-and-caller':
-        specifier: workspace:*
-        version: link:../project-and-caller
       zod:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

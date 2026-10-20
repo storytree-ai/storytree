@@ -1,5 +1,5 @@
 /**
- * Capability 6 · Make a folder a project, capability 11 · Pipeline wiring and capability 12 · Import an existing project:
+ * Capability 12 · Import an existing project, with capability 11 · Pipeline wiring and capability 6 · Make a folder a project:
  * App setup's tools on the MCP server's one server, named in its manifest (ADR-1021), so switching App setup off takes
  * them with it (ADR-1095): `take_starter_pack` and `move_onto_factory` (6), `wire_pipeline` (11, ADR-0911 D3) and
  * `import_project` (12). `check_setup` and `set_up_project` stay the server's own (ADR-1099 D2): they answer in a folder that is not

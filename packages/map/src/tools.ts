@@ -4,12 +4,12 @@
  * shape is restated rather than imported, as quality assurance's is: no story may depend on the MCP server, which
  * depends on this package to serve the tools, and checks the two still fit where it mounts its tool parts (its 6.75).
  */
-import { heldBack, type Library, type Storytree } from "@storytree/library";
-import { importsOf, machineOf, storytreeHome } from "@storytree/project-and-caller";
+import type { HealthWorkItem, Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
 import { formatFocus } from "./focus.js";
 import { formatCrossing } from "./code-survey/crossings.js";
+import type { ImportedFolder } from "./code-survey/read-survey.js";
 import { crossingProject, focusProject, healthWorklistAt } from "./read.js";
 
 /** What a tool has for one call, of what the server hands it. */
@@ -35,11 +35,22 @@ export interface ToolExtension {
   readonly registerTools?: (define: Define) => void;
 }
 
+/**
+ * What the part is given: the core's readings its tools use. The map does not install the library or Project and caller,
+ * which the storytree check's slim install of the map must leave out (App setup's 11.4), so the server hands them over.
+ */
+export interface ToolHost {
+  /** The folders this machine imports for `project`, where the map reads the mapped stories (ADR-0993 D2). */
+  readonly imports: (storytree: Storytree, project: string) => Promise<readonly ImportedFolder[]>;
+  /** What the worklist says of the capabilities a test run holds back, as the library words it. */
+  readonly heldBack: (items: readonly HealthWorkItem[]) => string | undefined;
+}
+
 /** The map's tool part, named in its manifest (ADR-1021): served for every project's library. */
-export const mapToolParts = [(): ToolExtension => mapTools()];
+export const mapToolParts = [(host: ToolHost): ToolExtension => mapTools(host)];
 
 /** The tools the map serves: focus and its crossing, and the health worklist. */
-export function mapTools(): ToolExtension {
+export function mapTools({ imports: importsOf, heldBack }: ToolHost): ToolExtension {
   return {
     registerTools(define) {
       define(
@@ -57,8 +68,7 @@ export function mapTools(): ToolExtension {
           if (crossing === undefined && select === undefined) throw new Error("Give select, or crossing.");
           if (crossing !== undefined && select !== undefined && !/^story:./.test(select)) throw new Error("With crossing, select names a mapped story: story:<name>.");
           if (crossing !== undefined && mode === "dry_run") throw new Error("A crossing answers counts or show.");
-          // The folders this machine imports, where the map reads the mapped stories (ADR-0993 D2).
-          const imports = await importsOf(storytree, library.name, machineOf(storytreeHome()).id);
+          const imports = await importsOf(storytree, library.name);
           if (crossing !== undefined) {
             const answer = await crossingProject(library, folder, { patterns: crossing, ...(select === undefined ? {} : { story: select.slice(6) }), ...(mode === undefined || mode === "dry_run" ? {} : { mode }) }, imports);
             return { text: formatCrossing(answer), data: { ...answer }, refused: answer.refused };

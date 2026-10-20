@@ -46,7 +46,6 @@ import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
 import { FRICTION_TOOLS } from "@storytree/friction/verbs";
-import { type SetupOptions } from "@storytree/app-setup/setup";
 import type { ProtectionReader } from "@storytree/app-setup/pipeline";
 import { appDatabaseWork } from "@storytree/session-management/processes/listing";
 import type { z } from "zod";
@@ -63,7 +62,7 @@ import { Connections } from "./connections.js";
 import { mountTools } from "./mount.js";
 import { registerPlanTools } from "./plan-tools.js";
 import { registerMapTools } from "./map-tools.js";
-import { registerSetupTools, registerStarterPackTool } from "./setup-tools.js";
+import { registerSetupTools, registerStarterPackTool, type SetupToolOptions } from "./setup-tools.js";
 import { registerWorkTools } from "./work-tools.js";
 import { OWN_TOOLS, registerOwnTools } from "./own-tools.js";
 import { registerPipelineTools } from "./pipeline-tools.js";
@@ -86,7 +85,7 @@ export interface AgentToolOptions {
   /** How wire_pipeline reads whether a repository's plan allows branch protection (capability 11). By default, through `gh`. */
   readonly protection?: ProtectionReader;
   /** What the setup check (capability 8) works with: by default, the user's own homes and no hook command. */
-  readonly setup?: Omit<SetupOptions, "folder">;
+  readonly setup?: SetupToolOptions;
   /** Other stories' tools, served through the same routing, session attribution and refusals. */
   readonly extensions?: readonly ToolExtension[];
   /** Optional observations owned by the journey story; no tool content is passed. */

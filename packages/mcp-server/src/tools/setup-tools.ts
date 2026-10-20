@@ -22,10 +22,13 @@ import { lineOf, seenCaller, SESSION_ENV, tierOf, type Caller } from "@storytree
 import { metaOf, type Define, type JourneyMilestones } from "./server.js";
 import { quoted } from "./text.js";
 
+/** What the setup tools work with: the setup check's options, and the name set_up_project finds or makes the user's factory under (by default, app-setup's). */
+export type SetupToolOptions = Omit<SetupOptions, "folder"> & { readonly factory?: string };
+
 export interface SetupToolContext {
   readonly server: McpServer;
   readonly folder: string;
-  readonly setup: Omit<SetupOptions, "folder">;
+  readonly setup: SetupToolOptions;
   readonly connections: Connections;
   readonly callerOf: (context: ServerContext) => Caller;
   readonly journey?: JourneyMilestones;
@@ -140,6 +143,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         await setUpProject({
           folder, project: name, storytree: await connections.server(running.library), join: join === true,
           ...(setup.storytreeHome === undefined ? {} : { storytreeHome: setup.storytreeHome }),
+          ...(setup.factory === undefined ? {} : { factory: setup.factory }),
         });
         if (join !== true) {
           try { journey?.projectCreated?.(); } catch { /* Observation cannot change a setup answer. */ }

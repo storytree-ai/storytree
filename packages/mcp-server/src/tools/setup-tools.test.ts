@@ -96,13 +96,13 @@ function readJson(file: string): Record<string, unknown> {
 test("app-setup 8.4 setup records the chosen project only after a successful yes, never on an existing-project check", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    const name = uniqueProjectName();
+    const [name, factory] = [uniqueProjectName(), uniqueProjectName()];
     const folder = path.join(dir, name);
     mkdirSync(folder);
     const storytree = await connect({ url: testServerUrl() });
     try {
       const choice = path.join(home.storytreeHome, "project-choice.json");
-      await withAgent(folder, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
+      await withAgent(folder, claudeCode("claude-1", { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome, factory } }), async (agent) => {
         const checked = await agent.call("check_setup");
         assert.equal(checked.isError, false, checked.text);
         assert.deepEqual(checked.data.project, { status: "ask", suggestion: name });
@@ -139,7 +139,7 @@ test("app-setup 8.4 setup records the chosen project only after a successful yes
       });
     } finally {
       await storytree.close();
-      await dropTestProjects([name]);
+      await dropTestProjects([name, factory]);
     }
   });
 });
@@ -302,29 +302,29 @@ test("app-setup 8.21 a Codex session that set its project up during the session,
 });
 
 test("7.7 set_up_project's answer and check_setup's in a project carry the whole habits card, so an agent whose harness keeps only the start of the server's instructions still gets all of it (regression: Claude Code kept 2,048 characters in the shop's first session, 2026-10-04)", async () => {
-  const name = uniqueProjectName();
+  const [name, factory] = [uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     const folder = path.join(dir, name);
     mkdirSync(folder);
     try {
-      await withAgent(folder, claudeCode(`claude-${name}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } }), async (agent) => {
+      await withAgent(folder, claudeCode(`claude-${name}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } }), async (agent) => {
         const setUp = await agent.call("set_up_project", { name });
         assert.ok(setUp.text.includes(habitsCard()), "set_up_project's answer lacks the card");
         const checked = await agent.call("check_setup");
         assert.ok(checked.text.includes(habitsCard()), "check_setup's answer lacks the card");
       });
     } finally {
-      await dropTestProjects([name]);
+      await dropTestProjects([name, factory]);
     }
   });
 });
 
-test("app-setup 8.22 a session that sets its project up finishes the setup in that answer: a new session to verify its hooks, or Codex's trust step, never a second check_setup in this session (regression: Codex's approval review refused the second check, 2026-10-01)", async () => {
-  const [claudes, codexes, waiting] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+test("app-setup 8.22 a session that sets its project up finishes the setup in that answer: the starter roles and a new session to verify its hooks, or Codex's trust step, never a second check_setup in this session (regression: Codex's approval review refused the second check, 2026-10-01)", async () => {
+  const [claudes, codexes, waiting, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } };
     const setUp = async (name: string, agentFor: typeof claudeCode) => {
       const folder = path.join(dir, name);
       mkdirSync(folder);
@@ -346,12 +346,13 @@ test("app-setup 8.22 a session that sets its project up finishes the setup in th
       for (const [name, agentFor] of [[claudes, claudeCode], [codexes, codex]] as const) {
         const answer = await setUp(name, agentFor);
         assert.equal(answer.isError, false, answer.text);
+        assert.deepEqual(answer.data.starterRoles, [], "the bare bones hold no role (ADR-1094 D1)");
         assert.deepEqual(answer.data.fixes, ["new-session"], "no edit or command test, which only a session started in the project could complete");
         assert.match(answer.text, /new session/);
         assert.doesNotMatch(answer.text, /type \/hooks/);
       }
     } finally {
-      await dropTestProjects([claudes, codexes, waiting]);
+      await dropTestProjects([claudes, codexes, waiting, factory]);
     }
   });
 });
@@ -412,23 +413,19 @@ test("app-setup 8.11 a Claude Code or Codex session calling check_setup is signe
   });
 });
 
-test("app-setup 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them is told of none", async () => {
+test("app-setup 8.19 in a project whose library holds the starter roles, the check names them for the agent to open; a project without them, a new one on the bare bones included, is told of none", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    const older = uniqueProjectName();
+    const [seeded, older, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
     const storytree = await connect({ url: testServerUrl() });
     try {
-      const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome } });
-      // A project set up before the starter pack: its library has no roles to name, until the user asks for three back (ADR-1094 D2).
-      const oldFolder = path.join(dir, older);
-      mkdirSync(oldFolder);
-      await (await storytree.openProject(older)).close();
-      writeFileSync(path.join(oldFolder, MARKER_FILE), `${JSON.stringify({ project: older })}\n`);
-      await approveCheckout(oldFolder, older, home.storytreeHome);
-      await withAgent(oldFolder, agentIn(oldFolder), async (agent) => {
-        const before = await agent.call("check_setup");
-        assert.deepEqual(before.data.starterRoles, []);
-        assert.doesNotMatch(before.text, /orchestrator|librarian/);
+      const agentIn = (folder: string) => claudeCode(`claude-${path.basename(folder)}`, { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { homes: home.homes, storytreeHome: home.storytreeHome, factory } });
+      const newFolder = path.join(dir, seeded);
+      mkdirSync(newFolder);
+      await withAgent(newFolder, agentIn(newFolder), async (agent) => {
+        assert.equal((await agent.call("set_up_project", { name: seeded })).isError, false);
+        assert.deepEqual((await agent.call("check_setup")).data.starterRoles, [], "the bare bones hold no role");
+        // The user asks for three roles back (ADR-1094 D2), taken into this test's own factory.
         const took = await agent.call("take_starter_pack", { include: ["change-reviewer", "orchestrator", "librarian"] });
         assert.equal(took.isError, false, took.text);
         const checked = await agent.call("check_setup");
@@ -438,9 +435,20 @@ test("app-setup 8.19 in a project whose library holds the starter roles, the che
         assert.equal(refused.isError, true);
         assert.match(refused.text, /"tester" is no part of the starter pack/);
       });
+      // A project set up before the starter pack: its library has no roles to name.
+      const oldFolder = path.join(dir, older);
+      mkdirSync(oldFolder);
+      await (await storytree.openProject(older)).close();
+      writeFileSync(path.join(oldFolder, MARKER_FILE), `${JSON.stringify({ project: older })}\n`);
+      await approveCheckout(oldFolder, older, home.storytreeHome);
+      await withAgent(oldFolder, agentIn(oldFolder), async (agent) => {
+        const checked = await agent.call("check_setup");
+        assert.deepEqual(checked.data.starterRoles, []);
+        assert.doesNotMatch(checked.text, /orchestrator|librarian/);
+      });
     } finally {
       await storytree.close();
-      await dropTestProjects([older]);
+      await dropTestProjects([seeded, older, factory]);
     }
   });
 });
@@ -618,7 +626,7 @@ test("app-setup 8.24 the check tells a session the hook failures this machine tr
 });
 
 test("6.70 set_up_project in a folder in no git repository makes one whose first commit holds the marker, and says so, or with no git identity makes it with the marker staged and asks the user for a name and email; a folder already in one is left as it is, and joining makes none", async () => {
-  const [fresh, inRepo, nameless] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
+  const [fresh, inRepo, nameless, factory] = [uniqueProjectName(), uniqueProjectName(), uniqueProjectName(), uniqueProjectName()];
   // The identity a user's git would have; CI's runners have none of their own.
   const identity = { GIT_AUTHOR_NAME: "A User", GIT_AUTHOR_EMAIL: "user@example.invalid", GIT_COMMITTER_NAME: "A User", GIT_COMMITTER_EMAIL: "user@example.invalid" };
   const before = Object.fromEntries([...Object.keys(identity), "GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM"].map((key) => [key, process.env[key]]));
@@ -626,7 +634,7 @@ test("6.70 set_up_project in a folder in no git repository makes one whose first
   const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
-    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome } };
+    const setup = { dataDir: path.join(home.storytreeHome, "pgdata"), setup: { ...ANSWERED, homes: home.homes, storytreeHome: home.storytreeHome, factory } };
     try {
       const empty = path.join(dir, fresh);
       mkdirSync(empty);
@@ -683,7 +691,7 @@ test("6.70 set_up_project in a folder in no git repository makes one whose first
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;
       }
-      await dropTestProjects([fresh, inRepo, nameless]);
+      await dropTestProjects([fresh, inRepo, nameless, factory]);
     }
   });
 });

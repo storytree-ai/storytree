@@ -23,5 +23,7 @@ test("14.6 the runs tools refuse a caller the server could not resolve, all but 
     await assert.rejects(acts.get(name)!.act(args, call), /needs a resolved session identity/, name);
   }
   const all = await acts.get("list_all_runs")!.act({}, call);
-  assert.ok(all.data?.inventory !== undefined, "every session's runs are read");
+  const inventory = all.data?.inventory as { rows: unknown[]; shared: unknown[] };
+  assert.deepEqual(inventory.rows, [], "the empty ledger is read: no session has a run");
+  assert.equal(inventory.shared.length, 1, "the app's database is named as shared work beside them");
 });

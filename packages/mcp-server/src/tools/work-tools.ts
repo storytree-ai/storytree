@@ -2,7 +2,7 @@
  * Capability 6 · Agent tools (the MCP server). The work tools (ADR-0643 D1, 6): park, ready, move and close increments, add to what one remedies, park and unpark arcs, set and
  * clear waits, raise, correct, settle and retire the owner's questions. Each is a thin wrapper over the library's own
  * functions, so no library rule is kept here twice. Recording friction and re-steers is Friction's declared verbs (ADR-1077 D1).
- * Starting an increment is claiming it (claim-tools.ts), so a start is refused as a claim is. Asking the owner about work the
+ * Starting an increment is claiming it (Session management's claim tool), so a start is refused as a claim is. Asking the owner about work the
  * session holds, by a question held on it or a wait for the owner, releases its claims on it (releaseAsked, ADR-0944 D4).
  *
  * There is no hand close or re-open of an arc (ADR-0640 R1, 10-b): an arc reads closed when its

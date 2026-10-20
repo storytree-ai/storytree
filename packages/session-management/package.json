@@ -9,6 +9,7 @@
     "./machines": "./src/machines/machines.ts",
     "./verbs": "./src/sessions/verbs.ts",
     "./workspace-verbs": "./src/claims/verbs.ts",
+    "./tools": "./src/tools.ts",
     "./hook-command": "./src/bins/storytree-hook.ts",
     "./hook-start": "./src/hooks/at-once.ts",
     "./processes": "./src/processes/index.ts",
@@ -52,6 +53,11 @@
         "from": ".",
         "export": "hookToolParts",
         "order": 3
+      },
+      {
+        "from": "./tools",
+        "export": "sessionToolParts",
+        "order": 4
       }
     ],
     "verbs": [

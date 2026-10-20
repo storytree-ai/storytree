@@ -2,7 +2,7 @@
  * Capability 14 · See what remains. The `processes` verbs, declared here (ADR-0969 D2) and named under `verbs` in the
  * package's manifest (ADR-1033), so the command line mounts them as its `processes` family, which still answers to the
  * story's old name `own`. Each is callerless: it runs offline, with no project, and acts for the session the shell names
- * alone; with none, only `processes --all` reads. None is a tool: the MCP server has its own list_own_runs,
+ * alone; with none, only `processes --all` reads. None is a tool: Session management's tool part (tools.ts) serves list_own_runs,
  * list_all_runs, stop_own_run and clear_own_runs.
  */
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
@@ -29,7 +29,7 @@ async function sharedWork() {
 
 const list = verb({
   command: { family: "processes", name: "processes", summary: "list this session’s work, or every recorded session with --all", usage: "processes [--all]" },
-  tool: { absent: "the MCP server's own list_own_runs and list_all_runs" },
+  tool: { absent: "Session management's own list_own_runs and list_all_runs tools" },
   inputs: { all: { kind: "switch", describe: "every recorded session's work" } },
   callerless: true,
   async act({ all }, place: VerbPlace) {
@@ -47,7 +47,7 @@ const list = verb({
 
 const stop = verb({
   command: { family: "processes", name: "stop", summary: "stop named registered runs within this caller’s authority", usage: "processes stop <run…>" },
-  tool: { absent: "the MCP server's own stop_own_run" },
+  tool: { absent: "Session management's own stop_own_run tool" },
   inputs: { runs: { kind: "text", word: 0, many: true, describe: "the runs to stop" } },
   callerless: true,
   async act({ runs }, place: VerbPlace) {
@@ -62,7 +62,7 @@ const stop = verb({
 
 const clear = verb({
   command: { family: "processes", name: "clear", summary: "remove only your confirmed-gone records, then read what remains on this computer" },
-  tool: { absent: "the MCP server's own clear_own_runs" },
+  tool: { absent: "Session management's own clear_own_runs tool" },
   inputs: {},
   callerless: true,
   async act(_input, place: VerbPlace) {

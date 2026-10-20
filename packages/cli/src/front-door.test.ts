@@ -408,7 +408,7 @@ test("1.19 storytree lag prints Lag in real use's report over the lag readings k
   });
 });
 
-test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: the library's library 1st, CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the library core's adr 4th with its guesses, Friction's friction and resteer 13th and 14th, the app setup's doctor 8th and setup, project and import 20th to 22nd, Processes' processes 24th, the Experiments story's experiment 27th, Session management's workspace among the rest, its bare name making a workspace, each listed in ascending order of its place, so a family at an unused or fractional place moves no other", async () => {
+test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: the library's library 1st, CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the library core's adr 4th with its guesses, Session management's friction and resteer 13th and 14th, the app setup's doctor 8th and setup, project and import 20th to 22nd, Processes' processes 24th, the Experiments story's experiment 27th, Session management's workspace among the rest, its bare name making a workspace, each listed in ascending order of its place, so a family at an unused or fractional place moves no other", async () => {
   await inWorld(command, async (world) => {
     const listed = await world.run([]);
     assert.equal(listed.code, 0, listed.stderr);

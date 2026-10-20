@@ -19,7 +19,7 @@ import { FRICTION_FAMILIES, FRICTION_TOOLS } from "./verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("17.17 · Friction declares the `friction` and `resteer` families the command line lists 13th and 14th: friction filed on one branch, with its links and the writer, is drained on another", async () => {
+test("17.17 · Session management declares the `friction` and `resteer` families the command line lists 13th and 14th: friction filed on one branch, with its links and the writer, is drained on another", async () => {
   await withLibrary(async (library) => {
     const [friction, resteer] = ["friction", "resteer"].map((name) => FRICTION_FAMILIES.find((family) => family.name === name)!);
     assert.deepEqual([friction!.order, resteer!.order], [13, 14]);
@@ -103,7 +103,7 @@ test("17.16 · `friction drain` lists the unrouted reports other branches filed 
   });
 });
 
-test("17.18 · Friction declares record_friction, reinforce, record_resteer, friction_drain and route as tools, the drain an agent's alone, and its refusals are verb refusals, which each door answers as a refusal", async () => {
+test("17.18 · Session management declares record_friction, reinforce, record_resteer, friction_drain and route as tools, the drain an agent's alone, and its refusals are verb refusals, which each door answers as a refusal", async () => {
   const tools = FRICTION_TOOLS.flatMap((one) => (mounted(one.tool) ? [one.tool.name] : []));
   assert.deepEqual(tools.sort(), ["friction_drain", "record_friction", "record_resteer", "reinforce", "route"]);
   assert.deepEqual(consumersOf(FRICTION_TOOLS.find((one) => mounted(one.tool) && one.tool.name === "friction_drain")!), ["agent"]);

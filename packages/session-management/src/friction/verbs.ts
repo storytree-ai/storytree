@@ -169,7 +169,7 @@ const resteerNew = verb({
   },
 });
 
-/** Friction's command families, which its manifest names under `verbs` (ADR-1033), 13th and 14th among `storytree`'s. */
+/** Session management's friction command families, which its manifest names under `verbs` (ADR-1033), 13th and 14th among `storytree`'s. */
 export const FRICTION_FAMILIES: readonly VerbFamily[] = [
   { name: "friction", summary: "file friction with its evidence, add a recurrence, or drain and route it", order: 13, verbs: [frictionNew, reinforce, drain, routeVerb] },
   { name: "resteer", summary: "file a re-steer, with the owner's own words", order: 14, verbs: [resteerNew] },

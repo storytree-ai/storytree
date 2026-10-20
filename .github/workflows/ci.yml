@@ -113,7 +113,7 @@ jobs:
       # killed at 360 s on PR #1625, which never touched it, so it gets twice its slowest pass too.
       - if: matrix.system == 'Windows'
         shell: bash
-        run: pnpm run test --set-limit=session-management=720 --reason="Windows CI passes took up to 357 s; twice that (PR #1625)"
+        run: pnpm run test --set-limit=session-management=720 --reason="Windows CI passes took up to 357 s; twice that, PR 1625"
       - run: pnpm test
         env:
           STORYTREE_UNIT_LIMIT_MS: 360000

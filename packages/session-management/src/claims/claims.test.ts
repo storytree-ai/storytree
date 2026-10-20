@@ -1001,7 +1001,7 @@ test("5.45 a session on a handed-over pull request's branch, its fix session, ta
   });
 });
 
-test("5.50 a hand-over holds only the claims taken on the pull request's branch: a session driving a second increment on another branch keeps it, and claims it again without refusal (ADR-1037 D1)", async () => {
+test("5.50 a hand-over holds none of the claims taken on another branch: a session driving a second increment on another branch keeps it, and claims it again without refusal (ADR-1037 D1)", async () => {
   await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
     const { park } = await arcOf(library);
     const signup = await park("email form", [emailForm]);
@@ -1017,6 +1017,22 @@ test("5.50 a hand-over holds only the claims taken on the pull request's branch:
     ], "the other branch's claims stay the session's own");
     const again = await claim(as("A", { branch: "feature/reset" }), reset, "driving the password reset");
     assert.ok(again.ok && again.alreadyHeld);
+  });
+});
+
+test("5.56 a hand-over also holds the session's branchless claims on the handed increment, or under it, taken from the main checkout; a branchless claim on other work stays its own (ADR-1037 D1)", async () => {
+  await withWorld(async ({ log, library, project, emailForm, passwordReset, as }) => {
+    const { park } = await arcOf(library);
+    const signup = await park("email form", [emailForm]);
+    const reset = await park("password reset", [passwordReset]);
+    assert.ok((await claim(as("A", { branch: "feature/signup" }), signup, "driving the email form")).ok);
+    assert.ok((await claim(as("A"), emailForm, "building the email form")).ok, "claimed from the main checkout, on no branch");
+    assert.ok((await claim(as("A"), reset, "driving the password reset")).ok);
+
+    assert.deepEqual(await holdForPull(as("C"), "A", 12, "feature/signup", signup), [signup, emailForm]);
+    assert.deepEqual((await readClaims(log, project)).map(({ increment, capability, session, branch }) => [increment ?? capability, session, branch]), [
+      [reset, "A", undefined], [signup, "pull-request-12", "feature/signup"], [emailForm, "pull-request-12", "feature/signup"],
+    ], "the branchless capability is held on the pull request's branch; the other increment stays the session's");
   });
 });
 

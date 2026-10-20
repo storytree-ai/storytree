@@ -476,12 +476,12 @@ test("4.20 · a conflict past the limit goes back on its arc as ready work, nami
   assert.match(b.lines.at(-1), /PR #41.*back on its arc/);
 });
 
-test("4.22 · a hand-over holds the session's claims for its pull request on its branch until it merges or closes, says when it could not, and a pull request closed unmerged lets them go", async (t) => {
+test("4.22 · a hand-over holds the session's claims for its pull request on its branch, and those for its increment on none, until it merges or closes, says when it could not, and a pull request closed unmerged lets them go", async (t) => {
   const b = await box(t);
   const outs = [];
   await main(["hand", "41", "increment_one", "--session", SESSION], { ...b.options, dir: b.dir, out: (line) => outs.push(line),
     pidFile: join(b.dir, "watch.pid"), argsOf: async () => "", startWatcher: async () => 1 });
-  assert.deepEqual(b.calls.at(-1), ["workspace", "hold", "41", "--holder", SESSION, "--branch", "claude/pr-41"], "held on the pull request's own branch");
+  assert.deepEqual(b.calls.at(-1), ["workspace", "hold", "41", "--holder", SESSION, "--branch", "claude/pr-41", "--increment", "increment_one"], "held on the pull request's own branch, with the claims taken on no branch for its increment");
 
   const said = await hand({ ...b.options, pr: 42, increment: "increment_two", session: "", branch: "claude/pr-42", startWatcher: async () => {} });
   assert.match(said.held, /no session id/);

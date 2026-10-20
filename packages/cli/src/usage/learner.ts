@@ -18,7 +18,7 @@
  * - Last, the weekly doors check (./doors-check.ts, ADR-1090 D2) runs when a week has passed since the last one.
  */
 import type { Library, NewLine, SchemaRecord, WriteOptions } from "@storytree/library";
-import { CaptureError, recordFriction, reinforceFriction } from "@storytree/friction";
+import { CaptureError, recordFriction, reinforceFriction } from "@storytree/session-management/friction";
 
 import { checkDoors } from "./doors-check.js";
 import { BARS, evidenceOf, learnDoors, type Candidate, type CutGroup, type Fallback, type NewPointer, type Pointer, type Surfaces, type Want } from "./learn.js";

@@ -15,7 +15,7 @@
  * An item already filed under its title is not filed again unless it was resolved, which it reinforces: it came back.
  */
 import type { SchemaRecord } from "@storytree/library";
-import { CaptureError, recordFriction, reinforceFriction } from "@storytree/friction";
+import { CaptureError, recordFriction, reinforceFriction } from "@storytree/session-management/friction";
 
 import type { CutGroup, Lesson, Pointer } from "./learn.js";
 import type { LearnerWorld } from "./learner.js";

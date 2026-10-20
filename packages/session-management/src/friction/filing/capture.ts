@@ -1,8 +1,8 @@
 /**
- * Capability 1 · Filing (the Friction story, ADR-1077 D1). Friction and re-steer capture, which Friction's verbs (both
+ * Capability 17 · Friction, its filing (ADR-1097). Friction and re-steer capture, which Friction's verbs (both
  * front doors) and Session management's hooks call, with storytree 0.2's evidence rules (ADR-0643 D1, the owner's n4;
- * 0.2's `packages/cli/src/friction.ts` and `resteer.ts`). Friction depends on the library core and nothing in the
- * core depends on it (ADR-1077 D4).
+ * 0.2's `packages/cli/src/friction.ts` and `resteer.ts`). Session management depends on the library core and nothing in
+ * the core depends on it (ADR-1077 D4, kept by ADR-1097).
  * They write through the library's `writeKnowledge`, which keeps the rules of the records
  * themselves (a friction's evidence, a defect's failure mode: the library's 6.7); what is added here
  * is only the capture's own floor.

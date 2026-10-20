@@ -546,7 +546,7 @@ async function fileBigInjection(handed: unknown): Promise<void> {
   if (typeof session !== "string" || typeof folder !== "string" || report === undefined) return;
   const where = route(folder);
   if (where.status !== "routed") return;
-  const [{ recordFriction }, { currentBranch }, { connect }] = await Promise.all([import("@storytree/friction"), import("../activity/branch.js"), import("@storytree/library")]);
+  const [{ recordFriction }, { currentBranch }, { connect }] = await Promise.all([import("../friction/index.js"), import("../activity/branch.js"), import("@storytree/library")]);
   const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
   try {
     if (!(await approved(storytree, where.project, where.folder, storytreeHome()))) return;

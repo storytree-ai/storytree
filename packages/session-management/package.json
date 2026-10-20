@@ -17,7 +17,9 @@
     "./processes/stopping": "./src/processes/stopping/index.ts",
     "./processes/closing": "./src/processes/closing/index.ts",
     "./processes/testing": "./src/processes/testing/child.ts",
-    "./processes/verbs": "./src/processes/verbs.ts"
+    "./processes/verbs": "./src/processes/verbs.ts",
+    "./friction": "./src/friction/index.ts",
+    "./friction/verbs": "./src/friction/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -27,8 +29,7 @@
     "pg": "^8.23.0",
     "zod": "^4.6.5",
     "@storytree/project-and-caller": "workspace:*",
-    "koffi": "^3.3.2",
-    "@storytree/friction": "workspace:*"
+    "koffi": "^3.3.2"
   },
   "devDependencies": {
     "@storytree/local-postgres": "workspace:*",
@@ -65,6 +66,10 @@
       {
         "from": "./processes/verbs",
         "export": "PROCESSES_FAMILIES"
+      },
+      {
+        "from": "./friction/verbs",
+        "export": "FRICTION_FAMILIES"
       }
     ],
     "guidance": [
@@ -72,6 +77,11 @@
         "from": ".",
         "export": "claimsGuidance",
         "order": 40
+      },
+      {
+        "from": "./friction/verbs",
+        "export": "frictionGuidance",
+        "order": 85
       },
       {
         "from": "./processes/listing",

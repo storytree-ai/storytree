@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { packageProblems } from "@storytree/guardrails";
 
 /** 0.3's own stories, each by the id its one package has (packages/<id>): a story owns exactly one package (ADR-1078 rule 4). */
-export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "friction", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "session-management", "website"];
+export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-health", "cli", "dev-loop", "experiments", "forest", "forest-world", "guardrails", "keys", "knowledge-core", "library", "local-postgres", "map", "mark", "mcp-server", "plugin-loader", "project-and-caller", "quality-assurance", "session-management", "website"];
 // agent-pool: story_b2051c0f7372 (Agent runner, ADR-1071 D3), which holds the Claude Code mod in src/claude-code-mod (ADR-1076 D5); the dev loop depends on it one way, for the forwarders at its old lanes paths.
 // app-setup: story_b91056a06337 (Setup), which holds Journey events in src/journey-events (ADR-1076 D3).
 // app: story_a93c6fb1a257 (Desktop app), which holds Lag in real use in src/lag (ADR-1071 D3).
@@ -26,7 +26,6 @@ export const STORIES = ["agent-pool", "app", "app-setup", "arc-surface", "ci-hea
 // forest: story_deee4230348c (Map view).
 // forest-world: story_ed2c6b55715d (The drawing engine, ADR-1076 D2), out of Map view again: Map view and the Website call it.
 // library: story_754e87e7d531 (The library), which holds the librarian in its own package (ADR-1071 D3).
-// friction: story_6aa1d8410fb6 (Friction, ADR-1077 D1), out of The library's librarian: Session management, the command line and the MCP server call it.
 // keys: story_d47051f035f0 (Keys, ADR-1075), out of The library again: The library and Experiments call it.
 // local-postgres: story_5e19e65c3433 (The local database, ADR-1076 D1), out of The library again: Setup and the dev loop call it.
 // ci-health: story_5c212e7a9a6c (CI health, ADR-0902).

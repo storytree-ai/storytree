@@ -460,10 +460,13 @@ const literal = (node: unknown): string | undefined => {
   return found?.type === "TSLiteralType" ? literal(found.literal) : undefined;
 };
 
-/** Parse each unchanged file once for what it offers and what it imports of other packages. */
-const reading = new WeakMap<SourceFile, { readonly offers: Offers; readonly imports: readonly PackageImport[] }>();
+/** What a file offers, what it imports of other packages, and whether it does anything but import and pass names on. */
+type Reading = { readonly offers: Offers; readonly imports: readonly PackageImport[]; readonly ownCode: boolean };
 
-function readingOf(file: SourceFile): { readonly offers: Offers; readonly imports: readonly PackageImport[] } {
+/** Parse each unchanged file once for what it offers and what it imports of other packages. */
+const reading = new WeakMap<SourceFile, Reading>();
+
+function readingOf(file: SourceFile): Reading {
   const cached = reading.get(file);
   if (cached !== undefined) return cached;
   const program = syntaxOf(file)?.program;
@@ -472,6 +475,7 @@ function readingOf(file: SourceFile): { readonly offers: Offers; readonly import
   const star: string[] = [];
   const imported = new Map<string, { specifier: string; name: string | undefined }>();
   const imports: PackageImport[] = [];
+  let ownCode = program === undefined;
   const bound = (pattern: unknown): string[] => {
     const node = pattern as Node | null;
     if (node === null) return [];
@@ -483,6 +487,7 @@ function readingOf(file: SourceFile): { readonly offers: Offers; readonly import
   for (const statement of nodes(program?.body)) {
     const source = literal(statement.source);
     const typeOnly = statement.importKind === "type" || statement.exportKind === "type";
+    if (!(statement.type === "ImportDeclaration" || (statement.type === "ExportNamedDeclaration" && !statement.declaration) || statement.type === "ExportAllDeclaration")) ownCode = true;
     if (statement.type === "ImportDeclaration" && source !== undefined) {
       const specifiers = nodes(statement.specifiers);
       for (const specifier of specifiers) imported.set(nameOf(specifier.local), { specifier: source, name: specifier.type === "ImportSpecifier" ? nameOf(specifier.imported) : specifier.type === "ImportDefaultSpecifier" ? "default" : undefined });
@@ -494,7 +499,10 @@ function readingOf(file: SourceFile): { readonly offers: Offers; readonly import
         const as = nameOf(specifier.exported);
         if (source !== undefined) from.set(as, { specifier: source, name: specifier.type === "ExportNamespaceSpecifier" ? undefined : nameOf(specifier.local) });
         else if (imported.has(nameOf(specifier.local))) from.set(as, imported.get(nameOf(specifier.local))!);
-        else local.add(as);
+        else {
+          local.add(as);
+          ownCode = true;
+        }
       }
       if (source !== undefined) imports.push({ specifier: source, names: specifiers.some((one) => one.type === "ExportNamespaceSpecifier") ? { all: typeOnly } : specifiers.map((one) => [nameOf(one.local), typeOnly || one.exportKind === "type"] as const) });
       const declaration = statement.declaration as Node | null;
@@ -518,7 +526,7 @@ function readingOf(file: SourceFile): { readonly offers: Offers; readonly import
   };
   visit(program?.body);
   for (const specifier of requiresOf(file)) imports.push({ specifier, names: { all: false } });
-  const read = { offers: { local, from, star }, imports };
+  const read = { offers: { local, from, star }, imports, ownCode };
   reading.set(file, read);
   return read;
 }
@@ -569,13 +577,20 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
     return undefined;
   };
 
+  /** The story and package a specifier names, the longest package name first; undefined when it names none of theirs. */
+  const packageNamed = (specifier: string) => [...byName].filter(([name]) => specifier === name || specifier.startsWith(name + "/")).sort(([a], [b]) => b.length - a.length)[0]?.[1];
+
   const edges = new Map<string, CodeEdge[]>();
   for (const story of stories) {
     const grouped = new Map<string, { story: string; from?: string; to?: string; files: Map<string, EdgeFile> }>();
     for (const file of story.files) {
       if (isTestCode(file) || !CODE_FILE.test(file.path) || DECLARATION.test(file.path)) continue;
-      for (const { specifier, names } of readingOf(file).imports) {
-        const named = [...byName].filter(([name]) => specifier === name || specifier.startsWith(name + "/")).sort(([a], [b]) => b.length - a.length)[0]?.[1];
+      const { imports, ownCode } = readingOf(file);
+      // A forwarder (8.31): nothing of its own, and every name it takes is passed on from one other story's package.
+      const sources = new Set(imports.map(({ specifier }) => packageNamed(specifier)?.story.id));
+      const forwarder = !ownCode && imports.length > 0 && sources.size === 1 && !sources.has(undefined) && !sources.has(story.id);
+      for (const { specifier, names } of imports) {
+        const named = packageNamed(specifier);
         if (named === undefined || named.story.id === story.id) continue;
         const { paths } = lookups.get(named.story.id)!;
         const subpath = specifier === named.pkg.name ? "." : "." + specifier.slice(named.pkg.name.length);
@@ -591,7 +606,7 @@ export function storyEdges(stories: readonly EdgeStory[]): Map<string, CodeEdge[
           grouped.set(key, group);
           const pair = JSON.stringify([file.path, to ?? null]);
           const before = group.files.get(pair);
-          group.files.set(pair, { from: file.path, ...(to === undefined ? {} : { to }), typeOnly: typeOnly && (before?.typeOnly ?? true) });
+          group.files.set(pair, { from: file.path, ...(to === undefined ? {} : { to }), typeOnly: typeOnly && (before?.typeOnly ?? true), ...(forwarder ? { forwarder: true as const } : {}) });
         }
       }
     }

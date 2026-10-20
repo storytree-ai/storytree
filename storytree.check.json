@@ -1,8 +1,17 @@
 {
   "frames": [
-    { "story": "app", "dirs": ["packages/app", "apps/desktop"] },
+    { "story": "app", "dirs": ["packages/app"] },
+    { "story": "app", "dirs": ["apps/desktop"], "compositionRoot": true },
     { "story": "cli", "dirs": ["packages/cli"], "frontDoor": true },
     { "story": "mcp-server", "dirs": ["packages/mcp-server"], "frontDoor": true }
   ],
-  "edges": []
+  "edges": [],
+  "placement": {
+    "threshold": 2,
+    "plumbing": [
+      { "kind": "build step", "file": "packages/app-setup/src/bins/build.ts", "reaches": "plugin-loader", "by": "the owner (ADR-1085 D3)", "on": "2026-10-19" },
+      { "kind": "build step", "file": "packages/app-setup/src/bins/build.ts", "reaches": "session-management", "by": "the owner (ADR-1085 D3)", "on": "2026-10-19" },
+      { "kind": "cleanup", "file": "packages/app-setup/src/project/index.ts", "reaches": "quality-assurance", "by": "the owner (ADR-1085 D3)", "on": "2026-10-19" }
+    ]
+  }
 }

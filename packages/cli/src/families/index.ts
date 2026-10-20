@@ -18,11 +18,19 @@ import { plan } from "./tree.js";
 import { mapFamily } from "./map.js";
 import { affectedFamily } from "./affected.js";
 
-/** Words agents try for a family storytree does not have, each with the command for that job. */
+/**
+ * Words agents try for a family storytree does not have, each with the command for that job. A key of two words is the
+ * word with the one after it, which names the job more exactly than the word alone and is named before it.
+ */
 export const GUESSES: Readonly<Record<string, string>> = {
   claim: "workspace <increment|capability> --reason <text>",
   board: "noticeboard",
-  plan: "library new <story|capability|contract> --<field> <value|@file> …",
+  plan: "tree [<story>]",
+  "plan contract": "library new contract --capability <capability> --title <t>",
+  "plan story": "library new <story|capability|contract> --<field> <value|@file> …",
+  "plan capability": "library new <story|capability|contract> --<field> <value|@file> …",
+  "plan arc": "arc new --title <t> --intent <text|@file> --end-state <text|@file>",
+  "plan increment": "arc increment new --arc <arc> --title <t> --objective <o> --body <text|@file>",
   contract: "library new contract --capability <capability> --title <t>",
   story: "tree [<story>]",
 };

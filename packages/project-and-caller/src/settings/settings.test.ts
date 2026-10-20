@@ -198,6 +198,27 @@ test("2.12 the library is set to a Postgres address without its password, and an
   });
 });
 
+test("2.12 the library is set to a wss:// address without its password, and one carrying a password is refused, the file untouched", async () => {
+  await withTempDir((home) => {
+    const address = "wss://me@library.example.com/postgres";
+    const initial = agentLink.readSettings(home).library;
+    assert.deepEqual(agentLink.setLibrary(["postgres", address], home), { ...initial, location: "postgres", address, source: "set" });
+    const file = path.join(home, "settings.json");
+    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")).library, { location: "postgres", address });
+
+    const before = readFileSync(file, "utf8");
+    assert.throws(() => agentLink.setLibrary(["postgres", "wss://me:hunter2@library.example.com/postgres"], home), (error: Error) => {
+      assert.match(error.message, /storytree auth set postgres/);
+      assert.ok(!error.message.includes("hunter2"), error.message);
+      return true;
+    });
+    for (const words of [["postgres", "wss://library.example.com/postgres"], ["postgres", "ws://me@library.example.com/postgres"]]) {
+      assert.throws(() => agentLink.setLibrary(words, home), /wss:\/\//, JSON.stringify(words));
+    }
+    assert.equal(readFileSync(file, "utf8"), before);
+  });
+});
+
 test("the settings file keeps the app's surface choices beside the settings, and refuses them in the wrong shape (ADR-0750)", async () => {
   await withTempDir((home) => {
     assert.deepEqual(agentLink.readSurfaceChoices(home), {});

@@ -45,7 +45,7 @@ const library = {
   meaning:
     "Where the library lives: `local`, the storytree app's own database on this computer; `cloudsql`, " +
     "a Google Cloud SQL instance signed in to as your Google account (set with its connection name and the account's email); " +
-    "or `postgres`, any Postgres reached by its address (postgres://user@host:port/database), its password saved as the key `postgres` with `storytree auth set postgres`.",
+    "or `postgres`, any Postgres reached by its address (postgres://user@host:port/database, or wss://user@host/database over HTTPS), its password saved as the key `postgres` with `storytree auth set postgres`.",
 } as const;
 
 interface ContextGuidanceReading {
@@ -302,7 +302,7 @@ const ACCOUNT = /^[^\s@\p{Cc}]+@[^\s@\p{Cc}]+$/u;
 function checkedLibrary(value: unknown, words?: number): LibraryLocation {
   const usage =
     "library is `local`; `cloudsql <instance> <user>`: the instance's connection name (project:region:instance) " +
-    "and the email of the Google account to sign in as; or `postgres <address>`: postgres://<user>@<host>[:<port>]/<database>.";
+    "and the email of the Google account to sign in as; or `postgres <address>`: postgres://<user>@<host>[:<port>]/<database> or wss://<user>@<host>[:<port>]/<database>.";
   if (value === null || typeof value !== "object" || Array.isArray(value)) return refuse(usage);
   const { location, instance, user, address, ...rest } = value as { location?: unknown; instance?: unknown; user?: unknown; address?: unknown };
   if (Object.keys(rest).length > 0) return refuse(usage);
@@ -318,12 +318,14 @@ function checkedLibrary(value: unknown, words?: number): LibraryLocation {
 }
 
 /**
- * A Postgres address as the library setting keeps it: a postgres:// URL naming a user and a host,
- * with no password. A password belongs in the key store (ADR-0843), so one given here is refused
+ * A Postgres address as the library setting keeps it: a postgres:// URL, or a wss:// one for Postgres
+ * over a WebSocket, naming a user and a host, with no password. A password belongs in the key store (ADR-0843), so one given here is refused
  * without being repeated.
  */
 function checkedAddress(address: unknown): string {
-  const usage = "library: a Postgres address is written postgres://<user>@<host>[:<port>]/<database>, with ?sslmode=… where the server needs it.";
+  const usage =
+    "library: a Postgres address is written postgres://<user>@<host>[:<port>]/<database>, with ?sslmode=… where the server needs it, " +
+    "or wss://<user>@<host>[:<port>]/<database> for one reached over HTTPS.";
   if (typeof address !== "string") return refuse(usage);
   let url: URL;
   try {
@@ -334,7 +336,7 @@ function checkedAddress(address: unknown): string {
   if (url.password !== "") {
     return refuse("library: the address carries a password. Take it out of the address and save it as a key instead: `storytree auth set postgres`.");
   }
-  if (!/^postgres(ql)?:$/.test(url.protocol) || url.hostname === "" || url.username === "") return refuse(usage);
+  if (!/^(postgres(ql)?|wss):$/.test(url.protocol) || url.hostname === "" || url.username === "") return refuse(usage);
   return address;
 }
 

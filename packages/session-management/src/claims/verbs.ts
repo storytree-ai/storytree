@@ -1,8 +1,8 @@
 /**
  * Capability 5 · Claims. The workspace verbs, declared once (ADR-0969 D2, ADR-1033): make or attach a claimed
  * workspace, claim or release work for the calling agent session, list the stale claims, and the user's yes to
- * changing imported code. The command line mounts them as its `workspace` family (WORKSPACE_FAMILIES); the MCP server still answers the
- * same work through its own tools, so none is mounted as a tool here.
+ * changing imported code. The command line mounts them as its `workspace` family (WORKSPACE_FAMILIES); the MCP server answers the
+ * same work through Session management's tool part (tools.ts), so none is mounted as a tool here.
  */
 import { verb, VerbRefusal, type VerbFamily } from "@storytree/library/verbs";
 
@@ -10,9 +10,9 @@ import type { SessionVerbContext } from "../sessions/verbs.js";
 import type { Waiting } from "./claims.js";
 import type { WorkspaceRefusal } from "./workspace.js";
 
-/** Why a workspace verb has no tool: the MCP server's own tool for the work, which it keeps until it mounts this one. */
+/** Why a workspace verb has no tool: Session management's own tool for the work, served from its tool part (tools.ts). */
 function ownTool(tool: string) {
-  return { absent: `the MCP server answers this with its own ${tool} tool` } as const;
+  return { absent: `Session management's own ${tool} tool answers this` } as const;
 }
 
 /** A claim belongs to the agent session that will work there: a person's shell, which has none, is refused. */

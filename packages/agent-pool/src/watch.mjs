@@ -328,7 +328,11 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, alive, 
       const key = pull.runner.runs.map((one) => `${one.id}:${one.attempt}`).join(",");
       if (record.rerunRefused !== key) {
         try {
-          for (const one of pull.runner.runs) await rerun(one);
+          for (const one of pull.runner.runs) {
+            await rerun(one);
+            // Recorded as its reruns of main and release runs are, since GitHub names the owner as every rerun's actor (4.27).
+            await tell(["workspace", "rerun", String(one.id), "--repo", one.repo, "--attempt", String(one.attempt + 1), "--what", "pr"], record.project);
+          }
           dated(`PR #${pr} red on the runner only (${pull.runner.why}): rerun, with no fix session`);
         } catch (error) {
           record.rerunRefused = key;

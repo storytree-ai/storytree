@@ -348,7 +348,7 @@ export const WATCHER_SESSION = "watcher";
  * The watcher reran CI run `run` of the GitHub repository `repo`, starting its `attempt` (Agent runner 4.27): a ci-rerun
  * line on the watcher, so its reruns are told from the owner's, whom GitHub names as the actor of both.
  */
-export async function recordRerun(context: ClaimContext, rerun: { repo: string; run: number; attempt: number; what: "main" | "release" }): Promise<void> {
+export async function recordRerun(context: ClaimContext, rerun: { repo: string; run: number; attempt: number; what: "main" | "release" | "pr" }): Promise<void> {
   await context.log.append(context.project, { session: WATCHER_SESSION, harness: "watcher", source: context.source ?? "tool", kind: "ci-rerun", ...rerun });
 }
 

@@ -1070,14 +1070,16 @@ test("5.49 a red the watcher handles is a pr-red line on its pull request's hold
   });
 });
 
-test("5.54 a CI rerun the watcher starts is a ci-rerun line naming the repository, the run and the attempt it starts, on the watcher, and makes no session read live", async () => {
+test("5.54 a CI rerun the watcher starts (of main, a release or a pull request) is a ci-rerun line naming the repository, the run and the attempt it starts, on the watcher, and makes no session read live", async () => {
   await withWorld(async ({ log, project, as }) => {
     await recordRerun(as("C"), { repo: "storytree-ai/storytree", run: 38904945648, attempt: 2, what: "main" });
     await recordRerun(as("C"), { repo: "storytree-ai/storytree", run: 39015103967, attempt: 2, what: "release" });
+    await recordRerun(as("C"), { repo: "storytree-ai/storytree", run: 39100000001, attempt: 3, what: "pr" });
     const reruns = await log.lines(project, { kinds: ["ci-rerun"] });
     assert.deepEqual(reruns.map((line) => line.kind === "ci-rerun" && [line.session, line.harness, line.repo, line.run, line.attempt, line.what]), [
       ["watcher", "watcher", "storytree-ai/storytree", 38904945648, 2, "main"],
       ["watcher", "watcher", "storytree-ai/storytree", 39015103967, 2, "release"],
+      ["watcher", "watcher", "storytree-ai/storytree", 39100000001, 3, "pr"],
     ]);
     assert.deepEqual((await readSessions(log, project)).map((session) => session.session), [], "the watcher is no session");
   });

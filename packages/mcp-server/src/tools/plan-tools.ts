@@ -25,7 +25,7 @@ const audience = z
   .string()
   .min(1)
   .optional()
-  .describe("Who uses what it delivers, named as a group they would recognise themselves in: the project's audience, or a named subset of it (ADR-1085 D1)");
+  .describe("The anchor's audience: who the project is for, named as a group they would recognise themselves in (ADR-1085 D1); only the project names one (ADR-1096)");
 const intent = z.string().min(1).describe("What the arc exists to deliver, in a sentence");
 const endState = z.string().min(1).describe("What closed looks like: the condition under which it is delivered");
 const id = (what: string) => z.string().min(1).describe(`The id of the ${what}, as the plan shows it`);
@@ -61,10 +61,10 @@ export function registerPlanTools(define: Define): void {
 
   define(
     "plan_story",
-    "Plan a story: something a user of the project can do, with its founding decision: what it is for, and the one choice that shapes it, and its audience, who uses what it delivers. Plan its capabilities next.",
-    z.object({ title, description, audience, founding }),
-    async ({ title: name, description: about, audience: who, founding: decision }, { library, writer }) => {
-      const story = await library.addStory({ title: name, ...optional({ description: about, audience: who }) }, writer);
+    "Plan a story: something a user of the project can do, with its founding decision: what it is for, and the one choice that shapes it. Plan its capabilities next.",
+    z.object({ title, description, founding }),
+    async ({ title: name, description: about, founding: decision }, { library, writer }) => {
+      const story = await library.addStory({ title: name, ...optional({ description: about }) }, writer);
       const book = await library.recordDecision({ ...decision, status: "accepted", frontCoverOf: story.id }, writer);
       return {
         text: `Planned story ${quoted(name)} (${story.id}), founded on ${quoted(decision.title)} (${book.id}). Plan its capabilities next.`,
@@ -118,7 +118,7 @@ export function registerPlanTools(define: Define): void {
     z.object({
       id: id(`arc, story, capability, contract or increment to correct, or ${ANCHOR_ID} for the project's anchor`),
       what: z.string().min(1).optional().describe("The project's anchor: what it is, in a few words (\"a software factory\")"),
-      audience: audience.describe("The anchor's or a story's audience: who uses what it delivers, named as a group they would recognise themselves in; a story's is the project's, or a named subset of it (ADR-1085 D1)"),
+      audience,
       title: title.optional(),
       description,
       story: z.string().min(1).optional().describe("A capability's story, to move it"),
@@ -250,7 +250,7 @@ interface Changes {
 
 /** The fields each kind of plan record can have corrected, as the tool names them. */
 const EDITABLE = {
-  story: ["title", "description", "audience"],
+  story: ["title", "description"],
   capability: ["title", "description", "story", "depends_on", "covers"],
   contract: ["title", "description", "capability"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
@@ -376,14 +376,12 @@ async function showPlan({ library, log, project, quietMs }: Call, closed: DayWin
   out.push(tree.anchor === undefined ? `The project has no anchor yet (${ANCHOR_ID}): say what it is and who it is for with edit_plan.` : `Anchor (${ANCHOR_ID}): ${anchorLine(tree.anchor)}`);
   const unsaid = [
     ...(gaps.anchor.length === 1 ? [`the anchor does not yet say ${gaps.anchor[0] === "what" ? "what the project is" : "who it is for"}`] : []),
-    ...(gaps.stories.length === 0 ? [] : [`${gaps.stories.length === 1 ? "1 story names" : `${gaps.stories.length} stories name`} no audience: ${gaps.stories.map((story) => quoted(story.title)).join(", ")}`]),
   ];
   if (unsaid.length > 0) out.push(`Plan health (it fails nothing): ${unsaid.join("; ")}.`);
   if (tree.stories.length === 0) out.push(`The plan of ${quoted(project)} is empty: plan a story with plan_story.`);
   for (const story of tree.stories) {
     // A mapped story carries no health of its own (ADR-0993 D3): it says what it is instead.
-    const forWhom = story.audience === undefined ? "names no audience" : `for ${story.audience}`;
-    out.push(`Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "mapped: here before storytree, and assumed to be working"}; ${forWhom}`);
+    out.push(`Story ${quoted(story.title)} (${story.id}): ${story.mapped === undefined ? healthOf(story.health) : "mapped: here before storytree, and assumed to be working"}`);
     for (const capability of story.capabilities) {
       out.push(`  Capability ${quoted(capability.title)} (${capability.id}): ${healthOf(capability.health)}; ${wordAndWhy(capability)}; ${heldBy(capability.id)}`);
       for (const contract of capability.contracts) out.push(`    Contract ${quoted(contract.title)} (${contract.id}): ${healthOf(contract.health)}`);

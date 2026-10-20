@@ -1178,12 +1178,8 @@ function overlay(tree: ProjectTree, pending: readonly PendingChange[]): ProjectT
   const stories: StoryNode[] = tree.stories
     .filter((story) => !retired.has(story.id))
     .map((story) => {
-      const fields = after.get(story.id) ?? {};
-      const { audience: _, ...node } = shown(story);
-      const audience = Object.hasOwn(fields, "audience") ? (fields["audience"] as string | null) : story.audience;
       return {
-        ...node,
-        ...(audience === null || audience === undefined ? {} : { audience }),
+        ...shown(story),
         capabilities: capabilities.filter((one) => one.story === story.id && !retired.has(one.capability.id)).map(({ capability }) => capabilityNode(capability)),
       };
     });

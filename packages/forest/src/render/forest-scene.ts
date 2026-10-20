@@ -86,17 +86,15 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
 }
 
 /**
- * The project's sentence and what the plan has not said (ADR-1085 D1): the anchor's missing halves, and each story
- * that names no audience, in the plan's order. Only that the words are there is read; what they say is the owner's.
+ * The project's sentence and what it has not said (ADR-1085 D1): the anchor's missing halves. Only the project names
+ * an audience, so no story is named here (ADR-1096). Only that the words are there is read; what they say is the owner's.
  */
-export function forestAnchor(tree: Pick<AnnotatedTree, "anchor" | "stories">): ForestAnchor {
+export function forestAnchor(tree: Pick<AnnotatedTree, "anchor">): ForestAnchor {
   const { what, audience } = tree.anchor ?? {};
   const unsaid: string[] = [];
   if (what === undefined && audience === undefined) unsaid.push("The project has no anchor yet: what it is, and who it is for");
   else if (what === undefined) unsaid.push("The anchor does not yet say what the project is");
   else if (audience === undefined) unsaid.push("The anchor does not yet say who it is for");
-  const silent = tree.stories.filter((story) => story.audience === undefined).map(({ title }) => title);
-  if (silent.length > 0) unsaid.push(`${silent.length === 1 ? "1 story names" : `${silent.length} stories name`} no audience: ${silent.join(", ")}`);
   if (what === undefined && audience === undefined) return { unsaid };
   return { sentence: `${what ?? "…"}, for ${audience ?? "…"}`, unsaid };
 }

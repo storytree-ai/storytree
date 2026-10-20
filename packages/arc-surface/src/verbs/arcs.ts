@@ -599,10 +599,7 @@ const waits = verb({
     });
     return {
       text: [`${found.length} ${found.length === 1 ? "wait" : "waits"} for you or an outside event:`, ...lines].join("\n"),
-      next: [
-        { command: "arc show <arc>", why: "see a wait's arc whole" },
-        { command: "arc increment unwait <increment> --for owner|event", why: "clear a wait once it is done" },
-      ],
+      next: [{ command: "arc show <arc>", why: "see a wait's arc whole" }],
     };
   },
 });

@@ -19,6 +19,22 @@ import { affectedFamily } from "./affected.js";
 export const GUESSES: Readonly<Record<string, string>> = {
   claim: "workspace <increment|capability> --reason <text>",
   board: "noticeboard",
+  plan: "library new <story|capability|contract> --<field> <value|@file> …",
+  contract: "library new contract --capability <capability> --title <t>",
+  story: "tree [<story>]",
+};
+
+/**
+ * Words agents guess for a job a command already does, keyed by the words after `storytree`, each with that command:
+ * the door runs it with the words after them and says so (ADR-1090 D1, the hand-written ADR-1045 D4 pointer).
+ */
+export const POINTERS: Readonly<Record<string, string>> = {
+  "adr show": "adr pull",
+  wait: "arc increment wait",
+  "friction list": "library list friction",
+  "library open": "library read",
+  "capability show": "library read",
+  "arc increment show": "library read",
 };
 
 /** The families still kept here, in their order once the declared ones take their places. */

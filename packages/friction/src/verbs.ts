@@ -107,10 +107,7 @@ const drain = verb({
     return {
       text: [`${due.length} friction report${due.length === 1 ? "" : "s"} due for routing:`, ...lines, ...more].join("\n"),
       data: { due: due.map((note) => note.id), ...(more.length === 0 ? {} : { more: free - due.length }) },
-      next: [
-        { tool: "open", command: "library read <friction>", why: "read one whole before judging it" },
-        { tool: "route", command: "friction route <friction> --to <route> --reason …", why: "record the route and its reason" },
-      ],
+      next: [{ tool: "open", command: "library read <friction>", why: "read one whole before judging it" }],
     };
   },
 });

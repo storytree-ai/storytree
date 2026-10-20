@@ -1,5 +1,5 @@
 /**
- * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33 and 1.35 in the command line story, each running the
+ * Capability 1 · Front door: one test per contract 1.1-1.5, 1.15, 1.17-1.19, 1.21, 1.33, 1.35 and 1.36 in the command line story, each running the
  * real, built `storytree` command in a throwaway folder and storytree home.
  */
 import assert from "node:assert/strict";
@@ -127,7 +127,7 @@ test("1.7 a command it does not have answers with the real command for that job,
     const asked: [readonly string[], RegExp][] = [
       [["library", "show", "x"], /storytree library read <id>/],
       [["question", "read", "x"], /storytree question show <id>/],
-      [["arc", "increment", "show", "x"], /storytree library read <id>/],
+      [["arc", "increment", "get", "x"], /storytree library read <id>/],
       [["arc", "increment", "ready", "x"], /ADR-0909 retired[^\n]*claiming a proposal starts it[\s\S]*storytree workspace <increment\b/],
       [["claim", "x"], /storytree workspace <increment\b/],
       [["board"], /storytree noticeboard/],
@@ -214,18 +214,21 @@ test("1.15 a command kept waiting on the library, here for another session's wri
   });
 });
 
-test("1.17 every answer is recorded on the calling session as a door-answered line: the command, how it went, and the next steps offered as commands; an unknown word with the command its refusal named, which a guess leaves out", async () => {
+test("1.17 every answer is recorded on the calling session as a door-answered line: the command, how it went, and the next steps offered as commands; an unknown word with the command its refusal named, which a guess with no hand-picked command leaves out", async () => {
   await inWorld(command, async (world) => {
     await (await world.library()).defineTerm({ term: "Mailer", meaning: "Sends the sign-up email" });
     const session = { CLAUDE_CODE_SESSION_ID: "door-1" };
 
     const searched = await world.run(["library", "search", "Mailer"], session);
-    const guessed = await world.run(["arc", "increment", "show", "x"], session);
+    const guessed = await world.run(["arc", "increment", "get", "x"], session);
     const misspelt = await world.run(["questoin", "list"], session);
+    const planned = await world.run(["plan", "story"], session);
 
     assert.equal(searched.code, 0, searched.stderr);
     assert.equal(guessed.code, 2, guessed.stderr);
     assert.equal(misspelt.code, 2, misspelt.stderr);
+    assert.equal(planned.code, 2, planned.stderr);
+    assert.match(planned.stderr, /run storytree library new <story\|capability\|contract>/);
     const log = await openActivityLog(testServerUrl());
     try {
       const lines = await log.lines(world.project, { sessions: ["door-1"], kinds: ["door-answered"] });
@@ -235,8 +238,9 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
       });
       assert.deepEqual(said, [
         { door: "command", verb: "storytree library search", outcome: "answered", word: undefined, named: undefined, next: ["storytree library read"] },
-        { door: "command", verb: "storytree arc increment", outcome: "unknown", word: "show", named: "storytree library read", next: ["storytree library read"] },
+        { door: "command", verb: "storytree arc increment", outcome: "unknown", word: "get", named: "storytree library read", next: ["storytree library read"] },
         { door: "command", verb: "storytree", outcome: "unknown", word: "questoin", named: undefined, next: ["storytree question"] },
+        { door: "command", verb: "storytree", outcome: "unknown", word: "plan", named: "storytree library new", next: ["storytree library new"] },
       ]);
     } finally {
       await log.close();
@@ -291,6 +295,20 @@ test("1.35 a word pointed in its place runs the pointed command with the words a
   });
 });
 
+test("1.36 a word agents guess for a job a command already does runs that command with the words after it, and its answer says so", async () => {
+  await inWorld(command, async (world) => {
+    const waited = await world.run(["wait", "--help"]);
+    const shown = await world.run(["adr", "show", "--help"]);
+
+    assert.equal(waited.code, 0, waited.stderr);
+    assert.match(waited.stdout, /storytree wait is storytree arc increment wait\n/);
+    assert.match(waited.stdout, /storytree arc increment wait <increment>/);
+    assert.equal(shown.code, 0, shown.stderr);
+    assert.match(shown.stdout, /storytree adr show is storytree adr pull\n/);
+    assert.match(shown.stdout, /storytree adr pull <decision>/);
+  });
+});
+
 test("1.32 a command the lane's experiment arm denies does nothing else: it exits 1 naming the experiment and arm, and is recorded as a door-answered line, denied-by-arm, carrying both", async () => {
   await inWorld(command, async (world) => {
     const settings = path.join(world.home, "settings.json");
@@ -329,7 +347,7 @@ test("1.18 storytree doors prints the front-door reading: every command walked f
   await inWorld(command, async (world) => {
     const session = { CLAUDE_CODE_SESSION_ID: "doors-1" };
     assert.equal((await world.run(["library", "search", "Mailer"], session)).code, 0);
-    assert.equal((await world.run(["arc", "increment", "show", "x"], session)).code, 2);
+    assert.equal((await world.run(["arc", "increment", "get", "x"], session)).code, 2);
 
     const read = await world.run(["doors", "--json"]);
     assert.equal(read.code, 0, read.stderr);
@@ -349,12 +367,12 @@ test("1.18 storytree doors prints the front-door reading: every command walked f
     assert.deepEqual(of("quality_brief")?.consumers, ["agent"], "a tool mounted from a declared verb carries its consumers");
     assert.deepEqual(of("make_workspace")?.consumers, ["agent"], "a tool the server defines declares its own");
     assert.deepEqual(of("set_up_project")?.consumers, ["user"], "setting up a project is a person's");
-    assert.deepEqual(short.misses, [{ door: "command", where: "storytree arc increment", word: "show", named: "storytree library read", count: 1 }]);
+    assert.deepEqual(short.misses, [{ door: "command", where: "storytree arc increment", word: "get", named: "storytree library read", count: 1 }]);
 
     const printed = await world.run(["doors", "--days", "2", "--trend", "14"]);
     assert.equal(printed.code, 0, printed.stderr);
     assert.match(printed.stdout, /\(2 days\), with the 14 days/);
-    assert.match(printed.stdout, /storytree arc increment show\s+1\s+1\s+→ storytree library read/);
+    assert.match(printed.stdout, /storytree arc increment get\s+1\s+1\s+→ storytree library read/);
     assert.match(printed.stdout, /storytree quality brief\s+agent\s+0\s+0\s+0\s+0\s+unused/, "an agent's verb with no call is unused");
     assert.match(printed.stdout, /storytree settings show\s+user\s+0\s+0\s+0\s+0\s+not judged/, "a person's is not judged");
     assert.equal((await world.run(["doors", "--days", "0"])).code, 2, "a window of no days is refused");
@@ -393,7 +411,7 @@ test("1.21 · `storytree` mounts the families its story packages' manifests decl
     assert.match(signIn.stdout, /^  storytree sign-in$/m, signIn.stdout + signIn.stderr);
     const verbs = await world.run(["machine"]);
     assert.match(verbs.stdout, /^  storytree machine this$/m, verbs.stdout + verbs.stderr);
-    const guessed = await world.run(["adr", "show", "ADR-0001"]);
+    const guessed = await world.run(["adr", "read", "ADR-0001"]);
     assert.match(guessed.stderr, /storytree adr pull <decision>/, guessed.stdout + guessed.stderr);
     const health = await world.run(["health"]);
     assert.match(health.stdout, /^  storytree health worklist$/m, health.stdout + health.stderr);

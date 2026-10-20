@@ -139,10 +139,11 @@ export function planState(survey, arcId) {
 /**
  * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
  * none of them waiting on the owner, a question or work that can still land (planning has nothing to add there: the waits name what releases them, 2.21), oldest first, skipping an arc whose own wait holds on work that can still land (2.22) and an arc whose entry in `planned` (arc to the planState it was last planned in, kept across the dispatcher's restarts)
- * is its present state: an arc waiting on the owner is planned once until something on it changes. The arc comes with its `state`, for `planned`.
+ * is its present state: an arc waiting on the owner is planned once until something on it changes. An arc made less than `freshMs` before `now` is skipped too:
+ * the session that made it may still be parking its work (arc_c331455caee0 was planned 20 seconds after it was made, and both parked the same pieces). The arc comes with its `state`, for `planned`.
  * Undefined when none qualifies. Work handed to the watcher, or waiting on work that is (at any depth), is in flight like claimed work, not stalled.
  */
-export function pickPlan(survey, { planned = new Map() } = {}) {
+export function pickPlan(survey, { planned = new Map(), now = Date.now(), freshMs = 30 * 60_000 } = {}) {
   const live = new Set(survey.claims.filter((claim) => claim.holder === "live" && claim.increment).map((claim) => claim.increment));
   const handed = (id, seen = new Set()) => !seen.has(id) && (seen.add(id), (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds && HANDED.test(hold.note))
     || (survey.holds.waits[id] ?? []).some((hold) => handed(hold.on, seen)));
@@ -151,7 +152,8 @@ export function pickPlan(survey, { planned = new Map() } = {}) {
   const settled = (id) => (survey.holds.waits[id] ?? []).some((hold) => !hold.forGood) || (survey.holds.heldOn[id] ?? []).length > 0
     || (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds && hold.releaser === "owner");
   const open = Map.groupBy(survey.increments.filter((one) => one.status !== "closed"), (one) => one.arc);
-  const arc = (survey.arcs ?? []).filter((one) => one.state === "active" && !one.openQuestions && !settled(one.id)
+  const fresh = (arc) => now - Date.parse(arc.created) < freshMs;
+  const arc = (survey.arcs ?? []).filter((one) => one.state === "active" && !one.openQuestions && !settled(one.id) && !fresh(one)
     && (open.get(one.id) ?? []).every((increment) => waited(increment.id) && !settled(increment.id)) && planned.get(one.id) !== planState(survey, one.id))
     .sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
   return arc && { ...arc, state: planState(survey, arc.id) };

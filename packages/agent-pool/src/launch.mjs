@@ -163,7 +163,7 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
       if (attempt.refusedBy && refused.get(id) !== attempt.refusedBy) { refused.set(id, attempt.refusedBy); dated(`refused ${id}: claimed by live session ${attempt.refusedBy}; retried once that claim clears`); }
     }
     if (!picks.length) {
-      const arc = planning ? undefined : pickPlan(found, { planned });
+      const arc = planning ? undefined : pickPlan(found, { planned, now: now() });
       if (arc) {
         planned.set(arc.id, arc.state);
         try { await plans.save(planned); }
@@ -226,7 +226,7 @@ async function ready(b, project = "storytree", { drained = false } = {}) {
   const { picks } = pickPool(found, { max: Infinity, now: b.now() });
   const work = picks.map((one) => ({ id: one.id, title: one.title, ...(one.priority === undefined ? {} : { priority: one.priority }) }));
   const plans = [], offered = new Map();
-  for (let arc = pickPlan(found, { planned: offered }); arc; arc = pickPlan(found, { planned: offered })) {
+  for (let arc = pickPlan(found, { planned: offered, now: b.now() }); arc; arc = pickPlan(found, { planned: offered, now: b.now() })) {
     offered.set(arc.id, arc.state);
     plans.push({ id: arc.id, title: arc.title, state: arc.state });
   }

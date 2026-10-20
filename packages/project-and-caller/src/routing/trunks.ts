@@ -121,7 +121,7 @@ export async function recordImport(storytree: Storytree, imported: ImportedFolde
 }
 
 /** The folders `project` imports on `machine`, by folder, each with what approved it. */
-export async function importsOf(storytree: Storytree, project: string, machine: string): Promise<(ImportedFolder & { readonly approvedBy: string })[]> {
+export async function importsOf(storytree: Pick<Storytree, "ownDatabase">, project: string, machine: string): Promise<(ImportedFolder & { readonly approvedBy: string })[]> {
   const pool = await trunksPool(storytree);
   const { rows } = await pool.query<{ project: string; machine: string; machine_name: string; folder: string; repository: string | null; commit_sha: string | null; approved_by: string }>(
     "SELECT project, machine, machine_name, folder, repository, commit_sha, approved_by FROM imports WHERE project = $1 AND machine = $2 ORDER BY folder",

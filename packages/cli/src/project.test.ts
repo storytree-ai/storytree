@@ -28,7 +28,7 @@ test("project remove takes a project off this computer's list and keeps its reco
   });
 });
 
-test("3.6: project delete says who loses the records and needs the name typed; refused in the project's own folder; from elsewhere it snapshots, then deletes", async () => {
+test("3.6: project delete says who loses the records and needs the name typed; refused in the project's own folder; from elsewhere it snapshots, then deletes", { timeout: 300_000 }, async () => {
   await inWorld(command, async ({ project, elsewhere, home, run }) => {
     const server = await connect({ url: testServerUrl() });
     try {

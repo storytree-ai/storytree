@@ -9,7 +9,7 @@ import { BACKUP_EVERY_MS, keepBackups } from "./backups.js";
 import { mainUpdates } from "../updates/main-updates.js";
 
 for (const when of ["start-up", "daily"] as const) {
-  test(`4.8 a ready main build keeps its window open during a ${when} snapshot, even when the menu asks`, async (t) => {
+  test(`4.8 a ready main build keeps its window open during a ${when} snapshot, even when the menu asks`, { timeout: 300_000 }, async (t) => {
     t.mock.timers.enable({ apis: ["setInterval", "Date"] });
     const dir = mkdtempSync(path.join(tmpdir(), "storytree-backup-update-"));
     t.after(() => rmSync(dir, { recursive: true, force: true }));

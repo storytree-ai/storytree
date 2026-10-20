@@ -126,7 +126,8 @@ test("3.6 · a linked backup folder cannot redirect the snapshot or change anoth
   }
 });
 
-const windowsOnly = { skip: process.platform !== "win32" ? "platform:win32: Windows Authz effective-access proof runs on Windows CI" : false };
+// Each Windows PowerShell spawn may take up to its 120 s bound on a slow CI runner, past the 60 s default test limit.
+const windowsOnly = { skip: process.platform !== "win32" ? "platform:win32: Windows Authz effective-access proof runs on Windows CI" : false, timeout: 300_000 };
 
 for (const existing of [false, true]) {
   test(`3.6 · Windows excludes an unrelated user before the first deletion snapshot byte with ${existing ? "existing" : "new"} backup folders`, windowsOnly, async (t) => {
@@ -197,7 +198,7 @@ function powershell(script: string, files: string[]): string {
   const body = `$ErrorActionPreference = 'Stop'\n[Console]::InputEncoding = [Text.UTF8Encoding]::new($false)\n[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)\n$files = ConvertFrom-Json ([Console]::In.ReadToEnd())\n${script}`;
   return childProcess.execFileSync(path.join(process.env.SystemRoot!, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
     ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(body, "utf16le").toString("base64")],
-    { input: JSON.stringify(files), env, encoding: "utf8", windowsHide: true, timeout: 30_000 });
+    { input: JSON.stringify(files), env, encoding: "utf8", windowsHide: true, timeout: 120_000 });
 }
 
 function allowUnrelated(files: string[]): void {

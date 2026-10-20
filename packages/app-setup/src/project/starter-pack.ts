@@ -1,15 +1,15 @@
 /**
  * Capability 6 · Make a folder a project. The starter pack (contract 6.7): what a new project's library holds on day one.
- * The owner chose it (2026-10-01): roles drawn from storytree's own, adapted for a user's project. ADR-0996
- * grew it to the full system storytree's own sessions work with: every role (starter-roles.ts), the
- * principles, guardrails, patterns and processes they stand on (starter-notes.ts), and the six quality
- * control checks the change-reviewer answers for every green change before it lands (here).
- * starter-pack-classification.md records where each came from. These files are the one place its
- * text lives: change it there and raise STARTER_PACK_VERSION.
+ * Since ADR-1094 D1 that is the bare bones: the record and the map, with no role, check or note. Every part of the
+ * system ADR-0996 had grown the pack to stays reachable, taken in by its title when a build shows it is needed (D2):
+ * every role (starter-roles.ts), the principles, guardrails, patterns and processes they stand on (starter-notes.ts),
+ * and the six quality control checks a change-reviewer answers for every green change before it lands (here). A part
+ * comes with every note it links. starter-pack-classification.md records where each came from. These files are the
+ * one place its text lives: change it there and raise STARTER_PACK_VERSION.
  *
- * Seeding writes only what the library does not already hold under the same title, so seeding it
- * again adds no second copy. Only the user's factory is seeded (ADR-1040): a product project holds no
- * copy and reads the factory's, so its pack is checked and taken in the factory.
+ * Seeding or taking writes only what the library does not already hold under the same title, so doing it again adds
+ * no second copy, and it never deletes a record. Only the user's factory is seeded (ADR-1040): a product project holds
+ * no copy and reads the factory's, so its pack is checked and taken in the factory.
  */
 import { isDeepStrictEqual } from "node:util";
 
@@ -18,7 +18,7 @@ import { GUARDRAILS, NO_MODULE_MOCK, PATTERNS, PRINCIPLES, PROCESSES, TEST_CREAT
 import { ROLES } from "./starter-roles.js";
 
 /** The pack's version: raise it whenever its text changes. */
-export const STARTER_PACK_VERSION = 7;
+export const STARTER_PACK_VERSION = 8;
 
 /** Who the history says wrote the pack's records. */
 const ACTOR = `storytree setup (starter pack v${STARTER_PACK_VERSION})`;
@@ -73,6 +73,11 @@ const CHECKS: readonly Check[] = [
 
 /** The titles of the pack's roles, in the order the setup check names them. */
 export const STARTER_ROLES: readonly string[] = ROLES.map((role) => role.title);
+/** The titles of the pack's checks. */
+export const STARTER_CHECKS: readonly string[] = CHECKS.map((check) => check.title);
+
+/** The parts a new factory is seeded with (ADR-1094 D1): none; the record and the map are the bare bones. */
+const BARE_BONES: readonly string[] = [];
 
 type NoteKind = "principle" | "guardrail" | "pattern" | "process";
 export type PackKind = NoteKind | "check" | "agent";
@@ -99,26 +104,56 @@ const NOTES: readonly PackRecord[] = [
   ...PROCESSES.map((fields) => ({ kind: "process" as const, fields })),
 ];
 
-/** The checks and roles, each link given as the id `linked` finds for the title it names. */
-function linkedRecords(linked: (titles: readonly string[]) => string[]): PackRecord[] {
+/**
+ * The titles of the pack's records that taking `parts` writes: each part named, and every note a role or check among
+ * them links. A title that names no part of the pack is refused, naming the roles and checks it offers.
+ */
+function partsOf(parts: Iterable<string>): Set<string> {
+  const chosen = new Set<string>();
+  for (const title of parts) {
+    const check = CHECKS.find((each) => each.title === title);
+    const role = ROLES.find((each) => each.title === title);
+    if (check === undefined && role === undefined && !NOTES.some(({ fields }) => fields.title === title)) {
+      throw new Error(`"${title}" is no part of the starter pack. Its roles are ${STARTER_ROLES.join(", ")}; its checks are ${STARTER_CHECKS.join(", ")}; any note a role or check links is taken by its title too.`);
+    }
+    for (const linked of [title, ...(check?.enforces ?? []), ...(role === undefined ? [] : [...role.standsOn, ...(role.rules ?? []), ...(role.refuse ?? [])])]) chosen.add(linked);
+  }
+  return chosen;
+}
+
+/** The parts of the pack `holding` already holds, by title: a later pack keeps each up to date (6.9). */
+function heldParts(holding: Held): string[] {
+  const held = (kind: PackKind, title: string) => (holding.get(kind)!.has(title) ? [title] : []);
+  return [...NOTES.flatMap(({ kind, fields }) => held(kind, fields.title)), ...CHECKS.flatMap(({ title }) => held("check", title)), ...ROLES.flatMap(({ title }) => held("agent", title))];
+}
+
+/** The notes whose titles `chosen` holds. */
+function notesOf(chosen: ReadonlySet<string>): PackRecord[] {
+  return NOTES.filter(({ fields }) => chosen.has(fields.title));
+}
+
+/** The checks and roles whose titles `chosen` holds, each link given as the id `linked` finds for the title it names. */
+function linkedRecords(chosen: ReadonlySet<string>, linked: (titles: readonly string[]) => string[]): PackRecord[] {
+  const wanted = ({ title }: { readonly title: string }) => chosen.has(title);
   return [
-    ...CHECKS.map(({ enforces, ...check }) => ({ kind: "check" as const, fields: { ...check, enforces: linked(enforces) } })),
-    ...ROLES.map(({ standsOn, rules, refuse, ...role }) => ({
+    ...CHECKS.filter(wanted).map(({ enforces, ...check }) => ({ kind: "check" as const, fields: { ...check, enforces: linked(enforces) } })),
+    ...ROLES.filter(wanted).map(({ standsOn, rules, refuse, ...role }) => ({
       kind: "agent" as const,
       fields: { ...role, context: linked(standsOn), ...(rules === undefined ? {} : { rules: linked(rules) }), ...(refuse === undefined ? {} : { antiPatterns: linked(refuse) }) },
     })),
   ];
 }
 
-/** Write the starter pack into `library`, skipping each record it already holds under the same title. */
+/** Write the starter pack, the bare bones, into `library`, skipping each record it already holds under the same title. */
 export async function seedStarterPack(library: Library): Promise<void> {
   const holding = await heldRecords(library);
   const ids = new Map<string, string>();
   const write = async ({ kind, fields }: PackRecord) => {
     ids.set(fields.title, holding.get(kind)!.get(fields.title)?.id ?? (await library.writeKnowledge(kind, fields as never, { actor: ACTOR })).id);
   };
-  for (const record of NOTES) await write(record);
-  for (const record of linkedRecords(linkedBy(ids))) await write(record);
+  const chosen = partsOf(BARE_BONES);
+  for (const record of notesOf(chosen)) await write(record);
+  for (const record of linkedRecords(chosen, linkedBy(ids))) await write(record);
 }
 
 /** The titles of the starter roles `library` holds, in the pack's order. */
@@ -174,7 +209,8 @@ async function statusIn(library: Library): Promise<StarterPackStatus> {
   const holding = await heldRecords(library);
   const ids = new Map([...holding.values()].flatMap((byTitle) => [...byTitle].map(([title, record]) => [title, record.id] as const)));
   // A note not held yet is linked by a stand-in no id equals, so a role that links it differs from the pack's.
-  const records = [...NOTES, ...linkedRecords((titles) => titles.map((title) => ids.get(title) ?? `(not held) ${title}`))];
+  const chosen = partsOf([...BARE_BONES, ...heldParts(holding)]);
+  const records = [...notesOf(chosen), ...linkedRecords(chosen, (titles) => titles.map((title) => ids.get(title) ?? `(not held) ${title}`))];
   const verdicts = await Promise.all(records.map((record) => verdictOf(library, holding, record)));
   const versions = verdicts.flatMap((verdict) => (verdict.seeded === undefined ? [] : [verdict.seeded]));
   const seeded = versions.length === 0 ? null : Math.max(...versions);
@@ -192,23 +228,27 @@ export interface StarterPackTake {
 }
 
 /**
- * Take the current pack into `library` (contract 6.9): write each record it does not hold under the title, replace a
- * pack record whose fields differ from the current pack's and whose newest change a pack wrote, and leave one whose
- * newest change is anyone else's: the user's edit is never overwritten. A role's links are resolved as seeding does.
- * Given `storytree`, a product project that reads its pack from its factory (starterPackStatus) takes it there.
+ * Take the current pack into `library` (contract 6.9): the bare bones, each part of it the library already holds, and
+ * each part `include` names by title (ADR-1094 D2), with every note those parts link. Write each record it does not
+ * hold under the title, replace a pack record whose fields differ from the current pack's and whose newest change a
+ * pack wrote, and leave one whose newest change is anyone else's: the user's edit is never overwritten, and nothing is
+ * deleted. A role's links are resolved as seeding does. Given `storytree`, a product project that reads its pack from
+ * its factory (starterPackStatus) takes it there.
  */
-export async function takeStarterPack(library: Library, storytree?: Storytree): Promise<StarterPackTake> {
+export async function takeStarterPack(library: Library, storytree?: Storytree, include: readonly string[] = []): Promise<StarterPackTake> {
+  partsOf(include);
   const factory = await packFactory(library, storytree);
-  if (factory === undefined) return takeInto(library);
+  if (factory === undefined) return takeInto(library, include);
   try {
-    return { ...(await takeInto(factory.library)), factory: factory.name };
+    return { ...(await takeInto(factory.library, include)), factory: factory.name };
   } finally {
     await factory.library.close();
   }
 }
 
-async function takeInto(library: Library): Promise<StarterPackTake> {
+async function takeInto(library: Library, include: readonly string[]): Promise<StarterPackTake> {
   const holding = await heldRecords(library);
+  const chosen = partsOf([...BARE_BONES, ...heldParts(holding), ...include]);
   const ids = new Map<string, string>();
   const took: { added: StarterPackRecord[]; replaced: StarterPackRecord[]; kept: (StarterPackRecord & { newer: Fields })[] } = { added: [], replaced: [], kept: [] };
   const take = async (record: PackRecord) => {
@@ -224,8 +264,8 @@ async function takeInto(library: Library): Promise<StarterPackTake> {
     }
     if (verdict.action === "keep") took.kept.push({ ...named, newer: fields });
   };
-  for (const record of NOTES) await take(record);
-  for (const record of linkedRecords(linkedBy(ids))) await take(record);
+  for (const record of notesOf(chosen)) await take(record);
+  for (const record of linkedRecords(chosen, linkedBy(ids))) await take(record);
   return took;
 }
 

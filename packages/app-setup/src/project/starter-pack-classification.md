@@ -1,5 +1,10 @@
 # Where the starter pack's roles and notes came from (pack version 5)
 
+Since pack version 8 (ADR-1094 D1) a new factory is seeded with none of these: the bare bones are the
+record and the map. Each role, check and note below stays in the pack as a part the user takes in by
+its title (`take_starter_pack` with `include`), with every note it links, once a build shows it is
+needed (ADR-1094 D2).
+
 Evidence for increment_d90f79ab4d9e, on the arc "A new project's library starts with the full system"
 (ADR-0996). Read on 2026-10-11 from storytree's own library: its eight agent roles and the 65 notes (47 principles, 5 guardrails, 9 patterns, 4 processes)
 they link as required reading (`context`), rules and anti-patterns. Every role section and note is

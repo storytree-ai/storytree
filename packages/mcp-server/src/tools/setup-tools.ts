@@ -13,7 +13,7 @@ import { habitsCard } from "../instructions/habits.js";
 import { hookFailures, type HookFailure } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/project-and-caller";
 import { findProject, storytreeHome } from "@storytree/project-and-caller";
-import { IDENTITY_FIX, makeRepository, moveOntoFactory, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, takeStarterPack, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
+import { IDENTITY_FIX, makeRepository, moveOntoFactory, notAProjectYet, setUpProject, STARTER_CHECKS, STARTER_ROLES, starterPackStatus, starterRolesIn, suggestProjectName, takeStarterPack, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
@@ -170,17 +170,20 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
 }
 
 /**
- * `take_starter_pack`, which the agent calls on the user's yes to check_setup's offer of a newer starter pack (8.26):
- * the pack is taken into the project's library without overwriting what its user edited (6.9). And `move_onto_factory`,
+ * `take_starter_pack`, which the agent calls on the user's yes to check_setup's offer of a newer starter pack (8.26), or
+ * when the user asks for a part a new project starts without (ADR-1094 D2): the pack is taken into the project's library
+ * without overwriting what its user edited (6.9). And `move_onto_factory`,
  * which the agent calls on the user's yes, moving a project made before factories onto theirs, its edits kept (6.12).
  */
 export function registerStarterPackTool(define: Define): void {
   define(
     "take_starter_pack",
-    "Take the newer starter pack into this project's library, or into the factory it reads its system from: call it only when check_setup offered it and the user said yes. It adds the records the library lacks and replaces only the ones the user has not edited; each edited one is left as it is and named, with the newer text beside it.",
-    z.object({}),
-    async (_args, { library, storytree }) => {
-      const took = await takeStarterPack(library, storytree);
+    `Take the newer starter pack into this project's library, or into the factory it reads its system from: call it only when check_setup offered it and the user said yes, or when the user asks for a part a new project starts without, named in include. It adds the records the library lacks and replaces only the ones the user has not edited; each edited one is left as it is and named, with the newer text beside it. A new project starts on the bare bones, with no role, check or note; its parts are the roles ${STARTER_ROLES.join(", ")}, the review checks ${STARTER_CHECKS.join(", ")}, and any note one of them links, each coming with the notes it links.`,
+    z.object({
+      include: z.array(z.string()).optional().describe("Parts of the starter pack to take in by title, only those the user asked for"),
+    }),
+    async ({ include }, { library, storytree }) => {
+      const took = await takeStarterPack(library, storytree, include);
       const into = took.factory === undefined ? "" : ` into the factory ${quoted(took.factory)}, which this project reads its system from`;
       const said = [`Took the starter pack${into}: added ${took.added.length} and replaced ${took.replaced.length} of its records.`];
       if (took.kept.length > 0) {

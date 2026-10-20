@@ -18,6 +18,7 @@ import { connect, ProjectNameError, type Storytree } from "@storytree/library";
 import { openReviews } from "@storytree/quality-assurance";
 
 import { firstCommit, makeRepository, setUpProject, suggestProjectName, userFactory } from "./making.js";
+import { takeStarterPack } from "./starter-pack.js";
 
 /** The project a lookup found and the folder holding its marker, leaving aside the database identity the marker records. */
 function named(lookup: ProjectLookup): { project: string; folder: string } | ProjectLookup {
@@ -190,13 +191,13 @@ test("6.6 a moved trunk is never adopted on sight: it reaches its project only o
   });
 });
 
-/** The six test-quality checks the starter pack seeds, by title. */
+/** The six test-quality checks the starter pack leaves out for a user to take in, by title. */
 const STARTER_CHECKS = ["Hidden skip", "Module mock", "Proxy assertion", "Tautological expected value", "Test title without a contract number", "Wall-clock duration"];
 
-/** Every role the starter pack seeds, by title. */
+/** Every role the starter pack leaves out for a user to take in, by title. */
 const STARTER_ROLE_TITLES = ["blind-reviewer", "change-reviewer", "corpus-investigator", "explorer", "frontend-builder", "librarian", "orchestrator", "story-author"];
 
-test("6.7 setting a new project up gives its library, read through its factory, every starter role (orchestrator, librarian, change-reviewer, explorer, story-author, frontend-builder, blind-reviewer, corpus-investigator), the six test-quality checks a review's brief lists, and the notes they stand on; joining it from another machine adds no second copy", async () => {
+test("6.7 setting a new project up gives its factory the bare bones, no role, check or note (ADR-1094 D1), and joining or a retry adds none; each part left out is taken in by its title with the notes it links, and taking every one gives the library, read through its factory, every starter role, the six test-quality checks a review's brief lists, and the notes they stand on", async () => {
   const [project, factory] = [uniqueProjectName(), uniqueProjectName()];
   await withTempDir(async (dir) => {
     const { laptop, box } = machines(dir);
@@ -245,16 +246,40 @@ test("6.7 setting a new project up gives its library, read through its factory, 
       await assert.rejects(setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop, factory }));
       rmSync(choice, { recursive: true });
       await setUpProject({ folder: onLaptop, project, storytree, storytreeHome: laptop, factory });
-      const seeded = await pack();
-      assert.deepEqual({ roles: seeded.roles, checks: seeded.checks }, { roles: STARTER_ROLE_TITLES, checks: STARTER_CHECKS }, "the retry adds no second role or check");
-      assert.equal(new Set(seeded.notes.map((note) => note.replace(/^[a-z]+: /, ""))).size, seeded.notes.length, "the retry adds no second copy of a note");
+      const bare = { roles: [], checks: [], notes: [] };
+      assert.deepEqual(await pack(), bare, "the bare bones are the record and the map: the retry seeds nothing");
+      await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true, factory });
+      assert.deepEqual(await pack(), bare, "nor does joining");
+
+      // A guardrail comes back one part at a time (ADR-1094 D2): the explorer and one check, with what they link.
+      const take = async (include: readonly string[]) => {
+        const library = await storytree.openProject(project);
+        try {
+          await takeStarterPack(library, storytree, include);
+        } finally {
+          await library.close();
+        }
+      };
+      await take(["explorer", "Proxy assertion"]);
+      assert.deepEqual(await pack(), {
+        roles: ["explorer"],
+        checks: ["Proxy assertion"],
+        notes: [
+          "guardrail: Escalate up when blocked or out of scope",
+          "pattern: Pull-based context architecture",
+          "principle: Delegate exploration to digest-returning subagents",
+          "principle: No claim without evidence",
+          "principle: Plain language first",
+          "principle: Reference, don't restate",
+          "principle: Test creation principles",
+        ],
+      });
       assert.deepEqual(await standsOn("explorer"), {
         reading: ["Delegate exploration to digest-returning subagents", "Pull-based context architecture", "Reference, don't restate", "Plain language first"],
         rules: ["Delegate exploration to digest-returning subagents", "Reference, don't restate", "Plain language first", "No claim without evidence"],
         refuse: ["Escalate up when blocked or out of scope"],
       });
-      assert.deepEqual((await standsOn("orchestrator")).reading, ["Merge ceremony", "Pre-merge librarian pass", "Library edit ceremony", "Pull-based context architecture", "Decompose by testability; delegate the glue", "Parallel build-lane fan-out", "Friction earns durable guidance by supporting evidence, not by being reported"]);
-      // The notes no role of storytree's links, which its factory's contents mark in (ADR-1040).
+      // The notes no role of storytree's links, which its factory's contents mark in (ADR-1040), each taken by its title.
       const factoryNotes = [
         "principle: Price the deferral",
         "principle: Durable notes carry intent, not implementation surface",
@@ -275,12 +300,15 @@ test("6.7 setting a new project up gives its library, read through its factory, 
         "process: Justify a new check",
         "process: Migrate a schema: expand, migrate, contract",
       ];
-      assert.deepEqual(factoryNotes.filter((note) => !seeded.notes.includes(note)), [], "every note the factory's contents mark in is seeded");
+      await take([...STARTER_ROLE_TITLES, ...STARTER_CHECKS, ...factoryNotes.map((note) => note.replace(/^[a-z]+: /, ""))]);
+      const seeded = await pack();
+      assert.deepEqual({ roles: seeded.roles, checks: seeded.checks }, { roles: STARTER_ROLE_TITLES, checks: STARTER_CHECKS }, "every part is reachable, with no second copy of what was taken before");
+      assert.equal(new Set(seeded.notes.map((note) => note.replace(/^[a-z]+: /, ""))).size, seeded.notes.length, "no second copy of a note");
+      assert.deepEqual((await standsOn("orchestrator")).reading, ["Merge ceremony", "Pre-merge librarian pass", "Library edit ceremony", "Pull-based context architecture", "Decompose by testability; delegate the glue", "Parallel build-lane fan-out", "Friction earns durable guidance by supporting evidence, not by being reported"]);
+      assert.deepEqual(factoryNotes.filter((note) => !seeded.notes.includes(note)), [], "every note the factory's contents mark in is taken");
       assert.deepEqual((await standsOn("corpus-investigator")).rules.slice(-2), ["The same file in another tree is a different file", "A measured claim carries the method that produced it"]);
-      await setUpProject({ folder: onBox, project, storytree, storytreeHome: box, join: true, factory });
-      assert.deepEqual(await pack(), seeded, "joining adds no second copy");
 
-      // A review of a change in this project is briefed with the seeded checks.
+      // A review of a change in this project is briefed with the checks taken.
       const library = await storytree.openProject(project);
       try {
         const story = await library.addStory({ title: "Visitor can sign up" });
@@ -416,7 +444,7 @@ test("6.11 setting the first project up makes the user's factory, a project with
 
       await setUpProject({ folder: folders[0]!, project: first, storytree, storytreeHome: laptop, factory });
       const made = await linkOf(factory);
-      assert.deepEqual({ link: made.link, roles: made.roles.length }, { link: { kind: "factory" }, roles: STARTER_ROLE_TITLES.length }, "the factory holds the starter pack");
+      assert.deepEqual(made.link, { kind: "factory" });
       assert.equal(findProject(dir).project, undefined, "the factory has no folder of its own");
       assert.deepEqual(await linkOf(first), { link: { kind: "product", factory }, roles: made.roles }, "the product holds no copy: its roles are the factory's own");
 
@@ -430,7 +458,7 @@ test("6.11 setting the first project up makes the user's factory, a project with
       await setUpProject({ folder: folders[3]!, project: before, storytree, storytreeHome: laptop, factory: second });
       assert.deepEqual((await linkOf(before)).link, { kind: "product", factory: `${second}-2` });
       const next = await linkOf(`${second}-2`);
-      assert.deepEqual({ link: next.link, roles: next.roles.length }, { link: { kind: "factory" }, roles: STARTER_ROLE_TITLES.length });
+      assert.deepEqual(next.link, { kind: "factory" });
       assert.deepEqual((await linkOf(second)).link, { kind: "product", factory }, "the product project keeps its own factory");
     });
   });

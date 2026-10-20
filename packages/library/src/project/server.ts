@@ -43,8 +43,9 @@ export interface ServerAccess {
  * databases are created, on either kind of server.
  */
 export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBounds = {}, transport: Transport = loopbackTransport(url.hostname)): ServerAccess {
+  const { Pool: base, ...connection } = transport;
   const pool = (connectionString: string, role?: string) =>
-    newPool({ connectionString, ...transport, connectionTimeoutMillis: connectTimeoutMs, ...statementBound(bounds), ...actingAs(role) });
+    newPool({ connectionString, ...connection, connectionTimeoutMillis: connectTimeoutMs, ...statementBound(bounds), ...actingAs(role) }, base);
   return {
     kind: "postgres",
     admin: pool(url.href),
@@ -63,8 +64,11 @@ export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBoun
   };
 }
 
-/** How every connection to a server is made: its client and, for a server that must prove who it is, its TLS. */
-export type Transport = Pick<PoolConfig, "Client" | "ssl">;
+/**
+ * How every connection to a server is made: its client and, for a server that must prove who it is,
+ * its TLS; or, for one reached over a WebSocket, the pool that reaches it (pg's, unless one is given).
+ */
+export type Transport = Pick<PoolConfig, "Client" | "ssl"> & { readonly Pool?: typeof pg.Pool };
 
 /** Whether `hostname`, as a URL writes it, is this machine's loopback. */
 export function isLoopback(hostname: string): boolean {
@@ -186,8 +190,8 @@ export const IDLE_IN_TRANSACTION_MS = 10_000;
  * want of one, each name the machine and process holding it unless `config` names them, and each
  * is ended by the server when left idle in a transaction (IDLE_IN_TRANSACTION_MS).
  */
-export function newPool(config: WaitingPoolConfig): Pool {
-  const pool = new SlotWaitingPool({ application_name: CLIENT_NAME, idle_in_transaction_session_timeout: IDLE_IN_TRANSACTION_MS, ...config });
+export function newPool(config: WaitingPoolConfig, base: typeof pg.Pool = pg.Pool): Pool {
+  const pool = new (slotWaiting(base))({ application_name: CLIENT_NAME, idle_in_transaction_session_timeout: IDLE_IN_TRANSACTION_MS, ...config });
   // An idle connection that drops (a server restart, a dropped database) is discarded by the pool
   // and the next query reconnects or fails loudly. Without a listener Node would crash instead.
   pool.on("error", () => {});
@@ -212,44 +216,55 @@ const CLIENT_NAME = ["storytree", hostname(), String(process.pid), basename(proc
 type ConnectCallback = (error: Error | undefined, client: PoolClient | undefined, done: (release?: unknown) => void) => void;
 
 /**
- * A pg pool that asks again, backing off, when the server refuses a new connection for want of a
+ * `base` (pg's pool, or one that reaches the server another way) as a pool that asks again, backing off, when the server refuses a new connection for want of a
  * slot, or (a few times) resets one while it is being opened. Each attempt goes back through the pool, so a connection another of its calls hands back
  * meanwhile is taken first. pool.query() reaches the server through connect() too.
  */
-class SlotWaitingPool extends pg.Pool {
-  override connect(): Promise<PoolClient>;
-  override connect(callback: ConnectCallback): void;
-  override connect(callback?: ConnectCallback): Promise<PoolClient> | void {
-    const connecting = this.#connectWaiting();
-    if (callback === undefined) return connecting;
-    connecting.then(
-      (client) => callback(undefined, client, (release) => client.release(release as Error | boolean | undefined)),
-      (error: Error) => callback(error, undefined, () => {}),
-    );
-  }
+function slotWaiting(base: typeof pg.Pool): typeof pg.Pool {
+  let made = slotWaitingPools.get(base);
+  if (made === undefined) slotWaitingPools.set(base, made = slotWaitingPool(base));
+  return made;
+}
 
-  /** When this pool last said it waits for a slot: it says so again only once that wait would have ended. */
-  #saidAt = -Infinity;
+/** The slot-waiting pool made from each base pool, made once. */
+const slotWaitingPools = new WeakMap<typeof pg.Pool, typeof pg.Pool>();
 
-  async #connectWaiting(): Promise<PoolClient> {
-    const { waitMs, say } = waitsOf(this);
-    const giveUpAt = Date.now() + waitMs;
-    let resets = 0;
-    for (let pause = 50; ; pause = Math.min(pause * 2, 2_000)) {
-      try {
-        return await super.connect();
-      } catch (error) {
-        const full = sqlState(error) === "53300";
-        const reset = errorCode(error) === "ECONNRESET" && ++resets <= RESET_TRIES;
-        if ((!full && !reset) || Date.now() + pause > giveUpAt) throw error;
-        if (full && Date.now() - this.#saidAt > waitMs) {
-          this.#saidAt = Date.now();
-          say(`the library's server has no free connection slot (${(error as Error).message}); waiting up to ${seconds(waitMs)} for one`);
+function slotWaitingPool(base: typeof pg.Pool): typeof pg.Pool {
+  return class SlotWaitingPool extends base {
+    override connect(): Promise<PoolClient>;
+    override connect(callback: ConnectCallback): void;
+    override connect(callback?: ConnectCallback): Promise<PoolClient> | void {
+      const connecting = this.#connectWaiting();
+      if (callback === undefined) return connecting;
+      connecting.then(
+        (client) => callback(undefined, client, (release) => client.release(release as Error | boolean | undefined)),
+        (error: Error) => callback(error, undefined, () => {}),
+      );
+    }
+
+    /** When this pool last said it waits for a slot: it says so again only once that wait would have ended. */
+    #saidAt = -Infinity;
+
+    async #connectWaiting(): Promise<PoolClient> {
+      const { waitMs, say } = waitsOf(this);
+      const giveUpAt = Date.now() + waitMs;
+      let resets = 0;
+      for (let pause = 50; ; pause = Math.min(pause * 2, 2_000)) {
+        try {
+          return await super.connect();
+        } catch (error) {
+          const full = sqlState(error) === "53300";
+          const reset = errorCode(error) === "ECONNRESET" && ++resets <= RESET_TRIES;
+          if ((!full && !reset) || Date.now() + pause > giveUpAt) throw error;
+          if (full && Date.now() - this.#saidAt > waitMs) {
+            this.#saidAt = Date.now();
+            say(`the library's server has no free connection slot (${(error as Error).message}); waiting up to ${seconds(waitMs)} for one`);
+          }
+          await new Promise((resolve) => setTimeout(resolve, pause * (0.5 + Math.random())));
         }
-        await new Promise((resolve) => setTimeout(resolve, pause * (0.5 + Math.random())));
       }
     }
-  }
+  };
 }
 
 /** `ms` as a person reads it: "30 s", "0.3 s". */

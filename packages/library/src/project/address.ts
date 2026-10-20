@@ -25,6 +25,7 @@ import pg from "pg";
 import { ConnectionError, sqlState } from "./connection-error.js";
 import { databaseUrl, isLoopback, localServer, type ServerAccess, type Transport, type WaitBounds } from "./server.js";
 import type { ConnectOptions } from "./storytree.js";
+import { postgresForm, webSocketTransport } from "./websocket.js";
 
 /** The key a library reached by address takes its password from. */
 export const PASSWORD_KEY = "postgres";
@@ -51,10 +52,16 @@ const REMOTE_TLS_PARAMS = ["sslmode", "sslrootcert"];
  * Reach the server at `address`, a postgres:// URL with no password, signing in with the
  * `postgres` key. Refused before anything reaches the server when the address is not one, carries
  * a password, asks a remote server for less than a checked certificate, or no password is saved
- * for it. `dialVia` is for tests alone: the socket goes there, while every check stays the address's.
+ * for it. A wss:// address is reached over HTTPS (websocket.ts). `dialVia` and `ca` are for tests alone:
+ * the socket goes to `dialVia`, while every check stays the address's; a wss:// address's HTTPS also trusts `ca`.
  */
-export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, bounds: WaitBounds = {}, dialVia?: { readonly host: string; readonly port: number }): ServerAccess {
+export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, bounds: WaitBounds = {}, dialVia?: { readonly host: string; readonly port: number }, ca?: string): ServerAccess {
   const url = checkedAddress(address);
+  if (url.protocol === "wss:") {
+    const transport = webSocketTransport(url, ca);
+    const server = localServer(withPassword(postgresForm(url)), connectTimeoutMs, bounds, transport);
+    return { ...server, explain: (error) => explain(error, url, connectTimeoutMs) };
+  }
   const transport = isLoopback(url.hostname) ? undefined : remoteTransport(url);
   const signedIn = withPassword(url);
   // pg lets a connection string's own TLS settings override the ones it is given: a remote address's are read into its transport instead.
@@ -73,6 +80,9 @@ export function addressServer(address: string, connectTimeoutMs = TIMEOUT_MS, bo
 export function connectionString(options: ConnectOptions, database?: string): string {
   if (options.cloudSql !== undefined) {
     throw new ConnectionError("config", `The library is the Cloud SQL instance ${options.cloudSql.instance}, reached by Google sign-in with no password to hand on: reach it through the Cloud SQL Auth Proxy instead.`);
+  }
+  if (options.address !== undefined && checkedAddress(options.address).protocol === "wss:") {
+    throw new ConnectionError("config", "The library is reached over a WebSocket (a wss:// address), which psql cannot speak: there is no postgres:// connection string to hand on.");
   }
   const url = options.address === undefined ? new URL(options.url) : withPassword(checkedAddress(options.address));
   if (options.address !== undefined && !isLoopback(url.hostname)) {
@@ -187,7 +197,7 @@ function untrusted(socket: TLSSocket, pins: readonly X509Certificate[], host: st
   return checkServerIdentity(host, presented);
 }
 
-/** The address, if it is a postgres:// URL naming a host and a user and carrying no password. */
+/** The address, if it is a postgres:// (or wss://) URL naming a host and a user and carrying no password. */
 function checkedAddress(address: string): URL {
   let url: URL;
   try {
@@ -195,8 +205,8 @@ function checkedAddress(address: string): URL {
   } catch {
     throw new ConnectionError("config", "The library's address is not a postgres:// address: write it postgres://<user>@<host>[:<port>]/<database>.");
   }
-  if (!/^postgres(ql)?:$/.test(url.protocol) || url.hostname === "" || url.username === "") {
-    throw new ConnectionError("config", `The library's address ${shown(url)} is not written postgres://<user>@<host>[:<port>]/<database>.`);
+  if (!/^(postgres(ql)?|wss):$/.test(url.protocol) || url.hostname === "" || url.username === "") {
+    throw new ConnectionError("config", `The library's address ${shown(url)} is not written postgres://<user>@<host>[:<port>]/<database> (or wss://… for one reached over HTTPS).`);
   }
   if (url.password !== "") {
     throw new ConnectionError("config", `The library's address carries a password: take it out, and save it with \`storytree auth set ${PASSWORD_KEY}\` instead.`);

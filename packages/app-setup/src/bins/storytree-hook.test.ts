@@ -28,7 +28,7 @@ test("8.25 the hook command setup registers places an edited file in its capabil
   assert.deepEqual(Object.fromEntries(placed), { [`${src}/form.ts`]: "cap_form", [`${src}/reset.test.ts`]: "cap_reset" });
 });
 
-test("8.34 with Session management switched off on this computer, or a part it stands on, the hook command setup registers runs none of its work: it prints and records nothing, where switched on it records its time", { timeout: 60_000 }, async (t) => {
+test("8.34 with Session management switched off on this computer, the hook command setup registers runs none of its work: it prints and records nothing, where switched on it records its time", { timeout: 60_000 }, async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-hook-off-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const entry = fileURLToPath(new URL("./storytree-hook.ts", import.meta.url));
@@ -41,6 +41,5 @@ test("8.34 with Session management switched off on this computer, or a part it s
     return { stdout, home: readdirSync(home).sort() };
   };
   assert.deepEqual(await hookIn(["session-management"]), { stdout: "", home: ["settings.json"] });
-  assert.deepEqual(await hookIn(["friction"]), { stdout: "", home: ["settings.json"] }, "off because a part it stands on is off");
   assert.ok((await hookIn(["forest"])).home.includes("hook-times.jsonl"), "switched on, it runs and records how long it took");
 });

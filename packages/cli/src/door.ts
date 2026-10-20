@@ -488,7 +488,7 @@ function families(): Answer {
 function verbsOf(family: Family, path: string): Answer {
   const verbs = [...(family.bare === undefined ? [] : [family.bare]), ...family.verbs, ...(family.families ?? []).flatMap((inner) => inner.verbs)];
   const lines = verbs.flatMap((verb) => [`  storytree ${verb.usage}`, `      ${verb.summary}`]);
-  return { text: [`storytree ${family.name}: ${family.summary}.`, "", ...lines].join("\n") };
+  return { text: [`storytree ${path}: ${family.summary}.`, "", ...lines].join("\n") };
 }
 
 /** The connection to storytree and the project's library, made on first use and closed at the end. */

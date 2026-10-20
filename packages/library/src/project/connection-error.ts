@@ -30,7 +30,9 @@ export type ConnectionProblem =
   /** A library reached by address is at a host that cannot be reached, or did not answer in time. */
   | "unreachable"
   /** A library at a remote address did not prove who it is with a TLS certificate storytree checks, so it was not sent the password. */
-  | "untrusted-server";
+  | "untrusted-server"
+  /** A library reached over HTTPS (a wss:// address) has no Access token set, or the gate in front of it refused the one sent. */
+  | "access";
 
 /** Storytree cannot reach or use the server as it is set up. The message says what to fix. */
 export class ConnectionError extends Error {

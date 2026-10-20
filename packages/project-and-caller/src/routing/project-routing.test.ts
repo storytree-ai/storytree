@@ -214,6 +214,9 @@ test("2.13 with the library set to a Postgres address, a project routes to that 
     const address = "postgres://me@db.example.com:5432/postgres?sslmode=require";
     setLibrary(["postgres", address], home);
     assert.deepEqual(route(folder, { dataDir: path.join(home, "pgdata") }), { status: "routed", project: "site", folder, library: { address } });
+    const wss = "wss://me@library.example.com/postgres";
+    setLibrary(["postgres", wss], home);
+    assert.deepEqual(route(folder, { dataDir: path.join(home, "pgdata") }), { status: "routed", project: "site", folder, library: { address: wss } });
   });
 });
 

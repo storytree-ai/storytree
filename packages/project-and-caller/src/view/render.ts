@@ -27,7 +27,7 @@ export function renderSettings(readings: PanelReadings, group?: SettingGroup): s
       <p>Library location takes effect when storytree next opens.</p>
     </div>
     <div class="settings-cloud" data-location="postgres"${reading.location === "postgres" ? "" : " hidden"}>
-      <label>Postgres address<input name="address" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="postgres://user@host:5432/postgres" value="${escape(reading.location === "postgres" ? reading.address : "")}"></label>
+      <label>Postgres address<input name="address" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="postgres://user@host:5432/postgres or wss://user@host/postgres" value="${escape(reading.location === "postgres" ? reading.address : "")}"></label>
       <p>No password here: save it once as a key with <code>storytree auth set postgres</code>. Library location takes effect when storytree next opens.</p>
     </div>` : "";
     return `<form class="settings-row" data-setting="${escape(reading.name)}" novalidate>

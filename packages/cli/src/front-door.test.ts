@@ -112,7 +112,7 @@ test("1.5 `storytree` alone lists the families", async () => {
   });
 });
 
-test("1.6 `--help` after a command prints its usage and summary, and runs nothing", async () => {
+test("1.6 `--help` after a command prints its usage and summary, and runs nothing; an inner family's help heads with its full path", async () => {
   await inWorld(command, async (world) => {
     // In a folder that is no project, and without the --arc it needs: run, it would refuse.
     const ran = await storytree(command.script, ["question", "new", "--help"], { cwd: world.elsewhere, home: world.home });
@@ -120,6 +120,10 @@ test("1.6 `--help` after a command prints its usage and summary, and runs nothin
     assert.equal(ran.code, 0, ran.stderr);
     assert.match(ran.stdout, /storytree question new --arc <arc>/);
     assert.match(ran.stdout, /raise a question for the owner/);
+
+    const inner = await storytree(command.script, ["experiment", "arm", "--help"], { cwd: world.elsewhere, home: world.home });
+    assert.equal(inner.code, 0, inner.stderr);
+    assert.match(inner.stdout, /^storytree experiment arm: /);
   });
 });
 

@@ -127,7 +127,7 @@ test("1.7 a command it does not have answers with the real command for that job,
     const asked: [readonly string[], RegExp][] = [
       [["library", "show", "x"], /storytree library read <id>/],
       [["question", "read", "x"], /storytree question show <id>/],
-      [["arc", "increment", "show", "x"], /storytree library read <id>/],
+      [["arc", "increment", "get", "x"], /storytree library read <id>/],
       [["arc", "increment", "ready", "x"], /ADR-0909 retired[^\n]*claiming a proposal starts it[\s\S]*storytree workspace <increment\b/],
       [["claim", "x"], /storytree workspace <increment\b/],
       [["board"], /storytree noticeboard/],
@@ -220,7 +220,7 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
     const session = { CLAUDE_CODE_SESSION_ID: "door-1" };
 
     const searched = await world.run(["library", "search", "Mailer"], session);
-    const guessed = await world.run(["arc", "increment", "show", "x"], session);
+    const guessed = await world.run(["arc", "increment", "get", "x"], session);
     const misspelt = await world.run(["questoin", "list"], session);
     const planned = await world.run(["plan", "story"], session);
 
@@ -238,7 +238,7 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
       });
       assert.deepEqual(said, [
         { door: "command", verb: "storytree library search", outcome: "answered", word: undefined, named: undefined, next: ["storytree library read"] },
-        { door: "command", verb: "storytree arc increment", outcome: "unknown", word: "show", named: "storytree library read", next: ["storytree library read"] },
+        { door: "command", verb: "storytree arc increment", outcome: "unknown", word: "get", named: "storytree library read", next: ["storytree library read"] },
         { door: "command", verb: "storytree", outcome: "unknown", word: "questoin", named: undefined, next: ["storytree question"] },
         { door: "command", verb: "storytree", outcome: "unknown", word: "plan", named: "storytree library new", next: ["storytree library new"] },
       ]);
@@ -347,7 +347,7 @@ test("1.18 storytree doors prints the front-door reading: every command walked f
   await inWorld(command, async (world) => {
     const session = { CLAUDE_CODE_SESSION_ID: "doors-1" };
     assert.equal((await world.run(["library", "search", "Mailer"], session)).code, 0);
-    assert.equal((await world.run(["arc", "increment", "show", "x"], session)).code, 2);
+    assert.equal((await world.run(["arc", "increment", "get", "x"], session)).code, 2);
 
     const read = await world.run(["doors", "--json"]);
     assert.equal(read.code, 0, read.stderr);
@@ -367,12 +367,12 @@ test("1.18 storytree doors prints the front-door reading: every command walked f
     assert.deepEqual(of("quality_brief")?.consumers, ["agent"], "a tool mounted from a declared verb carries its consumers");
     assert.deepEqual(of("make_workspace")?.consumers, ["agent"], "a tool the server defines declares its own");
     assert.deepEqual(of("set_up_project")?.consumers, ["user"], "setting up a project is a person's");
-    assert.deepEqual(short.misses, [{ door: "command", where: "storytree arc increment", word: "show", named: "storytree library read", count: 1 }]);
+    assert.deepEqual(short.misses, [{ door: "command", where: "storytree arc increment", word: "get", named: "storytree library read", count: 1 }]);
 
     const printed = await world.run(["doors", "--days", "2", "--trend", "14"]);
     assert.equal(printed.code, 0, printed.stderr);
     assert.match(printed.stdout, /\(2 days\), with the 14 days/);
-    assert.match(printed.stdout, /storytree arc increment show\s+1\s+1\s+→ storytree library read/);
+    assert.match(printed.stdout, /storytree arc increment get\s+1\s+1\s+→ storytree library read/);
     assert.match(printed.stdout, /storytree quality brief\s+agent\s+0\s+0\s+0\s+0\s+unused/, "an agent's verb with no call is unused");
     assert.match(printed.stdout, /storytree settings show\s+user\s+0\s+0\s+0\s+0\s+not judged/, "a person's is not judged");
     assert.equal((await world.run(["doors", "--days", "0"])).code, 2, "a window of no days is refused");

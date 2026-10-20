@@ -34,6 +34,7 @@ export const POINTERS: Readonly<Record<string, string>> = {
   "friction list": "library list friction",
   "library open": "library read",
   "capability show": "library read",
+  "arc increment show": "library read",
 };
 
 /** The families still kept here, in their order once the declared ones take their places. */

@@ -655,6 +655,25 @@ test("4.29 · a pull request red only on the runner is rerun with no fix session
   assert.deepEqual(reruns, [5, 5]);
 });
 
+test("4.27 · each runner-only rerun the watcher starts on a handed-over pull request is recorded as a ci-rerun line naming the repository, the run and the attempt it starts; a refused one is not", async (t) => {
+  const b = await box(t);
+  let refuse = false;
+  b.options.rerun = async () => { if (refuse) throw new Error("HTTP 403"); };
+  await handOff(b);
+  const runs = [{ id: 5, attempt: 1, repo: "storytree-ai/storytree" }, { id: 6, attempt: 2, repo: "storytree-ai/storytree" }];
+  b.looks[41] = { ...red, runner: { runs, why: "verify on macOS: no runner took it" } };
+  b.calls.length = 0;
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter((args) => args[1] === "rerun"), [
+    ["workspace", "rerun", "5", "--repo", "storytree-ai/storytree", "--attempt", "2", "--what", "pr"],
+    ["workspace", "rerun", "6", "--repo", "storytree-ai/storytree", "--attempt", "3", "--what", "pr"],
+  ]);
+  b.calls.length = 0;
+  refuse = true;
+  await watchOnce(b.options);
+  assert.deepEqual(b.calls.filter((args) => args[1] === "rerun"), [], "a rerun GitHub refused started nothing to record");
+});
+
 test("4.29 · a failed check is read as its CI run when every failed check names an Actions run", () => {
   const options = { since: minutes(-60), now: at, graceMs: 10 * 60_000 };
   const job = (name, run) => ({ ...failed, name, detailsUrl: `https://github.com/storytree-ai/storytree/actions/runs/${run}/job/7${run}` });

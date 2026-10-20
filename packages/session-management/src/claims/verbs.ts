@@ -270,20 +270,20 @@ const rerunCi = verb({
     family: "workspace",
     name: "rerun",
     summary: "the watcher's: record a CI run it reran, a ci-rerun activity line naming the repository, the run and the attempt it starts",
-    usage: "workspace rerun <run> --repo <owner/name> --attempt <n> --what main|release",
+    usage: "workspace rerun <run> --repo <owner/name> --attempt <n> --what main|release|pr",
   },
-  tool: { absent: "the Mint box's watcher runs it when it reruns main's CI or a release run" },
+  tool: { absent: "the Mint box's watcher runs it when it reruns main's CI, a release run or a handed-over pull request's CI" },
   inputs: {
     run: { kind: "text", word: 0, describe: "the CI run's id" },
     repo: { kind: "text", describe: "the GitHub repository, as owner/name" },
     attempt: { kind: "count", describe: "the attempt the rerun starts" },
-    what: { kind: "text", describe: "main, for main's CI run, or release" },
+    what: { kind: "text", describe: "main, for main's CI run, release, or pr, for a handed-over pull request's CI run" },
   },
   async act({ run, repo, attempt, what }, context: SessionVerbContext) {
     if (!/^\d+$/.test(run)) throw new VerbRefusal(`${run} is not a CI run's id`, { misuse: true });
     if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new VerbRefusal(`${repo} is not a repository as owner/name`, { misuse: true });
     if (attempt < 2) throw new VerbRefusal("a rerun starts attempt 2 or later", { misuse: true });
-    if (what !== "main" && what !== "release") throw new VerbRefusal(`--what is main or release, not ${what}`, { misuse: true });
+    if (what !== "main" && what !== "release" && what !== "pr") throw new VerbRefusal(`--what is main, release or pr, not ${what}`, { misuse: true });
     const { recordRerun } = await import("./claims.js");
     await recordRerun(context, { repo, run: Number(run), attempt, what });
     return { text: `Recorded the watcher's rerun of ${repo} run ${run}, attempt ${attempt}.` };

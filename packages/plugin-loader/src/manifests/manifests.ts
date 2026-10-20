@@ -4,7 +4,7 @@
  * export subpaths and `export` the name its module exports the part's declarations under. The packages read are
  * those the host's package.json depends on: storytree's own, never one a user's or project's configuration names.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 import { partName, type PartsGraph } from "../switch/switch.js";
@@ -29,9 +29,14 @@ const readJson = (file: string): PackageJson => JSON.parse(readFileSync(file, "u
 
 /** The installed package.json of `name`, found as Node finds a package: in node_modules from `from` upwards. */
 function installed(name: string, from: string): PackageJson | undefined {
+  return installedAt(name, from)?.pkg;
+}
+
+/** The installed package.json of `name` and the folder it really lives in, where its own dependencies are found from. */
+function installedAt(name: string, from: string): { pkg: PackageJson; dir: string } | undefined {
   for (let dir = path.resolve(from); ; dir = path.dirname(dir)) {
     const file = path.join(dir, "node_modules", ...name.split("/"), "package.json");
-    if (existsSync(file)) return readJson(file);
+    if (existsSync(file)) return { pkg: readJson(file), dir: path.dirname(realpathSync(file)) };
     if (path.dirname(dir) === dir) return undefined;
   }
 }
@@ -56,12 +61,21 @@ function dependencies(host: string): { name: string; pkg: PackageJson | undefine
 
 const manifested = (pkg: PackageJson | undefined): boolean => typeof pkg?.storytree === "object" && pkg.storytree !== null;
 
-/** The parts `host` depends on (capability 4): each package with a manifest, by part name, with those of them its package.json depends on. */
+/**
+ * The parts `host` depends on (capability 4): each package with a manifest, by part name, with the parts its package.json
+ * depends on. A part reached only through another part is in it too, so switching it off takes the one standing on it.
+ */
 export function partsGraph(host: string): PartsGraph {
-  const parts = dependencies(host).filter(({ pkg }) => manifested(pkg));
-  const names = new Set(parts.map(({ name }) => name));
-  return Object.fromEntries(parts.map(({ name, pkg }) =>
-    [partName(name), Object.keys(pkg!.dependencies ?? {}).filter((one) => names.has(one)).map(partName).sort()]));
+  const graph: Record<string, string[]> = {};
+  const visit = (name: string, from: string): void => {
+    const found = installedAt(name, from);
+    if (!manifested(found?.pkg) || Object.hasOwn(graph, partName(name))) return;
+    const standsOn = Object.keys(found!.pkg.dependencies ?? {}).filter((one) => manifested(installedAt(one, found!.dir)?.pkg));
+    graph[partName(name)] = standsOn.map(partName).sort();
+    for (const one of standsOn) visit(one, found!.dir);
+  };
+  for (const { name } of dependencies(host)) visit(name, host);
+  return Object.fromEntries(Object.entries(graph).sort(([a], [b]) => a.localeCompare(b)));
 }
 
 /** The parts of `kind` the story packages `host` depends on declare, lowest order first (see 1.3). */

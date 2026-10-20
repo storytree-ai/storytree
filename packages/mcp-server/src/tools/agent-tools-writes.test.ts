@@ -1082,15 +1082,13 @@ test("6.62 park_increment and edit_plan set an increment's machine to a machine 
   });
 });
 
-test("6.93 plan_story takes a story's audience and edit_plan corrects it; edit_plan on project-anchor writes the project's what and audience, a half at a time, and refuses any other field with nothing written (ADR-1085 D1)", async () => {
+test("6.93 edit_plan on project-anchor writes the project's what and audience, a half at a time, and refuses any other field with nothing written; a story takes no audience (ADR-1085 D1, ADR-1096)", async () => {
   await withProject(async ({ folder, library }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
-      const story = idOf(await agent.call("plan_story", { title: "Visitor can sign up", audience: "first-time visitors", ...FOUNDED }));
-      const audienceOf = async () => ((await library.get(story))?.fields as { audience?: string }).audience;
-      assert.equal(await audienceOf(), "first-time visitors");
-      const corrected = await agent.call("edit_plan", { id: story, audience: "visitors from the newsletter" });
-      assert.equal(corrected.isError, false, corrected.text);
-      assert.equal(await audienceOf(), "visitors from the newsletter");
+      const story = idOf(await agent.call("plan_story", { title: "Visitor can sign up", ...FOUNDED }));
+      const written = await library.history({ id: story });
+      assert.equal((await agent.call("edit_plan", { id: story, audience: "first-time visitors" })).isError, true, "a story has no audience");
+      assert.deepEqual(await library.history({ id: story }), written, "nothing was written");
 
       const what = await agent.call("edit_plan", { id: "project-anchor", what: "a shop builder" });
       assert.equal(what.isError, false, what.text);
@@ -1106,21 +1104,18 @@ test("6.93 plan_story takes a story's audience and edit_plan corrects it; edit_p
   });
 });
 
-test("6.94 show_plan says the project's anchor first (or that it has none), each story's audience or that it names none, and a plan-health line naming the anchor's missing half and the stories with no audience, which fails nothing (ADR-1085 D1)", async () => {
+test("6.94 show_plan says the project's anchor first (or that it has none), and a plan-health line naming only the anchor's missing half, which fails nothing; it names no story for an audience (ADR-1085 D1, ADR-1096)", async () => {
   await withProject(async ({ folder }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { story } = await planned(agent);
-      const named = idOf(await agent.call("plan_story", { title: "Shop owner sees orders", audience: "small shops", ...FOUNDED }));
       let plan = await agent.call("show_plan");
       assert.equal(plan.isError, false, plan.text);
       let lines = plan.text.split("\n");
       assert.match(lines[0]!, /no anchor yet/, plan.text);
-      assert.match(lines[1]!, /^Plan health \(it fails nothing\): 1 story names no audience: "Visitor can sign up"\.$/, plan.text);
-      assert.match(lines.find((line) => line.includes(story))!, /names no audience$/);
-      assert.match(lines.find((line) => line.includes(named))!, /for small shops$/);
+      assert.ok(!plan.text.includes("audience"), plan.text);
+      assert.match(lines.find((line) => line.includes(story))!, /\(story_[0-9a-f]+\): [^;]+$/, "a story's line ends at its health");
 
       await agent.call("edit_plan", { id: "project-anchor", what: "a shop builder" });
-      await agent.call("edit_plan", { id: story, audience: "shoppers" });
       plan = await agent.call("show_plan");
       lines = plan.text.split("\n");
       assert.equal(lines[0], "Anchor (project-anchor): a shop builder, for (who it is for, not yet said)");

@@ -631,26 +631,6 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(covers, new Map([[stats.id, ["app/stats"]], [charts.id, ["app/charts", "lib/stats.ts"]]]), "the plan's tree carries each one's covers");
   });
 
-  contract("4.18", "a story names its audience when planned or corrected, and the plan's tree carries it; an empty audience is refused with nothing written, and a story that names none carries none", async ({ work, transactions }) => {
-    const signUp = await work.addStory({ title: "Visitor can sign up", audience: "first-time visitors" });
-    const billing = await work.addStory({ title: "Billing" });
-    const before = await transactions.history();
-    await assert.rejects(work.addStory({ title: "Admin", audience: "" }), schemaError("story", ["audience"]));
-    await assert.rejects(work.editStory(billing.id, { audience: "" }), schemaError("story", ["audience"]));
-    assert.deepEqual(await transactions.history(), before, "nothing was written");
-    const tree = async () => {
-      const { stories } = await work.projectTree();
-      return [signUp.id, billing.id].map((id) => stories.find((story) => story.id === id)!);
-    };
-    let stories = await tree();
-    assert.deepEqual(stories.map((story) => story.audience), ["first-time visitors", undefined]);
-    assert.ok(!("audience" in stories[1]!), "a story that names none carries no audience");
-    await work.editStory(billing.id, { audience: "account owners" });
-    await work.editStory(signUp.id, { audience: undefined });
-    stories = await tree();
-    assert.deepEqual(stories.map((story) => story.audience), [undefined, "account owners"]);
-  });
-
   contract("4.19", "the project's anchor is written a half at a time, what it is and who it is for, at one id, and read back by anchor() and the plan's tree; an empty half is refused with nothing written", async ({ work, records, transactions }) => {
     assert.equal(await work.anchor(), undefined, "a new project has no anchor");
     assert.ok(!("anchor" in (await work.projectTree())), "nor does its tree");
@@ -669,15 +649,26 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual(await work.anchor(), { audience: "people building software with coding agents" }, "a half given as undefined is removed");
   });
 
-  contract("4.20", "anchorGaps reads what the plan has not said: the anchor's missing halves and each story with no audience, in the plan's order, and nothing when all is said", async ({ work }) => {
-    const signUp = await work.addStory({ title: "Visitor can sign up" });
-    await work.addStory({ title: "Billing", audience: "account owners" });
-    assert.deepEqual(anchorGaps(await work.projectTree()), { anchor: ["what", "audience"], stories: [{ id: signUp.id, title: "Visitor can sign up" }] });
+  contract("4.20", "anchorGaps reads what the plan has not said, the anchor's missing halves only, and nothing when both are said; no story is ever named (ADR-1096)", async ({ work }) => {
+    await work.addStory({ title: "Visitor can sign up" });
+    assert.deepEqual(anchorGaps(await work.projectTree()), { anchor: ["what", "audience"] });
     await work.setAnchor({ audience: "small shops" });
-    assert.deepEqual(anchorGaps(await work.projectTree()).anchor, ["what"]);
+    assert.deepEqual(anchorGaps(await work.projectTree()), { anchor: ["what"] });
     await work.setAnchor({ what: "a shop builder" });
-    await work.editStory(signUp.id, { audience: "shoppers" });
-    assert.deepEqual(anchorGaps(await work.projectTree()), { anchor: [], stories: [] });
+    assert.deepEqual(anchorGaps(await work.projectTree()), { anchor: [] });
+  });
+
+  contract("4.21", "a story carries no audience (ADR-1096): one given an audience is refused with nothing written, and one stored with an audience before reads without failing, its tree node carries none, and its next edit stores it without one", async ({ work, records, transactions }) => {
+    const before = await transactions.history();
+    await assert.rejects(work.addStory(untyped({ title: "Admin", audience: "admins" })), schemaError("story", ["audience"]));
+    assert.deepEqual(await transactions.history(), before, "nothing was written");
+    await transactions.save({ id: "story-old", type: "story", version: 1, fields: { title: "Visitor can sign up", audience: "first-time visitors" } });
+    assert.equal(((await records.get("story-old")) as SchemaRecord<"story"> | null)?.fields.title, "Visitor can sign up", "an old story still reads");
+    const node = (await work.projectTree()).stories.find((story) => story.id === "story-old")!;
+    assert.ok(!("audience" in node), "the plan's tree carries no audience");
+    await assert.rejects(work.editStory("story-old", untyped({ audience: "visitors" })), schemaError("story", ["audience"]), "nor is one written on an edit");
+    assert.deepEqual((await work.editStory("story-old", { description: "By email" }))?.fields, { title: "Visitor can sign up", description: "By email" });
+    assert.deepEqual((await transactions.get("story-old"))?.fields, { title: "Visitor can sign up", description: "By email" }, "stored without it");
   });
 }
 

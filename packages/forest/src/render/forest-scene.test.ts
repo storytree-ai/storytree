@@ -76,14 +76,12 @@ test("3.18 a surveyed island's land carries its package and the imports between 
   assert.deepEqual(land.imports, [{ from: "src/b.ts", to: "src/a.ts" }]);
 });
 
-test("3.67 the map's top line carries the project's sentence when any of it is written, and names what the plan has not said: the anchor's missing half and each story with no audience; a change to it alone redraws the line (ADR-1085 D1)", () => {
+test("3.67 the map's top line carries the project's sentence when any of it is written, and names what the anchor has not said, never a story (ADR-1096); a change to it alone redraws the line (ADR-1085 D1)", () => {
   const { tree, history } = project();
-  assert.deepEqual(forestScene(tree, history, workStates([])).anchor, {
-    unsaid: ["The project has no anchor yet: what it is, and who it is for", "3 stories name no audience: Visitor can sign up, Visitor can log in, Admin sees sign-ups"],
-  });
-  const half = { ...tree, anchor: { what: "a shop builder" }, stories: tree.stories.map((story, index) => (index === 0 ? story : { ...story, audience: "shoppers" })) };
-  assert.deepEqual(forestAnchor(half), { sentence: "a shop builder, for …", unsaid: ["The anchor does not yet say who it is for", "1 story names no audience: Visitor can sign up"] });
-  const said = { ...half, anchor: { what: "a shop builder", audience: "small shops" }, stories: half.stories.map((story) => ({ ...story, audience: "shoppers" })) };
+  assert.deepEqual(forestScene(tree, history, workStates([])).anchor, { unsaid: ["The project has no anchor yet: what it is, and who it is for"] });
+  const half = { ...tree, anchor: { what: "a shop builder" } };
+  assert.deepEqual(forestAnchor(half), { sentence: "a shop builder, for …", unsaid: ["The anchor does not yet say who it is for"] });
+  const said = { ...half, anchor: { what: "a shop builder", audience: "small shops" } };
   assert.deepEqual(forestAnchor(said), { sentence: "a shop builder, for small shops", unsaid: [] });
 
   const before = forestScene(half, history, workStates([]));

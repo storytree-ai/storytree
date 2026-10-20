@@ -73,21 +73,17 @@ export const ANCHOR_ID = "project-anchor";
 
 /**
  * The plan-health reading of rule 1 (ADR-1085 D1): what the plan has not yet said. It never fails anything,
- * and it reads only that the words are there: the anchor's halves it lacks, and the stories with no audience.
+ * and it reads only that the words are there: the anchor's halves it lacks. Only the project names an
+ * audience, so no story is ever named here (ADR-1096).
  */
 export interface AnchorGaps {
   /** The anchor's halves not written, in the order the sentence reads: "what", then "audience". */
   anchor: ("what" | "audience")[];
-  /** The stories that name no audience, in the plan's order. */
-  stories: { id: string; title: string }[];
 }
 
-/** `tree`'s anchor gaps (ADR-1085 D1): the anchor's halves it lacks, and its stories with no audience. */
-export function anchorGaps(tree: { anchor?: Anchor | undefined; stories: readonly { id: string; title: string; audience?: string | undefined }[] }): AnchorGaps {
-  return {
-    anchor: (["what", "audience"] as const).filter((half) => tree.anchor?.[half] === undefined),
-    stories: tree.stories.filter((story) => story.audience === undefined).map(({ id, title }) => ({ id, title })),
-  };
+/** `tree`'s anchor gaps (ADR-1085 D1): the anchor's halves it lacks. */
+export function anchorGaps(tree: { anchor?: Anchor | undefined }): AnchorGaps {
+  return { anchor: (["what", "audience"] as const).filter((half) => tree.anchor?.[half] === undefined) };
 }
 
 /** The plan of work as the forest reads it: story › capability › contract, and the arcs. */
@@ -104,8 +100,6 @@ export interface StoryNode {
   id: string;
   title: string;
   description?: string;
-  /** Who uses what it delivers (ADR-1085 D1), when it names them. */
-  audience?: string;
   /** Where a mapped story's code is (ADR-0993 D2): its import, its package and the folders holding its code. */
   mapped?: { from: string; package: string; folders: string[] };
   /** The capabilities pointing at this story, in creation order. */
@@ -282,13 +276,14 @@ export class WorkModel {
 
   /**
    * Change only the named fields of a story, as capability 3's edit does, except `mapped`, refused
-   * as addStory refuses it. Returns null, and writes nothing, if `id` is not a live story.
+   * as addStory refuses it. Returns null, and writes nothing, if `id` is not a live story. A story
+   * carries no audience (ADR-1096): one stored before is dropped by the edit, and one given is refused.
    */
   editStory(id: string, fields: StoryEdit, options?: WriteOptions): Promise<SchemaRecord<"story"> | null> {
     return this.#serially(async () => {
       refuseMapped(fields);
       if ((await liveRecord(this.#records, id, ["story"])) === null) return null;
-      return (await this.#records.edit(id, fields, options)) as SchemaRecord<"story"> | null;
+      return (await this.#records.edit(id, { audience: undefined, ...fields } as StoryEdit, options)) as SchemaRecord<"story"> | null;
     });
   }
 
@@ -344,7 +339,6 @@ export class WorkModel {
       ...(anchor === undefined ? {} : { anchor }),
       stories: stories.sort(byCreation).map((story) => ({
         ...nodeOf(story),
-        ...(story.fields.audience === undefined ? {} : { audience: story.fields.audience }),
         ...(story.fields.mapped === undefined ? {} : { mapped: { ...story.fields.mapped, folders: [...story.fields.mapped.folders] } }),
         capabilities: (capabilitiesOf.get(story.id) ?? []).map((capability) => ({
           ...nodeOf(capability),

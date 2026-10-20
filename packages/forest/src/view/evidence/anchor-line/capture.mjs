@@ -1,7 +1,7 @@
 // The map's anchor line (3.67, ADR-1085 D1): the project's sentence at the top of the map, with what the plan has not said.
 // Reuses the rows capture's build, seed and survey: `node ../rows/build.mjs <checkout> <label>`, then
 // `node --import tsx capture.mjs <label>`. The seed's tree is given storytree's anchor (ADR-1085 D2) for the "said" shot,
-// none for the "unsaid" shot; its stories name no audience, as storytree's do today. Writes measurements-<label>.json.
+// none for the "unsaid" shot. Writes measurements-<label>.json.
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

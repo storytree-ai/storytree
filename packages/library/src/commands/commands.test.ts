@@ -70,7 +70,7 @@ test("17.1 · The library declares the library family first among storytree's fa
   assert.equal(((await library.get(form.id))?.fields as { description?: string } | undefined)?.description, "Typed here");
 });
 
-test("17.3 · library edit project-anchor --what … --audience … writes the project's anchor, making it on its first write and refusing any other field with nothing written; library new story and library edit take a story's audience, and library read reads both back (ADR-1085 D1)", async (t) => {
+test("17.3 · library edit project-anchor --what … --audience … writes the project's anchor, making it on its first write and refusing any other field with nothing written, and library read reads it back; a story takes no audience (ADR-1085 D1, ADR-1096)", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   t.after(async () => {
@@ -95,11 +95,9 @@ test("17.3 · library edit project-anchor --what … --audience … writes the p
   assert.match(read.text, /what: a shop builder/);
   assert.match(read.text, /audience: small shops/);
 
-  const made = await verbOf("new").act({ "<kind>": "story", "<fields>": { title: "Owner sees orders", audience: "shop owners" } } as never, context, WORDS);
-  const story = /story_[0-9a-f]{12}/.exec(made.text)![0];
-  assert.equal(((await library.get(story))?.fields as { audience?: string }).audience, "shop owners");
-  await edit(story, { audience: "shop owners and their staff" });
-  assert.equal(((await library.get(story))?.fields as { audience?: string }).audience, "shop owners and their staff");
+  const stories = await library.list("story");
+  await assert.rejects(verbOf("new").act({ "<kind>": "story", "<fields>": { title: "Owner sees orders", audience: "shop owners" } } as never, context, WORDS));
+  assert.deepEqual(await library.list("story"), stories, "no story was written");
 });
 
 test("17.2 · The library declares search_notes, open, write_note and correct_note as tools and none as a command; each artifact they show is handed to the door as a read, found as the session last saw it, and an artifact written with no place goes onto the shelf of the capability the session claimed last, inside the cover it opened last", async (t) => {

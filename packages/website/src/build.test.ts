@@ -177,7 +177,7 @@ test("5.3 · the built storage manifest permits public insertion and explicitly 
   } } });
 });
 
-test("1.13 · below the map the built home shows the three promises in order, each a single line, claims 1 and 2 each carrying its short served by the site", async (t) => {
+test("1.13 · below the map the built home shows the three promises in order, each a single line, each carrying its own short served by the site", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-claims-"));
   t.after(() => rm(output, { recursive: true, force: true }));
   await buildWebsite(output);
@@ -190,9 +190,10 @@ test("1.13 · below the map the built home shows the three promises in order, ea
   assert.ok(claims.every(claim => [...claim.querySelectorAll("p, h3")].length === 1), "each claim is its single line, with no pain line beside it");
   assert.ok(page.querySelector("#map-frame")!.compareDocumentPosition(claims[0]!) & 4, "the claims sit below the map");
   const videos = claims.map(claim => claim.querySelector("video"));
-  assert.deepEqual(videos.map(video => video !== null), [true, true, false], "claims 1 and 2 carry a short; claim 3 has none yet");
+  assert.deepEqual(videos.map(video => video !== null), [true, true, true], "every claim carries a short");
   // What the site serves for each is its short and poster as rendered.
-  const rendered = [["first-short", "seeing-what-agents-built"], ["one-map", "one-map-for-you-and-your-agents"]] as const;
+  const rendered = [["first-short", "seeing-what-agents-built"], ["one-map", "one-map-for-you-and-your-agents"],
+    ["memory", "memory-that-lives-where-your-code-lives"]] as const;
   for (const [index, [folder, name]] of rendered.entries()) {
     const video = videos[index]!;
     for (const attribute of ["muted", "playsinline", "controls"]) assert.ok(video.hasAttribute(attribute), `${name}: ${attribute}`);
@@ -203,7 +204,7 @@ test("1.13 · below the map the built home shows the three promises in order, ea
       assert.ok((await readFile(path.join(output, asset!))).equals(await readFile(path.join(packageRoot, "evidence", folder, file))), `${asset} is the rendered ${file}`);
     }
   }
-  assert.notEqual(videos[0]!.getAttribute("src"), videos[1]!.getAttribute("src"), "each claim has its own short");
+  assert.equal(new Set(videos.map(video => video!.getAttribute("src"))).size, videos.length, "each claim has its own short");
 });
 
 test("1.14 · after the claims the built home says it works with your harness, with its marks, and ends on the waitlist", async (t) => {

@@ -140,7 +140,7 @@ export function planState(survey, arcId) {
  * The arc a planning session should take when nothing is ready (ADR-0955 D4): an active arc with no open question and no open increment that is unwaited (every one waits on work, an event or a question),
  * none of them waiting on the owner, a question or work that can still land (planning has nothing to add there: the waits name what releases them, 2.21), oldest first, skipping an arc whose own wait holds on work that can still land (2.22) and an arc whose entry in `planned` (arc to the planState it was last planned in, kept across the dispatcher's restarts)
  * is its present state: an arc waiting on the owner is planned once until something on it changes. An arc made less than `freshMs` before `now` is skipped too:
- * the session that made it may still be parking its work (arc_c331455caee0 was planned 20 seconds after it was made, and both parked the same pieces). The arc comes with its `state`, for `planned`.
+ * the session that made it may still be parking its work (arc_c331455caee0 was planned 20 seconds after it was made, and both parked the same pieces), and so is one whose making time cannot be read. The arc comes with its `state`, for `planned`.
  * Undefined when none qualifies. Work handed to the watcher, or waiting on work that is (at any depth), is in flight like claimed work, not stalled.
  */
 export function pickPlan(survey, { planned = new Map(), now = Date.now(), freshMs = 30 * 60_000 } = {}) {
@@ -152,7 +152,7 @@ export function pickPlan(survey, { planned = new Map(), now = Date.now(), freshM
   const settled = (id) => (survey.holds.waits[id] ?? []).some((hold) => !hold.forGood) || (survey.holds.heldOn[id] ?? []).length > 0
     || (survey.holds.waitsFor?.[id] ?? []).some((hold) => hold.holds && hold.releaser === "owner");
   const open = Map.groupBy(survey.increments.filter((one) => one.status !== "closed"), (one) => one.arc);
-  const fresh = (arc) => now - Date.parse(arc.created) < freshMs;
+  const fresh = (arc) => !(now - Date.parse(arc.created) >= freshMs);
   const arc = (survey.arcs ?? []).filter((one) => one.state === "active" && !one.openQuestions && !settled(one.id) && !fresh(one)
     && (open.get(one.id) ?? []).every((increment) => waited(increment.id) && !settled(increment.id)) && planned.get(one.id) !== planState(survey, one.id))
     .sort((a, b) => String(a.created).localeCompare(String(b.created)))[0];
@@ -164,14 +164,20 @@ export function pickPlan(survey, { planned = new Map(), now = Date.now(), freshM
  * this machine's short name (`here`, undefined while it has none), the standing claims,
  * and the refusals under every open increment on an active arc, whoever holds the capability now, each under the increment its refused session held (`refusals`, given those increments).
  */
+/** A record's time as an ISO string: the library gives it as one, a Date is turned into one, and a missing or unreadable time is undefined. */
+const iso = (at) => {
+  const time = at == null ? NaN : new Date(at).getTime();
+  return Number.isNaN(time) ? undefined : new Date(time).toISOString();
+};
+
 export async function readSurvey({ library, claims, refusals = async () => [], here = async () => undefined }) {
   const [views, holds, held, name] = await Promise.all([library.arcViews(), library.holds(), claims(), here()]);
   const increments = views.flatMap((view) => view.increments.map((record) => ({
     id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
-    status: record.fields.status, capabilities: record.fields.capabilities ?? [], machine: record.fields.machine, parked: record.fields.parked ?? record.createdAt?.toISOString?.(), priority: view.arc.fields?.priority,
+    status: record.fields.status, capabilities: record.fields.capabilities ?? [], machine: record.fields.machine, parked: record.fields.parked ?? iso(record.createdAt), priority: view.arc.fields?.priority,
   })));
   const arcs = views.map((view) => ({
-    id: view.arc.id, state: view.state, title: view.arc.fields?.title ?? view.arc.id, created: view.arc.createdAt?.toISOString?.(),
+    id: view.arc.id, state: view.state, title: view.arc.fields?.title ?? view.arc.id, created: iso(view.arc.createdAt),
     openQuestions: (view.questions ?? []).filter((question) => question.fields.lifecycle === "open").length,
   }));
   const open = increments.filter((one) => one.status !== "closed" && one.arcState === "active").map((one) => one.id);

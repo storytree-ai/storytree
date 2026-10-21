@@ -1,6 +1,6 @@
 // Build first (pnpm --filter @storytree/website build), then: node packages/website/evidence/claims/capture.mjs [--retake]
 // The claims below the framed map (ADR-1091 D1 (3)), in the machine's Chrome (Playwright's own Chromium cannot decode H.264):
-// three sections in order; claims 1 and 2 each carry a short that plays as it scrolls into view and pauses as it leaves; with
+// three sections in order; each carries its own short that plays as it scrolls into view and pauses as it leaves; with
 // reduced motion each stays on its poster until played. Pictures: where the map hands over, each claim on a laptop and a phone,
 // and each short playing in place. Without --retake the pictures go to a scratch folder.
 import assert from "node:assert/strict";
@@ -41,8 +41,9 @@ const shoot = async (page, claim, file) => {
   await page.screenshot({ path: path.join(output, file), clip: { x: 0, y: box.y + top, width, height: box.height }, fullPage: true });
 };
 const video = (page, i = 0) => page.locator(".claim-short video").nth(i).evaluate(node => ({ paused: node.paused, time: Math.round(node.currentTime * 10) / 10 }));
-/** Each short, by its claim, and how far in to let it play before its picture: claim 2's to its map with both claims on it. */
-const SHORTS = [{ claim: 0, until: 11 }, { claim: 1, until: 23 }];
+/** Each short, by its claim, and how far in to let it play before its picture: claim 2's to its map with both claims on it,
+ * claim 3's to the island's panel with its code and memory. */
+const SHORTS = [{ claim: 0, until: 11 }, { claim: 1, until: 23 }, { claim: 2, until: 24 }];
 
 async function open(options) {
   const page = await browser.newPage(options);
@@ -58,7 +59,7 @@ try {
     const claims = page.locator("section.claim");
     assert.equal(await claims.count(), 3, "three claims, no fourth");
     seen[device] = { claims: await claims.locator(".claim-fix").allTextContents() };
-    assert.equal(await page.locator(".claim-short video").count(), SHORTS.length, "claims 1 and 2 carry a short, claim 3 none yet");
+    assert.equal(await page.locator(".claim-short video").count(), SHORTS.length, "each claim carries a short");
     for (const short of SHORTS.keys()) assert.deepEqual(await video(page, short), { paused: true, time: 0 }, "each short waits, unseen, below the map");
     // Where the map hands over to the claims.
     await page.evaluate(() => scrollTo(0, document.querySelector("#claims").getBoundingClientRect().top + scrollY - innerHeight * 0.45));
@@ -71,12 +72,10 @@ try {
       await page.waitForFunction(([i, at]) => document.querySelectorAll(".claim-short video")[i].currentTime > at, [short, until], { timeout: 45_000 });
       seen[device].inView.push(await video(page, short));
       assert.equal(seen[device].inView[short].paused, false, `in view, claim ${claim + 1}'s short plays`);
-      if (short > 0) assert.equal((await video(page, 0)).paused, true, `${device}: and the one above it, out of view, has paused`);
+      if (short > 0) assert.equal((await video(page, short - 1)).paused, true, `${device}: and the one above it, out of view, has paused`);
       await shoot(page, claims.nth(claim), `${device}-claim-${claim + 1}.png`);
       if (device === "desktop") await page.screenshot({ path: path.join(output, short ? `short-${short + 1}-playing.png` : "short-playing.png") });
     }
-    await claims.nth(2).scrollIntoViewIfNeeded();
-    await shoot(page, claims.nth(2), `${device}-claim-3.png`);
     await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
     await page.evaluate(() => scrollTo(0, 0));
     await page.waitForTimeout(500);

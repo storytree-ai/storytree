@@ -2,7 +2,7 @@
 // is open and its gate is green, and hands the pull request here; this script, not a model, watches CI and the merge
 // queue: on MERGED it closes the increment and releases the session's claims, on a red it starts one fix session.
 // node packages/agent-pool/src/watch.mjs hand <pr> <increment> [--session <id>] [--keep-open] [--refused [--holder <session>]]   (records it and starts the watcher)
-// node packages/agent-pool/src/watch.mjs handover <pr> <increment> [--keep-open]               (from any machine: `hand` on the box, else over ssh)
+// node packages/agent-pool/src/watch.mjs handover <pr> <increment> [--keep-open]               (from any machine: `hand` on the box, else over ssh, else through the library)
 // --keep-open: one of several pull requests for its increment, so on MERGED the watcher leaves the increment open (4.11).
 // --refused: a fix session hands back untouched because a claim refused it, so it does not count against the limit (4.14);
 // --holder names the session the refusal said holds the work, and the retry waits until that session holds no claim (4.14).
@@ -201,19 +201,60 @@ export async function hand({ dir, pr, increment, session, branch, keepOpen = fal
 
 /**
  * Hand a pull request over from any machine, with the handing session's own id so the watcher releases its claims:
- * on the box it is `hand`; elsewhere it runs `hand` on the box through `remote` (ssh). When the box cannot be reached
- * it refuses with the reason, and the session lands the pull request itself.
+ * on the box it is `hand`; elsewhere it runs `hand` on the box through `remote` (ssh), and when ssh cannot reach the
+ * box (a cloud container has neither ssh nor the tailnet) it writes the request through `library` (4.30). When neither
+ * reaches the watcher it refuses with the reasons, and the session lands the pull request itself.
  */
-export async function handOver({ pr, increment, session, keepOpen = false, onBox, local, remote }) {
+export async function handOver({ pr, increment, session, keepOpen = false, onBox, local, remote, library }) {
   const fallback = `Wait for the merge yourself: watch \`gh pr checks ${pr}\` for MERGED, then close ${increment} with --disposition landed --pr ${pr}.`;
   if (!session) return { code: 1, lines: ["no session id (CLAUDE_CODE_SESSION_ID or CODEX_THREAD_ID): the watcher could not release this session's claims, so it is not handed over.", fallback] };
   const args = ["hand", String(pr), increment, "--session", session, ...(keepOpen ? ["--keep-open"] : [])];
   if (onBox) { await local(args); return { code: 0, lines: [] }; }
+  const last = (error) => error.message.trim().split("\n").at(-1);
+  let unreached;
   try {
     // The box's `hand` already says how to close out, so its words are relayed as they are.
     return { code: 0, lines: [(await remote(args)).trim()].filter(Boolean) };
+  } catch (error) { unreached = `could not reach the Mint box's watcher over ssh: ${last(error)}`; }
+  if (!library) return { code: 1, lines: [unreached, fallback] };
+  try {
+    return { code: 0, lines: [`${unreached}; handed over through the library instead.`, ...await library({ pr, increment, session, keepOpen })] };
   } catch (error) {
-    return { code: 1, lines: [`could not reach the Mint box's watcher: ${error.message.trim().split("\n").at(-1)}`, fallback] };
+    return { code: 1, lines: [unreached, `could not hand it over through the library either: ${last(error)}`, fallback] };
+  }
+}
+
+/** The event wait a hand-over through the library writes is its request: it names the pull request, the session and whether to keep the increment open (4.30). */
+const requestNote = ({ pr, session, keepOpen }) => `PR #${pr} is open and green and handed to the Mint box's watcher through the library by session ${session}${keepOpen ? ", to keep this open" : ""},`
+  + ` which ${keepOpen ? "leaves this open (more pull requests are to come) on its merge" : "closes this on its merge"} or starts a fix session on a red.`;
+const REQUEST = /^\s*- event\s+PR #(\d+) is open and green and handed to the Mint box's watcher through the library by session ([^\s,]+)(, to keep this open)?, .* — (increment_\w+)\s/;
+
+/**
+ * Hand a pull request over through the library, from wherever it is reachable (4.30): the event wait `hand` would
+ * write, carrying the request the box's watcher adopts at its next look, and the session's claims held for the pull
+ * request on its `branch` now, since the session closes out before that look. A wait the library refuses throws.
+ */
+export async function handThroughLibrary({ pr, increment, session, branch, keepOpen = false, storytree, now = Date.now }) {
+  await storytree(["arc", "increment", "wait", increment, "--for", "event", "--note", requestNote({ pr, session, keepOpen }),
+    "--check-back", new Date(now() + HELD_MS).toISOString().slice(0, 10)]);
+  const held = !branch ? "its branch could not be read, so no claims are held for it, and its close-out releases them"
+    : (await storytree(["workspace", "hold", String(pr), "--holder", session, "--branch", branch, "--increment", increment])
+      .catch((error) => `its claims could not be held (${error.message.split("\n")[0]}), so its close-out releases them`)).trim();
+  return [`PR #${pr}: ${increment} waits on it until it merges${keepOpen ? ", then stays open for its next pull request" : ""}; the box's watcher takes it at its next look.`,
+    ...(held ? [held] : []),
+    `Close out with: pnpm storytree session close-out --safe yes --why "PR #${pr} open and green, handed to the watcher"`];
+}
+
+/** The box's watcher takes each hand-over written through the library that it has no record of yet, as `hand` would record it (4.30). */
+export async function adoptRequests({ dir, storytree, now = Date.now, say = () => {} }) {
+  const known = new Set((await records(dir)).map((record) => record.pr));
+  for (const line of (await storytree(["arc", "waits"])).split("\n")) {
+    const found = REQUEST.exec(line);
+    if (!found || known.has(Number(found[1]))) continue;
+    const [, pr, session, keepOpen, increment] = found;
+    await save(dir, { fixes: [], fixing: null, pr: Number(pr), increment, session, keepOpen: Boolean(keepOpen), closed: false, handedAt: new Date(now()).toISOString() });
+    known.add(Number(pr));
+    say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} PR #${pr}: handed over through the library by session ${session}; watching it for ${increment}`);
   }
 }
 
@@ -458,6 +499,11 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     project: () => projectOf({ cwd: process.cwd(), repo, home: env.STORYTREE_HOME || join(home, ".storytree", "0.3") }),
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt }),
     branchOf: async (pr) => (await run("gh", ["pr", "view", String(pr), "--json", "headRefName", "-q", ".headRefName"], { cwd: repo })).stdout.trim(),
+    // Off the box, where the shared checkout may not exist (a cloud container), the hand-over's library writes and its
+    // branch are read from the folder it runs in: the pull request's branch from GitHub, else the folder's own (4.30).
+    here: async (args) => (await run("pnpm", ["-s", "storytree", ...args], { maxBuffer: 16 * 1024 * 1024 })).stdout,
+    ownBranchOf: async (pr) => (await run("gh", ["pr", "view", String(pr), "--json", "headRefName", "-q", ".headRefName"]).catch(() => ({ stdout: "" }))).stdout.trim()
+      || (await run("git", ["branch", "--show-current"])).stdout.trim().replace(/^(main|master)$/, ""),
     alive: async (pid) => isFixSession(await argsOf(pid)),
     room: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout)
       < (Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || config.sessions),
@@ -517,7 +563,8 @@ export async function main(args, box = {}) {
   const keepOpen = args.includes("--keep-open"), refused = args.includes("--refused");
   if (args[0] === "handover" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {
     const { code, lines } = await handOver({ pr: Number(args[1]), increment: args[2], session: b.session, keepOpen, onBox: b.onBox,
-      local: (hand) => main(hand, box), remote: b.remote });
+      local: (hand) => main(hand, box), remote: b.remote,
+      library: async (request) => handThroughLibrary({ ...request, branch: await b.ownBranchOf(request.pr).catch(() => ""), storytree: b.here, now: b.now }) });
     for (const line of lines) out(line);
     return code;
   }
@@ -586,6 +633,8 @@ export async function main(args, box = {}) {
     // Between looks, never in one: a fix session it started runs on, and its hand-off on disk keeps the count.
     const current = began && await version();
     if (current && current !== began) { dated(`dev loop code changed (${began} → ${current}): restarting`); return RESTART; }
+    try { await adoptRequests({ ...b, say }); }
+    catch (error) { dated(`reading the library's hand-overs failed: ${error.message.split("\n")[0]}`); }
     try { await watchOnce({ ...b, say }); }
     catch (error) { dated(`look failed: ${error.message.split("\n")[0]}`); }
     if (b.readReleases && b.now() - releasesAt >= RELEASE_EVERY_MS) {

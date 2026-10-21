@@ -1,8 +1,9 @@
 // Build first (pnpm --filter @storytree/website build), then: node packages/website/evidence/claims/capture.mjs [--retake]
 // The claims below the framed map (ADR-1091 D1 (3)), in the machine's Chrome (Playwright's own Chromium cannot decode H.264):
 // three sections in order; each carries its own short that plays as it scrolls into view and pauses as it leaves; with
-// reduced motion each stays on its poster until played. Pictures: where the map hands over, each claim on a laptop and a phone,
-// and each short playing in place. Without --retake the pictures go to a scratch folder.
+// reduced motion each stays on its poster until played. At desktop width each claim's hook sits on the left and its short on the
+// right, larger than a phone's short yet never filling the screen; on a phone they stack. Pictures: where the map hands over, each
+// claim on a laptop and a phone, and each short playing in place. Without --retake the pictures go to a scratch folder.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -45,6 +46,27 @@ const video = (page, i = 0) => page.locator(".claim-short video").nth(i).evaluat
  * claim 3's to the island's panel with its code and memory. */
 const SHORTS = [{ claim: 0, until: 11 }, { claim: 1, until: 23 }, { claim: 2, until: 24 }];
 
+/** Where each claim's hook and short fall on the page, and whether the page scrolls sideways. */
+const layout = page => page.evaluate(() => ({
+  viewport: { width: innerWidth, height: innerHeight }, scrollWidth: document.documentElement.scrollWidth,
+  claims: [...document.querySelectorAll("section.claim")].map(claim => {
+    const box = node => { const { x, y, width, height } = node.getBoundingClientRect(); return { x: Math.round(x), y: Math.round(y + scrollY), width: Math.round(width), height: Math.round(height) }; };
+    return { hook: box(claim.querySelector(".claim-fix")), short: box(claim.querySelector(".claim-short video")) };
+  }),
+}));
+/** A phone's short: the width a 390 px phone gives it, edge to edge. */
+const PHONE_SHORT = 390;
+/** At desktop width: hook left, short right and level with it, the short clearly larger than a phone's yet at most 60% of the screen's height. */
+function sideBySide({ viewport, scrollWidth, claims }, where) {
+  for (const [i, { hook, short }] of claims.entries()) {
+    assert.ok(hook.x + hook.width <= short.x, `${where}: claim ${i + 1}'s hook sits left of its short (${JSON.stringify({ hook, short })})`);
+    assert.ok(hook.y < short.y + short.height && hook.y + hook.height > short.y, `${where}: claim ${i + 1}'s hook sits level with its short`);
+    assert.ok(short.width >= PHONE_SHORT * 1.4, `${where}: claim ${i + 1}'s short is clearly larger than a phone's (${short.width}px)`);
+    assert.ok(short.height <= viewport.height * 0.6, `${where}: claim ${i + 1}'s short never fills the screen (${short.height}px of ${viewport.height}px)`);
+  }
+  assert.ok(scrollWidth <= viewport.width, `${where}: no sideways scroll (${scrollWidth}px)`);
+}
+
 async function open(options) {
   const page = await browser.newPage(options);
   await page.addInitScript(() => localStorage.setItem("storytree-opening-seen", "yes"));
@@ -61,6 +83,12 @@ try {
     seen[device] = { claims: await claims.locator(".claim-fix").allTextContents() };
     assert.equal(await page.locator(".claim-short video").count(), SHORTS.length, "each claim carries a short");
     for (const short of SHORTS.keys()) assert.deepEqual(await video(page, short), { paused: true, time: 0 }, "each short waits, unseen, below the map");
+    seen[device].layout = await layout(page);
+    if (device === "desktop") sideBySide(seen[device].layout, device);
+    else {
+      for (const [i, { hook, short }] of seen[device].layout.claims.entries()) assert.ok(hook.y + hook.height <= short.y, `phone: claim ${i + 1}'s hook sits above its short`);
+      assert.ok(seen[device].layout.scrollWidth <= 390, `phone: no sideways scroll (${seen[device].layout.scrollWidth}px)`);
+    }
     // Where the map hands over to the claims.
     await page.evaluate(() => scrollTo(0, document.querySelector("#claims").getBoundingClientRect().top + scrollY - innerHeight * 0.45));
     await page.waitForTimeout(400);
@@ -81,6 +109,15 @@ try {
     await page.waitForTimeout(500);
     seen[device].leftView = await Promise.all(SHORTS.map((_, short) => video(page, short)));
     assert.ok(seen[device].leftView.every(each => each.paused), "out of view, each pauses");
+    await page.close();
+  }
+
+  // Smaller laptops: still side by side, and the short still leaves the screen around it.
+  seen.laptops = {};
+  for (const [width, height] of [[1280, 720], [1024, 768]]) {
+    const page = await open({ viewport: { width, height } });
+    seen.laptops[`${width}x${height}`] = await layout(page);
+    sideBySide(seen.laptops[`${width}x${height}`], `${width}x${height}`);
     await page.close();
   }
 

@@ -9,6 +9,6 @@ window.addEventListener("storytree-opening", event => {
 wireOpening();
 const form = document.querySelector<HTMLFormElement>("#waitlist-form");
 if (form) wireWaitlist(form);
-const short = document.querySelector<HTMLVideoElement>(".claim-short video");
-// Its wiring loads apart, so the page's first script stays within its budget (2.3).
-if (short) void import("./claim-short.js").then(({ wireClaimShort }) => wireClaimShort(short));
+const shorts = [...document.querySelectorAll<HTMLVideoElement>(".claim-short video")];
+// Their wiring loads apart, so the page's first script stays within its budget (2.3).
+if (shorts.length) void import("./claim-short.js").then(({ wireClaimShort }) => { for (const short of shorts) wireClaimShort(short); });

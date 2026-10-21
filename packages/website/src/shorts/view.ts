@@ -89,20 +89,23 @@ export type Aim = keyof typeof MAP.aims;
  * land not yet built, the yellow of land that asks for attention, and the selection's gold. */
 export const MAP_PALETTE = ["#101418", "#18242d", "#22343f", "#7f95a3", "#6e6248", "#a8956a", "#e6d18c", "#4f6b3e", "#6f8f55", "#95af78",
   "#c2d69a", "#5c6670", "#8a94a0", "#3fae6a", "#c9a227", "#f2d16b", "#e5534b", "#ffd34d", "#e8eef0"] as const;
-const RGB = MAP_PALETTE.map(hex => [1, 3, 5].map(at => parseInt(hex.slice(at, at + 2), 16)) as [number, number, number]);
-
-/** Puts RGBA pixels into the map's palette in place: each pixel becomes the palette's nearest colour, fully opaque. */
-export function quantise(pixels: Uint8ClampedArray): void {
-  for (let at = 0; at < pixels.length; at += 4) {
-    let best = RGB[0]!, distance = Infinity;
-    for (const colour of RGB) {
-      const d = (pixels[at]! - colour[0]) ** 2 + (pixels[at + 1]! - colour[1]) ** 2 + (pixels[at + 2]! - colour[2]) ** 2;
-      if (d < distance) [best, distance] = [colour, d];
+/** Puts RGBA pixels into `palette` in place: each pixel becomes the palette's nearest colour, fully opaque. */
+export function quantiseInto(palette: readonly string[]): (pixels: Uint8ClampedArray) => void {
+  const RGB = palette.map(hex => [1, 3, 5].map(at => parseInt(hex.slice(at, at + 2), 16)) as [number, number, number]);
+  return pixels => {
+    for (let at = 0; at < pixels.length; at += 4) {
+      let best = RGB[0]!, distance = Infinity;
+      for (const colour of RGB) {
+        const d = (pixels[at]! - colour[0]) ** 2 + (pixels[at + 1]! - colour[1]) ** 2 + (pixels[at + 2]! - colour[2]) ** 2;
+        if (d < distance) [best, distance] = [colour, d];
+      }
+      pixels.set(best, at);
+      pixels[at + 3] = 255;
     }
-    pixels.set(best, at);
-    pixels[at + 3] = 255;
-  }
+  };
 }
+/** Puts RGBA pixels into the map's palette in place. */
+export const quantise = quantiseInto(MAP_PALETTE);
 
 /** What the short hands the forest's view (`PlanetView`) at a moment: the shop's plan on the glass sheet, the wishlist's island
  * selected once he has clicked it, and nothing over it the scene does not draw itself. */

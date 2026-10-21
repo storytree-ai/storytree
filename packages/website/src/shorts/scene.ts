@@ -33,9 +33,11 @@ const GRAPH_INK = {
 export type Words = { text: string; x: number; y: number; colour: string; centre?: boolean };
 /** Where the map's islands are drawn on the view's canvas, in its own CSS pixels, once it has drawn them. */
 export type Marks = { islands: readonly { story: string; title: string; x: number; y: number; width: number; height: number }[] };
+/** Where each claim's flag stands on the view's canvas at a moment, in its own CSS pixels: the foot of its pole. */
+export type Flag = { capability: string; colour: string; x: number; y: number };
 export type SceneInputs = { seconds: number; frames: number; cast: CastMap; sheet: CanvasImageSource; view: CanvasImageSource;
   /** The view canvas's size (the forest's own, before it was shrunk into `view`), and the islands on it. */
-  map?: { width: number; height: number; marks?: Marks } };
+  map?: { width: number; height: number; marks?: Marks; flags?: readonly Flag[] } };
 
 export const SCRIPT = beats(GROUNDING);
 /** How fast he walks out of the room, in pixels a second: turned round from where standing up left him (his figure's left at
@@ -70,7 +72,7 @@ const CODE: Record<string, readonly string[]> = {
 const KEYWORDS = new Set(["import", "from", "export", "function", "const", "return", "async", "await", "if", "new"]);
 
 /** A sheet frame drawn with its top-left at (x, y), mirrored left to right if asked (a whole-pixel flip). */
-function blit(ctx: CanvasRenderingContext2D, sheet: CanvasImageSource, frame: Frame, x: number, y: number, mirror = false): void {
+export function blit(ctx: CanvasRenderingContext2D, sheet: CanvasImageSource, frame: Frame, x: number, y: number, mirror = false): void {
   if (!mirror) return ctx.drawImage(sheet, frame.x, frame.y, frame.w, frame.h, x, y, frame.w, frame.h);
   ctx.save();
   ctx.translate(x + frame.w, y);
@@ -79,7 +81,7 @@ function blit(ctx: CanvasRenderingContext2D, sheet: CanvasImageSource, frame: Fr
   ctx.restore();
 }
 
-function box(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, fill: string, edge: string): void {
+export function box(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, fill: string, edge: string): void {
   ctx.fillStyle = edge;
   ctx.fillRect(x, y, width, height);
   ctx.fillStyle = fill;
@@ -96,7 +98,7 @@ function ring(ctx: CanvasRenderingContext2D, at: Rect, colour: string): void {
 }
 
 /** A thought bubble over the monitor; in the room its dots trail down to the developer's head. */
-function bubble(ctx: CanvasRenderingContext2D, side: Side, text: string, room: boolean, words: Words[]): void {
+export function bubble(ctx: CanvasRenderingContext2D, side: Side, text: string, room: boolean, words: Words[]): void {
   const laid = layBubble(side, text);
   box(ctx, laid.x, laid.y, laid.width, laid.height, INK.bubble, INK.bubbleEdge);
   const [cx, bottom] = [HALF[side] + 88, laid.y + laid.height];
@@ -243,9 +245,33 @@ function panel(ctx: CanvasRenderingContext2D, at: Rect, open: number, pressed: b
 }
 
 /** Where an island is drawn on a screen, from where the view drew it on its canvas. */
-function onScreen(screen: Rect, map: NonNullable<SceneInputs["map"]>, mark: Marks["islands"][number]): Rect {
+export function onScreen(screen: Rect, map: NonNullable<SceneInputs["map"]>, mark: Marks["islands"][number]): Rect {
   const sx = screen.width / map.width, sy = screen.height / map.height;
   return { x: screen.x + Math.round(mark.x * sx), y: screen.y + Math.round(mark.y * sy), width: Math.round(mark.width * sx), height: Math.round(mark.height * sy) };
+}
+
+/** Letters each island on a screen under it, as the app does, `first` before the rest and on a lit plate if `lit`; a name that
+ * would overlap one already `lettered` is put above or beside its island, or left off. */
+export function letterIslands(ctx: CanvasRenderingContext2D, screen: Rect, islands: readonly { mark: Marks["islands"][number]; at: Rect }[], first: string | undefined, lit: boolean, lettered: Rect[]): void {
+  const { x, y, width, height } = screen;
+  // Each island is lettered under it, the first one first.
+  const order = [...islands].sort((a, b) => Number(b.mark.story === first) - Number(a.mark.story === first));
+  for (const { mark, at } of order) {
+    const lines = wrap(mark.title, 12), selected = lit && mark.story === first;
+    const wide = Math.max(...lines.map(line => line.length)) * SMALL.advance - 1, tall = lines.length * SMALL.line + 3;
+    const clear = (plate: Rect) => plate.x >= x && plate.x + plate.width <= x + width && plate.y >= y && plate.y + plate.height <= y + height
+      && !lettered.some(other => plate.x < other.x + other.width && other.x < plate.x + plate.width && plate.y < other.y + other.height && other.y < plate.y + plate.height);
+    // Under the island, as the app letters it; above it, or beside it, where a name already lettered is in the way.
+    const centred = Math.round(at.x + at.width / 2 - wide / 2) - 2, middle = Math.round(at.y + at.height / 2 - tall / 2);
+    const plate = [{ x: centred, y: at.y + at.height - 1 }, { x: centred, y: at.y - tall - 1 }, { x: at.x + at.width + 1, y: middle }, { x: at.x - wide - 5, y: middle }]
+      .map(spot => ({ ...spot, width: wide + 4, height: tall })).find(clear);
+    if (!plate) continue;
+    const top = plate.y + 2;
+    lettered.push(plate);
+    // A lit island is named on a gold plate, as the app lights a selection.
+    box(ctx, plate.x, plate.y, plate.width, plate.height, selected ? INK.plate : INK.nameplate, selected ? INK.plate : INK.nameplate);
+    lines.forEach((line, row) => small(ctx, line, plate.x + 2 + Math.round((wide - (line.length * SMALL.advance - 1)) / 2), top + row * SMALL.line, selected ? INK.plateWords : INK.name));
+  }
 }
 
 /** The map at a full view: the forest's own drawing of the glass sheet, each island lettered under it as the app does (the
@@ -258,25 +284,7 @@ function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: n
   ctx.fillRect(x, y, width, height);
   ctx.drawImage(view, x, y, width, height);
   const islands = drawn?.marks?.islands.map(mark => ({ mark, at: onScreen(screen, drawn, mark) })) ?? [];
-  // Each island is lettered under it, the selected one first, and a name that would overlap one already lettered is left off.
-  const lettered: Rect[] = open ? [panelBox(screen, open)] : [];
-  const order = [...islands].sort((a, b) => Number(b.mark.story === PANEL.story) - Number(a.mark.story === PANEL.story));
-  for (const { mark, at } of order) {
-    const lines = wrap(mark.title, 12), selected = since !== undefined && mark.story === PANEL.story;
-    const wide = Math.max(...lines.map(line => line.length)) * SMALL.advance - 1, tall = lines.length * SMALL.line + 3;
-    const clear = (plate: Rect) => plate.x >= x && plate.x + plate.width <= x + width && plate.y >= y && plate.y + plate.height <= y + height
-      && !lettered.some(other => plate.x < other.x + other.width && other.x < plate.x + plate.width && plate.y < other.y + other.height && other.y < plate.y + plate.height);
-    // Under the island, as the app letters it; above it, or beside it, where a name already lettered is in the way.
-    const centred = Math.round(at.x + at.width / 2 - wide / 2) - 2, middle = Math.round(at.y + at.height / 2 - tall / 2);
-    const plate = [{ x: centred, y: at.y + at.height - 1 }, { x: centred, y: at.y - tall - 1 }, { x: at.x + at.width + 1, y: middle }, { x: at.x - wide - 5, y: middle }]
-      .map(spot => ({ ...spot, width: wide + 4, height: tall })).find(clear);
-    if (!plate) continue;
-    const top = plate.y + 2;
-    lettered.push(plate);
-    // The island he clicked is named on a gold plate, as the app lights a selection.
-    box(ctx, plate.x, plate.y, plate.width, plate.height, selected ? INK.plate : INK.nameplate, selected ? INK.plate : INK.nameplate);
-    lines.forEach((line, row) => small(ctx, line, plate.x + 2 + Math.round((wide - (line.length * SMALL.advance - 1)) / 2), top + row * SMALL.line, selected ? INK.plateWords : INK.name));
-  }
+  letterIslands(ctx, screen, islands, PANEL.story, since !== undefined, open ? [panelBox(screen, open)] : []);
   chrome(ctx, screen);
   const local = since === undefined ? 0 : since + CLICK_AT;
   const pressed = since !== undefined && local >= POPPED;
@@ -298,8 +306,9 @@ function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: n
 }
 
 /** The app's own frame round its map, as its screenshot shows it: the switches along the top (the forest lit, the library, and
- * the project, the shop) and the sessions strip along the bottom, one session, Claude Code's. */
-function chrome(ctx: CanvasRenderingContext2D, screen: Rect): void {
+ * the project, the shop) and the sessions strip along the bottom, each session by its colour and name (one, Claude Code's, unless
+ * named). */
+export function chrome(ctx: CanvasRenderingContext2D, screen: Rect, sessions: readonly { colour: string; name: string }[] = [{ colour: "#e05bb5", name: "claude code" }]): void {
   const { x, y, width, height } = screen;
   box(ctx, x + 3, y + 3, 63, 11, INK.panel, INK.panelEdge);
   box(ctx, x + 4, y + 4, 28, 9, INK.forest, INK.forest);
@@ -313,10 +322,14 @@ function chrome(ctx: CanvasRenderingContext2D, screen: Rect): void {
   ctx.fillRect(x, y + height - 14, width, 14);
   ctx.fillStyle = INK.panelEdge;
   ctx.fillRect(x, y + height - 14, width, 1);
-  small(ctx, "sessions 1", x + 4, y + height - 10, INK.you);
-  ctx.fillStyle = "#e05bb5";
-  ctx.fillRect(x + 50, y + height - 9, 3, 3);
-  small(ctx, "claude code", x + 56, y + height - 10, INK.code);
+  small(ctx, `sessions ${sessions.length}`, x + 4, y + height - 10, INK.you);
+  let left = x + 50;
+  for (const { colour, name } of sessions) {
+    ctx.fillStyle = colour;
+    ctx.fillRect(left, y + height - 9, 3, 3);
+    small(ctx, name, left + 6, y + height - 10, INK.code);
+    left += 6 + name.length * SMALL.advance + 6;
+  }
 }
 
 /** The map on the monitor in the room: the same drawing, shrunk, with the panel a grey strip once it is open. */

@@ -11,7 +11,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { check, hookOutput, provision, serve } from "./provision-worktree.mjs";
+import { CLOUD_LIBRARY_ADDRESS, check, connectCloud, hookOutput, installEnvironment, provision, serve } from "./provision-worktree.mjs";
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
 
@@ -329,4 +329,79 @@ test("2.4 a feature branch or linked worktree can serve while the primary is beh
   const linked = path.join(root, "linked");
   git(root, "worktree", "add", linked, "main");
   assert.equal(await serve({ root: linked, waitMs: 0, start: async () => 23 }), 23, "even a linked worktree on main is left alone");
+});
+
+/** A cloud container's checkout and storytree home, with nothing of storytree's set up in the home. */
+function cloud(t) {
+  const root = mkdtempSync(path.join(tmpdir(), "cloud-root-"));
+  const home = mkdtempSync(path.join(tmpdir(), "cloud-home-"));
+  t.after(() => {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
+  });
+  writeFileSync(path.join(root, ".storytree.json"), JSON.stringify({ project: "storytree" }));
+  const calls = [];
+  const run = (args) => {
+    calls.push(args);
+    return { ok: true, code: 0 };
+  };
+  return { root, home, calls, run };
+}
+
+const CLOUD = { CLAUDE_CODE_REMOTE: "true", CF_ACCESS_CLIENT_ID: "id" };
+
+test("2.6 in a cloud container pnpm install skips onnxruntime's download; elsewhere its environment is left as it is", () => {
+  assert.equal(installEnvironment({ ...CLOUD }).ONNXRUNTIME_NODE_INSTALL, "skip");
+  assert.equal(installEnvironment({ ...CLOUD, ONNXRUNTIME_NODE_INSTALL: "force" }).ONNXRUNTIME_NODE_INSTALL, "force");
+  assert.equal("ONNXRUNTIME_NODE_INSTALL" in installEnvironment({ PATH: "/bin" }), false);
+});
+
+test("2.6 a fresh cloud container is given the library's HTTPS address and approves its checkout, once", (t) => {
+  const { root, home, calls, run } = cloud(t);
+  connectCloud({ root, home, env: { ...CLOUD }, run });
+  assert.deepEqual(calls, [
+    ["settings", "set", "library", "postgres", CLOUD_LIBRARY_ADDRESS],
+    ["doctor", "--join", "storytree"],
+  ]);
+  assert.match(CLOUD_LIBRARY_ADDRESS, /^wss:\/\/[^:@]+@library\.storytree\.dev\/postgres$/);
+
+  writeFileSync(path.join(home, "settings.json"), JSON.stringify({ library: { location: "postgres", address: CLOUD_LIBRARY_ADDRESS } }));
+  calls.length = 0;
+  connectCloud({ root, home, env: { ...CLOUD }, run });
+  assert.deepEqual(calls, [], "a container whose library is already set is left alone");
+});
+
+test("2.6 the cloud environment's STORYTREE_LIBRARY_ADDRESS, when set, is the address given", (t) => {
+  const { root, home, calls, run } = cloud(t);
+  connectCloud({ root, home, env: { ...CLOUD, STORYTREE_LIBRARY_ADDRESS: "wss://someone@elsewhere.example/db" }, run });
+  assert.deepEqual(calls[0], ["settings", "set", "library", "postgres", "wss://someone@elsewhere.example/db"]);
+});
+
+test("2.6 outside a cloud container, or in one without the route's Access token, no setting is touched", (t) => {
+  const { root, home, calls, run } = cloud(t);
+  connectCloud({ root, home, env: { CF_ACCESS_CLIENT_ID: "id" }, run });
+  connectCloud({ root, home, env: { CLAUDE_CODE_REMOTE: "true" }, run });
+  assert.deepEqual(calls, []);
+});
+
+test("2.6 a setting that cannot be made is logged and stops the rest, never failing the session", (t) => {
+  const { root, home } = cloud(t);
+  const calls = [];
+  const lines = [];
+  const result = connectCloud({ root, home, env: { ...CLOUD }, run: (args) => (calls.push(args), { ok: false, code: 3 }), log: (line) => lines.push(line) });
+  assert.equal(result.ok, false);
+  assert.equal(calls.length, 1, "no approval is tried once the address could not be set");
+  assert.match(lines.join("\n"), /storytree settings set library .* failed \(exit 3\)/);
+});
+
+test("2.6 approving a cloud container's checkout leaves its committed .storytree.json as it was", (t) => {
+  const { root, home } = cloud(t);
+  const marker = path.join(root, ".storytree.json");
+  const before = readFileSync(marker, "utf8");
+  const run = (args) => {
+    if (args[0] === "doctor") writeFileSync(marker, JSON.stringify({ project: "storytree", identity: "604280" }, null, 2));
+    return { ok: true, code: 0 };
+  };
+  connectCloud({ root, home, env: { ...CLOUD }, run });
+  assert.equal(readFileSync(marker, "utf8"), before);
 });

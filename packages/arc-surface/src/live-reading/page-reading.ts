@@ -58,7 +58,9 @@ const HELD_FIELDS = ["title", "term", "text", "statement", "meaning", "role", "d
 
 /** `change` with only the fields a surface reads, an outcome only its disposition. */
 function thinned(change: Change): Change {
-  const from = change.record.fields as Record<string, unknown>;
+  // A change that carries no fields (a stand-in's) is held as it came.
+  const from = (change.record as Change["record"] | undefined)?.fields as Record<string, unknown> | undefined;
+  if (from === undefined) return change;
   const fields: Record<string, unknown> = {};
   for (const name of HELD_FIELDS) if (from[name] !== undefined) fields[name] = from[name];
   const outcome = fields.outcome as { disposition?: unknown } | undefined;

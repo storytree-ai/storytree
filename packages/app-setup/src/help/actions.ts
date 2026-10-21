@@ -23,6 +23,11 @@ async function withProject<T>(storytree: Storytree, name: string, work: (library
   }
 }
 
+/** The anchor's halves that are said, as Settings → Projects shows them. */
+function sentenceOf(anchor: { what?: string | undefined; audience?: string | undefined } | undefined): ProjectSentence {
+  return { ...(anchor?.what === undefined ? {} : { what: anchor.what }), ...(anchor?.audience === undefined ? {} : { audience: anchor.audience }) };
+}
+
 /** Platform adapters come from the frame; diagnostics and recovery stay with Session management. */
 export function setupHelpActions(options: {
   licenseFile: string;
@@ -75,14 +80,14 @@ export function setupHelpActions(options: {
     },
     async projectSentence(name) {
       if (typeof name !== "string") throw new Error("There is no project with that name.");
-      return await withProject(options.library(), name, async (library) => ({ ...(await library.anchor()) }));
+      return await withProject(options.library(), name, async (library) => sentenceOf(await library.anchor()));
     },
     async setProjectSentence(name, what, audience) {
       if (typeof name !== "string" || typeof what !== "string" || typeof audience !== "string") throw new Error("There is no project with that name.");
       return await withProject(options.library(), name, async (library) => {
         const halves = { what: what.trim() || undefined, audience: audience.trim() || undefined };
         if (halves.what !== undefined || halves.audience !== undefined || (await library.anchor()) !== undefined) await library.setAnchor(halves, { actor: SENTENCE_ACTOR });
-        return { ...(await library.anchor()) } satisfies ProjectSentence;
+        return sentenceOf(await library.anchor());
       });
     },
     async deletableProjects() {

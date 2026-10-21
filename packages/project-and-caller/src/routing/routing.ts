@@ -32,7 +32,7 @@
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 
-import type { ConnectOptions, Library, Storytree } from "@storytree/library";
+import type { ConnectOptions, Library, OpenOptions, Storytree } from "@storytree/library";
 
 import { readLibrary } from "../settings/settings.js";
 
@@ -96,11 +96,13 @@ export function findProject(from: string): ProjectLookup {
  * Open the project a folder names, only reaching it: a project deleted from the library, perhaps
  * from another computer, is never made again by a folder that still names it (ADR-0831), and with
  * the `identity` its marker records, a new project set up since under the same name is not the
- * folder's. Refused with what to do: free the folder, or set it up again on purpose.
+ * folder's. Refused with what to do: free the folder, or set it up again on purpose. An agent's door hands the `system`
+ * switches this computer's settings name (ADR-1092 D2), which leave the roles, checks and notes they switch off out of
+ * what the project lists and searches.
  */
-export async function openNamedProject(storytree: Pick<Storytree, "openProject">, project: string, identity?: string): Promise<Library> {
+export async function openNamedProject(storytree: Pick<Storytree, "openProject">, project: string, identity?: string, system?: OpenOptions["system"]): Promise<Library> {
   try {
-    return await storytree.openProject(project, { create: false, ...(identity === undefined ? {} : { identity }) });
+    return await storytree.openProject(project, { create: false, ...(identity === undefined ? {} : { identity }), ...(system === undefined ? {} : { system }) });
   } catch (error) {
     // By name: the hooks load the library only when they need it.
     if (!(error instanceof Error && error.name === "ProjectGoneError")) throw error;

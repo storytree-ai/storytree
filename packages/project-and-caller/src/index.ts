@@ -6,7 +6,8 @@ export { approveTrunk, forgetTrunk, importsOf, machineOf, ProjectFolderError, re
 export type { ImportedFolder, LocateOptions, Machine, ProjectLookup, Route, StorytreeAddress, Trunk } from "./routing/index.js";
 export { keepOnThisComputer, readProjectChoice, recordProjectChoice, recordRemovedProjects, removedProjects, type HiddenProject } from "./routing/project-choice.js";
 export { partsSaid, switchedSaid, switchPart, type PartsSwitched } from "./settings/parts.js";
-export { idleAfterMs, leaveAfterMs, readExperiment, readLibrary, readPartsOff, readSettings, readSurfaceChoices, setLibrary, setPartOff, setSetting, setSurfaceChoice } from "./settings/settings.js";
+export { switchSystem, systemSaid } from "./settings/system.js";
+export { idleAfterMs, leaveAfterMs, readExperiment, readLibrary, readPartsOff, readSettings, readSurfaceChoices, readSystemSwitches, setLibrary, setPartOff, setSetting, setSurfaceChoice, setSystemSwitch, type SystemSwitches } from "./settings/settings.js";
 export type { ExperimentArm, LibraryLocation, LibraryReading, SettingGroup, SettingReading, SettingsReading, SurfaceChoices } from "./settings/settings.js";
 export { decisionRights, decisionRightsGuidance } from "./settings/decision-rights.js";
 export type { DecisionRights } from "./settings/decision-rights.js";

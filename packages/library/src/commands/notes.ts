@@ -19,6 +19,7 @@
  *   the agent is told. A session holding no claim gets no default, and a place the agent names always wins.
  */
 import type { KnowledgeKind, Library, NewLine, Note, NoteEdit, SchemaRecord, WriteOptions } from "../index.js";
+import { KNOWLEDGE_KINDS } from "../knowledge/index.js";
 import { verb, VerbRefusal, type VerbAnswer, type VerbContext, type Verb, type VerbInputs } from "../verbs/verb.js";
 import type { HeldClaim } from "./index.js";
 
@@ -158,7 +159,8 @@ async function openRecord(id: string, context: NoteToolContext): Promise<VerbAns
   const record = await library.get(id);
   if (record?.type === "question") return openQuestion(record as SchemaRecord<"question">, context);
   const notes = await library.search("");
-  const note = notes.find((candidate) => candidate.id === id);
+  // A role, check or note this computer switches off is listed nowhere, but read by its id, as a link to it is (ADR-1092 D2).
+  const note = notes.find((candidate) => candidate.id === id) ?? (record !== null && (KNOWLEDGE_KINDS as readonly string[]).includes(record.type) ? (record as Note) : undefined);
   if (note === undefined) {
     const arc = tree.arcs.some((node) => node.id === id);
     throw new VerbRefusal(arc ? `${id} is an arc: open a story, a capability, a contract, a question or an artifact.` : `Nothing in this project has the id ${id}.`);

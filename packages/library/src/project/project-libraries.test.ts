@@ -687,3 +687,57 @@ test("1.19 a product's inherited records are the factory's system records it rea
     assert.equal((now?.fields as { statement?: string } | undefined)?.statement, "The factory's new wording.");
   });
 });
+
+test("1.21 a project opened with system switches leaves each switched-off role, check and note out of its lists, selections and searches, a record's own title or id beating its group and a group beating all, while reading one by id still finds it and the plan stays whole (ADR-1092 D2)", async () => {
+  const [factory, product] = [uniqueProjectName(), uniqueProjectName()];
+  await withStorytree([databaseOf(factory), databaseOf(product)], async (storytree) => {
+    const made = await storytree.openProject(factory);
+    await made.lineage.markFactory();
+    const principle = (title: string, statement: string) => ({ title, description: `${title}.`, statement, why: "It helps.", howToApply: "Do it." });
+    const small = await made.knowledge.writeKnowledge("principle", principle("Keep it small", "The factory's wording."));
+    await made.knowledge.writeKnowledge("principle", principle("Test first", "The factory's wording."));
+    const check = await made.knowledge.writeKnowledge("check", { title: "Proxy assertion", description: "Proxies pass.", question: "Is any assertion a proxy?", enforces: [small.id] });
+    const role = await made.knowledge.writeKnowledge("agent", {
+      title: "builder", description: "Builds.", oneLine: "Builds.", role: "Build.", outcome: "Built.", context: [small.id], tools: "All", workflow: "Build it.",
+    });
+    await made.close();
+
+    const before = await storytree.openProject(product);
+    await before.lineage.recordFactory(factory);
+    const own = await before.knowledge.writeKnowledge("principle", principle("Test first", "The product's own wording."));
+    const plain = await before.knowledge.writeKnowledge("principle", principle("Name things plainly", "The product's own wording."));
+    const story = await before.work.addStory({ title: "Play the game" });
+    await before.close();
+
+    const opened = (off: readonly string[], on: readonly string[] = []) => storytree.openProject(product, { system: { off, on } });
+    const titles = async (project: Project, kind: "principle" | "agent" | "check") => (await project.records.list(kind)).map((each) => each.fields.title).sort();
+
+    const bare = await opened(["all"]);
+    for (const kind of ["principle", "agent", "check"] as const) assert.deepEqual(await titles(bare, kind), [], kind);
+    assert.deepEqual(await bare.records.select("principle", ["statement"]), []);
+    assert.deepEqual(await bare.knowledge.search("wording"), []);
+    assert.equal((await bare.records.get(role.id))?.id, role.id, "a record switched off is still read by its id, as a link to it is followed");
+    assert.deepEqual((await bare.records.list("story")).map((each) => each.id), [story.id], "the plan is never switched off");
+    await bare.close();
+
+    const some = await opened(["all"], ["notes", "builder"]);
+    assert.deepEqual(await titles(some, "agent"), ["builder"], "a record's own title switched on beats all off");
+    assert.deepEqual(await titles(some, "check"), []);
+    assert.deepEqual(await titles(some, "principle"), ["Keep it small", "Name things plainly", "Test first"], "a group switched on beats all off");
+    await some.close();
+
+    const one = await opened(["notes", check.id], ["Test first"]);
+    const shown = await one.records.list("principle");
+    assert.deepEqual(shown.map((each) => [each.id, each.fields.statement]), [[own.id, "The product's own wording."]], "the product's own record is the one switched on, never the factory's it shadows");
+    assert.deepEqual(await titles(one, "check"), [], "a record switched off by its id");
+    assert.deepEqual(await titles(one, "agent"), ["builder"]);
+    await one.close();
+
+    const limited = await opened(["Keep it small"]);
+    const first = await limited.records.list("principle", { limit: 1 });
+    assert.deepEqual(first.map((each) => each.id), [[own.id, plain.id].sort()[0]], "a limit counts only what is shown");
+    assert.deepEqual((await limited.records.select("principle", ["statement"], { limit: 5 })).map((each) => each.id).sort(), [own.id, plain.id].sort());
+    assert.deepEqual(Object.keys((await limited.records.select("principle", ["statement"]))[0]!.fields), ["statement"], "a selection keeps only the fields asked for");
+    await limited.close();
+  });
+});

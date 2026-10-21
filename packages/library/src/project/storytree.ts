@@ -31,6 +31,7 @@ import { PgVectors, vectorServerIdentity, type VectorDomain } from "./embeddings
 import { cannotCreateDatabases, cannotSetUpProject, ConnectionError, isInsufficientPrivilege, sqlState } from "./connection-error.js";
 import { assertProjectName, PROJECT_DATABASE_PREFIX, ProjectGoneError, projectDatabase } from "./names.js";
 import { InheritedRecords, ProjectLineage } from "./factory.js";
+import { SwitchedRecords, type SystemSwitches } from "./switches.js";
 import { pendingMemories, upgradeMemories } from "./memory-upgrade.js";
 import { PROJECT_SCHEMA } from "./schema.js";
 import { readSnapshot, writeSnapshot, type ProjectSnapshot } from "./snapshot.js";
@@ -99,6 +100,12 @@ export interface OpenOptions {
    * refused as gone, since the one the caller knew was deleted (ADR-0831).
    */
   readonly identity?: string;
+  /**
+   * The system switches an agent's door reads from this computer's settings (ADR-1092 D2): each role, check and note
+   * they switch off is left out of what the project lists, selects and searches, a product's factory's included. By
+   * default, none is.
+   */
+  readonly system?: SystemSwitches;
 }
 
 /** How a caller's own database is set up (contract 7.7, ADR-0973). */
@@ -277,7 +284,7 @@ class ServerConnection implements Storytree {
       throw error;
     });
     const domain = { server: vectorServerIdentity(pool, this.#cloudInstance), database, identity };
-    const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder, factory);
+    const project = new ProjectLibrary(name, identity, pool, () => this.#projects.delete(project), this.#vectorCache, domain, this.#embedder, factory, options.system);
     this.#projects.add(project);
     return project;
   }
@@ -507,13 +514,17 @@ class ProjectLibrary implements Project {
 
   readonly #factory: Project | undefined;
 
-  /** Given `factory`, the product project reads its system from that factory's records, and closes it with its own. */
-  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, domain: VectorDomain, embedder?: EmbedderSource, factory?: Project) {
+  /**
+   * Given `factory`, the product project reads its system from that factory's records, and closes it with its own; given
+   * `system`, it leaves out what those switches switch off, from its own and its factory's together (1.21).
+   */
+  constructor(name: string, identity: string, pool: Pool, forget: () => void, vectorCache: string | null, domain: VectorDomain, embedder?: EmbedderSource, factory?: Project, system?: SystemSwitches) {
     this.name = name;
     this.identity = identity;
     this.pool = pool;
     this.transactions = new PgTransactions(pool);
-    this.records = factory === undefined ? new SchemaRecords(this.transactions) : new InheritedRecords(this.transactions, factory.records);
+    const records = factory === undefined ? new SchemaRecords(this.transactions) : new InheritedRecords(this.transactions, factory.records);
+    this.records = system === undefined ? records : new SwitchedRecords(this.transactions, records, system);
     this.#factory = factory;
     this.work = new WorkModel(this.records);
     this.flight = new WorkInFlight(this.records, this.work);

@@ -9,7 +9,7 @@ import { Window as HappyWindow } from "happy-dom";
 import { readIco, readPng } from "@storytree/mark";
 
 import { buildWebsite } from "./build.js";
-import { fixes, harness } from "./tour-copy.js";
+import { harness } from "./tour-copy.js";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -177,7 +177,7 @@ test("5.3 · the built storage manifest permits public insertion and explicitly 
   } } });
 });
 
-test("1.13 · below the map the built home shows the three claims in order, claim 1 carrying the first short served by the site", async (t) => {
+test("1.13 · below the map the built home shows the three promises in order, each a single line, claim 1 carrying the first short served by the site", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-claims-"));
   t.after(() => rm(output, { recursive: true, force: true }));
   await buildWebsite(output);
@@ -185,8 +185,9 @@ test("1.13 · below the map the built home shows the three claims in order, clai
   const page = new HappyWindow().document;
   page.write(html);
   const claims = [...page.querySelectorAll("section.claim")];
-  assert.deepEqual(claims.map(claim => ({ pain: claim.querySelector(".claim-pain")?.textContent, fix: claim.querySelector(".claim-fix")?.textContent })),
-    fixes.pairs, "one section per claim, in order, each reading its pain then its fix, and no other");
+  assert.deepEqual(claims.map(claim => claim.querySelector("h3")?.textContent),
+    ["Watch your software grow on a map.", "One map for you and your agents.", "Memory that lives where your code lives."], "one section per promise, in the owner's order, and no other");
+  assert.ok(claims.every(claim => [...claim.querySelectorAll("p, h3")].length === 1), "each claim is its single line, with no pain line beside it");
   assert.ok(page.querySelector("#map-frame")!.compareDocumentPosition(claims[0]!) & 4, "the claims sit below the map");
   const videos = claims.map(claim => claim.querySelector("video"));
   assert.ok(videos[0] && videos.slice(1).every(video => !video), "only claim 1 carries a short");

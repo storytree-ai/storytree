@@ -3,18 +3,13 @@
  * (ADR-1091 D1 (3), (4)): the claims and the harness come from these when their increments place them.
  */
 
-/** A pain overcome, with its fix: the owner's words, final (ADR-0889 2.4). */
-export type Fix = { pain: string; fix: string };
 /** Another company's published mark, shown unaltered beside its name as a plain "works with" reference. */
 export type Mark = { name: string; src: string };
 
 export const fixes = {
   title: "What storytree fixes",
-  pairs: [
-    { pain: "No idea what your agents built", fix: "See your whole project as a map" },
-    { pain: "Agents colliding in a void of code", fix: "Agents see each other working on the map" },
-    { pain: "Agents forgetting why it was built that way", fix: "Every decision remembered, anchored to the map" },
-  ] satisfies Fix[],
+  // The owner's three promises, each a single line, the hook: the short beside it carries the without and with (ADR-1104 D1).
+  promises: ["Watch your software grow on a map.", "One map for you and your agents.", "Memory that lives where your code lives."],
   why: "Storytree answers to four principles. Signals must be real: everything you see comes from the real code and the real work, and says where it came from. Show what matters now and hide the rest: nothing asks for your attention unless it needs it. Your attention goes where you send it: you choose what to look into, and how deep to go. Nothing is out of reach: whatever storytree hides, you can always bring back.",
 };
 

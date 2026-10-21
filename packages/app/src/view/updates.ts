@@ -56,7 +56,7 @@ export function updateText(state: UpdateState, choice?: InstallChoice): readonly
     case "checking": return ["Checking for updates…", "Looking for the latest build."];
     case "up-to-date": return ["Up to date", `Running ${state.runningBuild}.`];
     case "building": return ["Building update…", `${state.nextBuild ?? "The new build"} will restart the app when ready.`];
-    case "pending": return ["Update ready to install", `storytree ${state.nextBuild ?? "update"} is downloaded. ${state.reason ?? waitingFor(choice)} Restart now to install it: the app is back in a minute or two.`];
+    case "pending": return ["Update ready to install", `storytree ${state.nextBuild ?? "update"} is ready. ${state.reason ?? waitingFor(choice)} Restart now to install it: the app is back in a minute or two.`];
     case "ready": return ["Update ready", `${state.nextBuild ?? "The new build"} will restart after the library finishes writing.`];
     case "restarting": return ["Restarting…", `Opening ${state.nextBuild ?? "the new build"}.`];
     case "failed": return ["Couldn’t update", `${state.reason ?? "The check failed."} The running app is unchanged. Try again.`];
@@ -64,11 +64,11 @@ export function updateText(state: UpdateState, choice?: InstallChoice): readonly
   }
 }
 
-/** When a downloaded release waiting to install will install itself, by the user's choice (4.13). */
+/** When a downloaded release or a built main commit waiting to install will install itself, by the user's choice (4.13). */
 function waitingFor(choice: InstallChoice | undefined): string {
-  if (choice?.mode === "manual") return "You chose to install updates only when you say.";
+  if (choice?.mode === "manual") return "It installs when you click Restart to update.";
   if (choice?.mode === "hours") return `It installs during your quiet hours, ${choice.from} to ${choice.to}, once no one is using storytree.`;
-  return "It installs once no one has used the window, and no agent has worked, for ten minutes.";
+  return "It installs at the next quiet moment, once no one has used the window, and no agent has worked, for ten minutes.";
 }
 
 /** Whether the app opens at sign-in, in the tray (lifecycle 1.12), and whether it can here. */

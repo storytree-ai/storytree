@@ -33,3 +33,27 @@ export function whenToInstall(moment: InstallMoment): "now" | "wait" {
   if (recent(moment.launchedAt, SETTLE_MS) || recent(moment.windowActiveAt, QUIET_MS) || recent(moment.agentActiveAt, QUIET_MS)) return "wait";
   return "now";
 }
+
+export interface QuietMomentOptions {
+  readonly launchedAt: number;
+  readonly now?: () => Date;
+  /** The user's install choice (4.13), read at each check so a change in Settings applies at once. */
+  readonly choice: () => InstallChoice;
+  /** When someone last used the window; undefined while no window is showing. */
+  readonly windowActiveAt: () => number | undefined;
+  readonly agentActiveAt: () => Promise<number | undefined>;
+}
+
+/** Whether now is a moment to restart into an update unasked: one check, shared by releases and merged-main builds. */
+export function quietMoment(options: QuietMomentOptions): () => Promise<boolean> {
+  return async () => {
+    const clock = options.now?.() ?? new Date();
+    const windowActiveAt = options.windowActiveAt(), agentActiveAt = await options.agentActiveAt();
+    return whenToInstall({
+      now: clock.getTime(), launchedAt: options.launchedAt, choice: options.choice(),
+      minuteOfDay: clock.getHours() * 60 + clock.getMinutes(),
+      ...(windowActiveAt === undefined ? {} : { windowActiveAt }),
+      ...(agentActiveAt === undefined ? {} : { agentActiveAt }),
+    }) === "now";
+  };
+}

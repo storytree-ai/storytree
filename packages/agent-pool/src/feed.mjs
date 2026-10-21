@@ -164,8 +164,11 @@ export function pickPlan(survey, { planned = new Map(), now = Date.now(), freshM
  * this machine's short name (`here`, undefined while it has none), the standing claims,
  * and the refusals under every open increment on an active arc, whoever holds the capability now, each under the increment its refused session held (`refusals`, given those increments).
  */
-/** A record's time as an ISO string: the library gives it as one, a Date is turned into one, and a missing time stays undefined. */
-const iso = (at) => (at === undefined ? undefined : new Date(at).toISOString());
+/** A record's time as an ISO string: the library gives it as one, a Date is turned into one, and a missing or unreadable time is undefined. */
+const iso = (at) => {
+  const time = at == null ? NaN : new Date(at).getTime();
+  return Number.isNaN(time) ? undefined : new Date(time).toISOString();
+};
 
 export async function readSurvey({ library, claims, refusals = async () => [], here = async () => undefined }) {
   const [views, holds, held, name] = await Promise.all([library.arcViews(), library.holds(), claims(), here()]);

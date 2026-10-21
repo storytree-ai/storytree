@@ -222,8 +222,10 @@ test("2.26 · an arc made in the last half hour is left to the session that made
   const work = await readSurvey({ library: library("2026-10-07T02:45:00.000Z"), claims: async () => [] });
   assert.equal(pickPlan(work, { now }), undefined, "fifteen minutes old, its time read as the library stores it: its author may still be parking its work");
   assert.equal(pickPlan(work, { now: now + 15 * 60_000 })?.id, "arc_new", "thirty minutes old: planning takes it");
-  const unknown = await readSurvey({ library: library(undefined), claims: async () => [] });
-  assert.equal(pickPlan(unknown, { now: now + 15 * 60_000 }), undefined, "an arc whose making time cannot be read is not taken for an old one");
+  for (const createdAt of [undefined, null, "not a time"]) {
+    const unknown = await readSurvey({ library: library(createdAt), claims: async () => [] });
+    assert.equal(pickPlan(unknown, { now: now + 15 * 60_000 }), undefined, `an arc whose making time cannot be read (${createdAt}) is not taken for an old one`);
+  }
 });
 
 test("2.11 · work whose session ended without a hand-off is offered again after a back-off, and not before", () => {

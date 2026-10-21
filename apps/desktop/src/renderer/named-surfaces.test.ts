@@ -64,6 +64,8 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     frontCovers: async (_, id) => seed.covers[id] ?? [],
   };
   const ready = (page: Page) => page.waitForFunction(() => document.body.dataset.state === "ready", undefined, { timeout: 180_000 });
+  // The runner images carry Chrome, not the Chromium Playwright downloads for itself.
+  process.env.CAPTURE_CHANNEL ??= "chrome";
 
   await withCapture({ folder: dist, dist }, async ({ browser, origin, settle }) => {
     const page = await opened(browser, origin!, seeded, ready);

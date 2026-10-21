@@ -5,7 +5,12 @@
  *
  * STORYTREE_EMBEDDER=off switches it off (the test runner does, so no test or CI run downloads the
  * model), and a search then ranks by words and says why.
+ *
+ * Node's fetch ignores HTTPS_PROXY, so behind a proxy (a cloud container's agent proxy is its only way
+ * out) the download goes through the one the environment names, and a load that fails there names the
+ * hosts that proxy must allow (14.13, friction_84c6d7d08f35).
  */
+import http from "node:http";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -13,6 +18,9 @@ import type { Embedder, EmbedderSource } from "./embedding.js";
 
 /** The ONNX export of BAAI/bge-small-en-v1.5 that transformers.js reads. */
 export const BGE_SMALL = "Xenova/bge-small-en-v1.5";
+
+/** The hosts the model downloads from: the Hub, and the file store its downloads are sent on to. */
+export const MODEL_HOSTS = ["huggingface.co", "*.cdn.hf.co"] as const;
 
 /** Where models are kept: STORYTREE_MODELS, else `<storytree home>/models`. */
 export function modelsFolder(env: NodeJS.ProcessEnv = process.env): string {
@@ -27,12 +35,33 @@ export function defaultEmbedder(env: NodeJS.ProcessEnv = process.env): EmbedderS
   let loading: Promise<Embedder> | undefined;
   return () => {
     if (env.STORYTREE_EMBEDDER === "off") return Promise.reject(new Error("the embedding model is switched off (STORYTREE_EMBEDDER=off)"));
-    loading ??= loadBgeSmall(modelsFolder(env)).catch((error: unknown) => {
+    loading ??= throughProxy(env, () => loadBgeSmall(modelsFolder(env))).catch((error: unknown) => {
       loading = undefined;
-      throw new Error(`the embedding model could not load: ${error instanceof Error ? error.message : String(error)}`);
+      const behind = proxyIn(env) === undefined ? "" : `; behind this environment's proxy it downloads from ${MODEL_HOSTS.join(" and ")}, so add those to what the proxy allows (a cloud environment's Allowed domains)`;
+      throw new Error(`the embedding model could not load: ${error instanceof Error ? error.message : String(error)}${behind}`);
     });
     return loading;
   };
+}
+
+function proxyIn(env: NodeJS.ProcessEnv): string | undefined {
+  return env.HTTPS_PROXY || env.https_proxy || env.HTTP_PROXY || env.http_proxy || undefined;
+}
+
+/**
+ * Runs `work` with this process's fetch going through the proxy `env` names (NO_PROXY honoured), and
+ * puts fetch back as it was when the work ends; with no proxy named, it only runs the work.
+ */
+export async function throughProxy<T>(env: NodeJS.ProcessEnv, work: () => Promise<T>): Promise<T> {
+  // Node 24's own proxy switch, which @types/node does not declare yet; a runtime without it fetches directly.
+  const { setGlobalProxyFromEnv } = http as typeof http & { setGlobalProxyFromEnv?: (proxyEnv: NodeJS.ProcessEnv) => () => void };
+  if (proxyIn(env) === undefined || setGlobalProxyFromEnv === undefined) return work();
+  const restore = setGlobalProxyFromEnv(env);
+  try {
+    return await work();
+  } finally {
+    restore();
+  }
 }
 
 async function loadBgeSmall(cacheDir: string): Promise<Embedder> {

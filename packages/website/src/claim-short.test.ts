@@ -3,11 +3,11 @@ import { test } from "node:test";
 import { Window as HappyWindow } from "happy-dom";
 import { wireClaimShort } from "./claim-short.js";
 
-/** Claim 1's video in a page whose visibility the test drives, its media standing in for a browser's. */
+/** A claim's video in a page whose visibility the test drives, its media standing in for a browser's. */
 function short({ reducedMotion = false } = {}) {
   const dom = new HappyWindow();
   const view = dom as unknown as Window & typeof globalThis;
-  let seen: ((entries: { isIntersecting: boolean }[]) => void) | undefined;
+  let seen: ((entries: { isIntersecting: boolean; intersectionRatio: number }[]) => void) | undefined;
   Object.assign(view, {
     matchMedia: (query: string) => ({ matches: reducedMotion && query === "(prefers-reduced-motion: reduce)" }),
     IntersectionObserver: class { constructor(callback: typeof seen) { seen = callback; } observe() {} disconnect() {} },
@@ -19,10 +19,12 @@ function short({ reducedMotion = false } = {}) {
   video.play = async () => { paused = false; };
   video.pause = () => { paused = true; };
   wireClaimShort(video, view);
-  return { video, scroll: (isIntersecting: boolean) => seen?.([{ isIntersecting }]), click: () => { paused = false; video.dispatchEvent(new view.Event("play")); } };
+  // How much of it is in view: all of it, none, or a sliver, still intersecting but under half.
+  const scroll = (shown: boolean | number) => seen?.([{ isIntersecting: shown !== false && shown !== 0, intersectionRatio: shown === true ? 1 : Number(shown) }]);
+  return { video, scroll, click: () => { paused = false; video.dispatchEvent(new view.Event("play")); } };
 }
 
-test("1.13 · the first short plays as it scrolls into view and pauses as it leaves", () => {
+test("1.13 · a claim's short plays as it scrolls into view and pauses as it leaves", () => {
   const { video, scroll } = short();
   assert.equal(video.paused, true, "nothing plays before it is seen");
   scroll(true);
@@ -31,9 +33,11 @@ test("1.13 · the first short plays as it scrolls into view and pauses as it lea
   assert.equal(video.paused, true);
   scroll(true);
   assert.equal(video.paused, false, "and plays again on the way back");
+  scroll(0.3);
+  assert.equal(video.paused, true, "and pauses once most of it has left, so the next claim's short never plays beside it");
 });
 
-test("1.13 · with reduced motion the first short stays on its poster until the visitor plays it", () => {
+test("1.13 · with reduced motion a claim's short stays on its poster until the visitor plays it", () => {
   const { video, scroll, click } = short({ reducedMotion: true });
   scroll(true);
   assert.equal(video.paused, true, "scrolling to it never starts it");

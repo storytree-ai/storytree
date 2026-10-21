@@ -21,7 +21,7 @@ import { connect, type Line } from "@storytree/library";
 import { AFTER_TOOL, BACKGROUND, noteCodexHookRan, registeredHookScripts, SHELL_GUARD } from "@storytree/session-management";
 import { locateStorytree, MARKER_FILE } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
-import { dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { dropTestProjects, placeTestServer, testServerRecordedUrl, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 
 import { buildBins } from "../bins/build.js";
 import { makeRepository, setUpProject } from "../project/making.js";
@@ -297,8 +297,8 @@ test("8.3 with storytree closed, a session start opens it", async () => {
     assert.equal(locateStorytree({ dataDir }).running, false, "closed to begin with");
     try {
       const report = await runSetupCheck({ ...ANSWERED, folder: dir, homes: {}, storytreeHome, openWaitMs: 20_000 });
-      assert.deepEqual(report.storytree, { state: "opened", library: { url: testServerUrl() } });
-      assert.deepEqual(locateStorytree({ dataDir }), { running: true, url: testServerUrl() });
+      assert.deepEqual(report.storytree, { state: "opened", library: { url: testServerRecordedUrl() } });
+      assert.deepEqual(locateStorytree({ dataDir }), { running: true, url: testServerRecordedUrl() });
     } finally {
       const record = `${dataDir}.owner.json`;
       const { pid } = existsSync(record) ? (readJson(record) as { pid?: number }) : {};

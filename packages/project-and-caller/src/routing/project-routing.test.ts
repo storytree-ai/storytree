@@ -21,7 +21,7 @@ import pg from "pg";
 
 import { setLibrary } from "../settings/settings.js";
 import { git, withTempDir } from "../testing/folders.js";
-import { dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerUrl, uniqueProjectName } from "../testing/pg.js";
+import { dropTestProjects, markedProject, placeTestServer, testServerDataDir, testServerRecordedUrl, testServerUrl, uniqueProjectName } from "../testing/pg.js";
 import { approveTrunk, forgetTrunk, importsOf, machineOf, recordImport, registerTrunk, trunkedProjects } from "./trunks.js";
 import { findProject, locateStorytree, MARKER_FILE, NOT_A_PROJECT, NOT_RUNNING, requireApproval, route, type ProjectLookup } from "./index.js";
 
@@ -124,8 +124,8 @@ test("1.4 with the app's database stopped, asking where to send activity answers
     // Running: the test server's own owner record says where it listens.
     const running = { dataDir: testServerDataDir() };
     const discovered = locateStorytree(running);
-    assert.deepEqual(discovered, { running: true, url: testServerUrl() });
-    assert.deepEqual(route(path.join(folder, "src"), running), { status: "routed", project: "site", folder, library: { url: testServerUrl() } });
+    assert.deepEqual(discovered, { running: true, url: testServerRecordedUrl() });
+    assert.deepEqual(route(path.join(folder, "src"), running), { status: "routed", project: "site", folder, library: { url: testServerRecordedUrl() } });
     assert.ok(discovered.running);
     const client = new pg.Client({ connectionString: discovered.url, connectionTimeoutMillis: 3000 });
     try {

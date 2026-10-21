@@ -10,16 +10,20 @@
  * Run from a checkout's source, with no hook script beside it, it registers a build of that
  * checkout's commit when the commit is origin/main's (contract 8.15), so a machine without the
  * desktop app's updater still runs main's hooks.
+ *
+ * Its friction_drain runs the doors learner after the drain, as `storytree friction drain` does (ADR-1045 D7): through the
+ * command line built beside it (`storytree.mjs`), or from a checkout's source, that checkout's.
  */
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { createJourneyRuntime, journeyVersion } from "@storytree/app-setup/journey-events/runtime";
 
 import { builtFromMain, runSetupCheck, type HookCommand } from "@storytree/app-setup/setup";
-import { createAgentTools } from "../tools/index.js";
+import { commandStep, createAgentTools } from "../tools/index.js";
 import { shutdownOnce } from "./shutdown.js";
 
 const folder = process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -32,7 +36,11 @@ const hook: HookCommand | undefined = existsSync(script)
 const command = { path: process.env.PATH ?? process.env.Path ?? "", home: homedir() };
 declare const STORYTREE_RELEASE: string | undefined;
 const journey = createJourneyRuntime({ appVersion: journeyVersion(typeof STORYTREE_RELEASE === "string" ? STORYTREE_RELEASE : undefined) });
-const tools = createAgentTools({ folder, env: process.env, setup: hook === undefined ? {} : { hook, command }, journey });
+const cli = fileURLToPath(new URL("./storytree.mjs", import.meta.url));
+const drain = commandStep(existsSync(cli)
+  ? [process.execPath, cli]
+  : [process.execPath, "--import", import.meta.resolve("tsx"), path.join(checkout, "packages", "cli", "src", "bins", "storytree.ts")], process.env);
+const tools = createAgentTools({ folder, env: process.env, setup: hook === undefined ? {} : { hook, command }, journey, drain });
 journey.start();
 
 const stop = shutdownOnce({ input: process.stdin, work: () => [tools.close(), journey.finish()] });

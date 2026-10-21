@@ -58,6 +58,7 @@ import { failureOf, isUnreachable, libraryDown, NOT_RUNNING_ANSWER, outcomeOf, r
 import { registerClaimTools } from "./claim-tools.js";
 import { Connections } from "./connections.js";
 import { mountTools, verbsOf } from "./mount.js";
+import { drainedBy, type DrainStep } from "./drain-step.js";
 import { registerPlanTools } from "./plan-tools.js";
 import { registerSetupTools, type SetupToolOptions } from "./setup-tools.js";
 import { registerWorkTools } from "./work-tools.js";
@@ -91,6 +92,8 @@ export interface AgentToolOptions {
   readonly extensions?: readonly ToolExtension[];
   /** Optional observations owned by the journey story; no tool content is passed. */
   readonly journey?: JourneyMilestones;
+  /** What friction_drain runs after the drain: the doors learner, which only the command line can run (ADR-1045 D7). By default, nothing. */
+  readonly drain?: DrainStep;
 }
 
 /** The completed operations the journey story may observe. */
@@ -381,7 +384,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   mountTools(define, NOTE_TOOLS);
   // Every verb a mounted part's command families declare a tool for (Friction's, Session management's), from their
   // manifests: a part switched off takes its tools with it (ADR-1095).
-  mountTools(define, mount(VERB_PARTS, off).mounted.flatMap(verbsOf), verbHome);
+  const verbs = mount(VERB_PARTS, off).mounted.flatMap(verbsOf);
+  mountTools(define, options.drain === undefined ? verbs : drainedBy(verbs, options.drain), verbHome);
   for (const extension of extensions) extension.registerTools?.(define);
   for (const extension of extensions) extension.registerOwnerTools?.(defineForOwner);
   for (const extension of extensions) extension.registerHarnessTools?.(defineForHarness);

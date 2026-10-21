@@ -67,6 +67,17 @@
 .setup-add-project-status { margin: .5rem 0 0; color: var(--muted, #a9b0ba); overflow-wrap: anywhere; }
 .setup-add-project-status:empty { display: none; }
 /* Remove project sits beside Add project but is quiet: an outline button, and a cautionary line only while confirming. */
+.setup-project-sentence { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.setup-project-sentence-form { display: grid; gap: .6rem; max-width: 34rem; }
+.setup-project-sentence-form[hidden] { display: none; }
+.setup-project-sentence-title { margin: 0; font-weight: 600; }
+.setup-project-sentence-field { display: grid; gap: .3rem; }
+.setup-project-sentence-field input::placeholder { color: var(--muted, #a9b0ba); font-style: italic; }
+.setup-project-sentence-actions { display: flex; gap: .5rem; }
+.setup-help .setup-project-sentence-actions button:disabled { opacity: .5; cursor: default; }
+.setup-project-sentence-status { margin: .5rem 0 0; color: var(--muted, #a9b0ba); overflow-wrap: anywhere; }
+.setup-project-sentence-status:empty { display: none; }
+.setup-project-sentence-status[role="alert"] { color: var(--fail-text, #e0a09a); }
 .setup-remove-project { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .setup-help .setup-remove-project-ask { color: var(--muted, #a9b0ba); }
 .setup-help .setup-remove-project-ask:hover:not(:disabled) { color: var(--text); }

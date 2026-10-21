@@ -25,6 +25,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   installChoice?: InstallChoiceBridge;
   /** The app setup's Add project control; it reports the project added, which is then shown. */
   mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void };
+  /** The app setup's project sentence for the project on show: what it is and who it is for, edited in place (ADR-1085 D1 as narrowed). */
+  mountProjectSentence?(host: HTMLElement, current: () => string | undefined): { stop(): void; refresh(): void };
   /** The app setup's Remove project control: offers the project on show; once removed, the frame refreshes the list. */
   mountRemoveProject?(host: HTMLElement, current: () => string | undefined, onRemoved: (project: string) => Promise<void>): { stop(): void; refresh(): void };
   /** The app setup's Delete a project control: offers every project but the one on show; once deleted, the frame refreshes the list. */
@@ -78,6 +80,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     await options.onChosen();
   });
   let shown: string | undefined;
+  const projectSentence = options.mountProjectSentence?.(menu.querySelector<HTMLElement>("[data-app-project-sentence]")!, () => shown);
   const removeProject = options.mountRemoveProject?.(menu.querySelector<HTMLElement>("[data-app-remove-project]")!, () => shown, async () => { await options.onChosen(); });
   const deleteProject = options.mountDeleteProject?.(menu.querySelector<HTMLElement>("[data-app-delete-project]")!, async () => { await options.onChosen(); });
   const installChoice = mountInstallChoice(menu, options.installChoice, undefined, () => updates.refresh());
@@ -137,6 +140,7 @@ export function mountAppMenu(host: HTMLElement, options: {
   return {
     update({ projects, current, factory: place }: ProjectSelection): void {
       shown = current !== undefined && projects.includes(current) ? current : undefined;
+      projectSentence?.refresh();
       removeProject?.refresh();
       deleteProject?.refresh();
       // The bar's switch to the factory and back shows the project it names, as the Projects list does.
@@ -178,7 +182,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     },
     stop(): void {
       stopped = true;
-      updates.stop(); journey?.stop(); installChoice.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); removeProject?.stop(); deleteProject?.stop();
+      updates.stop(); journey?.stop(); installChoice.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); projectSentence?.stop(); removeProject?.stop(); deleteProject?.stop();
       options.background.inert = wasInert;
       document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);

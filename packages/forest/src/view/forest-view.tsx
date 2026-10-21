@@ -75,11 +75,6 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
           onPick={pick} onNote={pickNote} onControls={onControls} mode={layers.mode} framing={globeFraming(opening)} aside={drawn.aside} library={layers.library} liveRoads
           />
       </div>
-      {/* The project's sentence above the plan it governs, and what the plan has not said (ADR-1085 D1). */}
-      {drawn.scene.anchor !== undefined && <div className="forest-anchor" role="note" aria-label="The project's anchor">
-        {drawn.scene.anchor.sentence !== undefined && <p className="forest-anchor-sentence">{drawn.scene.anchor.sentence}</p>}
-        {drawn.scene.anchor.unsaid.map(line => <p key={line} className="forest-anchor-unsaid">{line}</p>)}
-      </div>}
       <div className="forest-views" role="group" aria-label="Sheet faces">
         {layers.offered.map(which => <button key={which} type="button"
           data-globe-switch={which} aria-pressed={layers.pressed[which]} title={layers.offered.length > 1 ? LOOK_TITLE[which] : TILT_TITLE} onClick={() => turn(which)}>

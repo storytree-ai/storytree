@@ -66,34 +66,6 @@
   background: #101418;
 }
 
-/* ADR-1085 D1: the project's sentence, centred above the plan, with what the plan has not said beneath it, quieter. */
-.forest-anchor {
-  position: absolute;
-  z-index: 40;
-  top: 0.75rem;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: min(46rem, calc(100% - 22rem));
-  text-align: center;
-  pointer-events: none;
-}
-
-.forest-anchor p {
-  margin: 0;
-  text-shadow: 0 1px 3px #000;
-}
-
-.forest-anchor-sentence {
-  color: #eadcae;
-  font-size: 1.05rem;
-}
-
-.forest-anchor-unsaid {
-  margin-top: 0.2rem !important;
-  color: #9aa3ab;
-  font-size: 0.75rem;
-}
-
 .forest-views button {
   border: 0;
   border-radius: 5px;

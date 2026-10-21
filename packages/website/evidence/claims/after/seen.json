@@ -5,14 +5,26 @@
       "One map for you and your agents.",
       "Memory that lives where your code lives."
     ],
-    "inView": {
-      "paused": false,
-      "time": 11
-    },
-    "leftView": {
-      "paused": true,
-      "time": 11.2
-    }
+    "inView": [
+      {
+        "paused": false,
+        "time": 11
+      },
+      {
+        "paused": false,
+        "time": 23
+      }
+    ],
+    "leftView": [
+      {
+        "paused": true,
+        "time": 11.2
+      },
+      {
+        "paused": true,
+        "time": 23.2
+      }
+    ]
   },
   "phone": {
     "claims": [
@@ -20,17 +32,35 @@
       "One map for you and your agents.",
       "Memory that lives where your code lives."
     ],
-    "inView": {
-      "paused": false,
-      "time": 11
-    },
-    "leftView": {
-      "paused": true,
-      "time": 11.3
-    }
+    "inView": [
+      {
+        "paused": false,
+        "time": 11
+      },
+      {
+        "paused": false,
+        "time": 23
+      }
+    ],
+    "leftView": [
+      {
+        "paused": true,
+        "time": 11.1
+      },
+      {
+        "paused": true,
+        "time": 23.1
+      }
+    ]
   },
-  "reducedMotion": {
-    "paused": true,
-    "time": 0
-  }
+  "reducedMotion": [
+    {
+      "paused": true,
+      "time": 0
+    },
+    {
+      "paused": true,
+      "time": 0
+    }
+  ]
 }

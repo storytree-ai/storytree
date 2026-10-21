@@ -1,5 +1,5 @@
 /* The claims below the framed map (ADR-1091 D1 (3), D4): plain sections the visitor scrolls through, each a single-line promise
-   in the owner's words (ADR-1104 D1); claim 1 carries the first short (claims.ts). */
+   in the owner's words (ADR-1104 D1); each carries its short once it is made (claims.ts). */
 #claims { --soft:#c3cbc1; --dim:#8d9893; padding:40px 24px 96px; background:#101418; }
 #claims > * { width:min(1240px, 100%); margin-inline:auto; }
 #claims h2 { margin-top:0; margin-bottom:0; color:var(--dim); font:600 13px/1.5 system-ui, sans-serif; letter-spacing:.08em; text-transform:uppercase; }

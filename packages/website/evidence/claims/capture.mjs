@@ -1,8 +1,8 @@
 // Build first (pnpm --filter @storytree/website build), then: node packages/website/evidence/claims/capture.mjs [--retake]
 // The claims below the framed map (ADR-1091 D1 (3)), in the machine's Chrome (Playwright's own Chromium cannot decode H.264):
-// three sections in order; claim 1's short plays as it scrolls into view and pauses as it leaves; with reduced motion it
-// stays on its poster until played. Pictures: where the map hands over, each claim on a laptop and a phone, and the short playing in place. Without
-// --retake the pictures go to a scratch folder.
+// three sections in order; claims 1 and 2 each carry a short that plays as it scrolls into view and pauses as it leaves; with
+// reduced motion each stays on its poster until played. Pictures: where the map hands over, each claim on a laptop and a phone,
+// and each short playing in place. Without --retake the pictures go to a scratch folder.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -40,7 +40,9 @@ const shoot = async (page, claim, file) => {
   const box = await claim.boundingBox(), width = page.viewportSize().width, top = await page.evaluate(() => scrollY);
   await page.screenshot({ path: path.join(output, file), clip: { x: 0, y: box.y + top, width, height: box.height }, fullPage: true });
 };
-const video = page => page.locator(".claim-short video").evaluate(node => ({ paused: node.paused, time: Math.round(node.currentTime * 10) / 10 }));
+const video = (page, i = 0) => page.locator(".claim-short video").nth(i).evaluate(node => ({ paused: node.paused, time: Math.round(node.currentTime * 10) / 10 }));
+/** Each short, by its claim, and how far in to let it play before its picture: claim 2's to its map with both claims on it. */
+const SHORTS = [{ claim: 0, until: 11 }, { claim: 1, until: 23 }];
 
 async function open(options) {
   const page = await browser.newPage(options);
@@ -56,35 +58,42 @@ try {
     const claims = page.locator("section.claim");
     assert.equal(await claims.count(), 3, "three claims, no fourth");
     seen[device] = { claims: await claims.locator(".claim-fix").allTextContents() };
-    assert.deepEqual(await video(page), { paused: true, time: 0 }, "the short waits, unseen, below the map");
+    assert.equal(await page.locator(".claim-short video").count(), SHORTS.length, "claims 1 and 2 carry a short, claim 3 none yet");
+    for (const short of SHORTS.keys()) assert.deepEqual(await video(page, short), { paused: true, time: 0 }, "each short waits, unseen, below the map");
     // Where the map hands over to the claims.
     await page.evaluate(() => scrollTo(0, document.querySelector("#claims").getBoundingClientRect().top + scrollY - innerHeight * 0.45));
     await page.waitForTimeout(400);
     await page.screenshot({ path: path.join(output, `${device}-below-map.png`) });
-    await page.locator(".claim-short video").scrollIntoViewIfNeeded();
-    await page.waitForFunction(() => document.querySelector(".claim-short video").currentTime > 11, null, { timeout: 30_000 });
-    seen[device].inView = await video(page);
-    assert.equal(seen[device].inView.paused, false, "in view, it plays");
-    await shoot(page, claims.nth(0), `${device}-claim-1.png`);
-    if (device === "desktop") await page.screenshot({ path: path.join(output, "short-playing.png") });
-    for (const i of [1, 2]) {
-      await claims.nth(i).scrollIntoViewIfNeeded();
-      await shoot(page, claims.nth(i), `${device}-claim-${i + 1}.png`);
+    seen[device].inView = [];
+    for (const [short, { claim, until }] of SHORTS.entries()) {
+      // Its claim at the top of the screen, so the claim above it has scrolled away, as a visitor reads down the page.
+      await claims.nth(claim).evaluate(node => node.scrollIntoView({ block: "start" }));
+      await page.waitForFunction(([i, at]) => document.querySelectorAll(".claim-short video")[i].currentTime > at, [short, until], { timeout: 45_000 });
+      seen[device].inView.push(await video(page, short));
+      assert.equal(seen[device].inView[short].paused, false, `in view, claim ${claim + 1}'s short plays`);
+      if (short > 0) assert.equal((await video(page, 0)).paused, true, `${device}: and the one above it, out of view, has paused`);
+      await shoot(page, claims.nth(claim), `${device}-claim-${claim + 1}.png`);
+      if (device === "desktop") await page.screenshot({ path: path.join(output, short ? `short-${short + 1}-playing.png` : "short-playing.png") });
     }
+    await claims.nth(2).scrollIntoViewIfNeeded();
+    await shoot(page, claims.nth(2), `${device}-claim-3.png`);
     await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
     await page.evaluate(() => scrollTo(0, 0));
     await page.waitForTimeout(500);
-    seen[device].leftView = await video(page);
-    assert.equal(seen[device].leftView.paused, true, "out of view, it pauses");
+    seen[device].leftView = await Promise.all(SHORTS.map((_, short) => video(page, short)));
+    assert.ok(seen[device].leftView.every(each => each.paused), "out of view, each pauses");
     await page.close();
   }
 
   const still = await open({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
-  await still.locator(".claim-short video").scrollIntoViewIfNeeded();
-  await still.waitForTimeout(1500);
-  seen.reducedMotion = await video(still);
-  assert.deepEqual(seen.reducedMotion, { paused: true, time: 0 }, "with reduced motion it stays on its poster");
-  await still.locator(".claim-short video").screenshot({ path: path.join(output, "reduced-motion-poster.png") });
+  seen.reducedMotion = [];
+  for (const short of SHORTS.keys()) {
+    await still.locator(".claim-short video").nth(short).scrollIntoViewIfNeeded();
+    await still.waitForTimeout(1500);
+    seen.reducedMotion.push(await video(still, short));
+    assert.deepEqual(seen.reducedMotion[short], { paused: true, time: 0 }, "with reduced motion each stays on its poster");
+    await still.locator(".claim-short video").nth(short).screenshot({ path: path.join(output, short ? `reduced-motion-poster-${short + 1}.png` : "reduced-motion-poster.png") });
+  }
   await still.close();
   await writeFile(path.join(output, "seen.json"), `${JSON.stringify(seen, null, 2)}\n`);
   console.log(`claims: every check passed; pictures in ${output}`);

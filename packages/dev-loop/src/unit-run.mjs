@@ -97,7 +97,11 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
   };
   const started = Date.now();
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--import", tsx, "--test", ...guard, ...args, ...files], {
+    // Options before any file: node hands whatever follows the first file to the tests as their own
+    // argv, so `pnpm run test <file> --test-name-pattern=<p>` would run every test (friction_d5da3da1aac6).
+    const options = args.filter((arg) => arg.startsWith("-"));
+    const named = args.filter((arg) => !arg.startsWith("-"));
+    const child = spawn(process.execPath, ["--import", tsx, "--test", ...guard, ...options, ...named, ...files], {
       cwd: root,
       env: { ...own, STORYTREE_TEST_RUNNING: runningFile, TMPDIR: temp, TMP: temp, TEMP: temp },
       stdio,

@@ -2,7 +2,7 @@
 import type { SetupHelpBridge } from "../help/bridge.js";
 
 /** Add project, in the app menu's Projects section: the native folder picker, then the new project on show. */
-export function mountAddProject(host: HTMLElement, bridge: Pick<SetupHelpBridge, "addProject">, options: { onAdded(project: string): Promise<void> }): { stop(): void } {
+export function mountAddProject(host: HTMLElement, bridge: Pick<SetupHelpBridge, "addProject">, options: { onAdded(project: string): Promise<void> }): { stop(): void; add(): void } {
   const root = document.createElement("div");
   root.className = "setup-help setup-add-project";
   root.innerHTML = `<button type="button" data-add-project>Add project…</button><p class="setup-add-project-status" data-add-project-status role="status"></p>`;
@@ -10,7 +10,9 @@ export function mountAddProject(host: HTMLElement, bridge: Pick<SetupHelpBridge,
   const button = root.querySelector<HTMLButtonElement>("[data-add-project]")!;
   const status = root.querySelector<HTMLElement>("[data-add-project-status]")!;
   const say = (text: string, failed = false) => { status.textContent = text; status.setAttribute("role", failed ? "alert" : "status"); };
-  button.addEventListener("click", () => {
+  /** The picker, then the project added on show; the app bar's "New project…" starts it too. */
+  function add(): void {
+    if (button.disabled) return;
     button.disabled = true;
     say("Choose a folder…");
     void bridge.addProject().then(async (added) => {
@@ -20,6 +22,7 @@ export function mountAddProject(host: HTMLElement, bridge: Pick<SetupHelpBridge,
     }).catch((error: unknown) => {
       say(`The folder could not be added: ${error instanceof Error ? error.message : String(error)}`, true);
     }).finally(() => { button.disabled = false; });
-  });
-  return { stop: () => root.remove() };
+  }
+  button.addEventListener("click", add);
+  return { stop: () => root.remove(), add };
 }

@@ -6,7 +6,7 @@ import type { FactoryPlace } from "../projects/selection.js";
 const PAGE_MARK: MarkRoles = { ocean: "var(--mark-ocean)", land: "var(--mark-land)", tree: "var(--mark-tree)", leaf: "var(--mark-leaf)" };
 
 export function renderAppMenu(): string {
-  return `<header class="app-bar"><div class="app-factory" data-app-factory></div><button type="button" class="app-gear" aria-label="App menu" popovertarget="app-menu" aria-controls="app-menu" aria-expanded="false" title="App menu">
+  return `<header class="app-bar"><div class="app-factory" data-app-factory><div data-app-switcher></div><p class="app-project-error" data-app-project-error role="alert" hidden></p></div><button type="button" class="app-gear" aria-label="App menu" popovertarget="app-menu" aria-controls="app-menu" aria-expanded="false" title="App menu">
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="m9.5 3-.6 2.3-1.7 1L5 5.7 2.5 10l1.7 1.7v2L2.5 15.4 5 19.7l2.2-.6 1.7 1 .6 2.3h5l.6-2.3 1.7-1 2.2.6 2.5-4.3-1.7-1.7v-2l1.7-1.7L19 5.7l-2.2.6-1.7-1L14.5 3z" transform="translate(0 -1)"/>
       <circle cx="12" cy="12" r="3.2"/>
@@ -20,7 +20,7 @@ export function renderAppMenu(): string {
           <button type="button" class="app-menu-close" data-app-close aria-label="Close app menu">Close <span aria-hidden="true">×</span></button>
         </nav>
         <div class="app-menu-content">
-          <section id="app-projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Choose the project to show in the forest, or add a folder as a new one.</p><div data-app-switcher></div><p class="app-project-error" data-app-project-error role="alert" hidden></p><div data-app-add-project></div><div data-app-project-sentence></div><div data-app-remove-project></div><div data-app-delete-project></div></section>
+          <section id="app-projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Add, describe or remove projects. The project on show is chosen in the bar above.</p><div data-app-add-project></div><div data-app-project-sentence></div><div data-app-remove-project></div><div data-app-delete-project></div></section>
           <section id="app-sessions" aria-label="Sessions" hidden><div data-app-settings="sessions"></div><div data-app-decision-rights></div></section>
           <section id="app-sharing" aria-label="Sharing" hidden><div data-app-journey></div></section>
           <section id="app-library" aria-label="Library" hidden><div data-app-settings="library"></div></section>
@@ -40,37 +40,29 @@ export function renderNoProjects(): string {
     markSvg(PAGE_MARK).trim().replace("<svg ", `<svg class="app-mark" aria-hidden="true" `),
     `<h1>No projects yet</h1>`,
     `<p>This app shows the projects in storytree 0.3's local library, and it has none yet.</p>`,
-    `<p>Add a folder as a project from the gear menu: Projects → Add project…, or run <code>storytree doctor --set-up &lt;name&gt;</code> in the folder.</p>`,
+    `<p>Add a folder as a project with New project… in the project list at the top left, or run <code>storytree doctor --set-up &lt;name&gt;</code> in the folder.</p>`,
     `<p>Your project will appear here automatically.</p>`,
     `</div>`,
   ].join("\n");
 }
 
-/** Every project, with the one on show selected. Values and visible names are both escaped. */
-export function renderSwitcher(projects: readonly string[], current: string | undefined): string {
+/**
+ * The app bar's project dropdown (in place of ADR-1048 D2's factory switch, owner-directed 2026-10-21): every project, the one
+ * on show selected, the user's factory marked as theirs so it stays one choice away, and a last "New project…" that adds one.
+ * Values and visible names are both escaped.
+ */
+export function renderProjectPicker(projects: readonly string[], current: string | undefined, factory: string | undefined): string {
   const options = projects
-    .map((name) => `<option value="${escape(name)}"${name === current ? " selected" : ""}>${escape(name)}</option>`)
+    .map((name) => `<option value="${escape(name)}"${name === current ? " selected" : ""}${name === factory ? " data-app-factory-option" : ""}>${escape(name)}${name === factory ? " · your factory" : ""}</option>`)
     .join("");
-  return `<label class="app-project">Project <select id="project">${options}</select></label>`;
+  return `<div class="app-project"><select id="project" aria-label="Project">${options}<option value="" data-app-new-project>New project…</option></select></div>`;
 }
 
-/**
- * The app bar's switch between the product on show and its factory (ADR-1048 D3): to the factory from a product, back to
- * the product from the factory, or, with no factory yet, a plain line saying so. A factory that builds itself, with no
- * other product building with it, is the factory on show with nowhere to switch to (ADR-1086 D3).
- */
-export function renderFactorySwitch(place: FactoryPlace | undefined): string {
-  if (place === undefined) return "";
-  if (place.place === "none") return `<span class="app-factory-none">No factory yet</span>`;
-  if (place.place === "product") {
-    return `<button type="button" class="app-factory-switch" data-app-factory-switch="${escape(place.factory)}" title="Switch to your factory: the roles, notes and checks your products build with">Your factory</button>`;
-  }
-  if (place.product === undefined && place.itself === true) {
-    return `<span class="app-factory-here" title="Your factory, building itself: the roles, notes and checks it builds with are its own">Your factory</span>`;
-  }
-  return `<span class="app-factory-here">Your factory</span>`
-    + (place.product === undefined ? `<span class="app-factory-none">No product builds with it yet</span>`
-      : `<button type="button" class="app-factory-switch" data-app-factory-switch="${escape(place.product)}">Back to ${escape(place.product)}</button>`);
+/** The factory among the projects, from where the project on show sits (ADR-1040): its own factory, or itself. */
+export function factoryOf(place: FactoryPlace | undefined, current: string | undefined): string | undefined {
+  if (place?.place === "product") return place.factory;
+  if (place?.place === "factory") return current;
+  return undefined;
 }
 
 function escape(text: string): string {

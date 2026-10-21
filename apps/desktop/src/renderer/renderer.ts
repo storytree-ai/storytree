@@ -118,7 +118,7 @@ async function show({ current: name, projects, factory }: ProjectSelection): Pro
   delete document.body.dataset.drew;
   delete document.body.dataset.selected;
   if (!projects.includes(name)) {
-    return showMessage("missing", `There is no project called “${name}”`, "Pick a project from the gear menu in the top-right corner.");
+    return showMessage("missing", `There is no project called “${name}”`, "Pick a project from the project list in the top-left corner.");
   }
   document.title = `${name} · storytree 0.3`;
   await showForest(name);
@@ -322,7 +322,7 @@ function stopShowing(): void {
 
 /**
  * Where a teaching card's target is on the page: a story or capability at its island, a decision at its
- * note on the globe, a plan or a question at the arcs drawer, the factory beside the app bar's switch; undefined when it
+ * note on the globe, a plan or a question at the arcs drawer, the factory beside the app bar's project dropdown; undefined when it
  * is not on show.
  */
 function locate(target: Target): { x: number; y: number; visible: boolean } | undefined {

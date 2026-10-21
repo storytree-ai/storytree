@@ -70,9 +70,8 @@ try {
   await page.waitForFunction(() => document.body.dataset.state === 'ready', undefined, { timeout: 120000 });
   assert.equal(await menu.isVisible(), false, 'the menu closes on the new project');
   assert.deepEqual(JSON.parse(readFileSync(path.join(picked, '.storytree.json'), 'utf8')), { project: 'my-second-site' });
-  await gear.click();
   const options = await page.locator('#project option').allTextContents();
-  assert.deepEqual(options, ['first-site', 'my-second-site'], 'both projects are selectable');
+  assert.deepEqual(options, ['first-site', 'my-second-site', 'New project…'], 'both projects are selectable');
   assert.equal(await page.locator('#project').inputValue(), 'my-second-site');
   await menu.screenshot({ path: path.join(output, 'projects-after-add.png') });
   // A folder already a project is simply selected.

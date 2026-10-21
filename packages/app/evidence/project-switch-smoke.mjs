@@ -115,7 +115,7 @@ try {
   await setup('a-new-site');
   await setup('z-new-site');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'z-new-site');
-  assert.equal(await page.locator('#project option').count(), 4);
+  assert.equal(await page.locator('#project option').count(), 5);
   await page.screenshot({ path: path.join(out, 'last-setup-choice.png') });
   await chooseProject('my-site');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site');

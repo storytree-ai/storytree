@@ -142,7 +142,7 @@ try {
     await project.close();
     await page.waitForFunction(name => document.body.dataset.project === name && document.body.dataset.state === 'ready', name);
   }
-  assert.equal(await page.locator('#project option').count(), 2);
+  assert.equal(await page.locator('#project option').count(), 3);
   for (const name of ['first-project', 'second-project']) {
     await page.selectOption('#project', name);
     await page.waitForFunction(name => document.body.dataset.project === name && document.body.dataset.state === 'ready', name);

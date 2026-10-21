@@ -2,7 +2,7 @@
 import { mountDecisionRights, mountSettings, type SettingsBridge } from "@storytree/project-and-caller/view";
 import type { ProjectSelection } from "../projects/selection.js";
 import type { SurfacesBridge } from "../surfaces/bridge.js";
-import { renderAppMenu, renderFactorySwitch, renderSwitcher } from "./render.js";
+import { factoryOf, renderAppMenu, renderProjectPicker } from "./render.js";
 import { appMenuStyles } from "./styles.js";
 import { mountSurfaces } from "./surfaces.js";
 import { switchProject } from "./switch.js";
@@ -23,8 +23,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   signIn?: SignInBridge;
   /** When a downloaded release may install itself, where the app installs releases (updates 4.13). */
   installChoice?: InstallChoiceBridge;
-  /** The app setup's Add project control; it reports the project added, which is then shown. */
-  mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void };
+  /** The app setup's Add project control; it reports the project added, which is then shown. `add` starts it from the bar's "New project…". */
+  mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void; add(): void };
   /** The app setup's project sentence for the project on show: what it is and who it is for, edited in place (ADR-1085 D1 as narrowed). */
   mountProjectSentence?(host: HTMLElement, current: () => string | undefined): { stop(): void; refresh(): void };
   /** The app setup's Remove project control: offers the project on show; once removed, the frame refreshes the list. */
@@ -43,10 +43,9 @@ export function mountAppMenu(host: HTMLElement, options: {
   host.innerHTML = renderAppMenu();
   const gear = host.querySelector<HTMLButtonElement>(".app-gear")!;
   const menu = host.querySelector<HTMLElement>("#app-menu")!;
-  const switcher = menu.querySelector<HTMLElement>("[data-app-switcher]")!;
-  const factory = host.querySelector<HTMLElement>("[data-app-factory]")!;
-  let factoryDrawn = "";
-  const projectError = menu.querySelector<HTMLElement>("[data-app-project-error]")!;
+  const switcher = host.querySelector<HTMLElement>("[data-app-switcher]")!;
+  const projectError = host.querySelector<HTMLElement>("[data-app-project-error]")!;
+  let switcherDrawn = "";
   const desktop = host.ownerDocument.defaultView as (Window & { storytree: SettingsBridge & SurfacesBridge & { standingDelegations(name: string): Promise<string | undefined> } }) | null;
   const bridge: SettingsBridge = {
     readSettings: () => desktop!.storytree.readSettings(),
@@ -143,35 +142,32 @@ export function mountAppMenu(host: HTMLElement, options: {
       projectSentence?.refresh();
       removeProject?.refresh();
       deleteProject?.refresh();
-      // The bar's switch to the factory and back shows the project it names, as the Projects list does.
-      const drawn = renderFactorySwitch(place);
-      if (factoryDrawn !== drawn) {
-        factoryDrawn = drawn;
-        factory.innerHTML = drawn;
-        const toggle = factory.querySelector<HTMLButtonElement>("[data-app-factory-switch]");
-        toggle?.addEventListener("click", () => {
-          void switchProject(toggle.dataset.appFactorySwitch!, {
-            choose: options.chooseProject,
-            chosen: () => options.onChosen(),
-            failed: (_message, error) => options.onError(error),
-            busy: (on) => { toggle.disabled = on; },
-          });
-        });
-      }
-      switcher.innerHTML = projects.length === 0 ? '<p class="app-no-projects">No projects yet</p>' : renderSwitcher(projects, current);
-      const select = switcher.querySelector<HTMLSelectElement>("select");
-      if (select === null) return;
-      if (!projects.includes(current ?? "")) select.selectedIndex = -1;
+      // The bar's project dropdown: every project, the factory marked, and "New project…" opening Projects to add one.
+      // Drawn again only when it changes, so a poll does not close a picker the user has open.
+      const drawn = renderProjectPicker(projects, shown, factoryOf(place, shown));
+      if (switcherDrawn === drawn) return;
+      switcherDrawn = drawn;
+      switcher.innerHTML = drawn;
+      const select = switcher.querySelector<HTMLSelectElement>("select")!;
+      const reset = () => { if (shown === undefined) select.selectedIndex = -1; else select.value = shown; };
+      reset();
       select.addEventListener("change", () => {
         projectError.hidden = true;
+        if (select.options[select.selectedIndex]?.hasAttribute("data-app-new-project")) {
+          reset();
+          selectSection("projects");
+          if (!menu.matches(":popover-open")) menu.showPopover();
+          addProject?.add();
+          return;
+        }
         void switchProject(select.value, {
           choose: options.chooseProject,
           chosen: async () => {
             close();
-            gear.focus();
             await options.onChosen();
           },
           failed: (message, error) => {
+            reset();
             projectError.textContent = message;
             projectError.hidden = false;
             options.onError(error);

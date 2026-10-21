@@ -78,7 +78,7 @@ test("3.2 the mounted guide checks a folder and copies its recovery request when
   } finally { mounted.stop(); }
 });
 
-test("3.4 Add project asks the picker bridge, shows the chosen project and leaves selection alone on cancellation", async () => {
+test("3.4 Add project asks the picker bridge, shows the chosen project and leaves selection alone on cancellation; the app bar's New project… starts it too", async () => {
   const selected: string[] = [];
   let picks = 0;
   const mounted = mountAddProject(document.body, {
@@ -99,6 +99,11 @@ test("3.4 Add project asks the picker bridge, shows the chosen project and leave
     assert.deepEqual(selected, ["second"]);
     assert.equal(document.querySelector("[data-add-project-status]")!.textContent, "");
     assert.equal(button.disabled, false);
+    mounted.add();
+    assert.equal(button.disabled, true, "started from outside, it holds the button as a click does");
+    mounted.add();
+    await setImmediate();
+    assert.equal(picks, 3, "one picker at a time");
   } finally { mounted.stop(); }
 });
 

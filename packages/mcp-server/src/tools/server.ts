@@ -55,7 +55,7 @@ import VERB_PARTS from "#parts/verbs";
 
 import { habitsCard } from "../instructions/habits.js";
 import { failureOf, isUnreachable, libraryDown, NOT_RUNNING_ANSWER, outcomeOf, refusalOf, result, type Answer, type DoorOutcome } from "./answers.js";
-import { registerClaimTools } from "./claim-tools.js";
+import { landingOf } from "./claim-tools.js";
 import { Connections } from "./connections.js";
 import { mountTools, verbsOf } from "./mount.js";
 import { drainedBy, type DrainStep } from "./drain-step.js";
@@ -196,8 +196,19 @@ export interface ToolExtension {
 }
 
 /**
+ * What a landing is checked against, of the parts the server mounts (Guardrails' allocation rule, the map's survey, the
+ * next steps the extensions suggest), so Session management's land tool runs them without standing on those parts.
+ */
+export interface Landing {
+  unplaced(capability: string, call: Call): Promise<readonly string[]>;
+  untested(capability: string, call: Call): Promise<readonly string[]>;
+  next(capability: string, call: Call): Promise<readonly string[]>;
+}
+
+/**
  * What a story's tool part is given: the project the server serves (none outside a project), the tools it serves, the
- * storytree home its readings use and where its run ledger is kept, when not the usual ones, and how merges are watched.
+ * storytree home its readings use and where its run ledger is kept, when not the usual ones, how merges are watched, and
+ * what a landing is checked against.
  */
 export interface ToolHost {
   readonly project: string | undefined;
@@ -205,6 +216,8 @@ export interface ToolHost {
   readonly home?: string;
   readonly ledger?: string;
   readonly merges?: MergeWatch;
+  /** What a landing is checked against; the server always gives it, and a part given none lands unchecked. */
+  readonly landing?: Landing;
   /** How wire_pipeline reads whether a repository's plan allows branch protection, when not through `gh`. */
   readonly protection?: ProtectionReader;
   /** The folders this machine imports for a project, which the core keeps: the map reads mapped stories there (ADR-0993 D2). */
@@ -227,6 +240,8 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     project: findProject(options.folder).project, tools: () => servedTools,
     imports: (storytree, project) => importsOf(storytree, project, machineOf(storytreeHome()).id),
     heldBack,
+    // Read when a capability lands, after every part has mounted: the next steps come from all of them.
+    landing: landingOf(() => extensions),
     ...(verbHome === undefined ? {} : { home: verbHome, ledger: path.join(path.dirname(options.dataDir!), "own") }),
     ...(options.merges === undefined ? {} : { merges: options.merges }),
     ...(options.protection === undefined ? {} : { protection: options.protection }),
@@ -378,7 +393,6 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     ...(options.journey === undefined ? {} : { journey: options.journey }),
   });
   registerPlanTools(define);
-  registerClaimTools(define, extensions);
   registerWorkTools(define);
   // The library's artifact tools, declared in The library (ADR-1035 D3), which is core.
   mountTools(define, NOTE_TOOLS);

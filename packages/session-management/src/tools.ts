@@ -3,8 +3,11 @@
  * MCP server, named in its manifest (ADR-1021), so switching the part off takes them with it (ADR-1095). Claim or release
  * a capability or an increment (claiming an increment starts it, ADR-0643 D1; a claim on waiting work is refused, naming
  * what it waits for), make or attach a workspace already claimed (ADR-0653), list the stale claims (ADR-0953 D4), read the
- * calling session's context (9), and list, stop and clear its own runs (14). The extension's shape is restated rather than
- * imported, as the hook event tool's is: no story may depend on the MCP server, which checks the two still fit (its 6.75).
+ * calling session's context (9), list, stop and clear its own runs (14), report a contract red or green, land a capability,
+ * and mark a question as being put to the owner (5). The extension's shape is restated rather than imported, as the hook
+ * event tool's is: no story may depend on the MCP server, which checks the two still fit (its 6.75). Landing's checks
+ * read other parts (Guardrails' allocation rule, the map's survey, the next steps other parts suggest), so the server
+ * hands them in as `landing`: Session management stands on none of those parts, and switching one off leaves it (ADR-1095).
  */
 import type { Library, WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
@@ -13,8 +16,9 @@ import { lineOf, type Caller } from "@storytree/project-and-caller/caller";
 import { z } from "zod";
 
 import type { ActivityLog } from "./activity/index.js";
-import { claim, claimAll, CLAIM_REASON_LIMIT, increments, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims/claims.js";
+import { claim, claimAll, CLAIM_REASON_LIMIT, increments, land, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims/claims.js";
 import { currentBranch, type MergeWatch } from "./claims/merges.js";
+import { presentQuestion, stopPresenting } from "./claims/presenting.js";
 import { staleClaims } from "./claims/stale-claims.js";
 import { attachWorkspace, makeWorkspace, type WorkspaceRefusal } from "./claims/workspace.js";
 import { readContext } from "./context/context.js";
@@ -70,11 +74,26 @@ export interface ToolExtension {
   readonly registerOwnerTools?: (define: DefineForOwner) => void;
 }
 
-/** What the part is given: the storytree home context readings use, where the run ledger is kept, and how merges are watched. */
+/**
+ * What a landing is checked against, of other parts the server mounts: the source files of the capability's story package
+ * no numbered test reaches (a landing is held until each is placed, ADR-0911 D4), its planned contracts no numbered test
+ * proves, and the next steps other parts suggest once it has landed.
+ */
+export interface Landing {
+  unplaced(capability: string, call: ToolCall): Promise<readonly string[]>;
+  untested(capability: string, call: ToolCall): Promise<readonly string[]>;
+  next(capability: string, call: ToolCall): Promise<readonly string[]>;
+}
+
+/**
+ * What the part is given: the storytree home context readings use, where the run ledger is kept, how merges are watched,
+ * and what a landing is checked against (none: it lands unchecked).
+ */
 export interface ToolHost {
   readonly home?: string;
   readonly ledger?: string;
   readonly merges?: MergeWatch;
+  readonly landing?: Landing;
 }
 
 /** Session management's served tools, named in its manifest (ADR-1021): served in every folder, as the hooks are. */
@@ -92,11 +111,12 @@ const ONE_CLAIM = "Name a capability, several capabilities or an increment to cl
 const AGENT = { consumers: ["agent"] } as const;
 const NO_OWNER = "This needs a resolved session identity and calling agent; use list_all_runs (or storytree processes --all) for read-only attribution.";
 
-/** The claim and workspace tools (5), the context reading (9) and the runs tools (14). */
+/** The claim, workspace, report, land and presenting tools (5), the context reading (9) and the runs tools (14). */
 export function sessionTools(host: ToolHost = {}): ToolExtension {
   return {
     registerTools(define) {
       registerClaimTools(define, host.merges ?? {});
+      registerLandingTools(define, host.landing);
       registerContextTool(define, host.home);
     },
     registerOwnerTools(define) {
@@ -273,6 +293,84 @@ function registerRunsTools(define: DefineForOwner, home: string | undefined): vo
       return { text: `${JSON.stringify(clear, null, 2)}\n${renderClosing(closing)}`, data: { clear, closing },
         refused: clear.failed.length > 0 || clear.gaps.length > 0 };
     });
+}
+
+function registerLandingTools(define: Define, landing: Landing | undefined): void {
+  define(
+    "report",
+    "Report a contract's test red (written, and failing) or green (passing). Storytree keeps what you report apart from what it verifies itself.",
+    z.object({
+      contract: z.string().min(1).describe("The id of the contract, as the plan shows it"),
+      result: z.enum(["red", "green"]).describe("red: the test is written and fails; green: it passes"),
+      note: z.string().min(1).optional().describe("Anything worth saying with it"),
+    }),
+    async ({ contract, result, note }, call) => {
+      await call.library.reportHealth(contract, result === "red" ? "failing" : "passing", {
+        ...call.writer,
+        by: `${call.caller.harness ?? "agent"} ${call.caller.session}`,
+        ...(note === undefined ? {} : { note }),
+      });
+      return result === "red"
+        ? { text: `Reported ${contract} red. Now make it pass and report it green.`, data: { reported: "failing" } }
+        : { text: `Reported ${contract} green.`, data: { reported: "passing" } };
+    },
+  );
+
+  define(
+    "land",
+    "Report a capability landed: its work is finished. Your claim on it ends.",
+    z.object({ capability: capabilityId }),
+    async ({ capability }, call) => {
+      const unplaced = (await landing?.unplaced(capability, call)) ?? [];
+      if (unplaced.length > 0) {
+        return {
+          text: [`${await titleOf(call.library, capability)} is not landed: its story's package has ${unplaced.length === 1 ? "a source file" : `${unplaced.length} source files`} no numbered test reaches (ADR-0911 D4). Place each, then land again; your claim stays.`, ...unplaced.map((problem) => `- ${problem}`)].join("\n"),
+          refused: true,
+          data: { landed: false, unplaced },
+        };
+      }
+      // Naming the gap is an aid: a checkout the survey cannot read names none, and never stops the landing.
+      const untested = (await landing?.untested(capability, call).catch(() => [])) ?? [];
+      const answer = await land(claimContext(call), capability);
+      if (answer.ok) {
+        const next = (await landing?.next(capability, call)) ?? [];
+        const gaps = untested.length === 0 ? [] : [
+          `No numbered test in its story's package proves ${untested.length === 1 ? "this planned contract" : `these ${untested.length} planned contracts`}: write each one's test ("N.M · …"), or retire the contract if it is no longer wanted.`,
+          ...untested.map((title) => `- ${title}`),
+        ];
+        return {
+          text: [`Landed ${await titleOf(call.library, capability)}. Your claim on it has ended.`, ...gaps, ...next.map((line) => `Next: ${line}`)].join("\n"),
+          data: { landed: true, ...(untested.length === 0 ? {} : { untested }), ...(next.length === 0 ? {} : { next }) },
+        };
+      }
+      return answer.refused === "held"
+        ? { text: `${await titleOf(call.library, capability)} is held by ${holderOf(answer.holder)}; only its holder lands it.`, refused: true }
+        : { text: `There is no capability ${capability} in this project's plan.`, refused: true };
+    },
+  );
+
+  define(
+    "present_question",
+    "Mark an open question as being put to the owner by this session, before you ask him, so no other session asks him the same at once; another live session's mark refuses it, naming that session: skip it then. done: true when you move on without his answer. Settling it clears the mark.",
+    z.object({ question: z.string().min(1).describe("The id of the question, as the plan shows it"), done: z.boolean().optional().describe("true to stop putting it to the owner") }),
+    async ({ question, done }, call) => {
+      const caller = claimContext(call);
+      if (done === true) {
+        const stopped = await stopPresenting(caller, question);
+        return { text: stopped ? `${question} is no longer being put to the owner by this session.` : `This session was not putting ${question} to the owner.`, data: { id: question, presenting: false } };
+      }
+      const answer = await presentQuestion(caller, question);
+      if (answer.ok) return { text: `${question} is being put to the owner by this session. Settling it with his answer clears that.`, data: { id: question, presenting: true, since: answer.since } };
+      switch (answer.refused) {
+        case "presenting":
+          return { text: `${question} is being put to the owner by ${answer.presenter.label} session ${answer.presenter.session} since ${answer.presenter.since}: skip it, and do not ask him again.`, refused: true };
+        case "settled":
+          return { text: `${question} is settled: its answer stands.`, refused: true };
+        case "unknown-question":
+          return { text: `There is no question ${question} in this project.`, refused: true };
+      }
+    },
+  );
 }
 
 /** What the claims need of a call: the calling session, and the branch its folder is on. */

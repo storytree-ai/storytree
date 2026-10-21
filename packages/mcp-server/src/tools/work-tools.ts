@@ -1,7 +1,7 @@
 /**
  * Capability 6 · Agent tools (the MCP server). The work tools (ADR-0643 D1, 6): park, ready, move and close increments, add to what one remedies, park and unpark arcs, set and
- * clear waits, raise, correct, settle and retire the owner's questions. Each is a thin wrapper over the library's own
- * functions, so no library rule is kept here twice. Recording friction and re-steers is Friction's declared verbs (ADR-1077 D1).
+ * clear waits, raise, correct, settle and retire the owner's questions; marking one as being put to the owner is Session
+ * management's present_question. Each is a thin wrapper over the library's own functions, so no library rule is kept here twice. Recording friction and re-steers is Friction's declared verbs (ADR-1077 D1).
  * Starting an increment is claiming it (Session management's claim tool), so a start is refused as a claim is. Asking the owner about work the
  * session holds, by a question held on it or a wait for the owner, releases its claims on it (releaseAsked, ADR-0944 D4).
  *
@@ -12,7 +12,7 @@
 import type { Library, Storytree } from "@storytree/library";
 import { z } from "zod";
 
-import { closed, currentBranch, increments, presentQuestion, releaseAsked, stopPresenting } from "@storytree/session-management";
+import { closed, currentBranch, increments, releaseAsked } from "@storytree/session-management";
 import { incrementMachine, MachineNameError } from "@storytree/session-management/machines";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
@@ -237,29 +237,6 @@ export function registerWorkTools(define: Define): void {
       const settled = await library.settleQuestion(question, defined({ answer, decision }), writer);
       if (settled === null) return { text: `There is no question ${question} in this project.`, refused: true };
       return { text: `Settled ${quoted(settled.fields.title)} (${question}). Work held on it goes on.`, data: { id: question } };
-    },
-  );
-
-  define(
-    "present_question",
-    "Mark an open question as being put to the owner by this session, before you ask him, so no other session asks him the same at once; another live session's mark refuses it, naming that session: skip it then. done: true when you move on without his answer. Settling it clears the mark.",
-    z.object({ question: id("question"), done: z.boolean().optional().describe("true to stop putting it to the owner") }),
-    async ({ question, done }, call) => {
-      const caller = { ...claimContext(call), writer: call.writer };
-      if (done === true) {
-        const stopped = await stopPresenting(caller, question);
-        return { text: stopped ? `${question} is no longer being put to the owner by this session.` : `This session was not putting ${question} to the owner.`, data: { id: question, presenting: false } };
-      }
-      const answer = await presentQuestion(caller, question);
-      if (answer.ok) return { text: `${question} is being put to the owner by this session. Settling it with his answer clears that.`, data: { id: question, presenting: true, since: answer.since } };
-      switch (answer.refused) {
-        case "presenting":
-          return { text: `${question} is being put to the owner by ${answer.presenter.label} session ${answer.presenter.session} since ${answer.presenter.since}: skip it, and do not ask him again.`, refused: true };
-        case "settled":
-          return { text: `${question} is settled: its answer stands.`, refused: true };
-        case "unknown-question":
-          return { text: `There is no question ${question} in this project.`, refused: true };
-      }
     },
   );
 

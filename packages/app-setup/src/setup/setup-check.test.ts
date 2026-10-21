@@ -1151,7 +1151,7 @@ test("8.32 with a Codex that runs tool handlers (0.148 or later), each event the
   });
 });
 
-test("8.33 Claude Code's registration leaves the tool server's hook_event call out of the storytree-tools hook, and its background hooks wait for the tool's note (--after-tool), so a session with the Claude Code mod spawns no recording hook for its own deliveries", async () => {
+test("8.33 Claude Code's registration leaves the mod's own tool calls (hook_event, heartbeat) out of the storytree-tools hook, and its background hooks wait for the tool's note (--after-tool), so a session with the Claude Code mod spawns no recording hook for its own deliveries", async () => {
   await withTempDir(async (dir) => {
     const home = throwawayHome(dir);
     await runSetupCheck({ ...ANSWERED, folder: dir, hook: HOOK, homes: home.homes, storytreeHome: home.storytreeHome });
@@ -1162,6 +1162,7 @@ test("8.33 Claude Code's registration leaves the tool server's hook_event call o
     const [tools] = ours("PreToolUse").filter(({ matcher }) => runs(matcher, "mcp__storytree__open"));
     assert.ok(tools, "a hook before a storytree tool");
     assert.ok(runs(tools.matcher, "mcp__storytree__claim") && !runs(tools.matcher, "mcp__storytree__hook_event"), "before every storytree tool but hook_event");
+    assert.ok(runs(tools.matcher, "mcp__storytree__check_setup") && !runs(tools.matcher, "mcp__storytree__heartbeat"), "nor before the mod's heartbeat");
     assert.ok(runs(tools.matcher, "mcp__storytree__hook_events"), "a tool whose name only starts like it is still one");
     // Every background hook that records a line stands down when the tool recorded its event; the foreground ones look for the note at once.
     const background = Object.keys(groups).flatMap((event) => ours(event).map((one) => ({ event, ...one }))).filter(({ hook }) => hook.async === true);

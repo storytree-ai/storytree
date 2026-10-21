@@ -24,7 +24,8 @@
     "./journey-events/deletion": "./src/journey-events/deletion.ts",
     "./journey-events/release": "./src/journey-events/release.ts",
     "./journey-events/verbs": "./src/journey-events/verbs.ts",
-    "./journey-events/feedback": "./src/journey-events/feedback.ts"
+    "./journey-events/feedback": "./src/journey-events/feedback.ts",
+    "./tools": "./src/tools.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",
@@ -38,7 +39,8 @@
     "@storytree/library": "workspace:*",
     "@storytree/map": "workspace:*",
     "@storytree/quality-assurance": "workspace:*",
-    "@storytree/project-and-caller": "workspace:*"
+    "@storytree/project-and-caller": "workspace:*",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",
@@ -51,6 +53,13 @@
     "@storytree/plugin-loader": "workspace:*"
   },
   "storytree": {
+    "tools": [
+      {
+        "from": "./tools",
+        "export": "setupToolParts",
+        "order": 6
+      }
+    ],
     "verbs": [
       {
         "from": "./verbs",

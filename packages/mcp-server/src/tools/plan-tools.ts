@@ -1,17 +1,12 @@
 /**
  * Capability 6 · Agent tools (the MCP server). The planning tools: plan an arc, a story, a capability or a contract, correct any of them, retire
- * a capability or a contract (ADR-0641 D2 step 3), import an existing project as mapped stories (ADR-0993, the app setup's act),
- * and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
+ * a capability or a contract (ADR-0641 D2 step 3), and see the plan with its health, who holds what and which sessions are about. A story or capability is planned with its founding decision, the
  * first book on its shelf, so none planned here starts with an empty shelf (ADR-0627 D5).
  */
-import path from "node:path";
-
-import { importLines, importProject, ImportRefusedError } from "@storytree/app-setup/project";
-import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, heldBack, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type DayWindow, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
+import { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE as LONG_CONTRACT, wordAndWhy, type AnnotatedTree, type DayWindow, type HealthState, type NodeHealth, type PlanChange } from "@storytree/library";
 import { z } from "zod";
 
 import { untestedContracts } from "@storytree/map/code-survey";
-import { healthWorklistAt } from "@storytree/map/read";
 import { readClaims } from "@storytree/session-management";
 import { readSessions } from "@storytree/session-management";
 import { testedNumbers } from "./claim-tools.js";
@@ -169,33 +164,6 @@ export function registerPlanTools(define: Define): void {
   );
 
   define(
-    "import_project",
-    "Import an existing JavaScript or TypeScript project into this storytree project, when the user asks: its folder is recorded as imported, and each package it declares becomes a mapped story, with no capabilities. Importing again adds new packages and drops gone ones, and says the commit recorded before and now, the files changed between them, and any explored capability whose files are gone, which it leaves for an agent to reshape. Nothing is written into the folder.",
-    z.object({ folder: z.string().min(1).describe("The folder of the project to import, absolute or relative to this project's folder") }),
-    async ({ folder }, { library, storytree, folder: here }) => {
-      const imported = await importProject({ folder: path.resolve(here, folder), library, storytree }).catch((error: unknown) => {
-        if (error instanceof ImportRefusedError) return error;
-        throw error;
-      });
-      if (imported instanceof ImportRefusedError) return { text: imported.message, refused: true };
-      const added = imported.added.map((story) => `${quoted(story.title)} (${story.id})`).join(", ");
-      return {
-        text: [`Imported ${imported.folder}: ${imported.added.length} mapped stories added${added === "" ? "" : `: ${added}`}; ${imported.retired.length} retired, their package gone; ${imported.kept.length} kept as they stand.`, ...importLines(imported)].join("\n"),
-        data: {
-          folder: imported.folder,
-          added: imported.added.map((story) => story.id),
-          retired: imported.retired,
-          kept: imported.kept,
-          ...(imported.commit === undefined ? {} : { commit: imported.commit }),
-          ...(imported.before === undefined ? {} : { before: imported.before }),
-          ...(imported.changes === undefined ? {} : { changes: imported.changes }),
-          stranded: imported.stranded,
-        },
-      };
-    },
-  );
-
-  define(
     "show_plan",
     "See the plan: every story, capability and contract with its health, who holds what, which sessions are about, and the live arcs with those closed yesterday or today. Give closed, or from and to, for only the arcs closed in that window instead.",
     z.object({
@@ -206,27 +174,6 @@ export function registerPlanTools(define: Define): void {
     async ({ closed, from, to }, call) => {
       const window = closedWindowOf(closed, from, to, Date.now());
       return typeof window === "string" ? { text: window, refused: true } : showPlan(call, window);
-    },
-  );
-
-  define(
-    "health_worklist",
-    "See the oldest three capabilities that are not healthy, each with its reason, who moves it and since when, and how many more wait. One an open increment lists among its capabilities is already routed and not offered (ADR-0825 D4), and neither is one a test run in progress, or a merge to main its own-health run has not recorded yet, will record: it is held back, and counted.",
-    z.object({}),
-    async (_args, { library, folder }) => {
-      const all = await healthWorklistAt(library, folder);
-      const said = heldBack(all);
-      const held = all.filter(({ waits }) => waits !== undefined).map(({ capability }) => capability);
-      const listed = all.filter(({ waits }) => waits === undefined);
-      if (listed.length === 0) return { text: ["Nothing waits on the health worklist: every capability is healthy or already routed.", ...(said === undefined ? [] : [said])].join("\n"), data: { items: [], more: 0, held } };
-      const items = listed.slice(0, 3);
-      const more = listed.length - items.length;
-      const lines = items.map(({ capability, title, status, why, since }) =>
-        `Capability ${quoted(title)} (${capability}): ${status} — ${why.reason}, the ${why.mover}'s to move${why.contracts.length === 0 ? "" : `, carried by ${why.contracts.join(", ")}`}; since ${since.slice(0, 10)}`,
-      );
-      if (more > 0) lines.push(`${more} more wait.`);
-      if (said !== undefined) lines.push(said);
-      return { text: lines.join("\n"), data: { items, more, held } };
     },
   );
 }

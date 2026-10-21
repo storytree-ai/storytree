@@ -65,6 +65,7 @@ test("7.12 with a part switched off, the card handed at session start leaves out
     assert.ok(!taught.includes("quality_brief") && !offered.includes("quality_brief"), "quality assurance's tools are neither served nor taught");
     assert.match(card, /Switched off on this computer, so not served here: app-setup, quality-assurance\. The user switches one on with: storytree settings set part <part> on/);
     for (const section of [...qualityGuidance, ...setupGuidance]) assert.ok(!card.includes(section), `its section is left out: ${section.slice(0, 60)}`);
+    for (const tool of ["check_setup", "set_up_project"]) assert.ok(taught.includes(tool) && offered.includes(tool), `${tool}, the server's own, is still served and taught with App setup off`);
   } finally {
     await session.close();
   }
@@ -121,7 +122,7 @@ test("7.9 the card handed at session start says how to build beside mapped code"
       "change it there, bring that part into this project, retire it, or leave it and build on top",
       "Do what the user says",
       "do not watch the old project for changes",
-      "call `import_project` again only when the user asks",
+      "import it again only when the user asks",
       "depending on the mapped package by a link:",
       "Old code never imports new code",
       "Test the interface your package has with the old code",

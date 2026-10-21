@@ -8,13 +8,15 @@
     "./code-survey/worker": "./src/code-survey/survey-worker.ts",
     "./package-of": "./src/code-survey/package-of.ts",
     "./read": "./src/read.ts",
+    "./tools": "./src/tools.ts",
     "./verbs": "./src/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@babel/parser": "^7.29.9"
+    "@babel/parser": "^7.29.9",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@storytree/library": "workspace:*",
@@ -24,6 +26,13 @@
     "typescript": "~7.0.2"
   },
   "storytree": {
+    "tools": [
+      {
+        "from": "./tools",
+        "export": "mapToolParts",
+        "order": 5
+      }
+    ],
     "guidance": [
       {
         "from": ".",

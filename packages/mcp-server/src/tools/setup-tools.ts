@@ -13,13 +13,13 @@ import { habitsCard } from "../instructions/habits.js";
 import { hookFailures, type HookFailure } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/project-and-caller";
 import { findProject, storytreeHome } from "@storytree/project-and-caller";
-import { IDENTITY_FIX, makeRepository, moveOntoFactory, notAProjectYet, setUpProject, STARTER_CHECKS, STARTER_ROLES, starterPackStatus, starterRolesIn, suggestProjectName, takeStarterPack, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
+import { IDENTITY_FIX, makeRepository, notAProjectYet, setUpProject, starterPackStatus, starterRolesIn, suggestProjectName, type RepositoryMade, type StarterPackStatus } from "@storytree/app-setup/project";
 import { checkFilesWritten, codexHooksState, FIX_SENTENCES, HOOK_TESTS, openStorytree, runSetupCheck, verifyHooks, type Fix, type SetupOptions } from "@storytree/app-setup/setup";
 import { isUnreachable, NOT_RUNNING_ANSWER, refusalOf, result } from "./answers.js";
 import type { Connections } from "./connections.js";
 import { callLines, labelOf } from "@storytree/session-management";
 import { lineOf, seenCaller, SESSION_ENV, tierOf, type Caller } from "@storytree/project-and-caller/caller";
-import { metaOf, type Define, type JourneyMilestones } from "./server.js";
+import { metaOf, type JourneyMilestones } from "./server.js";
 import { quoted } from "./text.js";
 
 /** What the setup tools work with: the setup check's options, and the name set_up_project finds or makes the user's factory under (by default, app-setup's). */
@@ -34,9 +34,11 @@ export interface SetupToolContext {
   readonly journey?: JourneyMilestones;
   /** The habits card this server hands as its instructions, without the parts switched off here (ADR-1095). */
   readonly card?: string;
+  /** The tools the server serves, as it is called: the check offers take_starter_pack only while App setup serves it (ADR-1099 D3). */
+  readonly served: () => readonly string[];
 }
 
-export function registerSetupTools({ server, folder, setup, connections, callerOf, journey, card = habitsCard() }: SetupToolContext): void {
+export function registerSetupTools({ server, folder, setup, connections, callerOf, journey, card = habitsCard(), served }: SetupToolContext): void {
   const withCard = (text: string): string => cardAfter(text, card);
   server.registerTool(
     "check_setup",
@@ -79,7 +81,7 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
         if (starterRoles.length > 0) said.push(rolesSentence(starterRoles));
         // A library an earlier pack seeded is offered the newer one, for the user to take (8.26); a product's is its factory's.
         const starterPack = await starterPackStatus(library, storytree);
-        if (starterPack.offered) said.push(newerPackSentence(starterPack));
+        if (starterPack.offered && served().includes("take_starter_pack")) said.push(newerPackSentence(starterPack));
         // The session as the hook before this call named it: after Claude Code's /clear, the new one.
         const caller = seenCaller(await callLines(log, report.project.name, metaOf(context), { harness: heard.harness, tool: "check_setup" }), heard, metaOf(context));
         await log.append(report.project.name, { ...lineOf(caller), source: "tool", folder, kind: "tool-called", tool: "check_setup" });
@@ -182,36 +184,6 @@ export function registerSetupTools({ server, folder, setup, connections, callerO
  * without overwriting what its user edited (6.9). And `move_onto_factory`,
  * which the agent calls on the user's yes, moving a project made before factories onto theirs, its edits kept (6.12).
  */
-export function registerStarterPackTool(define: Define): void {
-  define(
-    "take_starter_pack",
-    `Take the newer starter pack into this project's library, or into the factory it reads its system from: call it only when check_setup offered it and the user said yes, or when the user asks for a part a new project starts without, named in include. It adds the records the library lacks and replaces only the ones the user has not edited; each edited one is left as it is and named, with the newer text beside it. A new project starts on the bare bones, with no role, check or note; its parts are the roles ${STARTER_ROLES.join(", ")}, the review checks ${STARTER_CHECKS.join(", ")}, and any note one of them links, each coming with the notes it links.`,
-    z.object({
-      include: z.array(z.string()).optional().describe("Parts of the starter pack to take in by title, only those the user asked for"),
-    }),
-    async ({ include }, { library, storytree }) => {
-      const took = await takeStarterPack(library, storytree, include);
-      const into = took.factory === undefined ? "" : ` into the factory ${quoted(took.factory)}, which this project reads its system from`;
-      const said = [`Took the starter pack${into}: added ${took.added.length} and replaced ${took.replaced.length} of its records.`];
-      if (took.kept.length > 0) {
-        said.push(`Left as the user edited ${took.kept.length === 1 ? "it" : "them"}: ${took.kept.map(({ kind, title }) => `the ${kind} ${quoted(title)}`).join(", ")}. Show the user the newer text beside each (in this answer's data) and change one only if they ask.`);
-      }
-      return { text: said.join(" "), data: { ...took } };
-    },
-  );
-  define(
-    "move_onto_factory",
-    "Move this project onto the user's factory, the project holding the system their projects build with (ADR-1040): call it only when the user said yes. Each copy of a role, note or check this project never edited, and the factory also holds, is dropped so the factory's shows through; every one the user edited or added stays this project's own. Moving again changes nothing.",
-    z.object({}),
-    async (_args, { storytree, project }) => {
-      const moved = await moveOntoFactory({ storytree, project });
-      const said = [`This project now builds with the factory "${moved.factory}": dropped ${moved.dropped.length} unedited ${moved.dropped.length === 1 ? "copy" : "copies"} of its system.`];
-      if (moved.kept.length > 0) said.push(`Kept as this project's own: ${moved.kept.map(({ kind, title, why }) => `the ${kind} ${quoted(title)}${why === "own" ? "" : ` (${why})`}`).join(", ")}.`);
-      return { text: said.join(" "), data: { ...moved } };
-    },
-  );
-}
-
 /** What the check says of a newer pack than the one that seeded the library (8.26). */
 function newerPackSentence({ seeded, current, factory }: StarterPackStatus): string {
   const seededLibrary = factory === undefined ? "Its library was" : `The factory ${quoted(factory)}, which this project reads its system from, was`;

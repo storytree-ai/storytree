@@ -41,12 +41,11 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { callLines, endMergedClaims, type ActivityLog, type MergeWatch } from "@storytree/session-management";
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
 import { verdictOf } from "@storytree/experiments";
-import { findProject, idleAfterMs, readPartsOff, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
+import { findProject, idleAfterMs, importsOf, machineOf, readPartsOff, route, storytreeHome, type ImportedFolder, type LocateOptions, type Route } from "@storytree/project-and-caller";
 import { mount } from "@storytree/plugin-loader";
-import type { Agent, Library, Storytree, WriteOptions } from "@storytree/library";
+import { heldBack, type Agent, type HealthWorkItem, type Library, type Storytree, type WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
-import type { ProtectionReader } from "@storytree/app-setup/pipeline";
 import type { z } from "zod";
 
 // The other stories' tools (ADR-0643 D6), in their manifests' order: the plugin loader composes them from the
@@ -60,13 +59,17 @@ import { registerClaimTools } from "./claim-tools.js";
 import { Connections } from "./connections.js";
 import { mountTools, verbsOf } from "./mount.js";
 import { registerPlanTools } from "./plan-tools.js";
-import { registerMapTools } from "./map-tools.js";
-import { registerSetupTools, registerStarterPackTool, type SetupToolOptions } from "./setup-tools.js";
+import { registerSetupTools, type SetupToolOptions } from "./setup-tools.js";
 import { registerWorkTools } from "./work-tools.js";
-import { registerPipelineTools } from "./pipeline-tools.js";
 
 export { NOT_RUNNING_ANSWER, lineOf };
 export type { Answer, Caller };
+
+/**
+ * How wire_pipeline reads whether a repository's plan allows branch protection (App setup's capability 11): the shape
+ * App setup reads, declared here rather than imported, as the tool parts are (ADR-1017 D2).
+ */
+export type ProtectionReader = (folder: string, repository: { owner: string; name: string }) => Promise<"allowed" | "refused by plan" | "unknown">;
 
 /** What the tool server needs to know about where it runs. */
 export interface AgentToolOptions {
@@ -199,6 +202,12 @@ export interface ToolHost {
   readonly home?: string;
   readonly ledger?: string;
   readonly merges?: MergeWatch;
+  /** How wire_pipeline reads whether a repository's plan allows branch protection, when not through `gh`. */
+  readonly protection?: ProtectionReader;
+  /** The folders this machine imports for a project, which the core keeps: the map reads mapped stories there (ADR-0993 D2). */
+  readonly imports: (storytree: Storytree, project: string) => Promise<readonly ImportedFolder[]>;
+  /** What the health worklist says of the capabilities a test run holds back, as the library words it. */
+  readonly heldBack: (items: readonly HealthWorkItem[]) => string | undefined;
 }
 
 /** A story's tool part, as its manifest's `tools` names it: its extension for this server, or none where it serves nothing. */
@@ -213,8 +222,11 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   const verbHome = options.dataDir === undefined ? undefined : path.dirname(path.resolve(options.dataDir));
   const host: ToolHost = {
     project: findProject(options.folder).project, tools: () => servedTools,
+    imports: (storytree, project) => importsOf(storytree, project, machineOf(storytreeHome()).id),
+    heldBack,
     ...(verbHome === undefined ? {} : { home: verbHome, ledger: path.join(path.dirname(options.dataDir!), "own") }),
     ...(options.merges === undefined ? {} : { merges: options.merges }),
+    ...(options.protection === undefined ? {} : { protection: options.protection }),
   };
   // The machine whose approved trunks let this folder reach its project (ADR-0942): the home setup records them in.
   const home = options.setup?.storytreeHome ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
@@ -359,16 +371,14 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
     connections,
     callerOf,
     card,
+    served: () => servedTools,
     ...(options.journey === undefined ? {} : { journey: options.journey }),
   });
-  registerStarterPackTool(define);
   registerPlanTools(define);
-  registerMapTools(define);
   registerClaimTools(define, extensions);
   registerWorkTools(define);
   // The library's artifact tools, declared in The library (ADR-1035 D3), which is core.
   mountTools(define, NOTE_TOOLS);
-  registerPipelineTools(define, options.protection);
   // Every verb a mounted part's command families declare a tool for (Friction's, Session management's), from their
   // manifests: a part switched off takes its tools with it (ADR-1095).
   mountTools(define, mount(VERB_PARTS, off).mounted.flatMap(verbsOf), verbHome);

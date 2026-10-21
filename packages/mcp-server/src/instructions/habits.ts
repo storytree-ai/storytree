@@ -7,9 +7,9 @@
  * both harnesses' first sessions opened them from that alone (increment_a3786e385e28).
  *
  * Each story's package declares its own section in its manifest (the guidance kind, ADR-1021), and the card is
- * composed from the packages the server mounts, in their manifests' order (contract 7.10). Only the opening and the
- * closing are the server's own: what storytree is and what to do when it is not running speak of storytree as a
- * whole, and belong to no one story.
+ * composed from the packages the server mounts, in their manifests' order (contract 7.10). Only the opening, the
+ * setup check's paragraph and the closing are the server's own: what storytree is, how a session starts and what to
+ * do when it is not running speak of storytree as a whole, and belong to no one story.
  *
  * A part this computer switches off (ADR-1095) takes its section with it, and the card names it switched off instead.
  *
@@ -25,11 +25,17 @@ export { CONTRACT_DEFINITION };
 
 const OPENING = "storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.";
 
+/**
+ * The setup check and making a project are the server's own tools, served in any folder whatever is switched off
+ * (ADR-1099 D2), so the card teaches them itself: check_setup's answer is where the whole card reaches an agent.
+ */
+const SETUP = "Start every session with `check_setup`, and do what it says. If this folder isn't a storytree project, carry on without storytree: never offer to set it up. Call `set_up_project` only when the user asks for storytree here, with a name no project has (a refusal suggests one); set its join only when they ask to add this computer's copy of a project they already have elsewhere.";
+
 const CLOSING = "If storytree says it isn't running, carry on without it.";
 
 /** The habits card, as the tool server hands it to the agent, without the sections of the parts `off` switches off. */
 export function habitsCard(off: readonly string[] = []): string {
   const { mounted, off: switched } = mount(GUIDANCE, off);
   const said = switched.length === 0 ? [] : [`Switched off on this computer, so not served here: ${switched.map(({ part }) => part).join(", ")}. The user switches one on with: storytree settings set part <part> on`];
-  return [OPENING, ...mounted, ...said, CLOSING].join("\n\n");
+  return [`${OPENING} ${SETUP}`, ...mounted, ...said, CLOSING].join("\n\n");
 }

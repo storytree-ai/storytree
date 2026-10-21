@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ForestScene, Island } from '../scene.js';
-import { buildPlanetPathways, growthMoment, growthPlan, growthProgress, plateGrowth, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from '../geometry.js';
+import { buildPlanetPathways, growthMoment, growthNow, growthPlan, growthProgress, plateGrowth, roadSegmentWindows, segmentDrawRange, type GrowthWindow } from '../geometry.js';
 
 const R = 218;
 const island = (story: string, capabilities: string[], files: string[] = []): Island => ({
@@ -176,4 +176,14 @@ test('5.1 a road ending on an island as a whole grows like any other: it leaves 
   const road = plan.roads.get('new->old');
   assert.ok(road, 'the road is drawn');
   assert.ok(road.start >= end(plan.islands.get('old')!) - 1e-9 && plan.islands.get('new')!.start >= end(road) - 1e-9, 'new rises as the road from old arrives');
+});
+
+test('5.7 a host scrubbing a growth to a fixed moment sees that moment even under reduced motion; on the canvas\'s own clock, reduced motion shows it whole', () => {
+  const plan = growthPlan(stages, { seconds: 6 });
+  const c = plan.islands.get('c')!, halfway = c.start + c.seconds / 2;
+  const at = (now: number) => growthProgress(c, now, false);
+  assert.ok(at(growthNow(halfway, 0, true)) > 0 && at(growthNow(halfway, 0, true)) < 1, 'a fixed moment under reduced motion: c is rising');
+  assert.equal(at(growthNow(0, 99, true)), 0, 'and before it rises, it is hidden');
+  assert.equal(at(growthNow(undefined, halfway, true)), 1, 'the canvas\'s clock under reduced motion: whole at once');
+  assert.ok(at(growthNow(undefined, halfway, false)) < 1, 'the canvas\'s clock without it: growing');
 });

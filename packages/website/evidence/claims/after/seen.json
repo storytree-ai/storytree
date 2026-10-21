@@ -59,7 +59,7 @@
     "inView": [
       {
         "paused": false,
-        "time": 11
+        "time": 7
       },
       {
         "paused": false,
@@ -73,7 +73,7 @@
     "leftView": [
       {
         "paused": true,
-        "time": 11.2
+        "time": 7.2
       },
       {
         "paused": true,
@@ -145,7 +145,7 @@
     "inView": [
       {
         "paused": false,
-        "time": 11
+        "time": 7
       },
       {
         "paused": false,
@@ -159,7 +159,7 @@
     "leftView": [
       {
         "paused": true,
-        "time": 11.1
+        "time": 7.1
       },
       {
         "paused": true,

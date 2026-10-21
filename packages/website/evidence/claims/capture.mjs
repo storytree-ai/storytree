@@ -42,9 +42,9 @@ const shoot = async (page, claim, file) => {
   await page.screenshot({ path: path.join(output, file), clip: { x: 0, y: box.y + top, width, height: box.height }, fullPage: true });
 };
 const video = (page, i = 0) => page.locator(".claim-short video").nth(i).evaluate(node => ({ paused: node.paused, time: Math.round(node.currentTime * 10) / 10 }));
-/** Each short, by its claim, and how far in to let it play before its picture: claim 2's to its map with both claims on it,
- * claim 3's to the island's panel with its code and memory. */
-const SHORTS = [{ claim: 0, until: 11 }, { claim: 1, until: 23 }, { claim: 2, until: 24 }];
+/** Each short, by its claim, and how far in to let it play before its picture: claim 1's to its map growing from a brand-new
+ * project, claim 2's to its map with both claims on it, claim 3's to the island's panel with its code and memory. */
+const SHORTS = [{ claim: 0, until: 7 }, { claim: 1, until: 23 }, { claim: 2, until: 24 }];
 
 /** Where each claim's hook and short fall on the page, and whether the page scrolls sideways. */
 const layout = page => page.evaluate(() => ({

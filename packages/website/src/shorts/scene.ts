@@ -8,7 +8,7 @@ import { poseIndex, poseFrame, propFrame, type CastMap, type Rect as Frame } fro
 import { small } from "./font.js";
 import { beatAt, beats, chatLines, END_CARD, focusAt, HALF, HALF_WIDTH, layBubble, LINE, LOW, PAD, ROLL, SCREEN, SEAT, SMALL, TITLE, wrap,
   type Beat, type Focus, type Rect, type Side, type View } from "./script.js";
-import { CLICK_AT, clickedFor, GROUNDING, hovering, layGraph, layPanel, panelOpen, PANEL, PANEL_AT, POP_AT, POPPED } from "./view.js";
+import { CLICK_AT, clickedFor, GROUNDING, hovering, layGraph, layPanel, panelOpen, PANEL, PANEL_AT, POP_AT, POPPED, risenAt } from "./view.js";
 
 export const INK = {
   divider: "#0b0d12", wall: "#2a2838",
@@ -274,8 +274,8 @@ export function letterIslands(ctx: CanvasRenderingContext2D, screen: Rect, islan
   }
 }
 
-/** The map at a full view: the forest's own drawing of the glass sheet, each island lettered under it as the app does (the
- * selected one on a lit plate), the cursor coming to the new island and clicking it, its panel sliding in from the right, and
+/** The map at a full view: the forest's own drawing of the glass sheet, each island lettered under it as the app does once it
+ * has risen (the selected one on a lit plate), the cursor coming to the new island and clicking it, its panel sliding in from the right, and
  * the cursor pressing the panel's button that opens the graph full size. */
 function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: number, { view, map: drawn }: SceneInputs): void {
   const { x, y, width, height } = screen;
@@ -283,7 +283,8 @@ function map(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, seconds: n
   ctx.fillStyle = INK.map;
   ctx.fillRect(x, y, width, height);
   ctx.drawImage(view, x, y, width, height);
-  const islands = drawn?.marks?.islands.map(mark => ({ mark, at: onScreen(screen, drawn, mark) })) ?? [];
+  const risen = risenAt(SCRIPT.with, seconds);
+  const islands = drawn?.marks?.islands.filter(mark => risen(mark.story)).map(mark => ({ mark, at: onScreen(screen, drawn, mark) })) ?? [];
   letterIslands(ctx, screen, islands, PANEL.story, since !== undefined, open ? [panelBox(screen, open)] : []);
   chrome(ctx, screen);
   const local = since === undefined ? 0 : since + CLICK_AT;

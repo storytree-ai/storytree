@@ -145,6 +145,13 @@ export function growthMoment(plan: GrowthPlan, date: string): number {
   return knots.at(-1)!.start;
 }
 
+/** Seconds into a growth: a host's fixed moment when it scrubs one (a frame of a video picks its own moment, so reduced motion
+ * leaves it be); otherwise the canvas's own clock, or, under reduced motion, past the end, so everything is whole at once. */
+export function growthNow(fixed: number | undefined, elapsed: number, reducedMotion: boolean): number {
+  if (fixed !== undefined) return fixed;
+  return reducedMotion ? Infinity : elapsed;
+}
+
 /** How grown something is at `t`: an ease-out that never passes whole; whole at once under reduced motion, or when unscheduled. */
 export function growthProgress(window: GrowthWindow | undefined, t: number, reducedMotion: boolean): number {
   if (reducedMotion || window === undefined) return 1;

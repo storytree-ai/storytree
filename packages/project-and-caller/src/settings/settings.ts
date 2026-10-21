@@ -112,6 +112,17 @@ interface Stored {
   surfaces?: SurfaceChoices;
   experiment?: ExperimentArm;
   "parts-off"?: readonly string[];
+  "system-off"?: readonly string[];
+  "system-on"?: readonly string[];
+}
+
+/**
+ * The system switched off and on on this computer (ADR-1092 D2), each a sorted list of names: `all`, a group (`roles`,
+ * `checks` or `notes`), or one record's title or id. The library reads a record's most specific mention (1.21).
+ */
+export interface SystemSwitches {
+  readonly off: readonly string[];
+  readonly on: readonly string[];
 }
 
 /**
@@ -219,6 +230,43 @@ export function readPartsOff(home: string = storytreeHome()): readonly string[] 
   } catch (error) {
     throw new Error(`Invalid settings file "${file}": ${(error as Error).message} Repair it before storytree can say which parts are switched off.`, { cause: error });
   }
+}
+
+/**
+ * The system switched off and on on this computer, none when it names none. Read on its own, like the parts, since an
+ * agent's door reads it as it opens the project; a damaged value, or a name in both lists, is reported naming the file.
+ */
+export function readSystemSwitches(home: string = storytreeHome()): SystemSwitches {
+  const file = path.join(home, "settings.json");
+  let text: string;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT" && lstatSync(file, { throwIfNoEntry: false }) === undefined) return { off: [], on: [] };
+    throw new Error(`Cannot read settings file "${file}": ${(error as Error).message}`, { cause: error });
+  }
+  try {
+    const stored: unknown = JSON.parse(text);
+    if (stored === null || typeof stored !== "object" || Array.isArray(stored)) throw new Error("expected a JSON object of setting names and values");
+    return checkedSystem(stored as Record<string, unknown>);
+  } catch (error) {
+    throw new Error(`Invalid settings file "${file}": ${(error as Error).message} Repair it before storytree can say which of its system is switched off.`, { cause: error });
+  }
+}
+
+/**
+ * Switch the system named `name` off or on for this computer, and return what is now off and on. Off takes it out of
+ * the on list and into the off list; on takes it out of the off list and, unless it is `all`, into the on list, so it
+ * beats a wider name switched off.
+ */
+export function setSystemSwitch(name: string, off: boolean, home: string = storytreeHome()): SystemSwitches {
+  const stored = readStored(home);
+  const without = (names: readonly string[] | undefined) => (names ?? []).filter((one) => one !== name);
+  const switches = off
+    ? { off: [...without(stored[SYSTEM_OFF]), name].sort(), on: without(stored[SYSTEM_ON]) }
+    : { off: without(stored[SYSTEM_OFF]), on: name === "all" ? without(stored[SYSTEM_ON]) : [...without(stored[SYSTEM_ON]), name].sort() };
+  write(home, { ...stored, [SYSTEM_OFF]: switches.off, [SYSTEM_ON]: switches.on });
+  return switches;
 }
 
 /**
@@ -401,6 +449,24 @@ function checkedPartsOff(value: unknown): readonly string[] {
   return [...new Set(value as string[])].sort();
 }
 
+const SYSTEM_OFF = "system-off";
+const SYSTEM_ON = "system-on";
+
+function checkedSystemNames(name: string, value: unknown): readonly string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || !value.every((one) => typeof one === "string" && one !== "")) {
+    refuse(`${name} must list names: all, roles, checks, notes, or a role's, check's or note's title or id, such as ["roles"].`);
+  }
+  return [...new Set(value as string[])].sort();
+}
+
+function checkedSystem(stored: Record<string, unknown>): SystemSwitches {
+  const switches = { off: checkedSystemNames(SYSTEM_OFF, stored[SYSTEM_OFF]), on: checkedSystemNames(SYSTEM_ON, stored[SYSTEM_ON]) };
+  const both = switches.off.filter((name) => switches.on.includes(name));
+  if (both.length > 0) refuse(`${both.join(", ")} ${both.length === 1 ? "is" : "are"} in both ${SYSTEM_OFF} and ${SYSTEM_ON}; name each in one.`);
+  return switches;
+}
+
 function checkedSurfaces(value: unknown): SurfaceChoices {
   const usage = "surfaces must map each surface's id to its choices: `on` true or false, and each setting's id to the text of its choice.";
   if (value === null || typeof value !== "object" || Array.isArray(value)) return refuse(usage);
@@ -440,6 +506,10 @@ function readStored(home: string): Stored {
       }
       if (name === PARTS_OFF) {
         settings[PARTS_OFF] = checkedPartsOff(value);
+        continue;
+      }
+      if (name === SYSTEM_OFF || name === SYSTEM_ON) {
+        settings[name] = checkedSystem(stored as Record<string, unknown>)[name === SYSTEM_OFF ? "off" : "on"];
         continue;
       }
       checkName(name);

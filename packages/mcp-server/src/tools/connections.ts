@@ -7,7 +7,7 @@
  */
 import { connect, ConnectionError, type ConnectOptions, type Library, type Storytree } from "@storytree/library";
 
-import { openNamedProject, requireApproval, withConnectTimeout } from "@storytree/project-and-caller";
+import { openNamedProject, readSystemSwitches, requireApproval, withConnectTimeout } from "@storytree/project-and-caller";
 
 import { currentBranch, openActivityLog, thisMachine, type ActivityLog } from "@storytree/session-management";
 
@@ -57,7 +57,8 @@ export class Connections {
     const log = (this.#log ??= forgetOnFailure(opened(), () => (this.#log = undefined)));
     let opening = this.#libraries.get(project);
     if (opening === undefined) {
-      opening = forgetOnFailure(openNamedProject(storytree, project, identity), () => this.#libraries.delete(project));
+      // The roles, checks and notes the home's settings switch off are left out of what it lists, read as it opens (ADR-1092 D2).
+      opening = forgetOnFailure(openNamedProject(storytree, project, identity, readSystemSwitches(checkout.home)), () => this.#libraries.delete(project));
       this.#libraries.set(project, opening);
     }
     try {

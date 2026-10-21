@@ -597,9 +597,11 @@ class Opened {
     return (this.#log ??= this.#server().then((storytree) => openActivityLog(storytree, { branchOf: currentBranch, ...(machine === undefined ? {} : { machine }) })));
   }
 
+  /** The project, with the roles, checks and notes this computer's settings switch off left out of what it lists (ADR-1092 D2). */
   async #open(): Promise<Library> {
     const where = this.#routed();
-    return openNamedProject(await this.#server(), where.project, where.identity);
+    const { readSystemSwitches } = await import("@storytree/project-and-caller");
+    return openNamedProject(await this.#server(), where.project, where.identity, readSystemSwitches());
   }
 
   /**

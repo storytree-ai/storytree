@@ -809,3 +809,26 @@ test("6.49 stale_claims gives the session manager each claimed increment whose h
     });
   });
 });
+
+test("6.97 search_notes leaves out the notes this computer's settings switch off, read as the server opens the project, and open still reads one by its id (ADR-1092 D2)", async () => {
+  await withProject(async ({ folder, project, library }) => {
+    await withTempDir(async (home) => {
+      placeTestServer(path.join(home, "pgdata"));
+      await approveCheckout(folder, project, home);
+      writeFileSync(path.join(home, "settings.json"), JSON.stringify({ "system-off": ["notes"], "system-on": ["Bounce kindly"] }));
+      const note = (title: string) => library.writeKnowledge("principle", { title, description: `${title}.`, statement: "Bounced mail is retried.", why: "Why", howToApply: "How" });
+      const off = await note("Retry bounces");
+      const on = await note("Bounce kindly");
+
+      await withAgent(folder, claudeCode("claude-1", { dataDir: path.join(home, "pgdata"), setup: { storytreeHome: home } }), async (agent) => {
+        const found = await agent.call("search_notes", { query: "bounced mail" });
+        assert.equal(found.isError, false, found.text);
+        const ids = (found.data.notes as { id: string }[]).map((each) => each.id);
+        assert.ok(ids.includes(on.id) && !ids.includes(off.id), found.text);
+        const opened = await agent.call("open", { id: off.id });
+        assert.equal(opened.isError, false, opened.text);
+        assert.ok(opened.text.includes("Retry bounces"), opened.text);
+      });
+    });
+  });
+});

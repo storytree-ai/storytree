@@ -10,7 +10,7 @@ import { forestSurfaces } from "@storytree/forest/surfaces";
 import { readSettings } from "@storytree/project-and-caller";
 import unbundled from "./parts/surfaces.js";
 
-import { BuiltCommand, storytree } from "./testing/cli.js";
+import { BuiltCommand, inWorld, storytree } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 before(() => command.build());
@@ -168,4 +168,33 @@ test("1.37 · a family a switched-off part declares is not listed, and asking fo
   const map = await invoke(["map", "--select", "story:any"]);
   assert.equal(map.code, 1, map.stdout);
   assert.match(map.stderr, /storytree map is not mounted: map is switched off on this computer\. Switch it on with: storytree settings set part map on/);
+});
+
+test("1.39 · `settings set system roles off` leaves the project's roles out of what `library list` and `library search` give at the next command, and `library read` still reads one by its id; a role switched on by its title shows again; `settings show` lists what is off and on (ADR-1092 D2)", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const note = await library.writeKnowledge("principle", { title: "Mail kindly", description: "Mail kindly", statement: "Send kind mail", why: "Why", howToApply: "How" });
+    const role = await library.writeKnowledge("agent", { title: "Mailer", description: "Sends mail", oneLine: "Sends mail", role: "Mailer", outcome: "Mail sent", context: [note.id], tools: "Mailgun", workflow: "Send the mail" });
+
+    const off = await world.run(["settings", "set", "system", "roles", "off"]);
+    assert.equal(off.code, 0, off.stderr);
+    assert.match(off.stdout, /^  off: roles$/m);
+    const roles = await world.run(["library", "list", "agent"]);
+    assert.equal(roles.code, 0, roles.stderr);
+    assert.ok(!roles.stdout.includes(role.id), roles.stdout);
+    const notes = await world.run(["library", "list", "principle"]);
+    assert.ok(notes.stdout.includes(note.id), notes.stdout);
+    const searched = await world.run(["library", "search", "mail"]);
+    assert.equal(searched.code, 0, searched.stderr);
+    assert.ok(!searched.stdout.includes(role.id) && searched.stdout.includes(note.id), searched.stdout);
+    const read = await world.run(["library", "read", role.id]);
+    assert.equal(read.code, 0, read.stderr);
+    assert.ok(read.stdout.includes("Send the mail"), read.stdout);
+
+    const on = await world.run(["settings", "set", "system", "Mailer", "on"]);
+    assert.equal(on.code, 0, on.stderr);
+    assert.ok((await world.run(["library", "list", "agent"])).stdout.includes(role.id));
+    const shown = await world.run(["settings", "show"]);
+    assert.match(shown.stdout, /^  off: roles\n  on: Mailer$/m);
+  });
 });

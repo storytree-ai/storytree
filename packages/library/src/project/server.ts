@@ -40,9 +40,12 @@ export interface ServerAccess {
  * project's pool is the same URL with the database swapped: user, host, port and options stay.
  * Each new handshake has a deadline, including the project's own pool. Timeouts say what to
  * check; other failures are left as they are. Database-creation privileges are explained where
- * databases are created, on either kind of server.
+ * databases are created, on either kind of server. A URL naming a longer connect_timeout (libpq's,
+ * in seconds) gets that deadline instead: how a test run gives its throwaway server room on a loaded
+ * machine without loosening the bound every other library keeps.
  */
-export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBounds = {}, transport: Transport = loopbackTransport(url.hostname)): ServerAccess {
+export function localServer(url: URL, givenTimeoutMs = 3_000, bounds: WaitBounds = {}, transport: Transport = loopbackTransport(url.hostname)): ServerAccess {
+  const connectTimeoutMs = Math.max(givenTimeoutMs, urlConnectTimeoutMs(url));
   const { Pool: base, ...connection } = transport;
   const pool = (connectionString: string, role?: string) =>
     newPool({ connectionString, ...connection, connectionTimeoutMillis: connectTimeoutMs, ...statementBound(bounds), ...actingAs(role) }, base);
@@ -62,6 +65,12 @@ export function localServer(url: URL, connectTimeoutMs = 3_000, bounds: WaitBoun
     },
     close: () => {},
   };
+}
+
+/** The connect_timeout a URL names, in milliseconds; 0 when it names none, or one that is not a positive number of seconds. */
+function urlConnectTimeoutMs(url: URL): number {
+  const seconds = Number(url.searchParams.get("connect_timeout") ?? "");
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0;
 }
 
 /**

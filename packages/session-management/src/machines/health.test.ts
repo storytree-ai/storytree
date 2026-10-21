@@ -76,13 +76,13 @@ test("11.6 · On Windows, machine health reads the boot time, the memory availab
 test("11.7 · `storytree machine health` reads the machine against the limits in settings: concerns come first and refuse, so the command exits 1, and a healthy machine answers with each reading", async () => {
   await withTempDir(async (home) => {
     const strained = linuxReadings(linux(4, 3, 40));
-    const refused = await healthVerb(() => strained).act({}, { folder: home, home } as never, WORDS).then(() => undefined, (error: unknown) => error);
+    const refused = await healthVerb(() => strained).act({}, { folder: home, home }, WORDS).then(() => undefined, (error: unknown) => error);
     assert.ok(refused instanceof VerbRefusal, "a concern refuses");
     assert.equal(refused.misuse, false);
     assert.match(refused.message, /^1 concern on [^\n]+:\n {2}- memory: 4\.0 GB available, under 6 GB\n\nLinux, up since 2026-10-19 12:00 UTC\nmemory: 4\.0 GB available of 32\.0 GB\nload: 15-minute load 3\ndisk: \/ 40% full, 60\.0 GB free of 100\.0 GB$/);
 
     setSetting("health-memory", "3", home);
-    const answer = await healthVerb(() => strained).act({}, { folder: home, home } as never, WORDS);
+    const answer = await healthVerb(() => strained).act({}, { folder: home, home }, WORDS);
     assert.match(answer.text, /^No concerns on [^\n]+\.\n\nLinux, up since/);
     assert.deepEqual(answer.data?.concerns, []);
   });

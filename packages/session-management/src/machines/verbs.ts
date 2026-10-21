@@ -3,7 +3,7 @@
  * project's machines, and say which one this computer is. They are the command line's: a computer is named by the
  * person at it, and an agent has no use for the list until an increment names a machine.
  */
-import { verb, VerbRefusal, type Verb, type VerbContext, type VerbPlace } from "@storytree/library/verbs";
+import { verb, VerbRefusal, type Verb, type VerbContext, type VerbInputs, type VerbPlace } from "@storytree/library/verbs";
 
 import type { MachineReadings } from "./health.js";
 import type { MachineRecord } from "./machines.js";
@@ -73,18 +73,21 @@ const which = verb({
   },
 });
 
+/** Where `machine health` is called: the place alone, and the storytree home whose settings hold its limits. */
+export type HealthPlace = VerbPlace & { readonly home?: string };
+
 /**
  * `storytree machine health`, reading the machine `read` gives (this one, unless a test hands its own) against the
  * limits in the settings of `home`. It needs no library, so it answers on a machine whose library is out of reach; a
  * concern is its "no", so the command exits 1 and a script over SSH can tell.
  */
-export function healthVerb(read?: () => MachineReadings): Verb {
+export function healthVerb(read?: () => MachineReadings): Verb<VerbInputs, HealthPlace> {
   return verb({
     command: { family: "machine", name: "health", summary: "this machine's health: its uptime, memory, load and disk, concerns first; exits 1 on a concern" },
     tool: NO_TOOL,
     inputs: {},
     callerless: true,
-    async act(_input, context: VerbPlace & { readonly home?: string }) {
+    async act(_input, context: HealthPlace) {
       const { readSettings } = await import("@storytree/project-and-caller");
       const { concernsOf, healthSaid, thisMachine } = await import("./health.js");
       const settings = readSettings(context.home);

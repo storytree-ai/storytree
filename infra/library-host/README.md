@@ -181,3 +181,48 @@ The **No library backup for 12 hours** Cloud Monitoring alert is the one for the
 uploads. A restore/hash/count/upload failure exits nonzero; inspect the service
 journal and timer log. A scratch left after power loss is evidence, not permission
 to drop it without checking its ownership.
+
+## Cloud sessions' HTTPS route (ADR-1093)
+
+A Claude Code cloud session cannot reach port 5432 or the tailnet, so it reaches the library
+over HTTPS instead: Cloudflare Access (a service token) and the owner's tunnel `mint-library`,
+whose public hostname `library.storytree.dev` Cloudflare routes to `http://localhost:8080` on
+the box. `cloud-route.sh` installs the box's half as two systemd services:
+
+- `storytree-wsproxy`: Neon's wsproxy (Postgres over WebSocket), listening on 127.0.0.1:8080
+  (metrics on 127.0.0.1:2112), allowed to reach only 127.0.0.1:5432, as a dynamic unprivileged
+  user that systemd also forbids any address but loopback.
+- `storytree-cloudflared`: cloudflared running the tunnel, its token read from
+  `/etc/storytree/cloudflared-mint-library.token` (root:root, 600) through systemd's
+  credentials, so it is never on a command line, in a unit file or printed.
+
+Both versions are pinned. cloudflared is Cloudflare's .deb, checked against its published
+SHA-256. wsproxy has no releases, so the script builds a pinned commit with a pinned, checked Go,
+its modules checked against its `go.sum`; the build is reproducible, so the binary's own SHA-256
+is pinned too and a build that differs is refused. It changes nothing in pg_hba or Postgres:
+wsproxy arrives from 127.0.0.1, which pg_hba already admits with a password, and the script
+stops if that line is missing. A tunnel connection therefore looks like a local client to
+Postgres; what gates it is Access's service token and the role's password.
+
+The owner runs it (ADR-0928 D5; no lane does), from PowerShell on the laptop. First the token,
+from GCP Secret Manager into a private file in his home on the box:
+
+```powershell
+gcloud secrets versions access latest --secret=cloudflare-mint-library --project=635716509357 | ssh mint 'umask 077; cat > ~/cloudflared-token.tmp'
+```
+
+Then the reviewed script from `main` (compare the printed SHA-256 with `REVIEW.md`), its dry run,
+the real run (which moves the token into place and deletes the temporary file), and the review:
+
+```powershell
+ssh mint 'git -C ~/code/storytree03 fetch -q origin main && git -C ~/code/storytree03 show origin/main:infra/library-host/cloud-route.sh > ~/cloud-route.sh && sha256sum ~/cloud-route.sh'
+ssh -t mint 'sudo bash ~/cloud-route.sh --dry-run --install-token ~/cloudflared-token.tmp'
+ssh -t mint 'sudo bash ~/cloud-route.sh --install-token ~/cloudflared-token.tmp'
+ssh mint 'bash ~/cloud-route.sh --review'
+```
+
+`--review` changes nothing and needs no sudo: it reports the installed versions against the
+pins, the services and the user they run as, every listener on 8080, 2112 and 20241, wsproxy's
+allow-list and what it answers for 127.0.0.1:5432 and for 127.0.0.1:22, and the pg_hba line.
+Rerunning the real run is safe: what already matches is left alone. To move to new versions,
+change a pin together with its hash and have the script reviewed again.

@@ -7,7 +7,7 @@
 import { poseIndex, poseFrame, propFrame, type CastMap, type Rect as Frame } from "./cast.js";
 import { small } from "./font.js";
 import { beatAt, beats, chatLines, END_CARD, focusAt, HALF, HALF_WIDTH, layBubble, LINE, LOW, PAD, ROLL, SCREEN, SEAT, SMALL, TITLE, wrap,
-  type Beat, type Focus, type Rect, type Side } from "./script.js";
+  type Beat, type Focus, type Rect, type Side, type View } from "./script.js";
 import { CLICK_AT, clickedFor, GROUNDING, hovering, layGraph, layPanel, panelOpen, PANEL, PANEL_AT, POP_AT, POPPED } from "./view.js";
 
 export const INK = {
@@ -202,7 +202,7 @@ function codeMini(ctx: CanvasRenderingContext2D, beat: Beat, screen: Rect, secon
 }
 
 /** The mouse pointer, its tip at (x, y). */
-function pointer(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+export function pointer(ctx: CanvasRenderingContext2D, x: number, y: number): void {
   for (let row = 0; row < 7; row++) {
     ctx.fillStyle = INK.cursorEdge;
     ctx.fillRect(x - 1, y + row, Math.min(row + 1, 5) + 2, 1);
@@ -212,7 +212,7 @@ function pointer(ctx: CanvasRenderingContext2D, x: number, y: number): void {
 }
 
 /** A click: two white ticks either side of the pointer's tip. */
-function clickAt(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+export function clickAt(ctx: CanvasRenderingContext2D, x: number, y: number): void {
   ctx.fillStyle = INK.cursor;
   ctx.fillRect(x - 3, y - 3, 2, 2);
   ctx.fillRect(x + 2, y - 3, 2, 2);
@@ -458,21 +458,31 @@ export function focusIn(side: Side, seconds: number): Focus[] {
   return [...focus, { text: asked.title, box: words }];
 }
 
-/** Draws the frame at `seconds` and returns the words for the pixel font, over everything else. */
-export function drawScene(ctx: CanvasRenderingContext2D, inputs: SceneInputs): Words[] {
+/** What a side-by-side short hands the frame drawing: when its end card starts and its two lines, the view and thought of each
+ * half's beat at a moment, what its screen shows, and the sprites over its room. */
+export type Halves = {
+  endCard: number; caption: readonly [string, string];
+  beat: (side: Side, seconds: number) => { view: View; think?: string | undefined };
+  screen: (ctx: CanvasRenderingContext2D, side: Side, screen: Rect, inputs: SceneInputs) => void;
+  sprites: (side: Side, seconds: number, cast: CastMap) => Sprite[];
+};
+
+/** Draws a side-by-side short's frame at `seconds` and returns the words for the pixel font, over everything else: each half's
+ * room with its screen showing through, or a full view of the screen, its thought over it, the halves' titles; then the end card. */
+export function drawHalves(ctx: CanvasRenderingContext2D, inputs: SceneInputs, halves: Halves): Words[] {
   const { seconds, cast, sheet } = inputs, words: Words[] = [];
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = INK.divider;
   ctx.fillRect(0, 0, LOW.width, LOW.height);
   const middle = LOW.width / 2;
-  if (seconds >= END_CARD) {
-    words.push({ text: "SEE WHAT YOUR", x: middle, y: 113, colour: INK.caption, centre: true },
-      { text: "AGENTS BUILT.", x: middle, y: 125, colour: INK.caption, centre: true },
+  if (seconds >= halves.endCard) {
+    words.push({ text: halves.caption[0], x: middle, y: 113, colour: INK.caption, centre: true },
+      { text: halves.caption[1], x: middle, y: 125, colour: INK.caption, centre: true },
       { text: "storytree.dev", x: middle, y: 147, colour: INK.url, centre: true });
     return words;
   }
   for (const side of ["without", "with"] as const) {
-    const beat = beatAt(SCRIPT[side], seconds), left = HALF[side], full = beat.view === "full";
+    const beat = halves.beat(side, seconds), left = HALF[side], full = beat.view === "full";
     const screen = { ...SCREEN[beat.view], x: left + SCREEN[beat.view].x };
     ctx.save();
     ctx.beginPath();
@@ -482,11 +492,11 @@ export function drawScene(ctx: CanvasRenderingContext2D, inputs: SceneInputs): W
       ctx.fillStyle = INK.wall;
       ctx.fillRect(left, TITLE, HALF_WIDTH, LOW.height - TITLE);
       box(ctx, screen.x - 3, screen.y - 3, screen.width + 6, screen.height + 6, INK.bezel, INK.bezelEdge);
-      screenOf(ctx, side, beat, screen, inputs);
+      halves.screen(ctx, side, screen, inputs);
     } else {
-      screenOf(ctx, side, beat, screen, inputs);
+      halves.screen(ctx, side, screen, inputs);
       blit(ctx, sheet, propFrame(cast, "room"), left, TITLE);
-      for (const { frame, x, y, mirror } of spritesAt(side, seconds, cast)) blit(ctx, sheet, frame, x, y, mirror);
+      for (const { frame, x, y, mirror } of halves.sprites(side, seconds, cast)) blit(ctx, sheet, frame, x, y, mirror);
     }
     if (beat.think) bubble(ctx, side, beat.think, !full, words);
     ctx.restore();
@@ -497,3 +507,8 @@ export function drawScene(ctx: CanvasRenderingContext2D, inputs: SceneInputs): W
     { text: "WITH STORYTREE", x: middle * 1.5, y: 4, colour: INK.with, centre: true });
   return words;
 }
+
+/** Draws the first short's frame at `seconds`. */
+export const drawScene = (ctx: CanvasRenderingContext2D, inputs: SceneInputs): Words[] => drawHalves(ctx, inputs, { endCard: END_CARD,
+  caption: ["SEE WHAT YOUR", "AGENTS BUILT."], beat: (side, seconds) => beatAt(SCRIPT[side], seconds), sprites: spritesAt,
+  screen: (ctx, side, screen, inputs) => screenOf(ctx, side, beatAt(SCRIPT[side], inputs.seconds), screen, inputs) });

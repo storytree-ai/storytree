@@ -13,6 +13,10 @@
       {
         "paused": false,
         "time": 23
+      },
+      {
+        "paused": false,
+        "time": 24
       }
     ],
     "leftView": [
@@ -23,6 +27,10 @@
       {
         "paused": true,
         "time": 23.2
+      },
+      {
+        "paused": true,
+        "time": 24.2
       }
     ]
   },
@@ -40,6 +48,10 @@
       {
         "paused": false,
         "time": 23
+      },
+      {
+        "paused": false,
+        "time": 24
       }
     ],
     "leftView": [
@@ -50,10 +62,18 @@
       {
         "paused": true,
         "time": 23.1
+      },
+      {
+        "paused": true,
+        "time": 24.1
       }
     ]
   },
   "reducedMotion": [
+    {
+      "paused": true,
+      "time": 0
+    },
     {
       "paused": true,
       "time": 0

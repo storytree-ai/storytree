@@ -15,8 +15,6 @@ import { capabilities } from "./capability.js";
 import { commandsOf, doors } from "./doors.js";
 import { learning, twinsOf } from "./drain.js";
 import { plan } from "./tree.js";
-import { mapFamily } from "./map.js";
-import { affectedFamily } from "./affected.js";
 
 /**
  * Words agents try for a family storytree does not have, each with the command for that job. A key of two words is the
@@ -52,8 +50,6 @@ export const POINTERS: Readonly<Record<string, string>> = {
 const KEPT: readonly Placed[] = [
   { order: 6, family: doors },
   { order: 15, family: plan },
-  { order: 16, family: mapFamily },
-  { order: 17, family: affectedFamily },
   { order: 19, family: capabilities },
   { order: 32, family: auth },
 ];

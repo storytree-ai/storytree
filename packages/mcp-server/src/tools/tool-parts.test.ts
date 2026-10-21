@@ -18,7 +18,7 @@ import { createAgentTools, type ToolPart } from "./server.js";
 // The stories restate the server's extension point rather than import it (ADR-1017 D2); this is where the two are checked to fit.
 const declared: readonly ToolPart[] = [...librarianToolParts, ...qualityToolParts, ...hookToolParts, ...sessionToolParts, ...mapToolParts, ...setupToolParts];
 
-test("6.75 the tool server mounts the tool parts its story packages' manifests name: the librarian's, then quality assurance's, then Session management's hook event tool and its claim, context and runs tools, then the map's, then App setup's, each given the project served and the server's tool names", () => {
+test("6.75 the tool server mounts the tool parts its story packages' manifests name: the librarian's, then quality assurance's, then Session management's hook event tool and its claim, landing, context and runs tools, then the map's, then App setup's, each given the project served and the server's tool names", () => {
   assert.equal(import.meta.resolve("#parts/tools"), new URL("../parts/tools.ts", import.meta.url).href, "the package's #parts/tools is its composing module");
   assert.deepEqual(toolParts.parts, declared);
   const tools = () => ["check_setup"];
@@ -43,7 +43,7 @@ test("6.95 the tool server serves no tool of a part this computer switches off, 
   assert.ok(all.includes("quality_brief") && all.includes("hook_event"), "both parts' tools are served with nothing off");
   const declaredTools = ["record_friction", "friction_drain", "route", "name_session", "close_out"];
   for (const tool of declaredTools) assert.ok(all.includes(tool), `${tool}, declared on a verb, is served with nothing off`);
-  const partTools = ["claim", "release", "make_workspace", "attach_workspace", "stale_claims", "read_context", "list_own_runs", "list_all_runs", "stop_own_run", "clear_own_runs"];
+  const partTools = ["claim", "release", "make_workspace", "attach_workspace", "stale_claims", "read_context", "list_own_runs", "list_all_runs", "stop_own_run", "clear_own_runs", "report", "land", "present_question"];
   for (const tool of partTools) assert.ok(all.includes(tool), `${tool}, Session management's tool part, is served with nothing off`);
   const qualityOff = await served(["quality-assurance"]);
   assert.ok(!qualityOff.includes("quality_brief"), "quality assurance's tools are not served");

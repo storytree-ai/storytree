@@ -13,10 +13,13 @@ export const STORYTREE_TOOLS = "mcp__storytree__";
 /** The tool server's tool a harness hands a hook event to (tools.ts), as both harnesses name it. */
 export const HOOK_EVENT_TOOL = `${STORYTREE_TOOLS}hook_event`;
 
+/** The tool server's tools Claude Code's mod calls itself, to deliver an event and to keep its heartbeat: no agent asks for them. */
+export const MOD_TOOLS: readonly string[] = [HOOK_EVENT_TOOL, `${STORYTREE_TOOLS}heartbeat`];
+
 export function toolRequestedLine(common: Pick<NewLine, "session" | "harness" | "source" | "folder">, input: Record<string, unknown>): NewLine | undefined {
   const { tool_name: tool, tool_use_id: call, agent_id: subagent, agent_type: type } = input;
-  // The tool server's hook_event call is a harness delivering an event (Claude Code's mod calls it as a tool), never an agent's request.
-  if (!isText(tool) || !tool.startsWith(STORYTREE_TOOLS) || tool === HOOK_EVENT_TOOL || !isText(call)) return undefined;
+  // A call the mod makes itself (an event's delivery, its heartbeat) is the harness at work, never an agent's request.
+  if (!isText(tool) || !tool.startsWith(STORYTREE_TOOLS) || MOD_TOOLS.includes(tool) || !isText(call)) return undefined;
   const agent: Agent = isText(subagent) ? { subagent, ...(isText(type) ? { type } : {}) } : "orchestrator";
   return { ...common, kind: "tool-requested", tool: tool.slice(STORYTREE_TOOLS.length), call, agent };
 }

@@ -1670,10 +1670,11 @@ test("3.43 · The Claude Code mod's usage becomes a usage-measured line, and its
   }
 });
 
-test("3.42 A Claude Code command hook, finding the tool server's note of its event (the mod delivered it), stands down without reaching the library; with no note it records the event as before; the PreToolUse of the mod's own hook_event call records nothing", { timeout: 60_000 }, async () => {
+test("3.42 A Claude Code command hook, finding the tool server's note of its event (the mod delivered it), stands down without reaching the library; with no note it records the event as before; the PreToolUse of the mod's own hook_event or heartbeat call records nothing", { timeout: 60_000 }, async () => {
   // Claude Code's mod reaches the tool server as a tool call, which raises a PreToolUse of its own: no agent asked for it.
   const delivering = { ...JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work")), tool_name: "mcp__storytree__hook_event" };
   assert.equal(hookLines("claude-code", delivering), undefined);
+  assert.equal(hookLines("claude-code", { ...delivering, tool_name: "mcp__storytree__heartbeat" }), undefined, "nor does the mod's heartbeat call");
   const asking = JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work")) as { tool_name: string };
   const made = hookLines("claude-code", asking)?.lines.map((line) => ({ kind: line.kind, tool: (line as { tool?: string }).tool }));
   assert.deepEqual(made, [{ kind: "tool-requested", tool: asking.tool_name.slice("mcp__storytree__".length) }], "another storytree tool's request still makes its line");

@@ -26,19 +26,8 @@ import { landForCircles } from "../territories/territories.js";
 export { PLACE_WIDTH };
 export type { Island, PlacedTree };
 
-/**
- * The map's top line (ADR-1085 D1): the project's sentence, what it is and who it is for, when any of it is written,
- * and what the plan has not yet said, a plan-health reading that fails nothing.
- */
-export interface ForestAnchor {
-  sentence?: string;
-  unsaid: string[];
-}
-
-/** The drawing engine's scene, with the plan's anchor line above it. */
-export interface ForestScene extends WorldScene {
-  anchor?: ForestAnchor;
-}
+/** The drawing engine's scene; the project's sentence is shown in Settings → Projects, not on the map (ADR-1085 D1 as narrowed). */
+export type ForestScene = WorldScene;
 
 /**
  * The flat forest's places are spread out as far as the land grew (ADR-0910: 318 to {@link MIN_ISLAND_AREA} ground
@@ -82,21 +71,7 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
     return { story: story.id, title: story.title, x, z, trees: placed, ...(land === undefined ? {} : { land }), area, key };
   });
-  return { islands, links: capabilityLinks(tree, survey), anchor: forestAnchor(tree) };
-}
-
-/**
- * The project's sentence and what it has not said (ADR-1085 D1): the anchor's missing halves. Only the project names
- * an audience, so no story is named here (ADR-1096). Only that the words are there is read; what they say is the owner's.
- */
-export function forestAnchor(tree: Pick<AnnotatedTree, "anchor">): ForestAnchor {
-  const { what, audience } = tree.anchor ?? {};
-  const unsaid: string[] = [];
-  if (what === undefined && audience === undefined) unsaid.push("The project has no anchor yet: what it is, and who it is for");
-  else if (what === undefined) unsaid.push("The anchor does not yet say what the project is");
-  else if (audience === undefined) unsaid.push("The anchor does not yet say who it is for");
-  if (what === undefined && audience === undefined) return { unsaid };
-  return { sentence: `${what ?? "…"}, for ${audience ?? "…"}`, unsaid };
+  return { islands, links: capabilityLinks(tree, survey) };
 }
 
 /**

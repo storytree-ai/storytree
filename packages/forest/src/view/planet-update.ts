@@ -16,7 +16,6 @@ export function nextScene(shown: OnShow, scene: ForestScene, places: ReadonlyMap
   const islands = scene.islands.map(island => previous.get(island.story)?.key === island.key ? previous.get(island.story)! : island);
   const same = islands.length === shown.scene.islands.length && islands.every((island, index) => island === shown.scene.islands[index])
     && JSON.stringify(scene.links ?? []) === JSON.stringify(shown.scene.links ?? [])
-    && JSON.stringify(scene.anchor) === JSON.stringify(shown.scene.anchor)
     && places.size === shown.places.size && [...places].every(([story, place]) => shown.places.get(story) === place);
   return same ? undefined : { ...scene, islands };
 }

@@ -20,6 +20,12 @@ export interface AgentConnection {
   step?: string;
 }
 
+/** A project's sentence as Settings → Projects shows it: what the project is, and who it is for. */
+export interface ProjectSentence {
+  what?: string;
+  audience?: string;
+}
+
 /** Already verified by the identity story; neither tokens nor provider subjects enter this bridge. */
 export interface FeedbackAccount { readonly id: string; readonly email: string }
 export interface FeedbackIdentityBridge {
@@ -48,6 +54,10 @@ export interface SetupHelpBridge {
   addProject(): Promise<AddedFolder | null>;
   /** Take a project off this computer's list and free its folder here (`kept`: its marker is in git, left for the user); its records stay in the library. */
   removeProject(name: unknown): Promise<{ status: "removed"; project: string; freed?: string; kept?: string }>;
+  /** Project `name`'s sentence (ADR-1085 D1): what it is and who it is for, each half absent while unsaid. */
+  projectSentence(name: unknown): Promise<ProjectSentence>;
+  /** Write project `name`'s two halves, a blank half unsaid; the sentence as the library now holds it. */
+  setProjectSentence(name: unknown, what: unknown, audience: unknown): Promise<ProjectSentence>;
   /** The projects that may be deleted from here (all in the library but the one on show), each with where its records live and who loses them. */
   deletableProjects(): Promise<{ project: string; warning: string }[]>;
   /** Delete a project's records for every computer using the library (ADR-0831), once `typed` is its name, after a snapshot into this computer's backups when asked; a refusal is thrown with its reason. */
@@ -63,6 +73,8 @@ export const SETUP_HELP_CHANNELS = {
   checkSetupFolder: "storytree:check-setup-folder",
   addProject: "storytree:add-project",
   removeProject: "storytree:remove-project",
+  projectSentence: "storytree:project-sentence",
+  setProjectSentence: "storytree:set-project-sentence",
   deletableProjects: "storytree:deletable-projects",
   deleteProject: "storytree:delete-project",
   openFeedbackDraft: "storytree:open-feedback-draft",

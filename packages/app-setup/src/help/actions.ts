@@ -5,11 +5,23 @@ import { codexHookTrust } from "@storytree/session-management";
 import { readProjectChoice } from "@storytree/project-and-caller";
 
 import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
-import type { Storytree } from "@storytree/library";
+import type { Library, Storytree } from "@storytree/library";
 import { addProject, deleteProject, keepOnThisComputer, projectFolder, removeProject, whoLoses } from "../project/index.js";
-import type { AgentConnection, SetupHelpBridge } from "./bridge.js";
+import type { AgentConnection, ProjectSentence, SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "../journey-events/feedback.js";
 import { readShippedLicense } from "./license.js";
+
+const SENTENCE_ACTOR = "storytree app (Settings → Projects)";
+
+/** `work` on project `name`'s library, opened for it alone and closed after; a project not in the library is refused, never made. */
+async function withProject<T>(storytree: Storytree, name: string, work: (library: Library) => Promise<T>): Promise<T> {
+  const library = await storytree.openProject(name, { create: false });
+  try {
+    return await work(library);
+  } finally {
+    await library.close();
+  }
+}
 
 /** Platform adapters come from the frame; diagnostics and recovery stay with Session management. */
 export function setupHelpActions(options: {
@@ -60,6 +72,18 @@ export function setupHelpActions(options: {
       const removed = await removeProject(name, { home: options.storytreeHome, library: options.library() });
       if (removed.status === "no such project") throw new Error(removed.message);
       return removed;
+    },
+    async projectSentence(name) {
+      if (typeof name !== "string") throw new Error("There is no project with that name.");
+      return await withProject(options.library(), name, async (library) => ({ ...(await library.anchor()) }));
+    },
+    async setProjectSentence(name, what, audience) {
+      if (typeof name !== "string" || typeof what !== "string" || typeof audience !== "string") throw new Error("There is no project with that name.");
+      return await withProject(options.library(), name, async (library) => {
+        const halves = { what: what.trim() || undefined, audience: audience.trim() || undefined };
+        if (halves.what !== undefined || halves.audience !== undefined || (await library.anchor()) !== undefined) await library.setAnchor(halves, { actor: SENTENCE_ACTOR });
+        return { ...(await library.anchor()) } satisfies ProjectSentence;
+      });
     },
     async deletableProjects() {
       const shown = readProjectChoice(path.join(options.storytreeHome, "project-choice.json"));

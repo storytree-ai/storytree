@@ -12,9 +12,24 @@ import { ARM_CODEOWNERS_PATH } from "./repositories.js";
 
 const CI: ArmCi = { checks: "npm test", verifier: { testsRepository: "storytree-ai/x-twin-build-tests", command: 'bash "$HIDDEN_TESTS/run.sh"' } };
 
+/** A POSIX shell for the workflow's `run:` steps that needs no bash on PATH: the bash Git ships beside itself (Git Bash on
+ *  Windows, the system's elsewhere), found by walking up from `git --exec-path`, else whatever `bash` PATH holds. Its own
+ *  folder, where `mv` and the other tools the steps call live beside it, goes first on the steps' PATH. */
+function posixShell(): string | undefined {
+  const bash = process.platform === "win32" ? "bash.exe" : "bash";
+  try {
+    for (let dir = execFileSync("git", ["--exec-path"], { encoding: "utf8" }).trim(); ; dir = path.dirname(dir)) {
+      const found = [path.join(dir, "usr", "bin", bash), path.join(dir, "bin", bash)].find((file) => existsSync(file));
+      if (found) return found;
+      if (path.dirname(dir) === dir) break;
+    }
+  } catch { /* no git on PATH: try PATH's bash */ }
+  try { execFileSync("bash", ["-c", "true"], { stdio: "ignore" }); return "bash"; } catch { return undefined; }
+}
+
 interface Job { readonly "runs-on": string; readonly if?: string; readonly environment?: string; readonly steps: readonly { readonly uses?: string; readonly with?: Record<string, string>; readonly env?: Record<string, string>; readonly run?: string }[] }
 
-test("3.1 · an arm's CI runs on Linux only: its own checks gate every pull request and merge-queue entry, and the task's hidden tests run only on each merge to main, fetched with a secret, out of the reach of the arm's code, reporting counts alone", async () => {
+test("3.1 · an arm's CI runs on Linux only: its own checks gate every pull request and merge-queue entry, and the task's hidden tests run only on each merge to main, fetched with a secret, out of the reach of the arm's code, reporting counts alone", async (t) => {
   const workflow = armWorkflow(CI) as { on: Record<string, unknown>; jobs: Record<string, Job> };
   assert.deepEqual(Object.keys(workflow.on).sort(), ["merge_group", "pull_request", "push"]);
   for (const [name, job] of Object.entries(workflow.jobs)) assert.equal(job["runs-on"], "ubuntu-latest", `${name} runs on Linux`);
@@ -32,15 +47,19 @@ test("3.1 · an arm's CI runs on Linux only: its own checks gate every pull requ
 
   // The steps between the fetch and the verifier, run here on a fake runner: the tests' checkout, counting script and
   // all, leaves the workspace the verifier mounts into the arm's container, and the verifier finds it where it went.
-  await withTempDir((dir) => {
+  const shell = posixShell();
+  if (!shell) t.skip("platform:posix: no POSIX shell here (no bash beside git, none on PATH), so the workflow's run steps are not run; the rest still is");
+  else await withTempDir((dir) => {
     const workspace = path.join(dir, "workspace");
     const temp = path.join(dir, "runner-temp");
     mkdirSync(path.join(workspace, fetch!.with!.path!), { recursive: true });
     mkdirSync(temp);
     writeFileSync(path.join(workspace, fetch!.with!.path!, "counts.mjs"), "");
+    const pathKey = Object.keys(process.env).find((key) => key.toUpperCase() === "PATH") ?? "PATH";
+    const searched = path.isAbsolute(shell) ? [path.dirname(shell), process.env[pathKey]].filter(Boolean).join(path.delimiter) : process.env[pathKey];
     const expand = (text: string) => text.replaceAll("${{ github.workspace }}", workspace).replaceAll("${{ runner.temp }}", temp);
     for (const step of hidden.steps.slice(hidden.steps.indexOf(fetch!) + 1, -1)) {
-      execFileSync("bash", ["-c", expand(step.run!)], { cwd: workspace, env: { ...process.env, GITHUB_WORKSPACE: workspace, RUNNER_TEMP: temp }, stdio: "pipe" });
+      execFileSync(shell, ["-c", expand(step.run!)], { cwd: workspace, env: { ...process.env, [pathKey]: searched, GITHUB_WORKSPACE: workspace, RUNNER_TEMP: temp }, stdio: "pipe" });
     }
     assert.deepEqual(readdirSync(workspace), [], "nothing of the tests is left in the tree the arm's code runs in");
     const tests = expand(run.env!.HIDDEN_TESTS!);

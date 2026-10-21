@@ -13,7 +13,7 @@ import { nextScene, sameWisps } from "./planet-update.js";
 import { PanelSelection, type Selection } from "./panel-selection.js";
 import { panelAside } from "./globe-aside.js";
 import { globeFraming } from "./planet-navigation.js";
-import { openingFace, sheetFaces, type SheetFace } from "./globe-switches.js";
+import { LAUNCH_FACE, sheetFaces, type SheetFace } from "./globe-switches.js";
 import type { PlacedGlobeControls } from "./globe-guide.js";
 import { globeLocator, type GlobeLocator } from "./globe-locator.js";
 import type { GlobeOpening } from "../surfaces/surfaces.js";
@@ -51,14 +51,14 @@ interface Drawn {
  * Its Stories and Library buttons are the glass sheet's two looks, one pressed at a time: Library clears the glass and
  * outlines the islands, Stories smokes it and fills them again, and neither moves the eye, which only the user tilts and turns
  * (ADR-1062 D3, replacing ADR-1002's four combinations here). With `library` off (ADR-0750) nothing hangs beneath and only
- * Stories is offered; `opening` is how close it opens, and `factory` opens the user's factory on its Library face (3.63).
+ * Stories is offered; `opening` is how close it opens, and every project opens on Stories.
  * The page offers `window.storytreeGlobe`, the locator the lag instrument clicks islands by (3.41).
  */
 export async function openForestView(container: HTMLElement, onSelect: (selection: Selection) => void, core: KnowledgeCore,
-  { library = true, opening = "whole-planet", factory = false }: { library?: boolean; opening?: GlobeOpening | undefined; factory?: boolean } = {}): Promise<ForestView> {
+  { library = true, opening = "whole-planet" }: { library?: boolean; opening?: GlobeOpening | undefined } = {}): Promise<ForestView> {
   const root = createRoot(container);
   let drawn: Drawn = {
-    face: openingFace({ factory, libraryOffered: library }), places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined, aside: 0,
+    face: LAUNCH_FACE, places: new Map(), scene: { islands: [] }, wisps: [], selected: undefined, highlighted: undefined, viewport: undefined, aside: 0,
   };
 
   const render = (next: Partial<Drawn>): void => {

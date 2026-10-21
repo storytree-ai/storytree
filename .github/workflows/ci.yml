@@ -103,21 +103,36 @@ jobs:
       # A fresh runner has no timing history, so every unit would get the fixed 3 minutes; on main
       # Windows agent-link passed in 171.3 s and macOS forest in 170.0 s (run 37839884329), and
       # loaded queue runners killed them. ADR-0785's own rule, twice the slowest pass, gives 6 min.
-      # Windows cli is the exception: 23 passes on 2026-10-10/11 took 209-346 s (it was killed at 360 s
-      # in 2 of 25 runs, failing PRs that never touched it, friction_21e0e923a222), so by the same rule
-      # it gets 12 min there, and every row it prints says why.
-      - if: matrix.system == 'Windows'
+      # Units drifted past that (Windows cli and session-management, killed at 360 s on pull requests
+      # that never touched them: friction_21e0e923a222, friction_9a48639c761e), so each runner now
+      # carries the timing history of main's latest run on its system, and a unit with five passes
+      # there gets twice its slowest, never under 6 min: a pull request's kills are never carried back.
+      - name: Restore main's test timing history
+        id: timings
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: test-timings-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: test-timings-${{ runner.os }}-
+      # Until main has saved a history for Windows, its two drifted units keep their hand-set limits,
+      # twice their slowest passes (346 s and 357 s): without one, PR #1627's own run killed cli at 360 s.
+      - if: matrix.system == 'Windows' && steps.timings.outputs.cache-matched-key == ''
         shell: bash
-        run: pnpm run test --set-limit=cli=720 --reason="Windows CI passes took up to 346 s; twice that, friction_21e0e923a222"
-      # Windows session-management went the same way: 10 passes on 2026-10-20 took 235-357 s, and it was
-      # killed at 360 s on PR #1625, which never touched it, so it gets twice its slowest pass too.
-      - if: matrix.system == 'Windows'
-        shell: bash
-        run: pnpm run test --set-limit=session-management=720 --reason="Windows CI passes took up to 357 s; twice that, PR 1625"
+        run: |
+          pnpm run test --set-limit=cli=720 --reason="no history from main yet; Windows CI passes took up to 346 s, friction_21e0e923a222"
+          pnpm run test --set-limit=session-management=720 --reason="no history from main yet; Windows CI passes took up to 357 s, PR 1625"
       - run: pnpm test
         env:
           STORYTREE_UNIT_LIMIT_MS: 360000
           STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || matrix.system == 'macOS' && '.pgtest/macos-evidence' || '' }}
+      # Only main's own runs carry their times forward, a failed or cut one too: its kills grow the
+      # next run's deadline for that unit.
+      - name: Keep this run's test timing history for the next
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: test-timings-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
       # Exercise the distributable before merging packaging/updater changes. A source build
       # passing tests alone does not prove NSIS can unpack the app and its database binaries, or
       # that the signed Apple Silicon .app starts and runs its own Postgres and Node.

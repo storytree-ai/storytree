@@ -64,7 +64,8 @@
 // unit. Each unit's time is added to the machine's history (test-timings.jsonl in STORYTREE_HOME,
 // default ~/.storytree/0.3), with how many units the run tested at once, and its deadline is learned
 // from the runs that tested as many at once: twice its slowest recent pass, until it has five the run's default (STORYTREE_UNIT_LIMIT_MS when set, as CI sets it, else
-// 3 min) or twice its slowest recent pass at any concurrency when that is longer, doubled after each kill since it last passed, at most 15 min. Each
+// 3 min) or twice its slowest recent pass at any concurrency when that is longer, doubled after each kill since it last passed, at most 15 min; a learned one is never under
+// STORYTREE_UNIT_LIMIT_MS when set (CI carries main's history, never a pull request's kills). Each
 // row gives the unit's time, its deadline and where the deadline came from. Any agent may set a
 // unit's deadline on this machine, and clear it again:
 //

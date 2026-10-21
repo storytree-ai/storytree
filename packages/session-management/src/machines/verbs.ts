@@ -3,8 +3,9 @@
  * project's machines, and say which one this computer is. They are the command line's: a computer is named by the
  * person at it, and an agent has no use for the list until an increment names a machine.
  */
-import { verb, VerbRefusal, type Verb, type VerbContext } from "@storytree/library/verbs";
+import { verb, VerbRefusal, type Verb, type VerbContext, type VerbPlace } from "@storytree/library/verbs";
 
+import type { MachineReadings } from "./health.js";
 import type { MachineRecord } from "./machines.js";
 
 const NO_TOOL = { absent: "a computer is named, and its machines read, by the person at it on the command line" };
@@ -72,5 +73,29 @@ const which = verb({
   },
 });
 
+/**
+ * `storytree machine health`, reading the machine `read` gives (this one, unless a test hands its own) against the
+ * limits in the settings of `home`. It needs no library, so it answers on a machine whose library is out of reach; a
+ * concern is its "no", so the command exits 1 and a script over SSH can tell.
+ */
+export function healthVerb(read?: () => MachineReadings): Verb {
+  return verb({
+    command: { family: "machine", name: "health", summary: "this machine's health: its uptime, memory, load and disk, concerns first; exits 1 on a concern" },
+    tool: NO_TOOL,
+    inputs: {},
+    callerless: true,
+    async act(_input, context: VerbPlace & { readonly home?: string }) {
+      const { readSettings } = await import("@storytree/project-and-caller");
+      const { concernsOf, healthSaid, thisMachine } = await import("./health.js");
+      const settings = readSettings(context.home);
+      const readings = (read ?? thisMachine)();
+      const concerns = concernsOf(readings, { memoryGB: settings["health-memory"].value, load: settings["health-load"].value, diskPercent: settings["health-disk"].value });
+      const text = healthSaid(readings, concerns);
+      if (concerns.length > 0) throw new VerbRefusal(text, { next: [{ command: "settings show", why: "the limits are health-memory, health-load and health-disk" }] });
+      return { text, data: { ...readings, concerns } };
+    },
+  });
+}
+
 /** The machine verbs, in the order the command line lists them. */
-export const MACHINE_VERBS: readonly Verb[] = [list, which, name];
+export const MACHINE_VERBS: readonly Verb[] = [list, which, name, healthVerb()];

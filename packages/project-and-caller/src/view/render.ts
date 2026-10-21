@@ -5,6 +5,7 @@ import type { SettingGroup } from "../settings/settings.js";
 /** Each group's tab heading and the line beneath it; a setting joins a tab by declaring its group. */
 export const SETTING_GROUPS: Readonly<Record<SettingGroup, { readonly title: string; readonly description: string }>> = {
   sessions: { title: "Sessions", description: "How sessions are guided and listed. Yours on this computer, for all projects." },
+  machine: { title: "Machine", description: "The limits machine health reads this computer against. Yours on this computer, for all projects." },
   library: { title: "Library", description: "Where the library lives. Yours on this computer, for all projects." },
 };
 

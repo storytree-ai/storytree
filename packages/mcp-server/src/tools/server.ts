@@ -84,7 +84,6 @@ export interface AgentToolOptions {
   readonly quietMs?: number;
   /** How merges that end claims are watched for (ADR-0643 D3). By default, through `gh`. */
   readonly merges?: MergeWatch;
-  readonly landing?: Landing;
   /** How wire_pipeline reads whether a repository's plan allows branch protection (capability 11). By default, through `gh`. */
   readonly protection?: ProtectionReader;
   /** What the setup check (capability 8) works with: by default, the user's own homes and no hook command. */
@@ -217,6 +216,7 @@ export interface ToolHost {
   readonly home?: string;
   readonly ledger?: string;
   readonly merges?: MergeWatch;
+  /** What a landing is checked against; the server always gives it, and a part given none lands unchecked. */
   readonly landing?: Landing;
   /** How wire_pipeline reads whether a repository's plan allows branch protection, when not through `gh`. */
   readonly protection?: ProtectionReader;

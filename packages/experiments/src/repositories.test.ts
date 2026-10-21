@@ -48,7 +48,7 @@ test("3.1 · an arm's CI runs on Linux only: its own checks gate every pull requ
   // The steps between the fetch and the verifier, run here on a fake runner: the tests' checkout, counting script and
   // all, leaves the workspace the verifier mounts into the arm's container, and the verifier finds it where it went.
   const shell = posixShell();
-  if (!shell) t.skip("no POSIX shell here (no bash beside git, none on PATH): the workflow's run steps are not run; the rest still is");
+  if (!shell) t.skip("platform:posix: no POSIX shell here (no bash beside git, none on PATH), so the workflow's run steps are not run; the rest still is");
   else await withTempDir((dir) => {
     const workspace = path.join(dir, "workspace");
     const temp = path.join(dir, "runner-temp");

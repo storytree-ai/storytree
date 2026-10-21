@@ -131,3 +131,33 @@ and passed (`backups/20261015T062517218Z-88be4a8d`):
 ```text
 2a23ecc2673f55b067da99fa77a585b3de14f76a600aac09f4f9fa1d9708979a  host.mjs
 ```
+
+## Addendum — 2026-10-21: cloud-route.sh (ADR-1093 D3)
+
+`cloud-route.sh` installs the cloud sessions' HTTPS route on the box: `storytree-wsproxy`
+(127.0.0.1:8080, reaching only 127.0.0.1:5432) and `storytree-cloudflared` (the owner's tunnel,
+its token through systemd credentials). A read-only reviewer, working blind, re-derived every pinned
+hash (Go 1.27.3, cloudflared 2026.10.2's .deb, wsproxy's source at 99ed92dd), rebuilt wsproxy twice
+offline from two paths to the pinned binary hash, and ran it with the unit's settings: only
+127.0.0.1:5432 was proxied; other ports, encoded addresses, `0x7f.0.0.1` and the Host header were
+refused. Both units pass `systemd-analyze verify` (exposure 4.0 and 4.1); the dry run and review
+ran as an unprivileged user and changed nothing.
+
+First review: approved with minor findings, all applied and re-reviewed: the real run checks a
+root-owned copy of the script against the hash below (the copy in the owner's home is writable by
+his account's other processes); the scratch folder is removed on exit; the token file must be a
+regular file of the sudo user, read (at most 8 KiB) and deleted as that user; no `&&` chain hides a
+failed step; every pg_hba rule covering 127.0.0.1 must ask for a password; the review runs
+`dpkg --verify` and asks the public hostname without a token, expecting Access's refusal (it
+answered 403); cloudflared stops with wsproxy (`BindsTo=`), may not reach private, tailnet or
+link-local ranges, and serves no management diagnostics. The re-review approved the fixes and
+found re-runs would stop at the port check (process names are cut to 15 characters); ports are now
+matched by process id against each unit's main process.
+
+The owner's real run is pending; no lane runs it.
+
+Approved SHA-256:
+
+```text
+6be3b0305c4161c2ad27307eca89ec63f014c34231dd2c7b96863e18a17cdfef  cloud-route.sh
+```

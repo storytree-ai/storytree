@@ -9,7 +9,7 @@ import { Window as HappyWindow } from "happy-dom";
 import { readIco, readPng } from "@storytree/mark";
 
 import { buildWebsite } from "./build.js";
-import { fixes, harness } from "./tour-copy.js";
+import { harness } from "./tour-copy.js";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -185,7 +185,8 @@ test("1.13 · below the map the built home shows the three promises in order, ea
   const page = new HappyWindow().document;
   page.write(html);
   const claims = [...page.querySelectorAll("section.claim")];
-  assert.deepEqual(claims.map(claim => claim.querySelector("h3")?.textContent), fixes.promises, "one section per promise, in order, and no other");
+  assert.deepEqual(claims.map(claim => claim.querySelector("h3")?.textContent),
+    ["Watch your software grow on a map.", "One map for you and your agents.", "Memory that lives where your code lives."], "one section per promise, in the owner's order, and no other");
   assert.ok(claims.every(claim => [...claim.querySelectorAll("p, h3")].length === 1), "each claim is its single line, with no pain line beside it");
   assert.ok(page.querySelector("#map-frame")!.compareDocumentPosition(claims[0]!) & 4, "the claims sit below the map");
   const videos = claims.map(claim => claim.querySelector("video"));

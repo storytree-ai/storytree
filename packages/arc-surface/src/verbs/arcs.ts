@@ -16,6 +16,7 @@
  * state, which `arcView` works out. There is no `increment start` (starting is claiming, the agent tools'), no
  * `increment ready` (ADR-0645 D5; ADR-0909 D4 retired the step, and the word is refused saying so), and no hand close
  * or re-open of an arc (the owner's R1). `arc list` reads the board's arcs: live ones and those closed yesterday or today, or a window's closed arcs.
+ * `arc status` (status.ts) says, for every active arc, whether it is moving and why not.
  */
 import { verb, VerbRefusal, type VerbFamilies } from "@storytree/library/verbs";
 import type { ArcView, Holds, NoteWait, PendingChange, WaitFor } from "@storytree/library";
@@ -23,6 +24,7 @@ import type { ArcView, Holds, NoteWait, PendingChange, WaitFor } from "@storytre
 import { recentWindow, windowOf, type ClosedRange } from "../board/closed-range.js";
 import { questionsBehind } from "../work-states/board-states.js";
 import { labelOf, listOf, releasedAsking, type ArcVerbContext } from "./context.js";
+import { status } from "./status.js";
 
 const NO_TOOL = "the MCP server's own plan tools do this";
 
@@ -615,7 +617,7 @@ const increment: VerbFamilies<ArcVerbContext> = {
 };
 
 /** The arc verbs, as the command line's `arc` family lists them, and the `arc increment` family within it. */
-export const ARC_VERBS = [show, list, waits, create, edit, park, unpark, arcWait, arcUnwait];
+export const ARC_VERBS = [show, list, waits, status, create, edit, park, unpark, arcWait, arcUnwait];
 export const ARC_INNER = [increment];
 
 /** Words agents try for seeing one arc. */

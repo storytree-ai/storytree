@@ -70,7 +70,8 @@ test("3.13 · `arc status` gives one line per active arc, moving ones first, eac
   await library.closeIncrement(schema.id, { disposition: "landed", pr: "#12" });
   assert.equal((await claim({ log, library, project, session: "codex-lane", harness: "codex" }, form.id, "building the form")).ok, true);
   const since = (await readClaims(log, project)).find((one) => one.increment === form.id)!.since;
-  const when = `${since.slice(0, 16).replace("T", " ")} UTC`;
+  // Said to the minute in UTC, worked out here by the clock rather than by cutting the stored text.
+  const when = `${new Intl.DateTimeFormat("sv-SE", { timeZone: "UTC", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(since))} UTC`;
 
   const answer = await status.act({}, context, WORDS);
 

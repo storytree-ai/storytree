@@ -1066,20 +1066,29 @@ test("3.45 a `claude -p` session's last turn is recorded without the mod though 
       const folder = await projectFolder(dir, project, home);
       placeTestServer(path.join(home, "pgdata"), { port: (slow.address() as AddressInfo).port });
       // As setup registers Claude Code's end-of-turn hook (the app setup's hooks-config.ts): async, with --after-tool.
-      const child = spawn(process.execPath, [hook, "claude-code", AFTER_TOOL], { env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_ENTRYPOINT: "sdk-cli" }, stdio: ["pipe", "ignore", "ignore"], shell: false });
-      // As `claude -p` does at its turn's end (2.1.284, measured on the Mint box): SIGTERM soon after the hook starts, then gone when it exits.
-      const term = setTimeout(() => child.kill("SIGTERM"), 100);
-      const kill = setTimeout(() => child.kill("SIGKILL"), 400);
-      await new Promise<void>((resolve) => {
-        child.on("exit", () => resolve());
-        child.stdin.end(recorded("claude-code", "stop", folder));
-      });
-      clearTimeout(term);
-      clearTimeout(kill);
+      // As `claude -p` does at its turn's end (2.1.284, measured on the Mint box): SIGTERM soon after the hook starts, then
+      // gone when it exits. The SIGTERM lands before the hook has its input, so it is still at work: idle, a hook given its
+      // input at once has handed off before 100 ms. A hook killed by that SIGTERM never ran: one that hands off at once
+      // ignores it from its first statement, so on a runner loaded enough that Node had not reached it, the run is the
+      // machine's and is run again (seen on macOS CI, 2026-10-21); a hook that is not deaf dies so every time. Node keeps
+      // no SIGTERM ignored before it starts, so no hook can do better.
+      const ended: string[] = [];
+      for (let run = 0; run < 10 && (ended.length === 0 || ended.at(-1) === "SIGTERM"); run++) {
+        const child = spawn(process.execPath, [hook, "claude-code", AFTER_TOOL], { env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_ENTRYPOINT: "sdk-cli" }, stdio: ["pipe", "ignore", "ignore"], shell: false });
+        child.stdin.on("error", () => undefined);
+        const term = setTimeout(() => {
+          child.kill("SIGTERM");
+          child.stdin.end(recorded("claude-code", "stop", folder));
+        }, 100);
+        const kill = setTimeout(() => child.kill("SIGKILL"), 400);
+        ended.push(await new Promise<string>((resolve) => child.on("exit", (code, signal) => resolve(signal ?? `exit ${code}`))));
+        clearTimeout(term);
+        clearTimeout(kill);
+      }
 
       const deadline = Date.now() + 12_000;
       while (!(await linesOf(project)).some((line) => line.kind === "turn-ended") && Date.now() < deadline) await sleep(100);
-      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"]);
+      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"], `the hook's runs ended: ${ended.join(", ")}`);
     });
   } finally {
     slow.close();

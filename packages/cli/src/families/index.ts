@@ -81,7 +81,7 @@ export function inOrder(placed: readonly Placed[]): Family[] {
 }
 
 /** The surfaces the doors learner judges in the friction drain: every command, every tool served in `cwd`, and the verbs both mount. */
-async function surfaces(cwd: string) {
+export async function surfaces(cwd: string) {
   const { servedTools } = await import("@storytree/mcp-server");
   const tools = (await servedTools(cwd)).map(({ name, consumers }) => ({ verb: name, consumers }));
   return { commands: commandsOf(FAMILIES), tools, twins: twinsOf(declared.parts) };

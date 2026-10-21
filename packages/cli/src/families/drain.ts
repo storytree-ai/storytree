@@ -3,6 +3,7 @@
  * Friction's verb and the learner this door's usage reading (capability 14, which reaches both doors' surfaces), so the
  * command line mounts the one with the other. A learner that fails says so under the drain's answer and never stops it.
  */
+import type { WriteOptions } from "@storytree/library";
 import { mounted, type VerbFamilies, type VerbPlace } from "@storytree/library/verbs";
 
 import type { Context, Family, Verb } from "../door.js";
@@ -35,7 +36,12 @@ export function learning(family: Family, surfaces: (cwd: string) => Promise<Surf
   return { ...family, verbs: family.verbs.map((verb) => (verb === drain ? learned : verb)) };
 }
 
-async function learn(context: Context, surfaces: (cwd: string) => Promise<Surfaces>): Promise<string[]> {
+/**
+ * Run the doors learner for `caller`, writing as `writer`: by default the session running the command and its writer. The
+ * tool server names its own caller (`storytree doors learn`), so its drain learns on the session that called the tool.
+ */
+export async function learn(context: Context, surfaces: (cwd: string) => Promise<Surfaces>, as?: { readonly caller: { readonly session: string; readonly harness?: string }; readonly writer: WriteOptions }): Promise<string[]> {
   const [{ log, project, library, session, harness }, { ARCS, learnInDrain }] = await Promise.all([context.activityContext(), import("../usage/learner.js")]);
-  return learnInDrain({ log, project, library, writer: context.writer(), caller: { session, ...(harness === undefined ? {} : { harness }) }, surfaces: await surfaces(context.cwd), arcs: ARCS, now: new Date() });
+  const caller = as?.caller ?? { session, ...(harness === undefined ? {} : { harness }) };
+  return learnInDrain({ log, project, library, writer: as?.writer ?? context.writer(), caller, surfaces: await surfaces(context.cwd), arcs: ARCS, now: new Date() });
 }

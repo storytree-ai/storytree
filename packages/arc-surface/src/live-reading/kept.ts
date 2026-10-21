@@ -42,10 +42,12 @@ export function pageKept<T>(key: string, accept: (value: unknown) => value is T,
 /**
  * The page's database of kept readings: its pieces in one store, each marked with its reading's key,
  * and each reading's latest fold in another, under its key. Version 1 kept every log line in its
- * pieces; opening it as version 2 lets those go, and the next start reads from the start.
+ * pieces; opening it as version 2 lets those go, and the next start reads from the start. Version 2
+ * kept every field of each record; opening it as version 3 lets those pieces go too (the folds stay),
+ * and the next start reads the changes from the start once, holding only the fields a surface reads.
  */
 const KEPT_DATABASE = "storytree.kept-readings";
-const VERSION = 2;
+const VERSION = 3;
 const PIECES = "pieces";
 const FOLDS = "folds";
 /** Past this many pieces, the next start keeps them as one. */

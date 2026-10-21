@@ -48,8 +48,30 @@ const COMMAND_SHOWN = 300;
 const READ_ONE_BY_ONE: ReadonlySet<Line["kind"]> = new Set(["claimed", "released", "landed", "closed", "merged", "subagent-started", "note-read"]);
 
 /**
+ * The record fields a surface reads from the held history (other than health's): note cards' text and
+ * links, a decision's status, a friction's state, a question's lifecycle, a capability's story, an
+ * increment's status and outcome. Bodies, pending edits and an agent's workflow are never read from it,
+ * and were most of what a kept reading held (463 MB on the laptop, 2026-10-22).
+ */
+const HELD_FIELDS = ["title", "term", "text", "statement", "meaning", "role", "description", "summary", "oneLine",
+  "links", "supersedes", "frontCoverOf", "status", "state", "lifecycle", "story", "outcome"] as const;
+
+/** `change` with only the fields a surface reads, an outcome only its disposition. */
+function thinned(change: Change): Change {
+  // A change that carries no fields (a stand-in's) is held as it came.
+  const from = (change.record as Change["record"] | undefined)?.fields as Record<string, unknown> | undefined;
+  if (from === undefined) return change;
+  const fields: Record<string, unknown> = {};
+  for (const name of HELD_FIELDS) if (from[name] !== undefined) fields[name] = from[name];
+  const outcome = fields.outcome as { disposition?: unknown } | undefined;
+  if (outcome !== undefined) fields.outcome = typeof outcome === "object" && outcome !== null && "disposition" in outcome ? { disposition: outcome.disposition } : {};
+  return { ...change, record: { ...change.record, fields } };
+}
+
+/**
  * What is held of the history and the log, kept as news arrives. Every surface reads the history and
  * the log in order, so dropping is only of what no surface reads:
+ * - every record field but those a surface reads (HELD_FIELDS);
  * - a health change other than a reported one (verified health is not drawn, ADR-0630), and a
  *   reported state the same as that contract's last held one (the drill-down's trail shows each
  *   change of state once), each held with only its node, column and state;
@@ -81,7 +103,7 @@ class Held implements News, LogReading {
   add({ changes, lines }: News): News {
     const added: News = { changes: [], lines: [] };
     for (const change of changes) {
-      if (change.type !== "health") { added.changes.push(change); continue; }
+      if (change.type !== "health") { added.changes.push(thinned(change)); continue; }
       const { node, column, state } = change.record.fields as { node?: unknown; column?: unknown; state?: unknown };
       if (change.action === "retired" || column !== "reported" || typeof node !== "string" || this.#reported.get(node) === state) continue;
       this.#reported.set(node, state);

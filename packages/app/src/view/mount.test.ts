@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setImmediate } from "node:timers/promises";
 import { settingsActions } from "@storytree/project-and-caller/settings";
-import { Window, type HTMLButtonElement } from "happy-dom";
+import { Window, type HTMLButtonElement, type HTMLSelectElement } from "happy-dom";
 import { mountAppMenu } from "./index.js";
 import { fakeBridge } from "../../../../apps/desktop/src/capture/index.js";
 

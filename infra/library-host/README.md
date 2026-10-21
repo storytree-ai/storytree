@@ -211,18 +211,26 @@ from GCP Secret Manager into a private file in his home on the box:
 gcloud secrets versions access latest --secret=cloudflare-mint-library --project=635716509357 | ssh mint 'umask 077; cat > ~/cloudflared-token.tmp'
 ```
 
-Then the reviewed script from `main` (compare the printed SHA-256 with `REVIEW.md`), its dry run,
-the real run (which moves the token into place and deletes the temporary file), and the review:
+Run the real run straight after: until it moves the token into place, any process of his account
+on the box could read that file (delete it with `ssh mint 'rm ~/cloudflared-token.tmp'` if the run
+stops early). Then the script from `main`, its dry run (no sudo), and the real run. The real run
+first copies the script into root's own folder and checks that copy against the SHA-256 recorded in
+`REVIEW.md` (read it on GitHub, not on the box), so nothing his account runs on the box can change
+what root runs; the run moves the token into place and deletes the temporary file:
 
 ```powershell
-ssh mint 'git -C ~/code/storytree03 fetch -q origin main && git -C ~/code/storytree03 show origin/main:infra/library-host/cloud-route.sh > ~/cloud-route.sh && sha256sum ~/cloud-route.sh'
-ssh -t mint 'sudo bash ~/cloud-route.sh --dry-run --install-token ~/cloudflared-token.tmp'
-ssh -t mint 'sudo bash ~/cloud-route.sh --install-token ~/cloudflared-token.tmp'
+ssh mint 'git -C ~/code/storytree03 fetch -q origin main && git -C ~/code/storytree03 show origin/main:infra/library-host/cloud-route.sh > ~/cloud-route.sh'
+ssh mint 'bash ~/cloud-route.sh --dry-run --install-token ~/cloudflared-token.tmp'
+ssh -t mint 'sudo install -m 700 ~/cloud-route.sh /root/cloud-route.sh && sudo sha256sum /root/cloud-route.sh | grep ^SHA256_FROM_REVIEW && sudo bash /root/cloud-route.sh --install-token ~/cloudflared-token.tmp'
 ssh mint 'bash ~/cloud-route.sh --review'
 ```
 
+If the `grep` prints nothing, the copy is not the reviewed script, and nothing runs.
+
 `--review` changes nothing and needs no sudo: it reports the installed versions against the
 pins, the services and the user they run as, every listener on 8080, 2112 and 20241, wsproxy's
-allow-list and what it answers for 127.0.0.1:5432 and for 127.0.0.1:22, and the pg_hba line.
+allow-list and what it answers for 127.0.0.1:5432 and for 127.0.0.1:22, what
+`https://library.storytree.dev` answers a request with no service token (Access's 302, 401 or 403;
+anything else is a warning), and whether every pg_hba rule covering 127.0.0.1 asks for a password.
 Rerunning the real run is safe: what already matches is left alone. To move to new versions,
 change a pin together with its hash and have the script reviewed again.

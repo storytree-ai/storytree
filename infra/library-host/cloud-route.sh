@@ -40,6 +40,7 @@ WSPROXY_LISTEN=127.0.0.1:8080       # the tunnel's public hostname routes to htt
 WSPROXY_METRICS=127.0.0.1:2112      # wsproxy's default is :2112 on every interface
 CLOUDFLARED_METRICS=127.0.0.1:20241
 POSTGRES_ADDR=127.0.0.1:5432
+PUBLIC_HOST=library.storytree.dev   # the tunnel's public hostname, behind the Access application
 ALLOW_ADDR_REGEX='^127[.]0[.]0[.]1:5432$' # bracketed dots: no backslashes for systemd to unescape
 
 wsproxy_unit() {
@@ -88,14 +89,18 @@ cloudflared_unit() {
 Description=storytree: cloudflared running tunnel mint-library to wsproxy on $WSPROXY_LISTEN
 After=network-online.target $WSPROXY_UNIT
 Wants=network-online.target
+BindsTo=$WSPROXY_UNIT
 
 [Service]
 LoadCredential=tunnel-token:$TOKEN_FILE
-ExecStart=/usr/bin/cloudflared --no-autoupdate tunnel --metrics $CLOUDFLARED_METRICS run --token-file %d/tunnel-token
+ExecStart=/usr/bin/cloudflared --no-autoupdate tunnel --management-diagnostics=false --metrics $CLOUDFLARED_METRICS run --token-file %d/tunnel-token
 DynamicUser=yes
 NoNewPrivileges=yes
 CapabilityBoundingSet=
 AmbientCapabilities=
+# The tunnel is configured from Cloudflare's dashboard; whatever it is pointed at, the box lets it reach
+# loopback and the internet, never the LAN, the tailnet or link-local addresses.
+IPAddressDeny=10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 169.254.0.0/16 fc00::/7 fe80::/10
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
 ProtectSystem=strict
 ProtectHome=yes
@@ -119,11 +124,21 @@ fail() { printf 'stopped: %s\n' "$*" >&2; exit 1; }
 sha_of() { sha256sum "$1" | cut -d' ' -f1; }
 installed_cloudflared() { { dpkg-query -W -f='${Status} ${Version}' cloudflared 2>/dev/null || true; } | sed -n 's/^install ok installed //p'; }
 listeners_on() { ss -Hltn "sport = :${1##*:}" 2>/dev/null | awk '{print $4}' | sort -u | paste -sd' ' -; }
+# The programs holding a port (ss names them only to root); empty when nothing listens or it cannot tell.
+holders_of() { { ss -Hltnp "sport = :${1##*:}" 2>/dev/null || true; } | { grep -o 'users:(("[^"]*"' || true; } | sed 's/users:(("//; s/"$//' | sort -u | paste -sd' ' -; }
 
-# Postgres's own rules, read as the owner over the local socket (peer auth); empty when unreadable.
+# Postgres's own rules, read as the owner over the local socket (peer auth). Prints the first line admitting
+# 127.0.0.1 to every database with scram-sha-256, and only when no TCP rule covering 127.0.0.1 asks for less
+# (Postgres uses the first rule that matches); empty when there is none, or Postgres could not be asked.
 loopback_password_rule() {
-  local q="select line_number from pg_hba_file_rules where type = 'host' and address = '127.0.0.1'
-    and netmask = '255.255.255.255' and 'all' = any(database) and auth_method = 'scram-sha-256' limit 1"
+  local q="with r as (select line_number, database, auth_method from pg_hba_file_rules
+      where error is null and type in ('host', 'hostnossl')
+        and case when address in ('all', 'samehost', 'samenet') then true
+                 when address ~ '^[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+\$' and netmask ~ '^[0-9.]+\$'
+                   then (inet '127.0.0.1' & netmask::inet) = (address::inet & netmask::inet)
+                 else false end)
+    select min(line_number) filter (where auth_method = 'scram-sha-256' and 'all' = any(database)) from r
+    having count(*) filter (where auth_method not in ('scram-sha-256', 'reject')) = 0"
   if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
     sudo -u "$SUDO_USER" psql -X -d postgres -tAc "$q" 2>/dev/null || true
   else
@@ -149,6 +164,10 @@ review() {
   if [ -z "$v" ]; then say "not installed (pinned: $CLOUDFLARED_VERSION)"
   elif [ "$v" = "$CLOUDFLARED_VERSION" ]; then say "installed $v, the pinned version"
   else say "installed $v, NOT the pinned $CLOUDFLARED_VERSION"; fi
+  if [ -n "$v" ]; then
+    st=$(dpkg --verify cloudflared 2>&1 || true)
+    if [ -z "$st" ]; then say "its files match the package (dpkg --verify)"; else say "its files DIFFER from the package: $st"; fi
+  fi
   say "== wsproxy"
   if [ ! -e "$WSPROXY_BIN" ]; then say "$WSPROXY_BIN is not installed"
   elif [ "$(sha_of "$WSPROXY_BIN")" = "$WSPROXY_BIN_SHA256" ]; then say "$WSPROXY_BIN matches the pinned build (commit ${WSPROXY_COMMIT:0:12})"
@@ -180,6 +199,13 @@ review() {
   else
     say "wsproxy is not listening; nothing probed"
   fi
+  say "== what the internet gets without Access's service token (one request to $PUBLIC_HOST)"
+  st=$(curl -s -o /dev/null --max-time 10 -w '%{http_code}' "https://$PUBLIC_HOST/v1?address=$POSTGRES_ADDR" || true)
+  case $st in
+    302|401|403) say "HTTP $st: Cloudflare Access turns it away before the tunnel" ;;
+    000|"") say "no answer (the hostname does not resolve or the box cannot reach it)" ;;
+    *) say "WARNING: HTTP $st, not Access's 302/401/403: wsproxy may be reachable with no service token" ;;
+  esac
   say "== Postgres"
   v=$(loopback_password_rule)
   if [ -n "$v" ]; then say "pg_hba line $v admits 127.0.0.1 with a password (scram-sha-256): wsproxy needs nothing more"
@@ -191,6 +217,7 @@ review() {
 
 # --- dry run and real run ---
 DRY=0
+TMP="" # the real run's scratch folder, removed when the script exits
 run() { if [ $DRY -eq 1 ]; then say "would run: $*"; else "$@"; fi; }
 
 write_unit() { # name, content
@@ -201,7 +228,9 @@ write_unit() { # name, content
     printf '%s\n' "$2" | sed 's/^/    /'
   else
     [ ! -e "$path" ] || cp -p "$path" "$path.before-cloud-route"
-    printf '%s\n' "$2" > "$path.new" && chmod 644 "$path.new" && mv "$path.new" "$path"
+    printf '%s\n' "$2" > "$path.new"
+    chmod 644 "$path.new"
+    mv "$path.new" "$path"
     say "wrote $path"
   fi
   return 0
@@ -214,7 +243,7 @@ fetch_verified() { # url, sha256, destination
 }
 
 apply() {
-  local install_token=$1 tmp="" v changed_ws=0 changed_cf=0
+  local install_token=$1 v holders ours changed_ws=0 changed_cf=0
   [ "$(dpkg --print-architecture)" = amd64 ] || fail "this script pins amd64 downloads"
   if [ $DRY -eq 0 ]; then
     [ "$(id -u)" -eq 0 ] || fail "the real run needs root: sudo bash $0"
@@ -226,14 +255,18 @@ apply() {
   say "== 1. Postgres: change nothing, but check wsproxy can reach it"
   [ -n "$(listeners_on "$POSTGRES_ADDR")" ] || fail "nothing listens on port 5432"
   v=$(loopback_password_rule)
-  [ -n "$v" ] || fail "no pg_hba line admits 127.0.0.1 with scram-sha-256 (or Postgres could not be asked); this script does not add one"
+  [ -n "$v" ] || fail "pg_hba does not admit 127.0.0.1 with scram-sha-256 alone (or Postgres could not be asked); this script does not change pg_hba"
   say "pg_hba line $v already admits 127.0.0.1 with a password: no change to pg_hba or Postgres"
 
   say "== 2. Ports 8080, 2112 and 20241 on loopback are free, or already ours"
   for a in "$WSPROXY_LISTEN" "$WSPROXY_METRICS" "$CLOUDFLARED_METRICS"; do
     v=$(listeners_on "$a")
     [ -z "$v" ] && continue
-    systemctl is-active --quiet "$WSPROXY_UNIT" "$CLOUDFLARED_UNIT" 2>/dev/null || fail "port ${a##*:} is already taken ($v) by something else"
+    holders=$(holders_of "$a")
+    if [ "$a" = "$CLOUDFLARED_METRICS" ]; then ours=cloudflared; else ours=$(basename "$WSPROXY_BIN"); fi
+    if [ "$holders" = "$ours" ]; then say "port ${a##*:} is held by $ours already"
+    elif [ $DRY -eq 1 ] && [ -z "$holders" ]; then say "port ${a##*:} is taken ($v); the real run checks that $ours holds it"
+    else fail "port ${a##*:} is taken ($v) by ${holders:-a program this user cannot see}, not $ours"; fi
   done
   if [ -e "$UNIT_DIR/cloudflared.service" ]; then
     fail "$UNIT_DIR/cloudflared.service exists (from 'cloudflared service install'?); look at it before a second tunnel service is added"
@@ -241,15 +274,20 @@ apply() {
 
   say "== 3. The tunnel's token: a root-only file, never printed"
   if [ -n "$install_token" ]; then
-    [ -f "$install_token" ] || fail "--install-token $install_token is not a file"
+    # A regular file of the account that ran sudo, never a link; read and deleted as that account, so a
+    # link swapped in afterwards reaches only what that account could reach anyway.
+    { [ -f "$install_token" ] && [ ! -L "$install_token" ]; } || fail "--install-token $install_token is not a regular file (links are refused)"
     if [ $DRY -eq 1 ]; then
       say "would move $install_token to $TOKEN_FILE (root:root, mode 600), stripped of whitespace, and delete the original"
     else
+      [ "$(stat -c %U "$install_token")" = "$SUDO_USER" ] || fail "$install_token is not owned by $SUDO_USER"
       install -d -m 755 -o root -g root "$(dirname "$TOKEN_FILE")"
-      ( umask 077; tr -d ' \t\r\n' < "$install_token" > "$TOKEN_FILE.new" )
+      ( umask 077; sudo -u "$SUDO_USER" cat -- "$install_token" | tr -d ' \t\r\n' > "$TOKEN_FILE.new" )
       grep -qE '^[A-Za-z0-9+/=_-]+$' "$TOKEN_FILE.new" || { rm -f "$TOKEN_FILE.new"; fail "$install_token does not look like a tunnel token (base64); not installed"; }
-      chown root:root "$TOKEN_FILE.new" && chmod 600 "$TOKEN_FILE.new" && mv "$TOKEN_FILE.new" "$TOKEN_FILE"
-      rm -f "$install_token"
+      chown root:root "$TOKEN_FILE.new"
+      chmod 600 "$TOKEN_FILE.new"
+      mv "$TOKEN_FILE.new" "$TOKEN_FILE"
+      sudo -u "$SUDO_USER" rm -f -- "$install_token"
       changed_cf=1
       say "installed $TOKEN_FILE and deleted $install_token"
     fi
@@ -260,7 +298,7 @@ apply() {
     else fail "$TOKEN_FILE is $v; give --install-token FILE (see infra/library-host/README.md)"; fi
   fi
 
-  if [ $DRY -eq 0 ]; then tmp=$(mktemp -d /root/cloud-route.XXXXXX); trap 'rm -rf "$tmp"' EXIT; fi
+  if [ $DRY -eq 0 ]; then TMP=$(mktemp -d /root/cloud-route.XXXXXX); trap 'rm -rf "$TMP"' EXIT; fi
 
   say "== 4. cloudflared $CLOUDFLARED_VERSION, from Cloudflare's .deb, checked against its published SHA-256"
   v=$(installed_cloudflared)
@@ -271,8 +309,8 @@ apply() {
     say "  (its package script links /usr/local/bin/cloudflared and creates /usr/local/etc/cloudflared/)"
     changed_cf=1
   else
-    fetch_verified "$CLOUDFLARED_URL" "$CLOUDFLARED_SHA256" "$tmp/cloudflared.deb"
-    dpkg -i "$tmp/cloudflared.deb"
+    fetch_verified "$CLOUDFLARED_URL" "$CLOUDFLARED_SHA256" "$TMP/cloudflared.deb"
+    dpkg -i "$TMP/cloudflared.deb"
     changed_cf=1
   fi
 
@@ -285,17 +323,17 @@ apply() {
     say "  then install it as $WSPROXY_BIN (root:root, 755) and delete the scratch folder, Go included"
     changed_ws=1
   else
-    fetch_verified "$GO_URL" "$GO_SHA256" "$tmp/go.tar.gz"
-    fetch_verified "$WSPROXY_SRC_URL" "$WSPROXY_SRC_SHA256" "$tmp/wsproxy.tar.gz"
-    tar -xzf "$tmp/go.tar.gz" -C "$tmp"
-    tar -xzf "$tmp/wsproxy.tar.gz" -C "$tmp"
-    ( cd "$tmp/wsproxy-$WSPROXY_COMMIT" && env -i PATH="$tmp/go/bin:/usr/bin:/bin" HOME="$tmp/home" GOPATH="$tmp/gopath" \
-        GOMODCACHE="$tmp/modcache" GOCACHE="$tmp/gocache" GOTOOLCHAIN=local GOFLAGS=-mod=readonly CGO_ENABLED=0 \
+    fetch_verified "$GO_URL" "$GO_SHA256" "$TMP/go.tar.gz"
+    fetch_verified "$WSPROXY_SRC_URL" "$WSPROXY_SRC_SHA256" "$TMP/wsproxy.tar.gz"
+    tar -xzf "$TMP/go.tar.gz" -C "$TMP"
+    tar -xzf "$TMP/wsproxy.tar.gz" -C "$TMP"
+    ( cd "$TMP/wsproxy-$WSPROXY_COMMIT" && env -i PATH="$TMP/go/bin:/usr/bin:/bin" HOME="$TMP/home" GOPATH="$TMP/gopath" \
+        GOMODCACHE="$TMP/modcache" GOCACHE="$TMP/gocache" GOTOOLCHAIN=local GOFLAGS=-mod=readonly CGO_ENABLED=0 \
         GOOS=linux GOARCH=amd64 GOAMD64=v1 GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org \
-        go build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o "$tmp/wsproxy" . )
-    [ "$(sha_of "$tmp/wsproxy")" = "$WSPROXY_BIN_SHA256" ] || fail "the built wsproxy does not match the pinned build's SHA-256; not installed"
+        go build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o "$TMP/wsproxy" . )
+    [ "$(sha_of "$TMP/wsproxy")" = "$WSPROXY_BIN_SHA256" ] || fail "the built wsproxy does not match the pinned build's SHA-256; not installed"
     install -d -m 755 -o root -g root "$WSPROXY_DIR"
-    install -m 755 -o root -g root "$tmp/wsproxy" "$WSPROXY_BIN"
+    install -m 755 -o root -g root "$TMP/wsproxy" "$WSPROXY_BIN"
     changed_ws=1
     say "installed $WSPROXY_BIN"
   fi
@@ -323,7 +361,7 @@ main() {
     case $1 in
       --review) mode=review ;;
       --dry-run) DRY=1 ;;
-      --install-token) [ $# -ge 2 ] || fail "--install-token needs a file"; install_token=$(realpath -m -- "$2"); shift ;;
+      --install-token) [ $# -ge 2 ] || fail "--install-token needs a file"; case $2 in /*) install_token=$2 ;; *) install_token=$PWD/$2 ;; esac; shift ;;
       *) fail "unknown argument: $1 (usage: bash $0 --review | --dry-run [--install-token FILE] | sudo bash $0 [--install-token FILE])" ;;
     esac
     shift

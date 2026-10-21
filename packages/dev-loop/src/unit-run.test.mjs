@@ -127,6 +127,20 @@ console.error("a different file's stderr"); test("healthy neighbor", () => {});`
   assert.doesNotMatch(diagnostics, /healthy\.test\.mjs|a different file's stderr/);
 });
 
+// friction_d5da3da1aac6: `pnpm run test <file> --test-name-pattern=<p>` ran every test in the file.
+test("6.19 · node's --test-* options given after a named file still reach node --test, so a name-filtered run runs only the matching tests", async (t) => {
+  const root = fixture(t, {
+    "named.test.mjs": `import { appendFileSync } from "node:fs";
+import { test } from "node:test";
+test("wanted", () => appendFileSync("RAN", "wanted\\n"));
+test("unwanted", () => appendFileSync("RAN", "unwanted\\n"));`,
+  });
+  // As `pnpm run test named.test.mjs --test-name-pattern=wanted` hands them on: the file first.
+  const run = await runUnit({ root, files: [], env: process.env, args: ["named.test.mjs", "--test-name-pattern=^wanted$"], stdio: "ignore" });
+  assert.equal(run.code, 0);
+  assert.equal(readFileSync(path.join(root, "RAN"), "utf8"), "wanted\n");
+});
+
 test("6.1 a test that fails leaving a handle open ends its unit with that failure, not a hang", async (t) => {
   const root = fixture(t, {
     "leak.test.mjs": `import { test } from "node:test"; import assert from "node:assert"; import net from "node:net";

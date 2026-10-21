@@ -286,7 +286,7 @@ test("1.15 · at desktop width the hook line and its paragraph sit left of the f
 
   // 390 x 844: no grid or row, so the lead, the frame and the paragraph stack in the page's order, and nothing is wider than the screen.
   assert.ok(!/grid|flex/.test(declarationsAt(css, "#chapter2", 390).get("display") ?? "block"), "at phone width the hero stacks");
-  const [leadLine, frameBox, afterLine] = [".map-lead", "#map-frame", ".map-after"].map(selector => page.querySelector(selector)!);
+  const [leadLine, frameBox, afterLine] = [page.querySelector(".map-lead")!, page.querySelector("#map-frame")!, page.querySelector(".map-after")!];
   assert.ok(leadLine.compareDocumentPosition(frameBox) & 4 && frameBox.compareDocumentPosition(afterLine) & 4, "the hook line above the map and its paragraph below");
   const childWidth = declarationsAt(css, "#chapter2>*", 390).get("width") ?? "";
   assert.match(childWidth, /^min\(.*100%\)$/, `each part of the hero is capped at the screen's width (${childWidth})`);

@@ -44,26 +44,26 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
   document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
   const host = document.createElement("div");
   host.className = "feedback-corner";
-  host.innerHTML = `<section class="feedback-composer" data-feedback-composer id="feedback-composer" role="dialog" aria-labelledby="feedback-title" hidden>
+  host.innerHTML = `<section class="feedback-composer" data-corner-composer id="feedback-composer" role="dialog" aria-labelledby="feedback-title" hidden>
       <h2 id="feedback-title">Feedback on this screen</h2>
-      <label>On <select data-feedback-surface><option value="">Choose the surface…</option></select></label>
-      <label>What should change? <textarea data-feedback-text></textarea></label>
-      <label class="feedback-picture"><input type="checkbox" data-feedback-picture> Attach a picture of the window</label>
-      <p class="feedback-status" data-feedback-status role="status"></p>
-      <div class="feedback-actions"><button type="button" data-feedback-cancel>Cancel</button><button type="button" data-feedback-copy hidden>Copy text</button><button type="button" data-feedback-retry hidden>Retry</button><button type="button" data-feedback-send>Send</button></div>
+      <label>On <select data-corner-surface><option value="">Choose the surface…</option></select></label>
+      <label>What should change? <textarea data-corner-text></textarea></label>
+      <label class="feedback-picture"><input type="checkbox" data-corner-picture> Attach a picture of the window</label>
+      <p class="feedback-status" data-corner-status role="status"></p>
+      <div class="feedback-actions"><button type="button" data-corner-cancel>Cancel</button><button type="button" data-corner-copy hidden>Copy text</button><button type="button" data-corner-retry hidden>Retry</button><button type="button" data-corner-send>Send</button></div>
     </section>
-    <button type="button" class="feedback-button" data-feedback-button aria-label="Feedback on this screen" title="Feedback on this screen (Ctrl+Shift+F)" aria-controls="feedback-composer" aria-expanded="false">
+    <button type="button" class="feedback-button" data-corner-button aria-label="Feedback on this screen" title="Feedback on this screen (Ctrl+Shift+F)" aria-controls="feedback-composer" aria-expanded="false">
       <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 3h11v7.5H7L4 13v-2.5H2.5z"/></svg>
     </button>`;
-  const composer = host.querySelector<HTMLElement>("[data-feedback-composer]")!;
-  const button = host.querySelector<HTMLButtonElement>("[data-feedback-button]")!;
-  const chip = host.querySelector<HTMLSelectElement>("[data-feedback-surface]")!;
-  const text = host.querySelector<HTMLTextAreaElement>("[data-feedback-text]")!;
-  const picture = host.querySelector<HTMLInputElement>("[data-feedback-picture]")!;
-  const status = host.querySelector<HTMLElement>("[data-feedback-status]")!;
-  const send = host.querySelector<HTMLButtonElement>("[data-feedback-send]")!;
-  const retry = host.querySelector<HTMLButtonElement>("[data-feedback-retry]")!;
-  const copy = host.querySelector<HTMLButtonElement>("[data-feedback-copy]")!;
+  const composer = host.querySelector<HTMLElement>("[data-corner-composer]")!;
+  const button = host.querySelector<HTMLButtonElement>("[data-corner-button]")!;
+  const chip = host.querySelector<HTMLSelectElement>("[data-corner-surface]")!;
+  const text = host.querySelector<HTMLTextAreaElement>("[data-corner-text]")!;
+  const picture = host.querySelector<HTMLInputElement>("[data-corner-picture]")!;
+  const status = host.querySelector<HTMLElement>("[data-corner-status]")!;
+  const send = host.querySelector<HTMLButtonElement>("[data-corner-send]")!;
+  const retry = host.querySelector<HTMLButtonElement>("[data-corner-retry]")!;
+  const copy = host.querySelector<HTMLButtonElement>("[data-corner-copy]")!;
   for (const surface of surfaces) {
     const option = document.createElement("option");
     option.value = surface.id;
@@ -155,7 +155,7 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
   };
 
   button.addEventListener("click", () => { if (composer.hidden) void open(); else close(); });
-  host.querySelector("[data-feedback-cancel]")!.addEventListener("click", close);
+  host.querySelector("[data-corner-cancel]")!.addEventListener("click", close);
   send.addEventListener("click", () => void submit());
   retry.addEventListener("click", () => void submit());
   copy.addEventListener("click", () => {

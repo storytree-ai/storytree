@@ -32,7 +32,7 @@ async function opened(browser: Browser, origin: string, answers: Partial<Storytr
   await bridge.install(page);
   await page.goto(`${origin}/index.html`, { waitUntil: "domcontentloaded", timeout: 180_000 });
   await ready(page);
-  await page.locator("[data-feedback-button]").waitFor();
+  await page.locator("[data-corner-button]").waitFor();
   return page;
 }
 
@@ -41,10 +41,10 @@ async function named(page: Page): Promise<string> {
   const marked = await page.evaluate("[...document.querySelectorAll('[data-surface-id]')].map(node => node.dataset.surfaceId)") as string[];
   assert.deepEqual(marked.filter((id) => !ids.has(id)), [], "every surface marked on the page is declared");
   await page.keyboard.press("Control+Shift+F");
-  await page.waitForFunction("!document.querySelector('[data-feedback-composer]').hidden");
-  const surface = await page.inputValue("[data-feedback-surface]");
+  await page.waitForFunction("!document.querySelector('[data-corner-composer]').hidden");
+  const surface = await page.inputValue("[data-corner-surface]");
   await page.keyboard.press("Escape");
-  await page.waitForFunction("document.querySelector('[data-feedback-composer]').hidden");
+  await page.waitForFunction("document.querySelector('[data-corner-composer]').hidden");
   return surface;
 }
 

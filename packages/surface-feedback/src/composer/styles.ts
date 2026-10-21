@@ -19,6 +19,6 @@ export const cornerStyles = `
 .feedback-actions button { font: inherit; border: 1px solid #485159; border-radius: 6px; padding: 4px 10px; background: transparent; color: #eceae3; cursor: pointer; }
 .feedback-actions button:hover { background: #262a2f; }
 .feedback-actions button:disabled { color: #a9b0ba; opacity: .6; cursor: default; background: transparent; }
-.feedback-actions [data-feedback-send], .feedback-actions [data-feedback-retry] { background: #2c6b41; border-color: #2c6b41; }
+.feedback-actions [data-corner-send], .feedback-actions [data-corner-retry] { background: #2c6b41; border-color: #2c6b41; }
 .feedback-actions [hidden] { display: none; }
 `;

@@ -27,7 +27,7 @@ export { releaseChannel } from "./updates/release-channel.js";
 export { installation } from "./updates/installation.js";
 export type { Installation } from "./updates/installation.js";
 export { pinRelease } from "./updates/stable-github.js";
-export { QUIET_MS, SETTLE_MS, whenToInstall } from "./updates/install-moment.js";
+export { QUIET_MS, quietMoment, SETTLE_MS, whenToInstall } from "./updates/install-moment.js";
 export type { InstallMoment } from "./updates/install-moment.js";
 export { installChoice } from "./updates/install-choice-file.js";
 export type { InstallChoice, InstallChoiceState } from "./updates/install-choice.js";

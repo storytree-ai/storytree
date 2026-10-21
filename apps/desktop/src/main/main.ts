@@ -73,7 +73,7 @@ import {
   mainUpdates,
   buildApp,
   updateToMain,
-  whenToInstall,
+  quietMoment,
   installChoice,
   type Launch,
   type PageReads,
@@ -337,6 +337,16 @@ async function run(): Promise<void> {
   const canRestart = async () => shutDown === undefined
     && (postgres === undefined || !(await seedWriting(postgres.url)))
     && shutDown === undefined && (backups?.canRestart() ?? true);
+  // When an update may install itself (updates 4.13): meaningful where releases install, and in an app that follows merged main.
+  const installing = installChoice({ available: !args.smoke && (releasesInstall() || running !== undefined), file: path.join(home.dir, "install-choice.json") });
+  // Restarting into an update stops the app and its database for a minute or two: not under a user or an agent (4.4).
+  const quiet = quietMoment({
+    launchedAt: Date.now(),
+    choice: () => installing.read().choice,
+    windowActiveAt: () => BrowserWindow.getAllWindows().some(window => window.isVisible() && !window.isMinimized())
+      ? Date.now() - powerMonitor.getSystemIdleTime() * 1000 : undefined,
+    agentActiveAt: async () => storytree === undefined ? undefined : await agentActiveAt(storytree),
+  });
   updates = mainUpdates({
     runtimeDir: home.runtime, runningBuild: build,
     ...(running === undefined ? {} : { running }),
@@ -346,6 +356,7 @@ async function run(): Promise<void> {
       }
     },
     canRestart,
+    quiet,
     restart: next => lifecycle.restart(
       { execPath: electronIn(next.dir), args: [appDirIn(next.dir)] },
       BrowserWindow.getAllWindows().some(window => window.isVisible()),
@@ -371,8 +382,6 @@ async function run(): Promise<void> {
     sandboxOff: app.commandLine.hasSwitch("no-sandbox"),
   }) });
   answerPage(ipcMain, LIFECYCLE_CHANNELS, { readSignIn: () => signingIn.read(), setSignIn: (on: unknown) => signingIn.set(on) });
-  // When a downloaded release may install itself (updates 4.13): meaningful only where releases install.
-  const installing = installChoice({ available: !args.smoke && releasesInstall(), file: path.join(home.dir, "install-choice.json") });
   answerPage(ipcMain, UPDATES_CHANNELS, {
     checkForUpdates: (action: unknown) => (releases ?? updates!).request(action),
     readInstallChoice: () => installing.read(),
@@ -390,23 +399,7 @@ async function run(): Promise<void> {
     // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (Session management 4.21).
     setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();
     updates.start();
-    const launchedAt = Date.now();
-    releases = followReleases({
-      restart: lifecycle.restart,
-      canRestart,
-      // Installing stops the app and its database for a minute or two: not under a user or an agent.
-      quiet: async () => {
-        const now = Date.now();
-        const clock = new Date(now);
-        const showing = BrowserWindow.getAllWindows().some(window => window.isVisible() && !window.isMinimized());
-        const agent = storytree === undefined ? undefined : await agentActiveAt(storytree);
-        return whenToInstall({
-          now, launchedAt, choice: installing.read().choice, minuteOfDay: clock.getHours() * 60 + clock.getMinutes(),
-          ...(showing ? { windowActiveAt: now - powerMonitor.getSystemIdleTime() * 1000 } : {}),
-          ...(agent === undefined ? {} : { agentActiveAt: agent }),
-        }) === "now";
-      },
-    }, home.dir, () => installing.read().choice);
+    releases = followReleases({ restart: lifecycle.restart, canRestart, quiet }, home.dir, () => installing.read().choice);
   }
 }
 

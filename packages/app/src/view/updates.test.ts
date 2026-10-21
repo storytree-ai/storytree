@@ -19,6 +19,14 @@ test("4.8 the Updates section says when a new build is building, ready and resta
   }
 });
 
+test("4.13 a ready update says when it installs under the user's choice", () => {
+  const said = (choice?: InstallChoice) => updateText({ ...at, phase: "pending" }, choice)[1];
+  assert.match(said(), /next quiet moment/);
+  assert.match(said({ mode: "hours", from: "01:00", to: "06:00" }), /quiet hours, 01:00 to 06:00/);
+  assert.match(said({ mode: "manual" }), /when you click Restart to update/);
+  assert.match(said(), /0\.3\.401/);
+});
+
 test("4.9 a failed update says its reason and that the running app is unchanged", () => {
   const [title, detail] = updateText({ ...at, phase: "failed", reason: "The build stopped at typecheck." });
   assert.notEqual(title, "");

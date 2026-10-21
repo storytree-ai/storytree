@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { mainUpdates, UPDATE_EVERY_MS } from "./main-updates.js";
 import type { RunningBuild } from "./follow-main.js";
+import type { InstallChoice } from "./install-choice.js";
+import { QUIET_MS, quietMoment, SETTLE_MS } from "./install-moment.js";
 
 // Capability 4 · Updates: pending contracts 4.7–4.10 in evidence/gear-updates/library-update.
 const running: RunningBuild = { slot: "a", dir: "/runtime/a", sha: "1234567890" };
@@ -99,6 +101,56 @@ test("4.8 a seed that starts during the restart notice also holds the ready buil
   assert.equal((await updates.check()).phase, "ready");
   assert.equal(restarts, 0);
   assert.equal((await updates.check()).phase, "restarting");
+  assert.equal(restarts, 1);
+  updates.stop();
+});
+
+// Capability 4 · Updates, contract 4.4: a merged-main build restarts the app only at the moment
+// the user's install choice allows (4.13), as a downloaded release does. Owner, 2026-10-21: the
+// follow-main app "keeps closing on me".
+test("4.4 a new main build waits while the window is in use, then restarts at the first quiet check", async () => {
+  const launchedAt = 1_000_000_000;
+  let now = launchedAt + SETTLE_MS + QUIET_MS, usedAt: number | undefined = now - 2 * 60_000;
+  const restarted: RunningBuild[] = [];
+  const updates = mainUpdates({ ...base, update: async () => next, restart: async target => { restarted.push(target); },
+    quiet: quietMoment({ launchedAt, now: () => new Date(now), choice: () => ({ mode: "quiet" }),
+      windowActiveAt: () => usedAt, agentActiveAt: async () => undefined }) });
+  assert.equal((await updates.check()).phase, "pending", "the window was used two minutes ago");
+  assert.deepEqual(restarted, []);
+  now += 5 * 60_000;
+  assert.equal((await updates.check()).phase, "pending", "still within ten minutes of that use");
+  usedAt = undefined;
+  assert.equal((await updates.check()).phase, "restarting");
+  assert.deepEqual(restarted, [next]);
+  updates.stop();
+});
+
+test("4.13 with updates installed only when the user says, a main build waits until Restart to update", async () => {
+  const launchedAt = 1_000_000_000;
+  const choice: InstallChoice = { mode: "manual" };
+  let restarts = 0;
+  const updates = mainUpdates({ ...base, update: async () => next, restart: async () => { restarts++; },
+    quiet: quietMoment({ launchedAt, now: () => new Date(launchedAt + 24 * 60 * 60_000), choice: () => choice,
+      windowActiveAt: () => undefined, agentActiveAt: async () => undefined }) });
+  assert.equal((await updates.check()).phase, "pending", "a quiet app still waits in manual mode");
+  assert.equal((await updates.check()).phase, "pending");
+  assert.equal(restarts, 0);
+  updates.request("install");
+  await updates.check();
+  assert.equal(restarts, 1, "Restart to update installs at once");
+  updates.stop();
+});
+
+test("4.4 Restart to update still waits for a library seed", async () => {
+  let writing = true, restarts = 0;
+  const updates = mainUpdates({ ...base, update: async () => next, canRestart: async () => !writing,
+    restart: async () => { restarts++; }, quiet: async () => false });
+  assert.equal((await updates.check()).phase, "pending");
+  updates.request("install");
+  assert.equal((await updates.check()).phase, "ready", "the seed holds even the user's restart");
+  assert.equal(restarts, 0);
+  writing = false;
+  await updates.check();
   assert.equal(restarts, 1);
   updates.stop();
 });

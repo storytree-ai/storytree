@@ -3,7 +3,7 @@ import { buildApp, updateToMain, type RunningBuild } from "./follow-main.js";
 
 export const UPDATE_EVERY_MS = 3 * 60_000;
 
-/** "install" asks for a downloaded release at once; merged-main builds treat it as "check". */
+/** "install" asks for a downloaded release or a built main commit at once, past the install choice (never past a seed). */
 export type UpdateAction = "check" | "install" | "status";
 export interface UpdateState {
   readonly phase: "idle" | "checking" | "up-to-date" | "building" | "ready" | "pending" | "restarting" | "failed" | "unavailable";
@@ -19,6 +19,8 @@ interface MainUpdatesOptions {
   /** Health refresh must finish before a check can restart the database beneath it. */
   prepare?: () => Promise<void>;
   canRestart(): Promise<boolean>;
+  /** Whether now is a moment the user's install choice allows (quietMoment); without it, any moment is. */
+  quiet?: () => Promise<boolean>;
   restart(build: RunningBuild): Promise<void>;
   update?: typeof updateToMain;
   log?: (message: string) => void;
@@ -31,6 +33,7 @@ export function mainUpdates(options: MainUpdatesOptions) {
   let ready: RunningBuild | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   let stopped = false;
+  let asked = false;
   const set = (phase: UpdateState["phase"], detail: Partial<UpdateState> = {}) => {
     state = { phase, runningBuild: options.runningBuild, ...detail };
     options.log?.(`updates: ${phase}${state.nextBuild ? ` ${state.nextBuild}` : ""}${state.reason ? `: ${state.reason}` : ""}`);
@@ -47,6 +50,8 @@ export function mainUpdates(options: MainUpdatesOptions) {
       if (stopped) return state;
       if (ready === undefined) { set("up-to-date"); return state; }
       const nextBuild = `main ${ready.sha.slice(0, 7)}`;
+      // Built, but restarting closes the window: wait for the moment the user's choice allows, or their say-so.
+      if (!asked && options.quiet !== undefined && !(await options.quiet())) { set("pending", { nextBuild }); return state; }
       set("ready", { nextBuild });
       if (!(await options.canRestart()) || stopped) return state;
       set("restarting", { nextBuild });
@@ -73,6 +78,7 @@ export function mainUpdates(options: MainUpdatesOptions) {
     /** One IPC call: asking starts work; subsequent status reads never start another build. */
     request(action: unknown): UpdateState {
       if (action !== "check" && action !== "install" && action !== "status") throw new Error("Unknown update action");
+      if (action === "install" && ready !== undefined) asked = true;
       if (action !== "status") void check();
       return state;
     },

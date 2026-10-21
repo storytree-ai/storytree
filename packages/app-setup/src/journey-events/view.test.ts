@@ -8,6 +8,7 @@ import path from "node:path";
 import { openJourney } from "./index.js";
 import type { JourneyBridge, JourneyState } from "./bridge.js";
 import { mountJourneyConsent, mountJourneySettings } from "./view.js";
+import { journeyNamedSurfaces } from "./named.js";
 
 function setup(consent: JourneyState["consent"] = "pending", available = false) {
   const window = new Window();
@@ -122,4 +123,18 @@ test("15.1–15.2 actual controls persist consent and clear queued events across
   await setImmediate();
   assert.equal(reopened.state().consent, "off");
   assert.equal(reopened.state().queued, 0);
+});
+
+test("15.4 · the first launch's consent marks itself with the surface id it declares, as an overlay, so feedback sent over it names it; the Sharing tab's panel carries no mark of its own", async () => {
+  const first = setup();
+  const consent = mountJourneyConsent(first.element, first.bridge);
+  const panel = first.element.querySelector<HTMLElement>(".journey-panel")!;
+  assert.deepEqual({ id: panel.dataset.surfaceId, layer: panel.dataset.surfaceLayer }, { id: "journey-consent", layer: "overlay" });
+  assert.ok(journeyNamedSurfaces.some(({ id }) => id === panel.dataset.surfaceId), "the id it marks is one it declares");
+  consent.stop();
+
+  const later = setup("off");
+  const settings = mountJourneySettings(later.element, later.bridge);
+  assert.equal(later.element.querySelector("[data-surface-id]"), null, "in the gear menu, the Sharing tab is the surface");
+  settings.stop();
 });

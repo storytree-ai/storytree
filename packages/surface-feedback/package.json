@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
     "./bridge": "./src/record/bridge.ts",
+    "./naming": "./src/naming/resolve.ts",
     "./runtime": "./src/record/runtime.ts",
     "./view": "./src/composer/view.ts"
   },

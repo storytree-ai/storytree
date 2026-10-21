@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { bundled, launchChrome, pageWith } from "../testing/page.js";
+// The page runs the module bundled; importing it here too lets the package's allocation see this test reaches it.
+import "./resolve.js";
 
 const PAGE = `
   <style>[data-surface-id] { min-width: 10px; min-height: 10px; }</style>

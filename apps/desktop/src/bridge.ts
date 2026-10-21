@@ -11,7 +11,7 @@ import type { SurfacesBridge } from "@storytree/app";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS, type FeedbackIdentityBridge, type SetupHelpBridge } from "@storytree/app-setup/bridge";
 import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/app-setup/journey-events/bridge";
 import type { StorySurvey } from "@storytree/library";
-import type { FeedbackBridge } from "@storytree/surface-feedback";
+import type { FeedbackBridge } from "@storytree/surface-feedback/bridge";
 
 import PAGE_CHANNELS from "#parts/pageChannels";
 

@@ -5,7 +5,9 @@
 import { build } from "esbuild";
 import { chromium, type Browser, type Page } from "playwright-core";
 
-/** The module at `entry` (this package's file URL) bundled as a script that puts its exports on `globalThis[name]`. */
+/**
+ * The module at `entry` (this package's file URL) bundled as a script that puts its exports on `globalThis[name]`.
+ */
 export async function bundled(entry: URL, name: string): Promise<string> {
   const result = await build({ entryPoints: [entry.pathname], bundle: true, write: false, format: "iife", globalName: name, platform: "browser", target: "es2023", logLevel: "silent" });
   return result.outputFiles[0]!.text;

@@ -3,6 +3,8 @@ import { test } from "node:test";
 import type { Browser, Page } from "playwright-core";
 
 import { bundled, launchChrome } from "../testing/page.js";
+// The page runs the module bundled; importing it here too lets the package's allocation see this test reaches it.
+import "./view.js";
 
 const SURFACES = [
   { id: "globe", name: "Forest globe", story: "forest" },
@@ -52,6 +54,7 @@ test("1.1 · the corner button, or Ctrl+Shift+F, opens the composer above whatev
   t.after(() => browser.close());
   const page = await mounted(browser);
 
+  assert.equal(await page.evaluate("document.adoptedStyleSheets.length"), 1, "the corner brings its own styles");
   const box = (await page.locator("[data-feedback-button]").boundingBox())!;
   assert.deepEqual([Math.round(box.width), Math.round(box.height)], [22, 22], "a 22px button");
   assert.ok(box.x + box.width > 1200 - 24 && box.y + box.height > 800 - 24, `in the bottom-right corner, at ${box.x}, ${box.y}`);

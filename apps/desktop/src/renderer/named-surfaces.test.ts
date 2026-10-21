@@ -10,6 +10,8 @@ import path from "node:path";
 import { test } from "node:test";
 import type { Browser, Page } from "playwright-core";
 
+import { MENU_TABS } from "@storytree/app/surfaces/named";
+
 import namedSurfaces from "../main/parts/named-surfaces.js";
 import surfaces from "../main/parts/surfaces.js";
 import { buildCapture, captureSeed, fakeBridge, visibleGlobeTargets, withCapture } from "../capture/index.js";
@@ -103,7 +105,7 @@ test("3.15 · every canvas, gear menu tab and dialog the app opens carries a dec
     assert.equal(await named(page), "library");
 
     await page.click(".app-gear");
-    for (const tab of ["projects", "sessions", "sharing", "library", "surfaces", "updates", "help"]) {
+    for (const tab of MENU_TABS.map((label) => label.toLowerCase())) {
       await page.click(`[data-app-section="${tab}"]`);
       assert.equal(await named(page), `menu:${tab}`, `the gear menu's ${tab} tab`);
     }

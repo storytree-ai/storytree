@@ -12,7 +12,8 @@
  *   Each contract is listed under its story and capability, and every capability named is listed even with no
  *   contracts, so two stories' contracts sharing a number both appear, each with its story (2.5).
  *   A contract the increment changes pending its merge (ADR-0966 D1) is briefed as the change leaves it: in
- *   its pending text, marked pending, and one it retires listed as retired with the reason, not answered (2.4).
+ *   its pending text, marked pending, and one it retires listed as retired with the reason, not answered; either is listed
+ *   once, its plan change not again among the pending plan changes (2.4).
  *   Every change the increment makes to the plan pending its merge is listed too, so a plan-only change, whose diff touches no file,
  *   is briefed with those changes as the thing under review, in the package `plan`, where a hit names the record as its file;
  *   with neither a diff nor a pending change the brief is refused (2.10).
@@ -420,6 +421,9 @@ function contractLine(contract: Brief["contracts"][number], indent: string): str
 
 /** The brief as the plain text the change-reviewer reads. */
 export function briefText(brief: Brief): string {
+  // A contract the change rewords or retires is listed once, above, so its plan change is not listed again (contract 2.4).
+  const listed = new Set([...brief.contracts.filter(({ pending }) => pending).map(({ id }) => id), ...(brief.retired ?? []).map(({ id }) => id)]);
+  const plan = (brief.plan ?? []).filter(({ record }) => !listed.has(record));
   return [
     `Review ${brief.iteration} of change ${brief.change} (project ${brief.project}); packages it touches: ${brief.packages.join(", ")}.`,
     `Your return names this review, "review": ${brief.iteration}, or it is refused as another review's.`,
@@ -444,10 +448,10 @@ export function briefText(brief: Brief): string {
       `Retired contracts (${brief.retired!.length}): not yours to judge, and not answered in the return.`,
       ...brief.retired!.map((contract) => `  ${contract.id}  ${contract.title}\n    retired by this change, pending its merge: ${contract.reason}`),
     ]),
-    ...((brief.plan ?? []).length === 0 ? [] : [
+    ...(plan.length === 0 ? [] : [
       "",
-      `Pending plan changes (${brief.plan!.length}): what this change does to the plan on its merge; judge them with the checks and contracts above; a hit on one names its record as the file, at line 1.`,
-      ...brief.plan!.map((entry) => `  ${entry.record}  ${entry.type}  ${entry.title}\n    ${"retire" in entry ? `retired: ${entry.retire}` : `becomes: ${JSON.stringify(entry.after)}`}`),
+      `Pending plan changes (${plan.length}): what this change does to the plan on its merge, besides the contracts above it rewords or retires; judge them with the checks and contracts above; a hit on one names its record as the file, at line 1.`,
+      ...plan.map((entry) => `  ${entry.record}  ${entry.type}  ${entry.title}\n    ${"retire" in entry ? `retired: ${entry.retire}` : `becomes: ${JSON.stringify(entry.after)}`}`),
     ]),
     ...(brief.earlier.length === 0 ? [] : [
       "",

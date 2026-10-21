@@ -9,12 +9,12 @@ test("3.15 · each gear menu tab, and the page with no projects, carries the sur
   const { document } = new Window();
   document.body.innerHTML = renderAppMenu() + renderNoProjects();
   const declared = new Set(appNamedSurfaces.map(({ id }) => id));
-  const marked = [...document.querySelectorAll<HTMLElement>("[data-surface-id]")].map((node) => node.dataset.surfaceId);
+  const marked = [...document.querySelectorAll("[data-surface-id]")].map((node) => node.getAttribute("data-surface-id"));
   assert.deepEqual(marked.filter((id) => !declared.has(id!)), [], "every mark is a declared id");
   for (const label of MENU_TABS) {
     const tab = label.toLowerCase();
-    assert.equal(document.getElementById(`app-${tab}`)?.dataset.surfaceId, `menu:${tab}`, `the ${label} tab is named`);
+    assert.equal(document.getElementById(`app-${tab}`)?.getAttribute("data-surface-id"), `menu:${tab}`, `the ${label} tab is named`);
     assert.ok(document.querySelector(`[data-app-section="${tab}"]`), `the ${label} tab has its button`);
   }
-  assert.equal(document.querySelector<HTMLElement>(".empty")?.dataset.surfaceId, "no-projects");
+  assert.equal(document.querySelector(".empty")?.getAttribute("data-surface-id"), "no-projects");
 });

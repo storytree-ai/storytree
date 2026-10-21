@@ -25,9 +25,9 @@ export function mountAppMenu(host: HTMLElement, options: {
   installChoice?: InstallChoiceBridge;
   /** The app setup's Add project control; it reports the project added, which is then shown. */
   mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void };
-  /** The app setup's Remove project control: offers the project on show; once removed, the frame refreshes the list. */
   /** The app setup's project sentence for the project on show: what it is and who it is for, edited in place (ADR-1085 D1 as narrowed). */
   mountProjectSentence?(host: HTMLElement, current: () => string | undefined): { stop(): void; refresh(): void };
+  /** The app setup's Remove project control: offers the project on show; once removed, the frame refreshes the list. */
   mountRemoveProject?(host: HTMLElement, current: () => string | undefined, onRemoved: (project: string) => Promise<void>): { stop(): void; refresh(): void };
   /** The app setup's Delete a project control: offers every project but the one on show; once deleted, the frame refreshes the list. */
   mountDeleteProject?(host: HTMLElement, onDeleted: (project: string) => Promise<void>): { stop(): void; refresh(): void };

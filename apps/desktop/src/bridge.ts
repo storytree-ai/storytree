@@ -11,6 +11,7 @@ import type { SurfacesBridge } from "@storytree/app";
 import { FEEDBACK_IDENTITY_CHANNELS, SETUP_HELP_CHANNELS, type FeedbackIdentityBridge, type SetupHelpBridge } from "@storytree/app-setup/bridge";
 import { JOURNEY_CHANNELS, type JourneyBridge } from "@storytree/app-setup/journey-events/bridge";
 import type { StorySurvey } from "@storytree/library";
+import type { FeedbackBridge } from "@storytree/surface-feedback";
 
 import PAGE_CHANNELS from "#parts/pageChannels";
 
@@ -20,11 +21,12 @@ import { pageMethods } from "./page-operations.js";
  * The page operations the forest and Lag in real use name in their manifests (ADR-1030), as the frame hands them on:
  * its own copy (ADR-1017 D2), with the code survey's shape taken from the library, where it is defined (D1).
  */
-export interface StoryPageBridge {
+export interface StoryPageBridge extends FeedbackBridge {
   /** The forest's: each story's code survey, by story id (map 8). */
   codeSurvey(project: string): Promise<Readonly<Record<string, StorySurvey>>>;
   /** Lag in real use's: the page's readings of how long it took to answer. */
   recordLag(readings: readonly object[]): Promise<void>;
+  // Surface feedback's: the corner's setup, the window's picture and the note (FeedbackBridge).
 }
 
 export interface StorytreeBridge
@@ -55,6 +57,6 @@ export function createBridge(
     ...pageMethods<Omit<SetupHelpBridge, "feedbackIdentity">>(SETUP_HELP_CHANNELS, invoke),
     ...pageMethods<PageReadsBridge>(PAGE_READS_CHANNELS, invoke),
     // The stories whose manifests name their page channels (ADR-1030); the page's type above still names them for the renderer.
-    ...(Object.assign({}, ...PAGE_CHANNELS.parts.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey"> & SettingsBridge),
+    ...(Object.assign({}, ...PAGE_CHANNELS.parts.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey" | keyof FeedbackBridge> & SettingsBridge),
   };
 }

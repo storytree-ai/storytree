@@ -38,6 +38,7 @@ import path from "node:path";
 
 // The app's surfaces (ADR-0750), in the Surfaces menu's order: the plugin loader composes them into the bundle
 // from the manifests of the story packages this app depends on (ADR-1021; build.mjs).
+import NAMED_SURFACES from "#parts/namedSurfaces";
 import SURFACES from "#parts/surfaces";
 // The page operations the stories' manifests name, composed in the same way, with the channels they travel on.
 import PAGE_ANSWERS from "#parts/pageAnswers";
@@ -103,7 +104,7 @@ import { createCeremony, createPublicWorkOS, createSessionManager, registerProto
 import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-session";
 
 import { APP_OWNER, appHome } from "../home.js";
-import { answerPage, answerPageParts } from "../page-operations.js";
+import { answerPage, answerPageParts, declaredSurfaces } from "../page-operations.js";
 import { parseArgs } from "./args.js";
 import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { followTaskbar, iconColourway } from "./app-icon.js";
@@ -243,6 +244,13 @@ async function run(): Promise<void> {
     library: open,
     treeRead: (project) => treesRead.get(project),
     surveyWorker: path.join(__dirname, "survey-worker.cjs"),
+    declaredSurfaces: declaredSurfaces([SURFACES, NAMED_SURFACES], partsOff),
+    server: () => storytree,
+    // capturePage pictures the app's own page, so no screen-recording permission is asked for on any system.
+    captureWindow: async () => {
+      const shown = BrowserWindow.getAllWindows().find((each) => !each.isDestroyed() && each.isVisible());
+      return shown === undefined ? undefined : new Uint8Array((await shown.webContents.capturePage()).toJPEG(70));
+    },
   }, partsOff);
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
   const surfaces = surfacesActions(mount(SURFACES, partsOff).mounted, home.dir);

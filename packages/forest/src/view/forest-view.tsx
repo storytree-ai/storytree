@@ -66,6 +66,7 @@ export async function openForestView(container: HTMLElement, onSelect: (selectio
     if (drawn.viewport === undefined) return;
     const layers = sheetFaces(drawn.face, library);
     container.dataset.view = "globe";
+    container.dataset.surfaceId = "globe";
     container.dataset.forestMode = layers.mode;
     container.dataset.globeShown = "true";
     root.render(<>
@@ -157,5 +158,11 @@ const LOOK_TITLE: Record<SheetFace, string> = {
 export function mountLibraryPanel(container: HTMLElement, core: KnowledgeCore, onClose: () => void): () => void {
   const root = createRoot(container);
   root.render(<KnowledgeNoteCard core={core} onClose={onClose} />);
-  return () => root.unmount();
+  // The slot is the Library's canvas while the card is in it (Surface feedback names it).
+  Object.assign(container.dataset, { surfaceId: "library", surfaceLayer: "panel" });
+  return () => {
+    root.unmount();
+    delete container.dataset.surfaceId;
+    delete container.dataset.surfaceLayer;
+  };
 }

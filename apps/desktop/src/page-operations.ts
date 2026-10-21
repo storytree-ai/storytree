@@ -3,7 +3,7 @@
  * a bridge method and the IPC channel it travels on, and the frame builds both sides from that declaration: the page's
  * methods here, and the main process's answers. Data and functions only: safe for the page, the preload and the main process.
  */
-import type { AnnotatedTree } from "@storytree/library";
+import type { AnnotatedTree, Library, Storytree } from "@storytree/library";
 import { mount, offSaid, type Composition } from "@storytree/plugin-loader/switch";
 
 /** A story's page operations: each method of its bridge, and the channel that method travels on. */
@@ -53,6 +53,33 @@ export interface PageFrame {
   treeRead(project: unknown): AnnotatedTree | undefined;
   /** The bundled survey worker's file. */
   readonly surveyWorker: string;
+  /** Every surface the mounted stories declare, switches and named canvases alike, with the story declaring it. */
+  readonly declaredSurfaces: readonly DeclaredSurface[];
+  /** The open library's server, asked at call time: none before the library opens. */
+  server(): { listProjects: Storytree["listProjects"]; openProject(name: string, options?: { create?: boolean }): Promise<Pick<Library, "sendFeedback">> } | undefined;
+  /** A JPEG of the app's window as it is now (its own page only), or none when there is no window. */
+  captureWindow(): Promise<Uint8Array | undefined>;
+}
+
+/** A surface a story declares, by the story (its part's name) that declares it. */
+export interface DeclaredSurface {
+  readonly id: string;
+  readonly name: string;
+  readonly story: string;
+}
+
+/**
+ * Every surface the stories' manifests declare (`surfaces` and `namedSurfaces`), each with the part it came from, but
+ * those of a part `off` switches off (ADR-1095): the list a feedback note's surface is named from.
+ */
+export function declaredSurfaces(compositions: readonly Composition<{ readonly id: string; readonly name: string }>[], off: readonly string[] = []): DeclaredSurface[] {
+  return compositions.flatMap((composition) => {
+    const switched = new Set(mount(composition, off).off.map(({ part }) => part));
+    return composition.parts.flatMap(({ id, name }, index) => {
+      const story = composition.owners[index]!;
+      return switched.has(story) ? [] : [{ id, name, story }];
+    });
+  });
 }
 
 /** A story's page part, as its manifest's `pageAnswers` names it: given the frame, its channels and the answers to them, or none here. */

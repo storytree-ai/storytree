@@ -18,7 +18,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   const saved = readPreferences(options.project);
   // 3.10: expanded, the drawer fills the window below the two bars; the stylesheet reads it from the drawer.
   let expanded = saved.expanded === true;
-  root.innerHTML = `${renderHandle(options.project, false)}<section id="arc-drawer" class="arc-overlay" aria-label="Arc surface" data-expanded="${expanded}" hidden>${renderHandle(options.project, true)}${renderSizeControl(expanded)}<div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
+  root.innerHTML = `${renderHandle(options.project, false)}<section id="arc-drawer" class="arc-overlay" aria-label="Arc surface" data-surface-id="arcs" data-surface-layer="overlay" data-expanded="${expanded}" hidden>${renderHandle(options.project, true)}${renderSizeControl(expanded)}<div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
   host.append(root);
   const launch = root.querySelector<HTMLButtonElement>("[data-open-arcs]")!;
   const drawer = root.querySelector<HTMLElement>(".arc-overlay")!;

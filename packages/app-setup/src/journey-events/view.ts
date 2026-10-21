@@ -16,6 +16,8 @@ function mount(host: HTMLElement, bridge: JourneyBridge, firstLaunch: boolean) {
   doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
   const panel = doc.createElement("section");
   panel.className = `journey-panel${firstLaunch ? " journey-consent" : ""}`;
+  // The first launch's consent is a canvas of its own, over the page (journeyNamedSurfaces); in Sharing it is the tab's.
+  if (firstLaunch) Object.assign(panel.dataset, { surfaceId: "journey-consent", surfaceLayer: "overlay" });
   panel.setAttribute("aria-label", firstLaunch ? "Choose journey sharing" : "Journey sharing");
   panel.hidden = true;
   panel.innerHTML = `<h2>${firstLaunch ? "Help improve storytree?" : "Journey sharing"}</h2>

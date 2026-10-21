@@ -103,6 +103,9 @@ const QUIET: StorytreeBridge = {
   standingDelegations: async () => undefined,
   codeSurvey: async () => ({}),
   recordLag: async () => {},
+  feedbackSetup: async () => ({ offered: false, surfaces: [] }),
+  captureForFeedback: async () => undefined,
+  sendFeedback: async () => { throw new Error("a capture's stand-in bridge writes no feedback"); },
 };
 
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */

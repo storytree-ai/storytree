@@ -19,6 +19,7 @@ import { mountJourneyConsent, mountJourneySettings } from "@storytree/app-setup/
 import { journal, type Target } from "@storytree/website/overlays";
 import { mountJournal, mountTeaching } from "@storytree/website/overlays/view";
 import { mountLagRecorder } from "@storytree/app/lag/view";
+import { mountFeedbackCorner } from "@storytree/surface-feedback/view";
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
@@ -69,7 +70,11 @@ const consentHost = document.createElement("div");
 document.body.append(consentHost);
 const consent = mountJourneyConsent(consentHost, window.storytree);
 const lagRecorder = mountLagRecorder(window.storytree);
-window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); consentHost.remove(); lagRecorder?.stop(); });
+// The feedback corner, above every canvas; a note records the project on show and the story node or note selected.
+const corner = mountFeedbackCorner(document, window.storytree, {
+  shown: () => ({ project: document.body.dataset.project, selection: document.body.dataset.selected ?? document.body.dataset.note }),
+});
+window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); consentHost.remove(); lagRecorder?.stop(); corner.stop(); });
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
 let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined; teaching: ReturnType<typeof mountTeaching> | undefined } | undefined;
@@ -403,6 +408,7 @@ function showMessage(state: string, heading: string, text: string): void {
   stopShowing();
   const box = document.createElement("div");
   box.className = "empty";
+  box.dataset.surfaceId = "app-message";
   const title = document.createElement("h1");
   title.textContent = heading;
   const body = document.createElement("p");

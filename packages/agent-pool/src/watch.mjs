@@ -39,8 +39,8 @@ const EJECTED = new Set(["FAILED_CHECKS", "BRANCH_PROTECTION_FAILURE"]);
 const MARKS = [/watch\.mjs run( |$)/];
 const LOOP_MARKS = [/watch\.mjs watch( |$)/];
 
-/** Whether a process's command line is a fix session's runner (4.26): this package's, or one started from the dev loop's old lanes path before the move. */
-export const isFixSession = (args) => /(?:agent-pool\/src|lanes)\/runner\.mjs run /.test(args);
+/** Whether a process's command line is a fix session's runner (4.26). */
+export const isFixSession = (args) => /agent-pool\/src\/runner\.mjs run /.test(args);
 /** The look loop's exit when the dev loop's code in the shared checkout changed: `run` starts it again, on the new code. */
 export const RESTART = 3;
 /** How long a handed-over pull request holds its claims while open: then it is given up and its increment is back on its arc (ADR-1037 D3, 4.23). Its event wait checks back then too. */

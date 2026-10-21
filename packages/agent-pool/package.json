@@ -2,7 +2,7 @@
   "name": "@storytree/agent-pool",
   "private": true,
   "type": "module",
-  "description": "Agent runner (story_b2051c0f7372, ADR-1071 D3), once the dev loop's agent pool (ADR-1066 D2 G): the lane runner and its engine, the dispatcher, the watcher that lands handed-over pull requests, configured by agent-pool.json at the repo root, and the Claude Code mod in src/claude-code-mod (ADR-1076 D5), the plugin the runner gives its Claude lanes. packages/dev-loop/src/lanes keeps forwarders at the old paths the Mint box's live processes run.",
+  "description": "Agent runner (story_b2051c0f7372, ADR-1071 D3), once the dev loop's agent pool (ADR-1066 D2 G): the lane runner and its engine, the dispatcher, the watcher that lands handed-over pull requests, configured by agent-pool.json at the repo root, and the Claude Code mod in src/claude-code-mod (ADR-1076 D5), the plugin the runner gives its Claude lanes.",
   "dependencies": {
     "@storytree/library": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",

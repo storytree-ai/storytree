@@ -111,12 +111,16 @@ import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
+import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
 import { titleWindow } from "./window-title.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
 // A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
 declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
+
+// The main process's own uncaught errors reach the log (app.log once logTo runs below, stderr in the checks), before startup work can throw.
+logMainErrors(process, { log: line => console.error(line), showError: (title, content) => dialog.showErrorBox(title, content) });
 
 const args = parseArgs(process.argv);
 const home = appHome();

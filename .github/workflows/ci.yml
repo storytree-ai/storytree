@@ -108,11 +108,19 @@ jobs:
       # carries the timing history of main's latest run on its system, and a unit with five passes
       # there gets twice its slowest, never under 6 min: a pull request's kills are never carried back.
       - name: Restore main's test timing history
+        id: timings
         uses: actions/cache/restore@v6
         with:
           path: ~/.storytree/0.3/test-timings.jsonl
           key: test-timings-${{ runner.os }}-${{ github.run_id }}
           restore-keys: test-timings-${{ runner.os }}-
+      # Until main has saved a history for Windows, its two drifted units keep their hand-set limits,
+      # twice their slowest passes (346 s and 357 s): without one, PR #1627's own run killed cli at 360 s.
+      - if: matrix.system == 'Windows' && steps.timings.outputs.cache-matched-key == ''
+        shell: bash
+        run: |
+          pnpm run test --set-limit=cli=720 --reason="no history from main yet; Windows CI passes took up to 346 s, friction_21e0e923a222"
+          pnpm run test --set-limit=session-management=720 --reason="no history from main yet; Windows CI passes took up to 357 s, PR 1625"
       - run: pnpm test
         env:
           STORYTREE_UNIT_LIMIT_MS: 360000

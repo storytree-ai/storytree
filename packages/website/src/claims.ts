@@ -1,7 +1,7 @@
 /**
- * Capability 1 · Home page. The claims below the framed map (ADR-1091 D1 (3), D4): one plain section per pain overcome, in
- * the owner's words (tour-copy.ts), and claim 1 carries the first short (PR #1571). No other claim shows a short until the
- * owner has said what storytree's promises are (D5).
+ * Capability 1 · Home page. The claims below the framed map (ADR-1091 D1 (3), D4): one plain section per promise, a single
+ * line in the owner's words (tour-copy.ts, ADR-1104 D1), and claim 1 carries the first short (PR #1571). Claims 2 and 3 get
+ * theirs as each is made (ADR-1104 D2).
  */
 import { escapeHtml } from "./escape-html.js";
 import { fixes } from "./tour-copy.js";
@@ -15,9 +15,8 @@ const firstShort = `<figure class="claim-short">
 
 /** The claims' markup, built into the page, so each claim reads without JavaScript. */
 export function claimsMarkup(): string {
-  const claims = fixes.pairs.map(({ pain, fix }, i) => `<section class="claim" aria-labelledby="claim-${i + 1}">
-        <p class="claim-pain">${escapeHtml(pain)}</p>
-        <h3 id="claim-${i + 1}" class="claim-fix">${escapeHtml(fix)}</h3>
+  const claims = fixes.promises.map((promise, i) => `<section class="claim" aria-labelledby="claim-${i + 1}">
+        <h3 id="claim-${i + 1}" class="claim-fix">${escapeHtml(promise)}</h3>
         ${i === 0 ? firstShort : ""}
       </section>`).join("\n      ");
   return `<section id="claims" class="claims" aria-labelledby="claims-title">

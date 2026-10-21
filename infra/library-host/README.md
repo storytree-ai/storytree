@@ -235,3 +235,64 @@ allow-list and what it answers for 127.0.0.1:5432 and for 127.0.0.1:22, what
 anything else is a warning), and whether every pg_hba rule covering 127.0.0.1 asks for a password.
 Rerunning the real run is safe: what already matches is left alone. To move to new versions,
 change a pin together with its hash and have the script reviewed again.
+
+### A cloud session on the route
+
+The path, end to end: a Claude Code cloud session's `pg` client (packages/library, a `wss://`
+address) → the container's agent proxy (`HTTPS_PROXY`, which lets only the environment's allowed
+domains through) → Cloudflare Access at `library.storytree.dev`, which wants the service token's
+two headers → the tunnel `mint-library` → `http://localhost:8080` on the box (wsproxy) →
+Postgres on 127.0.0.1:5432, as `storytree_library` with its password.
+
+Where each secret lives:
+
+| Secret | In the cloud environment | Master copy | On the box |
+| --- | --- | --- | --- |
+| Access service token `cloud-sessions` (id and secret) | `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` | GCP Secret Manager, project 635716509357 | — |
+| `storytree_library`'s password | `PGPASSWORD` | GCP Secret Manager, project 635716509357 | — |
+| The tunnel's token | — | Secret Manager `cloudflare-mint-library` | `/etc/storytree/cloudflared-mint-library.token` |
+
+The cloud environment (claude.ai, the storytree environment's settings) also lists
+`library.storytree.dev` in its **Allowed domains**: without it the agent proxy refuses the
+connection before Cloudflare sees it. The library reads the password from `PGPASSWORD` when no
+`postgres` key is saved, and the Access headers from `CF_ACCESS_CLIENT_ID` and
+`CF_ACCESS_CLIENT_SECRET` when no `cf-access-client-id` / `cf-access-client-secret` keys are saved,
+so a cloud session saves no keys at all.
+
+A fresh container needs nothing by hand. Every cloud session starts with no storytree settings,
+so the session-start hook (`packages/dev-loop/src/provision-worktree.mjs`, contract 2.6), when
+`CLAUDE_CODE_REMOTE=true` and `CF_ACCESS_CLIENT_ID` is set, installs with
+`ONNXRUNTIME_NODE_INSTALL=skip` (the agent proxy cuts off onnxruntime's download, and the failed
+install also timed out the MCP server's start), then runs
+`storytree settings set library postgres wss://storytree_library@library.storytree.dev/postgres`
+(or the environment's `STORYTREE_LIBRARY_ADDRESS`, when set) and `storytree doctor --join storytree`.
+Each container is a new machine to the library, so each joins as its own. To do it by hand:
+
+```sh
+ONNXRUNTIME_NODE_INSTALL=skip pnpm install
+pnpm storytree settings set library postgres wss://storytree_library@library.storytree.dev/postgres
+pnpm storytree doctor --join storytree
+pnpm storytree arc list
+```
+
+The tunnel's published route must be **HTTP**, `http://localhost:8080`, never HTTPS: wsproxy speaks
+plain HTTP on loopback, and an HTTPS origin makes cloudflared fail its TLS handshake ("first record
+does not look like a TLS handshake"), which every client sees as Cloudflare's 502. Reading the
+statuses from a cloud session: 403 (or a redirect to a login page) without the token, or 401 with
+a wrong secret, is Access refusing; 502 or 530 past Access is the tunnel or the box (cloudflared
+down, or the route's origin wrong); a WebSocket error after that is wsproxy or Postgres.
+
+**Rotating the service token.** It expires about **2027-10-20**. Before then: in Cloudflare Zero
+Trust, Access → Service Auth, make a new service token; add it to the `cloud-sessions token` policy
+of the `storytree library` application; put its id and secret into Secret Manager (new versions)
+and into the cloud environment's `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`; check from a
+new cloud session that `pnpm storytree arc list` reads; then revoke the old token. The password
+rotates the same way: Postgres first (`ALTER ROLE storytree_library PASSWORD …` on the box), then
+Secret Manager and `PGPASSWORD`.
+
+**Turning the route off.** Stop the box's half: `ssh -t mint 'sudo systemctl disable --now
+storytree-cloudflared'` (and `storytree-wsproxy` as well to close the loopback listener). Cloud
+sessions then get 502/530 past Access and reach nothing; the laptop, CI and Mint lanes are
+untouched, since they reach Postgres over Tailscale or loopback and never through this route. For
+a harder stop, revoke the service token in Access, or remove the public hostname from the tunnel.
+`sudo systemctl enable --now storytree-wsproxy storytree-cloudflared` turns it back on.

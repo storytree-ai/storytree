@@ -41,11 +41,22 @@
 // Missing links take priority over STALE: a matching lockfile is not proof that the links exist,
 // and a different installed lockfile must not hide a link the command line needs.
 //
+// In a Claude Code cloud container (CLAUDE_CODE_REMOTE=true, contract 2.6, ADR-1093) every session
+// starts in a fresh container: no storytree settings, no approved checkout, and an install whose
+// onnxruntime download the agent proxy keeps cutting off (which also timed out the MCP server's start).
+// So there the install skips that download, and once installed, a container that holds the route's
+// Access token but no library setting is given the library's HTTPS address (STORYTREE_LIBRARY_ADDRESS
+// when the environment sets it) and approves this checkout as its project's, through storytree's own
+// command line, putting the checkout's committed .storytree.json back after the join. The password
+// and the Access token come from the environment itself (PGPASSWORD, CF_ACCESS_CLIENT_ID,
+// CF_ACCESS_CLIENT_SECRET), so nothing secret is written. infra/library-host/README.md describes the route.
+//
 // It runs before node_modules exists, so it uses Node built-ins only. With --hook it always exits 0
 // (a failed install must never break the session) and writes to stdout only the heads-up for the
 // agent, as SessionStart additionalContext; pnpm's own output goes to stderr.
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -146,9 +157,82 @@ function unlinked(root) {
   return packages > 0;
 }
 
+/** The library's address over the HTTPS route (ADR-1093): its user, host and database, never its password. */
+export const CLOUD_LIBRARY_ADDRESS = "wss://storytree_library@library.storytree.dev/postgres";
+
+/** True in a Claude Code cloud container. */
+function inCloud(env) {
+  return env.CLAUDE_CODE_REMOTE === "true";
+}
+
+/** The environment pnpm install runs with: in a cloud container, onnxruntime's download skipped unless env says otherwise. */
+export function installEnvironment(env = process.env) {
+  const out = { ...env, COREPACK_ENABLE_DOWNLOAD_PROMPT: "0" };
+  if (inCloud(env) && out.ONNXRUNTIME_NODE_INSTALL === undefined) out.ONNXRUNTIME_NODE_INSTALL = "skip";
+  return out;
+}
+
+/** Run storytree's command line from root's source with args. Never throws. */
+function storytreeCommand(root, args) {
+  const result = spawnSync(process.execPath, ["--import", "tsx", path.join(root, "packages", "cli", "src", "bins", "storytree.ts"), ...args], {
+    cwd: root,
+    stdio: ["ignore", 2, 2],
+    timeout: 120_000,
+    windowsHide: true,
+  });
+  return { ok: !result.error && result.status === 0, code: result.status ?? 1 };
+}
+
+/** True when the storytree home's settings already say where the library is. Unreadable is unset. */
+function librarySet(home) {
+  try {
+    return JSON.parse(readFileSync(path.join(home, "settings.json"), "utf8"))?.library !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * In a fresh cloud container holding the route's Access token, give storytree the library's address
+ * and approve root as its project's checkout (contract 2.6). Elsewhere, or once the library is set, nothing.
+ * @returns {{ ok: boolean, done: boolean }}
+ */
+export function connectCloud({
+  root = repoRoot,
+  env = process.env,
+  home = env.STORYTREE_HOME ? path.resolve(env.STORYTREE_HOME) : path.join(homedir(), ".storytree", "0.3"),
+  run = (args) => storytreeCommand(root, args),
+  log = () => {},
+} = {}) {
+  if (!inCloud(env) || !env.CF_ACCESS_CLIENT_ID || librarySet(home)) return { ok: true, done: false };
+  // Joining rewrites the checkout's marker with the library's identity; the committed one is put back
+  // so a cloud session's tree stays clean (routing reads the project name either way).
+  const marker = path.join(root, ".storytree.json");
+  let project, committed;
+  try {
+    committed = readFileSync(marker);
+    project = JSON.parse(committed.toString("utf8")).project;
+  } catch {
+    // No project named: only the address is given.
+  }
+  const address = env.STORYTREE_LIBRARY_ADDRESS || CLOUD_LIBRARY_ADDRESS;
+  const steps = [["settings", "set", "library", "postgres", address]];
+  if (typeof project === "string" && project !== "") steps.push(["doctor", "--join", project]);
+  for (const args of steps) {
+    log(`provision-worktree: cloud container; storytree ${args.join(" ")}`);
+    const result = run(args);
+    if (args[0] === "doctor" && committed !== undefined) writeFileSync(marker, committed);
+    if (!result.ok) {
+      log(`provision-worktree: storytree ${args.join(" ")} failed (exit ${result.code}); set it by hand (infra/library-host/README.md)`);
+      return { ok: false, done: false };
+    }
+  }
+  return { ok: true, done: true };
+}
+
 /** `pnpm install` in root, falling back to `corepack pnpm`. Never throws. */
 export function pnpmInstall(root) {
-  const options = { cwd: root, stdio: ["ignore", 2, 2], env: { ...process.env, COREPACK_ENABLE_DOWNLOAD_PROMPT: "0" } };
+  const options = { cwd: root, stdio: ["ignore", 2, 2], env: installEnvironment() };
   // Windows finds the pnpm.cmd and corepack.cmd shims only through a shell; the commands are fixed
   // strings, so the shell is given nothing from outside.
   const run =
@@ -332,7 +416,9 @@ if (isEntry()) {
   } else if (args.includes("--check")) {
     process.exitCode = check({ root, log: (line) => process.stderr.write(`${line}\n`) });
   } else {
-    const result = provision({ root, log: (line) => process.stderr.write(`${line}\n`) });
+    const log = (line) => process.stderr.write(`${line}\n`);
+    const result = provision({ root, log });
+    if (result.ok) connectCloud({ root, log });
     const output = hook ? hookOutput(result, root) : "";
     if (output) process.stdout.write(`${output}\n`);
     process.exitCode = hook ? 0 : result.code;

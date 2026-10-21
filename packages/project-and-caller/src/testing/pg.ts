@@ -31,6 +31,16 @@ export function testServerUrl(): string {
 }
 
 /**
+ * The test server's url as its owner record and sign-in handoff say it, which is what discovery
+ * gives: STORYTREE_TEST_PG_URL without the connect_timeout `pnpm test` adds to it for the tests' own connections.
+ */
+export function testServerRecordedUrl(): string {
+  const url = new URL(testServerUrl());
+  url.searchParams.delete("connect_timeout");
+  return url.href;
+}
+
+/**
  * The test server's data directory, as @storytree/local-postgres started it: its owner record
  * (`<dataDir>.owner.json`) is the real thing project routing reads. Throws when there is none.
  */

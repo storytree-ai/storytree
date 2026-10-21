@@ -458,7 +458,22 @@ test("8.2 a Cloud SQL instance that does not answer is refused after a bounded w
 });
 
 test("1.9 a stalled local handshake is refused within three seconds, on both admin and project pools, and the next call recovers", async (t) => {
+  await refusedAtDeadline(t, undefined, 3_000);
+});
+
+test("1.20 a local url naming its own connect_timeout is given that longer deadline, as a test run's throwaway server is; one with none keeps three seconds", async (t) => {
+  await refusedAtDeadline(t, "5", 5_000);
+  await refusedAtDeadline(t, "1", 3_000);
+});
+
+/**
+ * Open a project through a server that stalls each fresh handshake, on the admin pool and then the
+ * project's, with the test server's url carrying `connectTimeout` as its connect_timeout (none when
+ * undefined): each is refused at `deadlineMs`, saying so, and the next call recovers.
+ */
+async function refusedAtDeadline(t: TestContext, connectTimeout: string | undefined, deadlineMs: number): Promise<void> {
   const upstream = new URL(testServerUrl());
+  upstream.searchParams.delete("connect_timeout");
   const held = new Set<Socket>();
   let stalled = true;
   const silent = createServer((socket) => {
@@ -478,6 +493,7 @@ test("1.9 a stalled local handshake is refused within three seconds, on both adm
   await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
   const url = new URL(upstream);
   url.port = String((silent.address() as AddressInfo).port);
+  if (connectTimeout !== undefined) url.searchParams.set("connect_timeout", connectTimeout);
   const storytree = await connect({ url: url.href });
   const name = uniqueProjectName();
   try {
@@ -489,9 +505,9 @@ test("1.9 a stalled local handshake is refused within three seconds, on both adm
       const error = await storytree.openProject(name).then(() => assert.fail("the silent server cannot open a project"), (error: unknown) => error);
       const waited = performance.now() - started;
       t.diagnostic(`${pool} handshake refused after ${waited.toFixed(0)} ms`);
-      assert.ok(waited >= 2_500 && waited < 4_000, `${pool}: the 3 s deadline plus scheduling allowance, got ${waited.toFixed(0)} ms`);
+      assert.ok(waited >= deadlineMs - 500 && waited < deadlineMs + 1_000, `${pool}: the ${deadlineMs / 1000} s deadline plus scheduling allowance, got ${waited.toFixed(0)} ms`);
       const refused = refusal(error, "timeout");
-      assert.match(refused.message, /storytree isn't reachable/i);
+      assert.match(refused.message, new RegExp(`storytree isn't reachable: its database did not answer within ${deadlineMs / 1000} seconds`, "i"));
       assert.match(refused.message, /check.*app.*try again/i);
       stalled = false;
       const recovered = await storytree.openProject(name);
@@ -504,7 +520,7 @@ test("1.9 a stalled local handshake is refused within three seconds, on both adm
     await new Promise<void>((resolve) => silent.close(() => resolve()));
     await dropTestDatabases([name]);
   }
-});
+}
 
 test("8.1 robustness, offline: on either path, a user that may not create databases opens a new project by borrowing a role that may, and hands the role back", async () => {
   const run = uniqueProjectName();

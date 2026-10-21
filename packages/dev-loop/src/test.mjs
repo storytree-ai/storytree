@@ -230,11 +230,21 @@ async function runHeavy(units) {
   }
   try {
     if (interrupted) return 130;
-    return await runTests({ ...process.env, STORYTREE_TEST_PG_URL: server.url, STORYTREE_TEST_PG_ADMIN_URL: server.superuserUrl, STORYTREE_TEST_PG_DATA: server.dataDir }, units);
+    return await runTests({ ...process.env, STORYTREE_TEST_PG_URL: patient(server.url), STORYTREE_TEST_PG_ADMIN_URL: patient(server.superuserUrl), STORYTREE_TEST_PG_DATA: server.dataDir }, units);
   } finally {
     phase = "stopping the test Postgres";
     await server.stop();
   }
+}
+
+/**
+ * `url` naming a 30-second connect_timeout, which the library takes over its 3-second default: on a
+ * loaded machine the throwaway server can answer a handshake late, and that is no test's failure.
+ */
+function patient(url) {
+  const named = new URL(url);
+  named.searchParams.set("connect_timeout", "30");
+  return named.href;
 }
 
 /** Run the named files, or each unit in turn past any failure, then print and record the table. */

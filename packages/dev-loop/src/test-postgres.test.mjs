@@ -47,6 +47,13 @@ test("6.9 · the tests connect as the ordinary role, and are handed the superuse
   assert.equal(await superuser(url), false, "the url they connect with is the ordinary role's");
 });
 
+test("6.18 · the urls a run hands its tests for the Postgres it started give a handshake 30 seconds, so a loaded machine's slow answer fails no test", () => {
+  for (const name of ["STORYTREE_TEST_PG_URL", "STORYTREE_TEST_PG_ADMIN_URL"]) {
+    assert.ok(process.env[name], `run these tests through \`pnpm test\`, which hands ${name}`);
+    assert.equal(new URL(process.env[name]).searchParams.get("connect_timeout"), "30", name);
+  }
+});
+
 test("6.9 · a run given a server's url hands that url for setup too, unless it is given an admin url as well", (t) => {
   assert.deepEqual(handed(t, { STORYTREE_TEST_PG_URL: "postgres://client@127.0.0.1:1/postgres" }),
     ["postgres://client@127.0.0.1:1/postgres", "postgres://client@127.0.0.1:1/postgres"]);

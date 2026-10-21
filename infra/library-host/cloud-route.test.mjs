@@ -7,7 +7,7 @@ import { test } from 'node:test';
 
 const script = new URL('./cloud-route.sh', import.meta.url).pathname;
 // The script runs only on the Mint box; its GNU tools (stat -c, realpath -m) are Linux's.
-const linuxOnly = { skip: process.platform !== 'linux' && 'cloud-route.sh runs only on the Mint box (Linux)' };
+const linuxOnly = { skip: process.platform !== 'linux' && 'platform:linux: cloud-route.sh runs only on the Mint box' };
 const unit = name => execFileSync('bash', ['-c', `source "$1"; ${name}`, 'cloud-route-test', script], { encoding: 'utf8' });
 const settings = text => text.split('\n').filter(l => /^[A-Za-z]+=/.test(l)).map(l => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]);
 
@@ -33,10 +33,10 @@ test('wsproxy listens only on loopback, may reach only 127.0.0.1:5432, and runs 
 
 test("cloudflared reads the tunnel's token from the root-only file through systemd, never from its command line", linuxOnly, () => {
   const text = unit('cloudflared_unit');
-  const tokenFile = execFileSync('bash', ['-c', 'source "$1"; printf %s "$TOKEN_FILE"', 'cloud-route-test', script], { encoding: 'utf8' });
   const s = settings(text);
   const [name, from] = s.find(([k]) => k === 'LoadCredential')[1].split(/:(.*)/s);
-  assert.equal(from, tokenFile);
+  // The file the owner's real run installs, root:root 600 (README.md, "Cloud sessions' HTTPS route").
+  assert.equal(from, '/etc/storytree/cloudflared-mint-library.token');
   const exec = s.find(([k]) => k === 'ExecStart')[1].split(' ');
   assert.equal(exec[exec.indexOf('--token-file') + 1], `%d/${name}`);
   assert.ok(!exec.includes('--token') && !/TUNNEL_TOKEN/.test(text), 'no token on the command line or in the environment');

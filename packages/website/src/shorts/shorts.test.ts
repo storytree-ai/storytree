@@ -4,9 +4,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { POSTER as MEMORY_POSTER } from "./memory.js";
+import { PANEL_WIDTH } from "./memory-scene.js";
 import { POSTER } from "./one-map.js";
 import { COLOURS } from "./one-map-scene.js";
-import { FIRST_SHORT, SECOND_SHORT } from "./root.js";
+import { FIRST_SHORT, SECOND_SHORT, THIRD_SHORT } from "./root.js";
 import { HALF, LOW, SCALE, SCREEN } from "./script.js";
 import { brokenBlocks, bundleShorts, remotionOn, renderPng, rgbOf } from "./render.js";
 
@@ -50,6 +52,22 @@ test("6.18 · a rendered frame of the second short is crisp, and its map carries
     }
     assert.ok(seen >= 10, `${colour} marks a claim on the map (${seen} pixels)`);
   }
+});
+
+test("6.22 · a rendered frame of the third short is crisp, and on its map the island he clicked is lit where the real view drew it, beside its panel", { timeout: 300_000 }, async () => {
+  const still = path.join(scratch, "memory.png");
+  await renderPng(serveUrl, THIRD_SHORT.id, MEMORY_POSTER * THIRD_SHORT.fps, still);
+  const rgb = await rgbOf(still);
+  assert.deepEqual(brokenBlocks(rgb).slice(0, 5), []);
+  // The map's own area on the storytree half, left of the panel and above the sessions strip: the selection's gold, the view's
+  // ring and the scene's plate under the island it found there.
+  const { x, y, width, height } = SCREEN.full, wide = LOW.width * SCALE, gold = [0xff, 0xd3, 0x4d];
+  let seen = 0;
+  for (let row = y + 16; row < y + height - 14; row++) for (let column = HALF.with + x; column < HALF.with + x + width - PANEL_WIDTH; column++) {
+    const at = (row * SCALE * wide + column * SCALE) * 3;
+    if (gold.every((value, c) => rgb[at + c] === value)) seen++;
+  }
+  assert.ok(seen >= 100, `the lit island shows on the map (${seen} pixels)`);
 });
 
 test("6.7 · on Windows arm64, which Remotion builds no Headless Shell or binaries for, a short renders in the installed Chrome with Remotion's x64 binaries; elsewhere with its own", () => {

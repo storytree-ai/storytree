@@ -295,7 +295,8 @@ test("7.13 · an arc that leaves an arm's plannable list while its work is open 
       const arc = await library.createArc({ title: "On's arc", intent: "Build the task", endState: "The task works" });
       const ready = async (arm: ArmRun): Promise<Look> => {
         const out: string[] = [];
-        const box = { survey: () => readSurvey({ library, claims: async () => [] }), count: async () => 0, maxLanes: async () => 4, lanesDir, now: Date.now, out: (line: string) => out.push(line) };
+        // Read from an hour on, as an arm's look comes long after the arc was seeded: the pool leaves an arc made in the last half hour to its author.
+        const box = { survey: () => readSurvey({ library, claims: async () => [] }), count: async () => 0, maxLanes: async () => 4, lanesDir, now: () => Date.now() + 3600_000, out: (line: string) => out.push(line) };
         assert.equal(await main(readyArgs(arm.project, { arm: true }), box), 0);
         return JSON.parse(out.join("\n")) as Look;
       };

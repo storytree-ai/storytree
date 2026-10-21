@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 
 import { countEngines } from "./queue.mjs";
-import { ensureWatcher, hand, handOver, isFixSession, main, projectOf, readPull, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { adoptRequests, ensureWatcher, hand, handOver, handThroughLibrary, isFixSession, main, projectOf, readPull, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -194,7 +194,7 @@ test("4.5 · a hand-off parks the increment on an event wait and starts the watc
   assert.equal(countEngines(`  7     1 ${procs[7]}`), 0, "it takes no engine slot");
 });
 
-test("4.7 · a session on any machine hands over: on the box directly, elsewhere over ssh with its own session id, refusing plainly when the box is out of reach", async () => {
+test("4.7 · a session on any machine hands over: on the box directly, elsewhere over ssh with its own session id, refusing plainly when the watcher is out of reach", async () => {
   const handed = [], sshed = [];
   const local = async (args) => { handed.push(args); };
   const ok = async (args) => { sshed.push(args); return "PR #41 handed to the watcher\nClose out with: pnpm storytree session close-out --safe yes --why \"PR #41 open and green, handed to the watcher\"\n"; };
@@ -216,6 +216,47 @@ test("4.7 · a session on any machine hands over: on the box directly, elsewhere
   const nobody = await handOver({ pr: 41, increment: "increment_one", session: "", onBox: false, local, remote: ok });
   assert.equal(nobody.code, 1, "with no session id the watcher could not release the session's claims");
   assert.equal(sshed.length, 1);
+});
+
+test("4.30 · a session ssh cannot reach the box from hands over through the library, and the box's watcher takes it once", async (t) => {
+  const written = [];
+  const library = async (args) => { written.push(args); return args[1] === "hold" ? "Held for PR #41 until it merges or closes: increment_one." : ""; };
+  const noSsh = async () => { throw new Error("spawn ssh ENOENT"); };
+  const away = await handOver({ pr: 41, increment: "increment_one", session: SESSION, keepOpen: true, onBox: false, local: async () => {}, remote: noSsh,
+    library: (request) => handThroughLibrary({ ...request, branch: "claude/pr-41", storytree: library, now: () => at }) });
+  assert.equal(away.code, 0, "a cloud session with no ssh still hands over");
+  assert.match(away.lines.join("\n"), /through the library/);
+  assert.match(away.lines.join("\n"), /close-out --safe yes/);
+  assert.deepEqual(written[0].slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "event"]);
+  assert.deepEqual(written[0].slice(8), ["--check-back", minutes(3 * 24 * 60).slice(0, 10)]);
+  assert.deepEqual(written[1], ["workspace", "hold", "41", "--holder", SESSION, "--branch", "claude/pr-41", "--increment", "increment_one"],
+    "its claims are held for the pull request before the session closes out");
+
+  const b = await box(t);
+  const waits = ["2 waits for you or an outside event:",
+    `  - event  ${written[0][7]} — increment_one  The one, on arc_a  An arc; check back 2026-10-13`,
+    "  - event  PR #40 is open and green and handed to the Mint box's watcher, which closes this on its merge or starts a fix session on a red. — increment_zero  The zero, on arc_a  An arc; check back 2026-10-13",
+    ""].join("\n");
+  b.options.storytree = async (args) => { b.calls.push(args); return args[1] === "waits" ? waits : ""; };
+  await adoptRequests(b.options);
+  const record = await saved(b);
+  assert.equal(record.increment, "increment_one"); assert.equal(record.session, SESSION); assert.equal(record.keepOpen, true);
+  assert.deepEqual(await readdir(b.dir), ["41.json"], "a wait the box's own hand-over wrote is not a request");
+  b.tick(60_000);
+  await adoptRequests(b.options);
+  assert.equal((await saved(b)).handedAt, minutes(0), "a request already taken is not taken again");
+
+  b.looks[41] = { state: "merged", head: "h1" };
+  b.calls.length = 0;
+  await watchOnce(b.options);
+  assert.ok(!b.calls.some(([, , verb]) => verb === "close"), "kept open, as the session asked");
+  assert.ok(b.calls.some(([, verb, pr]) => verb === "let-go" && pr === "41"));
+
+  const closed = await handOver({ pr: 42, increment: "increment_two", session: SESSION, onBox: false, local: async () => {}, remote: noSsh,
+    library: (request) => handThroughLibrary({ ...request, branch: "claude/pr-42", now: () => at,
+      storytree: async () => { throw new Error("increment_two is closed, and waits for nothing"); } }) });
+  assert.equal(closed.code, 1);
+  assert.match(closed.lines.join("\n"), /waits for nothing.*wait for the merge yourself/is, "a request the library refuses falls back to landing it yourself");
 });
 
 test("4.10 · a watcher whose code changes between two looks ends with the restart code, starting no fix session, and its keeper starts it again", async (t) => {
@@ -563,17 +604,18 @@ test("4.17 · a watch loop on a folder other than the box's own reads no release
   assert.doesNotMatch(b.lines.join("\n"), /release/);
 });
 
-test("4.24 · a hand-over from another machine runs on the configured machine, in its checkout as written there; with none configured it is refused", async (t) => {
+test("4.24 · a hand-over from another machine runs on the configured machine, in its checkout as written there; with none configured its ssh is refused", async (t) => {
   assert.deepEqual(remoteCommand({ machine: "box", remoteCheckout: "~/src/shop" }, ["hand", "41", "increment_one", "--session", SESSION]),
     ["ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "box", `cd ~/src/shop && node packages/agent-pool/src/watch.mjs hand 41 increment_one --session ${SESSION}`]]);
 
   const home = await mkdtemp(join(tmpdir(), "lane-watch-nobox-"));
   t.after(() => rm(home, { recursive: true, force: true }));
   await writeFile(join(home, "agent-pool.json"), JSON.stringify({ lanes: join(home, "lanes") }));
-  const lines = [];
+  const lines = [], written = [];
   assert.equal(await main(["handover", "41", "increment_one"], { home, env: { AGENT_POOL_CONFIG: join(home, "agent-pool.json") }, onBox: false, session: SESSION,
-    out: (line) => lines.push(line) }), 1);
-  assert.match(lines.join("\n"), /names no machine to hand over to/);
+    out: (line) => lines.push(line), ownBranchOf: async () => "claude/pr-41", here: async (args) => { written.push(args); return ""; } }), 0);
+  assert.match(lines.join("\n"), /names no machine to hand over to; handed over through the library instead/);
+  assert.deepEqual(written.map((args) => args.slice(0, 4)), [["arc", "increment", "wait", "increment_one"], ["workspace", "hold", "41", "--holder"]]);
 });
 
 test("4.26 · a fix session counts as running while its runner runs", () => {

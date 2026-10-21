@@ -167,11 +167,8 @@ export const DIFFS = {
   ] },
 } as const satisfies Record<string, { tab: string; note: string; warn: boolean; lines: readonly string[] }>;
 
-export const diffLines = (name: keyof typeof DIFFS): DiffLine[] =>
-  DIFFS[name].lines.map(line => ({ mark: line[0] as DiffLine["mark"], text: line.slice(1) }));
-
 /** The beat playing at `seconds` on a side; past the last it holds the last. */
-export function beatAt(side: readonly Beat[], seconds: number): Beat {
+export function beatAt<B extends { from: number; to: number }>(side: readonly B[], seconds: number): B {
   return side.find(beat => seconds >= beat.from && seconds < beat.to) ?? side[side.length - 1]!;
 }
 
@@ -181,31 +178,51 @@ export function paneBox(screen: Rect, pane: Pane): Rect {
   return { x: screen.x + pane * (width + 1), y: screen.y, width, height: screen.height };
 }
 
-/** What a pane holds at `seconds`: every prompt typed so far (the current one as far as it has been typed) and every reply and
- * step come back, in order, each with when it started showing and when it was whole. */
+/** What a conversation holds at `seconds`: every prompt typed so far (the current one as far as it has been typed) and every
+ * reply and step come back, in order, each with when it started showing and when it was whole. */
 export type Shown = Said & { done: number };
-export function paneAt(side: Side, pane: Pane, seconds: number): Shown[] {
-  return chat(side).filter(said => said.pane === pane && said.at <= seconds).sort((a, b) => a.at - b.at).map(said => {
-    if (said.who !== "you") return { ...said, done: said.at };
-    const done = said.at + said.text.length / (said.rate ?? RATE);
-    return { ...said, text: said.text.slice(0, seconds >= done ? said.text.length : Math.floor((seconds - said.at) * (said.rate ?? RATE))), done };
+export function shownAt(said: readonly Said[], seconds: number): Shown[] {
+  return said.filter(each => each.at <= seconds).sort((a, b) => a.at - b.at).map(each => {
+    if (each.who !== "you") return { ...each, done: each.at };
+    const done = each.at + each.text.length / (each.rate ?? RATE);
+    return { ...each, text: each.text.slice(0, seconds >= done ? each.text.length : Math.floor((seconds - each.at) * (each.rate ?? RATE))), done };
   });
 }
+/** What a pane holds at `seconds`. */
+export const paneAt = (side: Side, pane: Pane, seconds: number): Shown[] => shownAt(chat(side).filter(said => said.pane === pane), seconds);
 
 export type PaneLine = { who: Said["who"]; text: string; mark: boolean; said: number; x: number; y: number };
-/** A pane's lines at `seconds`: the conversation's last lines that fit under its title row (and over its diff's size, on the side
- * without storytree while its agent works), each placed in the frame's pixels and naming the message it belongs to. */
-export function paneLines(side: Side, pane: Pane, seconds: number, box: Rect): { said: Shown[]; lines: PaneLine[] } {
-  const said = paneAt(side, pane, seconds), columns = columnsOf(box.width, SMALL.advance) - 2;
+/** A conversation's last lines that fit in `box` under its title row (and over `reserve` pixels kept at its foot), each placed
+ * in the frame's pixels and naming the message it belongs to. */
+export function linesIn(said: readonly Shown[], box: Rect, reserve = 0): PaneLine[] {
+  const columns = columnsOf(box.width, SMALL.advance) - 2;
   const all = said.flatMap(({ who, text }, index) => {
     const wrapped = text ? wrap(text, columns) : [""];
     // A step follows the line before it; a prompt or a reply has a blank line above it.
     return [...(index && who !== "step" ? [{ who, text: "", mark: false, said: index }] : []), ...wrapped.map((line, row) => ({ who, text: line, mark: row === 0, said: index }))];
   });
-  const rows = Math.floor((box.height - 12 - (side === "without" ? 2 * SMALL.line : 0)) / SMALL.line);
+  const rows = Math.floor((box.height - 12 - reserve) / SMALL.line);
   const shown = all.slice(-rows), orphans = shown.findIndex(line => line.mark || !line.text);
   const left = box.x + 3 + 2 * SMALL.advance;
-  return { said, lines: shown.map((line, row) => ({ ...line, x: left, y: box.y + 11 + row * SMALL.line })).slice(Math.max(0, orphans)) };
+  return shown.map((line, row) => ({ ...line, x: left, y: box.y + 11 + row * SMALL.line })).slice(Math.max(0, orphans));
+}
+/** A pane's lines at `seconds`, over its diff's size on the side without storytree while its agent works. */
+export function paneLines(side: Side, pane: Pane, seconds: number, box: Rect): { said: Shown[]; lines: PaneLine[] } {
+  const said = paneAt(side, pane, seconds);
+  return { said, lines: linesIn(said, box, side === "without" ? 2 * SMALL.line : 0) };
+}
+
+/** The replies to read in a box of a conversation at `seconds`: every whole reply on show that came back `since` the cut to it,
+ * with its box in the frame's pixels (a prompt is read as it is typed; a step is seen, not read). */
+export function repliesRead(said: readonly Shown[], lines: readonly PaneLine[], box: Rect, since: number, seconds: number): Focus[] {
+  const columns = columnsOf(box.width, SMALL.advance) - 2;
+  return said.flatMap((message, index) => {
+    const shown = lines.filter(line => line.said === index && line.text);
+    if (message.who !== "claude" || message.at < since || seconds < message.done || !shown.length || shown.length < wrap(message.text, columns).length) return [];
+    const top = Math.min(...shown.map(line => line.y)), bottom = Math.max(...shown.map(line => line.y)) + 5;
+    const right = Math.max(...shown.map(line => line.x + line.text.length * SMALL.advance));
+    return [{ text: message.text, box: { x: shown[0]!.x, y: top, width: right - shown[0]!.x, height: bottom - top } }];
+  });
 }
 
 /** How big a pane's diff has grown at `seconds`, on the side without storytree: in step with its edits. */
@@ -232,14 +249,8 @@ export function focusAt(side: Side, seconds: number): Focus[] {
     while (cut > 0 && script[cut - 1]!.app === "claude" && script[cut - 1]!.view === "full") cut--;
     const since = script[cut]!.from;
     for (const pane of [0, 1] as const) {
-      const box = paneBox(screen, pane), { said, lines } = paneLines(side, pane, seconds, box), columns = columnsOf(box.width, SMALL.advance) - 2;
-      said.forEach((message, index) => {
-        const shown = lines.filter(line => line.said === index && line.text);
-        if (message.who !== "claude" || message.at < since || seconds < message.done || !shown.length || shown.length < wrap(message.text, columns).length) return;
-        const top = Math.min(...shown.map(line => line.y)), bottom = Math.max(...shown.map(line => line.y)) + 5;
-        const right = Math.max(...shown.map(line => line.x + line.text.length * SMALL.advance));
-        focus.push({ text: message.text, box: { x: shown[0]!.x, y: top, width: right - shown[0]!.x, height: bottom - top } });
-      });
+      const box = paneBox(screen, pane), { said, lines } = paneLines(side, pane, seconds, box);
+      focus.push(...repliesRead(said, lines, box, since, seconds));
     }
   }
   return focus;

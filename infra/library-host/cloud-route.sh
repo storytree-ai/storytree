@@ -124,8 +124,8 @@ fail() { printf 'stopped: %s\n' "$*" >&2; exit 1; }
 sha_of() { sha256sum "$1" | cut -d' ' -f1; }
 installed_cloudflared() { { dpkg-query -W -f='${Status} ${Version}' cloudflared 2>/dev/null || true; } | sed -n 's/^install ok installed //p'; }
 listeners_on() { ss -Hltn "sport = :${1##*:}" 2>/dev/null | awk '{print $4}' | sort -u | paste -sd' ' -; }
-# The programs holding a port (ss names them only to root); empty when nothing listens or it cannot tell.
-holders_of() { { ss -Hltnp "sport = :${1##*:}" 2>/dev/null || true; } | { grep -o 'users:(("[^"]*"' || true; } | sed 's/users:(("//; s/"$//' | sort -u | paste -sd' ' -; }
+# The process ids holding a port (ss shows them only to root); empty when nothing listens or it cannot tell.
+pids_on() { { ss -Hltnp "sport = :${1##*:}" 2>/dev/null || true; } | { grep -o 'pid=[0-9]*' || true; } | sed 's/pid=//' | sort -u | paste -sd' ' -; }
 
 # Postgres's own rules, read as the owner over the local socket (peer auth). Prints the first line admitting
 # 127.0.0.1 to every database with scram-sha-256, and only when no TCP rule covering 127.0.0.1 asks for less
@@ -243,7 +243,7 @@ fetch_verified() { # url, sha256, destination
 }
 
 apply() {
-  local install_token=$1 v holders ours changed_ws=0 changed_cf=0
+  local install_token=$1 v pids unit ours changed_ws=0 changed_cf=0
   [ "$(dpkg --print-architecture)" = amd64 ] || fail "this script pins amd64 downloads"
   if [ $DRY -eq 0 ]; then
     [ "$(id -u)" -eq 0 ] || fail "the real run needs root: sudo bash $0"
@@ -262,11 +262,12 @@ apply() {
   for a in "$WSPROXY_LISTEN" "$WSPROXY_METRICS" "$CLOUDFLARED_METRICS"; do
     v=$(listeners_on "$a")
     [ -z "$v" ] && continue
-    holders=$(holders_of "$a")
-    if [ "$a" = "$CLOUDFLARED_METRICS" ]; then ours=cloudflared; else ours=$(basename "$WSPROXY_BIN"); fi
-    if [ "$holders" = "$ours" ]; then say "port ${a##*:} is held by $ours already"
-    elif [ $DRY -eq 1 ] && [ -z "$holders" ]; then say "port ${a##*:} is taken ($v); the real run checks that $ours holds it"
-    else fail "port ${a##*:} is taken ($v) by ${holders:-a program this user cannot see}, not $ours"; fi
+    pids=$(pids_on "$a")
+    if [ "$a" = "$CLOUDFLARED_METRICS" ]; then unit=$CLOUDFLARED_UNIT; else unit=$WSPROXY_UNIT; fi
+    ours=$(systemctl show -p MainPID --value "$unit" 2>/dev/null || true)
+    if [ -n "$pids" ] && [ "$pids" = "$ours" ]; then say "port ${a##*:} is held by $unit already"
+    elif [ $DRY -eq 1 ] && [ -z "$pids" ]; then say "port ${a##*:} is taken ($v); the real run checks that $unit holds it"
+    else fail "port ${a##*:} is taken ($v) by ${pids:+process $pids}${pids:-a process this user cannot see}, not $unit"; fi
   done
   if [ -e "$UNIT_DIR/cloudflared.service" ]; then
     fail "$UNIT_DIR/cloudflared.service exists (from 'cloudflared service install'?); look at it before a second tunnel service is added"
@@ -282,7 +283,7 @@ apply() {
     else
       [ "$(stat -c %U "$install_token")" = "$SUDO_USER" ] || fail "$install_token is not owned by $SUDO_USER"
       install -d -m 755 -o root -g root "$(dirname "$TOKEN_FILE")"
-      ( umask 077; sudo -u "$SUDO_USER" cat -- "$install_token" | tr -d ' \t\r\n' > "$TOKEN_FILE.new" )
+      ( umask 077; sudo -u "$SUDO_USER" head -c 8192 -- "$install_token" | tr -d ' \t\r\n' > "$TOKEN_FILE.new" )
       grep -qE '^[A-Za-z0-9+/=_-]+$' "$TOKEN_FILE.new" || { rm -f "$TOKEN_FILE.new"; fail "$install_token does not look like a tunnel token (base64); not installed"; }
       chown root:root "$TOKEN_FILE.new"
       chmod 600 "$TOKEN_FILE.new"

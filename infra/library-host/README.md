@@ -221,13 +221,14 @@ what root runs; the run moves the token into place and deletes the temporary fil
 ```powershell
 ssh mint 'git -C ~/code/storytree03 fetch -q origin main && git -C ~/code/storytree03 show origin/main:infra/library-host/cloud-route.sh > ~/cloud-route.sh'
 ssh mint 'bash ~/cloud-route.sh --dry-run --install-token ~/cloudflared-token.tmp'
-ssh -t mint 'sudo install -m 700 ~/cloud-route.sh /root/cloud-route.sh && sudo sha256sum /root/cloud-route.sh | grep ^SHA256_FROM_REVIEW && sudo bash /root/cloud-route.sh --install-token ~/cloudflared-token.tmp'
-ssh mint 'bash ~/cloud-route.sh --review'
+ssh -t mint 'sudo install -m 700 ~/cloud-route.sh /root/cloud-route.sh && sudo sha256sum /root/cloud-route.sh | grep ^6be3b0305c4161c2ad27307eca89ec63f014c34231dd2c7b96863e18a17cdfef && sudo bash /root/cloud-route.sh --install-token ~/cloudflared-token.tmp'
+ssh -t mint 'sudo bash /root/cloud-route.sh --review'
 ```
 
-If the `grep` prints nothing, the copy is not the reviewed script, and nothing runs.
+If the `grep` prints nothing, the copy is not the reviewed script, and nothing runs. The review is
+run from root's checked copy too, so nothing on the box can fake its report.
 
-`--review` changes nothing and needs no sudo: it reports the installed versions against the
+`--review` changes nothing and needs no sudo (sudo only lets it read root's copy): it reports the installed versions against the
 pins, the services and the user they run as, every listener on 8080, 2112 and 20241, wsproxy's
 allow-list and what it answers for 127.0.0.1:5432 and for 127.0.0.1:22, what
 `https://library.storytree.dev` answers a request with no service token (Access's 302, 401 or 403;

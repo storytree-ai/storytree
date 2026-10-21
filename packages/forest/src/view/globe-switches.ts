@@ -29,17 +29,8 @@ export function globeLayers(switches: GlobeSwitches, libraryOffered: boolean): {
  * islands over the notes. Only its button sets one; the angle the user tilts the sheet to never does. */
 export type SheetFace = GlobeSwitch;
 
-/** A launch opens on the sheet's top face. */
+/** Every project, the user's factory included, opens on the sheet's top face (owner, 2026-10-21: "it should start with stories"). */
 export const LAUNCH_FACE: SheetFace = "stories";
-
-/**
- * The face the sheet opens on (3.63): the user's factory holds no stories, only its system's roles, notes and checks, so it
- * opens on the Library look, where they show through clear glass, when the Surfaces menu offers it; everything else opens on
- * Stories. Either opens at the same view from above.
- */
-export function openingFace({ factory, libraryOffered }: { factory: boolean; libraryOffered: boolean }): SheetFace {
-  return factory && libraryOffered ? "library" : LAUNCH_FACE;
-}
 
 /**
  * What the forest page offers on the glass sheet for the face pressed: the two looks replace the switches' four combinations

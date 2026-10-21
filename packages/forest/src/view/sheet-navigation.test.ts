@@ -349,7 +349,7 @@ test("3.61 the sheet's keys are WASD, the arrows, Q, E, R, F and Home, no key sw
   assert.equal(sheetKey({ type: "keyup", key: "w" }), undefined, "only a press");
 });
 
-test("3.63 an island-less sheet, the user's factory, opens on the Library look at the view from above, over a sea floor wide enough to spread its notes", () => {
+test("3.63 an island-less sheet, such as the user's factory, waits for islands on Stories but opens at once on the Library look, at the view from above, over a sea floor wide enough to spread its notes", () => {
   const empty = sheetLayout(forestScene({ arcs: [], stories: [] }, [], workStates([])), new Map());
   assert.ok(empty.under.floor.width >= 120 && empty.under.floor.height >= 120, `floor ${empty.under.floor.width} by ${empty.under.floor.height}`);
   assert.ok(empty.extent.width >= empty.under.floor.width && empty.extent.height >= empty.under.floor.height, "the glass runs over the whole floor");

@@ -26,6 +26,7 @@ import { SETUP_FAMILIES } from "@storytree/app-setup/verbs";
 import { PROCESSES_FAMILIES } from "@storytree/session-management/processes/verbs";
 import { ARC_FAMILIES } from "@storytree/arc-surface/verbs";
 import { LIBRARY_FAMILIES } from "@storytree/library/commands";
+import { MAP_FAMILIES } from "@storytree/map/verbs";
 import type { Reading } from "./usage/reading.js";
 
 import type { Family } from "./door.js";
@@ -34,7 +35,7 @@ import unbundled from "./parts/verbs.js";
 import { BuiltCommand, inWorld, storytree, testServerUrl } from "./testing/cli.js";
 
 const command = new BuiltCommand();
-const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...QUALITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...EXPERIMENT_FAMILIES];
+const DECLARED = [...LIBRARY_FAMILIES, ...APP_FAMILIES, ...SETTINGS_FAMILIES, ...RELEASE_FAMILIES, ...IDENTITY_FAMILIES, ...CHECK_FAMILIES, ...QUALITY_FAMILIES, ...HEALTH_FAMILIES, ...ARC_FAMILIES, ...FRICTION_FAMILIES, ...SETUP_FAMILIES, ...PROCESSES_FAMILIES, ...SESSION_FAMILIES, ...WORKSPACE_FAMILIES, ...LAG_FAMILIES, ...JOURNEY_FAMILIES, ...EXPERIMENT_FAMILIES, ...MAP_FAMILIES];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 before(() => command.build());
@@ -408,7 +409,7 @@ test("1.19 storytree lag prints Lag in real use's report over the lag readings k
   });
 });
 
-test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: the library's library 1st, CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the library core's adr 4th with its guesses, Session management's friction and resteer 13th and 14th, the app setup's doctor 8th and setup, project and import 20th to 22nd, Processes' processes 24th, the Experiments story's experiment 27th, Session management's workspace among the rest, its bare name making a workspace, each listed in ascending order of its place, so a family at an unused or fractional place moves no other", async () => {
+test("1.21 · `storytree` mounts the families its story packages' manifests declare, in its bundle and run unbundled, each at the place it declares: the library's library 1st, CI health's health 18th, the arc surface's arc and question 2nd and 3rd, the library core's adr 4th with its guesses, Session management's friction and resteer 13th and 14th, the app setup's doctor 8th and setup, project and import 20th to 22nd, Processes' processes 24th, the Experiments story's experiment 27th, Code map's map and affected 16th and 17th, Session management's workspace among the rest, its bare name making a workspace, each listed in ascending order of its place, so a family at an unused or fractional place moves no other", async () => {
   await inWorld(command, async (world) => {
     const listed = await world.run([]);
     assert.equal(listed.code, 0, listed.stderr);

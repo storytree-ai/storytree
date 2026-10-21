@@ -160,4 +160,12 @@ test("1.37 · a family a switched-off part declares is not listed, and asking fo
   const on = await invoke(["settings", "set", "part", "arc-surface", "on"]);
   assert.equal(on.code, 0, on.stderr);
   assert.match((await invoke([])).stdout, /^  arc\b/m);
+
+  const mapOff = await invoke(["settings", "set", "part", "map", "off"]);
+  assert.equal(mapOff.code, 0, mapOff.stderr);
+  const withoutMap = await invoke([]);
+  for (const family of ["map", "affected"]) assert.doesNotMatch(withoutMap.stdout, new RegExp(`^  ${family}\\b`, "m"), family);
+  const map = await invoke(["map", "--select", "story:any"]);
+  assert.equal(map.code, 1, map.stdout);
+  assert.match(map.stderr, /storytree map is not mounted: map is switched off on this computer\. Switch it on with: storytree settings set part map on/);
 });

@@ -20,14 +20,22 @@
  *
  * On Windows the tools' output always goes to a log file, never to a pipe: `pg_ctl start` leaves a
  * shell holding its output handles for as long as the server runs, so a pipe would never close.
+ *
+ * Postgres will not run as root, and a cloud container runs everything as root, so there the tools
+ * and the server run as the unprivileged account `nobody` (serverAccount()): it is handed what they
+ * write (the cluster, the server log, initdb's password file), and the folders above what they use
+ * are let through for it (letThrough()). Run as anyone else, they run as that user.
  */
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   appendFileSync,
+  chmodSync,
+  chownSync,
   closeSync,
   existsSync,
   linkSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -63,6 +71,8 @@ import { findBinaries } from "./binaries.js";
 export interface ClusterOptions {
   /** The directory holding initdb, pg_ctl and postgres. By default, findBinaries(). */
   readonly bin?: string;
+  /** The account the tools and the server run as, other than this process's. By default, serverAccount(). */
+  readonly account?: Account;
   /** Where the Postgres tools' output is appended. By default, `<dataDir>.tools.log`. */
   readonly toolLog?: string;
   /** Called with each step worth telling a person about. */
@@ -147,10 +157,59 @@ interface OwnerRecord {
   auth: AuthMarker;
 }
 
-/** Where the tools are and where their output goes. */
+/** An account on this machine the tools and the server can run as. */
+export interface Account {
+  readonly name: string;
+  readonly uid: number;
+  readonly gid: number;
+}
+
+/** Where the tools are, where their output goes, and whom they run as (this process's user when none). */
 interface Tools {
   readonly bin: string;
   readonly toolLog: string;
+  readonly account?: Account;
+}
+
+/** The unprivileged account the tools run as when this process is root. */
+const UNPRIVILEGED = "nobody";
+
+/**
+ * The account the tools and the server run as when not this process's own: `nobody`, read from
+ * `passwd` (by default /etc/passwd), when this process is root, as in a cloud container; none
+ * otherwise, Windows included. Root with no such account is refused, naming it.
+ */
+export function serverAccount(uid = process.getuid?.(), passwd?: string): Account | undefined {
+  if (uid !== 0) return undefined;
+  for (const line of (passwd ?? readText("/etc/passwd")).split("\n")) {
+    const [name, , user, group] = line.split(":");
+    if (name === UNPRIVILEGED && /^\d+$/.test(user ?? "") && /^\d+$/.test(group ?? "")) {
+      return { name, uid: Number(user), gid: Number(group) };
+    }
+  }
+  throw new Error(`Postgres will not run as root, and this machine has no account "${UNPRIVILEGED}" to run it as`);
+}
+
+/**
+ * Let `account` through every folder above `target` that shuts it out: each is given search
+ * (others' x, never r or w), so the account can reach `target` by its path without listing or
+ * changing anything on the way.
+ */
+export function letThrough(target: string, account: Account): void {
+  let dir = path.dirname(path.resolve(target));
+  for (;;) {
+    const stat = lstatSync(dir);
+    const searchable = stat.uid === account.uid ? stat.mode & 0o100 : stat.gid === account.gid ? stat.mode & 0o010 : stat.mode & 0o001;
+    if (!searchable) chmodSync(dir, (stat.mode & 0o7777) | 0o001);
+    const parent = path.dirname(dir);
+    if (parent === dir) return;
+    dir = parent;
+  }
+}
+
+/** Give `file` to the tools' account, when they run as one. */
+function handOver(tools: Tools, file: string): void {
+  if (tools.account !== undefined) chownSync(file, tools.account.uid, tools.account.gid);
 }
 
 /** This process's token: a record carrying it was written by this very process. */
@@ -192,13 +251,24 @@ export async function ensureCluster(dataDir: string, options: ClusterOptions = {
   log(`creating the cluster in ${dir} (first run only; it can take minutes under x64 emulation)`);
   const started = Date.now();
   const installation = ensureInstallation(dir);
-  // initdb is given the password's verifier, never the password itself.
-  const pwfile = writePrivate(authDir(dir), scramVerifier(installation.password));
+  // initdb is given the password's verifier, never the password itself. An account the tools run
+  // as is handed the cluster's scratch directory, and the verifier in a folder of its own beside.
+  const pwDir = tools.account === undefined ? authDir(dir) : `${dir}.initdb-pw`;
+  if (tools.account !== undefined) {
+    letThrough(scratch, tools.account);
+    mkdirSync(scratch, { mode: 0o700 });
+    handOver(tools, scratch);
+    rmSync(pwDir, { recursive: true, force: true });
+    mkdirSync(pwDir, { mode: 0o700 });
+    handOver(tools, pwDir);
+  }
+  const pwfile = writePrivate(pwDir, scramVerifier(installation.password));
   try {
+    handOver(tools, pwfile);
     const code = await tool(tools, "initdb", ["-D", scratch, "-U", "postgres", "-A", "scram-sha-256", `--pwfile=${pwfile}`, "-E", "UTF8"]);
     if (code !== 0) throw new Error(`initdb failed with exit code ${code}; see ${tools.toolLog}`);
   } finally {
-    rmSync(pwfile, { force: true });
+    rmSync(tools.account === undefined ? pwfile : pwDir, { recursive: true, force: true });
   }
   appendFileSync(
     path.join(scratch, "postgresql.conf"),
@@ -246,6 +316,12 @@ export async function start(options: StartOptions): Promise<LocalPostgres> {
     const made = await ensureCluster(dataDir, { ...tools, log });
     if (!made) await requirePasswords(dataDir, installation, tools, log);
     mkdirSync(path.dirname(serverLog), { recursive: true });
+    if (tools.account !== undefined) {
+      // pg_ctl opens the server's log as the account, which may not make files beside it.
+      letThrough(serverLog, tools.account);
+      closeSync(openSync(serverLog, "a"));
+      handOver(tools, serverLog);
+    }
     const started = Date.now();
     const code = await tool(tools, "pg_ctl", [
       "-D", dataDir,
@@ -351,6 +427,7 @@ async function requirePasswords(dataDir: string, installation: Installation, too
   }
   log("signing in by password only");
   replaceFile(hba, HBA);
+  handOver(tools, hba); // the server reads it as the account
   replaceFile(marker, installation.installationId);
 }
 
@@ -552,7 +629,10 @@ function isOwnerAlive(record: OwnerRecord): boolean {
 }
 
 function toolsFor(dataDir: string, options: ClusterOptions): Tools {
-  return { bin: options.bin ?? findBinaries(), toolLog: options.toolLog ?? `${dataDir}.tools.log` };
+  const bin = options.bin ?? findBinaries();
+  const account = options.account ?? serverAccount();
+  if (account !== undefined) letThrough(path.join(bin, "postgres"), account);
+  return { bin, toolLog: options.toolLog ?? `${dataDir}.tools.log`, ...(account === undefined ? {} : { account }) };
 }
 
 /** Run one Postgres tool to completion, appending its output to the tool log. Resolves to its exit code. */
@@ -566,6 +646,7 @@ function tool(tools: Tools, name: string, args: readonly string[], input?: strin
     const child = spawn(executable, args, {
       stdio: [input === undefined ? "ignore" : "pipe", out, out],
       windowsHide: true,
+      ...(tools.account === undefined ? {} : { uid: tools.account.uid, gid: tools.account.gid }),
       ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
     });
     child.on("error", reject);

@@ -21,6 +21,7 @@ import pg from "pg";
 
 import { ensureClientSignIn } from "./auth.js";
 import { binaryPackages, DataDirInUseError, ensureCluster, findBinaries, start, type LocalPostgres } from "./index.js";
+import { letThrough, serverAccount, type Account } from "./server.js";
 
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
 const holderScript = fileURLToPath(new URL("./testing/holder.ts", import.meta.url));
@@ -346,6 +347,36 @@ test("2.9 a throwaway test server can hand back the superuser's url beside its c
   const plain = await started({ dataDir });
   assert.equal(plain.superuserUrl, undefined, "a server not asked for it hands back no superuser url");
   await stopped(plain);
+});
+
+test("2.14 run as root (a cloud container), the Postgres tools and the server run as the unprivileged account nobody, let through the folders above what they use; run as anyone else, as that user", { skip: process.platform === "win32" && "platform:posix: user ids" }, async () => {
+  const passwd = "root:x:0:0:root:/root:/bin/bash\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n";
+  assert.deepEqual(serverAccount(0, passwd), { name: "nobody", uid: 65534, gid: 65534 }, "root hands the tools to nobody");
+  assert.equal(serverAccount(1000, passwd), undefined, "anyone else runs them as themselves");
+  assert.throws(() => serverAccount(0, "root:x:0:0:root:/root:/bin/bash\n"), /nobody/, "root with no account to hand them to is refused, naming the one it looked for");
+
+  // The folders above what the account uses are let through (searched, not read) when they shut it out.
+  const nobody: Account = { name: "nobody", uid: 65534, gid: 65534 };
+  const outer = path.join(root, "shut");
+  const inner = path.join(outer, "inner");
+  const open = path.join(inner, "open");
+  mkdirSync(open, { recursive: true });
+  chmodSync(outer, 0o700);
+  chmodSync(inner, 0o750);
+  chmodSync(open, 0o755);
+  letThrough(path.join(open, "data"), nobody);
+  assert.equal(lstatSync(outer).mode & 0o777, 0o701);
+  assert.equal(lstatSync(inner).mode & 0o777, 0o751);
+  assert.equal(lstatSync(open).mode & 0o777, 0o755, "a folder that already lets it through is left as it was");
+
+  // A start through an account runs whole: here this user itself, the only one a test not run as root can become.
+  const account = serverAccount() ?? { name: "self", uid: process.getuid!(), gid: process.getgid!() };
+  const dataDir = path.join(root, "through-account");
+  const server = await started({ dataDir, account });
+  assert.deepEqual(await query(server.url, "SELECT 1 AS one"), [{ one: 1 }]);
+  assert.equal(lstatSync(dataDir).uid, account.uid, "the cluster is the account's");
+  assert.equal(lstatSync(`${dataDir}.log`).uid, account.uid, "and so is the server's log");
+  await stopped(server);
 });
 
 // --- helpers ---------------------------------------------------------------------------------

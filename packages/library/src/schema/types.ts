@@ -15,6 +15,8 @@
  */
 import { z } from "zod";
 
+import { isTimeZone, parseSchedule } from "./schedule.js";
+
 /** The declared record types. */
 export type RecordType =
   | "arc"
@@ -340,8 +342,23 @@ export const RECORD_SCHEMAS = {
         .max(64)
         .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "a skill's name is lowercase letters, digits and single hyphens, such as grill-me")
         .optional(),
+      /**
+       * When it should run (ADR-1105), in words ./schedule.ts reads, such as "every 2 hours" or "daily at 09:15 and
+       * 21:15". Absent, an agent runs it when its trigger applies. Optional, so no version bump.
+       */
+      schedule: nonEmpty
+        .superRefine((text, context) => {
+          const read = parseSchedule(text);
+          if ("refused" in read) context.addIssue({ code: "custom", message: `field "schedule": ${read.refused}` });
+        })
+        .optional(),
+      /** The IANA time zone the schedule's times are in; absent, the owner's (OWNER_TIME_ZONE). */
+      timeZone: nonEmpty.refine(isTimeZone, 'field "timeZone" names no time zone this machine knows: it is an IANA name, such as Australia/Sydney').optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine(({ schedule, timeZone }, context) => {
+      if (timeZone !== undefined && schedule === undefined) context.addIssue({ code: "custom", path: ["timeZone"], message: 'field "timeZone" is for the times of a "schedule", and this process has none' });
+    }),
   /** An agent role. Its required reading (`context`), rules and anti-patterns are links to artifacts (6-a). */
   agent: z
     .object({

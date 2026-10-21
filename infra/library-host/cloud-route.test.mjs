@@ -59,12 +59,16 @@ test('the dry run names every change it would make and makes none', linuxOnly, (
     stub('dpkg', '[ "$1" = --print-architecture ] && echo amd64');
     stub('dpkg-query', 'exit 1');
     for (const writer of ['curl', 'install', 'tar', 'chown', 'chmod', 'mv', 'cp', 'mktemp', 'systemctl', 'go']) stub(writer);
-    const r = spawnSync('bash', [script, '--dry-run'], { encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}` } });
+    // The install's folders point into the throwaway one, so a box where the services already run reads as a fresh one.
+    const units = join(dir, 'systemd');
+    const wsproxyDir = join(dir, 'storytree-wsproxy');
+    const r = spawnSync('bash', ['-c', 'source "$1"; UNIT_DIR=$2; WSPROXY_DIR=$3; WSPROXY_BIN=$WSPROXY_DIR/${WSPROXY_BIN##*/}; main --dry-run',
+      'cloud-route-test', script, units, wsproxyDir], { encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}` } });
     assert.equal(r.status, 0, r.stderr + r.stdout);
     const ran = readFileSync(calls, 'utf8').split('\n').filter(Boolean).filter(l => !/^(ss|psql|dpkg --print-architecture|dpkg-query)( |$)/.test(l));
     assert.deepEqual(ran, [], 'the dry run ran a command that changes the machine');
-    for (const named of ['would download https://github.com/cloudflare/cloudflared/', 'would download https://go.dev/dl/', 'would write /etc/systemd/system/storytree-wsproxy.service',
-      'would write /etc/systemd/system/storytree-cloudflared.service', 'would run: systemctl enable storytree-wsproxy.service storytree-cloudflared.service',
+    for (const named of ['would download https://github.com/cloudflare/cloudflared/', 'would download https://go.dev/dl/', `would write ${units}/storytree-wsproxy.service`,
+      `would write ${units}/storytree-cloudflared.service`, `then install it as ${wsproxyDir}/wsproxy-`, 'would run: systemctl enable storytree-wsproxy.service storytree-cloudflared.service',
       'no change to pg_hba or Postgres', '(dry run: nothing changed)']) {
       assert.ok(r.stdout.includes(named), `${named}\n---\n${r.stdout}`);
     }

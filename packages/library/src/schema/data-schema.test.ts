@@ -24,6 +24,8 @@ import { MemoryTransactions, type RecordEnvelope, type Transactions } from "../t
 import {
   MissingUpgradeError,
   NewerSchemaError,
+  OWNER_TIME_ZONE,
+  parseSchedule,
   RECORD_SCHEMAS,
   SCHEMA_VERSIONS,
   SchemaError,
@@ -571,6 +573,58 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await records.get("story-old"))?.fields, MINIMAL.story, "a story written before stories carried text reads as it was");
     await records.edit("story-old", { text: "Added later." });
     assert.equal(await textOf("story-old"), "Added later.");
+  });
+
+  contract("3.12", "a process's schedule and time zone are validated: good words are kept, bad words, an unknown time zone, or a time zone with no schedule are refused and named", async ({ records, transactions }) => {
+    const process = { title: "Read the spend", description: "Daily spend reading", statement: "S", trigger: "T", steps: "1. Read", surfaces: "GCP", failureModes: "None" };
+    const good = ["every run", "every hour", "every 2 hours", "Every 30 minutes", "every 1 day", "daily at 09:15", "daily at 09:15 and 21:15", "daily at 06:00, 12:00 and 18:00"];
+    for (const [index, schedule] of good.entries()) {
+      const saved = await records.create("process", { ...process, schedule }, { id: `process-${index}` });
+      assert.equal((saved.fields as { schedule?: string }).schedule, schedule, `"${schedule}" is kept as written`);
+    }
+    await records.create("process", { ...process, schedule: "daily at 09:15", timeZone: "Europe/London" }, { id: "process-zoned" });
+
+    const before = await transactions.history();
+    const refused: [fields: Record<string, unknown>, field: string][] = [
+      [{ schedule: "sometimes" }, "schedule"],
+      [{ schedule: "every" }, "schedule"],
+      [{ schedule: "every hours" }, "schedule"],
+      [{ schedule: "every 0 minutes" }, "schedule"],
+      [{ schedule: "every 2 fortnights" }, "schedule"],
+      [{ schedule: "daily at 9:15" }, "schedule"],
+      [{ schedule: "daily at 24:00" }, "schedule"],
+      [{ schedule: "daily at 09:15 and noon" }, "schedule"],
+      [{ schedule: "" }, "schedule"],
+      [{ schedule: "every run", timeZone: "Mars/Olympus_Mons" }, "timeZone"],
+      [{ timeZone: "Australia/Sydney" }, "timeZone"],
+    ];
+    for (const [fields, field] of refused) {
+      await assert.rejects(records.create("process", untyped({ ...process, ...fields })), schemaError("process", [field]), JSON.stringify(fields));
+    }
+    // An edit is judged the same way, on the merged record: a schedule may be added, and removing it while a time zone stays is refused.
+    await assert.rejects(records.edit("process-0", { schedule: "now and then" }), schemaError("process", ["schedule"]));
+    await assert.rejects(records.edit("process-zoned", { schedule: undefined }), schemaError("process", ["timeZone"]));
+    assert.deepEqual(await transactions.history(), before, "nothing refused was written");
+    await records.edit("process-0", { schedule: "every 4 hours", timeZone: "Australia/Perth" });
+    assert.deepEqual(await records.get("process-0").then((record) => record?.fields), { ...process, schedule: "every 4 hours", timeZone: "Australia/Perth" });
+  });
+
+  contract("3.13", "a process's schedule reads back as written and as its rule, its times in its own time zone or the owner's; one with no schedule reads as before", async ({ records }) => {
+    const process = { title: "Check the backups", description: "Backup check", statement: "S", trigger: "When the box starts", steps: "1. Look", surfaces: "Drive", failureModes: "None" };
+    await records.create("process", process, { id: "process-plain" });
+    await records.create("process", { ...process, schedule: "daily at 21:15 and 09:15" }, { id: "process-daily" });
+    await records.create("process", { ...process, schedule: "every 2 hours", timeZone: "Europe/London" }, { id: "process-zoned" });
+
+    const read = async (id: string) => (await records.get(id))?.fields as { schedule?: string; timeZone?: string } | undefined;
+    assert.deepEqual(await read("process-plain"), process, "a process with no schedule reads as it was");
+    const daily = await read("process-daily");
+    assert.equal(daily?.schedule, "daily at 21:15 and 09:15");
+    assert.deepEqual(parseSchedule(daily?.schedule ?? ""), { rule: { kind: "daily", times: ["09:15", "21:15"] } });
+    assert.equal(daily?.timeZone ?? OWNER_TIME_ZONE, "Australia/Sydney", "no time zone means the owner's");
+    const zoned = await read("process-zoned");
+    assert.deepEqual(parseSchedule(zoned?.schedule ?? ""), { rule: { kind: "interval", minutes: 120 } });
+    assert.equal(zoned?.timeZone, "Europe/London");
+    assert.deepEqual(parseSchedule("every run"), { rule: { kind: "every-run" } });
   });
 }
 

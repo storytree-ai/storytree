@@ -299,3 +299,24 @@ test("2.16 settings.json may name the story parts switched off on this computer:
     }
   });
 });
+
+test("2.19 · a machine's health limits read as 6 GB of memory available, a load of 12 and a disk 85% full by default; each is set as a positive whole number, the disk's at most 100, and any other value is refused with the file left byte for byte", async () => {
+  await withTempDir((home) => {
+    const read = () => agentLink.readSettings(home);
+    assert.deepEqual(
+      [read()["health-memory"], read()["health-load"], read()["health-disk"]].map(({ value, unit, group, source }) => ({ value, unit, group, source })),
+      [{ value: 6, unit: "GB", group: "machine", source: "default" }, { value: 12, unit: "", group: "machine", source: "default" }, { value: 85, unit: "%", group: "machine", source: "default" }],
+    );
+    assert.equal(agentLink.setSetting("health-memory", "8", home).value, 8);
+    assert.equal(agentLink.setSetting("health-load", "20", home).value, 20);
+    assert.equal(agentLink.setSetting("health-disk", "90", home).value, 90);
+    assert.deepEqual([read()["health-memory"].source, read()["health-load"].value, read()["health-disk"].value], ["set", 20, 90]);
+    const before = readFileSync(path.join(home, "settings.json"), "utf8");
+    for (const [name, value] of [["health-memory", "0"], ["health-load", "1.5"], ["health-disk", "101"], ["health-disk", "many"]] as const) {
+      assert.throws(() => agentLink.setSetting(name, value, home), new RegExp(name), `${name} ${value}`);
+      assert.equal(readFileSync(path.join(home, "settings.json"), "utf8"), before, `${name} ${value}`);
+    }
+    writeFileSync(path.join(home, "settings.json"), JSON.stringify({ "health-disk": 120 }));
+    assert.throws(() => read(), /health-disk/);
+  });
+});

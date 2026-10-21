@@ -6,7 +6,7 @@ import path from "node:path";
 import { storytreeHome } from "../routing/index.js";
 
 /** The gear menu tab a setting shows under (the settings view offers its rows by group). */
-export type SettingGroup = "sessions" | "library";
+export type SettingGroup = "sessions" | "library" | "machine";
 
 const contextGuidance = {
   name: "context-guidance",
@@ -36,6 +36,40 @@ const leaveAfter = {
   default: "1h",
   meaning: "A session that holds no unmerged work and has not closed out leaves the running-sessions list once it has been quiet this long, counted from its last activity or from when its work was merged, whichever is later; a session the Claude or Codex app keeps shows as done until you archive it there instead. Use whole seconds (s), minutes (m), hours (h) or days (d), such as 2h. Default: 1 hour.",
 } as const;
+
+/** The limits `storytree machine health` reads this machine against (Session management's Machines): past one, it is a concern. */
+const healthMemory = {
+  name: "health-memory",
+  group: "machine",
+  label: "Memory available below which this machine is a concern",
+  type: "positive whole number",
+  unit: "GB",
+  default: 6,
+  meaning: "`storytree machine health` reports a concern when this machine has less memory available than this, in gigabytes. Default: 6 GB.",
+} as const;
+
+const healthLoad = {
+  name: "health-load",
+  group: "machine",
+  label: "Load above which this machine is a concern",
+  type: "positive whole number",
+  unit: "",
+  default: 12,
+  meaning: "`storytree machine health` reports a concern when this machine's 15-minute load (Linux) or processor queue (Windows) is over this. Default: 12.",
+} as const;
+
+const healthDisk = {
+  name: "health-disk",
+  group: "machine",
+  label: "How full the system disk may be before it is a concern",
+  type: "percentage",
+  unit: "%",
+  default: 85,
+  meaning: "`storytree machine health` reports a concern when this machine's system disk is fuller than this, in percent, a whole number from 1 to 100. Default: 85%.",
+} as const;
+
+const HEALTH = [healthMemory, healthLoad, healthDisk] as const;
+type HealthName = (typeof HEALTH)[number]["name"];
 
 const library = {
   name: "library",
@@ -71,7 +105,19 @@ interface IdleReading {
   readonly source: "default" | "set";
 }
 
-export type SettingReading = ContextGuidanceReading | IdleReading;
+interface HealthReading {
+  readonly name: HealthName;
+  readonly group: "machine";
+  readonly label: string;
+  readonly type: "positive whole number" | "percentage";
+  readonly unit: string;
+  readonly default: number;
+  readonly meaning: string;
+  readonly value: number;
+  readonly source: "default" | "set";
+}
+
+export type SettingReading = ContextGuidanceReading | IdleReading | HealthReading;
 
 /**
  * Where the library lives: this computer's app, a Cloud SQL instance and the account to sign in to
@@ -95,6 +141,9 @@ export interface SettingsReading {
   readonly "context-guidance": ContextGuidanceReading;
   readonly "idle-after": IdleReading;
   readonly "leave-after": IdleReading;
+  readonly "health-memory": HealthReading;
+  readonly "health-load": HealthReading;
+  readonly "health-disk": HealthReading;
   readonly library: LibraryReading;
 }
 
@@ -108,6 +157,9 @@ interface Stored {
   "context-guidance"?: number;
   "idle-after"?: string;
   "leave-after"?: string;
+  "health-memory"?: number;
+  "health-load"?: number;
+  "health-disk"?: number;
   library?: LibraryLocation;
   surfaces?: SurfaceChoices;
   experiment?: ExperimentArm;
@@ -156,8 +208,18 @@ export function readSettings(home: string = storytreeHome()): SettingsReading {
       value: stored["leave-after"] ?? leaveAfter.default,
       source: stored["leave-after"] === undefined ? "default" : "set",
     },
+    ...healthReadings(stored),
     library: { ...library, ...(stored.library ?? { location: "local" }), source: stored.library === undefined ? "default" : "set" },
   };
+}
+
+function healthReadings(stored: Stored): Pick<SettingsReading, HealthName> {
+  const reading = (declared: (typeof HEALTH)[number]): HealthReading => ({
+    ...declared,
+    value: stored[declared.name] ?? declared.default,
+    source: stored[declared.name] === undefined ? "default" : "set",
+  });
+  return { "health-memory": reading(healthMemory), "health-load": reading(healthLoad), "health-disk": reading(healthDisk) };
 }
 
 /**
@@ -292,6 +354,10 @@ export function setSetting(name: string, value: string, home: string = storytree
     write(home, { ...readStored(home), [name]: value });
     return readSettings(home)[name];
   }
+  if (isHealth(name)) {
+    write(home, { ...readStored(home), [name]: checkedHealth(/^\d+$/.test(value) ? Number(value) : NaN, name) });
+    return readSettings(home)[name];
+  }
   const number = checkedGuidance(/^\d+$/.test(value) ? Number(value) : NaN);
   write(home, { ...readStored(home), [name]: number });
   return readSettings(home)["context-guidance"];
@@ -339,10 +405,24 @@ function refuse(message: string): never {
   throw new Error(message);
 }
 
-function checkName(name: string): asserts name is "context-guidance" | "idle-after" | "leave-after" | "library" {
-  if (name !== contextGuidance.name && name !== idleAfter.name && name !== leaveAfter.name && name !== library.name) {
-    refuse(`Unknown setting ${JSON.stringify(name)}. Available settings: ${contextGuidance.name}, ${idleAfter.name}, ${leaveAfter.name}, ${library.name}.`);
+function checkName(name: string): asserts name is "context-guidance" | "idle-after" | "leave-after" | HealthName | "library" {
+  if (name !== contextGuidance.name && name !== idleAfter.name && name !== leaveAfter.name && !isHealth(name) && name !== library.name) {
+    const names = [contextGuidance.name, idleAfter.name, leaveAfter.name, ...HEALTH.map((declared) => declared.name), library.name];
+    refuse(`Unknown setting ${JSON.stringify(name)}. Available settings: ${names.join(", ")}.`);
   }
+}
+
+function isHealth(name: string): name is HealthName {
+  return HEALTH.some((declared) => declared.name === name);
+}
+
+/** A health limit: a positive whole number, and for the disk a percentage, at most 100. */
+function checkedHealth(value: unknown, name: HealthName): number {
+  const most = name === healthDisk.name ? 100 : Number.MAX_SAFE_INTEGER;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0 || value > most) {
+    refuse(name === healthDisk.name ? `${name} must be a whole number of percent from 1 to 100.` : `${name} must be a positive whole number.`);
+  }
+  return value;
 }
 
 /** The current idle duration in milliseconds; read afresh so a running session sees changes. */
@@ -518,6 +598,7 @@ function readStored(home: string): Stored {
         checkedDuration(value, name);
         settings[name] = value as string;
       }
+      else if (isHealth(name)) settings[name] = checkedHealth(value, name);
       else settings[name] = checkedGuidance(value);
     }
     return settings;

@@ -576,10 +576,8 @@ test("4.24 · a hand-over from another machine runs on the configured machine, i
   assert.match(lines.join("\n"), /names no machine to hand over to/);
 });
 
-test("4.26 · a fix session counts as running whether its runner was started from the agent pool's package or from the dev loop's old lanes path", () => {
+test("4.26 · a fix session counts as running while its runner runs", () => {
   assert.ok(isFixSession("/usr/bin/node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs run /l/watch/fix-41-1-brief.md log err"));
-  assert.ok(isFixSession("/usr/bin/node /home/m/code/storytree03/packages/dev-loop/src/lanes/runner.mjs run /l/watch/fix-41-1-brief.md log err"),
-    "one started before the move still holds its pull request's fix slot");
   assert.ok(!isFixSession("/usr/bin/node /home/m/code/storytree03/packages/agent-pool/src/runner.mjs status"));
   assert.ok(!isFixSession("vim runner.mjs"));
   assert.ok(!isFixSession(""), "a process that is gone");

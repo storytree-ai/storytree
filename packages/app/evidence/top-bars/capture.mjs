@@ -137,23 +137,19 @@ try {
   await gear.focus(); await page.keyboard.press('Shift+Tab');
   assert.equal(await page.locator('#app-menu').evaluate(node => node.contains(document.activeElement)), true);
   await page.keyboard.press('Escape');
-  await gear.click(); await page.locator('[data-app-section="projects"]').click();
-  await page.locator('#project').click(); await page.keyboard.press('Escape');
-  assert.equal(await menu.isVisible(), true, 'native picker Escape leaves overlay open');
-  await page.keyboard.press('Escape');
   // Explicit fixture for switching; all three captures above contain only the supplied snapshot.
   await (await store.openProject('gear-switch-check')).close();
-  await page.waitForFunction(() => document.querySelectorAll('#project option').length === 2, undefined, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelectorAll('#project option').length === 3, undefined, { timeout: 15000 });
   await page.evaluate(() => { window.previousCanvas = document.querySelector('canvas'); });
-  await gear.click(); await page.selectOption('#project', 'gear-switch-check');
+  await page.selectOption('#project', 'gear-switch-check');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'gear-switch-check');
   assert.equal(await page.evaluate(() => window.previousCanvas === document.querySelector('canvas')), false, 'selection switches the forest');
   assert.equal(await menu.isVisible(), false);
   failChoice = true;
-  await gear.click(); await page.selectOption('#project', 'storytree');
+  await page.selectOption('#project', 'storytree');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.querySelector('#project').value === 'gear-switch-check');
-  assert.equal(await page.locator('#app-projects [role=alert]').isVisible(), true, 'failed selection explains its reason inside the overlay');
-  assert.match(await page.locator('#app-projects [role=alert]').innerText(), /temporary project choice failure/);
+  assert.equal(await page.locator('[data-app-project-error]').isVisible(), true, 'failed selection explains its reason beside the dropdown');
+  assert.match(await page.locator('[data-app-project-error]').innerText(), /temporary project choice failure/);
   await page.selectOption('#project', 'storytree');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'storytree');
   assert.deepEqual(smokeProblems('ready', tree, await page.getAttribute('body', 'data-drew')), []);

@@ -1,4 +1,4 @@
-// The app bar's switch to the user's factory, and the factory's card on the first switch, on the real desktop page over
+// The app bar's dropdown choosing the user's factory, and the factory's card on the first switch, on the real desktop page over
 // the eight-story forest seed as the product, beside a factory holding a role, a note and a check. Run with
 // node --import tsx; pass --retake to replace the committed pictures.
 import path from 'node:path';
@@ -37,7 +37,7 @@ await runCapture({
       measure: async ({ page }) => page.evaluate(() => ({ project: document.body.dataset.project, bar: document.querySelector('.app-factory')?.textContent })) },
     { name: 'factory-card',
       prepare: async ({ page }) => {
-        await page.getByRole('button', { name: 'Your factory' }).click();
+        await page.selectOption('#project', factory);
         await page.waitForFunction(() => document.body.dataset.project === 'factory' && document.querySelector('.teaching-card') !== null, undefined, { timeout: 120000 });
       },
       measure: async ({ page }) => page.evaluate(() => { const c = document.querySelector('.teaching-card'); return { project: document.body.dataset.project, bar: document.querySelector('.app-factory')?.textContent, kind: c?.dataset.kind, corner: c?.classList.contains('teaching-card-corner'), left: c?.style.left, top: c?.style.top }; }) },
@@ -48,9 +48,9 @@ await runCapture({
     { name: 'back-on-product',
       prepare: async ({ page }) => {
         while (await card(page).count() > 0) await card(page).getByRole('button', { name: 'Got it' }).click();
-        await page.getByRole('button', { name: /Back to/ }).click();
+        await page.selectOption('#project', product);
         await page.waitForFunction(p => document.body.dataset.project === p && document.body.dataset.state === 'ready', product, { timeout: 120000 });
-        await page.getByRole('button', { name: 'Your factory' }).click();
+        await page.selectOption('#project', factory);
         await page.waitForFunction(() => document.body.dataset.project === 'factory' && document.body.dataset.state === 'ready', undefined, { timeout: 120000 });
       },
       // The second switch to the factory shows no card: it was taught once.

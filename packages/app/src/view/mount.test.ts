@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setImmediate } from "node:timers/promises";
 import { settingsActions } from "@storytree/project-and-caller/settings";
-import { Window, type HTMLButtonElement } from "happy-dom";
+import { Window, type HTMLButtonElement, type HTMLSelectElement } from "happy-dom";
 import { mountAppMenu } from "./index.js";
 import { fakeBridge } from "../../../../apps/desktop/src/capture/index.js";
 
@@ -98,7 +98,7 @@ test("2.7 clicking the mounted menu sections switches their content and preserve
   assert.equal(sharing.at(-1), "stop");
 });
 
-test("2.15 the app bar switches the project on show to its factory and back, and says plainly when there is none", async (t) => {
+test("2.15 the app bar's project dropdown switches projects, keeps the factory one choice away, and offers New project…", async (t) => {
   const window = new Window();
   const home = mkdtempSync(path.join(tmpdir(), "storytree-menu-"));
   const globals = { document: window.document, CSSStyleSheet: window.CSSStyleSheet, HTMLElement: window.HTMLElement };
@@ -115,12 +115,16 @@ test("2.15 the app bar switches the project on show to its factory and back, and
     saveSurface: (...args: unknown[]) => bridge.call("saveSurface", args),
   } });
   const chosen: string[] = [];
+  const errors: unknown[] = [];
+  let refused = false;
   let shown = 0;
+  let adds = 0;
   const menu = mountAppMenu(host as unknown as HTMLElement, {
     background: background as unknown as HTMLElement,
-    async chooseProject(name) { chosen.push(name); },
-    onChosen() { shown++; }, onError(error) { throw error; }, onSurfacesChanged() {},
+    async chooseProject(name) { if (refused) throw new Error("the library is not reachable"); chosen.push(name); },
+    onChosen() { shown++; }, onError(error) { errors.push(error); }, onSurfacesChanged() {},
     mountHelp() { return { open() {}, close() {}, stop() {} }; },
+    mountAddProject() { return { stop() {}, add() { adds++; } }; },
     async checkForUpdates() { return { phase: "idle", runningBuild: "0.3.test" }; },
   });
   t.after(async () => {
@@ -133,34 +137,54 @@ test("2.15 the app bar switches the project on show to its factory and back, and
     await window.happyDOM.close();
     rmSync(home, { recursive: true, force: true });
   });
+  // happy-dom has no popovers; the real browser capture opens the overlay itself.
+  let opened = 0;
+  Object.assign(host.querySelector("#app-menu")!, { showPopover() { opened++; }, hidePopover() {} });
   const bar = () => host.querySelector(".app-bar")!;
-  const projects = ["my-factory", "my-site"];
+  const select = () => bar().querySelector<HTMLSelectElement>("select")!;
+  const choose = async (value: string) => {
+    select().value = value;
+    select().dispatchEvent(new window.Event("change"));
+    await setImmediate();
+  };
+  const projects = ["my-factory", "my-site", "other-site"];
   menu.update({ projects, current: "my-site", factory: { place: "product", factory: "my-factory" } });
-  const toFactory = bar().querySelector<HTMLButtonElement>("[data-app-factory-switch]")!;
-  assert.ok(toFactory, "the switch is in the always-visible bar, outside the gear's overlay");
-  assert.match(toFactory.textContent, /Your factory/);
-  toFactory.click();
-  await setImmediate();
-  assert.deepEqual(chosen, ["my-factory"], "the switch chooses the factory as the project on show");
+  assert.ok(select(), "the dropdown is in the always-visible bar, outside the gear's overlay");
+  assert.equal(host.querySelectorAll("select#project").length, 1, "one switcher, not two");
+  assert.equal(select().value, "my-site");
+  assert.deepEqual([...select().options].map((option) => option.textContent), ["my-factory · your factory", "my-site", "other-site", "New project…"]);
+  await choose("my-factory");
+  assert.deepEqual(chosen, ["my-factory"], "choosing the factory shows it, as any project");
   assert.equal(shown, 1);
+  // On the factory, it is still the marked entry, and any product is one choice away.
   menu.update({ projects, current: "my-factory", factory: { place: "factory", product: "my-site" } });
-  const back = bar().querySelector<HTMLButtonElement>("[data-app-factory-switch]")!;
-  assert.match(back.textContent, /Back to my-site/);
-  assert.match(bar().textContent, /Your factory/, "it says the factory is on show");
-  back.click();
-  await setImmediate();
-  assert.deepEqual(chosen, ["my-factory", "my-site"]);
-  // A factory that builds itself, with no product building with it, is shown as the factory with nowhere to switch to (ADR-1086 D3).
-  menu.update({ projects, current: "my-factory", factory: { place: "factory", product: undefined, itself: true } });
-  assert.equal(bar().querySelector("[data-app-factory-switch]"), null);
-  assert.match(bar().textContent, /Your factory/);
-  assert.doesNotMatch(bar().textContent, /No product builds with it yet|No factory yet/);
-  menu.update({ projects, current: "my-factory", factory: { place: "factory", product: undefined } });
-  assert.match(bar().textContent, /No product builds with it yet/, "a library-only factory still says no product builds with it");
-  menu.update({ projects, current: "my-site", factory: { place: "none" } });
-  assert.equal(bar().querySelector("[data-app-factory-switch]"), null);
-  assert.match(bar().textContent, /No factory yet/);
-  // Without a reading of factories the bar still holds the gear and nothing breaks.
-  menu.update({ projects, current: "my-site" });
-  assert.ok(bar().querySelector(".app-gear"));
+  assert.equal(select().value, "my-factory");
+  assert.match(select().options[select().selectedIndex]!.textContent, /your factory/);
+  await choose("other-site");
+  assert.deepEqual(chosen, ["my-factory", "other-site"]);
+  // New project… opens the gear on Projects and starts Add project, leaving the project on show selected.
+  menu.update({ projects, current: "other-site", factory: { place: "none" } });
+  assert.equal([...select().options].some((option) => /your factory/.test(option.textContent)), false, "no factory, none marked");
+  await choose("");
+  assert.equal(adds, 1);
+  assert.equal(opened, 1, "the gear's overlay opens");
+  assert.equal(select().value, "other-site");
+  assert.equal(host.querySelector("#app-projects")!.hasAttribute("hidden"), false);
+  assert.deepEqual(chosen, ["my-factory", "other-site"], "New project… switches nothing by itself");
+  // A refused choice says why beside the dropdown and leaves it free, on the project still on show, to retry.
+  refused = true;
+  await choose("my-site");
+  assert.equal(errors.length, 1);
+  assert.match(bar().querySelector("[data-app-project-error]")!.textContent, /Couldn’t switch project: the library is not reachable/);
+  assert.equal(select().disabled, false);
+  assert.equal(select().value, "other-site");
+  refused = false;
+  await choose("my-site");
+  assert.deepEqual(chosen, ["my-factory", "other-site", "my-site"]);
+  assert.equal(bar().querySelector("[data-app-project-error]")!.hasAttribute("hidden"), true);
+  // With no projects at all, the dropdown holds only New project…
+  menu.update({ projects: [], current: undefined });
+  assert.deepEqual([...select().options].map((option) => option.textContent), ["New project…"]);
+  await choose("");
+  assert.equal(adds, 2);
 });

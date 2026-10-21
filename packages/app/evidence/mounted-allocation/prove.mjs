@@ -102,8 +102,7 @@ try {
   }, views: [
     { name: 'projects', picture: false, measure: async ({ page }) => {
       assert.equal((await census(page)).project, 'alpha');
-      await openMenu(page);
-      assert.deepEqual(await page.locator('#project option').allTextContents(), projects);
+      assert.deepEqual(await page.locator('.app-bar #project option').allTextContents(), [...projects, 'New project…'], 'the bar lists every project, then New project…');
       assert.equal(await page.locator('#project').inputValue(), 'alpha');
       rejectChoice = true;
       await page.locator('#project').selectOption('beta');
@@ -111,7 +110,7 @@ try {
       assert.match(await page.locator('[data-app-project-error]').innerText(), /choice temporarily unavailable/);
       await waitReady(page);
       assert.equal((await census(page)).project, 'alpha', '2.1 failed choice preserves the current forest');
-      assert.equal(await page.locator('#app-menu').isVisible(), true, 'retry stays available');
+      assert.equal(await page.locator('#project').isEnabled(), true, 'retry stays available');
       rejectChoice = false;
       await page.locator('#project').selectOption('beta');
       await page.waitForFunction(() => document.body.dataset.project === 'beta' && document.body.dataset.state === 'ready');

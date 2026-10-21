@@ -4,10 +4,6 @@ export const appMenuStyles = `
 body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .app-bar { position: fixed; inset: 0 0 auto; height: var(--app-bar-height); z-index: 7; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; background: #101418; border-bottom: 1px solid #485159; }
 .app-factory { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; color: #a9b0ba; }
-.app-factory-here { color: #eceae3; font-weight: 600; }
-.app-factory-switch { height: 30px; padding: 0 12px; border: 1px solid #485159; border-radius: 6px; background: transparent; color: #eceae3; font: inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.app-factory-switch:hover { background: #262a2f; }
-.app-factory-switch:focus-visible { outline: 2px solid #a9b0ba; outline-offset: 2px; }
 .app-gear { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #eceae3; cursor: pointer; }
 .app-gear:hover, .app-gear[aria-expanded="true"] { background: #262a2f; }
 .app-gear[data-update-pending] { position: relative; }
@@ -37,15 +33,15 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 .app-menu-content h2 { margin: 0; font-size: 22px; font-weight: 600; }
 .app-menu-content h2:focus { outline: none; }
 .app-section-description { color: #a9b0ba; margin: 6px 0 28px; }
-.app-project { max-width: 480px; }
-.app-project { display: grid; gap: 5px; color: #a9b0ba; font-size: 12px; }
+.app-factory > div { min-width: 0; }
+.app-project { min-width: 0; }
 .app-project select {
-  width: 100%;
-  min-width: 0;
+  width: 280px;
+  max-width: 100%;
   border: 1px solid #485159;
   border-radius: 6px;
-  padding: 7px 10px;
-  font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+  padding: 5px 10px;
+  font: 13px/1.5 "Segoe UI", system-ui, sans-serif;
   color: #eceae3;
   background: #101418;
   cursor: pointer;
@@ -63,8 +59,9 @@ body:has(> .app-menu-mount) > main { margin-top: var(--app-bar-height); }
 }
 .app-project option { padding: 6px; border-radius: 4px; overflow-wrap: anywhere; }
 .app-project option:hover, .app-project option:checked { background: #262a2f; }
-.app-project-error { max-width: 480px; padding-left: 12px; border-left: 2px solid #a9b0ba; overflow-wrap: anywhere; }
-.app-no-projects { margin: 0; color: #a9b0ba; }
+.app-project option[data-app-new-project] { border-top: 1px solid #485159; border-radius: 0 0 4px 4px; }
+.app-project select:focus-visible { outline: 2px solid #a9b0ba; outline-offset: 2px; }
+.app-project-error { margin: 0; padding-left: 10px; border-left: 2px solid #a9b0ba; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .app-update-status { margin: 24px 0 0; overflow-wrap: anywhere; }
 .app-update-status strong, .app-update-status span { display: block; }
 .app-update-status strong { font-weight: 600; color: #eceae3; }

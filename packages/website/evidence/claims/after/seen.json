@@ -1,9 +1,9 @@
 {
   "desktop": {
     "claims": [
-      "See your whole project as a map",
-      "Agents see each other working on the map",
-      "Every decision remembered, anchored to the map"
+      "Watch your software grow on a map.",
+      "One map for you and your agents.",
+      "Memory that lives where your code lives."
     ],
     "inView": {
       "paused": false,
@@ -16,9 +16,9 @@
   },
   "phone": {
     "claims": [
-      "See your whole project as a map",
-      "Agents see each other working on the map",
-      "Every decision remembered, anchored to the map"
+      "Watch your software grow on a map.",
+      "One map for you and your agents.",
+      "Memory that lives where your code lives."
     ],
     "inView": {
       "paused": false,
@@ -26,7 +26,7 @@
     },
     "leftView": {
       "paused": true,
-      "time": 11.2
+      "time": 11.3
     }
   },
   "reducedMotion": {

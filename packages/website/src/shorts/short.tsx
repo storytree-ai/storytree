@@ -10,11 +10,25 @@ import type { RootState } from "@react-three/fiber";
 import { PlanetView, type GlobeControls } from "@storytree/forest/view";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 import type { CastMap } from "./cast.js";
-import { drawScene, SCRIPT, type Marks, type Words } from "./scene.js";
+import { drawScene, SCRIPT, type Flag, type Marks, type SceneInputs, type Words } from "./scene.js";
 import { FONT, LOW, SCALE, SCREEN } from "./script.js";
-import { aimAt, MAP, mapProps, quantise, selectedAt, snapshot, type Aim } from "./view.js";
+import { aimAt, MAP, mapProps, quantise, selectedAt, snapshot } from "./view.js";
 
-const TITLES = new Map(snapshot.scene.islands.map(island => [island.story, island.title]));
+/** What a short with the forest's view on its screen hands the frame that draws it: the view's canvas, its tilt and its aims
+ * (each settled before the first frame), the props the view is given at a moment and where it is aimed, the palette its
+ * drawing is put into, and the scene that draws a frame from the time alone. */
+export type MapShort = {
+  map: { width: number; height: number; tilt: number; aims: Readonly<Record<string, { framing: number; sideOffset: number; story: string }>> };
+  scene: { islands: readonly { story: string; title: string }[] };
+  props: (seconds: number) => Omit<Parameters<typeof PlanetView>[0], "core" | "onPick" | "onNote" | "onControls">;
+  aimAt: (seconds: number) => string;
+  quantise: (pixels: Uint8ClampedArray) => void;
+  draw: (ctx: CanvasRenderingContext2D, inputs: SceneInputs) => Words[];
+};
+
+/** The first short, "seeing what agents built". */
+export const FIRST: MapShort = { map: MAP, scene: snapshot.scene, props: seconds => mapProps(selectedAt(SCRIPT.with, seconds)),
+  aimAt: seconds => aimAt(SCRIPT.with, seconds), quantise, draw: drawScene };
 /** The seam the forest hands an evidence capture its canvas's live state through (PlanetWorldCanvas's CAPTURE_SEAM). */
 const CAPTURE_SEAM = "__storytreeCaptureGlobe";
 /** The page asks the forest's view for reduced motion, which it honours by standing every transition (a selection's light,
@@ -56,7 +70,7 @@ async function loadAssets(): Promise<{ cast: CastMap; sheet: HTMLImageElement }>
 
 /** The forest's drawing at the moment, shrunk to the full screen by averaging (so its thin lit edges survive) and put into the
  * map's palette. */
-function shrinkView(state: RootState, at: number): HTMLCanvasElement | OffscreenCanvas {
+function shrinkView(state: RootState, at: number, quantise: MapShort["quantise"]): HTMLCanvasElement | OffscreenCanvas {
   state.advance(at);
   const { width, height } = SCREEN.full;
   const map = new OffscreenCanvas(width, height).getContext("2d", { willReadFrequently: true })!;
@@ -69,9 +83,24 @@ function shrinkView(state: RootState, at: number): HTMLCanvasElement | Offscreen
   return map.canvas;
 }
 
+/** Where each claim's flag the view drew stands on its canvas, in its CSS pixels: the forest names each claim's group
+ * `territory-claim:<capability>` and keeps its session's colour on it (claim-flag.ts); a flag turned away with its island is left
+ * out. */
+function flagsOf(state: RootState): Flag[] {
+  const flags: Flag[] = [], { width, height } = state.size;
+  state.scene.traverse(object => {
+    const flag = object.name.startsWith("territory-claim:") ? object.getObjectByName("claim-flag") : undefined;
+    if (!flag?.visible) return;
+    const at = flag.getWorldPosition(flag.position.clone()).project(state.camera);
+    flags.push({ capability: object.userData.capability as string, colour: object.userData.colour as string,
+      x: Math.round((at.x + 1) / 2 * width), y: Math.round((1 - at.y) / 2 * height) });
+  });
+  return flags;
+}
+
 /** Aims the view at once (the page asks for reduced motion, so the view jumps where the app would glide). */
-function aim(controls: GlobeControls, to: Aim): void {
-  const { story, framing, sideOffset } = MAP.aims[to];
+function aim(short: MapShort, controls: GlobeControls, to: string): void {
+  const { story, framing, sideOffset } = short.map.aims[to]!;
   controls.stop({ target: { kind: "story", story }, framing, sideOffset, duration: 0 });
 }
 
@@ -79,62 +108,70 @@ function aim(controls: GlobeControls, to: Aim): void {
  * each aim, aims the view and waits until it has drawn every island in the same place, and the same picture, several times
  * running (its roads are routed after its islands draw, later on a busy machine), and hands back where each island is. The view
  * is left at the last aim. */
-async function settled(controls: GlobeControls, get: () => RootState): Promise<Record<Aim, Marks>> {
-  for (let step = 0; step < MAP.tilt; step++) window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" }));
-  const marks = {} as Record<Aim, Marks>;
-  for (const to of Object.keys(MAP.aims) as Aim[]) { aim(controls, to); marks[to] = await steady(controls, get); }
+async function settled(short: MapShort, controls: GlobeControls, get: () => RootState): Promise<Record<string, Marks>> {
+  for (let step = 0; step < short.map.tilt; step++) window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" }));
+  const marks: Record<string, Marks> = {}, titles = new Map(short.scene.islands.map(island => [island.story, island.title]));
+  for (const to of Object.keys(short.map.aims)) { aim(short, controls, to); marks[to] = await steady(short, controls, get, titles); }
   return marks;
 }
 
-async function steady(controls: GlobeControls, get: () => RootState): Promise<Marks> {
+async function steady(short: MapShort, controls: GlobeControls, get: () => RootState, titles: ReadonlyMap<string, string>): Promise<Marks> {
   let last = "", same = 0;
   for (;;) {
     await new Promise(done => setTimeout(done, 150));
     const islands = controls.islands().filter(island => island.width > 0);
-    const canvas = shrinkView(get(), 0), seen = (canvas as OffscreenCanvas).getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
+    const canvas = shrinkView(get(), 0, short.quantise), seen = (canvas as OffscreenCanvas).getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
     const now = JSON.stringify(islands) + seen.join(",");
     same = islands.length && now === last ? same + 1 : 0;
     last = now;
-    if (same >= 4) return { islands: islands.map(island => ({ ...island, title: TITLES.get(island.story) ?? "" })) };
+    if (same >= 4) return { islands: islands.map(island => ({ ...island, title: titles.get(island.story) ?? "" })) };
   }
 }
 
 /** `lateBy` holds each frame's capture back that many milliseconds, as a slow machine does. */
 export function SeeingWhatAgentsBuilt({ lateBy = 0 }: { lateBy?: number }) {
+  return <MapShortFrame short={FIRST} lateBy={lateBy} />;
+}
+
+/** A short with the forest's view on its screen: the view mounted off screen, aimed and given its props at each frame's moment,
+ * and the frame drawn by the short's scene onto the one 480×270 canvas the page shows ×4. */
+export function MapShortFrame({ short, lateBy = 0 }: { short: MapShort; lateBy?: number }) {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
-  const shown = useRef<HTMLCanvasElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
   const [get, setGet] = useState<() => RootState>();
   const [controls, setControls] = useState<GlobeControls>();
-  const [marks, setMarks] = useState<Record<Aim, Marks>>();
-  const aimed = useRef<Aim>("island");
+  const [marks, setMarks] = useState<Record<string, Marks>>();
+  const aimed = useRef<string>(Object.keys(short.map.aims).at(-1)!);
   const [assets, setAssets] = useState<{ cast: CastMap; sheet: HTMLImageElement }>();
   const [loading] = useState(() => delayRender("The map, the pixel font and the cast load"));
   const core = useMemo(() => createKnowledgeCore(snapshot.project), []);
   useState(() => { (globalThis as Record<string, unknown>)[CAPTURE_SEAM] = (state: () => RootState) => setGet(() => state); });
   useEffect(() => { void loadAssets().then(setAssets); }, []);
-  useEffect(() => { if (controls && get) void settled(controls, get).then(setMarks); }, [controls, get]);
+  useEffect(() => { if (controls && get) void settled(short, controls, get).then(setMarks); }, [short, controls, get]);
   useEffect(() => { if (get && assets && marks) continueRender(loading); }, [get, assets, marks, loading]);
-  const seconds = frame / fps, selected = selectedAt(SCRIPT.with, seconds), at = aimAt(SCRIPT.with, seconds);
+  const seconds = frame / fps, props = short.props(seconds), at = short.aimAt(seconds);
+  // The view's props, as one value that changes only when they do: a selection or a claim taken or let go.
+  const shown = JSON.stringify([props.selected, props.wisps]);
   const ignore = useCallback(() => {}, []);
   useLayoutEffect(() => {
     if (!get || !assets || !marks) return;
     // The view takes a selection on its own renderer's next pass, so the frame is drawn once that has run.
     const drawing = delayRender(`frame ${frame}`);
-    if (aimed.current !== at) { aim(controls!, at); aimed.current = at; }
+    if (aimed.current !== at) { aim(short, controls!, at); aimed.current = at; }
     void new Promise(done => setTimeout(done, lateBy)).then(nextFrame).then(() => {
-      const map = shrinkView(get(), frame * 1000 / fps);
-      const ctx = shown.current!.getContext("2d")!;
-      pixelText(ctx, drawScene(ctx, { seconds, frames: durationInFrames, cast: assets.cast, sheet: assets.sheet, view: map,
-        map: { width: MAP.width, height: MAP.height, marks: marks[at] } }));
+      const map = shrinkView(get(), frame * 1000 / fps, short.quantise), flags = flagsOf(get());
+      const ctx = canvas.current!.getContext("2d")!;
+      pixelText(ctx, short.draw(ctx, { seconds, frames: durationInFrames, cast: assets.cast, sheet: assets.sheet, view: map,
+        map: { width: short.map.width, height: short.map.height, ...(marks[at] ? { marks: marks[at] } : {}), flags } }));
       continueRender(drawing);
     });
-  }, [get, controls, assets, marks, frame, fps, seconds, durationInFrames, selected, at, lateBy]);
+  }, [short, get, controls, assets, marks, frame, fps, seconds, durationInFrames, shown, at, lateBy]);
   return <AbsoluteFill style={{ background: "#000" }}>
-    <div style={{ position: "absolute", left: 0, top: 0, width: MAP.width, height: MAP.height, isolation: "isolate", zIndex: 0 }}>
-      <PlanetView {...mapProps(selected)} core={core} onPick={ignore} onNote={ignore} onControls={setControls} />
+    <div style={{ position: "absolute", left: 0, top: 0, width: short.map.width, height: short.map.height, isolation: "isolate", zIndex: 0 }}>
+      <PlanetView {...props} core={core} onPick={ignore} onNote={ignore} onControls={setControls} />
     </div>
-    <canvas ref={shown} width={LOW.width} height={LOW.height}
+    <canvas ref={canvas} width={LOW.width} height={LOW.height}
       style={{ position: "absolute", left: 0, top: 0, zIndex: 1, width: LOW.width * SCALE, height: LOW.height * SCALE, imageRendering: "pixelated" }} />
   </AbsoluteFill>;
 }

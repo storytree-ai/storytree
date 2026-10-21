@@ -4,7 +4,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { FIRST_SHORT } from "./root.js";
+import { POSTER } from "./one-map.js";
+import { COLOURS } from "./one-map-scene.js";
+import { FIRST_SHORT, SECOND_SHORT } from "./root.js";
+import { HALF, LOW, SCALE, SCREEN } from "./script.js";
 import { brokenBlocks, bundleShorts, remotionOn, renderPng, rgbOf } from "./render.js";
 
 /** A frame with code on one screen and, on the other, the map with the island lit and its panel open. */
@@ -29,6 +32,24 @@ test("6.2 · the same frame renders identically twice, the turning globe include
   await renderPng(serveUrl, FIRST_SHORT.id, FRAME, first);
   await renderPng(serveUrl, FIRST_SHORT.id, FRAME, second, 1, { lateBy: 600 });
   assert.ok((await rgbOf(first)).equals(await rgbOf(second)));
+});
+
+test("6.18 · a rendered frame of the second short is crisp, and its map carries each standing claim's flag where the real view drew it, in its session's colour", { timeout: 300_000 }, async () => {
+  const still = path.join(scratch, "one-map.png");
+  await renderPng(serveUrl, SECOND_SHORT.id, POSTER * SECOND_SHORT.fps, still);
+  const rgb = await rgbOf(still);
+  assert.deepEqual(brokenBlocks(rgb).slice(0, 5), []);
+  // The map's own area on the storytree half: its screen, above the app's sessions strip (which names each session by its colour too).
+  const { x, y, width, height } = SCREEN.full, wide = LOW.width * SCALE;
+  for (const colour of COLOURS) {
+    const want = [1, 3, 5].map(at => parseInt(colour.slice(at, at + 2), 16));
+    let seen = 0;
+    for (let row = y; row < y + height - 14; row++) for (let column = HALF.with + x; column < HALF.with + x + width; column++) {
+      const at = (row * SCALE * wide + column * SCALE) * 3;
+      if (want.every((value, c) => rgb[at + c] === value)) seen++;
+    }
+    assert.ok(seen >= 10, `${colour} marks a claim on the map (${seen} pixels)`);
+  }
 });
 
 test("6.7 · on Windows arm64, which Remotion builds no Headless Shell or binaries for, a short renders in the installed Chrome with Remotion's x64 binaries; elsewhere with its own", () => {

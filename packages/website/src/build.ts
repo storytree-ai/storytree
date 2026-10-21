@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { MARK_LINKS, inlineMark, writeMarkFiles } from "./mark.js";
 import { openingMarkup } from "./opening-markup.js";
-import { claimsMarkup, FIRST_SHORT } from "./claims.js";
+import { claimsMarkup, SHORTS } from "./claims.js";
 import { pageEndMarkup } from "./page-end.js";
 import { fill, tourCounts } from "./tour-counts.js";
 import type { TourSnapshot } from "./forest-data.js";
@@ -65,11 +65,13 @@ export async function buildWebsite(output = path.join(packageRoot, "dist"), opti
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
-  // The first short is served from where it was rendered (evidence/first-short), so the site and the evidence keep one copy.
-  const short = path.join(packageRoot, "evidence", "first-short");
-  await mkdir(path.join(output, path.dirname(FIRST_SHORT.src)), { recursive: true });
-  await cp(path.join(short, "seeing-what-agents-built-1080p.mp4"), path.join(output, FIRST_SHORT.src));
-  await cp(path.join(short, "seeing-what-agents-built-poster.png"), path.join(output, FIRST_SHORT.poster));
+  // Each claim's short is served from where it was rendered (its evidence folder), so the site and the evidence keep one copy.
+  for (const { src, poster, rendered } of SHORTS) {
+    const from = path.join(packageRoot, "evidence", rendered.folder);
+    await mkdir(path.join(output, path.dirname(src)), { recursive: true });
+    await cp(path.join(from, rendered.video), path.join(output, src));
+    await cp(path.join(from, rendered.poster), path.join(output, poster));
+  }
   await writeMarkFiles(output);
   return result.metafile;
 }

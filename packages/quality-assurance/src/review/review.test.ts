@@ -39,7 +39,7 @@ async function plan(library: Library) {
   const skips = await library.writeKnowledge("check", { title: "Silent skip", description: "Tests that skip without saying so.", question: "Does any test skip silently?", enforces: [principle.id] });
   const retired = await library.writeKnowledge("check", { title: "Retired check", description: "Gone.", question: "Gone?", enforces: [principle.id] });
   await library.retire(retired.id, "no longer asked");
-  return { arc: arc.id, increment: increment.id, contracts: [first.id, second.id], checks: [tautology.id, skips.id].sort() };
+  return { arc: arc.id, increment: increment.id, capability: named.id, contracts: [first.id, second.id], checks: [tautology.id, skips.id].sort() };
 }
 
 /** Review `review`'s return that answers every check (none tripped unless given) and every contract (met). */
@@ -80,7 +80,7 @@ test("2.1 · the branch's diff is read against the default branch origin names, 
   }
 });
 
-test("2.4 · a contract the increment rewords pending its merge is briefed in its pending text, and one it retires pending its merge is listed as retired and not answered", async () => {
+test("2.4 · a contract the increment rewords pending its merge is briefed once, in its pending text, and one it retires pending its merge is listed once, as retired and not answered", async () => {
   await withLibrary(async (library, storytree) => {
     const { increment, contracts, checks } = await plan(library);
     await library.advanceIncrement(increment, "active");
@@ -95,6 +95,9 @@ test("2.4 · a contract the increment rewords pending its merge is briefed in it
     assert.match(text, /1\.1 · A bad email is refused, saying why/);
     assert.doesNotMatch(text, /No @, no account\./);
     assert.match(text, new RegExp(`${contracts[1]}  1\\.2 · A good email is kept\\n    retired by this change, pending its merge: overtaken by 1\\.1`));
+    assert.equal(text.split(contracts[0]!).length - 1, 1, "a reworded contract appears once, by its pending wording");
+    assert.equal(text.split(contracts[1]!).length - 1, 1, "a retired contract appears once, as retired");
+    assert.doesNotMatch(text, /1\.1 · A bad email is refused\n/);
 
     await assert.rejects(reviews.take(library.name, increment, clean(checks, contracts)), new RegExp(`contract ${contracts[1]} is not in the brief`));
     await reviews.take(library.name, increment, clean(checks, [contracts[0]!]));
@@ -103,23 +106,26 @@ test("2.4 · a contract the increment rewords pending its merge is briefed in it
 
 test("2.10 · a plan-only change, whose diff touches no file, gets a brief listing its pending plan changes, and its return is taken; one with neither a diff nor a pending change is refused", async () => {
   await withLibrary(async (library, storytree) => {
-    const { increment, contracts, checks } = await plan(library);
+    const { increment, capability, contracts, checks } = await plan(library);
     const reviews = await openReviews(storytree);
     await assert.rejects(reviews.brief(library, increment, ""), /The diff touches no file/);
 
     await library.advanceIncrement(increment, "active");
+    await library.pendChange(increment, { record: capability, fields: { description: "Refuses a bad email, saying why." } });
     await library.pendChange(increment, { record: contracts[0]!, fields: { title: "1.1 · A bad email is refused, saying why" } });
     await library.pendChange(increment, { record: contracts[1]!, retire: "overtaken by 1.1" });
     const brief = await reviews.brief(library, increment, "");
 
     assert.deepEqual(brief.packages, ["plan"]);
     assert.deepEqual(brief.plan, [
+      { record: capability, type: "capability", title: "1 · Email form", after: { description: "Refuses a bad email, saying why." } },
       { record: contracts[0], type: "contract", title: "1.1 · A bad email is refused", after: { title: "1.1 · A bad email is refused, saying why" } },
       { record: contracts[1], type: "contract", title: "1.2 · A good email is kept", retire: "overtaken by 1.1" },
     ]);
     const text = briefText(brief);
-    assert.match(text, new RegExp(`Pending plan changes \\(2\\)[^]*${contracts[0]}  contract  1\\.1 · A bad email is refused\\n    becomes: \\{"title":"1\\.1 · A bad email is refused, saying why"\\}`));
-    assert.match(text, new RegExp(`${contracts[1]}  contract  1\\.2 · A good email is kept\\n    retired: overtaken by 1\\.1`));
+    assert.match(text, new RegExp(`Pending plan changes \\(1\\)[^]*${capability}  capability  1 · Email form\\n    becomes: \\{"description":"Refuses a bad email, saying why\\."\\}`));
+    assert.match(text, new RegExp(`${contracts[0]}  1\\.1 · A bad email is refused, saying why  \\(as this change rewords it, pending its merge\\)`));
+    assert.match(text, new RegExp(`${contracts[1]}  1\\.2 · A good email is kept\\n    retired by this change, pending its merge: overtaken by 1\\.1`));
     assert.match(text, /The diff touches no file: the change under review is its pending plan changes\./);
 
     const taken = await reviews.take(library.name, increment, clean(checks, [contracts[0]!], { [checks[0]!]: [{ file: contracts[1]!, line: 1, found: "retired while its test still runs" }] }));

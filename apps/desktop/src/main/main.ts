@@ -112,6 +112,7 @@ import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { logPageErrors } from "./page-errors.js";
+import { titleWindow } from "./window-title.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
 // A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
@@ -587,11 +588,7 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
   logPageErrors(window.webContents, line => console.error(line));
   if (!args.smoke) window.once("ready-to-show", () => window.show());
   // The page names the project; the title adds which build this is.
-  window.setTitle(`storytree 0.3 · ${build}`);
-  window.on("page-title-updated", (event, title) => {
-    event.preventDefault();
-    window.setTitle(build === "" ? title : `${title} · ${build}`);
-  });
+  titleWindow(window, build);
   // The lag instrument measures the catalogue with the page's lag recorder on and off (STORYTREE_LAG_RECORDER=off).
   const recorder = process.env.STORYTREE_LAG_RECORDER === "off" ? { "lag-recorder": "off" } : {};
   void window.loadFile(path.join(__dirname, "renderer", "index.html"), { query: { ...query, ...recorder } });

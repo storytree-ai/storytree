@@ -1,24 +1,42 @@
 {
-  "renderedAt": "2026-10-19T06:33:47.785Z",
+  "renderedAt": "2026-10-21T22:35:29.443Z",
   "composition": {
     "id": "seeing-what-agents-built",
     "fps": 30,
     "frames": 1740
   },
   "seconds": {
-    "bundle": 1.985,
-    "poster": 3.739,
-    "socialMp4": 151.29
+    "bundle": 1.975,
+    "poster": 3.747,
+    "socialMp4": 139.505
   },
   "bytes": {
     "seeing-what-agents-built-poster.png": 23191,
-    "seeing-what-agents-built-1080p.mp4": 831853
+    "seeing-what-agents-built-1080p.mp4": 853783
   },
   "stills": [
     {
       "beat": "opening",
-      "seconds": 6,
+      "seconds": 4.5,
       "file": "still-opening.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "map-empty",
+      "seconds": 5.4,
+      "file": "still-map-empty.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "map-growing",
+      "seconds": 7,
+      "file": "still-map-growing.png",
+      "brokenBlocks": 0
+    },
+    {
+      "beat": "map-grown",
+      "seconds": 9.7,
+      "file": "still-map-grown.png",
       "brokenBlocks": 0
     },
     {

@@ -9,4 +9,4 @@ export { buildPlanetPathways, islandCoast, islandCoastReach, planetPathwayDrawin
 export { routeTrails, trailFillWidth } from "./core/routing.js";
 export { entranceShown, laneDrawSeconds, laneEntrances, laneProgress, laneRoutes, LANE_COLOUR, onIsland, type InlandWay, type LaneDock, type LaneEntrance, type LaneRoute, type LitLink } from "./planet/lanes.js";
 export { RIBBON_GROUND_SCALE } from "./trail-ribbon-width.js";
-export { crossingLength, fileKey, growthMoment, growthPlan, growthProgress, linkKey, plateGrowth, roadSegmentWindows, segmentDrawRange, type GrowthOptions, type GrowthPlan, type GrowthStage, type GrowthWindow } from "./planet/growth.js";
+export { crossingLength, fileKey, growthMoment, growthNow, growthPlan, growthProgress, linkKey, plateGrowth, roadSegmentWindows, segmentDrawRange, type GrowthOptions, type GrowthPlan, type GrowthStage, type GrowthWindow } from "./planet/growth.js";

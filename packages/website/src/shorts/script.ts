@@ -58,6 +58,8 @@ export type Beat = {
   file?: string;
   /** On the map: he clicks the island and its panel opens. */
   clicks?: boolean;
+  /** On the map: it grows from an empty sheet as Claude builds what he asked for. */
+  grows?: boolean;
 };
 
 /** How long the short runs, in seconds, and the end card's start. */
@@ -84,13 +86,17 @@ export const PARAGRAPH = "ok so the wishlist thing you built. not the page with 
 /** The prompt the developer with storytree types instead: grounded in the names the map showed him. */
 export const groundedPrompt = ({ island, capability }: Grounding) => `${island.toLowerCase()} / ${capability.toLowerCase()}: does it empty the list?`;
 
-const OPENING: readonly Beat[] = [
-  { from: 0, to: 1.5, pose: "typing", app: "claude", view: "room" },
-  { from: 1.5, to: 10, pose: "typing", app: "claude", view: "full", typed: "add a wishlist to the shop", rate: 14,
-    reply: "done: shoppers can save items for later. 9 files changed." },
-];
+/** What both developers ask of a brand-new project (the owner, 2026-10-22: "rather than a project midway, it's the project at
+ * the very beginning"). */
+export const ASKED = "build me a shop";
+const ASKING = { pose: "typing", app: "claude", view: "full", typed: ASKED, rate: 14 } as const;
+/** When the storytree side cuts from Claude to its map: once its prompt and Claude's first word have been on screen long enough
+ * to read. */
+export const TO_MAP = 5.2;
 
-/** Both halves, beat by beat. Their turns line up and cut together: both open what was built at 10 s, change what they look at
+/** Both halves, beat by beat. Both open on Claude in a brand-new project and ask it for the shop. Without storytree the reply
+ * says it is done; with it, he watches the map grow from an empty sheet as Claude builds. Then their turns line up and cut
+ * together: both open what was built at 10 s, change what they look at
  * at 15.5 s and 19 s, go back to Claude at 22 s, and cut to the room at 41 s and to the screen again at 48 s,
  * the paragraph typed as fast as the short prompt (so it takes its length); and while the one
  * with storytree leaves the room the other is still answering questions. The one without never despairs: he keeps reading,
@@ -98,7 +104,8 @@ const OPENING: readonly Beat[] = [
 export function beats(grounding: Grounding): Record<Side, readonly Beat[]> {
   return {
     without: [
-      ...OPENING,
+      { from: 0, to: 1.5, pose: "typing", app: "claude", view: "room" },
+      { from: 1.5, to: 10, ...ASKING, reply: "done: your shop, with a cart, checkout and a wishlist. 64 files changed." },
       { from: 10, to: 11, pose: "reading", app: "code", view: "room", file: "src/routes/wishlist.ts" },
       { from: 11, to: 15.5, pose: "reading", app: "code", view: "full", file: "src/routes/wishlist.ts", think: "ok. what did it build?" },
       { from: 15.5, to: 19, pose: "reading", app: "code", view: "full", file: "src/wishlist/store.ts", think: "so this saves the list..." },
@@ -115,7 +122,9 @@ export function beats(grounding: Grounding): Record<Side, readonly Beat[]> {
       { from: 49, to: END_CARD, pose: "reading", app: "code", view: "full", file: "src/wishlist/store.ts", think: "let me check..." },
     ],
     with: [
-      ...OPENING,
+      { from: 0, to: 1.5, pose: "typing", app: "claude", view: "room" },
+      { from: 1.5, to: TO_MAP, ...ASKING, reply: "on it." },
+      { from: TO_MAP, to: 10, pose: "typing", app: "map", view: "full", grows: true },
       { from: 10, to: 11, pose: "typing", app: "map", view: "room" },
       { from: 11, to: 15.5, pose: "typing", app: "map", view: "full", clicks: true },
       { from: 15.5, to: 17.4, pose: "typing", app: "graph", view: "full" },

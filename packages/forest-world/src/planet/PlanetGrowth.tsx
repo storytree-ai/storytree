@@ -1,7 +1,7 @@
 /** Capability 4 · The planet. The globe's growth clock (The drawing engine 5.4): what the canvas and the host's marks read to draw a growth as it stands. */
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { fileKey, growthMoment, growthProgress, type GrowthPlan } from './growth.js';
+import { fileKey, growthMoment, growthNow, growthProgress, type GrowthPlan } from './growth.js';
 
 /** A growth to replay: its plan, and either a fixed moment (a host scrubbing it) or the canvas's own clock from when it was given. */
 export interface PlanetGrowth { plan: GrowthPlan; at?: number | undefined }
@@ -26,7 +26,8 @@ const GrowthContext = createContext<GrowthReader>(WHOLE);
 /** Read inside the globe (a plate's children, say) to fade a mark in with its island; read it in `useFrame`. */
 export function usePlanetGrowth(): GrowthReader { return useContext(GrowthContext); }
 
-/** Keeps the growth's clock and asks for frames while it is still growing; under reduced motion it is whole at once. */
+/** Keeps the growth's clock and asks for frames while it is still growing; under reduced motion it is whole at once, unless the
+ * host fixes its moment. */
 export function GrowthProvider({ growth, children }: { growth: PlanetGrowth | undefined; children: ReactNode }) {
   const { clock, invalidate } = useThree();
   const plan = growth?.plan;
@@ -35,8 +36,8 @@ export function GrowthProvider({ growth, children }: { growth: PlanetGrowth | un
   const at = growth?.at;
   const reader = useMemo((): GrowthReader => {
     if (plan === undefined) return WHOLE;
-    const now = () => started.current.reduced ? Infinity : at ?? clock.getElapsedTime() - started.current.at;
-    const of = (window: Parameters<typeof growthProgress>[0]) => growthProgress(window, now(), started.current.reduced);
+    const now = () => growthNow(at, clock.getElapsedTime() - started.current.at, started.current.reduced);
+    const of = (window: Parameters<typeof growthProgress>[0]) => growthProgress(window, now(), false);
     return { now, globe: () => of(plan.globe), island: story => of(plan.islands.get(story)),
       capability: capability => of(plan.capabilities.get(capability)), file: (story, path) => of(plan.files.get(fileKey(story, path))),
       moment: date => growthMoment(plan, date) };

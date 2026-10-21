@@ -9,9 +9,10 @@ import { drawable } from "./font.js";
 import { rgbOf } from "./render.js";
 import { FIRST_SHORT } from "./root.js";
 import { drawScene, focusIn, spritesAt } from "./scene.js";
-import { BUBBLE, beats, chatAt, columnsOf, END_CARD, GLYPH, HALF, HALF_WIDTH, layBubble, LENGTH, PAD, POSES, PROPS, readingTime, ROLL, SCREEN, SEAT, SMALL, TITLE,
+import { growthProgress } from "@storytree/forest-world/geometry";
+import { ASKED, BUBBLE, beats, chatAt, columnsOf, END_CARD, GLYPH, HALF, HALF_WIDTH, layBubble, LENGTH, PAD, POSES, PROPS, readingTime, ROLL, SCREEN, SEAT, SMALL, TITLE,
   type Rect, type Side } from "./script.js";
-import { GRAPH, GROUNDING, layGraph, MAP_PALETTE, mapProps, PANEL, quantise, snapshot, WISHLIST } from "./view.js";
+import { GRAPH, GROUNDING, growthAt, layGraph, MAP_PALETTE, mapProps, PANEL, quantise, risenAt, snapshot, WISHLIST } from "./view.js";
 import shop from "../shop-snapshot.json" with { type: "json" };
 
 const sprites = new URL("./public/sprites/", import.meta.url);
@@ -100,7 +101,7 @@ test("6.12 · the storytree side's map is the shop's, with the story he asked fo
   const taken = saved.places.map(place => place.place);
   assert.ok(!taken.includes(WISHLIST.place), "on a place no island of the shop holds, so none moves");
   const typed = script.with.flatMap(beat => beat.typed ? [beat.typed] : []);
-  assert.ok(script.without.concat(script.with).some(beat => beat.typed === "add a wishlist to the shop"), "the story both halves asked Claude for");
+  for (const side of sides) assert.equal(script[side].find(beat => beat.typed)!.typed, ASKED, `the ${side} half asks Claude for the shop first`);
   const own = GRAPH.layout.cards.filter(card => card.own).map(card => card.id).sort();
   assert.deepEqual(own, WISHLIST.parts.map(part => part.id).sort(), "the graph's own cards are the new story's parts");
   const outside = GRAPH.layout.cards.filter(card => !card.own).map(card => card.title).sort();
@@ -113,6 +114,30 @@ test("6.12 · the storytree side's map is the shop's, with the story he asked fo
       assert.ok(card.box.x + card.box.width <= other.box.x || other.box.x + other.box.width <= card.box.x || card.box.y + card.box.height <= other.box.y || other.box.y + other.box.height <= card.box.y, `"${card.title}" and "${other.title}" do not overlap`);
   }
   assert.ok(typed.some(prompt => prompt.includes(cards.find(card => card.asked)!.title.toLowerCase())), "the part he asks about is a card he saw in the graph");
+});
+
+test("6.23 · the storytree side's map opens on a brand-new project: an empty sheet when it first shows, the shop's islands rising as Claude builds, the wishlist last, each named once risen, the whole shop by the cut to the room", () => {
+  const grows = script.with.find(beat => beat.grows)!, before = script.with.slice(0, script.with.indexOf(grows));
+  assert.ok(before.length > 0 && before.every(beat => beat.app === "claude"), "it is the first map he sees, straight after asking");
+  const islands = snapshot.scene.islands.map(island => island.story);
+  const shown = (seconds: number) => {
+    const growth = mapProps(undefined, growthAt(script.with, seconds)).growth;
+    return islands.filter(story => growth === undefined || growthProgress(growth.plan.islands.get(story), growth.at, false) > 0);
+  };
+  assert.deepEqual(shown(grows.from), [], "empty when it first shows");
+  assert.deepEqual(shown(grows.to), islands, "the whole shop, wishlist included, by the cut");
+  const during = frames.filter(seconds => seconds >= grows.from && seconds < grows.to);
+  const counts = during.map(seconds => shown(seconds).length);
+  assert.ok(counts.every((count, at) => at === 0 || count >= counts[at - 1]!), "an island never sinks again");
+  assert.ok(new Set(counts).size >= 4, `it grows in steps a viewer can see: ${[...new Set(counts)].join(", ")}`);
+  const wishlist = during.find(seconds => shown(seconds).includes(WISHLIST.story))!;
+  assert.equal(shown(wishlist).length, islands.length, "the wishlist rises last");
+  for (const seconds of during) {
+    const risen = risenAt(script.with, seconds);
+    assert.ok(islands.filter(risen).every(story => shown(seconds).includes(story)), `at ${seconds.toFixed(2)} s only an island on the sheet is named`);
+  }
+  assert.deepEqual(islands.filter(risenAt(script.with, grows.to)), islands, "every island is named once grown");
+  assert.deepEqual(islands.filter(risenAt(script.with, grows.from)), [], "and none before");
 });
 
 test("6.13 · standing up, his chair rolls back once he is clear of it, and he walks out behind it, never through it", () => {

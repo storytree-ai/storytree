@@ -1,0 +1,57 @@
+{
+  "desktop": {
+    "drawingAt": 5367,
+    "drawnMid": 0.05400908930320695,
+    "drawnWhole": 0.09673042025983203,
+    "layout": {
+      "lead": {
+        "x": 24,
+        "y": 257.109375,
+        "width": 400,
+        "height": 151.78125
+      },
+      "after": {
+        "x": 24,
+        "y": 430.890625,
+        "width": 400,
+        "height": 132
+      },
+      "frame": {
+        "x": 481.59375,
+        "y": 88,
+        "width": 934.40625,
+        "height": 666
+      }
+    },
+    "wheelScrolled": 500
+  },
+  "phone": {
+    "drawingAt": 5352,
+    "drawnMid": 0.07832198264645976,
+    "drawnWhole": 0.0984335603470708,
+    "layout": {
+      "lead": {
+        "x": 12,
+        "y": 80,
+        "width": 366,
+        "height": 59.375
+      },
+      "frame": {
+        "x": 12,
+        "y": 155.375,
+        "width": 366,
+        "height": 607.671875
+      },
+      "after": {
+        "x": 12,
+        "y": 825.046875,
+        "width": 366,
+        "height": 108
+      },
+      "scrollWidth": 390
+    }
+  },
+  "reduced": {
+    "drawn": 0.09673042025983203
+  }
+}

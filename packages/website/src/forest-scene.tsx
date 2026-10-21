@@ -13,6 +13,7 @@ import { SHEET_RADIUS } from "@storytree/forest-world/planet";
 import type { TourSnapshot } from "./forest-data.js";
 import { recordedView, savedReading } from "./tour-reading.js";
 import { wireMapFrame } from "./map-frame.js";
+import { arrivalGrowth } from "./arrival-growth.js";
 
 /** One session's wisp round one island, as the forest draws it: the site's own copy, whole, since it hands each one back (ADR-1017 D2). */
 type SessionWisp = { session: string; story: string; colour: string; faded: boolean; capabilities: string[] };
@@ -35,6 +36,8 @@ export function mapFraming(width: number): number {
 }
 /** Free play opens with both of the map's switches on, as the app's own front page does not (ADR-1002 D1). */
 const opening: GlobeSwitches = { stories: true, library: true };
+/** On arrival the map draws itself inside the frame, then stands whole for free play (2.32); the canvas keeps its clock. */
+const arrival = { plan: arrivalGrowth(snapshot) };
 type Recording = ReturnType<typeof savedReading>;
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 /** The frame every panel sits inside. */
@@ -174,7 +177,7 @@ function Forest({ ready, failed, webgl }: ForestHost) {
         style={layers.shown ? undefined : { visibility: "hidden" }} data-islands={snapshot.scene.islands.length}>
         <PlanetView core={core} scene={snapshot.scene} places={places} wisps={wisps} selected={story} highlighted={highlight}
           onPick={pickStory} onNote={pickNote} onControls={onControls} surfaces={complete} framing={sheetFraming(mapFraming(width))} sideOffset={0}
-          mode={layers.mode} library={layers.library} />
+          mode={layers.mode} library={layers.library} growth={arrival} />
       </div>
     </GlobeBoundary>}
     {frame && createPortal(<>

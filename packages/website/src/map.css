@@ -16,6 +16,20 @@
 #chapter2 .map-after { margin:34px auto 0; color:var(--soft); font-size:clamp(18px, 1.6vw, 22px); line-height:1.5; letter-spacing:-.01em; text-wrap:pretty; }
 #chapter2 .map-after { padding-right:max(0px, calc(100% - 46rem)); }
 
+/* The hero (owner's voice note, 2026-10-21): at desktop width the hook line and its paragraph sit on the left and the framed map
+   on the right, as a product page shows its app; narrower, they stack in reading order. */
+@media (min-width:960px) {
+  #chapter2 { display:grid; grid-template-columns:minmax(17rem, 25rem) minmax(0, 1fr); grid-template-rows:auto 1fr auto auto 1fr auto;
+    grid-template-areas:"heading heading" ". frame" "lead frame" "after frame" ". frame" ". note"; column-gap:clamp(32px, 4vw, 64px);
+    padding-inline:max(24px, calc((100% - 1440px) / 2)); }
+  #chapter2 > * { width:auto; margin-inline:0; }
+  .map-heading { grid-area:heading; }
+  #chapter2 .map-lead { grid-area:lead; margin:0 0 22px; }
+  #chapter2 .map-after { grid-area:after; margin:0; padding-right:0; }
+  #chapter2 .map-frame { grid-area:frame; margin-top:22px; }
+  #chapter2 .map-note { grid-area:note; }
+}
+
 /* The intro hands over to the top of this section: no leftover scroll padding above it. */
 html:has(> body.immersive-home) { scroll-padding-top:0; }
 

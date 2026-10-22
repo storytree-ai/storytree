@@ -5,11 +5,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
-import { planAnswer } from "@storytree/mcp-server";
-import { idleAfterMs } from "@storytree/project-and-caller";
-import { openActivityLog } from "@storytree/session-management";
-
-import { BuiltCommand, inWorld, testServerUrl } from "./testing/cli.js";
+import { BuiltCommand, inWorld } from "./testing/cli.js";
 
 const command = new BuiltCommand();
 
@@ -207,22 +203,19 @@ test("10.9 `storytree plan` prints what the show_plan tool answers: each story, 
     const form = await library.addCapability({ title: "Email form", story: story.id });
     const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
     await library.reportHealth(check.id, "passing", { by: "agent" });
-    await library.createArc({ title: "Sign-up works", intent: "Visitors can sign up", endState: "The form sends its email" });
+    const arc = await library.createArc({ title: "Sign-up works", intent: "Visitors can sign up", endState: "The form sends its email" });
 
     const ran = await world.run(["plan"]);
 
     assert.equal(ran.code, 0, ran.stderr);
-    assert.match(ran.stdout, new RegExp(`Story "Visitor can sign up" \\(${story.id}\\): reported passing`));
-    assert.match(ran.stdout, new RegExp(`  Capability "${form.fields.title}" \\(${form.id}\\): reported passing`));
-    assert.match(ran.stdout, new RegExp(`    Contract "1.1 · Rejects an email with no @" \\(${check.id}\\): reported passing`));
-    assert.match(ran.stdout, /Arc "Sign-up works"/);
-    const log = await openActivityLog(testServerUrl());
-    try {
-      const tool = await planAnswer({ library, log, project: world.project, quietMs: idleAfterMs() }, {});
-      assert.equal(ran.stdout.trimEnd(), tool.text);
-    } finally {
-      await log.close();
-    }
+    assert.deepEqual(ran.stdout.trimEnd().split(/\r?\n/), [
+      "The project has no anchor yet (project-anchor): say what it is and who it is for with edit_plan.",
+      `Story "Visitor can sign up" (${story.id}): reported passing, verified not checked`,
+      `  Capability "${form.fields.title}" (${form.id}): reported passing, verified not checked; proposed — not built, the agent's to move; nobody holds it`,
+      `    Contract "1.1 · Rejects an email with no @" (${check.id}): reported passing, verified not checked`,
+      `Arc "Sign-up works" (${arc.id}) grows no stories yet`,
+      "No sessions yet.",
+    ]);
 
     const wrong = await world.run(["plan", "--closed", "week", "--from", "2026-10-01"]);
     assert.equal(wrong.code, 1, wrong.stdout);

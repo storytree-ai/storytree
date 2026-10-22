@@ -1,6 +1,6 @@
 /** Capability 2 · Settings: per-user settings, owned by Project and caller (ADR-0729, ADR-1025; the library's location, ADR-0734/0735). */
 import { randomUUID } from "node:crypto";
-import { lstatSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { storytreeHome } from "../routing/index.js";
@@ -306,12 +306,33 @@ export function readStandIns(home: string = storytreeHome()): { readonly folder?
   return { ...(stored.factory === undefined ? {} : { folder: stored.factory }), plugins: stored[STAND_INS] ?? {} };
 }
 
-/** Choose `folder`, an existing folder, as this computer's factory folder, saved and returned as its full path. */
-export function setFactory(folder: string, home: string = storytreeHome()): string {
+/** A factory folder chosen: given the factory's shape just now, or found with it already. */
+export interface ChosenFactory {
+  readonly status: "set up" | "already a factory";
+  readonly folder: string;
+}
+
+/**
+ * Choose `folder`, an existing folder, as this computer's factory folder, saved as its full path, from either door: the
+ * desktop app's first launch or `settings set factory` (question_5867f490cdd6). An empty folder is given the factory's
+ * shape, a `plugins` folder the plugin loader reads each plugin from, and one that has it is accepted; a folder holding
+ * anything else is refused, left as it was and not saved. Hidden entries (a fresh repository's `.git`) do not count,
+ * so a newly made private repo can be the factory.
+ */
+export function setFactory(folder: string, home: string = storytreeHome()): ChosenFactory {
   const full = path.resolve(folder);
   if (!statSync(full, { throwIfNoEntry: false })?.isDirectory()) refuse(`There is no folder at ${full}; make it first, or choose another.`);
+  const plugins = path.join(full, "plugins");
+  let status: ChosenFactory["status"] = "already a factory";
+  if (!statSync(plugins, { throwIfNoEntry: false })?.isDirectory()) {
+    if (readdirSync(full).some((entry) => !entry.startsWith("."))) {
+      refuse(`${full} holds other files and no plugins folder, so it is not a factory; choose an empty folder for storytree to set up, or one it set up before.`);
+    }
+    mkdirSync(plugins);
+    status = "set up";
+  }
   write(home, { ...readStored(home), factory: full });
-  return full;
+  return { status, folder: full };
 }
 
 /**

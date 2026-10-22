@@ -9,7 +9,6 @@ import type { Library, Storytree } from "@storytree/library";
 import { addProject, deleteProject, keepOnThisComputer, projectFolder, removeProject, whoLoses } from "../project/index.js";
 import type { AgentConnection, ProjectSentence, SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "../journey-events/feedback.js";
-import { shapeFactory } from "./factory-folder.js";
 import { readShippedLicense } from "./license.js";
 
 const SENTENCE_ACTOR = "storytree app (Settings → Projects)";
@@ -66,9 +65,8 @@ export function setupHelpActions(options: {
       const folder = await options.chooseFolder();
       if (folder === undefined) return null;
       // Shaped before it is saved, so a refused folder is never this computer's factory.
-      const chosen = shapeFactory(path.resolve(folder));
-      setFactory(chosen.folder, options.storytreeHome);
-      return chosen;
+      const chosen = setFactory(folder, options.storytreeHome);
+      return { status: chosen.status, folder: chosen.folder };
     },
     async addProject() {
       const folder = await options.chooseFolder();

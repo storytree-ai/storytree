@@ -1,6 +1,6 @@
 /** Capability 2 · Settings, contract 2.17: a part of the host switched off and on, and the parts `settings show` lists. */
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -41,13 +41,21 @@ test("2.17 `settings set part <part> off` switches a part of the host off and `o
   });
 });
 
-test("2.20 `settings set factory <folder>` chooses this computer's factory folder, an existing folder, saved as its full path; `settings set part <part> plugin <plugin>` switches the part off and names the factory plugin standing in for it, which readStandIns reads with the folder and `settings show` lists; `on` switches it back on and drops the stand-in, and a plugin with no name is refused, saving nothing", async () => {
+test("2.20 `settings set factory <folder>` chooses this computer's factory folder, an existing folder, saved as its full path: an empty one is given the factory's shape, a factory is accepted, and any other folder is refused with why, left as it was and not saved; `settings set part <part> plugin <plugin>` switches the part off and names the factory plugin standing in for it, which readStandIns reads with the folder and `settings show` lists; `on` switches it back on and drops the stand-in, and a plugin with no name is refused, saving nothing", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
     assert.deepEqual(readStandIns(home), { plugins: {} });
     assert.throws(() => setFactory(path.join(home, "no-such"), home), /no folder/);
-    mkdirSync(path.join(home, "factory"));
-    assert.equal(setFactory(path.join(home, "factory", "."), home), path.join(home, "factory"));
+    mkdirSync(path.join(home, "notes"));
+    writeFileSync(path.join(home, "notes", "todo.md"), "mine");
+    assert.throws(() => setFactory(path.join(home, "notes"), home), /notes holds other files and no plugins folder/);
+    assert.equal(existsSync(path.join(home, "notes", "plugins")), false, "a refused folder is left as it was");
+    assert.deepEqual(readStandIns(home), { plugins: {} }, "a refused folder is not saved");
+    mkdirSync(path.join(home, "factory", ".git"), { recursive: true });
+    assert.deepEqual(setFactory(path.join(home, "factory", "."), home), { status: "set up", folder: path.join(home, "factory") }, "an empty folder (a fresh repository counts) is set up");
+    assert.ok(statSync(path.join(home, "factory", "plugins")).isDirectory(), "the factory's shape: a plugins folder");
+    writeFileSync(path.join(home, "factory", "README.md"), "my plugins");
+    assert.deepEqual(setFactory(path.join(home, "factory"), home), { status: "already a factory", folder: path.join(home, "factory") }, "a folder with the factory's shape is accepted as it is");
 
     assert.deepEqual(switchPart("forest", "plugin", parts, home, "my-forest"), ["forest"]);
     assert.deepEqual(readStandIns(home), { folder: path.join(home, "factory"), plugins: { forest: "my-forest" } });

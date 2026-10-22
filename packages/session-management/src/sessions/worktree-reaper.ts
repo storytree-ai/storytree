@@ -14,6 +14,10 @@
  *   unregisters it, and the trash is emptied by a detached process with Node's recursive rmSync,
  *   which copes with the long `node_modules` paths `git worktree remove` fails on, so a hook never
  *   waits on it. Whatever is left in the trash is emptied again on the next pass.
+ * - A folder under the main checkout's `.claude/worktrees` that git no longer lists (left by a removal
+ *   that failed on Windows long paths) goes the same way once no process works in it, no session
+ *   wrote there and the folder itself has not changed for a day, and it holds no file whose content
+ *   git lacks (ADR-0790 D4). Links inside it, such as pnpm's junctions, are removed, never followed.
  * - It runs at most once a minute per project on each machine, for at most a few seconds, and never
  *   fails a hook: git refusing anything leaves that worktree for the next pass.
  */
@@ -24,6 +28,7 @@ import path from "node:path";
 import { due, projectTempFile, type MergeContext } from "../claims/merges.js";
 import { registeredHookScripts } from "../hooks/registered.js";
 import { readSessions } from "./sessions.js";
+import { changedAt, foldersInUse, gitWithin, holdsUnknownContent, reachableObjects, unlistedFolders } from "./worktree-leftovers.js";
 
 /** How worktrees are reaped. */
 export interface ReapWatch {
@@ -35,10 +40,13 @@ export interface ReapWatch {
   readonly empty?: (trash: string) => void;
   /** How long one pass may take before the rest wait for the next. By default, 3 s. */
   readonly budgetMs?: number;
+  /** How long a folder git no longer lists must have gone untouched before it may go. By default, a day. */
+  readonly idleMs?: number;
 }
 
 const EVERY_MS = 60_000;
 const BUDGET_MS = 3_000;
+const IDLE_MS = 24 * 60 * 60_000;
 /** The trash folder's name, in the repository's git directory. */
 const TRASH = "storytree-reaped";
 
@@ -56,10 +64,13 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
   // One git call may take the whole budget: a slow one only leaves its worktree for the next pass.
   const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: budgetMs, windowsHide: true }).trim();
   let trees: Worktree[];
+  let checkout: string | undefined;
   let trash: string;
   let main: string;
   try {
-    trees = linkedWorktrees(git(context.folder, "worktree", "list", "--porcelain"));
+    const listing = git(context.folder, "worktree", "list", "--porcelain");
+    trees = linkedWorktrees(listing);
+    checkout = mainCheckout(listing);
     trash = path.join(path.resolve(context.folder, git(context.folder, "rev-parse", "--git-common-dir")), TRASH);
     main = mainLine(context.folder, git);
   } catch {
@@ -67,6 +78,7 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
   }
   const protect = [context.folder, ...(watch.protect ?? defaultProtected())];
   // Only the sessions whose lines name a folder in one of these worktrees are read (contract 2.7).
+  const leftovers = checkout === undefined ? [] : unlistedFolders(path.join(checkout, ".claude", "worktrees"), trees.map((tree) => tree.folder)).filter((folder) => !protect.some((kept) => inside(folder, kept)));
   const users = await context.log.lines(context.project, { within: trees.map((tree) => tree.folder), latestBy: ["session"], omit: ["command", "files", "transcript"] });
   const sessions = users.length === 0 ? [] : await readSessions(context.log, context.project, { of: users.map((line) => line.session) });
   const candidates = trees.filter((tree) => {
@@ -93,6 +105,7 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
       // Dirty, not in main, or in use: it stays for the next pass.
     }
   }
+  if (checkout !== undefined) reaped.push(...(await sweepLeftovers(context, leftovers, { checkout, trash, deadline, budgetMs, idleMs: watch.idleMs ?? IDLE_MS })));
   remember(context.project, looked, trees);
   // Git refusing either leaves a registration or a branch behind, never a folder: the pass has done what it is for.
   const quietly = (...args: string[]) => {
@@ -112,6 +125,52 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
   return reaped.map((tree) => tree.folder);
 }
 
+/**
+ * Move into `trash` each folder git no longer lists that ADR-0790 D4 lets go, within the pass's
+ * deadline: no process works in it, no session wrote there and it has not changed within `idleMs`,
+ * and it holds no file whose content git lacks. Any doubt keeps the folder for the next pass.
+ */
+async function sweepLeftovers(context: MergeContext, folders: readonly string[], pass: { checkout: string; trash: string; deadline: number; budgetMs: number; idleMs: number }): Promise<Worktree[]> {
+  if (folders.length === 0) return [];
+  const inUse = foldersInUse();
+  if (inUse === undefined) return [];
+  const since = Date.now() - pass.idleMs;
+  const idle = folders.filter((folder) => !inUse.some((cwd) => inside(folder, cwd)) && changedAt(folder) < since);
+  if (idle.length === 0) return [];
+  const written = await context.log.lines(context.project, { within: idle, since: new Date(since).toISOString(), latestBy: ["folder"], omit: ["command", "files", "transcript"] });
+  const git = gitWithin(pass.budgetMs);
+  let gitDir: string;
+  try {
+    gitDir = path.resolve(pass.checkout, git(pass.checkout, ["rev-parse", "--git-common-dir"]));
+  } catch {
+    return [];
+  }
+  let objects: Set<string> | undefined;
+  const reachable = () => (objects ??= reachableObjects(pass.checkout, git));
+  const swept: Worktree[] = [];
+  for (const folder of idle) {
+    if (Date.now() > pass.deadline) break;
+    if (written.some((line) => line.folder !== undefined && inside(folder, line.folder))) continue;
+    try {
+      if (holdsUnknownContent(folder, pass.checkout, gitDir, git, reachable)) continue;
+      mkdirSync(pass.trash, { recursive: true });
+      // As for a listed worktree: fails on Windows while anything works inside it.
+      renameSync(folder, path.join(pass.trash, `${path.basename(folder)}-${Date.now()}`));
+      swept.push({ folder: path.resolve(folder), locked: false });
+    } catch {
+      // Git could not say, or the folder is in use: it stays for the next pass.
+    }
+  }
+  return swept;
+}
+
+/** The main checkout a porcelain listing names first, unless the repository is bare. */
+function mainCheckout(listing: string): string | undefined {
+  const fields = (listing.split(/\r?\n\r?\n/)[0] ?? "").split(/\r?\n/);
+  const folder = fields.find((field) => field.startsWith("worktree "))?.slice("worktree ".length);
+  return folder === undefined || fields.includes("bare") ? undefined : path.resolve(folder);
+}
+
 /** The linked worktrees a porcelain listing names: every one but the first, the main checkout. */
 function linkedWorktrees(listing: string): Worktree[] {
   return listing.split(/\r?\n\r?\n/).slice(1).flatMap((block) => {
@@ -123,13 +182,20 @@ function linkedWorktrees(listing: string): Worktree[] {
   });
 }
 
-/** The main line to compare with: what `origin` names as its default, as this clone last heard, else the local `main`. */
+/**
+ * The main line to compare with: what `origin` names as its default, as this clone last heard, else
+ * `origin/main`, else the local `main`. A clone made by `git init` and `git remote add` has no
+ * `origin/HEAD`, and its local `main` may be weeks behind, which would keep every merged worktree.
+ */
 function mainLine(cwd: string, git: (cwd: string, ...args: string[]) => string): string {
-  try {
-    return git(cwd, "rev-parse", "--abbrev-ref", "origin/HEAD");
-  } catch {
-    return "main";
+  for (const line of ["origin/HEAD", "origin/main"]) {
+    try {
+      return git(cwd, "rev-parse", "--abbrev-ref", line);
+    } catch {
+      // Not in this clone.
+    }
   }
+  return "main";
 }
 
 /** Whether `child` is `parent` or inside it. */

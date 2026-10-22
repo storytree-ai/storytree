@@ -4,9 +4,11 @@
  * Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { connect } from "@storytree/library";
 
@@ -132,4 +134,88 @@ test("4.18 a clean worktree whose head is in main, and whose sessions have all c
   } finally {
     await log.close();
   }
+});
+
+test("4.18 a merged worktree is compared with origin/main when the clone has no origin/HEAD and its local main is behind", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      git(repo, "commit", "-q", "--allow-empty", "-m", "first");
+      git(dir, "init", "-q", "--bare", "-b", "main", path.join(dir, "origin.git"));
+      git(repo, "remote", "add", "origin", path.join(dir, "origin.git"));
+      git(repo, "push", "-q", "origin", "main");
+      const folder = path.join(repo, ".claude", "worktrees", "landed");
+      git(repo, "worktree", "add", "-q", "-b", "claude/landed", folder, "main");
+      git(folder, "commit", "-q", "--allow-empty", "-m", "work");
+      git(folder, "push", "-q", "origin", "HEAD:main");
+      assert.throws(() => git(repo, "rev-parse", "--abbrev-ref", "origin/HEAD"), "no origin/HEAD in this clone");
+
+      const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
+      await log.append(project, { ...here, session: "s-landed", folder, branch: "claude/landed", kind: "file-edited", files: ["x.ts"] });
+      await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: "claude/landed", open: false, how: "not-ahead" });
+      await log.append(project, { ...here, session: "s-landed", folder, branch: "claude/landed", kind: "closed-out", safe: true, why: "merged", running: 0 });
+      const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+      assert.deepEqual(await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch), [folder]);
+      assert.equal(existsSync(folder), false);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.36 a folder under .claude/worktrees that git no longer lists goes once idle if git has all its content, its links removed and never followed; one holding content git lacks, one a live process works in, or one a session wrote in lately stays", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const repo = path.join(dir, "site");
+    git(dir, "init", "-q", "-b", "main", repo);
+    writeFileSync(path.join(repo, "a.txt"), "a\n");
+    writeFileSync(path.join(repo, ".gitignore"), "node_modules/\n.claude/\n");
+    git(repo, "add", "a.txt", ".gitignore");
+    git(repo, "commit", "-q", "-m", "first");
+    const trees = path.join(repo, ".claude", "worktrees");
+    // A removal that failed on long paths: git no longer lists it, and its checkout is still there.
+    const orphan = path.join(trees, "orphan");
+    git(repo, "worktree", "add", "-q", "-b", "claude/orphan", orphan, "main");
+    rmSync(path.join(orphan, ".git"));
+    git(repo, "worktree", "prune");
+    const store = path.join(dir, "store", "pkg");
+    mkdirSync(store, { recursive: true });
+    writeFileSync(path.join(store, "index.js"), "kept\n");
+    mkdirSync(path.join(orphan, "node_modules"));
+    writeFileSync(path.join(orphan, "node_modules", "built.js"), "generated\n");
+    symlinkSync(store, path.join(orphan, "node_modules", "pkg"), "junction");
+    const folder = (name: string, files: Record<string, string>) => {
+      mkdirSync(path.join(trees, name), { recursive: true });
+      for (const [file, text] of Object.entries(files)) writeFileSync(path.join(trees, name, file), text);
+      return path.join(trees, name);
+    };
+    const empty = folder("empty", {});
+    const unique = folder("unique", { "a.txt": "a\n", "notes.txt": "only here\n" });
+    const used = folder("used", { "a.txt": "a\n" });
+    const recent = folder("recent", { "a.txt": "a\n" });
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60_000);
+    for (const one of [orphan, empty, unique, used, recent]) utimesSync(one, twoDaysAgo, twoDaysAgo);
+    await log.append(project, { harness: "claude-code", source: "hook", machine: "here", session: "s-recent", folder: recent, branch: "main", kind: "file-edited", files: ["a.txt"] });
+    const user = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { cwd: used, stdio: "ignore" });
+    try {
+      await sleep(500);
+      const reaped = await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, { everyMs: 0, budgetMs: 60_000, protect: [] });
+      assert.deepEqual([...reaped].sort(), [empty, orphan].sort());
+      for (const gone of [empty, orphan]) assert.equal(existsSync(gone), false, `${gone} is deleted`);
+      for (const kept of [unique, used, recent]) assert.equal(existsSync(kept), true, `${kept} stays`);
+      // The trash is emptied by a detached process: the link goes, what it points to stays.
+      const trash = path.join(repo, ".git", "storytree-reaped");
+      for (let waited = 0; existsSync(trash) && waited < 30_000; waited += 100) await sleep(100);
+      assert.equal(existsSync(trash), false, "the trash is emptied");
+      assert.equal(existsSync(path.join(store, "index.js")), true, "the link's target is untouched");
+    } finally {
+      user.kill();
+      await new Promise((resolve) => (user.exitCode === null && user.signalCode === null ? user.once("exit", resolve) : resolve(undefined)));
+      await log.close();
+    }
+  });
 });

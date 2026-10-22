@@ -106,7 +106,8 @@ import { APP_OWNER, appHome } from "../home.js";
 import { answerPage, answerPageParts, STAND_INS_OFFERED } from "../page-operations.js";
 import { parseArgs } from "./args.js";
 import { registersSignInScheme, routeCallback } from "./callback-check.js";
-import { followTaskbar, iconColourway } from "./app-icon.js";
+import { answerAppEvents, answerCallbackCheckEvents } from "./app-events.js";
+import { iconColourway } from "./app-icon.js";
 import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp, releasesInstall } from "./releases.js";
@@ -114,7 +115,11 @@ import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { mainErrorRecords } from "./main-error-records.js";
 import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
+import { lateReads, projectAnswers } from "./late-reads.js";
+import { keepPageInWindow } from "./page-window.js";
+import { keepTray } from "./tray.js";
 import { titleWindow } from "./window-title.js";
+import { bringWindowForward } from "./window-shown.js";
 import { PLUGIN_SCHEME, pluginResponse, windowStandIns } from "./stand-ins.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
@@ -209,38 +214,13 @@ if (refusal !== undefined) {
   app.exit(0); // asked to quit, and none is running: start nothing
 } else if (args.callbackCheck) {
   // Hold the lock with no window or library, and report each callback a later start hands over; a later `--quit` ends it.
-  app.on("second-instance", (_event, argv) => {
-    for (const url of callbackUrls(argv)) deliverCallback(url);
-    if (parseArgs(argv).quit) app.exit(0);
-  });
-  app.on("open-url", (event, url) => {
-    event.preventDefault();
-    deliverCallback(url);
-  });
-  for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => app.exit(0));
+  answerCallbackCheckEvents(app, process, { deliver: deliverCallback, exit: (code) => app.exit(code) });
   void runWhenReady(app.whenReady(), checkCallbacks, fail);
 } else {
   // A second start shows the window; one that arrives while the app is quitting or restarting opens
-  // it again once it has stopped, instead of being lost.
-  app.on("second-instance", (_event, argv) => {
-    // On Windows and Linux a sign-in's callback deep link arrives as a second start's argument.
-    for (const url of callbackUrls(argv)) deliverCallback(url);
-    if (lifecycle.secondStart({ quit: parseArgs(argv).quit }) === "show") showWindow();
-  });
-  // On macOS it arrives as open-url, before the app is ready when it started the app.
-  app.on("open-url", (event, url) => {
-    event.preventDefault();
-    deliverCallback(url);
-  });
-  app.on("activate", () => showWindow());
-  // Closing the last window leaves the app, and its database, running in the background.
-  app.on("window-all-closed", () => lifecycle.windowClosed());
-  // Quitting waits for Postgres to stop; app.exit then ends the app without asking again.
-  app.on("before-quit", (event) => {
-    event.preventDefault();
-    void lifecycle.quit();
-  });
-  for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => app.quit());
+  // it again once it has stopped, instead of being lost. Closing the last window leaves the app, and its
+  // database, running in the background; quitting waits for Postgres to stop.
+  answerAppEvents(app, process, { deliver: deliverCallback, lifecycle, showWindow, quitApp: () => app.quit() });
   if (args.smoke) {
     setTimeout(() => {
       console.error(`smoke: gave up after ${SMOKE_TIMEOUT_MS / 1000} s`);
@@ -310,21 +290,10 @@ async function run(): Promise<void> {
     }
   }
 
-  answerPage(ipcMain, PROJECTS_CHANNELS, {
-    listProjects: () => (reads === undefined ? [] : reads.listProjects()),
-    projectSelection: () => projects?.read() ?? { projects: [], current: undefined },
-    chooseProject: (name: unknown) => {
-      if (projects === undefined) throw new Error("The library is not open");
-      return projects.choose(name);
-    },
-  });
+  answerPage(ipcMain, PROJECTS_CHANNELS, projectAnswers({ reads: () => reads, projects: () => projects }));
   // Each read asks the library open by then: these are answered before it opens, and again after it reopens.
-  const lateReads = Object.fromEntries(Object.keys(PAGE_READS_CHANNELS).map((method) => [method, (...asked: unknown[]) => {
-    const now = open();
-    return (now[method as keyof typeof PAGE_READS_CHANNELS] as (...asked: unknown[]) => unknown).apply(now, asked);
-  }])) as unknown as PageReads;
   answerPage(ipcMain, PAGE_READS_CHANNELS, {
-    ...lateReads,
+    ...lateReads(Object.keys(PAGE_READS_CHANNELS) as (keyof typeof PAGE_READS_CHANNELS & keyof PageReads)[], open),
     projectTree: async (name: unknown) => {
       const tree = await open().projectTree(name);
       treesRead.set(name, tree);
@@ -444,16 +413,18 @@ async function run(): Promise<void> {
 /** The tray icon, whose menu brings the window back or quits the app. */
 function showTray(): void {
   // The mark, in the colourway of the taskbar it sits on, worn again when that setting changes (contract 1.17).
-  followTaskbar(nativeTheme, (colourway) => {
-    if (tray === undefined) tray = new Tray(createTrayIcon(colourway));
-    else tray.setImage(createTrayIcon(colourway));
-    for (const window of BrowserWindow.getAllWindows()) window.setIcon(createWindowIcon(colourway));
+  tray = keepTray({
+    theme: nativeTheme,
+    items: TRAY_MENU,
+    build,
+    makeTray: (image) => new Tray(image),
+    trayIcon: createTrayIcon,
+    windowIcon: createWindowIcon,
+    windows: () => BrowserWindow.getAllWindows(),
+    buildMenu: (items) => Menu.buildFromTemplate(items),
+    show: showWindow,
+    quit: () => app.quit(),
   });
-  if (tray === undefined) return;
-  tray.setToolTip(`storytree 0.3 · ${build}`);
-  const actions = { show: showWindow, quit: () => app.quit() };
-  tray.setContextMenu(Menu.buildFromTemplate(TRAY_MENU.map((item) => ({ label: item.label, click: actions[item.id] }))));
-  tray.on("click", showWindow);
 }
 
 /**
@@ -497,12 +468,7 @@ async function checkCallbacks(): Promise<void> {
 
 /** Bring the window forward, opening it again on the same project if it was closed. */
 function showWindow(): void {
-  if (shutDown !== undefined) return;
-  const [open] = BrowserWindow.getAllWindows();
-  const window = open ?? openWindow(windowQuery);
-  if (window.isMinimized()) window.restore();
-  window.show();
-  window.focus();
+  bringWindowForward(BrowserWindow.getAllWindows(), { stopping: shutDown !== undefined, open: () => openWindow(windowQuery) });
 }
 
 /**
@@ -619,11 +585,9 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
     },
   });
   // The page is the app: it never navigates away or opens other windows.
-  window.webContents.on("will-navigate", (event) => event.preventDefault());
-  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  keepPageInWindow(window, { headless: args.smoke });
   // A failure inside the page (a surface's failed refresh, an uncaught throw) is kept in app.log with the rest.
   logPageErrors(window.webContents, line => console.error(line));
-  if (!args.smoke) window.once("ready-to-show", () => window.show());
   // The page names the project; the title adds which build this is.
   titleWindow(window, build);
   // The lag instrument measures the catalogue with the page's lag recorder on and off (STORYTREE_LAG_RECORDER=off).

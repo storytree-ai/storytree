@@ -42,11 +42,11 @@ const px = (value: number) => Number(value.toFixed(2));
  * A holder's flag planted on its increment's oval: the globe's pennant in the session's colour on a dark pole, its foot at
  * the oval's middle; furled and greyed while its holder is idle with its hooks running, as the globe judges it.
  */
-function renderFlag(agent: BoardAgent, index: number): string {
+function renderFlag(agent: BoardAgent): string {
   const q = agent.holder === "idle" && agent.hooksRunning ? 1 : 0;
   const outline = pennantOutline(FLAG_K, q).map(([x, y]) => `${px(x)},${px(-y)}`).join(" L");
   const top = px(-26 * FLAG_K);
-  return `<svg class="arc-agent-mark" style="--flag-at: ${index}" viewBox="-3 -15 14 17" width="14" height="17" aria-hidden="true" data-agent-session="${escape(agent.session)}" data-work-id="${escape(agent.increment ?? agent.capability)}" data-agent-label="${escape(agent.label)}">`
+  return `<svg class="arc-agent-mark" viewBox="-3 -15 14 17" width="14" height="17" aria-hidden="true" data-agent-session="${escape(agent.session)}" data-work-id="${escape(agent.increment ?? agent.capability)}" data-agent-label="${escape(agent.label)}">`
     + `<ellipse cx="0" cy="0" rx="${px(4.4 * FLAG_K)}" ry="${px(2 * FLAG_K)}" fill="#080b0e" fill-opacity="0.45"/>`
     + `<path class="arc-flag-pennant" d="M${outline}Z" fill="${quietColour(sessionColour(agent.session), q)}" stroke="${INK}" stroke-width="0.65" stroke-linejoin="round"/>`
     + `<line x1="0" y1="0" x2="0" y2="${top}" stroke="${INK}" stroke-width="1.2" stroke-linecap="round"/></svg>`;

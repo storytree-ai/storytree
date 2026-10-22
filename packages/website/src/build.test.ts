@@ -315,3 +315,40 @@ test("2.33 · the framed map's panels draw on the forest's own dark palette: the
   }
   assert.match(declarationsAt(css, ".forest-workspace", 1440).get("--st-healthy") ?? "", /^#/, "and the cards' status colours apply there");
 });
+
+test("2.34 · with a story or note panel open in the framed map, the compass, the zoom buttons and Done exploring stay off it, at desktop and phone width", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-panel-clear-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const html = await readFile(path.join(output, "index.html"), "utf8");
+  const sheet = /<link rel="stylesheet" href="([^"]+)"[^>]*>/.exec(html)!;
+  const css = await readFile(path.join(output, sheet[1]!), "utf8");
+  // The live map on a touch screen, in hand: the forest has drawn its compass, and the frame shows zoom and Done exploring.
+  // happy-dom keeps a computed style across a change that only a :has() would notice, so each state is a fresh page.
+  const framed = (width: number, height: number, panel: boolean) => {
+    const view = new HappyWindow({ width, height, settings: { disableJavaScriptFileLoading: true, disableCSSFileLoading: true } });
+    const page = view.document;
+    page.write(html.replace(sheet[0], `<style>${css}</style>`));
+    const element = (selector: string) => page.querySelector(selector) as unknown as HTMLElement;
+    const frame = element("#map-frame"), forest = element("#website-forest");
+    forest.dataset.forestState = "live";
+    forest.insertAdjacentHTML("beforeend", `<button type="button" class="planet-mini-globe sheet-compass"></button>`);
+    frame.dataset.hand = "map";
+    element(".map-exit").hidden = false;
+    // A panel opens the way the forest-scene portals it, as the frame's own child.
+    if (panel) frame.insertAdjacentHTML("beforeend", `<div class="story-panel map-story-panel"><button class="panel-close">×</button></div>`);
+    return (selector: string) => view.getComputedStyle(page.querySelector(selector)!);
+  };
+  for (const [width, height] of [[1600, 1000], [390, 844]] as const) {
+    const closed = framed(width, height, false), open = framed(width, height, true);
+    for (const control of [".sheet-compass", ".map-zoom"]) {
+      assert.notEqual(closed(control).display, "none", `at ${width}px the map shows ${control} while no panel is open`);
+      assert.equal(open(control).display, "none", `at ${width}px ${control} steps off the open panel`);
+    }
+    // Done exploring keeps a row of its own under the panel, so the two never share the frame's height.
+    const [panel, button] = [open(".story-panel"), open(".map-exit")];
+    assert.notEqual(button.display, "none", `at ${width}px Done exploring stays reachable`);
+    const exitTop = parseFloat(button.bottom) + parseFloat(button.minHeight);
+    assert.ok(parseFloat(panel.bottom) >= exitTop + 8, `at ${width}px the panel ends (bottom ${panel.bottom}) above Done exploring (its top at ${exitTop}px from the frame's foot)`);
+  }
+});

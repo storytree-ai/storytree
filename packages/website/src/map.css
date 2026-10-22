@@ -96,3 +96,10 @@ html:has(> body.immersive-home) { scroll-padding-top:0; }
   .map-zoom { display:none; }
   .map-frame[data-hand="map"] .map-zoom { display:flex; }
 }
+
+/* An open panel keeps the frame's right side to itself (the owner's screenshot, 2026-10-22): the compass, which sat on its close
+   button, and zoom step off it until it closes, and on touch Done exploring takes a row the panel leaves under itself. After the
+   phone rules, so it wins over zoom shown in hand. */
+.map-frame:has(.story-panel) .sheet-compass, .map-frame:has(.story-panel) .map-zoom { display:none; }
+.map-frame:has(.story-panel):has(> .map-exit:not([hidden])) .story-panel { bottom:68px; }
+.map-frame:has(.story-panel) .map-exit { left:auto; right:12px; bottom:14px; translate:none; }

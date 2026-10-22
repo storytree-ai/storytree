@@ -8,7 +8,9 @@
  *   D3, or archived by its app), at least one such session is known, it is clean with nothing
  *   untracked, its head is already in the main line as this clone last fetched it, it is not locked,
  *   and it holds neither the folder the hook runs in nor a registered hook script. Its branch goes
- *   with it.
+ *   with it. A test Postgres still running on its `.pgtest/data`, left by a run whose harness was
+ *   killed outright, is stopped first; one that has not stopped by the pass's deadline keeps the
+ *   worktree for the next pass.
  * - It is renamed into a trash folder in the git directory first: on Windows that fails while any
  *   process works inside it, which leaves a folder still in use unharmed. Then `git worktree prune`
  *   unregisters it, and the trash is emptied by a detached process with Node's recursive rmSync,
@@ -97,6 +99,7 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
     try {
       if (git(tree.folder, "status", "--porcelain") !== "") continue;
       git(tree.folder, "merge-base", "--is-ancestor", "HEAD", main);
+      if (!(await stopTestServer(tree.folder, deadline))) continue;
       mkdirSync(trash, { recursive: true });
       // Fails while anything works inside it, which is what keeps a folder in use.
       renameSync(tree.folder, path.join(trash, `${path.basename(tree.folder)}-${Date.now()}`));
@@ -162,6 +165,58 @@ async function sweepLeftovers(context: MergeContext, folders: readonly string[],
     }
   }
   return swept;
+}
+
+/**
+ * Stop the test Postgres a run left running on `<folder>/.pgtest/data`, as its postmaster.pid names
+ * it, and say whether none runs there by `deadline`. A pid that is gone, or names a process other
+ * than Postgres, is a stale file: nothing is stopped. Signalled by pid, never through local-postgres,
+ * which this package has only for its tests.
+ */
+async function stopTestServer(folder: string, deadline: number): Promise<boolean> {
+  let pid: number;
+  try {
+    pid = Number(readFileSync(path.join(folder, ".pgtest", "data", "postmaster.pid"), "utf8").split(/\r?\n/)[0]);
+  } catch {
+    return true;
+  }
+  if (!isPostgres(pid)) return true;
+  try {
+    // An immediate shutdown: the cluster is about to be removed, so nothing in it needs saving.
+    if (process.platform === "win32") execFileSync("taskkill", ["/pid", String(pid), "/t", "/f"], { stdio: "ignore", timeout: 3_000, windowsHide: true });
+    else process.kill(pid, "SIGQUIT");
+  } catch {
+    // Not ours to stop, or already gone: whether it lives decides.
+  }
+  while (isAlive(pid)) {
+    if (Date.now() > deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return true;
+}
+
+/** Whether `pid` is a live Postgres process. */
+function isPostgres(pid: number): boolean {
+  if (!isAlive(pid)) return false;
+  try {
+    if (process.platform === "linux") return readFileSync(`/proc/${pid}/comm`, "utf8").includes("postgres");
+    const options = { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 3_000, windowsHide: true } as const;
+    if (process.platform === "win32") return /postgres/i.test(execFileSync("tasklist", ["/fi", `PID eq ${pid}`, "/fo", "csv", "/nh"], options));
+    return /postgres/.test(execFileSync("ps", ["-p", String(pid), "-o", "comm="], options));
+  } catch {
+    return false;
+  }
+}
+
+function isAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // Alive, but not ours to signal.
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
 }
 
 /** The main checkout a porcelain listing names first, unless the repository is bare. */

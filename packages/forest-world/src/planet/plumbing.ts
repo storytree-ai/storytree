@@ -23,7 +23,7 @@ const DEPENDENCY_HALO = '#dacaaa';
 export const PLUMBING_ROAD = '#8fa9a4';
 const PLUMBING_HALO = '#a9c4bf';
 /** The thread plumbing lays down a road a dependency shares, as a fraction of that road's width. */
-const THREAD_SHARE = 0.3;
+const THREAD_SHARE = 0.4;
 
 export interface RoadLook {
   road: string;

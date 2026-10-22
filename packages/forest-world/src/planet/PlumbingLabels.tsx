@@ -21,14 +21,14 @@ export function PlumbingChips({ chips }: { chips: PlumbingLabel['chips'] }) {
   </div>;
 }
 
-/** A label shows once both its islands have risen, as its road does (4.33). */
+/** Under the islands' names (their overlays take 10 to 20): a chip that meets a name never covers it. A label shows once both its islands have risen, as its road does (4.33). */
 function LabelAt({ label }: { label: PlumbingLabel }) {
   const growth = usePlanetGrowth();
   const box = useRef<HTMLDivElement>(null);
   useFrame(() => {
     if (box.current) box.current.style.visibility = growth.island(label.from) >= 1 && growth.island(label.to) >= 1 ? 'visible' : 'hidden';
   });
-  return <Html position={label.point!} center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
+  return <Html position={label.point!} center zIndexRange={[9, 1]} style={{ pointerEvents: 'none' }}>
     <div ref={box} data-plumbing={`${label.from}->${label.to}`}><PlumbingChips chips={label.chips} /></div>
   </Html>;
 }

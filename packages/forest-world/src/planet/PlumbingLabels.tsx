@@ -1,6 +1,6 @@
 /** Capability 4 · The planet. A plumbing road's label (ADR-1085 D3): its kind's words and nothing else, in the DOM at the
  * road's middle, so the text stays text and reads to a screen reader. The files behind each kind are its hover title. */
-import { useMemo, useRef } from 'react';
+import { createElement, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { usePlanetGrowth } from './PlanetGrowth.js';
@@ -14,11 +14,11 @@ const CHIP = {
   background: 'rgba(16, 20, 24, 0.78)', border: '1px solid rgba(143, 169, 164, 0.55)',
 } as const;
 
-/** One chip per kind, stacked, each reading its kind only; the files making it are its title. */
+/** One chip per kind, stacked, each reading its kind only; the files making it are its title. Written with createElement,
+ * not JSX, so a test renders it whichever JSX transform its runner is configured with. */
 export function PlumbingChips({ chips }: { chips: PlumbingLabel['chips'] }) {
-  return <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-    {chips.map(chip => <span key={chip.kind} title={chip.files.join(', ')} style={CHIP}>{chip.kind}</span>)}
-  </div>;
+  return createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 } },
+    chips.map(chip => createElement('span', { key: chip.kind, title: chip.files.join(', '), style: CHIP }, chip.kind)));
 }
 
 /** Under the islands' names (their overlays take 10 to 20): a chip that meets a name never covers it. A label shows once both its islands have risen, as its road does (4.33). */

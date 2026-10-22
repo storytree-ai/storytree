@@ -7,6 +7,7 @@ import { growthProgress, linkKey, roadSegmentWindows, segmentDrawRange, type Gro
 import { usePlanetGrowth } from './PlanetGrowth.js';
 import { advanceLaneClock, entranceShown, laneDrawSeconds, laneEntrances, laneHead, laneHeads, LANE_GLOW, laneProgress, laneRoutes, type HeadRange, type InlandWay, type LitLink } from './lanes.js';
 import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
+import { plumbingSegmentsShown, roadLook } from './plumbing.js';
 
 const ribbonShapes = new WeakMap<BufferGeometry, {
   position: Float32Array; distances: number[]; movedPair: number | undefined;
@@ -143,8 +144,6 @@ export function drawLane(material: ShaderMaterial, progress: number, head: numbe
   material.uniforms.uHead!.value = head;
 }
 
-const ROAD_COLOUR = '#c7bba1';
-
 // Neither the road nor its light can occlude a name, claim marker or island selection ray.
 const ignoreRay = () => {};
 
@@ -174,14 +173,16 @@ export function Pathways({ plan, reveal, live = false, visible = true, routing =
   const meshes = useMemo(() => plan.segments
     .map(route => {
       // Every road is one solid ribbon at its full width, whatever its links (by the owner's direction, 2026-10-11).
-      const geometry = ribbon(route), halo = ribbon(route, true);
+      // Plumbing (ADR-1085 D3) rides its road in its own ink: the whole road where only plumbing uses it, else a thin thread down it.
+      const look = roadLook(route), geometry = ribbon(route), halo = ribbon(route, true);
+      const thread = look.thread === undefined ? undefined : ribbon({ points: route.points, width: look.threadWidth! }, false, 0.04);
       if (live) {
         const window = windows?.get(route.id), drawn = liveRoadProgress(window, state.elapsed, state.reduced);
-        for (const strip of [geometry, halo]) revealRibbon(strip, drawn, window?.fromEnd);
+        for (const strip of [geometry, halo, ...thread ? [thread] : []]) revealRibbon(strip, drawn, window?.fromEnd);
       }
-      return { route, geometry, halo };
+      return { route, look, geometry, halo, thread };
     }), [plan, live]);
-  useEffect(() => () => meshes.forEach(mesh => { mesh.geometry.dispose(); mesh.halo.dispose(); }), [meshes]);
+  useEffect(() => () => meshes.forEach(mesh => { mesh.geometry.dispose(); mesh.halo.dispose(); mesh.thread?.dispose(); }), [meshes]);
   const growth = usePlanetGrowth();
   const { invalidate } = useThree();
   useEffect(() => { if (live || visible) invalidate(); }, [meshes, live, visible, invalidate]);
@@ -198,20 +199,24 @@ export function Pathways({ plan, reveal, live = false, visible = true, routing =
     }
     const now = live ? state.elapsed : growth.now();
     let drawing = false;
-    for (const { route, geometry, halo } of meshes) {
+    // A road only plumbing uses waits for both its islands to rise (4.33).
+    const plumbed = plan.plumbing === undefined ? undefined : plumbingSegmentsShown(plan, growth.island);
+    for (const { route, geometry, halo, thread } of meshes) {
+      const strips = [geometry, halo, ...thread ? [thread] : []];
       const window = windows?.get(route.id);
       // A segment no road schedules keeps painting whole.
       const arrived = live ? liveRoadProgress(window, now, state.reduced) : growthProgress(window, now, false);
       const shownWindow = shownWindows.get(route.id);
       const shown = show.elapsed === undefined ? 1 : liveRoadProgress(shownWindow, show.elapsed, show.reduced);
-      const drawn = Math.min(arrived, shown);
+      const waits = route.links.length === 0 && plumbed?.get(route.id) === false;
+      const drawn = waits ? 0 : Math.min(arrived, shown);
       if (live || show.elapsed !== undefined) {
         const fromEnd = window?.fromEnd ?? shownWindow?.fromEnd;
-        for (const strip of [geometry, halo]) revealRibbon(strip, drawn, fromEnd);
+        for (const strip of strips) revealRibbon(strip, drawn, fromEnd);
         drawing ||= shown < 1 || (live && arrived < 1);
       } else {
         const range = segmentDrawRange((geometry.index?.count ?? 0) / 6, drawn, window?.fromEnd ?? false);
-        for (const strip of [geometry, halo]) strip.setDrawRange(range.start, range.count);
+        for (const strip of strips) strip.setDrawRange(range.start, range.count);
       }
     }
     // Run the clock until every arrival's own time ends, not only until its spans draw whole (4.16).
@@ -220,14 +225,18 @@ export function Pathways({ plan, reveal, live = false, visible = true, routing =
   });
   return <group name="pathways:cross-island" userData={{
     links: plan.edges.map(edge => ({ from: edge.from, to: edge.to })),
+    plumbing: (plan.plumbing ?? []).map(road => ({ from: road.from, to: road.to, kind: road.kind })),
     segmentCount: plan.segments.length,
-  }}>{meshes.map(({ route, geometry, halo }) => <group key={route.id}>
+  }}>{meshes.map(({ route, look, geometry, halo, thread }) => <group key={route.id}>
     <mesh name={`pathway:${route.id}`} geometry={geometry} raycast={ignoreRay}
-      userData={{ links: route.links, widthGround: route.width, unrouted: route.unrouted, ...route.typeOnlyLinks ? { typeOnlyLinks: route.typeOnlyLinks } : {} }}>
-      <meshBasicMaterial color={ROAD_COLOUR} side={DoubleSide} />
+      userData={{ links: route.links, widthGround: route.width, unrouted: route.unrouted, ...route.typeOnlyLinks ? { typeOnlyLinks: route.typeOnlyLinks } : {}, ...route.plumbing ? { plumbing: route.plumbing } : {} }}>
+      <meshBasicMaterial color={look.road} side={DoubleSide} />
     </mesh>
+    {thread && look.thread && <mesh name={`pathway-plumbing:${route.id}`} geometry={thread} raycast={ignoreRay}>
+      <meshBasicMaterial color={look.thread} side={DoubleSide} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
+    </mesh>}
     <mesh name={`pathway-halo:${route.id}`} geometry={halo} raycast={ignoreRay}>
-      <meshBasicMaterial color="#dacaaa" transparent opacity={0.10} depthWrite={false} side={DoubleSide} forceSinglePass />
+      <meshBasicMaterial color={look.halo} transparent opacity={0.10} depthWrite={false} side={DoubleSide} forceSinglePass />
     </mesh>
   </group>)}</group>;
 }

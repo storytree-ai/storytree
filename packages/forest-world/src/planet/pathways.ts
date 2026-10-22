@@ -1,6 +1,6 @@
 /** Capability 4 · The planet. Capability trails over the glass between tangent islands, dock to dock (forest contracts 3.6–3.7).
  * The existing cost-grid router owns routing, merging and width; this adapter only changes spaces. */
-import type { ForestScene, Island } from '../scene.js';
+import type { ForestScene, Island, PlumbingKind } from '../scene.js';
 import { Quaternion, Vector3 } from 'three';
 import { clipToCoast, rimLoops, SHIPPED_COAST, type CoastPoint } from '../coast-clip.js';
 import { routeTrails, trailFillWidth, type TrailEdgeIn, type TrailEdgeOut, type TrailIsland, type TrailNetwork, type TrailSegment, type TrailTuning } from '../core/routing.js';
@@ -9,6 +9,7 @@ import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
 import type { Descriptor3D, InstanceDescriptor } from '../descriptors.js';
 import { onIslandSurface } from './island-surface.js';
 import { plateTransform, type PlanetSpot } from './planet.js';
+import { PLUMBING_KINDS, plumbingKey, type PlanetPlumbing } from './plumbing.js';
 
 export interface PlanetPathwayPlate {
   descriptors: Descriptor3D[];
@@ -28,6 +29,9 @@ export interface PlanetPathwaySegment {
    * run on the chart from where the router ends it to its dock on the coast, or a gap the globe filled in along its
    * surface. */
   unrouted?: number;
+  /** The kinds of plumbing call (ADR-1085 D3) that ride this road too, in the one order; absent for none. They are not
+   * links: a road only plumbing uses has none, and is narrower than a one-link road. */
+  plumbing?: PlumbingKind[];
 }
 
 export interface PlanetPathways {
@@ -36,6 +40,8 @@ export interface PlanetPathways {
   /** Each with `typeOnly` when only the code's types join its two capabilities. */
   edges: (TrailEdgeOut & { typeOnly?: true })[];
   docks: { story: string; point: Vector3; local: CoastPoint; links: string[] }[];
+  /** One road per plumbing call between islands, by story and kind, from its `from` island to its `to`: never an edge. */
+  plumbing?: PlanetPlumbing[];
 }
 
 interface Point { x: number; y: number }
@@ -251,15 +257,16 @@ function chartPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot
     return { ...edge, source, target };
   });
   const cross = links.filter(link => link.source !== link.target);
-  const pairs = [...new Map(cross.map(link => {
-    const pair = { from: link.source, to: link.target };
-    return [keyOf(pair), pair];
-  })).values()];
-  const maxWidth = trailFillWidth(cross.length) * RIBBON_GROUND_SCALE;
+  // A plumbing call joins two islands, by story; one naming a story with no island, or the same one twice, is left out.
+  const plumbing = [...new Map((scene.plumbing ?? []).filter(call => grounds.has(call.from) && grounds.has(call.to) && call.from !== call.to)
+    .map(call => [plumbingKey(call), call])).values()];
+  const pairs = [...new Map([...cross.map(link => ({ from: link.source, to: link.target })), ...plumbing.map(call => ({ from: call.from, to: call.to }))]
+    .map(pair => [keyOf(pair), pair])).values()];
+  const maxWidth = trailFillWidth(cross.length + plumbing.length) * RIBBON_GROUND_SCALE;
   const nodes = [...grounds.values()].map(g => ({ id: g.id, ...g.centre, r: g.r, outline: g.chartRings.map(ring => ring.map(({ x, y }) => ({ x, y }))) }));
   const routing: CrossRouting = { islands: nodes, edges: pairs, seed: 'globe-pathways-real-seed',
     tuning: { cellSize: 2, clearance: maxWidth / 2 + 1, falloff: maxWidth, meanderAmp: 0.4 } };
-  return { grounds, cross, chart, sphere, routing, key: JSON.stringify([nodes, pairs, maxWidth]) };
+  return { grounds, cross, plumbing, chart, sphere, routing, key: JSON.stringify([nodes, pairs, maxWidth]) };
 }
 
 /** One ordered chain per recorded capability edge between islands, from dock to dock; a link within an island has
@@ -267,7 +274,7 @@ function chartPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot
  * (`chartPole`). */
 export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<string, PlanetSpot>, radius: number, route: typeof routeTrails = routeTrails): PlanetPathways {
   const plan: PlanetPathways = { plates: new Map(), segments: [], edges: [], docks: [] };
-  const { grounds, cross, chart, sphere, routing, key: crossKey } = chartPathways(scene, spots, radius);
+  const { grounds, cross, plumbing, chart, sphere, routing, key: crossKey } = chartPathways(scene, spots, radius);
   const network = crossRoutes?.key === crossKey ? crossRoutes.network
     : route(routing.islands, routing.edges, routing.seed, routing.tuning);
   // A drawing with no roads between islands leaves the last routing kept.
@@ -340,6 +347,17 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     plan.edges.push({ from: link.from, to: link.to, segments: refPrefix('cross:', edge), ...link.typeOnly ? { typeOnly: true as const } : {} });
   }
   const segmentById = new Map(plan.segments.map(segment => [segment.id, segment]));
+  if (plumbing.length > 0) plan.plumbing = plumbing.map(call => {
+    const edge = crossEdges.get(keyOf(call));
+    if (!edge) throw new Error(`Missing cross-island route for plumbing ${plumbingKey(call)}`);
+    const segments = refPrefix('cross:', edge);
+    for (const ref of segments) {
+      const segment = segmentById.get(ref.id);
+      if (!segment) throw new Error(`Missing pathway segment ${ref.id}`);
+      segment.plumbing = PLUMBING_KINDS.filter(kind => kind === call.kind || segment.plumbing?.includes(kind));
+    }
+    return { from: call.from, to: call.to, kind: call.kind, files: call.files, segments };
+  });
   const typeOnly = new Set(plan.edges.filter(edge => edge.typeOnly).map(displayKey));
   for (const edge of plan.edges) for (const ref of edge.segments) {
     const segment = segmentById.get(ref.id);
@@ -347,7 +365,7 @@ export function buildPlanetPathways(scene: ForestScene, spots: ReadonlyMap<strin
     if (!segment.links.includes(displayKey(edge))) segment.links.push(displayKey(edge));
   }
   for (const segment of plan.segments) {
-    if (segment.links.length === 0) throw new Error(`Orphan pathway segment ${segment.id}`);
+    if (segment.links.length === 0 && !segment.plumbing) throw new Error(`Orphan pathway segment ${segment.id}`);
     segment.links.sort();
     const typed = segment.links.filter(link => typeOnly.has(link)).length;
     if (typed > 0) segment.typeOnlyLinks = typed;
@@ -364,7 +382,7 @@ export function planetPathwayDrawing(scene: ForestScene, spots: ReadonlyMap<stri
     return { plan: buildPlanetPathways({ ...scene, links: kept }, spots, radius, route), issue: leftOut };
   } catch (error) {
     return {
-      plan: buildPlanetPathways({ ...scene, links: [] }, spots, radius),
+      plan: buildPlanetPathways({ ...scene, links: [], plumbing: [] }, spots, radius),
       issue: [error instanceof Error ? error.message : String(error), leftOut].filter(Boolean).join('; '),
     };
   }

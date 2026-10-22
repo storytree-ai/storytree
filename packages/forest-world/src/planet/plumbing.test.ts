@@ -4,11 +4,11 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Vector3 } from 'three';
 import type { ForestScene, Island, Plumbing } from '../scene.js';
-import { buildPlanetPathways, growthPlan, laneRoutes, planetPathwayDrawing, roadSegmentWindows, trailFillWidth } from '../geometry.js';
+import { buildPlanetPathways, growthPlan, laneRoutes, planetPathwayDrawing, trailFillWidth } from '../geometry.js';
 import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
 import { drawnAtOnce, routedDrawing, type RoadRouter } from './road-routing.js';
 import { answerRouting } from './road-worker.js';
-import { plumbingKey, plumbingLabels, roadLook } from './plumbing.js';
+import { plumbingKey, plumbingLabels, plumbingSegmentsShown, roadLook } from './plumbing.js';
 import { PlumbingChips } from './PlumbingLabels.js';
 
 const R = 218;
@@ -84,7 +84,7 @@ test('4.31 each plumbing road is labelled at its middle with its kind\'s words o
 test('4.32 a plumbing road reads as a different kind of road from a dependency: its own ink alone, or a thin thread down a dependency\'s road', () => {
   const scene: ForestScene = { islands, links: [{ from: 'b1', to: 'a1' }], plumbing: [call('b', 'a', 'build step'), call('a', 'c', 'cleanup')] };
   const plan = buildPlanetPathways(scene, spots, R);
-  const plain = roadLook({ id: 'x', points: [], width: 3, links: ['b1->a1'] });
+  const plain = roadLook({ width: 3, links: ['b1->a1'] });
   const alone = plan.segments.filter(s => s.links.length === 0), shared = plan.segments.filter(s => s.links.length > 0 && (s.plumbing ?? []).length > 0);
   assert.ok(alone.length > 0 && shared.length > 0, 'the plan has both a plumbing-only road and a shared one');
   assert.equal(plain.thread, undefined);
@@ -102,23 +102,20 @@ test('4.32 a plumbing road reads as a different kind of road from a dependency: 
   }
 });
 
-test('4.33 in a recorded growth a plumbing road draws on once both its islands stand, and moves no island\'s rise', () => {
-  const before: ForestScene = { islands: [island('a', ['a1']), island('b', ['b1'])], links: [] };
-  const after = (plumbing: Plumbing[]): ForestScene => ({ islands: [island('a', ['a1']), island('b', ['b1']), island('c', ['c1'])], links: [], plumbing });
-  const stages = (plumbing: Plumbing[]) => [{ id: 'one', scene: before }, { id: 'two', scene: after(plumbing) }];
-  const calls = [call('a', 'b', 'build step'), call('c', 'a', 'cleanup')];
-  const plan = growthPlan(stages(calls)), bare = growthPlan(stages([]));
-  assert.deepEqual([...plan.roads.keys()].sort(), calls.map(plumbingKey).sort());
-  assert.deepEqual([...plan.islands], [...bare.islands], 'an island rises as it would with no plumbing');
-  const end = (w: { start: number; seconds: number }) => w.start + w.seconds;
-  assert.ok(plan.roads.get(plumbingKey(calls[0]!))!.start >= plan.stages[1]!.start, 'a road between standing islands waits for its stage');
-  assert.ok(plan.roads.get(plumbingKey(calls[1]!))!.start >= end(plan.islands.get('c')!), 'a road to a rising island waits for it');
-  assert.ok(plan.seconds >= end(plan.roads.get(plumbingKey(calls[1]!))!), 'the growth lasts until it is drawn');
-  const pathways = buildPlanetPathways(after(calls), spots, R);
-  const windows = roadSegmentWindows(pathways, plan.roads);
-  for (const segment of pathways.segments) assert.ok(windows.has(segment.id), `${segment.id} draws on in its window`);
-  const orphan = growthPlan([{ id: 'x', scene: after([call('a', 'zzz', 'cleanup')]) }]);
-  assert.equal(orphan.roads.size, 0, 'a call to a story that is not recorded is not scheduled');
+test('4.33 in a recorded growth a plumbing road shows once both its islands have risen, never before, and moves no island rise', () => {
+  const scene: ForestScene = { islands, links: [], plumbing: [call('a', 'b', 'build step'), call('a', 'c', 'cleanup')] };
+  const plan = buildPlanetPathways(scene, spots, R);
+  const rising = (progress: Record<string, number>) => (story: string) => progress[story] ?? 1;
+  const roadOf = (to: string) => plan.plumbing!.find(p => p.to === to)!.segments.map(ref => ref.id);
+  const shown = (progress: Record<string, number>) => plumbingSegmentsShown(plan, rising(progress));
+  assert.ok(roadOf('b').every(id => shown({ a: 1, b: 0.4, c: 0 }).get(id) === false), 'hidden while its far island rises');
+  assert.ok(roadOf('b').every(id => shown({ a: 0.2, b: 1, c: 0 }).get(id) === false), 'hidden while its near island rises');
+  assert.ok(roadOf('b').every(id => shown({ a: 1, b: 1, c: 0 }).get(id) === true), 'shown once both stand, whatever another island does');
+  assert.ok(roadOf('c').some(id => shown({ a: 1, b: 1, c: 0 }).get(id) === false), 'a road to a rising island is hidden where it is its own');
+  assert.ok(plan.segments.every(s => shown({}).get(s.id) === true), 'whole once every island is');
+  const stages = (calls: readonly Plumbing[]) => [{ id: 'one', scene: { islands, links: [], plumbing: calls } }];
+  assert.deepEqual([...growthPlan(stages(scene.plumbing!)).islands], [...growthPlan(stages([])).islands], 'an island rises as it would with no plumbing');
+  assert.equal(growthPlan(stages(scene.plumbing!)).roads.size, 0, 'the growth schedules no plumbing road: it is no dependency');
 });
 
 test('4.34 a layout whose roads are only plumbing is routed and kept like any other: asked of the router, drawn at once when nothing moved, kept on show while a moved layout is routed', async () => {

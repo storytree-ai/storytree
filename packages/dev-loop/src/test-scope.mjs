@@ -6,7 +6,11 @@
 // (packages/*, apps/*) that holds it. Every package that depends on one of those is added, all the
 // way up: by a dependency its package.json declares, or by a relative path in its code that reaches
 // into the other package (app-setup builds cli's bin by path, and cli depends on app-setup, not
-// the other way round), since neither kind of edge would be seen by the other alone.
+// the other way round), since neither kind of edge would be seen by the other alone. An evidence
+// script (a file under a folder named evidence/) draws no path edge unless something can run it:
+// another source file names it or its folder (a test's `evidence/*/build.mjs` glob, a smoke run of
+// its capture script), or a script so reached imports it. A capture nothing runs reaching into
+// another package by path is not that package's test (increment_71258a385822).
 //
 // It fails WIDE: whatever the workspace graph cannot account for runs everything. That is a root
 // file (README.md, stories/, decisions/, tsconfig.base.json, .github/, ...), any package.json (the
@@ -27,7 +31,8 @@ import path from "node:path";
 const WORKSPACE_ROOTS = ["packages", "apps"];
 const INFRA = "infra";
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
-const RELATIVE_PATH = /["'`]((?:\.\.\/)+[^"'`$\r\n]*)["'`]/g;
+const RELATIVE_PATH = /["'`](\.{1,2}\/[^"'`$\r\n]*)["'`]/g;
+const PATH_TOKEN = /[\w.*-]+(?:\/[\w.*-]+)*\/?/g;
 
 /**
  * Checks that a change inside any one package can fail, so every scoped run carries them as units
@@ -58,10 +63,9 @@ export function readWorkspace(root) {
     }
   }
   const names = new Set(packages.map((p) => p.name));
-  for (const pkg of packages) {
-    pkg.deps = pkg.deps.filter((name) => names.has(name));
-    pkg.reaches = reachesOf(root, pkg, packages);
-  }
+  for (const pkg of packages) pkg.deps = pkg.deps.filter((name) => names.has(name));
+  const reaching = reachingPaths(root, packages);
+  for (const pkg of packages) pkg.reaches = reachesOf(pkg, packages, reaching);
   packages.sort((a, b) => (a.dir < b.dir ? -1 : 1));
   packages.rootDeps = dependencyNames(readManifest(path.join(root, "package.json")) ?? {}).filter((n) => names.has(n));
   return packages;
@@ -79,21 +83,80 @@ function dependencyNames(manifest) {
   return Object.keys({ ...manifest.dependencies, ...manifest.devDependencies, ...manifest.peerDependencies });
 }
 
-/** The other packages' dirs that a relative path written in this package's code resolves into. */
-function reachesOf(root, pkg, packages) {
-  const reached = new Set();
-  const files = globSync("**/*", { cwd: path.join(root, pkg.dir), exclude: (name) => ["node_modules", "dist"].includes(path.basename(String(name))) });
-  for (const file of files) {
-    if (!SOURCE.test(file)) continue;
-    let text;
-    try {
-      text = readFileSync(path.join(root, pkg.dir, file), "utf8");
-    } catch {
-      continue; // a directory whose name looks like a source file
+/**
+ * Every source file whose relative paths can reach another file when something runs: its repo-relative
+ * path and the repo paths those relative paths resolve to. An evidence script is left out unless a
+ * file outside evidence/ names it or its folder, or a script kept imports it.
+ */
+function reachingPaths(root, packages) {
+  const sources = [];
+  for (const pkg of packages) {
+    const files = globSync("**/*", { cwd: path.join(root, pkg.dir), exclude: (name) => ["node_modules", "dist"].includes(path.basename(String(name))) });
+    for (const file of files) {
+      if (!SOURCE.test(file)) continue;
+      let text;
+      try {
+        text = readFileSync(path.join(root, pkg.dir, file), "utf8");
+      } catch {
+        continue; // a directory whose name looks like a source file
+      }
+      const at = `${pkg.dir}/${file.split(path.sep).join("/")}`;
+      const from = path.posix.dirname(at);
+      const targets = [...text.matchAll(RELATIVE_PATH)].map(([, relative]) => path.posix.normalize(path.posix.join(from, relative)));
+      sources.push({ at, targets, evidence: at.split("/").includes("evidence"), text });
     }
-    const from = path.posix.dirname(`${pkg.dir}/${file.split(path.sep).join("/")}`);
-    for (const [, relative] of text.matchAll(RELATIVE_PATH)) {
-      const target = path.posix.normalize(path.posix.join(from, relative));
+  }
+  const named = new Set();
+  const folders = new Set();
+  const globs = new Set();
+  for (const source of sources) {
+    if (source.evidence) continue;
+    for (const [token] of source.text.replace(/\$\{[^}]*\}/g, "*").matchAll(PATH_TOKEN)) {
+      const at = token.lastIndexOf("evidence/");
+      const tail = (at === 0 || token[at - 1] === "/" ? token.slice(at + "evidence/".length) : token.replace(/^(?:\.\.?\/)+/, "")).replace(/\/$/, "");
+      if (!tail) continue;
+      if (!tail.includes("*")) {
+        if (at >= 0) folders.add(tail);
+      } else if (at >= 0 || SOURCE.test(tail.split("/").at(-1).replace(/\*/g, ""))) {
+        globs.add(tail); // a glob ending in a file's name, never a comment's bare **
+      }
+      named.add(tail);
+    }
+  }
+  const bare = (file) => file.replace(SOURCE, "");
+  const kept = new Set();
+  const pending = [];
+  const keep = (source) => {
+    if (kept.has(source)) return;
+    kept.add(source);
+    pending.push(source);
+  };
+  for (const source of sources) {
+    if (!source.evidence) {
+      keep(source);
+      continue;
+    }
+    const parts = source.at.split("/");
+    const tail = parts.slice(parts.lastIndexOf("evidence") + 1);
+    const dirs = tail.slice(0, -1).map((_, at) => tail.slice(0, at + 1).join("/"));
+    if (named.has(tail.join("/")) || dirs.some((dir) => folders.has(dir)) || [...globs].some((glob) => path.posix.matchesGlob(tail.join("/"), glob))) keep(source);
+  }
+  const evidenceByPath = new Map(sources.filter((s) => s.evidence).map((s) => [bare(s.at), s]));
+  while (pending.length > 0) {
+    for (const target of pending.pop().targets) {
+      const imported = evidenceByPath.get(bare(target));
+      if (imported) keep(imported);
+    }
+  }
+  return [...kept].map(({ at, targets }) => ({ at, targets }));
+}
+
+/** The other packages' dirs that a relative path written in this package's code resolves into. */
+function reachesOf(pkg, packages, reaching) {
+  const reached = new Set();
+  for (const { at, targets } of reaching) {
+    if (!at.startsWith(`${pkg.dir}/`)) continue;
+    for (const target of targets) {
       const owner = packages.find((p) => p !== pkg && (target === p.dir || target.startsWith(`${p.dir}/`)));
       if (owner) reached.add(owner.dir);
     }

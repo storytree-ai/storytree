@@ -420,6 +420,32 @@ test("8.31 an edge file whose source declares nothing of its own, imports nothin
   }
 });
 
+test("8.33 an edge file the checkout's storytree.check.json declares as a build step or a cleanup, by its path and the package it reaches, is marked with that kind", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-plumbing-"));
+  const stories = { arcs: [], stories: [{ id: "story-shop", title: "Shop", capabilities: [] }, ...tillAndBankStories] } as unknown as AnnotatedTree;
+  try {
+    await writePackages(folder, {
+      ...tillAndBank,
+      shop: {
+        "package.json": JSON.stringify({ name: "@x/shop" }),
+        "src/build.ts": 'import { price } from "@x/till";\nimport { vault } from "@x/bank";\nexport const built = price + vault;\n',
+        "src/remove.ts": 'import { vault } from "@x/bank";\nexport const removed = vault;\n',
+        "src/sell.ts": 'import { price } from "@x/till";\nexport const sold = price;\n',
+      },
+    });
+    await writeFile(path.join(folder, "storytree.check.json"), JSON.stringify({ placement: { plumbing: [
+      // Declared by the file and the package it reaches, so build.ts's import of the bank stays unmarked.
+      { from: "packages/shop/src/build.ts", to: "till", kind: "build step", said: "test", on: "2026-10-22" },
+      { from: "packages/shop/src/remove.ts", to: "bank", kind: "cleanup", said: "test", on: "2026-10-22" },
+    ] } }));
+    const survey = await codeSurveyReader().read(folder, stories);
+    const marks = (survey["story-shop"]?.edges ?? []).flatMap((edge) => edge.files.map((file) => `${file.from} > ${edge.story} ${file.plumbing ?? "-"}`));
+    assert.deepEqual([...new Set(marks)].sort(), ["src/build.ts > story-bank -", "src/build.ts > story-till build step", "src/remove.ts > story-bank cleanup", "src/sell.ts > story-till -"]);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 test("8.9 the app survey includes desktop source and resolves its imports as the same story", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-desktop-"));
   const app = { arcs: [], stories: [{ id: "app", title: "The app", capabilities: [{ id: "projects", title: "2 · Projects" }] }] } as unknown as AnnotatedTree;

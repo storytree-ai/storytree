@@ -75,3 +75,24 @@ test("3.18 a surveyed island's land carries its package and the imports between 
   assert.equal(land.package, "visitor-can-log-in");
   assert.deepEqual(land.imports, [{ from: "src/b.ts", to: "src/a.ts" }]);
 });
+
+test("3.67 each plumbing call the survey marks between two stories is one island-to-island entry per kind, with its files, and adds no road", () => {
+  const { tree, history } = project();
+  const file = (from: string, extra: object = {}) => ({ from, typeOnly: false, ...extra });
+  const survey = {
+    story_1: { files: [], imports: [], edges: [
+      // Two build-step files to one story make one entry; an unmarked import from the same file is no plumbing.
+      { story: "story_2", typeOnly: false, files: [file("src/build.ts", { plumbing: "build step" }), file("src/run.ts", { plumbing: "build step" }), file("src/sell.ts")] },
+      { story: "story_2", from: "cap_1a", to: "cap_2a", typeOnly: false, files: [file("src/old.ts", { forwarder: true })] },
+      { story: "story_3", typeOnly: false, files: [file("src/remove.ts", { plumbing: "cleanup" })] },
+    ] },
+  };
+  const scene = forestScene(tree, history, workStates([]), survey);
+  assert.deepEqual(scene.plumbing, [
+    { from: "story_1", to: "story_2", kind: "build step", files: ["src/build.ts", "src/run.ts"] },
+    { from: "story_1", to: "story_2", kind: "forwarder", files: ["src/old.ts"] },
+    { from: "story_1", to: "story_3", kind: "cleanup", files: ["src/remove.ts"] },
+  ]);
+  // Only the capability edge is a road; the plumbing entries ride beside the links, not in them.
+  assert.deepEqual(scene.links, [{ from: "cap_1a", to: "cap_2a" }]);
+});

@@ -70,7 +70,7 @@ test("6.98 with a factory folder chosen and a factory plugin named to stand in f
   t.after(() => rmSync(folder, { recursive: true, force: true }));
   const plugin = path.join(folder, "factory", "plugins", "my-health");
   mkdirSync(plugin, { recursive: true });
-  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-health", type: "module", exports: { "./verbs": "./verbs.js" }, storytree: { verbs: [{ from: "./verbs", export: "families" }] } }));
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-health", type: "module", exports: { "./verbs": "./verbs.js" }, storytree: { interface: 1, verbs: [{ from: "./verbs", export: "families" }] } }));
   writeFileSync(path.join(plugin, "verbs.js"), `const check = {
   command: { family: "health", name: "check", summary: "my own health check" },
   tool: { name: "my_health_check", description: "my own health check" },

@@ -178,7 +178,7 @@ function healthPlugin(dir: string): string {
   const folder = path.join(dir, "factory");
   const plugin = path.join(folder, "plugins", "my-health");
   mkdirSync(plugin, { recursive: true });
-  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-health", type: "module", exports: { "./verbs": "./verbs.js" }, storytree: { verbs: [{ from: "./verbs", export: "families" }] } }));
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-health", type: "module", exports: { "./verbs": "./verbs.js" }, storytree: { interface: 1, verbs: [{ from: "./verbs", export: "families" }] } }));
   writeFileSync(path.join(plugin, "verbs.js"), `const check = {
   consumers: ["agent", "user"],
   command: { family: "health", name: "check", summary: "my own health check" },

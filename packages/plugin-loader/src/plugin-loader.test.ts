@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
 
-import { composeParts, mount, offSaid, partsPlugin, standIn, storyParts } from "./index.js";
+import { composeParts, mount, offSaid, partsPlugin, PLUGIN_INTERFACE, standIn, storyParts } from "./index.js";
 
 /** The loader's own entry, as a fixture host's composing module imports it (the fixture installs no loader of its own). */
 const LOADER = JSON.stringify(new URL("./index.ts", import.meta.url).href);
@@ -152,7 +152,7 @@ const builtIn = {
   graph: { "ci-health": ["library"], forest: ["library"], library: [] },
 };
 
-const verbsPlugin = { exports: { "./verbs": "./verbs.js" }, manifest: { verbs: [{ from: "./verbs", export: "verbs" }] }, files: { "verbs.js": `export const verbs = ["my-health"];\n` } };
+const verbsPlugin = { exports: { "./verbs": "./verbs.js" }, manifest: { interface: PLUGIN_INTERFACE, verbs: [{ from: "./verbs", export: "verbs" }] }, files: { "verbs.js": `export const verbs = ["my-health"];\n` } };
 
 test("5.1 a factory plugin named to stand in for a part is loaded from the factory folder and mounted where the part's declarations were while that part is switched off, and not at all once it is on; a kind it does not name adds nothing", (t) => {
   const folder = factory(t, { "my-health": verbsPlugin });
@@ -165,7 +165,7 @@ test("5.1 a factory plugin named to stand in for a part is loaded from the facto
 test("5.2 a stand-in that cannot be loaded (no factory folder, no such plugin, no manifest, an unexported module, no list) leaves its part off, said with why, and the host still mounts the rest", (t) => {
   const folder = factory(t, {
     bare: {},
-    unexported: { manifest: { verbs: [{ from: "./verbs", export: "verbs" }] } },
+    unexported: { manifest: { interface: PLUGIN_INTERFACE, verbs: [{ from: "./verbs", export: "verbs" }] } },
     "not-a-list": { ...verbsPlugin, files: { "verbs.js": `export const verbs = "my-health";\n` } },
   });
   for (const [where, plugin, why] of [
@@ -180,5 +180,23 @@ test("5.2 a stand-in that cannot be loaded (no factory folder, no such plugin, n
     assert.equal(result.off[0]!.part, "ci-health");
     assert.match(result.off[0]!.failed ?? "", why);
     assert.match(offSaid(result.off[0]!), new RegExp(`stand-in ${plugin} could not be loaded`));
+  }
+});
+
+test("5.3 a factory plugin's manifest names the version of storytree's plugin interface it was written for: one this host honours is mounted, and one naming another version, or none, is left unmounted with its part off, said with the version it named and the one this host honours", (t) => {
+  const folder = factory(t, {
+    "my-health": verbsPlugin,
+    later: { ...verbsPlugin, manifest: { ...verbsPlugin.manifest, interface: PLUGIN_INTERFACE + 1 } },
+    unversioned: { ...verbsPlugin, manifest: { verbs: verbsPlugin.manifest.verbs } },
+  });
+  assert.deepEqual(mount(standIn(builtIn, "verbs", { folder, plugins: { "ci-health": "my-health" } }), ["ci-health"]).mounted, ["my-health", "globe"]);
+  for (const [plugin, why] of [
+    ["later", new RegExp(`written for storytree's plugin interface ${PLUGIN_INTERFACE + 1}; this storytree honours interface ${PLUGIN_INTERFACE}`)],
+    ["unversioned", new RegExp(`names no plugin interface version; this storytree honours interface ${PLUGIN_INTERFACE}`)],
+  ] as const) {
+    const result = mount(standIn(builtIn, "verbs", { folder, plugins: { "ci-health": plugin } }), ["ci-health"]);
+    assert.deepEqual(result.mounted, ["globe"]);
+    assert.match(offSaid(result.off[0]!), new RegExp(`stand-in ${plugin} could not be loaded`));
+    assert.match(result.off[0]!.failed ?? "", why);
   }
 });

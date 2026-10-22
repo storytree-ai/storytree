@@ -1,6 +1,6 @@
 /** Capability 2 · Settings, contract 2.17: a part of the host switched off and on, and the parts `settings show` lists. */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -8,6 +8,7 @@ import { VerbRefusal } from "@storytree/library/verbs";
 
 import { withTempDir } from "../testing/folders.js";
 import { partsSaid, switchedSaid, switchPart } from "./parts.js";
+import { readStandIns, setFactory } from "./settings.js";
 
 /** A host's parts: the core, and forest with arc-surface standing on it. */
 const parts = ["arc-surface", "forest", "library", "project-and-caller"];
@@ -37,5 +38,26 @@ test("2.17 `settings set part <part> off` switches a part of the host off and `o
     }
     assert.throws(() => switchPart("forest", "maybe", parts, home), (error: unknown) => error instanceof VerbRefusal && error.misuse === true);
     assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { "parts-off": [] }, "a refused switch saves nothing");
+  });
+});
+
+test("2.20 `settings set factory <folder>` chooses this computer's factory folder, an existing folder, saved as its full path; `settings set part <part> plugin <plugin>` switches the part off and names the factory plugin standing in for it, which readStandIns reads with the folder and `settings show` lists; `on` switches it back on and drops the stand-in, and a plugin with no name is refused, saving nothing", async () => {
+  await withTempDir((home) => {
+    const file = path.join(home, "settings.json");
+    assert.deepEqual(readStandIns(home), { plugins: {} });
+    assert.throws(() => setFactory(path.join(home, "no-such"), home), /no folder/);
+    mkdirSync(path.join(home, "factory"));
+    assert.equal(setFactory(path.join(home, "factory", "."), home), path.join(home, "factory"));
+
+    assert.deepEqual(switchPart("forest", "plugin", parts, home, "my-forest"), ["forest"]);
+    assert.deepEqual(readStandIns(home), { folder: path.join(home, "factory"), plugins: { forest: "my-forest" } });
+    const standIns = readStandIns(home).plugins;
+    assert.match(switchedSaid(new Map([["forest", "forest"]]), standIns), /forest \(my-forest stands in for it\)/);
+    assert.match(partsSaid(parts, new Map([["forest", "forest"]]), standIns), /^  forest: off, my-forest stands in for it$/m);
+
+    assert.throws(() => switchPart("forest", "plugin", parts, home), /names the plugin/);
+    assert.deepEqual(switchPart("forest", "on", parts, home), []);
+    assert.deepEqual(readStandIns(home).plugins, {});
+    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { factory: path.join(home, "factory"), "parts-off": [], "stand-ins": {} });
   });
 });

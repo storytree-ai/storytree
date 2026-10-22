@@ -14,12 +14,18 @@ export interface Composition<Part> {
   readonly parts: readonly Part[];
   readonly owners: readonly string[];
   readonly graph: PartsGraph;
+  /** Each factory plugin among the owners, with the part it stands in for (capability 5): mounted only while that part is off. */
+  readonly standsIn?: Readonly<Record<string, string>>;
+  /** Each part whose named stand-in could not be loaded, with why. */
+  readonly failed?: Readonly<Record<string, string>>;
 }
 
 /** A part switched off, and the part named off it is off because of: itself, or one it stands on. */
 export interface SwitchedOff {
   readonly part: string;
   readonly because: string;
+  /** Why the factory plugin named to stand in for it could not be loaded, when one was named and failed. */
+  readonly failed?: string;
 }
 
 /** The core, which is never switched off: the loader ignores it when the setting names it (the switch refuses it). */
@@ -50,17 +56,27 @@ export function switchedOff(graph: PartsGraph, off: readonly string[]): Readonly
   return found;
 }
 
-/** The declarations of `composition` a host mounts when `off` names parts off, and each part it left out with why. */
+/**
+ * The declarations of `composition` a host mounts when `off` names parts off, and each part it left out with why: a
+ * factory plugin's stand in for its part only while that part is off.
+ */
 export function mount<Part>(composition: Composition<Part>, off: readonly string[]): { mounted: Part[]; off: SwitchedOff[] } {
   const switched = switchedOff(composition.graph, off);
+  const standsIn = composition.standsIn ?? {};
+  const failed = composition.failed ?? {};
   return {
-    mounted: composition.parts.filter((_, index) => !switched.has(composition.owners[index]!)),
-    off: [...switched].map(([part, because]) => ({ part, because })).sort((a, b) => a.part.localeCompare(b.part)),
+    mounted: composition.parts.filter((_, index) => {
+      const owner = composition.owners[index]!;
+      return Object.hasOwn(standsIn, owner) ? switched.has(standsIn[owner]!) : !switched.has(owner);
+    }),
+    off: [...switched].map(([part, because]) => ({ part, because, ...(Object.hasOwn(failed, part) ? { failed: failed[part]! } : {}) }))
+      .sort((a, b) => a.part.localeCompare(b.part)),
   };
 }
 
 /** What a host says when something a switched-off part adds is asked for: that it is off, why, and how to switch it on. */
-export function offSaid({ part, because }: SwitchedOff): string {
+export function offSaid({ part, because, failed }: SwitchedOff): string {
   const why = because === part ? "" : ` because ${because}, which it stands on, is off`;
-  return `${part} is switched off on this computer${why}. Switch it on with: storytree settings set part ${because} on`;
+  const standIn = failed === undefined ? "" : `, and ${failed}`;
+  return `${part} is switched off on this computer${why}${standIn}. Switch it on with: storytree settings set part ${because} on`;
 }

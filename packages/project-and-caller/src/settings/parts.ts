@@ -12,31 +12,37 @@ import { CORE, setPartOff } from "./settings.js";
 export type PartsSwitched = ReadonlyMap<string, string>;
 
 /**
- * Switch `part` of a host whose parts are `parts` on or off for this computer, and return the parts now named off. A
- * state but on or off, the core, and a part the host lacks are refused, saving nothing.
+ * Switch `part` of a host whose parts are `parts` on or off for this computer, or off with the factory plugin `plugin`
+ * standing in for it (state `plugin`), and return the parts now named off. A state but on, off or plugin, a plugin with
+ * no name, the core, and a part the host lacks are refused, saving nothing.
  */
-export function switchPart(part: string, state: string, parts: readonly string[], home: string = storytreeHome()): readonly string[] {
-  if (state !== "on" && state !== "off") throw new VerbRefusal(`a part is switched on or off, not ${JSON.stringify(state)}`, { misuse: true });
+export function switchPart(part: string, state: string, parts: readonly string[], home: string = storytreeHome(), plugin?: string): readonly string[] {
+  if (state !== "on" && state !== "off" && state !== "plugin") throw new VerbRefusal(`a part is switched on or off, or to a plugin, not ${JSON.stringify(state)}`, { misuse: true });
+  if (state === "plugin" && (plugin === undefined || plugin === "")) throw new VerbRefusal("`settings set part <part> plugin <plugin>` names the plugin in your factory folder that stands in for the part", { misuse: true });
   if (!CORE.includes(part) && !parts.includes(part)) {
     throw new VerbRefusal(`there is no part called ${part} here. Parts: ${parts.filter((one) => !CORE.includes(one)).sort().join(", ")}.`);
   }
-  return setPartOff(part, state === "off", home);
+  return setPartOff(part, state !== "on", home, state === "plugin" ? plugin : undefined);
 }
 
-/** The parts switched off now, each that is off with another named with it, and when a host takes the change. */
-export function switchedSaid(switched: PartsSwitched): string {
+/** Part name to the factory plugin standing in for it. */
+export type StandInsNamed = Readonly<Record<string, string>>;
+
+/** The parts switched off now, each that is off with another named with it or stood in for, and when a host takes the change. */
+export function switchedSaid(switched: PartsSwitched, standIns: StandInsNamed = {}): string {
   const listed = [...switched].sort(([a], [b]) => a.localeCompare(b))
-    .map(([part, because]) => because === part ? part : `${part} (with ${because}, which it stands on)`);
+    .map(([part, because]) => because !== part ? `${part} (with ${because}, which it stands on)` : Object.hasOwn(standIns, part) ? `${part} (${standIns[part]} stands in for it)` : part);
   const said = listed.length === 0 ? "No part is switched off on this computer." : `Switched off on this computer: ${listed.join(", ")}.`;
   return `${said}\nThe command line takes it at its next command; restart the app and your sessions' MCP servers for them to take it.`;
 }
 
-/** Each of the host's parts: on, off, off with the part it stands on, or always on (the core). */
-export function partsSaid(parts: readonly string[], switched: PartsSwitched): string {
+/** Each of the host's parts: on, off, off with a factory plugin standing in, off with the part it stands on, or always on (the core). */
+export function partsSaid(parts: readonly string[], switched: PartsSwitched, standIns: StandInsNamed = {}): string {
   const lines = [...parts].sort().map((part) => {
     const because = switched.get(part);
-    const state = CORE.includes(part) ? "always on (the core)" : because === undefined ? "on" : because === part ? "off" : `off, with ${because}`;
+    const standIn = Object.hasOwn(standIns, part) ? `, ${standIns[part]} stands in for it` : "";
+    const state = CORE.includes(part) ? "always on (the core)" : because === undefined ? "on" : because === part ? `off${standIn}` : `off, with ${because}`;
     return `  ${part}: ${state}`;
   });
-  return `Parts of storytree (switch one with \`storytree settings set part <part> on|off\`):\n${lines.join("\n")}`;
+  return `Parts of storytree (switch one with \`storytree settings set part <part> on|off|plugin <plugin>\`):\n${lines.join("\n")}`;
 }

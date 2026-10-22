@@ -1,6 +1,6 @@
 /** Settings' thin front door runs offline, outside a project, with a throwaway home. */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -168,6 +168,53 @@ test("1.37 · a family a switched-off part declares is not listed, and asking fo
   const map = await invoke(["map", "--select", "story:any"]);
   assert.equal(map.code, 1, map.stdout);
   assert.match(map.stderr, /storytree map is not mounted: map is switched off on this computer\. Switch it on with: storytree settings set part map on/);
+});
+
+/**
+ * A factory folder with one plugin, `my-health`, that declares a `health` family of its own, as ready-to-run JavaScript
+ * importing nothing of storytree's: its verb's work is handed its context by the door (ADR-1112 D2).
+ */
+function healthPlugin(dir: string): string {
+  const folder = path.join(dir, "factory");
+  const plugin = path.join(folder, "plugins", "my-health");
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-health", type: "module", exports: { "./verbs": "./verbs.js" }, storytree: { verbs: [{ from: "./verbs", export: "families" }] } }));
+  writeFileSync(path.join(plugin, "verbs.js"), `const check = {
+  consumers: ["agent", "user"],
+  command: { family: "health", name: "check", summary: "my own health check" },
+  tool: { name: "my_health_check", description: "my own health check" },
+  inputs: {},
+  callerless: true,
+  act: async (_input, place) => ({ text: "my health is fine in " + place.folder }),
+};
+export const families = [{ name: "health", summary: "my own health, from my factory", order: 18, verbs: [check] }];
+`);
+  return folder;
+}
+
+test("1.40 · with a factory folder chosen and `settings set part ci-health plugin my-health`, the command line lists and runs the factory plugin's family where ci-health's was, its verb handed the door's place; `settings set part ci-health on` mounts ci-health's own again", async (t) => {
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-stand-in-")));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = path.join(dir, "home");
+  const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });
+  const folder = healthPlugin(dir);
+
+  assert.equal((await invoke(["settings", "set", "factory", folder])).code, 0);
+  const standIn = await invoke(["settings", "set", "part", "ci-health", "plugin", "my-health"]);
+  assert.equal(standIn.code, 0, standIn.stderr);
+  assert.match(standIn.stdout, /ci-health \(my-health stands in for it\)/);
+
+  assert.match((await invoke([])).stdout, /^  health\s+my own health, from my factory$/m);
+  const ran = await invoke(["health", "check"]);
+  assert.equal(ran.code, 0, ran.stderr);
+  assert.equal(ran.stdout.trim().split("\n")[0], `my health is fine in ${dir}`);
+  assert.match((await invoke(["settings", "show"])).stdout, /^  ci-health: off, my-health stands in for it$/m);
+
+  assert.equal((await invoke(["settings", "set", "part", "ci-health", "on"])).code, 0);
+  const restored = (await invoke([])).stdout;
+  assert.doesNotMatch(restored, /my own health/);
+  assert.match(restored, /^  health\s+the health worklist, and reading a project's CI/m, "ci-health's own family is mounted again");
+  assert.notEqual((await invoke(["health", "check"])).code, 0, "and the plugin's verb is gone with it");
 });
 
 test("1.39 · `settings set system roles off` leaves the project's roles out of what `library list` and `library search` give at the next command, and `library read` still reads one by its id; a role switched on by its title shows again; `settings show` lists what is off and on (ADR-1092 D2)", async () => {

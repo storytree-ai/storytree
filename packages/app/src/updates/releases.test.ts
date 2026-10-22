@@ -310,14 +310,19 @@ test("4.4 a restart the user asked for while a seed was writing says it waits, a
   t.after(() => updater.stop());
   assert.equal(await updater.check(), "waiting");
   assert.equal(updater.request("status").phase, "pending");
+  // Downloaded: from here the updater's own clock is the test's.
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve)); };
   writing = true;
   assert.equal(updater.request("install").phase, "restarting", "the click reads as taken at once");
-  await new Promise(resolve => setTimeout(resolve, 50));
+  await settle();
   assert.equal(updater.request("status").phase, "ready", "held, not offered again");
-  assert.equal(launches, 0);
+  t.mock.timers.tick(10);
+  await settle();
+  assert.equal(launches, 0, "still held while the seed writes");
   writing = false;
-  const deadline = Date.now() + 2_000;
-  while (launches === 0 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10));
+  t.mock.timers.tick(10);
+  await settle();
   assert.equal(launches, 1);
 });
 

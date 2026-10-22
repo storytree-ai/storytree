@@ -49,7 +49,11 @@ const set = verb({
   async act({ words }, { surfaces, parts }: SettingsPlace) {
     const { readStandIns, setFactory, setLibrary, setSetting, switchedSaid, switchPart, switchSystem, systemSaid } = await import("@storytree/project-and-caller");
     if (words[0] === "library" && words.length >= 2) return { text: librarySaid(setLibrary(words.slice(1))), next: NEXT };
-    if (words[0] === "factory" && words.length === 2) return { text: factorySaid(setFactory(words[1]!)), next: NEXT };
+    if (words[0] === "factory" && words.length === 2) {
+      const chosen = setFactory(words[1]!);
+      const how = chosen.status === "set up" ? "Set up as your factory: its plugins folder is made." : "Already a factory: kept as it was.";
+      return { text: `${how}\n${factorySaid(chosen.folder)}`, next: NEXT };
+    }
     if (words[0] === "part" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
       const graph = await parts();
       const off = switchPart(words[1]!, words[2]!, Object.keys(graph), undefined, words[3]);

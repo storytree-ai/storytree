@@ -1,6 +1,6 @@
 /** Settings' thin front door runs offline, outside a project, with a throwaway home. */
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -193,7 +193,7 @@ export const families = [{ name: "health", summary: "my own health, from my fact
 }
 
 test("1.40 · with a factory folder chosen and `settings set part ci-health plugin my-health`, the command line lists and runs the factory plugin's family where ci-health's was, its verb handed the door's place; `settings set part ci-health on` mounts ci-health's own again", async (t) => {
-  const dir = mkdtempSync(path.join(tmpdir(), "storytree-stand-in-"));
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "storytree-stand-in-")));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const home = path.join(dir, "home");
   const invoke = (args: string[]) => storytree(command.script, args, { cwd: dir, home });

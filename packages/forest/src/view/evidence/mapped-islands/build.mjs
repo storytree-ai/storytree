@@ -1,10 +1,11 @@
 // Bundles the actual desktop page for the mapped-islands capture, adding only observation hooks (R3F state, the
-// navigation rotation). `node build.mjs <cap>` bundles it with MAPPED_ISLAND_CAP set to <cap> instead, into dist/cap-<cap>,
-// so the cap can be chosen from pictures; with no argument it is the shipped page, in dist/shipped. See README.md.
+// navigation rotation). `node build.mjs <cap>` bundles it with MAPPED_ISLAND_CAP set to <cap> instead, into cap-<cap> in its build folder,
+// so the cap can be chosen from pictures; with no argument it is the shipped page, in shipped/ there. See README.md.
 import { mkdirSync, readFileSync, copyFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildFolder } from '../../../../../../apps/desktop/src/capture/output.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../../../..');
@@ -15,7 +16,7 @@ function replace(source, needle, value) {
   return source.replace(needle, value);
 }
 const cap = process.argv[2];
-const out = path.join(here, 'dist', cap === undefined ? 'shipped' : `cap-${cap}`);
+const out = buildFolder(here, cap === undefined ? 'shipped' : `cap-${cap}`);
 mkdirSync(out, { recursive: true });
 await build({
   absWorkingDir: path.join(root, 'apps/desktop'),

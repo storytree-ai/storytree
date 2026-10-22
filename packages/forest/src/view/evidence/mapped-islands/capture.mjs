@@ -6,7 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const cap = process.argv.slice(2).find(arg => !arg.startsWith('--'));
@@ -28,7 +28,7 @@ const scenes = {
   'only-mapped': { tree: { arcs: [], unverified: true, stories: MAPPED.map(mappedStory) }, survey: {} },
 };
 
-await withCapture({ folder: here, dist: path.join(here, 'dist', tag) }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: buildFolder(here, tag) }, async ({ browser, origin, out, settle }) => {
   const results = { cap: cap === undefined ? 'shipped' : Number(cap), browser: await browser.version() };
   for (const [name, { tree, survey }] of Object.entries(scenes)) {
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });

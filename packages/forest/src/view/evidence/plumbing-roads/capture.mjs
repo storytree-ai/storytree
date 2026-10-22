@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runCapture, settle } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, runCapture, settle } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, 'seed.json.gz'))).toString('utf8'));
@@ -66,7 +66,7 @@ async function bringTo(page, stories, target, byLabels = false) {
 }
 
 const capture = (seed, survey, views) => runCapture({
-  folder: here, dist: path.join(here, 'dist', 'after'), seed, survey, views,
+  folder: here, dist: buildFolder(here, 'after'), seed, survey, views,
   prepare: async ({ page, errors, failed, warnings }) => {
     await page.waitForFunction(ids => {
       const state = window.__globe;

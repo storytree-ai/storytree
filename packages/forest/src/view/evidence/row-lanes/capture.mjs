@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runCapture, settle } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, runCapture, settle } from '../../../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2];
 assert.ok(['before', 'after'].includes(label), 'pass a before/after build label');
@@ -54,7 +54,7 @@ const lanes = page => page.evaluate(() => {
 });
 
 await runCapture({
-  folder: here, dist: path.join(here, 'dist', label), seed, survey,
+  folder: here, dist: buildFolder(here, label), seed, survey,
   prepare: async ({ page, errors, failed, warnings }) => {
     await page.waitForFunction(ids => {
       const state = window.__globe;

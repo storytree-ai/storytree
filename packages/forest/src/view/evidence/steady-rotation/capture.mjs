@@ -10,7 +10,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 import { SHEET_TILT } from '@storytree/forest-world/planet';
 
 const degrees = radians => Math.round(radians * 1800 / Math.PI) / 10;
@@ -25,7 +25,7 @@ const label = args[args.indexOf('--label') + 1];
 if (from === undefined || !args.includes('--label') || label === undefined) throw new Error('Name the snapshot folder (seed.json.gz and survey.json) and --label <name>.');
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(from, 'seed.json.gz'))).toString('utf8'));
 const survey = JSON.parse(readFileSync(path.join(from, 'survey.json'), 'utf8'));
-const dist = path.join(here, 'dist');
+const dist = buildFolder(here);
 const viewport = { width: 1440, height: 960 };
 await buildCapture({ dist });
 

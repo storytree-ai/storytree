@@ -1,17 +1,18 @@
 // Bundles the actual desktop page of a checkout for the capture, adding only observation hooks (R3F
 // state, the navigation rotation). `node build.mjs <checkout root> <before|after>`; the root defaults to
-// the checkout this folder is in. Output goes to the ignored dist/<label>/. See README.md.
+// the checkout this folder is in. Output goes to <label>/ in the checkout's ignored .evidence-builds/ (buildFolder). See README.md.
 import { mkdirSync, copyFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildFolder } from '../../../../../../apps/desktop/src/capture/output.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(process.argv[2] ?? path.resolve(here, '../../../../../..'));
 const label = process.argv[3] ?? 'after';
 const require = createRequire(path.join(root, 'apps/desktop/package.json'));
 const { build } = require('esbuild');
-const out = path.join(here, 'dist', label);
+const out = buildFolder(here, label);
 mkdirSync(out, { recursive: true });
 await build({
   absWorkingDir: path.join(root, 'apps/desktop'),
@@ -24,4 +25,4 @@ for (const name of ['index.html', 'styles.css']) copyFileSync(path.join(root, 'a
 copyFileSync(require.resolve('@storytree/arc-surface/view/styles.css'), path.join(out, 'arc-surface.css'));
 copyFileSync(require.resolve('@storytree/app-setup/view/styles.css'), path.join(out, 'app-setup.css'));
 copyFileSync(require.resolve('@storytree/forest/view/styles.css'), path.join(out, 'forest.css'));
-console.log(`Built ${root}'s desktop page into dist/${label}.`);
+console.log(`Built ${root}'s desktop page into ${out}.`);

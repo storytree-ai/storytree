@@ -5,14 +5,14 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const rows = path.join(here, '../rows');
 const label = process.argv.slice(2).find(arg => arg !== '--retake') ?? 'after';
-const dist = path.join(rows, 'dist', label);
+const dist = buildFolder(rows, label);
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(rows, 'seed.json.gz'))).toString('utf8'));
 const survey = JSON.parse(readFileSync(path.join(rows, 'survey.json'), 'utf8'));
 const story = seed.tree.stories.find(s => s.title === 'The agent link');

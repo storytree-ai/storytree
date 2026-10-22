@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
@@ -61,7 +61,7 @@ const expected = [
   [`file:packages/${F}/src/view/file-circles.ts`, `file:packages/${A}/src/context/window.ts`, 'dotted', 'hop', false],
 ];
 
-await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: buildFolder(here) }, async ({ browser, origin, out, settle }) => {
 
 /** What the scene draws of the traversal: the steps' lines, the lit circles and territories, the rings, and how high each line runs above the surface, all counted. */
 const measure = page => page.evaluate(() => {

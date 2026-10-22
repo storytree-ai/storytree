@@ -1,15 +1,16 @@
 // Bundles the actual desktop page for the capture, adding only observation hooks (R3F state, the
-// navigation rotation). Output goes to the ignored dist/. See README.md.
+// navigation rotation). Output goes to the checkout's ignored .evidence-builds/ (buildFolder). See README.md.
 import { mkdirSync, copyFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildFolder } from '../../../../../../apps/desktop/src/capture/output.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../../../..');
 const require = createRequire(path.join(root, 'apps/desktop/package.json'));
 const { build } = require('esbuild');
-const out = path.join(here, 'dist');
+const out = buildFolder(here);
 mkdirSync(out, { recursive: true });
 await build({
   absWorkingDir: path.join(root, 'apps/desktop'),

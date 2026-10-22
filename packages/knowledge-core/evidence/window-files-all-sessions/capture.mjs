@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../..');
@@ -52,7 +52,7 @@ const steps = session => windows[session].opens.slice(1).map((to, i) => {
   return [key(from), key(to), from.kind === 'file' && to.kind === 'file' ? 'hop' : from.kind === 'file' || to.kind === 'file' ? 'dive' : null];
 });
 
-await withCapture({ folder: here, dist: path.join(root, 'packages/forest/evidence/sessions-list/dist/production') }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: buildFolder(path.join(root, 'packages/forest/evidence/sessions-list'), 'production') }, async ({ browser, origin, out, settle }) => {
   const measure = page => page.evaluate(() => {
     const { scene } = window.__globe;
     const trails = [], circles = {}, rings = [], notes = {};

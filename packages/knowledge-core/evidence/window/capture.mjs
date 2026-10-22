@@ -3,19 +3,19 @@
 // session has read six real notes; its window reading (agent link 9.10) says four of those it holds
 // now, one fell out at a compaction, and which were in view when each was opened. Selecting its row
 // rings the notes it holds in warm white and joins the in-view pairs with dotted warm white lines.
-// --smoke builds its own page into dist/smoke and takes no pictures, so a test proves every wait below still resolves in a real browser.
+// --smoke builds its own page into its build folder (buildFolder) and takes no pictures, so a test proves every wait below still resolves in a real browser.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, captureOutput, captureSeed, closeBrowser, fakeBridge, launch, seedFile } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
+import { buildCapture, buildFolder, captureOutput, captureSeed, closeBrowser, fakeBridge, launch, seedFile } from '../../../../apps/desktop/src/capture/index.ts'; // the shared stand-in bridge: run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = captureOutput(here); // pictures and measurements: a scratch folder unless run with --retake
 const root = path.resolve(here, '../../../..');
 const smoke = process.argv.includes('--smoke');
-const built = smoke ? path.join(here, 'dist/smoke') : path.join(root, 'packages/forest/evidence/sessions-list/dist/production');
+const built = smoke ? buildFolder(here, 'smoke') : buildFolder(path.join(root, 'packages/forest/evidence/sessions-list'), 'production');
 if (smoke) await buildCapture({ dist: built });
 const { seed } = captureSeed('forest');
 const forest = seed.tree.stories.find(item => item.title === 'The forest');

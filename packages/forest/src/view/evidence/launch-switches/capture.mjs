@@ -3,9 +3,9 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, captureSeed, runCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, captureSeed, runCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.join(here, 'dist');
+const dist = buildFolder(here);
 const { seed, survey } = captureSeed('forest');
 const switches = page => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.forest-views [data-globe-switch]')]
   .map(button => [button.dataset.globeSwitch, button.getAttribute('aria-pressed')])));

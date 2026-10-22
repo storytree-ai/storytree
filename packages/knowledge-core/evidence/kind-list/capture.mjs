@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, captureSeed, runCapture } from '../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, captureOutput, captureSeed, runCapture } from '../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2];
@@ -62,7 +62,7 @@ const views = label === 'before' ? [
     for (const name of on) if (name !== 'decision') await kind(page, name);
   }),
 ];
-const measured = await runCapture({ folder: here, dist: path.join(here, 'dist', label), seed, survey, prepare, views });
+const measured = await runCapture({ folder: here, dist: buildFolder(here, label), seed, survey, prepare, views });
 const summary = Object.fromEntries(views.map(({ name }, i) => [name, measured[i]]));
 if (label === 'after') {
   const [opening, , every, decisions] = measured;

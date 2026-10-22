@@ -2,13 +2,14 @@
 import { homedir } from "node:os";
 import path from "node:path";
 import { codexHookTrust } from "@storytree/session-management";
-import { readProjectChoice } from "@storytree/project-and-caller";
+import { readProjectChoice, readStandIns, setFactory } from "@storytree/project-and-caller";
 
 import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Library, Storytree } from "@storytree/library";
 import { addProject, deleteProject, keepOnThisComputer, projectFolder, removeProject, whoLoses } from "../project/index.js";
 import type { AgentConnection, ProjectSentence, SetupHelpBridge } from "./bridge.js";
 import { openFeedbackDraft } from "../journey-events/feedback.js";
+import { shapeFactory } from "./factory-folder.js";
 import { readShippedLicense } from "./license.js";
 
 const SENTENCE_ACTOR = "storytree app (Settings → Projects)";
@@ -57,6 +58,17 @@ export function setupHelpActions(options: {
       // With no hook command supplied this is a diagnostic, not a second hook installer.
       // The returned fixes direct the user to their installed agent session for recovery.
       return (await runSetupCheck({ folder, storytreeHome: options.storytreeHome, openWaitMs: 2_000 })).lines;
+    },
+    async factoryFolder() {
+      return readStandIns(options.storytreeHome).folder ?? null;
+    },
+    async chooseFactory() {
+      const folder = await options.chooseFolder();
+      if (folder === undefined) return null;
+      // Shaped before it is saved, so a refused folder is never this computer's factory.
+      const chosen = shapeFactory(path.resolve(folder));
+      setFactory(chosen.folder, options.storytreeHome);
+      return chosen;
     },
     async addProject() {
       const folder = await options.chooseFolder();

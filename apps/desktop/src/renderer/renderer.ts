@@ -11,7 +11,7 @@
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { surfaceOn, surfaceSetting } from "@storytree/app/surfaces";
 import { mountAppMenu, renderNoProjects } from "@storytree/app/view";
-import { mountAddProject, mountDeleteProject, mountProjectSentence, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
+import { mountAddProject, mountDeleteProject, mountFactoryStep, mountProjectSentence, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
 import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveReading, type PageReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { drawingOf, drillDown, forestDrawn, forestReading, forestScene, keptDrawing, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
@@ -68,8 +68,10 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
 const consentHost = document.createElement("div");
 document.body.append(consentHost);
 const consent = mountJourneyConsent(consentHost, window.storytree);
+// Until this computer has a factory folder, the app opens on the step that asks for one (setup 3.10).
+const factoryStep = mountFactoryStep(document.body, window.storytree);
 const lagRecorder = mountLagRecorder(window.storytree);
-window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); consentHost.remove(); lagRecorder?.stop(); });
+window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); factoryStep.stop(); consentHost.remove(); lagRecorder?.stop(); });
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
 let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined; teaching: ReturnType<typeof mountTeaching> | undefined } | undefined;

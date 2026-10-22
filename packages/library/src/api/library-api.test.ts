@@ -143,6 +143,7 @@ const LIBRARY_API = [
  * against before it stores it in the library's database. connectionString joined it with contract 15.5:
  * the routed library's connection string, signed in, that `storytree auth connection` hands psql.
  * ANCHOR_ID and anchorGaps joined it with ADR-1085 D1: where the project's anchor is kept, and the plan-health reading of it.
+ * parseSchedule and OWNER_TIME_ZONE joined it with ADR-1105 D1: the one reader of a process's schedule, which `schedule due` reads it with.
  */
 const RUNTIME_EXPORTS = [
   "ANCHOR_ID",
@@ -158,6 +159,7 @@ const RUNTIME_EXPORTS = [
   "NOT_VERIFIED",
   "NewerSchemaError",
   "NumberTakenError",
+  "OWNER_TIME_ZONE",
   "ProjectGoneError",
   "ProjectNameError",
   "RestoreRefusedError",
@@ -172,6 +174,7 @@ const RUNTIME_EXPORTS = [
   "connectionString",
   "heldBack",
   "knowledgeGuidance",
+  "parseSchedule",
   "planGuidance",
   "wordAndWhy",
 ];

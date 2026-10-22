@@ -329,11 +329,12 @@ test("2.34 · with a story or note panel open in the framed map, the compass, th
     const view = new HappyWindow({ width, height, settings: { disableJavaScriptFileLoading: true, disableCSSFileLoading: true } });
     const page = view.document;
     page.write(html.replace(sheet[0], `<style>${css}</style>`));
-    const frame = page.querySelector<HTMLElement>("#map-frame")!, forest = page.querySelector<HTMLElement>("#website-forest")!;
+    const element = (selector: string) => page.querySelector(selector) as unknown as HTMLElement;
+    const frame = element("#map-frame"), forest = element("#website-forest");
     forest.dataset.forestState = "live";
     forest.insertAdjacentHTML("beforeend", `<button type="button" class="planet-mini-globe sheet-compass"></button>`);
     frame.dataset.hand = "map";
-    page.querySelector<HTMLElement>(".map-exit")!.hidden = false;
+    element(".map-exit").hidden = false;
     // A panel opens the way the forest-scene portals it, as the frame's own child.
     if (panel) frame.insertAdjacentHTML("beforeend", `<div class="story-panel map-story-panel"><button class="panel-close">×</button></div>`);
     return (selector: string) => view.getComputedStyle(page.querySelector(selector)!);

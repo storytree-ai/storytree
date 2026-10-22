@@ -69,6 +69,11 @@ All checks passed (`observations.json` has the times). In short:
 
 ## What this run could not show, and two things seen on the way
 
+- **The follow-main half of 4.4.** Since 2026-10-21 (increment_78ac958384c9) the contract also says
+  an app following merged main restarts only at the same quiet moment. These runs exercised the
+  installed app's release updater only; the follow-main restart shares the same `quietMoment` check
+  and its own tests (`main-updates.test.ts`), but no follow-main restart was observed here.
+
 - **The reopened app in its own home.** The installer reopens the app through Explorer
   (`--updated`, parent `explorer.exe`), which drops the harness's `STORYTREE_HOME`, so the reopened
   app started in the default home, where this laptop's follow-main app is set up, and refused with

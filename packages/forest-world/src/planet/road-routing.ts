@@ -26,8 +26,8 @@ export function drawnAtOnce(scene: ForestScene, spots: ReadonlyMap<string, Plane
   if (routing === undefined) return { drawing: planetPathwayDrawing(scene, spots, radius), routing };
   const islands = islandsOnly(scene);
   if (before === undefined || before.radius !== radius || !samePlaces(before.spots, spots)) return { drawing: islands, routing };
-  const { segments, edges, docks } = before.drawing.plan;
-  return { drawing: { plan: { ...islands.plan, segments, edges, docks }, issue: before.drawing.issue }, routing };
+  const { segments, edges, docks, plumbing } = before.drawing.plan;
+  return { drawing: { plan: { ...islands.plan, segments, edges, docks, ...plumbing ? { plumbing } : {} }, issue: before.drawing.issue }, routing };
 }
 
 function samePlaces(a: ReadonlyMap<string, PlanetSpot>, b: ReadonlyMap<string, PlanetSpot>): boolean {

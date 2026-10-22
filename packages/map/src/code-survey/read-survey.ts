@@ -239,7 +239,27 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     return found.flat();
   }
 
-  /** The checkout's last kept survey by its file, and the key it was kept for: written again only when that changes. */
+  /**
+ * The build steps and cleanups storytree.check.json's `placement.plumbing` declares, keyed by the importing file's
+ * repository path and the package folder it reaches (`packages/<to>`); empty when there is none or it does not parse.
+ */
+async function declaredPlumbing(source: SurveySource, checkout: string): Promise<ReadonlyMap<string, "build step" | "cleanup">> {
+  const found = await source.file(path.join(checkout, "storytree.check.json"));
+  if (found === undefined) return new Map();
+  let declared: unknown;
+  try {
+    declared = JSON.parse(await found.read());
+  } catch {
+    return new Map();
+  }
+  const calls = (declared as { placement?: { plumbing?: unknown } } | null)?.placement?.plumbing;
+  if (!Array.isArray(calls)) return new Map();
+  return new Map(calls.flatMap((call: { from?: unknown; to?: unknown; kind?: unknown }) =>
+    typeof call?.from === "string" && typeof call.to === "string" && (call.kind === "build step" || call.kind === "cleanup")
+      ? [[`${path.posix.normalize(call.from)} packages/${call.to}`, call.kind] as const] : []));
+}
+
+/** The checkout's last kept survey by its file, and the key it was kept for: written again only when that changes. */
   const keptKeys = new Map<string, string>();
 
   async function survey(folder: string, tree: AnnotatedTree, imports: readonly ImportedFolder[]): Promise<ProjectSurvey> {
@@ -333,6 +353,9 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
     const storyOf = new Map([...mappedRead.storyOf, ...surveys.flat().flatMap(([id, , read]) => read.map(({ name }) => [name, id] as const))]);
     // And the edges its imports of them derive, between capabilities (ADR-0991 D1, D2), each path from its own package.
     const baseOf = new Map(surveys.flat().map(([id, , , , base]) => [id, base] as const));
+    // Build steps and cleanups no code shows, as the checkout declares them (8.33): matched by the importing file's
+    // repository path and the package it reaches, since story ids need not be package names.
+    const plumbingOf = await declaredPlumbing(source, checkout);
     const derived = storyEdges(surveys.flat().map(([id, survey, read, files, base]) => ({
       id, files, packages: read,
       owners: new Map(survey.files.flatMap((file) => file.capability === undefined ? [] : [[path.posix.normalize(`${base}/${file.path}`), file.capability] as const])),
@@ -341,7 +364,10 @@ export function codeSurveyReader({ readFile: readText = (file: string) => readFi
       const dependsOn = read.length === 0 ? undefined : [...new Set(read.flatMap(({ deps }) => deps).flatMap((dep) => { const other = storyOf.get(dep); return other === undefined || other === id ? [] : [other]; }))];
       const edges = (derived.get(id) ?? []).map((edge) => ({
         ...edge,
-        files: edge.files.map((file) => ({ ...file, from: path.posix.relative(baseOf.get(id)!, file.from), ...(file.to === undefined ? {} : { to: path.posix.relative(baseOf.get(edge.story)!, file.to) }) })),
+        files: edge.files.map((file) => {
+          const plumbing = plumbingOf.get(`${file.from} ${baseOf.get(edge.story)}`);
+          return { ...file, from: path.posix.relative(baseOf.get(id)!, file.from), ...(file.to === undefined ? {} : { to: path.posix.relative(baseOf.get(edge.story)!, file.to) }), ...(plumbing === undefined ? {} : { plumbing }) };
+        }),
       }));
       const last = edged.get(id);
       if (last !== undefined && last.base === base && JSON.stringify([last.survey.dependsOn, last.survey.edges]) === JSON.stringify([dependsOn, edges])) return [id, last.survey] as const;

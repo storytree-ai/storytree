@@ -7,6 +7,7 @@ import type { ForestScene, Island } from '../scene.js';
 import type { PathwayDrawing, PlanetPathwayPlate } from './pathways.js';
 import { drawnAtOnce, pageRoadRouter, routedDrawing } from './road-routing.js';
 import { Pathways, SelectionLanes } from './PlanetTrailRibbons.js';
+import { PlumbingLabels } from './PlumbingLabels.js';
 import { onIsland, type InlandWay, type LitLink } from './lanes.js';
 import type { CoastPoint } from '../coast-clip.js';
 import type { Descriptor3D } from '../descriptors.js';
@@ -210,7 +211,7 @@ export function PlanetWorldCanvas({ scene, spots, radius, rotation = [0, 0, 0, 1
         return <Plate key={island.story} island={island} spot={spot} radius={radius} plate={pathways.plates.get(island.story)!}
           visible={exterior.plates} grounds={exterior.grounds} hollow={hollow} children={plateChildren} />;
       })}
-      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} /><SelectionLanes plan={pathways} lit={lanes} inland={inland} /></group>
+      <group name="globe-roads" visible={exterior.roads}><Pathways plan={pathways} reveal={reveal} live={liveRoads && growth === undefined} visible={exterior.roads} routing={drawing.routing} /><SelectionLanes plan={pathways} lit={lanes} inland={inland} /><PlumbingLabels plan={pathways} visible={exterior.roads} /></group>
       {inside}
     </group>
     <SheetLights />

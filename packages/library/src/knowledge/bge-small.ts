@@ -6,18 +6,45 @@
  * STORYTREE_EMBEDDER=off switches it off (the test runner does, so no test or CI run downloads the
  * model), and a search then ranks by words and says why.
  *
+ * The files come from one pinned revision of the model, and each is checked against the SHA-256
+ * committed here before transformers.js reads it: after a download, and once per cached copy (a
+ * marker beside the files remembers what was checked). A file that differs is deleted and the load
+ * refused with its name and both hashes, so a search ranks by words and says why (14.14).
+ *
  * Node's fetch ignores HTTPS_PROXY, so behind a proxy (a cloud container's agent proxy is its only way
  * out) the download goes through the one the environment names, and a load that fails there names the
  * hosts that proxy must allow (14.13, friction_84c6d7d08f35).
  */
+import { createHash } from "node:crypto";
+import { createReadStream, createWriteStream } from "node:fs";
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import http from "node:http";
 import { homedir } from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
+import { pipeline as pipe } from "node:stream/promises";
 
 import type { Embedder, EmbedderSource } from "./embedding.js";
 
 /** The ONNX export of BAAI/bge-small-en-v1.5 that transformers.js reads. */
 export const BGE_SMALL = "Xenova/bge-small-en-v1.5";
+
+/** The commit of BGE_SMALL its files come from (last changed 2025-07-22), never the moving `main`. */
+export const BGE_SMALL_REVISION = "ea104dacec62c0de699686887e3f920caeb4f3e3";
+
+/**
+ * Every file transformers.js reads for BGE_SMALL at BGE_SMALL_REVISION, with its SHA-256 (model.onnx's
+ * is the Hub's LFS oid; the JSON files were hashed from a fresh download, 2026-10-22).
+ */
+export const BGE_SMALL_FILES: Readonly<Record<string, string>> = {
+  "config.json": "fa73f90bf92c8cace1fbcb709626306f2bdbc9ea3e5b5f94b440df9b6aa56350",
+  "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+  "tokenizer_config.json": "9261e7d79b44c8195c1cada2b453e55b00aeb81e907a6664974b4d7776172ab3",
+  "onnx/model.onnx": "828e1496d7fabb79cfa4dcd84fa38625c0d3d21da474a00f08db0f559940cf35",
+};
+
+/** The file beside a model's files that remembers which copies were checked. */
+const VERIFIED = ".verified.json";
 
 /** The hosts the model downloads from: the Hub, and the file store its downloads are sent on to. */
 export const MODEL_HOSTS = ["huggingface.co", "*.cdn.hf.co"] as const;
@@ -64,10 +91,69 @@ export async function throughProxy<T>(env: NodeJS.ProcessEnv, work: () => Promis
   }
 }
 
+/**
+ * Checks that `folder` holds exactly the files `expected` names (paths with `/`), each with its SHA-256.
+ * A copy checked before, unchanged in size and time since, is not hashed again. A file that differs, or
+ * one `expected` does not name, is deleted and the check throws naming it (and both hashes); a missing
+ * one throws too.
+ */
+export async function verifyModelFolder(folder: string, expected: Readonly<Record<string, string>>): Promise<void> {
+  const marker = path.join(folder, VERIFIED);
+  type Seen = { sha256: string; size: number; mtimeMs: number };
+  const seen = await readFile(marker, "utf8").then((text) => JSON.parse(text) as Record<string, Seen>, () => ({}) as Record<string, Seen>);
+  const unlisted = (await readdir(folder, { recursive: true, withFileTypes: true }))
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.relative(folder, path.join(entry.parentPath, entry.name)).split(path.sep).join("/"))
+    .filter((file) => file !== VERIFIED && !(file in expected));
+  if (unlisted.length > 0) {
+    await Promise.all(unlisted.map((file) => rm(path.join(folder, file), { force: true })));
+    throw new Error(`the model folder ${folder} held ${unlisted.join(", ")}, which the pinned model does not have; deleted`);
+  }
+  const verified: Record<string, Seen> = {};
+  for (const [file, sha256] of Object.entries(expected)) {
+    const at = path.join(folder, file);
+    const { size, mtimeMs } = await stat(at).catch(() => {
+      throw new Error(`the model file ${file} is missing from ${folder}`);
+    });
+    const before = seen[file];
+    if (before?.sha256 !== sha256 || before.size !== size || before.mtimeMs !== mtimeMs) {
+      const hash = createHash("sha256");
+      await pipe(createReadStream(at), hash);
+      const actual = hash.digest("hex");
+      if (actual !== sha256) {
+        await rm(at, { force: true });
+        throw new Error(`the model file ${file} has SHA-256 ${actual}, not the expected ${sha256}; deleted`);
+      }
+    }
+    verified[file] = { sha256, size, mtimeMs };
+  }
+  await writeFile(marker, JSON.stringify(verified, null, 2));
+}
+
+/** Downloads each of BGE_SMALL_FILES that `folder` lacks, from BGE_SMALL_REVISION. */
+async function downloadMissing(folder: string): Promise<void> {
+  for (const file of Object.keys(BGE_SMALL_FILES)) {
+    const at = path.join(folder, file);
+    if (await stat(at).then(() => true, () => false)) continue;
+    const url = `https://huggingface.co/${BGE_SMALL}/resolve/${BGE_SMALL_REVISION}/${file}`;
+    const response = await fetch(url);
+    if (!response.ok || response.body === null) throw new Error(`${url} answered ${response.status}`);
+    await mkdir(path.dirname(at), { recursive: true });
+    await pipe(Readable.fromWeb(response.body as import("node:stream/web").ReadableStream), createWriteStream(`${at}.part`));
+    await rename(`${at}.part`, at);
+  }
+}
+
 async function loadBgeSmall(cacheDir: string): Promise<Embedder> {
+  const folder = path.join(cacheDir, BGE_SMALL, BGE_SMALL_REVISION);
+  await downloadMissing(folder);
+  await verifyModelFolder(folder, BGE_SMALL_FILES);
   const { env, pipeline } = await import("@huggingface/transformers");
-  env.cacheDir = cacheDir;
-  const extract = await pipeline("feature-extraction", BGE_SMALL, { dtype: "fp32" });
+  // transformers.js reads the checked folder as a local model: it fetches nothing and caches nothing itself.
+  env.allowLocalModels = true;
+  env.allowRemoteModels = false;
+  env.useFSCache = false;
+  const extract = await pipeline("feature-extraction", folder, { dtype: "fp32" });
   return {
     model: BGE_SMALL,
     async embed(texts) {

@@ -6,7 +6,9 @@
  * the one the user chose, which is the approval; nothing else a configuration names is loaded. A plugin imports nothing
  * of storytree's: it exports declarations, and the host hands their work its context (ADR-1112 D2). The modules are
  * ready-to-run JavaScript, required synchronously (an ES module without top-level await), so a host's synchronous start
- * stays as it is. A plugin that cannot be loaded leaves its part off and says why, and the host still starts.
+ * stays as it is. A plugin that cannot be loaded leaves its part off and says why, and the host still starts. Its
+ * manifest names the version of storytree's plugin interface it was written for, so an update that changes what a host
+ * hands a plugin leaves an older plugin unmounted, said why, rather than broken in silence.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -21,6 +23,9 @@ export interface StandIns {
   readonly plugins: Readonly<Record<string, string>>;
 }
 
+/** The version of storytree's plugin interface (what a host hands a plugin's declarations) this storytree honours. */
+export const PLUGIN_INTERFACE = 1;
+
 const load = createRequire(import.meta.url);
 
 /** The declarations of `kind` plugin `plugin` of `folder` adds, none for a kind it does not name; a plugin that cannot be read is refused with why. */
@@ -32,6 +37,9 @@ function pluginParts(folder: string | undefined, plugin: string, kind: string): 
   const pkg = JSON.parse(readFileSync(file, "utf8")) as { exports?: unknown; storytree?: unknown };
   const manifest = pkg.storytree;
   if (typeof manifest !== "object" || manifest === null) throw new Error(`${plugin}'s package.json has no storytree manifest`);
+  const written = (manifest as Record<string, unknown>).interface;
+  if (written === undefined) throw new Error(`${plugin}'s storytree manifest names no plugin interface version; this storytree honours interface ${PLUGIN_INTERFACE}`);
+  if (written !== PLUGIN_INTERFACE) throw new Error(`${plugin} was written for storytree's plugin interface ${JSON.stringify(written)}; this storytree honours interface ${PLUGIN_INTERFACE}`);
   const entries = (manifest as Record<string, unknown>)[kind];
   if (entries === undefined) return [];
   if (!Array.isArray(entries)) throw new Error(`${plugin}'s storytree manifest names ${kind} with no list`);

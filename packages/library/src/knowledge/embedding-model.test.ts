@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { defaultEmbedder, throughProxy, verifyModelFolder } from "./bge-small.js";
+import { defaultEmbedder, throughProxy, verifyModelFolder } from "./embedding-model.js";
 
 /** A proxy that refuses every tunnel it is asked for, as an agent proxy refuses a host it does not allow. */
 async function refusingProxy(): Promise<{ url: string; asked: string[]; close(): Promise<void> }> {

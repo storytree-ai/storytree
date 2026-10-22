@@ -110,7 +110,7 @@ test("3.2 a claimed increment's oval carries its holder's flag in the session's 
   assert.ok(tipOut("i1") < tipOut("i2") * 0.5, "the idle holder's pennant is furled");
   assert.doesNotMatch(bar("i3"), /<svg/);
   assert.doesNotMatch(html, /●/, "no dot");
-  assert.doesNotMatch(html, /style=/, "no inline style: the window's style-src 'self' refuses one, so the mounted board sets each flag's offset");
+  assert.doesNotMatch(html, /style=/, "no inline style: the window's style-src 'self' refuses one, so the flag's place comes from the stylesheet alone");
   assert.match(html, /<span class="arc-track arc-flagged">/, "a lane with a flag leaves it headroom");
   assert.match(lanes([]), /<span class="arc-track">/, "and a lane with none does not");
 });

@@ -110,7 +110,7 @@ for (const legacy of [false, true]) {
 }
 
 for (const crashed of [false, true]) {
-  test(`2.2 removing a dev home stops its real database and owner (${crashed ? "crashed" : "running"} owner)`, { timeout: 150_000 }, async (t) => {
+  test(`2.2 removing a dev home stops its real database and owner (${crashed ? "crashed" : "running"} owner)`, { timeout: 240_000 }, async (t) => {
     const root = mkdtempSync(path.join(tmpdir(), "storytree remove dev home "));
     const dir = path.join(root, "dev home");
     const made = await makeDevHome({
@@ -155,8 +155,10 @@ for (const crashed of [false, true]) {
       rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
     });
     // A loaded Windows runner can take well over 30 s to make and start the home's Postgres
-    // (release run 38758914357), so wait by time, not by a count of polls.
-    const readyBy = Date.now() + 90_000;
+    // (release run 38758914357), so wait by time, not by a count of polls. Across 55 green
+    // Windows CI runs on 2026-10-22 this whole case took 7 to 21 s with a tail at 44 s and 78 s,
+    // and run 39799689426 waited the full 90 s; 180 s is twice that window.
+    const readyBy = Date.now() + 180_000;
     while (Date.now() < readyBy) {
       assert.equal(child.exitCode, null, stderr);
       if (existsSync(ownerFile) && existsSync(handoffFile)) {
@@ -176,7 +178,7 @@ for (const crashed of [false, true]) {
       }
       await sleep(100);
     }
-    assert.ok(client, `database became ready: ${stderr}`);
+    assert.ok(client, `database became ready within 180 s: ${stderr}`);
     postgresPid = Number(readFileSync(path.join(dataDir, "postmaster.pid"), "utf8").split("\n")[0]);
     postgresStart = started(postgresPid);
     assert.ok(postgresStart);

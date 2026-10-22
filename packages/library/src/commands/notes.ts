@@ -89,11 +89,14 @@ const open = verb({
   command: NO_COMMAND("read"),
   tool: {
     name: "open",
-    description: "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; open a contract to read its promise and the capability it belongs to; open a question to read it whole with the work held on it; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act.",
+    description: "Open a story or a capability to see its shelf of front-cover decisions as spines, founding book first; open a contract to read its promise and the capability it belongs to; open a question to read it whole with the work held on it; or open an artifact to read it whole, with the titles of what it links to and what links to it. Start at the shelf, open what matches your task, and stop when you can act. Give a field to get only that field's stored value, exactly, to edit and write back.",
   },
-  inputs: { id: { kind: "text", describe: "The id of a story, a capability, a contract, a question or an artifact" } },
-  async act({ id }, context: NoteToolContext) {
-    return openRecord(id, context);
+  inputs: {
+    id: { kind: "text", describe: "The id of a story, a capability, a contract, a question or an artifact" },
+    field: { kind: "text", optional: true, describe: "One field to give exactly as stored, and nothing else" },
+  },
+  async act({ id, field }, context: NoteToolContext) {
+    return field === undefined ? openRecord(id, context) : openField(id, field, context);
   },
 });
 
@@ -176,6 +179,17 @@ async function openRecord(id: string, context: NoteToolContext): Promise<VerbAns
   if (linksTo.length > 0) out.push("It links to:", ...linksTo.map(spineLine));
   if (linkedFrom.length > 0) out.push("Linked from:", ...linkedFrom.map(spineLine));
   return { text: out.join("\n"), data: { note: { id, kind: note.type, ...note.fields }, linksTo: linksTo.map(spineData), linkedFrom: linkedFrom.map(spineData) } };
+}
+
+/** One field of a record exactly as stored (a list or other value as JSON), as `library read --field` prints it; an artifact's is a whole read. */
+async function openField(id: string, field: string, context: NoteToolContext): Promise<VerbAnswer> {
+  const record = await context.library.get(id);
+  if (record === null) throw new VerbRefusal(`Nothing in this project has the id ${id}.`);
+  const fields = record.fields as Readonly<Record<string, unknown>>;
+  const value = Object.hasOwn(fields, field) ? fields[field] : undefined;
+  if (value === undefined) throw new VerbRefusal(`${id} has no field "${field}"; its fields are ${Object.keys(fields).join(", ")}`);
+  if (["decision", "definition", ...KNOWLEDGE_KINDS].includes(record.type)) await context.recordReads([{ note: id, found: await howFound(context, id), read: "whole" }]);
+  return { text: typeof value === "string" ? value : JSON.stringify(value, null, 2) };
 }
 
 /** The words of a question shown whole, in the order the owner reads them. */

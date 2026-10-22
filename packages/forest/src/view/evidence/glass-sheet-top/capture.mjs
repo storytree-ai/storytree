@@ -8,14 +8,14 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const from = process.argv.slice(2).find(arg => !arg.startsWith('--'));
 if (from === undefined) throw new Error('Name the folder holding the snapshot (seed.json.gz and survey.json).');
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(from, 'seed.json.gz'))).toString('utf8'));
 const survey = JSON.parse(readFileSync(path.join(from, 'survey.json'), 'utf8'));
-const dist = path.join(here, 'dist');
+const dist = buildFolder(here);
 const viewport = { width: 1440, height: 960 };
 await buildCapture({ dist });
 

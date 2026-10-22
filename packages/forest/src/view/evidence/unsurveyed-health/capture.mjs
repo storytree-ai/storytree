@@ -3,13 +3,13 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, runCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, runCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2];
 assert.ok(['before', 'after'].includes(label));
 const root = path.resolve(process.argv[3] && !process.argv[3].startsWith('--') ? process.argv[3] : path.resolve(here, '../../../../../..'));
-const dist = path.join(here, 'dist', label);
+const dist = buildFolder(here, label);
 await buildCapture({ root, dist });
 const at = '2026-10-06T00:00:00.000Z';
 const health = state => ({ reported: { state: 'passing', at }, verified: { state, at, by: 'CI' } });

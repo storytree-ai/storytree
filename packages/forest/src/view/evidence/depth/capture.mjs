@@ -5,13 +5,13 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { bundle } from './build.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, captureOutput, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../../../../../..');
 const OUT = captureOutput(HERE);
-// Single frames go to the ignored dist/; only the side-by-side sheets are evidence.
-const FRAMES = path.join(HERE, 'dist', 'frames');
+// Single frames go to the checkout's ignored .evidence-builds/ (buildFolder); only the side-by-side sheets are evidence.
+const FRAMES = buildFolder(HERE, 'frames');
 mkdirSync(FRAMES, { recursive: true });
 
 const EV = path.join(ROOT, 'packages/forest/src/view/evidence');

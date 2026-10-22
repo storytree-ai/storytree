@@ -5,13 +5,13 @@ import os from 'node:os';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { closeBrowser as closeCaptureBrowser, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, closeBrowser as closeCaptureBrowser, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const smoke = process.argv.includes('--smoke');
 const initialOnly = process.argv.includes('--initial-only');
 const label = smoke ? 'live-smoke' : process.argv[2] ?? 'after-live';
-const dist = path.resolve(process.env.PATHWAY_CAPTURE_DIST ?? path.join(here, 'dist', label));
+const dist = path.resolve(process.env.PATHWAY_CAPTURE_DIST ?? buildFolder(here, label));
 const folder = path.resolve(process.env.PATHWAY_CAPTURE_OUT ?? path.join(here, label));
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, '../code-rows/seed.json.gz'))).toString());
 const survey = JSON.parse(readFileSync(path.join(here, '../code-rows/survey.json'), 'utf8'));

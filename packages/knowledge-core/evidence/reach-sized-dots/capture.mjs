@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, runCapture, visibleGlobeTargets, zoomGlobe } from '../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, captureOutput, runCapture, visibleGlobeTargets, zoomGlobe } from '../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2];
@@ -37,7 +37,7 @@ const prepare = async ({ page }) => {
 const rest = async (page, settle) => { await page.waitForTimeout(1500); await settle(page, 24); };
 // Observe the real opening once, then seed reads on the dots it shows. No saved facing.json or separate probe run.
 const [opening] = await runCapture({
-  folder: here, dist: path.join(here, 'dist', label), seed: { ...seed, lines: { lines: [], cursor: 0 } }, survey,
+  folder: here, dist: buildFolder(here, label), seed: { ...seed, lines: { lines: [], cursor: 0 } }, survey,
   prepare,
   views: [{ name: 'visible-targets', picture: false,
     prepare: async ({ page, settle }) => { await page.mouse.move(2, 2); await rest(page, settle); },
@@ -100,7 +100,7 @@ const frame = async (page, target) => {
 
 const results = { label, selected: SELECTED, opened, stale };
 await runCapture({
-  folder: here, dist: path.join(here, 'dist', label), seed, survey,
+  folder: here, dist: buildFolder(here, label), seed, survey,
   answers: { windowReading, windowReadings: async (project, sessions) => Promise.all(sessions.map(one => windowReading(project, one))), idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000 },
   prepare,
   views: [{

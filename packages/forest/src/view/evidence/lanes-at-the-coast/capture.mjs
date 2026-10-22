@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, runCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, runCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const [label, checkout] = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
@@ -14,7 +14,7 @@ assert.ok(label === 'before' ? checkout !== undefined : label === 'after', 'pass
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, 'seed.json.gz'))).toString('utf8'));
 const byTitle = title => seed.tree.stories.find(story => story.title === title).id;
 const SELECTED = byTitle('The library'), FACING = [SELECTED, byTitle('The map'), byTitle('Keys')];
-const dist = path.join(here, 'dist', label);
+const dist = buildFolder(here, label);
 await buildCapture({ dist, ...(checkout ? { root: path.resolve(checkout) } : {}) });
 
 // In-page: turn the globe so the given directions' middle faces the viewer, a little left of the story panel.

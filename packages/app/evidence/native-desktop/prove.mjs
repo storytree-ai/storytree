@@ -12,6 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { acquireHeavyLock } from "../../../dev-loop/src/heavy-lock.mjs";
 import { recordBrowserCoverage } from "../../../dev-loop/src/survey-coverage.mjs";
+import { buildFolder } from "../../../../apps/desktop/src/capture/output.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../../../..");
@@ -83,7 +84,7 @@ function launch(args) {
 }
 
 async function scripts(result, bundle, connection) {
-  const bundlePath = path.join(desktop, "dist", bundle);
+  const bundlePath = buildFolder(desktop, bundle);
   const source = await readFile(bundlePath, "utf8");
   const sourceMap = JSON.parse(await readFile(`${bundlePath}.map`, "utf8"));
   const found = [];

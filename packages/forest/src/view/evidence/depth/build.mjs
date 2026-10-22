@@ -4,6 +4,7 @@ import { readFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildFolder } from '../../../../../../apps/desktop/src/capture/output.ts';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../../../../../..');
 const BEFORE = process.env.BEFORE ?? 'c8018334';
@@ -15,7 +16,7 @@ const atBase = file => execFileSync('git', ['show', `${BEFORE}:${file}`], { cwd:
 const HOOK = 'const { camera, gl, scene, size, invalidate } = useThree();';
 
 export async function bundle(which) {
-  const dist = path.join(HERE, 'dist', which);
+  const dist = buildFolder(HERE, which);
   mkdirSync(dist, { recursive: true });
   const base = new Map(CHANGED.map(file => [path.resolve(ROOT, file).toLowerCase(), file]));
   try {

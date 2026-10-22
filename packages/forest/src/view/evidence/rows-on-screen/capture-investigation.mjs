@@ -8,11 +8,11 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, runCapture, zoomGlobe } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, runCapture, zoomGlobe } from '../../../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 // `--variant <name>` builds and captures a second page (a checkout with README.md's one-constant change), its level view only.
 const variant = process.argv.includes('--variant') ? process.argv[process.argv.indexOf('--variant') + 1] : undefined;
-const dist = path.join(here, 'dist', variant === undefined ? 'investigation' : `investigation-${variant}`);
+const dist = buildFolder(here, variant === undefined ? 'investigation' : `investigation-${variant}`);
 if (process.argv[2] === 'build') { await buildCapture({ dist }); process.exit(0); }
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, 'investigation-seed.json.gz'))).toString('utf8'));
 const survey = JSON.parse(readFileSync(path.join(here, 'investigation-survey.json'), 'utf8'));

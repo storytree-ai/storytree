@@ -3,12 +3,13 @@ import { mkdirSync, copyFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildFolder } from '../../../../apps/desktop/src/capture/output.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../../..');
 const require = createRequire(path.join(root, 'apps/desktop/package.json'));
 const { build } = require('esbuild');
-const out = path.join(here, 'dist/production');
+const out = buildFolder(here, 'production');
 mkdirSync(out, { recursive: true });
 await build({
   absWorkingDir: path.join(root, 'apps/desktop'),

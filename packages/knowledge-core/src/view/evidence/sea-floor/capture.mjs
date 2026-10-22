@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, captureSeed, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, captureSeed, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 import { knowledge, underShelves } from '@storytree/knowledge-core';
 import { HIDDEN_AT_START } from '../../../kinds/kinds.ts';
 
@@ -18,7 +18,7 @@ const PER_DEGREE = 600 / 180;
 const tilts = resting => [{ name: 'above', deg: resting }, { name: 'side-on', deg: 85 }, { name: 'below', deg: 180 - resting }];
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.join(here, 'dist');
+const dist = buildFolder(here);
 const { seed, survey } = captureSeed('code-rows');
 const viewport = { width: 1440, height: 960 };
 

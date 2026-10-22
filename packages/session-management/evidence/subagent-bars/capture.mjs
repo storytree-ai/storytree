@@ -5,10 +5,10 @@
 // (absolute checkout path) with `node --import tsx`; --retake writes the picture into this folder.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, captureSeed, fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, captureSeed, fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.join(here, 'dist');
+const dist = buildFolder(here);
 await buildCapture({ dist });
 const { seed } = captureSeed('forest');
 const parent = '70ff0b94-4da7-4c3e-ae0a-6bf082e4acfd';

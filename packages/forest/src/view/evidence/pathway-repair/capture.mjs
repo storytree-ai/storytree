@@ -5,11 +5,11 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2] ?? 'after';
-const dist = path.resolve(process.env.PATHWAY_CAPTURE_DIST ?? path.join(here, 'dist', label));
+const dist = path.resolve(process.env.PATHWAY_CAPTURE_DIST ?? buildFolder(here, label));
 const output = path.resolve(process.env.PATHWAY_CAPTURE_OUT ?? path.join(here, label));
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, '../code-rows/seed.json.gz'))).toString());
 const survey = JSON.parse(readFileSync(path.join(here, '../code-rows/survey.json'), 'utf8'));

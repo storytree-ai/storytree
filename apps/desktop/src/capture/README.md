@@ -6,6 +6,7 @@ frame settling, pictures, measurements and cleanup. See the working
 [rows capture](../../../../packages/forest/src/view/evidence/rows/capture.mjs).
 
 ```js
+const dist = buildFolder(folder); // or buildFolder(folder, 'after') for one of several builds
 await buildCapture({ dist });
 await runCapture({
   folder, dist, seed, survey,
@@ -74,6 +75,8 @@ abandoned and the browser's process killed, so a slow shutdown on a loaded runne
 cannot hold the run open. `withCapture` closes its own browser this way.
 
 Outputs go through `captureOutput`: scratch by default, the evidence folder only
-with `--retake`. `CAPTURE_PLAYWRIGHT` and `CAPTURE_CHROMIUM` override the workspace
+with `--retake`. A capture's bundled page goes to `buildFolder(folder, …)`, under the
+checkout's ignored `.evidence-builds/`, never to a `dist/` beside the evidence, so a
+build leaves nothing untracked in a package's source or evidence folders. `CAPTURE_PLAYWRIGHT` and `CAPTURE_CHROMIUM` override the workspace
 module and installed browser; older `PLANET_*` and `STORYTREE_PLAYWRIGHT` names are
 retained. No script needs a home-directory path or another server/launcher copy.

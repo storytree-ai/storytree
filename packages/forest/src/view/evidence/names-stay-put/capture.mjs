@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, runCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, captureOutput, runCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2];
@@ -136,7 +136,7 @@ for (const [name, { seed, survey }] of Object.entries(forests)) {
     },
   });
   await runCapture({
-    folder: here, dist: path.join(here, 'dist', label), seed, survey,
+    folder: here, dist: buildFolder(here, label), seed, survey,
     prepare: async ({ page }) => {
       await page.waitForFunction(ids => {
         const state = window.__globe;

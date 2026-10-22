@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
@@ -66,7 +66,7 @@ seed.arcView = {
 seed.tree.arcs = [{ id: ids.arc, title: 'Running sessions', description: 'Synthetic browser evidence', stories: [forest.id, app.id] }];
 seed.fixtureIds = ids;
 
-await withCapture({ folder: here, dist: path.join(here, 'dist/production') }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: buildFolder(here, 'production') }, async ({ browser, origin, out, settle }) => {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   page.setDefaultTimeout(15_000);
   const errors = [], warnings = [];

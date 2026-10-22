@@ -1,14 +1,14 @@
 // The website's globe at a phone's width (390 x 844), before and after the flat canvas went. Build the site, copy
-// packages/website/dist to dist/website-<label>, then: node --import tsx capture-website.mjs <label> [--retake]
+// packages/website/dist to website-<label> in its build folder (buildFolder), then: node --import tsx capture-website.mjs <label> [--retake]
 // It skips the tour to free play on the shop and pictures the settled globe.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { launch, captureOutput } from '../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, captureOutput, launch } from '../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2] ?? 'after';
-const dist = path.join(here, 'dist', `website-${label.replace(/\d+$/, '')}`);
+const dist = buildFolder(here, `website-${label.replace(/\d+$/, '')}`);
 const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.png': 'image/png', '.webp': 'image/webp', '.json': 'application/json' };
 const server = createServer(async (req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);

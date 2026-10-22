@@ -1,15 +1,15 @@
 // Pictures for the owner's look at contract 7.8: a session row, collapsed and expanded to its worktrees and window files.
 // The actual desktop page, built by ../sessions-list/build.mjs; all activity here is synthetic.
 // Run both through `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --` (absolute checkout path). --smoke builds its own page
-// into dist/smoke, takes no pictures and skips the fixed rests, so a test proves every wait below still resolves in a real browser.
+// into its build folder's smoke/, takes no pictures and skips the fixed rests, so a test proves every wait below still resolves in a real browser.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, captureSeed, fakeBridge, seedFile, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildCapture, buildFolder, captureSeed, fakeBridge, seedFile, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const smoke = process.argv.includes('--smoke');
-const dist = smoke ? path.join(here, 'dist/smoke') : path.join(here, '../sessions-list/dist/production');
+const dist = smoke ? buildFolder(here, 'smoke') : buildFolder(path.join(here, '../sessions-list'), 'production');
 if (smoke) await buildCapture({ dist });
 const { seed } = captureSeed('forest');
 const forest = seed.tree.stories.find(story => story.title === 'The forest');

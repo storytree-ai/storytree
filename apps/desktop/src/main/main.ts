@@ -111,6 +111,7 @@ import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
+import { mainErrorRecords } from "./main-error-records.js";
 import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
 import { titleWindow } from "./window-title.js";
@@ -122,8 +123,14 @@ declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 
 // The main process's own uncaught errors reach the log (app.log once logTo runs below, stderr in the checks), before startup work can throw.
 // The box then offers Keep going or Restart; before the app is ready only the error box can show, so it keeps going.
+// Each is also kept in the user's own library on every install, held until it opens (lifecycle 1.25), naming the build
+// once it is known and the app's version before.
+/** Which build this is (`main 80bcc63`, or the development checkout), shown in the title and the tray. */
+let build = "";
+const errorRecords = mainErrorRecords({ build: () => build || app.getVersion(), log: line => console.error(line) });
 logMainErrors(process, {
   log: line => console.error(line),
+  record: errorRecords.record,
   ask: async ({ title, message, detail, buttons }) => {
     if (!app.isReady()) {
       dialog.showErrorBox(title, `${message}\n\n${detail}`);
@@ -177,8 +184,6 @@ let releases: ReturnType<typeof followReleases>;
 let windowQuery: { project?: string; problem?: string } = {};
 /** Held here so it is not garbage-collected, which would remove the icon. */
 let tray: Tray | undefined;
-/** Which build this is (`main 80bcc63`, or the development checkout), shown in the title and the tray. */
-let build = "";
 /** The runtime slot this app runs from, when it is the app that follows merged main. */
 const slot = slotOf(home.runtime, app.getAppPath());
 const lifecycle = background({
@@ -343,6 +348,7 @@ async function run(): Promise<void> {
       connect,
     });
     ({ storytree, postgres } = opened);
+    void errorRecords.open(opened.storytree);
     console.log(`library: ${opened.where}`);
     reads = pageReads({ storytree, transcriptCacheHome: path.join(home.dir, "transcripts") });
     const pages = reads;

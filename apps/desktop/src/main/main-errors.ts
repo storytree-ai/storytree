@@ -1,7 +1,8 @@
 /**
  * Capability 1 · Lifecycle. What goes wrong in the main process itself, kept in the app's log so it can be read after the
  * fact (contract 1.22), then put to the person using the app: keep going, or restart (contract 1.23, the owner's answer
- * to question_8a7d4b27a8d6).
+ * to question_8a7d4b27a8d6). Each is also handed to `record`, which keeps it in the user's own library (contract 1.25,
+ * ./main-error-records.ts).
  */
 export interface MainProcess {
   on(event: "uncaughtException" | "unhandledRejection", listener: (reason: unknown) => void): unknown;
@@ -24,18 +25,27 @@ export type ErrorChoice = "keep-going" | "restart";
  */
 export function logMainErrors(
   main: MainProcess,
-  { log, ask, restart }: { log: (line: string) => void; ask: (message: ErrorMessage) => Promise<ErrorChoice>; restart: () => void },
+  { log, ask, restart, record = () => {} }: {
+    log: (line: string) => void;
+    ask: (message: ErrorMessage) => Promise<ErrorChoice>;
+    restart: () => void;
+    record?: (kind: "uncaught-exception" | "unhandled-rejection", stack: string) => void;
+  },
 ): void {
   let asking = false;
   main.on("uncaughtException", error => {
     log(`main process uncaught exception: ${described(error)}`);
+    record("uncaught-exception", described(error));
     if (asking) return;
     asking = true;
     void ask(errorMessage(error))
       .then(choice => { if (choice === "restart") restart(); }, () => {})
       .finally(() => { asking = false; });
   });
-  main.on("unhandledRejection", reason => log(`main process unhandled rejection: ${described(reason)}`));
+  main.on("unhandledRejection", reason => {
+    log(`main process unhandled rejection: ${described(reason)}`);
+    record("unhandled-rejection", described(reason));
+  });
 }
 
 function errorMessage(error: unknown): ErrorMessage {

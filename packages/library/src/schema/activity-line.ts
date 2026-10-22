@@ -137,6 +137,11 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    */
   z.object({ ...common, kind: z.literal("door-checked"), since: z.string().datetime({ offset: true }), until: z.string().datetime({ offset: true }),
     filed: z.array(z.string().min(1)) }).strict(),
+  /**
+   * A scheduled process record (`process`, its id) the session's runner ran (ADR-1105 D3), with how it went and an optional
+   * note: written by `schedule ran`. The latest line for a process is its last run, which `schedule due` reads its schedule against.
+   */
+  z.object({ ...common, kind: z.literal("process-ran"), process: z.string().min(1), outcome: z.enum(["ok", "concern", "failed"]), note: z.string().min(1).optional() }).strict(),
   z.object({ ...common, kind: z.literal("note-read"), ...noteRead }).strict(),
   /**
    * A claim taken, on the git branch its session's folder was on, when it was on one (ADR-0643 D3).

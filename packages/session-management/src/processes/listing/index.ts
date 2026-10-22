@@ -141,7 +141,8 @@ function age(ms: number): string {
   return `${Math.floor(seconds / 3_600)}h`;
 }
 
-/** Its section of the habits card (ADR-1021, the guidance kind): the runs a caller may read, stop and clear. */
+/** Its section of the habits card (ADR-1021, the guidance kind): the runs a caller may read, stop and clear, and a
+ * factory's scheduled processes a runner runs (capability 18), which share its paragraph to keep the card within its lines. */
 export const runsGuidance: readonly string[] = [
-  'Use `list_own_runs` for this caller’s recorded work, `list_all_runs` for every recorded session on this computer, `stop_own_run` for named runs you own, and `clear_own_runs` to remove only your confirmed-gone records and read what remains on this computer. These tools work with the app offline; uncertain caller identity grants no stop authority.',
+  'Use `list_own_runs` for this caller’s recorded work, `list_all_runs` for every recorded session on this computer, `stop_own_run` for named runs you own, and `clear_own_runs` to remove only your confirmed-gone records and read what remains on this computer. These tools work with the app offline; uncertain caller identity grants no stop authority. Asked to run the factory’s routines, `schedule_due` lists the scheduled processes due now: run each through a subagent, then record it with `schedule_ran` and its outcome.',
 ];

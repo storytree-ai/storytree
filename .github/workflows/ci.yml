@@ -29,7 +29,13 @@ name: CI
 # never merged automatically.
 #
 # `verify` also runs on each push to main. The queue's merge is such a push, so it starts this
-# workflow, then release.yml and own-health.yml after it completes. A direct merge that
+# workflow, then release.yml and own-health.yml after it completes. That push is the commit the
+# queue's run has just tested on all three systems, so `queue-verdict` finds that run and `verify`
+# stands on it, and `platforms` runs no tests again (22% of runner time, increment_08dac5c25a06);
+# with no passing queue run of the same commit (a direct merge, a batch whose head differs) the push
+# tests in full, as before. The queue's passing run keeps the Windows and macOS evidence own health
+# credits (packages/ci-health/src/test-run/main-commit.mjs) and the timing history `timings` saves
+# for main. A direct merge that
 # `automerge` makes starts none of them: GitHub starts no workflow from a push made with a
 # workflow's own token. So then `automerge` starts own-health.yml on main itself, which records
 # each contract's verified health (ADR-0744 D3), and release.yml follows the pull request's run.
@@ -52,6 +58,38 @@ permissions:
   contents: read
 
 jobs:
+  # On a push to main, whether the merge queue's run of this exact commit passed `verify`
+  # (packages/dev-loop/src/queue-verdict.mjs). Its run id is empty when none did, or when the API
+  # could not be read, and then `platforms` tests the push in full.
+  queue-verdict:
+    name: queue verdict
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run-id: ${{ steps.verdict.outputs.run-id }}
+      attempt: ${{ steps.verdict.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: packages/dev-loop/src/queue-verdict.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Find the merge queue's passing run of this commit
+        id: verdict
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { queueVerdict } = await import(`${process.env.GITHUB_WORKSPACE}/packages/dev-loop/src/queue-verdict.mjs`);
+            const { run, reason } = await queueVerdict({ github, repo: context.repo, sha: context.sha });
+            core.notice(reason);
+            if (run === undefined) return;
+            core.setOutput('run-id', run.id);
+            core.setOutput('attempt', run.attempt);
+
   # One run per system, each installing, typechecking and testing. A failure on one system leaves
   # the others running (fail-fast: false), so a failure on one alone shows as that system's.
   platforms:
@@ -67,6 +105,10 @@ jobs:
           - system: Windows
             runner: windows-latest
     runs-on: ${{ matrix.runner }}
+    # Skipped on a push the merge queue's run already verified; on a pull request or the queue's
+    # own run, `queue-verdict` is skipped and this runs.
+    needs: queue-verdict
+    if: ${{ !cancelled() && needs.queue-verdict.outputs.run-id == '' }}
     # The merge queue runs on loaded runners, where a full Windows test step that takes 13 minutes
     # unloaded ran past the old 21-minute deadline and ejected a green pull request
     # (friction_214807bf5d9d, increment_3bd2b051ab67). A run that passes takes no longer for it.
@@ -135,6 +177,17 @@ jobs:
         with:
           path: ~/.storytree/0.3/test-timings.jsonl
           key: test-timings-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+      # The merge queue's passing run tested main's next commit, but a cache it saved would be kept
+      # for its own queue branch, out of every later run's reach: it leaves its history for the
+      # push run's `timings` to save for main. A failed queue run carries nothing back.
+      - name: Leave the queue run's test timing history for main
+        if: success() && github.event_name == 'merge_group'
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-timings-${{ runner.os }}-${{ github.run_attempt }}
+          path: ~/.storytree/0.3/test-timings.jsonl
+          include-hidden-files: true
+          if-no-files-found: warn
       # Exercise the distributable before merging packaging/updater changes. A source build
       # passing tests alone does not prove NSIS can unpack the app and its database binaries, or
       # that the signed Apple Silicon .app starts and runs its own Postgres and Node.
@@ -174,14 +227,49 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ${{ job.status == 'success' && 'error' || 'warn' }}
 
+  # On a push that stands on the merge queue's verdict, each system saves the timing history that
+  # queue run left (above) as main's, so the next run's unit deadlines still grow from main's tested
+  # commits. A save that fails warns and fails nothing: it is not a test verdict.
+  timings:
+    name: keep main's timing history on ${{ matrix.system }}
+    needs: queue-verdict
+    if: needs.queue-verdict.outputs.run-id != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: Linux
+            runner: ubuntu-latest
+          - system: macOS
+            runner: macos-latest
+          - system: Windows
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: test-timings-${{ runner.os }}-${{ needs.queue-verdict.outputs.attempt }}
+          path: ~/.storytree/0.3
+          run-id: ${{ needs.queue-verdict.outputs.run-id }}
+          github-token: ${{ github.token }}
+      - uses: actions/cache/save@v6
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: test-timings-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+
   # The check branch protection on main requires, and the one `automerge` waits for; it reports on
   # the merge queue's runs too, so the queue can merge on it. It passes only
-  # if every run in `platforms` passed. It runs whatever they did (always()), so a run that failed
+  # if every run in `platforms` passed, or, on a push to main, if the merge queue's run of the same
+  # commit passed it (`queue-verdict`). It runs whatever they did (always()), so a run that failed
   # or was cancelled fails it: were it skipped instead, GitHub would count the skipped check as
   # passed.
   verify:
     name: verify
-    needs: platforms
+    needs: [queue-verdict, platforms]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -189,7 +277,12 @@ jobs:
       - name: Every system passed
         env:
           RESULT: ${{ needs.platforms.result }}
+          QUEUE_RUN: ${{ needs.queue-verdict.outputs.run-id }}
         run: |
+          if [ -n "$QUEUE_RUN" ]; then
+            echo "The merge queue's run $QUEUE_RUN passed verify on this commit."
+            exit 0
+          fi
           echo "platforms: $RESULT"
           test "$RESULT" = success
 

@@ -17,7 +17,7 @@ import path from "node:path";
 import type { Pool, PoolClient } from "pg";
 
 import { HealthRecord } from "../health/health-record.js";
-import { modelsFolder } from "../knowledge/bge-small.js";
+import { modelsFolder } from "../knowledge/embedding-model.js";
 import type { EmbedderSource } from "../knowledge/embedding.js";
 import { Knowledge } from "../knowledge/knowledge.js";
 import { SchemaRecords } from "../schema/records.js";

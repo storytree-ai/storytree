@@ -24,7 +24,7 @@ import { checkReference, checkReferences, liveRecord, type Expected } from "../r
 import type { SchemaRecord, SchemaRecords, WriteOptions } from "../schema/index.js";
 import { unstorable } from "../schema/records.js";
 import { judgedState, type FieldsOf, type KnowledgeKind } from "../schema/types.js";
-import { defaultEmbedder } from "./bge-small.js";
+import { defaultEmbedder } from "./embedding-model.js";
 import { DecisionLog, type DecisionNumberPlan, type DecisionView, type NewDecision } from "./decision-log.js";
 import { MemoryVectors, rankByMeaning, renderNote, type EmbedderSource, type VectorStore } from "./embedding.js";
 import { artifactsOnly, checkFrontCover, frontCovers } from "./front-covers.js";

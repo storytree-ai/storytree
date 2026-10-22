@@ -55,7 +55,7 @@ function fakeEmbedder(): Embedder & { embedded: string[] } {
 }
 
 /**
- * The fake embedder reading only the first 512 tokens of each text, as bge-small does (transformers.js
+ * The fake embedder reading only the first 512 tokens of each text, as the model does (transformers.js
  * drops the rest without warning). A token here is a word or a punctuation mark, with [CLS] and [SEP]
  * taking two: fewer than the real tokenizer counts, never more.
  */
@@ -253,6 +253,22 @@ for (const backend of [memory, postgres]) {
 
     assert.equal(ranked.hits[0]!.note.id, long.id);
     assert.ok(ranked.hits[0]!.score! > 0, "the release line was embedded");
+  });
+
+  test(`14.15 [${backend.label}] the question is embedded after the model's query prefix, and an artifact's chunks without it`, async () => {
+    const embedder = fakeEmbedder();
+    const prefix = "Represent this sentence for searching relevant passages: ";
+    const opened = await backend.open(async () => ({ ...embedder, queryPrefix: prefix }));
+    try {
+      await opened.knowledge.defineTerm({ term: "Mailer", meaning: "The mailer needs a verified sender." });
+
+      await opened.knowledge.rank("how do I send an email");
+
+      assert.deepEqual(embedder.embedded.filter((text) => text.startsWith(prefix)), [`${prefix}how do I send an email`]);
+      assert.ok(embedder.embedded.some((text) => text.includes("verified sender")), "the artifact was embedded, with no prefix");
+    } finally {
+      await opened.cleanup();
+    }
   });
 
   test(`14.4 [${backend.label}] with no embedding model, rank gives the word matches and says why`, async () => {

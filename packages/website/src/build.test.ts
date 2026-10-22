@@ -297,3 +297,21 @@ test("1.15 · at desktop width the hook line and its paragraph sit left of the f
     }
   }
 });
+
+test("2.33 · the framed map's panels draw on the forest's own dark palette: the frame they open in wears it, and the built stylesheet defines it", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-panels-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const page = new HappyWindow().document;
+  page.write(await readFile(path.join(output, "index.html"), "utf8"));
+  const css = await readFile(path.join(output, page.querySelector('link[rel="stylesheet"]')!.getAttribute("href")!), "utf8");
+  // Every panel (a story's drill-down, a note's card, the tree space, the sessions list) opens inside #map-frame (forest-scene.tsx).
+  const frame = page.querySelector("#map-frame")!;
+  const dark = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(([, selectors]) => selectors!.split(",").some(s => /^\.forest-workspace\[data-theme=("?)dark\1\]$/.test(s.trim())));
+  assert.ok(dark, "the built stylesheet carries the forest's dark palette");
+  assert.ok(frame.matches(dark[1]!.trim()), "the frame the panels open in wears the dark palette");
+  for (const token of ["--bg", "--surface", "--text", "--muted", "--line", "--none-bg", "--none-text", "--pass-bg", "--fail-bg"]) {
+    assert.match(dark[2]!, new RegExp(`${token}:\\s*#`), `the palette gives the panels ${token}`);
+  }
+  assert.match(declarationsAt(css, ".forest-workspace", 1440).get("--st-healthy") ?? "", /^#/, "and the cards' status colours apply there");
+});

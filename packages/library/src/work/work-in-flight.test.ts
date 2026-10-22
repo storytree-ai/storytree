@@ -640,6 +640,26 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await records.get(increment.id))?.fields, cleared?.fields);
   });
 
+  contract("10.23", "an increment names the escape it fixes: the pull request or increment that caused it and the story it hit, set by parking or editing and cleared by an edit; a cause or story that is not one is refused with nothing written", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const culprit = await flight.addIncrement({ arc: arc.id, ...WORK });
+    const fix = await flight.addIncrement({ arc: arc.id, ...WORK, escape: { causedBy: "#1234", story: story.id } });
+    assert.deepEqual(fix.fields.escape, { causedBy: "#1234", story: story.id });
+    assert.deepEqual((await flight.editIncrement(fix.id, { escape: { causedBy: culprit.id, story: story.id } }))?.fields.escape, { causedBy: culprit.id, story: story.id });
+    const history = await transactions.history();
+    for (const escape of [{ causedBy: "last week", story: story.id }, { causedBy: "#", story: story.id }, { causedBy: story.id, story: story.id }]) {
+      await assert.rejects(flight.editIncrement(fix.id, { escape }), SchemaError);
+    }
+    for (const [escape, field] of [[{ causedBy: "increment_000000000000", story: story.id }, "escape.causedBy"], [{ causedBy: "#9", story: culprit.id }, "escape.story"]] as const) {
+      await assert.rejects(flight.editIncrement(fix.id, { escape }), (error: unknown) => error instanceof MissingReferenceError && error.field === field);
+    }
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+    const cleared = await flight.editIncrement(fix.id, { escape: undefined });
+    assert.equal("escape" in (cleared?.fields ?? {}), false, "cleared, it names no escape");
+    assert.deepEqual((await records.get(fix.id))?.fields, cleared?.fields);
+  });
+
   contract("7.8", "arcViews() answers every live arc's view as arcView does, in a bounded number of reads whatever the number of arcs", async ({ work, flight, records }) => {
     const arcs = [];
     for (let i = 0; i < 4; i++) {

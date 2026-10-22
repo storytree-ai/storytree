@@ -20,12 +20,16 @@ function machine(t) {
   const home = path.join(dir, "home");
   const log = path.join(dir, "runs.log");
   const file = path.join(dir, "slow.test.mjs");
+  // The first run holds on until the test lets it go, so a slow machine's second run cannot boot
+  // only after the first has finished and so never have to wait (macOS, run 39744739477).
+  const release = path.join(dir, "release");
   writeFileSync(
     file,
-    `import { test } from "node:test"; import { appendFileSync } from "node:fs";
+    `import { test } from "node:test"; import { appendFileSync, existsSync } from "node:fs";
 test("slow", async () => {
   appendFileSync(${JSON.stringify(log)}, \`start \${process.env.RUN} \${Date.now()}\\n\`);
   await new Promise((resolve) => setTimeout(resolve, 1500));
+  for (let waited = 0; process.env.RUN === "first" && !existsSync(${JSON.stringify(release)}) && waited < 60000; waited += 50) await new Promise((resolve) => setTimeout(resolve, 50));
   appendFileSync(${JSON.stringify(log)}, \`end \${process.env.RUN} \${Date.now()}\\n\`);
 });`,
   );
@@ -37,7 +41,7 @@ test("slow", async () => {
     child.stdout.on("data", (chunk) => (output += chunk));
     child.stderr.on("data", (chunk) => (output += chunk));
     const done = new Promise((resolve) => child.once("close", (code) => resolve({ code, output })));
-    return { child, done };
+    return { child, done, output: () => output };
   };
   const events = () =>
     existsSync(log)
@@ -46,14 +50,16 @@ test("slow", async () => {
           return { what, run, at: Number(at) };
         })
       : [];
-  return { home, harness, events };
+  return { home, harness, events, letGo: () => writeFileSync(release, "") };
 }
 
 test("6.2 a second test run on the machine waits for the first, naming who holds the lock", async (t) => {
-  const { harness, events } = machine(t);
+  const { harness, events, letGo } = machine(t);
   const first = harness("first");
   while (!events().some((event) => event.what === "start")) await delay(50);
   const second = harness("second");
+  for (let waited = 0; !/waiting for/.test(second.output()) && waited < 60000; waited += 50) await delay(50);
+  letGo();
   const [a, b] = await Promise.all([first.done, second.done]);
   assert.equal(a.code, 0, a.output);
   assert.equal(b.code, 0, b.output);

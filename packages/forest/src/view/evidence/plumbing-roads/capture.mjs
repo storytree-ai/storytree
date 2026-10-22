@@ -49,10 +49,11 @@ const drawn = (page) => page.evaluate(ids => {
 }, ids);
 
 /** Drag the sheet from open sea until the middle of `stories` stands at `target` (CSS pixels); real pointer drags, twice, to settle the tilt's foreshortening. */
-async function bringTo(page, stories, target) {
-  for (let pass = 0; pass < 3; pass++) {
-    const { islands } = await drawn(page);
-    const now = stories.map(id => islands[id]).reduce((m, p) => ({ x: m.x + p.x / stories.length, y: m.y + p.y / stories.length }), { x: 0, y: 0 });
+async function bringTo(page, stories, target, byLabels = false) {
+  for (let pass = 0; pass < 4; pass++) {
+    const { islands, labels } = await drawn(page);
+    const points = byLabels ? labels.map(l => ({ x: l.x + l.width / 2, y: l.y + l.height / 2 })) : stories.map(id => islands[id]);
+    const now = points.reduce((m, p) => ({ x: m.x + p.x / points.length, y: m.y + p.y / points.length }), { x: 0, y: 0 });
     const by = { x: target.x - now.x, y: target.y - now.y };
     if (Math.hypot(by.x, by.y) < 6) return;
     const from = { x: 720, y: 760 };
@@ -92,48 +93,22 @@ await capture(seed, survey, [
       prepare: async ({ page }) => { await bringTo(page, [SETUP, REVIEW], { x: 900, y: 420 }); await settle(page, 20); },
       measure: async ({ page, errors }) => ({ errors, ...await drawn(page) }),
       expect: r => { assert.deepEqual(r.errors, []); console.log('setup-east: labels', JSON.stringify(r.labels)); } },
-    { name: 'setup-close',
+    { name: 'both-labels',
+      // Framed on the middle of the two chips, wheeled in two notches: the build step's and the cleanup's both on screen.
       prepare: async ({ page }) => {
-        await bringTo(page, [SETUP, REVIEW], { x: 720, y: 520 });
-        const canvas = await page.locator('canvas').first().boundingBox();
-        await page.mouse.move(720, 520);
-        for (let i = 0; i < Number(process.env.WHEEL ?? 5); i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(150); }
+        await bringTo(page, [], { x: 720, y: 500 }, true);
+        await page.mouse.move(720, 500);
+        for (let i = 0; i < Number(process.env.WHEEL ?? 2); i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(150); }
         await settle(page, 20);
-        await bringTo(page, [SETUP, REVIEW], { x: 720, y: 480 });
+        await bringTo(page, [], { x: 720, y: 500 }, true);
         await page.mouse.move(2, 2);
         await settle(page, 20);
       },
       measure: async ({ page, errors }) => ({ errors, ...await drawn(page) }),
       expect: r => {
         assert.deepEqual(r.errors, []);
-        const kinds = r.labels.flatMap(l => l.chips.map(c => c.text)).sort();
-        assert.deepEqual(kinds, ['build step', 'cleanup']);
-        console.log('setup-close: labels', JSON.stringify(r.labels));
+        assert.deepEqual(r.labels.flatMap(l => l.chips.map(c => c.text)).sort(), ['build step', 'cleanup']);
+        assert.ok(r.labels.every(l => l.insideCanvas), 'both chips are on screen');
+        console.log('both-labels: labels', JSON.stringify(r.labels.map(l => [l.chips[0].text, l.x, l.y, l.overlapsAName])));
       } },
-]);
-
-// A rehearsal, plainly not storytree's own map: the two plumbing edges lose their capability ends (as most plumbing has none:
-// a story edge, no capability road of its own), so no dependency road is drawn for them and each is drawn by its plumbing alone.
-// Every other road and island stand as they were.
-const alone = structuredClone(survey);
-for (const one of Object.values(alone)) for (const e of one.edges ?? []) {
-  if (e.files.every(f => f.plumbing !== undefined || f.forwarder)) { delete e.from; delete e.to; }
-}
-await capture(seed, alone, [
-  { name: 'plumbing-alone-close',
-    prepare: async ({ page }) => {
-      await bringTo(page, [SETUP, REVIEW], { x: 720, y: 520 });
-      await page.mouse.move(720, 520);
-      for (let i = 0; i < Number(process.env.WHEEL ?? 5); i++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(150); }
-      await settle(page, 20);
-      await bringTo(page, [SETUP, REVIEW], { x: 720, y: 480 });
-      await page.mouse.move(2, 2);
-      await settle(page, 20);
-    },
-    measure: async ({ page, errors }) => ({ errors, ...await drawn(page) }),
-    expect: r => {
-      assert.deepEqual(r.errors, []);
-      assert.deepEqual(r.labels.flatMap(l => l.chips.map(c => c.text)).sort(), ['build step', 'cleanup']);
-      console.log('plumbing-alone-close: roads', JSON.stringify(r.roads.map(x => [x.colour, x.widthGround])), 'threads', r.threads.length);
-    } },
 ]);

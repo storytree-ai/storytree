@@ -84,6 +84,8 @@ test("3.67 each plumbing call the survey marks between two stories is one island
       // Two build-step files to one story make one entry; an unmarked import from the same file is no plumbing.
       { story: "story_2", typeOnly: false, files: [file("src/build.ts", { plumbing: "build step" }), file("src/run.ts", { plumbing: "build step" }), file("src/sell.ts")] },
       { story: "story_2", from: "cap_1a", to: "cap_2a", typeOnly: false, files: [file("src/old.ts", { forwarder: true })] },
+      // A capability edge with one ordinary import beside its plumbing is still a road.
+      { story: "story_2", from: "cap_1b", to: "cap_2a", typeOnly: false, files: [file("src/old.ts", { forwarder: true }), file("src/cart.ts")] },
       { story: "story_3", typeOnly: false, files: [file("src/remove.ts", { plumbing: "cleanup" })] },
     ] },
   };
@@ -93,6 +95,6 @@ test("3.67 each plumbing call the survey marks between two stories is one island
     { from: "story_1", to: "story_2", kind: "forwarder", files: ["src/old.ts"] },
     { from: "story_1", to: "story_3", kind: "cleanup", files: ["src/remove.ts"] },
   ]);
-  // Only the capability edge is a road; the plumbing entries ride beside the links, not in them.
-  assert.deepEqual(scene.links, [{ from: "cap_1a", to: "cap_2a" }]);
+  // A capability edge made only of plumbing is no road (plumbing is not a dependency); one with an ordinary import is.
+  assert.deepEqual(scene.links, [{ from: "cap_1b", to: "cap_2a" }]);
 });

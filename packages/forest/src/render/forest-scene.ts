@@ -104,7 +104,9 @@ function plumbingCalls(tree: AnnotatedTree, survey: Readonly<Record<string, Stor
 function capabilityLinks(tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>): { from: string; to: string; typeOnly?: true }[] {
   const links = new Map<string, { from: string; to: string; typeOnly?: true }>(tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
     capability.dependsOn.map(to => [`${capability.id}->${to}`, { from: capability.id, to }] as const))));
-  for (const story of tree.stories) for (const { from, to, typeOnly } of survey[story.id]?.edges ?? []) {
+  for (const story of tree.stories) for (const { from, to, typeOnly, files } of survey[story.id]?.edges ?? []) {
+    // An edge made only of plumbing calls is no dependency (ADR-1085 D3): plumbingCalls draws it by kind instead.
+    if (files.length > 0 && files.every((file) => file.forwarder === true || file.plumbing !== undefined)) continue;
     if (from !== undefined && to !== undefined && !links.has(`${from}->${to}`)) links.set(`${from}->${to}`, { from, to, ...(typeOnly ? { typeOnly } : {}) });
   }
   const mapped = new Set(tree.stories.filter(story => story.mapped !== undefined).map(({ id }) => id));

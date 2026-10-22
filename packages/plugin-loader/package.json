@@ -5,6 +5,7 @@
   "description": "Plugin loader (ADR-1021): reads the `storytree` manifests of the story packages a host depends on and composes their parts into the host's bundle.",
   "exports": {
     ".": "./src/index.ts",
+    "./factory": "./src/factory/factory.ts",
     "./switch": "./src/switch/switch.ts"
   },
   "scripts": {

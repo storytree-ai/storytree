@@ -27,9 +27,9 @@ export interface FakeBridge {
  * there (a capture that keeps its seeded state in the page sets it in an init script); every other
  * is carried to the fake. Text, not a function, since a capture run through tsx would hand the page
  * esbuild's __name helper, which the page lacks. `then` stays unanswered so that awaiting the bridge
- * itself is not mistaken for a call.
+ * itself is not mistaken for a call, and `pluginViews`, data rather than a method, is none.
  */
-const PAGE_BRIDGE = `window.storytree = new Proxy({}, { get: (_, method) => method === "then" ? undefined : (...args) => typeof window.storytreeAnswers?.[method] === "function" ? window.storytreeAnswers[method](...args) : window.storytreeFakeBridge(String(method), args) });`;
+const PAGE_BRIDGE = `window.storytree = new Proxy({}, { get: (_, method) => method === "then" ? undefined : method === "pluginViews" ? [] : (...args) => typeof window.storytreeAnswers?.[method] === "function" ? window.storytreeAnswers[method](...args) : window.storytreeFakeBridge(String(method), args) });`;
 
 /**
  * The first-run guide remembered as seen, as app-setup's guideOffered reads it, so a capture opens on
@@ -105,6 +105,8 @@ const QUIET: StorytreeBridge = {
   standingDelegations: async () => undefined,
   codeSurvey: async () => ({}),
   recordLag: async () => {},
+  // Data, not a method: a capture mounts no factory plugin's views.
+  pluginViews: [],
 };
 
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */

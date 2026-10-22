@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
 
-import { composeParts, mount, offSaid, partsPlugin, PLUGIN_INTERFACE, standIn, storyParts } from "./index.js";
+import { composeParts, mount, offSaid, partsPlugin, PLUGIN_INTERFACE, pluginExport, standIn, storyParts } from "./index.js";
 
 /** The loader's own entry, as a fixture host's composing module imports it (the fixture installs no loader of its own). */
 const LOADER = JSON.stringify(new URL("./index.ts", import.meta.url).href);
@@ -199,4 +199,20 @@ test("5.3 a factory plugin's manifest names the version of storytree's plugin in
     assert.match(offSaid(result.off[0]!), new RegExp(`stand-in ${plugin} could not be loaded`));
     assert.match(result.off[0]!.failed ?? "", why);
   }
+});
+
+test("5.4 a plugin's exported file is found by its export name inside the plugin's own folder; an unexported name, a target reaching outside the plugin, or a plugin name that is not one folder is refused with why", (t) => {
+  const folder = factory(t, {
+    "my-health": { ...verbsPlugin, exports: { ...verbsPlugin.exports, "./view": "./view.js", "./escape": "../other/secret.js" }, files: { ...verbsPlugin.files, "view.js": "export function mount() {}\n" } },
+    other: { files: { "secret.js": "export const secret = 1;\n" } },
+  });
+  assert.equal(pluginExport(folder, "my-health", "./view"), path.join(folder, "plugins", "my-health", "view.js"));
+  for (const [plugin, from, why] of [
+    ["my-health", "./view.js", /does not export "\.\/view\.js"/],
+    ["my-health", "./escape", /outside its own folder/],
+    ["..", "./view", /not a plugin's name/],
+    ["my-health/../other", "./view", /not a plugin's name/],
+    ["missing", "./view", /no plugin called missing/],
+  ] as const) assert.throws(() => pluginExport(folder, plugin, from), why);
+  assert.throws(() => pluginExport(undefined, "my-health", "./view"), /no factory folder is chosen/);
 });

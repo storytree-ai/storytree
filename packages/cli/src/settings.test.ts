@@ -211,8 +211,10 @@ test("1.40 · with a factory folder chosen and `settings set part ci-health plug
   assert.match((await invoke(["settings", "show"])).stdout, /^  ci-health: off, my-health stands in for it$/m);
 
   assert.equal((await invoke(["settings", "set", "part", "ci-health", "on"])).code, 0);
-  assert.doesNotMatch((await invoke([])).stdout, /my own health/);
-  assert.match((await invoke(["health", "check"])).stderr, /check/, "ci-health's own family has no check verb");
+  const restored = (await invoke([])).stdout;
+  assert.doesNotMatch(restored, /my own health/);
+  assert.match(restored, /^  health\s+the health worklist, and reading a project's CI/m, "ci-health's own family is mounted again");
+  assert.notEqual((await invoke(["health", "check"])).code, 0, "and the plugin's verb is gone with it");
 });
 
 test("1.39 · `settings set system roles off` leaves the project's roles out of what `library list` and `library search` give at the next command, and `library read` still reads one by its id; a role switched on by its title shows again; `settings show` lists what is off and on (ADR-1092 D2)", async () => {

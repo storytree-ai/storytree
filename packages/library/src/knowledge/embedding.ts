@@ -3,7 +3,8 @@
  * how close their meaning is to the question, with an embedding model computed on this computer.
  * The shape is the one 0.2's measurement settled (hindsight-memory-layer-arc-inc-02): an artifact's
  * rendered text, packed into ~1600-character chunks on paragraph boundaries (ADR-1044 D1); each chunk
- * embedded; an artifact scored by its best chunk's cosine with the question, which is sent with no prefix.
+ * embedded; an artifact scored by its best chunk's cosine with the question, which is sent after the
+ * model's query prefix (14.15).
  *
  * A vector is kept under the hash of the chunk it was made from, so an artifact that is written is
  * embedded again at the next search, and a search never ranks by a stale vector (ADR-0733 D4).
@@ -12,10 +13,12 @@ import { createHash } from "node:crypto";
 
 import type { SchemaRecord } from "../schema/index.js";
 
-/** Turns texts into unit-length vectors. The real one is bge-small (bge-small.ts); tests use a fake. */
+/** Turns texts into unit-length vectors. The real one is arctic-embed-s (embedding-model.ts); tests use a fake. */
 export interface Embedder {
   /** The model's name: vectors are kept per model, so a changed model never reads another's. */
   readonly model: string;
+  /** Put before a question, never before a chunk, as the model was trained to read a search. */
+  readonly queryPrefix?: string;
   /** One unit-length vector per text, in order. */
   embed(texts: readonly string[]): Promise<Float32Array[]>;
 }
@@ -48,7 +51,7 @@ export class MemoryVectors implements VectorStore {
 }
 
 /**
- * The most characters in one chunk: few enough that dense text stays inside the 512 tokens bge-small
+ * The most characters in one chunk: few enough that dense text stays inside the 512 tokens the model
  * reads, which drops the rest without warning (ADR-1044 D1).
  */
 export const CHUNK = 1600;
@@ -149,7 +152,7 @@ export async function rankByMeaning<T>(
     await vectors.put(embedder.model, fresh);
     for (const [key, vector] of fresh) kept.set(key, vector);
   }
-  const [question] = await embedder.embed([query]);
+  const [question] = await embedder.embed([`${embedder.queryPrefix ?? ""}${query}`]);
   const scored = chunked.map(({ item, keys }, order) => ({
     item,
     order,

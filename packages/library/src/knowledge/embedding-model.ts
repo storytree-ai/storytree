@@ -1,7 +1,8 @@
 /**
- * Capability 14 · Ranked search: the real embedder, BAAI/bge-small-en-v1.5 run in this process by
- * transformers.js on ONNX Runtime (ADR-0733 D1-D2). Nothing is loaded until the first search needs it; the
- * model is downloaded once into the storytree home's `models` folder and read from there after.
+ * Capability 14 · Ranked search: the real embedder, Snowflake/snowflake-arctic-embed-s run in this
+ * process by transformers.js on ONNX Runtime (ADR-0733 D1-D2; the owner chose Snowflake's model over
+ * BAAI's bge-small-en-v1.5 in question_80102d5cea6e). Nothing is loaded until the first search needs
+ * it; the model is downloaded once into the storytree home's `models` folder and read from there after.
  *
  * STORYTREE_EMBEDDER=off switches it off (the test runner does, so no test or CI run downloads the
  * model), and a search then ranks by words and says why.
@@ -26,22 +27,25 @@ import { pipeline as pipe } from "node:stream/promises";
 
 import type { Embedder, EmbedderSource } from "./embedding.js";
 
-/** The ONNX export of BAAI/bge-small-en-v1.5 that transformers.js reads. */
-export const BGE_SMALL = "Xenova/bge-small-en-v1.5";
+/** Snowflake's own repository of arctic-embed-s, ONNX export included, which transformers.js reads. */
+export const MODEL = "Snowflake/snowflake-arctic-embed-s";
 
-/** The commit of BGE_SMALL its files come from (last changed 2025-07-22), never the moving `main`. */
-export const BGE_SMALL_REVISION = "ea104dacec62c0de699686887e3f920caeb4f3e3";
+/** The commit of MODEL its files come from (last changed 2024-12-04), never the moving `main`. */
+export const MODEL_REVISION = "e596f507467533e48a2e17c007f0e1dacc837b33";
 
 /**
- * Every file transformers.js reads for BGE_SMALL at BGE_SMALL_REVISION, with its SHA-256 (model.onnx's
- * is the Hub's LFS oid; the JSON files were hashed from a fresh download, 2026-10-22).
+ * Every file transformers.js reads for MODEL at MODEL_REVISION, with its SHA-256 (model.onnx's is the
+ * Hub's LFS oid; the JSON files were hashed from a fresh download, 2026-10-22).
  */
-export const BGE_SMALL_FILES: Readonly<Record<string, string>> = {
-  "config.json": "fa73f90bf92c8cace1fbcb709626306f2bdbc9ea3e5b5f94b440df9b6aa56350",
-  "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
-  "tokenizer_config.json": "9261e7d79b44c8195c1cada2b453e55b00aeb81e907a6664974b4d7776172ab3",
-  "onnx/model.onnx": "828e1496d7fabb79cfa4dcd84fa38625c0d3d21da474a00f08db0f559940cf35",
+export const MODEL_FILES: Readonly<Record<string, string>> = {
+  "config.json": "4e519aa92ec40943356032afe458c8829d70c5766b109e4a57490b82f72dcfb7",
+  "tokenizer.json": "91f1def9b9391fdabe028cd3f3fcc4efd34e5d1f08c3bf2de513ebb5911a1854",
+  "tokenizer_config.json": "9ca59277519f6e3692c8685e26b94d4afca2d5438deff66483db495e48735810",
+  "onnx/model.onnx": "579c1f1778a0993eb0d2a1403340ffb491c769247fb46acc4f5cf8ac5b89c1e1",
 };
+
+/** What arctic-embed-s was trained to read before a search question (and never before a passage). */
+export const QUERY_PREFIX = "Represent this sentence for searching relevant passages: ";
 
 /** The file beside a model's files that remembers which copies were checked. */
 const VERIFIED = ".verified.json";
@@ -55,14 +59,14 @@ export function modelsFolder(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 /**
- * The embedder a library uses unless it is handed another: bge-small, loaded once per process on
+ * The embedder a library uses unless it is handed another: arctic-embed-s, loaded once per process on
  * first use. A load that fails is tried again at the next search, never remembered as a failure.
  */
 export function defaultEmbedder(env: NodeJS.ProcessEnv = process.env): EmbedderSource {
   let loading: Promise<Embedder> | undefined;
   return () => {
     if (env.STORYTREE_EMBEDDER === "off") return Promise.reject(new Error("the embedding model is switched off (STORYTREE_EMBEDDER=off)"));
-    loading ??= throughProxy(env, () => loadBgeSmall(modelsFolder(env))).catch((error: unknown) => {
+    loading ??= throughProxy(env, () => loadModel(modelsFolder(env))).catch((error: unknown) => {
       loading = undefined;
       const behind = proxyIn(env) === undefined ? "" : `; behind this environment's proxy it downloads from ${MODEL_HOSTS.join(" and ")}, so add those to what the proxy allows (a cloud environment's Allowed domains)`;
       throw new Error(`the embedding model could not load: ${error instanceof Error ? error.message : String(error)}${behind}`);
@@ -130,12 +134,12 @@ export async function verifyModelFolder(folder: string, expected: Readonly<Recor
   await writeFile(marker, JSON.stringify(verified, null, 2));
 }
 
-/** Downloads each of BGE_SMALL_FILES that `folder` lacks, from BGE_SMALL_REVISION. */
+/** Downloads each of MODEL_FILES that `folder` lacks, from MODEL_REVISION. */
 async function downloadMissing(folder: string): Promise<void> {
-  for (const file of Object.keys(BGE_SMALL_FILES)) {
+  for (const file of Object.keys(MODEL_FILES)) {
     const at = path.join(folder, file);
     if (await stat(at).then(() => true, () => false)) continue;
-    const url = `https://huggingface.co/${BGE_SMALL}/resolve/${BGE_SMALL_REVISION}/${file}`;
+    const url = `https://huggingface.co/${MODEL}/resolve/${MODEL_REVISION}/${file}`;
     const response = await fetch(url);
     if (!response.ok || response.body === null) throw new Error(`${url} answered ${response.status}`);
     await mkdir(path.dirname(at), { recursive: true });
@@ -144,10 +148,10 @@ async function downloadMissing(folder: string): Promise<void> {
   }
 }
 
-async function loadBgeSmall(cacheDir: string): Promise<Embedder> {
-  const folder = path.join(cacheDir, BGE_SMALL, BGE_SMALL_REVISION);
+async function loadModel(cacheDir: string): Promise<Embedder> {
+  const folder = path.join(cacheDir, MODEL, MODEL_REVISION);
   await downloadMissing(folder);
-  await verifyModelFolder(folder, BGE_SMALL_FILES);
+  await verifyModelFolder(folder, MODEL_FILES);
   const { env, pipeline } = await import("@huggingface/transformers");
   // transformers.js reads the checked folder as a local model: it fetches nothing and caches nothing itself.
   env.allowLocalModels = true;
@@ -155,10 +159,11 @@ async function loadBgeSmall(cacheDir: string): Promise<Embedder> {
   env.useFSCache = false;
   const extract = await pipeline("feature-extraction", folder, { dtype: "fp32" });
   return {
-    model: BGE_SMALL,
+    model: MODEL,
+    queryPrefix: QUERY_PREFIX,
     async embed(texts) {
       if (texts.length === 0) return [];
-      // bge is read at its [CLS] token, as sentence-transformers reads it.
+      // arctic-embed is read at its [CLS] token, as sentence-transformers reads it.
       const out = await extract([...texts], { pooling: "cls", normalize: true });
       const [rows, width] = out.dims as [number, number];
       const data = out.data as Float32Array;

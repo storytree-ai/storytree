@@ -22,6 +22,7 @@ import { mountLagRecorder } from "@storytree/app/lag/view";
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
+import { mountPluginViews } from "./plugin-views.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
 import { attachPanZoom, openForestView, mountLibraryPanel, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type GlobeLocator, type GlobeOpening, type PanZoom, type TreeOpening, type TreeSpace } from "@storytree/forest/view";
@@ -74,7 +75,7 @@ const lagRecorder = mountLagRecorder(window.storytree);
 window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); factoryStep.stop(); consentHost.remove(); lagRecorder?.stop(); });
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
-let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined; teaching: ReturnType<typeof mountTeaching> | undefined } | undefined;
+let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined; teaching: ReturnType<typeof mountTeaching> | undefined; plugins?: { stop(): void } } | undefined;
 let current: string | undefined;
 /** Whether the project on show is the user's factory, which its teaching cards read (ADR-1048 D3). */
 let onFactory = false;
@@ -248,6 +249,13 @@ async function showForest(name: string): Promise<void> {
   core.onSelect(session => mine.sessions?.select(session));
   // The first time each kind appears on this map, its card shows beside it (ADR-1048 D1).
   mine.teaching = mountTeaching(content, { journal: seenCards, locate });
+  // A factory plugin standing in for a switched-off part draws its surfaces from the factory, while each is on.
+  if (window.storytree.pluginViews.length > 0) {
+    const plugins = await mountPluginViews(content, window.storytree.pluginViews, (id) => surfaceOn(surfaces, id), { project: name, bridge: window.storytree });
+    if (showing !== mine) return plugins.stop();
+    mine.plugins = plugins;
+    for (const { surface, why } of plugins.failed) console.error(`The ${surface} surface could not be loaded from the factory: ${why}`);
+  }
 
   // The tree this project last drew, at once and marked as not yet fresh, while the first read runs,
   // drawn with the survey, story order and work states it was drawn with, so the fresh drawing of an
@@ -307,6 +315,7 @@ async function redraw(name: string): Promise<void> {
 }
 
 function stopShowing(): void {
+  showing?.plugins?.stop();
   showing?.teaching?.stop();
   showing?.card?.();
   showing?.tree?.stop();

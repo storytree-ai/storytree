@@ -58,21 +58,41 @@ export interface PageFrame {
 /** A story's page part, as its manifest's `pageAnswers` names it: given the frame, its channels and the answers to them, or none here. */
 export type PagePart = (frame: PageFrame) => { readonly channels: PageChannelMap; readonly answers: object } | undefined;
 
+/** A surface view a factory plugin standing in for a switched-off part adds: the surface, and where the window serves its module. */
+export interface PluginView {
+  readonly surface: string;
+  readonly url: string;
+}
+
+/** What the page is offered of the factory plugins standing in for switched-off parts: their page channels and their views. */
+export interface PageStandIns {
+  readonly channels: readonly PageChannelMap[];
+  readonly views: readonly PluginView[];
+}
+
+/** The channel the preload asks, before the page loads, for the stand-ins' page channels and views (PageStandIns). */
+export const STAND_INS_OFFERED = "storytree:page-stand-ins";
+
 /**
  * The main process answers every page part's channels, each made with the frame, but those of a part `off` switches off
  * (ADR-1095): the page still has their channels, so each is answered with a refusal saying the part is off and how to
- * switch it on, rather than left unanswered.
+ * switch it on, rather than left unanswered. A channel a mounted part answers, as a factory plugin standing in for the
+ * part does, is answered by it, not refused.
  */
 export function answerPageParts(handlers: PageHandlers, parts: Composition<PagePart>, channels: Composition<PageChannelMap>, frame: PageFrame, off: readonly string[] = []): void {
   const { mounted, off: switched } = mount(parts, off);
+  const answered = new Set<string>();
   for (const part of mounted) {
     const page = part(frame);
-    if (page !== undefined) answerPage(handlers, page.channels, page.answers as { readonly [method: string]: (...args: never[]) => unknown });
+    if (page === undefined) continue;
+    answerPage(handlers, page.channels, page.answers as { readonly [method: string]: (...args: never[]) => unknown });
+    for (const channel of Object.values(page.channels)) answered.add(channel);
   }
   for (const each of switched) {
     const refused = () => Promise.reject(new Error(offSaid(each)));
     for (const [index, map] of channels.parts.entries()) {
-      if (channels.owners[index] === each.part) for (const channel of Object.values(map)) handlers.handle(channel, refused);
+      if (channels.owners[index] !== each.part) continue;
+      for (const channel of Object.values(map)) if (!answered.has(channel)) handlers.handle(channel, refused);
     }
   }
 }

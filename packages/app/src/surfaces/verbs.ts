@@ -3,7 +3,7 @@
  * user's settings, where the library lives, and the app's surfaces (3.7), shown and set offline. They need no caller. The
  * surfaces are the host's, composed from its story packages' manifests (ADR-0750, ADR-1021), so the door hands them on its
  * place. So are its parts (ADR-1095): `settings set part` switches one off or on for this computer, which every host reads
- * as it starts, and `settings set system` switches roles, checks and notes off or on for what agents read (ADR-1092 D2).
+ * as it starts, or off with a plugin in this computer's factory folder (`settings set factory`) standing in for it, and `settings set system` switches roles, checks and notes off or on for what agents read (ADR-1092 D2).
  * The command line mounts them as its `settings` family (SETTINGS_FAMILIES); they have no tool.
  */
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
@@ -26,12 +26,12 @@ const show = verb({
   inputs: {},
   callerless: true,
   async act(_input, { surfaces, parts }: SettingsPlace) {
-    const { partsSaid, readPartsOff, readSettings, readSystemSwitches, systemSaid } = await import("@storytree/project-and-caller");
+    const { partsSaid, readPartsOff, readSettings, readStandIns, readSystemSwitches, systemSaid } = await import("@storytree/project-and-caller");
     const { readSurfaces } = await import("./switches.js");
     const read = readSettings();
     const graph = await parts();
     const settings = Object.values(read).map((reading) => reading.name === "library" ? librarySaid(reading) : settingSaid(reading)).join("\n\n");
-    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${partsSaid(Object.keys(graph), switchedOff(graph, readPartsOff()))}\n\n${systemSaid(readSystemSwitches())}` };
+    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(readStandIns().folder)}\n\n${partsSaid(Object.keys(graph), switchedOff(graph, readPartsOff()), readStandIns().plugins)}\n\n${systemSaid(readSystemSwitches())}` };
   },
 });
 
@@ -41,17 +41,19 @@ const set = verb({
     family: "settings",
     name: "set",
     summary: "save a setting for your user account",
-    usage: "settings set <name> <value> | settings set library <local | cloudsql <instance> <user> | postgres <address>> | settings set surface <surface> <on | off | <setting> <choice>> | settings set part <part> <on | off> | settings set system <all | roles | checks | notes | <title or id>> <on | off>",
+    usage: "settings set <name> <value> | settings set library <local | cloudsql <instance> <user> | postgres <address>> | settings set surface <surface> <on | off | <setting> <choice>> | settings set factory <folder> | settings set part <part> <on | off | plugin <plugin>> | settings set system <all | roles | checks | notes | <title or id>> <on | off>",
   },
   tool: { absent: "the user's settings are the person's own, set from a terminal" },
   inputs: { words: { kind: "text", word: 0, many: true, describe: "the setting's name and its value" } },
   callerless: true,
   async act({ words }, { surfaces, parts }: SettingsPlace) {
-    const { setLibrary, setSetting, switchedSaid, switchPart, switchSystem, systemSaid } = await import("@storytree/project-and-caller");
+    const { readStandIns, setFactory, setLibrary, setSetting, switchedSaid, switchPart, switchSystem, systemSaid } = await import("@storytree/project-and-caller");
     if (words[0] === "library" && words.length >= 2) return { text: librarySaid(setLibrary(words.slice(1))), next: NEXT };
-    if (words[0] === "part" && words.length === 3) {
+    if (words[0] === "factory" && words.length === 2) return { text: factorySaid(setFactory(words[1]!)), next: NEXT };
+    if (words[0] === "part" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
       const graph = await parts();
-      return { text: switchedSaid(switchedOff(graph, switchPart(words[1]!, words[2]!, Object.keys(graph)))), next: NEXT };
+      const off = switchPart(words[1]!, words[2]!, Object.keys(graph), undefined, words[3]);
+      return { text: switchedSaid(switchedOff(graph, off), readStandIns().plugins), next: NEXT };
     }
     if (words[0] === "system" && words.length === 3) return { text: systemSaid(switchSystem(words[1]!, words[2]!)), next: NEXT };
     if (words[0] === "surface" && words.length >= 3) {
@@ -97,6 +99,12 @@ function librarySaid(reading: LibraryReading): string {
   const where = reading.location === "cloudsql" ? `cloudsql ${reading.instance} as ${reading.user}`
     : reading.location === "postgres" ? `postgres ${reading.address} (its password the key postgres)` : "local";
   return `library: ${where} (${reading.source})\n  Default: ${reading.default}.\n  ${reading.meaning}`;
+}
+
+/** This computer's factory folder, whose plugins may stand in for a part switched off, or that none is chosen. */
+function factorySaid(folder: string | undefined): string {
+  const said = folder === undefined ? "none chosen" : folder;
+  return `factory: ${said}\n  The folder of your own factory, whose plugins (plugins/<plugin>/) may stand in for a part you switch off with \`storytree settings set part <part> plugin <plugin>\`. Choose it with \`storytree settings set factory <folder>\`.`;
 }
 
 function surfacesSaid(surfaces: readonly SurfaceReading[]): string {

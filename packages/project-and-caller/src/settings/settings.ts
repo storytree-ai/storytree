@@ -1,6 +1,6 @@
 /** Capability 2 · Settings: per-user settings, owned by Project and caller (ADR-0729, ADR-1025; the library's location, ADR-0734/0735). */
 import { randomUUID } from "node:crypto";
-import { lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { storytreeHome } from "../routing/index.js";
@@ -164,6 +164,8 @@ interface Stored {
   surfaces?: SurfaceChoices;
   experiment?: ExperimentArm;
   "parts-off"?: readonly string[];
+  factory?: string;
+  "stand-ins"?: Readonly<Record<string, string>>;
   "system-off"?: readonly string[];
   "system-on"?: readonly string[];
 }
@@ -295,6 +297,24 @@ export function readPartsOff(home: string = storytreeHome()): readonly string[] 
 }
 
 /**
+ * This computer's factory folder, when one is chosen, and the factory plugin standing in for each part it names
+ * (question_5867f490cdd6): what a host hands the plugin loader as it starts. Choosing the folder is the approval for
+ * its plugins. A damaged value is reported naming the file.
+ */
+export function readStandIns(home: string = storytreeHome()): { readonly folder?: string; readonly plugins: Readonly<Record<string, string>> } {
+  const stored = readStored(home);
+  return { ...(stored.factory === undefined ? {} : { folder: stored.factory }), plugins: stored[STAND_INS] ?? {} };
+}
+
+/** Choose `folder`, an existing folder, as this computer's factory folder, saved and returned as its full path. */
+export function setFactory(folder: string, home: string = storytreeHome()): string {
+  const full = path.resolve(folder);
+  if (!statSync(full, { throwIfNoEntry: false })?.isDirectory()) refuse(`There is no folder at ${full}; make it first, or choose another.`);
+  write(home, { ...readStored(home), factory: full });
+  return full;
+}
+
+/**
  * The system switched off and on on this computer, none when it names none. Read on its own, like the parts, since an
  * agent's door reads it as it opens the project; a damaged value, or a name in both lists, is reported naming the file.
  */
@@ -334,14 +354,17 @@ export function setSystemSwitch(name: string, off: boolean, home: string = story
 /**
  * Switch the story part `part` off or on for this computer, and return the parts now off. The core is refused: this
  * story's own copy of the plugin loader's (ADR-1017 D2), which never leaves it out. Whether `part` is one a host has is
- * the switch's to check, since only a host knows its parts.
+ * the switch's to check, since only a host knows its parts. Switched off with `plugin`, that factory plugin is named to
+ * stand in for it; any other switch drops its stand-in.
  */
-export function setPartOff(part: string, off: boolean, home: string = storytreeHome()): readonly string[] {
+export function setPartOff(part: string, off: boolean, home: string = storytreeHome(), plugin?: string): readonly string[] {
   if (CORE.includes(part)) refuse(`${part} is the core, which every host stands on, so it is never switched off.`);
   const stored = readStored(home);
   const rest = (stored[PARTS_OFF] ?? []).filter((one) => one !== part);
   const parts = off ? [...rest, part].sort() : rest;
-  write(home, { ...stored, [PARTS_OFF]: parts });
+  const { [part]: _dropped, ...standIns } = stored[STAND_INS] ?? {};
+  const named = off && plugin !== undefined ? { ...standIns, [part]: plugin } : standIns;
+  write(home, { ...stored, [PARTS_OFF]: parts, ...(stored[STAND_INS] === undefined && plugin === undefined ? {} : { [STAND_INS]: named }) });
   return parts;
 }
 
@@ -529,6 +552,15 @@ function checkedPartsOff(value: unknown): readonly string[] {
   return [...new Set(value as string[])].sort();
 }
 
+const STAND_INS = "stand-ins";
+
+function checkedStandIns(value: unknown): Readonly<Record<string, string>> {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || !Object.values(value).every((one) => typeof one === "string" && one !== "")) {
+    refuse(`${STAND_INS} must map each switched-off part to the factory plugin standing in for it, such as {"ci-health": "my-health"}.`);
+  }
+  return value as Record<string, string>;
+}
+
 const SYSTEM_OFF = "system-off";
 const SYSTEM_ON = "system-on";
 
@@ -586,6 +618,15 @@ function readStored(home: string): Stored {
       }
       if (name === PARTS_OFF) {
         settings[PARTS_OFF] = checkedPartsOff(value);
+        continue;
+      }
+      if (name === "factory") {
+        if (typeof value !== "string" || !path.isAbsolute(value)) refuse("factory must be the full path of this computer's factory folder.");
+        settings.factory = value as string;
+        continue;
+      }
+      if (name === STAND_INS) {
+        settings[STAND_INS] = checkedStandIns(value);
         continue;
       }
       if (name === SYSTEM_OFF || name === SYSTEM_ON) {

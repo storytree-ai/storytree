@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
 
-import { composeParts, mount, partsPlugin, storyParts } from "./index.js";
+import { composeParts, mount, offSaid, partsPlugin, standIn, storyParts } from "./index.js";
 
 /** The loader's own entry, as a fixture host's composing module imports it (the fixture installs no loader of its own). */
 const LOADER = JSON.stringify(new URL("./index.ts", import.meta.url).href);
@@ -131,4 +131,54 @@ test("4.2 a host mounts every declaration but those of a part the setting names 
     off: [{ part: "arc-surface", because: "forest" }, { part: "forest", because: "forest" }, { part: "lag", because: "forest" }],
   });
   assert.deepEqual(mount(composition, []), { mounted: composition.parts, off: [] });
+});
+
+/** A factory folder holding the given plugins, each `plugins/<name>/` with its package.json and files. */
+function factory(t: TestContext, plugins: Readonly<Record<string, { manifest?: unknown; exports?: Record<string, string>; files?: Record<string, string> }>>): string {
+  const root = mkdtempSync(path.join(tmpdir(), "storytree-factory-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const [name, plugin] of Object.entries(plugins)) {
+    const dir = path.join(root, "plugins", name);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name, type: "module", exports: plugin.exports ?? {}, ...(plugin.manifest === undefined ? {} : { storytree: plugin.manifest }) }));
+    for (const [file, text] of Object.entries(plugin.files ?? {})) writeFileSync(path.join(dir, file), text);
+  }
+  return root;
+}
+
+const builtIn = {
+  parts: ["health", "globe"],
+  owners: ["ci-health", "forest"],
+  graph: { "ci-health": ["library"], forest: ["library"], library: [] },
+};
+
+const verbsPlugin = { exports: { "./verbs": "./verbs.js" }, manifest: { verbs: [{ from: "./verbs", export: "verbs" }] }, files: { "verbs.js": `export const verbs = ["my-health"];\n` } };
+
+test("5.1 a factory plugin named to stand in for a part is loaded from the factory folder and mounted where the part's declarations were while that part is switched off, and not at all once it is on; a kind it does not name adds nothing", (t) => {
+  const folder = factory(t, { "my-health": verbsPlugin });
+  const composed = standIn(builtIn, "verbs", { folder, plugins: { "ci-health": "my-health" } });
+  assert.deepEqual(mount(composed, ["ci-health"]), { mounted: ["my-health", "globe"], off: [{ part: "ci-health", because: "ci-health" }] });
+  assert.deepEqual(mount(composed, []).mounted, ["health", "globe"], "switched back on, the built-in part mounts and the plugin does not");
+  assert.deepEqual(mount(standIn(builtIn, "surfaces", { folder, plugins: { "ci-health": "my-health" } }), ["ci-health"]).mounted, ["globe"]);
+});
+
+test("5.2 a stand-in that cannot be loaded (no factory folder, no such plugin, no manifest, an unexported module, no list) leaves its part off, said with why, and the host still mounts the rest", (t) => {
+  const folder = factory(t, {
+    bare: {},
+    unexported: { manifest: { verbs: [{ from: "./verbs", export: "verbs" }] } },
+    "not-a-list": { ...verbsPlugin, files: { "verbs.js": `export const verbs = "my-health";\n` } },
+  });
+  for (const [where, plugin, why] of [
+    [undefined, "my-health", /no factory folder is chosen/],
+    [folder, "missing", /no plugin called missing/],
+    [folder, "bare", /no storytree manifest/],
+    [folder, "unexported", /does not export/],
+    [folder, "not-a-list", /no list called verbs/],
+  ] as const) {
+    const result = mount(standIn(builtIn, "verbs", { ...(where === undefined ? {} : { folder: where }), plugins: { "ci-health": plugin } }), ["ci-health"]);
+    assert.deepEqual(result.mounted, ["globe"]);
+    assert.equal(result.off[0]!.part, "ci-health");
+    assert.match(result.off[0]!.failed ?? "", why);
+    assert.match(offSaid(result.off[0]!), new RegExp(`stand-in ${plugin} could not be loaded`));
+  }
 });

@@ -171,10 +171,7 @@ export function registerPlanTools(define: Define): void {
       from: z.string().regex(DAY).optional().describe("Only the arcs closed from this day (YYYY-MM-DD), with to"),
       to: z.string().regex(DAY).optional().describe("Only the arcs closed up to this day (YYYY-MM-DD), included, with from"),
     }),
-    async ({ closed, from, to }, call) => {
-      const window = closedWindowOf(closed, from, to, Date.now());
-      return typeof window === "string" ? { text: window, refused: true } : showPlan(call, window);
-    },
+    async (ask, call) => planAnswer(call, ask),
   );
 }
 
@@ -302,7 +299,16 @@ function closedWindowOf(closed: "today" | "yesterday" | "week" | undefined, from
   return { from, to: dayOf(Date.parse(`${to}T12:00:00`), 1) };
 }
 
-async function showPlan({ library, log, project, quietMs }: Call, closed: DayWindow | undefined): Promise<Answer> {
+/** What show_plan reads the plan from: the project's library and activity log, and how long a quiet session stays live. */
+export type PlanReading = Pick<Call, "library" | "log" | "project" | "quietMs">;
+
+/** What show_plan answers, which the command line's `storytree plan` prints too (ADR-0793): the plan, or why the window given is wrong. */
+export async function planAnswer(reading: PlanReading, { closed, from, to }: { closed?: "today" | "yesterday" | "week" | undefined; from?: string | undefined; to?: string | undefined }): Promise<Answer> {
+  const window = closedWindowOf(closed, from, to, Date.now());
+  return typeof window === "string" ? { text: window, refused: true } : showPlan(reading, window);
+}
+
+async function showPlan({ library, log, project, quietMs }: PlanReading, closed: DayWindow | undefined): Promise<Answer> {
   // Who holds what, and the sessions the running-sessions list shows: read from what decides them alone (contract 2.7).
   // The arcs as the board reads them (10.22): live ones and the recently closed, or a window's closed arcs alone.
   const now = Date.now();

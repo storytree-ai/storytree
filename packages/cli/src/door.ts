@@ -324,8 +324,10 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   if (verb !== undefined) return asksHelp(rest) ? helpOf(verb) : act(verb, parseArgs(rest, verb.switches ?? [], context.cwd), context, heard);
   const pointer = `${path} ${second}`;
   if (second !== undefined && Object.hasOwn(POINTERS, pointer)) return pointedBy(pointer, rest, heard, context);
+  // A word the family names as a guess points to the command for that job before its bare verb would take it as its own.
+  const guessed = second !== undefined && Object.hasOwn(family.guesses ?? {}, second) ? family.guesses?.[second] : undefined;
   const help = second === undefined || second === "--help" || second === "-h";
-  if (family.bare !== undefined && !(help && second !== undefined)) {
+  if (family.bare !== undefined && guessed === undefined && !(help && second !== undefined)) {
     return act(family.bare, parseArgs(words, family.bare.switches ?? [], context.cwd), context, heard);
   }
   if (help) return verbsOf(family, path);
@@ -335,7 +337,6 @@ async function dispatchIn(family: Family, path: string, words: readonly string[]
   ];
   const retired = Object.hasOwn(family.retired ?? {}, second) ? family.retired?.[second] : undefined;
   if (retired !== undefined) throw new Refusal(`storytree ${path} ${second} is retired: ${retired.why}\nRun storytree ${retired.instead}`, { code: 2, next: [] });
-  const guessed = Object.hasOwn(family.guesses ?? {}, second) ? family.guesses?.[second] : undefined;
   throw unknown(`storytree ${path}`, second, guessed, "Its commands", named, rest);
 }
 

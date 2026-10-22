@@ -138,10 +138,7 @@ test("1.7 a command it does not have answers with the real command for that job,
       [["arc", "increment", "ready", "x"], /ADR-0909 retired[^\n]*claiming a proposal starts it[\s\S]*storytree workspace <increment\b/],
       [["claim", "x"], /storytree workspace <increment\b/],
       [["board"], /storytree noticeboard/],
-      // `plan` is a read unless its next word names what to plan: the plan_* tools' twins.
-      [["plan"], /: run storytree tree \[<story>\]/],
-      [["plan", "show"], /: run storytree tree \[<story>\]/],
-      [["plan", "--help"], /: run storytree tree \[<story>\]/],
+      // `plan` reads the plan; its next word, when it names what to plan, points to the plan_* tools' twins.
       [["plan", "contract", "--help"], /: run storytree library new contract --capability <capability>/],
       [["plan", "story"], /: run storytree library new <story\|capability\|contract>/],
       [["plan", "arc"], /: run storytree arc new --title <t>/],
@@ -255,7 +252,7 @@ test("1.17 every answer is recorded on the calling session as a door-answered li
         { door: "command", verb: "storytree library search", outcome: "answered", word: undefined, named: undefined, next: ["storytree library read"] },
         { door: "command", verb: "storytree arc increment", outcome: "unknown", word: "get", named: "storytree library read", next: ["storytree library read"] },
         { door: "command", verb: "storytree", outcome: "unknown", word: "questoin", named: undefined, next: ["storytree question"] },
-        { door: "command", verb: "storytree", outcome: "unknown", word: "plan", named: "storytree library new", next: ["storytree library new"] },
+        { door: "command", verb: "storytree plan", outcome: "unknown", word: "story", named: "storytree library new", next: ["storytree library new"] },
       ]);
     } finally {
       await log.close();

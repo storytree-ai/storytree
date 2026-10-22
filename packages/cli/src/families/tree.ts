@@ -30,7 +30,7 @@ function claimOn(claims: readonly Claim[], id: string): string {
   return claim === undefined ? "" : `  ⟵ ${claim.label} (${claim.holder}): ${claim.reason}`;
 }
 
-const tree: Verb = {
+const view: Verb = {
   name: "tree",
   usage: "tree [<story>]",
   summary: "stories, capabilities and contracts, with the agent's reported health and any claim",
@@ -60,9 +60,9 @@ const tree: Verb = {
   },
 };
 
-export const plan: Family = {
+export const tree: Family = {
   name: "tree",
   summary: "the plan as a tree, with each part's reported health",
   verbs: [],
-  bare: tree,
+  bare: view,
 };

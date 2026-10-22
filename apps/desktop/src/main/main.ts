@@ -120,7 +120,25 @@ import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./
 declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 
 // The main process's own uncaught errors reach the log (app.log once logTo runs below, stderr in the checks), before startup work can throw.
-logMainErrors(process, { log: line => console.error(line), showError: (title, content) => dialog.showErrorBox(title, content) });
+// The box then offers Keep going or Restart; before the app is ready only the error box can show, so it keeps going.
+logMainErrors(process, {
+  log: line => console.error(line),
+  ask: async ({ title, message, detail, buttons }) => {
+    if (!app.isReady()) {
+      dialog.showErrorBox(title, `${message}\n\n${detail}`);
+      return "keep-going";
+    }
+    const { response } = await dialog.showMessageBox({ type: "error", title, message, detail, buttons: [...buttons], defaultId: 0, cancelId: 0, noLink: true });
+    return response === 1 ? "restart" : "keep-going";
+  },
+  restart: () => {
+    const appImage = process.env.APPIMAGE;
+    void lifecycle.restart(
+      thisBuild({ execPath: process.execPath, argv: process.argv, ...(appImage === undefined ? {} : { appImage }) }),
+      BrowserWindow.getAllWindows().some(window => window.isVisible()),
+    );
+  },
+});
 
 const args = parseArgs(process.argv);
 const home = appHome();

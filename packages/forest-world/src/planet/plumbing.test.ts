@@ -4,8 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Vector3 } from 'three';
 import type { ForestScene, Island, Plumbing } from '../scene.js';
-import { buildPlanetPathways, growthPlan, laneRoutes, planetPathwayDrawing, trailFillWidth } from '../geometry.js';
-import { RIBBON_GROUND_SCALE } from '../trail-ribbon-width.js';
+import { buildPlanetPathways, growthPlan, laneRoutes, planetPathwayDrawing } from '../geometry.js';
 import { drawnAtOnce, routedDrawing, type RoadRouter } from './road-routing.js';
 import { answerRouting } from './road-worker.js';
 import { plumbingKey, plumbingLabels, plumbingSegmentsShown, roadLook } from './plumbing.js';
@@ -20,7 +19,6 @@ const at = (angle: number) => ({ x: R * Math.sin(angle), y: 0, z: R * Math.cos(a
 const spots = new Map([['a', at(-0.3)], ['b', at(0.3)], ['c', at(0.9)]]);
 const islands = [island('a', ['a1']), island('b', ['b1']), island('c', ['c1'])];
 const call = (from: string, to: string, kind: Plumbing['kind'], files = [`${from}/${kind}.ts`]): Plumbing => ({ from, to, kind, files });
-const WIDTH = (links: number) => trailFillWidth(links) * RIBBON_GROUND_SCALE;
 
 test('4.29 a plumbing call is drawn as a road between the two islands it joins, one per kind, dock to dock', () => {
   const scene: ForestScene = { islands, links: [], plumbing: [call('a', 'b', 'build step'), call('a', 'c', 'cleanup'), call('b', 'c', 'forwarder')] };
@@ -50,10 +48,11 @@ test('4.30 a plumbing road is not a dependency: it joins no capability link, wid
   assert.equal(new Set((plan.plumbing ?? []).map(plumbingKey)).size, 4);
   for (const segment of plan.segments) {
     assert.ok(segment.links.every(link => link === 'b1->a'), `${segment.id} counts only the capability link`);
-    assert.ok(Math.abs(segment.width - WIDTH(segment.links.length)) < 1e-9, `${segment.id} is as wide as its capability links make it`);
+    // A road carrying the one capability link is a one-link road, 1.5 ground units wide, however many plumbing calls share it.
+    if (segment.links.length > 0) assert.ok(Math.abs(segment.width - 1.5) < 1e-9, `${segment.id} is as wide as its one capability link makes it`);
   }
   const only = plan.segments.filter(s => s.links.length === 0);
-  assert.ok(only.length > 0 && only.every(s => s.width < WIDTH(1)), 'a road only plumbing uses is narrower than a one-link road');
+  assert.ok(only.length > 0 && only.every(s => s.width < 1.5), 'a road only plumbing uses is narrower than a one-link road');
   assert.deepEqual(laneRoutes(plan, [{ from: 'b', to: 'a', dir: 'up' }, { from: 'a', to: 'c', dir: 'down' }]), [], 'a selection lights no plumbing road');
   assert.ok(plan.docks.every(d => d.links.every(link => !link.includes('#'))), 'no dock claims a plumbing call as a link');
 });

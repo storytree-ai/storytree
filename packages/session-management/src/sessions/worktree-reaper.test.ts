@@ -5,11 +5,12 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
+import { start } from "@storytree/local-postgres";
 
 import { openActivityLog } from "../activity/index.js";
 import { claim, release } from "../claims/index.js";
@@ -160,6 +161,39 @@ test("4.18 a merged worktree is compared with origin/main when the clone has no 
       const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
       assert.deepEqual(await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch), [folder]);
       assert.equal(existsSync(folder), false);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/data has that server stopped and the folder removed", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, ".gitignore"), ".pgtest/\n");
+      git(repo, "add", ".gitignore");
+      git(repo, "commit", "-q", "-m", "first");
+      const folder = path.join(repo, ".claude", "worktrees", "tested");
+      git(repo, "worktree", "add", "-q", "-b", "claude/tested", folder, "main");
+      // A run whose harness was killed outright leaves its server running, never stopped.
+      const server = await start({ dataDir: path.join(folder, ".pgtest", "data"), serverLog: path.join(dir, "pg.log"), toolLog: path.join(dir, "tools.log") });
+      try {
+        const pid = Number(readFileSync(path.join(server.dataDir, "postmaster.pid"), "utf8").split("\n")[0]);
+        const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
+        await log.append(project, { ...here, session: "s-tested", folder, branch: "claude/tested", kind: "file-edited", files: ["x.ts"] });
+        await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: "claude/tested", open: false, how: "not-ahead" });
+        await log.append(project, { ...here, session: "s-tested", folder, branch: "claude/tested", kind: "closed-out", safe: true, why: "merged", running: 0 });
+        const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+        assert.deepEqual(await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch), [folder]);
+        assert.equal(existsSync(folder), false);
+        assert.throws(() => process.kill(pid, 0), "the server is stopped");
+      } finally {
+        await server.stop();
+      }
     });
   } finally {
     await log.close();

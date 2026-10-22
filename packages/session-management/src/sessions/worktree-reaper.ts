@@ -200,9 +200,9 @@ function isPostgres(pid: number): boolean {
   if (!isAlive(pid)) return false;
   try {
     if (process.platform === "linux") return readFileSync(`/proc/${pid}/comm`, "utf8").includes("postgres");
-    const options = { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 3_000, windowsHide: true } as const;
-    if (process.platform === "win32") return /postgres/i.test(execFileSync("tasklist", ["/fi", `PID eq ${pid}`, "/fo", "csv", "/nh"], options));
-    return /postgres/.test(execFileSync("ps", ["-p", String(pid), "-o", "comm="], options));
+    const run = (command: string, args: string[]) => execFileSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 3_000, windowsHide: true });
+    if (process.platform === "win32") return /postgres/i.test(run("tasklist", ["/fi", `PID eq ${pid}`, "/fo", "csv", "/nh"]));
+    return /postgres/.test(run("ps", ["-p", String(pid), "-o", "comm="]));
   } catch {
     return false;
   }

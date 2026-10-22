@@ -98,6 +98,11 @@
         "from": "./processes/listing",
         "export": "runsGuidance",
         "order": 90
+      },
+      {
+        "from": "./schedules/verbs",
+        "export": "scheduleGuidance",
+        "order": 95
       }
     ]
   }

@@ -17,6 +17,7 @@ import { connect, type Library } from "@storytree/library";
 
 import { openActivityLog, type ActivityLog } from "@storytree/session-management";
 import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { CARD_WORD_BUDGET, cardWords } from "../instructions/habits.js";
 import { createAgentTools } from "./index.js";
 
 const VERBS = ["worklist", "link", "supersede", "correct", "annotate", "retire", "park", "graduate"];
@@ -79,7 +80,7 @@ test("library 26.4 the shared server lists and calls every librarian verb, attri
     const names = (await client.listTools()).tools.map((tool) => tool.name);
     assert.ok(names.includes("land") && VERBS.every((name) => names.includes(name)));
     assert.ok(VERBS.every((name) => client.getInstructions()!.includes(`\`${name}\``)));
-    assert.ok(client.getInstructions()!.split("\n").length <= 60);
+    assert.ok(cardWords(client.getInstructions()!) <= CARD_WORD_BUDGET);
     execFileSync("git", ["init", "-b", "curation"], { cwd: folder, stdio: "pipe" });
     const memory = path.join(folder, "memory");
     mkdirSync(memory);

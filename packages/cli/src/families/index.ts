@@ -14,7 +14,8 @@ import { auth } from "./auth.js";
 import { capabilities } from "./capability.js";
 import { commandsOf, doors } from "./doors.js";
 import { learning, twinsOf } from "./drain.js";
-import { plan } from "./tree.js";
+import { plan } from "./plan.js";
+import { tree } from "./tree.js";
 
 /**
  * Words agents try for a family storytree does not have, each with the command for that job. A key of two words is the
@@ -23,12 +24,6 @@ import { plan } from "./tree.js";
 export const GUESSES: Readonly<Record<string, string>> = {
   claim: "workspace <increment|capability> --reason <text>",
   board: "noticeboard",
-  plan: "tree [<story>]",
-  "plan contract": "library new contract --capability <capability> --title <t>",
-  "plan story": "library new <story|capability|contract> --<field> <value|@file> …",
-  "plan capability": "library new <story|capability|contract> --<field> <value|@file> …",
-  "plan arc": "arc new --title <t> --intent <text|@file> --end-state <text|@file>",
-  "plan increment": "arc increment new --arc <arc> --title <t> --objective <o> --body <text|@file>",
   contract: "library new contract --capability <capability> --title <t>",
   story: "tree [<story>]",
 };
@@ -44,12 +39,14 @@ export const POINTERS: Readonly<Record<string, string>> = {
   "library open": "library read",
   "capability show": "library read",
   "arc increment show": "library read",
+  "plan show": "plan",
 };
 
 /** The families still kept here, each at the place it takes among the declared ones in `storytree`'s list. */
 const KEPT: readonly Placed[] = [
   { order: 6, family: doors },
-  { order: 15, family: plan },
+  { order: 15, family: tree },
+  { order: 15.5, family: plan },
   { order: 19, family: capabilities },
   { order: 32, family: auth },
 ];

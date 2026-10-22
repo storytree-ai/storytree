@@ -24,6 +24,7 @@ import { z } from "zod";
 import { nameThisMachine } from "@storytree/session-management/machines";
 import { recordFriction, route } from "@storytree/session-management/friction";
 import type { ToolExtension } from "./index.js";
+import { CARD_WORD_BUDGET, cardWords } from "../instructions/habits.js";
 import { readClaims } from "@storytree/session-management";
 import { MARKER_FILE } from "@storytree/project-and-caller";
 import { claudeCode, codex, idOf, withAgent } from "../testing/agent.js";
@@ -347,7 +348,8 @@ test("6.17 another story registers its tools on this server, sharing routing, th
       assert.ok(instructions.includes(extension.instructions!));
       // The card names every tool but a harness's own (ADR-1056 D2).
       assert.deepEqual([...new Set([...instructions.matchAll(/`([^`]+)`/g)].map(([, name]) => name!))].sort(), (await agent.tools()).filter((tool) => tool !== "hook_event" && tool !== "heartbeat"));
-      assert.ok(instructions.split("\n").length <= 60);
+      // A section costs its words, not two lines whatever its length (ADR-1113 D1).
+      assert.ok(cardWords(instructions) <= CARD_WORD_BUDGET);
     });
   });
 });

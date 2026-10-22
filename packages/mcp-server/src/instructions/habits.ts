@@ -14,7 +14,7 @@
  * A part this computer switches off (ADR-1095) takes its section with it, and the card names it switched off instead.
  *
  * The card names each tool in backticks, and uses backticks for nothing else: its tests hold it to
- * naming exactly the tools the server has, within 60 lines.
+ * naming exactly the tools the server has, within its word budget.
  */
 import { CONTRACT_DEFINITION } from "@storytree/library";
 import { mount } from "@storytree/plugin-loader";
@@ -22,6 +22,17 @@ import GUIDANCE from "#parts/guidance";
 
 /** What one contract is (contract 7.8): the library owns the definition, and plan_contract quotes it when a title runs long (6.57). */
 export { CONTRACT_DEFINITION };
+
+/**
+ * The card's budget (ADR-1113 D1): the words of the whole card, so a short section costs what it says. It replaces
+ * a 60-line limit that charged every section two lines whatever its length.
+ */
+export const CARD_WORD_BUDGET = 2_500;
+
+/** How many words `card` has, as the budget counts them: runs of non-space text. */
+export function cardWords(card: string): number {
+  return card.split(/\s+/).filter(Boolean).length;
+}
 
 const OPENING = "storytree keeps the plan of this project and records what you do, so the user can watch it grow. Work with it like this.";
 

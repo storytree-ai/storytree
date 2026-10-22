@@ -224,7 +224,8 @@ for (const platform of PLATFORMS) {
       const result = await updater.check();
       assert.equal(windowOpen, true, "a snapshot never strands the user in shutdown");
       assert.equal(result, "waiting");
-      assert.equal(updater.request("status").phase, "pending");
+      // The user's asked restart reads as waiting for the write, never as offered again.
+      assert.equal(updater.request("status").phase, entry === "menu" ? "ready" : "pending");
       assert.match(updater.request("status").reason ?? "", /library.*writing/i);
       finishSnapshot();
       await new Promise(resolve => setImmediate(resolve));
@@ -299,6 +300,27 @@ test("4.12 an explicit install overrides a run hold but still waits for a seed",
   assert.equal(launches, 1);
 });
 
+test("4.4 a restart the user asked for while a seed was writing says it waits, and goes as soon as the seed ends, with no further check", async (t) => {
+  const feed = await fixture(t);
+  feed.version = "0.3.2";
+  feed.recheck = 10;
+  let writing = false;
+  let launches = 0;
+  const updater = feed.updater(async () => { launches++; }, async () => !writing, async () => false);
+  t.after(() => updater.stop());
+  assert.equal(await updater.check(), "waiting");
+  assert.equal(updater.request("status").phase, "pending");
+  writing = true;
+  assert.equal(updater.request("install").phase, "restarting", "the click reads as taken at once");
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(updater.request("status").phase, "ready", "held, not offered again");
+  assert.equal(launches, 0);
+  writing = false;
+  const deadline = Date.now() + 2_000;
+  while (launches === 0 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(launches, 1);
+});
+
 for (const platform of PLATFORMS) {
   test(`4.5 ${platform}: a failed feed or corrupt download leaves the app running and can be retried; equal and older releases never restart it`, hostRuns(platform), async (t) => {
     const feed = await fixture(t, platform);
@@ -334,7 +356,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-release-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const installer = Buffer.from("fixture release payload — never executed");
-  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false };
+  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false, recheck: undefined as number | undefined };
   const files = (base = "") => ["setup.exe", "storytree-mac.zip", "storytree-linux.AppImage"].map(url => ({ url: `${base}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
   const server = createServer((request, response) => {
     if (state.offline) { response.writeHead(404).end(); return; }
@@ -386,7 +408,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
     appImage,
     updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "development") {
       if (platform === "darwin") electron.autoUpdater = state.squirrel = new Squirrel();
-      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", sandboxOff: state.sandboxOff, ...(channel ? { releaseChannel: () => channel } : {}) }, {
+      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", sandboxOff: state.sandboxOff, ...(state.recheck === undefined ? {} : { recheck: state.recheck }), ...(channel ? { releaseChannel: () => channel } : {}) }, {
         version: state.running, name: "storytree-test", isPackaged: true,
         appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),

@@ -57,7 +57,7 @@ export function updateText(state: UpdateState, choice?: InstallChoice): readonly
     case "up-to-date": return ["Up to date", `Running ${state.runningBuild}.`];
     case "building": return ["Building update…", `${state.nextBuild ?? "The new build"} will restart the app when ready.`];
     case "pending": return ["Update ready to install", `storytree ${state.nextBuild ?? "update"} is ready. ${state.reason ?? waitingFor(choice)} Restart now to install it: the app is back in a minute or two.`];
-    case "ready": return ["Update ready", `${state.nextBuild ?? "The new build"} will restart after the library finishes writing.`];
+    case "ready": return ["Restart waiting", `${state.nextBuild ?? "The new build"} restarts the app by itself as soon as the library finishes writing a snapshot or a seed.`];
     case "restarting": return ["Restarting…", `Opening ${state.nextBuild ?? "the new build"}.`];
     case "failed": return ["Couldn’t update", `${state.reason ?? "The check failed."} The running app is unchanged. Try again.`];
     case "unavailable": return ["Updates unavailable", "This app is not running from a runtime slot and does not update itself."];

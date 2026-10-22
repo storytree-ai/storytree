@@ -43,8 +43,8 @@ import SURFACES from "#parts/surfaces";
 import PAGE_ANSWERS from "#parts/pageAnswers";
 import PAGE_CHANNELS from "#parts/pageChannels";
 import { mount } from "@storytree/plugin-loader/switch";
-import { readPartsOff } from "@storytree/project-and-caller";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, safeStorage, shell, Tray } from "electron";
+import { readPartsOff, readStandIns } from "@storytree/project-and-caller";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, protocol, safeStorage, shell, Tray } from "electron";
 
 import {
   agentActiveAt,
@@ -103,7 +103,7 @@ import { createCeremony, createPublicWorkOS, createSessionManager, registerProto
 import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-session";
 
 import { APP_OWNER, appHome } from "../home.js";
-import { answerPage, answerPageParts } from "../page-operations.js";
+import { answerPage, answerPageParts, STAND_INS_OFFERED } from "../page-operations.js";
 import { parseArgs } from "./args.js";
 import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { followTaskbar, iconColourway } from "./app-icon.js";
@@ -114,6 +114,7 @@ import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
 import { titleWindow } from "./window-title.js";
+import { PLUGIN_SCHEME, pluginResponse, windowStandIns } from "./stand-ins.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
 // A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
@@ -168,6 +169,8 @@ let backups: ReturnType<typeof keepBackups> | undefined;
 let journey: JourneyRuntime | undefined;
 /** The parts this computer switches off, read once as the app starts (ADR-1095). */
 let partsOff: readonly string[] = [];
+/** The window's parts with the factory plugins standing in for switched-off parts composed in, as the app starts. */
+let parts = windowStandIns({ surfaces: SURFACES, pageAnswers: PAGE_ANSWERS, pageChannels: PAGE_CHANNELS }, { plugins: {} }, []);
 /** An installed app's release updater, which answers the gear's Updates panel in its place. */
 let releases: ReturnType<typeof followReleases>;
 /** What the window was opened with, so it can be opened again after it is closed. */
@@ -239,6 +242,8 @@ if (refusal !== undefined) {
       void lifecycle.quit(1);
     }, SMOKE_TIMEOUT_MS).unref();
   }
+  // A stand-in's views reach the page over the window's own scheme, which must be named before the app is ready.
+  protocol.registerSchemesAsPrivileged([{ scheme: PLUGIN_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
   // A failure in run, not only in whenReady, ends the app: half-started, it would hold the lock with no handlers.
   void runWhenReady(app.whenReady(), run, fail);
 }
@@ -254,8 +259,12 @@ async function run(): Promise<void> {
   const treesRead = new Map<unknown, AnnotatedTree>();
   // The parts this computer switches off (ADR-1095), read as the app starts: their surfaces and page operations are not mounted.
   partsOff = readPartsOff(home.dir);
+  // A factory plugin named to stand in for a switched-off part is mounted in its place, read from the factory as the app starts.
+  parts = windowStandIns({ surfaces: SURFACES, pageAnswers: PAGE_ANSWERS, pageChannels: PAGE_CHANNELS }, readStandIns(home.dir), partsOff);
+  ipcMain.on(STAND_INS_OFFERED, (event) => { event.returnValue = parts.page; });
+  protocol.handle(PLUGIN_SCHEME, (request) => pluginResponse(request.url, parts.served));
   // The page operations the stories' manifests name, each answered with what the frame offers (ADR-1021, ADR-1030 D2).
-  answerPageParts(ipcMain, PAGE_ANSWERS, PAGE_CHANNELS, {
+  answerPageParts(ipcMain, parts.pageAnswers, parts.pageChannels, {
     home: home.dir,
     appVersion,
     library: open,
@@ -263,7 +272,7 @@ async function run(): Promise<void> {
     surveyWorker: path.join(__dirname, "survey-worker.cjs"),
   }, partsOff);
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
-  const surfaces = surfacesActions(mount(SURFACES, partsOff).mounted, home.dir);
+  const surfaces = surfacesActions(mount(parts.surfaces, partsOff).mounted, home.dir);
   answerPage(ipcMain, SURFACES_CHANNELS, surfaces);
   // Setup help stays in the frame (ADR-1030 D4): its actions need Electron's dialog, shell and clipboard, the license
   // file's path and the open library, and adding a project also tells the journey, which the frame holds.
@@ -636,7 +645,7 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
       return { title: pick.querySelector("summary .row-title").innerText, contracts: pick.querySelectorAll("[data-contract-id]").length };
     })()`)) as { title: string; contracts: number } | null;
     // A surface switched off draws nothing to judge (ADR-0750); the forest's globe is always on.
-    const read = await surfacesActions(mount(SURFACES, partsOff).mounted, home.dir).readSurfaces();
+    const read = await surfacesActions(mount(parts.surfaces, partsOff).mounted, home.dir).readSurfaces();
     const arcsOn = !read.ok || surfaceOn(read.value, "arcs");
     const arcProblems = project !== undefined && state === "ready" && arcsOn ? await smokeArcSurface(window.webContents, project, open()) : [];
     if (state === "ready" && args.forestMode !== undefined) {

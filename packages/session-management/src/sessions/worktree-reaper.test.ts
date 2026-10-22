@@ -4,11 +4,10 @@
  * Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { existsSync, mkdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import { connect } from "@storytree/library";
 
@@ -17,6 +16,7 @@ import { claim, release } from "../claims/index.js";
 import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions, reapWorktrees } from "./index.js";
+import { EMPTY_TRASH } from "./worktree-reaper.js";
 
 test("4.12, 4.18 a new admitted claim reopens a closed-out session and keeps its fresh worktree before any edit; a later close-out permits reaping", async () => {
   const storytree = await connect({ url: testServerUrl() });
@@ -200,17 +200,16 @@ test("4.36 a folder under .claude/worktrees that git no longer lists goes once i
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60_000);
     for (const one of [orphan, empty, unique, used, recent]) utimesSync(one, twoDaysAgo, twoDaysAgo);
     await log.append(project, { harness: "claude-code", source: "hook", machine: "here", session: "s-recent", folder: recent, branch: "main", kind: "file-edited", files: ["a.txt"] });
-    const user = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { cwd: used, stdio: "ignore" });
+    const user = spawn(process.execPath, ["-e", "console.log('ready'); setInterval(() => {}, 1000)"], { cwd: used, stdio: ["ignore", "pipe", "ignore"] });
     try {
-      await sleep(500);
-      const reaped = await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, { everyMs: 0, budgetMs: 60_000, protect: [] });
+      await new Promise((resolve) => user.stdout.once("data", resolve));
+      // The trash is emptied by the script the detached process runs, here in the foreground.
+      const emptyNow = (trash: string) => execFileSync(process.execPath, ["-e", EMPTY_TRASH, trash]);
+      const reaped = await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, { everyMs: 0, budgetMs: 60_000, protect: [], empty: emptyNow });
       assert.deepEqual([...reaped].sort(), [empty, orphan].sort());
       for (const gone of [empty, orphan]) assert.equal(existsSync(gone), false, `${gone} is deleted`);
       for (const kept of [unique, used, recent]) assert.equal(existsSync(kept), true, `${kept} stays`);
-      // The trash is emptied by a detached process: the link goes, what it points to stays.
-      const trash = path.join(repo, ".git", "storytree-reaped");
-      for (let waited = 0; existsSync(trash) && waited < 30_000; waited += 100) await sleep(100);
-      assert.equal(existsSync(trash), false, "the trash is emptied");
+      assert.equal(existsSync(path.join(repo, ".git", "storytree-reaped")), false, "the trash is emptied, the link with it");
       assert.equal(existsSync(path.join(store, "index.js")), true, "the link's target is untouched");
     } finally {
       user.kill();

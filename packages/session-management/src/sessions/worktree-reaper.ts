@@ -232,8 +232,11 @@ function lookedFile(project: string): string {
   return projectTempFile("storytree-worktrees-", project, ".json");
 }
 
+/** The script that empties the trash named as its argument: Node's recursive rmSync removes a link, junctions included, without following it. */
+export const EMPTY_TRASH = "require('node:fs').rmSync(process.argv[1], { recursive: true, force: true, maxRetries: 3 })";
+
 /** Empty `trash` in a process that outlives the hook. */
 function emptyInBackground(trash: string): void {
-  const child = spawn(process.execPath, ["-e", "require('node:fs').rmSync(process.argv[1], { recursive: true, force: true, maxRetries: 3 })", trash], { detached: true, stdio: "ignore", windowsHide: true });
+  const child = spawn(process.execPath, ["-e", EMPTY_TRASH, trash], { detached: true, stdio: "ignore", windowsHide: true });
   child.unref();
 }

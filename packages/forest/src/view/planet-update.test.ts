@@ -56,3 +56,13 @@ test("the pointer is picked at most once a frame, at its latest place", () => {
   frames.splice(0).forEach(run => run());
   assert.deepEqual(picked, [3, 4]);
 });
+
+test("3.68 a live update that changes only a plumbing call is drawn, and one that changes nothing on show is not", () => {
+  const call = { from: "a", to: "b", kind: "build step" as const, files: ["bins/build.ts"] };
+  const shown = forestScene(tree("A"), [], workStates([]));
+  const onShow = { scene: { ...shown, plumbing: [call] }, places: places() };
+  assert.equal(nextScene(onShow, { ...shown, plumbing: [{ ...call }] }, places()), undefined, "the same call is not drawn again");
+  assert.notEqual(nextScene(onShow, { ...shown, plumbing: [] }, places()), undefined, "a call that went is drawn");
+  assert.notEqual(nextScene(onShow, { ...shown, plumbing: [call, { ...call, kind: "cleanup" as const }] }, places()), undefined, "a call that came is drawn");
+  assert.notEqual(nextScene(onShow, { ...shown, plumbing: [{ ...call, files: ["bins/other.ts"] }] }, places()), undefined, "a call from other files is drawn");
+});

@@ -1,0 +1,62 @@
+{
+  "story": "story_a93c6fb1a257",
+  "release": "0.3.1690 to the newest development release (0.3.1691; 0.3.1692 once it was published, in runs 2b and 3)",
+  "commit": "abc819319ff21105676d18933e02d5d30d290c8c",
+  "evidence": "packages/app/evidence/windows-quiet-update",
+  "checks": [
+    {
+      "contract": "4.4",
+      "name": "a newer release, downloaded and verified within the first ten minutes after launch, is not installed in them",
+      "observed": "pass",
+      "detail": "launch 2026-10-22T04:24:36.305Z; releases.log said downloaded and waiting by 2026-10-22T04:25:39.1168170Z; 34 samples in the first ten minutes, all 0.3.1690"
+    },
+    {
+      "contract": "4.4",
+      "name": "after the settle, while an agent session that has not ended wrote to the app's library in the last ten minutes, the update is not installed",
+      "observed": "pass",
+      "detail": "last agent line 2026-10-22T04:44:01.225Z; agents alone held it 2026-10-22T04:34:36.305Z to 2026-10-22T04:54:01.225Z (19.4 min); 65 samples, all 0.3.1690"
+    },
+    {
+      "contract": "4.4",
+      "name": "with the window shown, input in the last ten minutes holds the update when nothing else does",
+      "observed": "pass",
+      "detail": "window shown 2026-10-22T04:53:01.8737543Z; 10 inputs, last 2026-10-22T05:02:04.147Z; the window alone held it 2026-10-22T04:54:01.225Z to 2026-10-22T05:11:22.331Z (17.4 min); 64 samples, all 0.3.1690"
+    },
+    {
+      "contract": "4.4",
+      "name": "at the first quiet moment after them it stops its database and installs the newer release through its installer, which reopens the new app",
+      "observed": "pass",
+      "detail": "allowed from 2026-10-22T05:13:32.019Z; database shut down 2026-10-22T05:16:07.369Z; 0.3.1691.0 installed by 2026-10-22T05:17:01.4889152Z; the installer reopened the new app: process 5968, \"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3-acceptance\\storytree-0.3.exe\" --updated, parent explorer.exe, started 2026-10-22T05:17:05.749Z (through Explorer, so in the default home, where this laptop's follow-main app made it refuse, 4.18; reopened.txt)"
+    },
+    {
+      "contract": "4.4",
+      "name": "a snapshot being written holds even the gear's Restart to update, with the window open and the update pending, until it finishes",
+      "observed": "pass",
+      "detail": "the app's daily snapshot pass of 5 projects ran 2026-10-22T05:27:14.200Z to 2026-10-22T05:28:17.685Z (1.1 min); clicked 2026-10-22T05:27:26.863Z; 6 of 6 gear readings during the rest of the pass read pending on 0.3.1690; database shut down 2026-10-22T05:29:17.719Z; 0.3.1691.0 installed by 2026-10-22T05:30:18.1325899Z (launch 2026-10-22T05:23:13.399Z)"
+    },
+    {
+      "contract": "4.4",
+      "name": "the gear's Restart to update installs at once, inside the ten-minute settle, without waiting for a quiet moment",
+      "observed": "pass",
+      "detail": "launch 2026-10-22T05:54:51.657Z; clicked 2026-10-22T05:55:59.759Z; database shut down 2026-10-22T05:55:59.919Z (0.2 s after the click); 0.3.1692.0 installed by 2026-10-22T05:56:56.9115977Z"
+    },
+    {
+      "contract": "4.4",
+      "name": "the gear's install goes through the installer, which reopens the new app",
+      "observed": "pass",
+      "detail": "allowed from 2026-10-22T05:55:59.759Z; database shut down 2026-10-22T05:55:59.919Z; 0.3.1692.0 installed by 2026-10-22T05:56:56.9115977Z; the installer reopened the new app: process 37880, \"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3-acceptance\\storytree-0.3.exe\" --updated, parent explorer.exe, started 2026-10-22T05:56:58.8520190Z (through Explorer, so in the default home, where this laptop's follow-main app made it refuse, 4.18; reopened.txt)"
+    },
+    {
+      "contract": "4.4",
+      "name": "once launch, agents and the window are all quiet, a library seed being written still holds the update until it finishes",
+      "observed": "pass",
+      "detail": "launch 2026-10-22T06:00:01.717Z in the background, no agent lines; the seed ran 2026-10-22T06:08:34.742Z to 2026-10-22T06:15:18.356Z (6.7 min) and alone held it 2026-10-22T06:10:01.717Z to 2026-10-22T06:15:18.356Z (5.3 min); 20 samples, all 0.3.1690 with a seed connection open"
+    },
+    {
+      "contract": "4.4",
+      "name": "once the seed finishes it stops its database and installs the newer release through its installer, which reopens the new app",
+      "observed": "pass",
+      "detail": "allowed from 2026-10-22T06:15:18.356Z; database shut down 2026-10-22T06:18:06.806Z; 0.3.1692.0 installed by 2026-10-22T06:19:04.2347152Z; the installer reopened the new app: process 22028, \"C:\\Users\\mickh\\AppData\\Local\\Programs\\storytree-0.3-acceptance\\storytree-0.3.exe\" --updated, parent explorer.exe, started 2026-10-22T06:19:07.5332300Z (through Explorer, so in the default home, where this laptop's follow-main app made it refuse, 4.18; reopened.txt)"
+    }
+  ]
+}

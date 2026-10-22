@@ -1,0 +1,39 @@
+utc	phase
+2026-10-22T04:24:39.1892886Z	start; T0 10/22/2026 04:24:36; installed 0.3.1690.0
+2026-10-22T04:24:39.6800268Z	agent: session acceptance-agent-1 starts writing a line every 2 min
+2026-10-22T04:24:39.6909944Z	agent: last line written; agents hold the update until 10 min after it; installed 0.3.1690.0
+2026-10-22T04:24:39.7034034Z	seed: pnpm library:restore C:\Users\mickh\.storytree\0.3\backups\storytree\2026-10-21T21-17-42-381Z.json --project storytree starts; installed 0.3.1690.0
+2026-10-22T04:25:46.9583769Z	harness: the first phase run misread T0 and started the seed at once; stopped it (restore killed during the settle) and restarted phases with T0 as unix seconds; seed goes into project storytree-seed-run
+2026-10-22T04:25:47.9771203Z	start; T0 ; installed 0.3.1690.0
+2026-10-22T04:25:48.0063215Z	agent: session acceptance-agent-1 starts writing a line every 2 min
+2026-10-22T04:25:48.0195440Z	agent: last line written; agents hold the update until 10 min after it; installed 0.3.1690.0
+2026-10-22T04:25:48.0319701Z	seed: pnpm library:restore C:\Users\mickh\.storytree\0.3\backups\storytree\2026-10-21T21-17-42-381Z.json --project storytree-seed-run starts; installed 0.3.1690.0
+2026-10-22T04:26:17.6148875Z	harness: the second phase run also lost T0 (PowerShell names are case-insensitive: $t0 overwrote the $T0 parameter); stopped it again and restarted with the fix
+2026-10-22T04:26:18.5817233Z	start; T0 2026-10-22T04:24:36.0000000Z; installed 0.3.1690.0
+2026-10-22T04:29:39.3679873Z	agent: session acceptance-agent-1 starts writing a line every 2 min
+2026-10-22T04:29:42.0122312Z	agent line: Node.js v24.19.0; installed 0.3.1690.0
+2026-10-22T04:31:45.3540686Z	agent line: {"at":"2026-10-22T04:31:45.052Z","agentActiveAt":"2026-10-22T04:31:45.033Z","seedWriting":false,"wrote":{"session":"acceptance-agent-1","kind":"command-run"}}; installed 0.3.1690.0
+2026-10-22T04:33:47.4515781Z	agent line: {"at":"2026-10-22T04:33:47.335Z","agentActiveAt":"2026-10-22T04:33:47.317Z","seedWriting":false,"wrote":{"session":"acceptance-agent-1","kind":"command-run"}}; installed 0.3.1690.0
+2026-10-22T04:35:56.2792830Z	agent line: {"at":"2026-10-22T04:35:55.827Z","agentActiveAt":"2026-10-22T04:35:55.816Z","seedWriting":false,"wrote":{"session":"acceptance-agent-1","kind":"command-run"}}; installed 0.3.1690.0
+2026-10-22T04:37:57.5260791Z	agent line: {"at":"2026-10-22T04:37:57.444Z","agentActiveAt":"2026-10-22T04:37:57.433Z","seedWriting":false,"wrote":{"session":"acceptance-agent-1","kind":"command-run"}}; installed 0.3.1690.0
+2026-10-22T04:39:58.5061211Z	agent line: {"at":"2026-10-22T04:39:58.318Z","agentActiveAt":"2026-10-22T04:39:58.309Z","seedWriting":false,"wrote":{"session":"acceptance-agent-1","kind":"command-run"}}; installed 0.3.1690.0
+2026-10-22T04:41:59.6150783Z	agent line: {"at":"2026-10-22T04:41:59.540Z","agentActiveAt":"2026-10-22T04:41:59.533Z","seedWriting":false,"wrote":{"session":"acceptance-agent-1","kind":"command-run"}}; installed 0.3.1690.0
+2026-10-22T04:44:01.5068465Z	agent line: {"at":"2026-10-22T04:44:01.242Z","agentActiveAt":"2026-10-22T04:44:01.225Z","seedWriting":false,"wrote":{"session":"acceptance-agent-1","kind":"command-run"}}; installed 0.3.1690.0
+2026-10-22T04:46:01.5148063Z	agent: last line written; agents hold the update until 10 min after it; installed 0.3.1690.0
+2026-10-22T04:51:39.3654086Z	seed: pnpm library:restore C:\Users\mickh\.storytree\0.3\backups\storytree\2026-10-21T21-17-42-381Z.json --project storytree-seed-run starts; installed 0.3.1690.0
+2026-10-22T04:53:01.6838139Z	seed: restore ended (output in seed.txt); installed 0.3.1690.0
+2026-10-22T04:53:01.8737543Z	window: opened the installed app again (second start shows its window); installed 0.3.1690.0
+2026-10-22T04:53:02.1014885Z	window: mouse moved (window input); installed 0.3.1690.0
+2026-10-22T04:54:02.3174906Z	window: mouse moved (window input); installed 0.3.1690.0
+2026-10-22T04:55:02.5483238Z	window: mouse moved (window input); installed 0.3.1690.0
+2026-10-22T04:56:02.7661447Z	window: mouse moved (window input); installed 0.3.1690.0
+2026-10-22T04:57:02.9899962Z	window: mouse moved (window input); installed 0.3.1690.0
+2026-10-22T04:58:03.2220321Z	window: mouse moved (window input); installed 0.3.1690.0
+2026-10-22T04:59:03.4529412Z	window: mouse moved (window input); installed 0.3.1690.0
+2026-10-22T05:00:03.6730565Z	window: mouse moved (window input); installed 0.3.1690.0
+2026-10-22T05:01:03.9144147Z	window: mouse moved (window input); installed 0.3.1690.0
+2026-10-22T05:02:04.1470868Z	window: mouse moved (window input); installed 0.3.1690.0
+2026-10-22T05:03:04.1728778Z	window: last input written by the harness; quiet from here; installed 0.3.1690.0
+2026-10-22T05:11:03.5213288Z	seed-queue: 4 restores of C:\Users\mickh\.storytree\0.3\backups\storytree\2026-10-21T21-17-42-381Z.json start together, into storytree-seed-q1..q4
+2026-10-22T05:13:32.2392515Z	seed-queue: all 4 restores ended
+2026-10-22T05:16:55.5784611Z	quiet: installed  (was 0.3.1690.0)

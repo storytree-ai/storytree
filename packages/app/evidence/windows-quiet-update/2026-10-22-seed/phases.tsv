@@ -1,0 +1,8 @@
+utc	phase
+2026-10-22T05:59:23.4866087Z	before: installed 0.3.1692.0
+2026-10-22T05:59:23.9657924Z	quit: the installed app has stopped
+2026-10-22T06:00:01.7160053Z	reinstalled C:\Users\mickh\.storytree\acceptance-4.4\download\storytree-0.3-0.3.1690-setup.exe (exit 0): installed 0.3.1690.0
+2026-10-22T06:00:01.8079911Z	launched in the background (no window)
+2026-10-22T06:08:02.9859402Z	seed-queue: 14 restores of C:\Users\mickh\.storytree\0.3\backups\storytree\2026-10-21T21-17-42-381Z.json start together, into storytree-seed-r1..storytree-seed-r14
+2026-10-22T06:15:25.5178996Z	seed-queue: all 14 restores ended
+2026-10-22T06:18:56.1113859Z	after: installed  (was 0.3.1690.0)

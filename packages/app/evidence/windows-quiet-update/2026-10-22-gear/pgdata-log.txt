@@ -1,0 +1,107 @@
+2026-10-22 15:25:04.768 AEDT [64672] LOG:  starting PostgreSQL 17.10 on x86_64-windows, compiled by msvc-19.44.35226, 64-bit
+2026-10-22 15:25:04.771 AEDT [64672] LOG:  listening on IPv4 address "127.0.0.1", port 65465
+2026-10-22 15:25:05.016 AEDT [37480] LOG:  database system was shut down at 2026-10-22 15:24:55 AEDT
+2026-10-22 15:25:05.058 AEDT [64672] LOG:  database system is ready to accept connections
+2026-10-22 15:25:08.345 AEDT [68228] ERROR:  relation "library_meta" does not exist at character 19
+2026-10-22 15:25:08.345 AEDT [68228] STATEMENT:  SELECT value FROM library_meta WHERE key = 'schema'
+2026-10-22 15:25:11.201 AEDT [68228] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-10-22 15:25:11.201 AEDT [71824] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-10-22 15:25:11.201 AEDT [61364] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-10-22 15:25:11.201 AEDT [68228] LOG:  unexpected EOF on client connection with an open transaction
+2026-10-22 15:25:22.326 AEDT [49020] ERROR:  relation "activity" does not exist at character 81
+2026-10-22 15:25:22.326 AEDT [49020] STATEMENT:  SELECT max(at) AS at FROM (
+	         SELECT DISTINCT ON (session) kind, at FROM activity WHERE at > now() - interval '1 hour' ORDER BY session, seq DESC
+	       ) latest WHERE kind <> 'session-ended'
+2026-10-22 15:25:28.617 AEDT [8056] ERROR:  relation "activity" does not exist at character 81
+2026-10-22 15:25:28.617 AEDT [8056] STATEMENT:  SELECT max(at) AS at FROM (
+	         SELECT DISTINCT ON (session) kind, at FROM activity WHERE at > now() - interval '1 hour' ORDER BY session, seq DESC
+	       ) latest WHERE kind <> 'session-ended'
+2026-10-22 15:25:38.976 AEDT [52084] ERROR:  relation "activity" does not exist at character 81
+2026-10-22 15:25:38.976 AEDT [52084] STATEMENT:  SELECT max(at) AS at FROM (
+	         SELECT DISTINCT ON (session) kind, at FROM activity WHERE at > now() - interval '1 hour' ORDER BY session, seq DESC
+	       ) latest WHERE kind <> 'session-ended'
+2026-10-22 15:25:55.123 AEDT [9440] ERROR:  relation "library_meta" does not exist at character 19
+2026-10-22 15:25:55.123 AEDT [9440] STATEMENT:  SELECT value FROM library_meta WHERE key = 'schema'
+2026-10-22 15:25:55.919 AEDT [79148] ERROR:  relation "activity" does not exist at character 81
+2026-10-22 15:25:55.919 AEDT [79148] STATEMENT:  SELECT max(at) AS at FROM (
+	         SELECT DISTINCT ON (session) kind, at FROM activity WHERE at > now() - interval '1 hour' ORDER BY session, seq DESC
+	       ) latest WHERE kind <> 'session-ended'
+2026-10-22 15:26:01.650 AEDT [9440] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-10-22 15:26:01.650 AEDT [9440] LOG:  unexpected EOF on client connection with an open transaction
+2026-10-22 15:26:01.650 AEDT [34744] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-10-22 15:26:01.658 AEDT [55728] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-10-22 15:26:06.303 AEDT [64844] ERROR:  relation "storytree_setup" does not exist at character 20
+2026-10-22 15:26:06.303 AEDT [64844] STATEMENT:  SELECT digest FROM storytree_setup
+2026-10-22 15:30:05.335 AEDT [75660] LOG:  checkpoint starting: time
+2026-10-22 15:34:35.612 AEDT [75660] LOG:  checkpoint complete: wrote 3643 buffers (22.2%); 0 WAL file(s) added, 0 removed, 8 recycled; write=269.674 s, sync=0.550 s, total=270.277 s; sync files=991, longest=0.010 s, average=0.001 s; distance=128137 kB, estimate=128137 kB; lsn=0/9296028, redo lsn=0/9295570
+2026-10-22 15:40:05.648 AEDT [75660] LOG:  checkpoint starting: time
+2026-10-22 15:40:07.294 AEDT [75660] LOG:  checkpoint complete: wrote 16 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.636 s, sync=0.004 s, total=1.646 s; sync files=10, longest=0.002 s, average=0.001 s; distance=5 kB, estimate=115324 kB; lsn=0/9296BF8, redo lsn=0/9296B68
+2026-10-22 15:45:05.304 AEDT [75660] LOG:  checkpoint starting: time
+2026-10-22 15:45:06.667 AEDT [75660] LOG:  checkpoint complete: wrote 9 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.320 s, sync=0.008 s, total=1.364 s; sync files=9, longest=0.006 s, average=0.001 s; distance=5 kB, estimate=103792 kB; lsn=0/9298080, redo lsn=0/9298028
+2026-10-22 15:52:59.369 AEDT [75660] LOG:  checkpoint starting: wal
+2026-10-22 15:57:29.130 AEDT [75660] LOG:  checkpoint complete: wrote 9966 buffers (60.8%); 0 WAL file(s) added, 0 removed, 33 recycled; write=269.642 s, sync=0.047 s, total=269.762 s; sync files=31, longest=0.011 s, average=0.002 s; distance=539160 kB, estimate=539160 kB; lsn=0/2CC1FCD0, redo lsn=0/2A11E090
+2026-10-22 16:11:11.463 AEDT [86924] ERROR:  relation "library_meta" does not exist at character 19
+2026-10-22 16:11:11.463 AEDT [86924] STATEMENT:  SELECT value FROM library_meta WHERE key = 'schema'
+2026-10-22 16:11:38.606 AEDT [75660] LOG:  checkpoint starting: wal
+2026-10-22 16:11:44.240 AEDT [89816] ERROR:  relation "library_meta" does not exist at character 19
+2026-10-22 16:11:44.240 AEDT [89816] STATEMENT:  SELECT value FROM library_meta WHERE key = 'schema'
+2026-10-22 16:12:12.739 AEDT [75660] LOG:  checkpoint complete: wrote 200 buffers (1.2%); 0 WAL file(s) added, 1 removed, 32 recycled; write=32.333 s, sync=1.699 s, total=34.134 s; sync files=675, longest=0.196 s, average=0.003 s; distance=539957 kB, estimate=539957 kB; lsn=0/6A9446B8, redo lsn=0/4B06B810
+2026-10-22 16:12:13.926 AEDT [75660] LOG:  checkpoint starting: wal
+2026-10-22 16:12:23.749 AEDT [388] ERROR:  relation "library_meta" does not exist at character 19
+2026-10-22 16:12:23.749 AEDT [388] STATEMENT:  SELECT value FROM library_meta WHERE key = 'schema'
+2026-10-22 16:12:45.515 AEDT [75660] LOG:  checkpoint complete: wrote 189 buffers (1.2%); 0 WAL file(s) added, 1 removed, 32 recycled; write=30.319 s, sync=1.135 s, total=31.589 s; sync files=348, longest=0.236 s, average=0.004 s; distance=542680 kB, estimate=542680 kB; lsn=0/8B05A798, redo lsn=0/6C261C08
+2026-10-22 16:12:47.135 AEDT [75660] LOG:  checkpoint starting: wal
+2026-10-22 16:12:57.822 AEDT [34584] ERROR:  relation "library_meta" does not exist at character 19
+2026-10-22 16:12:57.822 AEDT [34584] STATEMENT:  SELECT value FROM library_meta WHERE key = 'schema'
+2026-10-22 16:13:16.995 AEDT [75660] LOG:  checkpoint complete: wrote 255 buffers (1.6%); 0 WAL file(s) added, 1 removed, 32 recycled; write=28.487 s, sync=1.286 s, total=29.861 s; sync files=345, longest=0.270 s, average=0.004 s; distance=539983 kB, estimate=542411 kB; lsn=0/AC43CAD8, redo lsn=0/8D1B5820
+2026-10-22 16:13:18.468 AEDT [75660] LOG:  checkpoint starting: wal
+2026-10-22 16:16:06.840 AEDT [64672] LOG:  received fast shutdown request
+2026-10-22 16:16:06.841 AEDT [64672] LOG:  aborting any active transactions
+2026-10-22 16:16:06.842 AEDT [84580] FATAL:  terminating autovacuum process due to administrator command
+2026-10-22 16:16:06.842 AEDT [84580] CONTEXT:  while scanning block 19958 of relation "public.record_event"
+2026-10-22 16:16:06.842 AEDT [17388] FATAL:  terminating autovacuum process due to administrator command
+2026-10-22 16:16:06.842 AEDT [17388] CONTEXT:  while scanning block 33579 of relation "public.record_event"
+2026-10-22 16:16:06.842 AEDT [59664] FATAL:  terminating autovacuum process due to administrator command
+2026-10-22 16:16:06.842 AEDT [59664] CONTEXT:  while scanning block 25024 of relation "public.record_event"
+2026-10-22 16:16:06.855 AEDT [64672] LOG:  background worker "logical replication launcher" (PID 54748) exited with exit code 1
+2026-10-22 16:16:07.083 AEDT [75660] LOG:  checkpoint complete: wrote 762 buffers (4.7%); 0 WAL file(s) added, 0 removed, 33 recycled; write=168.393 s, sync=0.096 s, total=168.615 s; sync files=32, longest=0.028 s, average=0.003 s; distance=539943 kB, estimate=542164 kB; lsn=0/BBC2B0C0, redo lsn=0/AE0FF530
+2026-10-22 16:16:07.084 AEDT [75660] LOG:  shutting down
+2026-10-22 16:16:07.087 AEDT [75660] LOG:  checkpoint starting: shutdown immediate
+2026-10-22 16:16:07.269 AEDT [75660] LOG:  checkpoint complete: wrote 10246 buffers (62.5%); 0 WAL file(s) added, 0 removed, 13 recycled; write=0.074 s, sync=0.052 s, total=0.185 s; sync files=46, longest=0.031 s, average=0.002 s; distance=224431 kB, estimate=510391 kB; lsn=0/BBC2B138, redo lsn=0/BBC2B138
+2026-10-22 16:16:07.369 AEDT [64672] LOG:  database system is shut down
+2026-10-22 16:21:05.988 AEDT [73628] LOG:  starting PostgreSQL 17.10 on x86_64-windows, compiled by msvc-19.44.35226, 64-bit
+2026-10-22 16:21:05.990 AEDT [73628] LOG:  listening on IPv4 address "127.0.0.1", port 61990
+2026-10-22 16:21:06.067 AEDT [35868] LOG:  database system was shut down at 2026-10-22 16:16:07 AEDT
+2026-10-22 16:21:06.219 AEDT [73628] LOG:  database system is ready to accept connections
+2026-10-22 16:22:11.838 AEDT [73628] LOG:  received fast shutdown request
+2026-10-22 16:22:11.839 AEDT [73628] LOG:  aborting any active transactions
+2026-10-22 16:22:11.841 AEDT [31112] FATAL:  terminating autovacuum process due to administrator command
+2026-10-22 16:22:11.841 AEDT [31112] CONTEXT:  while scanning block 21046 of relation "public.record_event"
+2026-10-22 16:22:11.842 AEDT [67364] FATAL:  terminating autovacuum process due to administrator command
+2026-10-22 16:22:11.842 AEDT [67364] CONTEXT:  while scanning block 36853 of relation "public.record_event"
+2026-10-22 16:22:11.842 AEDT [74456] FATAL:  terminating autovacuum process due to administrator command
+2026-10-22 16:22:11.842 AEDT [74456] CONTEXT:  while scanning block 32246 of relation "public.record_event"
+2026-10-22 16:22:11.850 AEDT [73628] LOG:  background worker "logical replication launcher" (PID 65644) exited with exit code 1
+2026-10-22 16:22:11.863 AEDT [24992] LOG:  shutting down
+2026-10-22 16:22:11.865 AEDT [24992] LOG:  checkpoint starting: shutdown immediate
+2026-10-22 16:22:11.969 AEDT [24992] LOG:  checkpoint complete: wrote 774 buffers (4.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.014 s, sync=0.083 s, total=0.105 s; sync files=31, longest=0.036 s, average=0.003 s; distance=753 kB, estimate=753 kB; lsn=0/BBCE75B8, redo lsn=0/BBCE75B8
+2026-10-22 16:22:12.013 AEDT [73628] LOG:  database system is shut down
+2026-10-22 16:23:14.875 AEDT [44548] LOG:  starting PostgreSQL 17.10 on x86_64-windows, compiled by msvc-19.44.35226, 64-bit
+2026-10-22 16:23:14.876 AEDT [44548] LOG:  listening on IPv4 address "127.0.0.1", port 49284
+2026-10-22 16:23:14.950 AEDT [62156] LOG:  database system was shut down at 2026-10-22 16:22:11 AEDT
+2026-10-22 16:23:14.983 AEDT [44548] LOG:  database system is ready to accept connections
+2026-10-22 16:28:14.554 AEDT [25248] LOG:  checkpoint starting: time
+2026-10-22 16:28:14.744 AEDT [25248] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 1 removed, 0 recycled; write=0.004 s, sync=0.170 s, total=0.190 s; sync files=48, longest=0.018 s, average=0.004 s; distance=4925 kB, estimate=4925 kB; lsn=0/BC1B6B50, redo lsn=0/BC1B6AF8
+2026-10-22 16:29:17.673 AEDT [44548] LOG:  received fast shutdown request
+2026-10-22 16:29:17.674 AEDT [44548] LOG:  aborting any active transactions
+2026-10-22 16:29:17.685 AEDT [44548] LOG:  background worker "logical replication launcher" (PID 29052) exited with exit code 1
+2026-10-22 16:29:17.685 AEDT [25248] LOG:  shutting down
+2026-10-22 16:29:17.686 AEDT [25248] LOG:  checkpoint starting: shutdown immediate
+2026-10-22 16:29:17.697 AEDT [25248] LOG:  checkpoint complete: wrote 0 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.012 s; sync files=0, longest=0.000 s, average=0.000 s; distance=0 kB, estimate=4432 kB; lsn=0/BC1B6C00, redo lsn=0/BC1B6C00
+2026-10-22 16:29:17.719 AEDT [44548] LOG:  database system is shut down

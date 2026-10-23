@@ -64,8 +64,12 @@ permissions:
 jobs:
   # One run per system, each installing, typechecking and testing. A failure on one system leaves
   # the others running (fail-fast: false), so a failure on one alone shows as that system's.
+  # Windows, every run's slowest, is two jobs, each testing half the units by recent pass time
+  # (`pnpm test --shard`, increment_6163234e706b): its test step is paced by the sum of its units'
+  # times, not its slowest (median 16.6 min). Raising its units at once instead trades minutes for
+  # reds on a loaded runner.
   platforms:
-    name: verify on ${{ matrix.system }}
+    name: verify on ${{ matrix.system }}${{ matrix.shard && format(' {0}/2', matrix.shard) || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -76,6 +80,10 @@ jobs:
             runner: macos-latest
           - system: Windows
             runner: windows-latest
+            shard: 1
+          - system: Windows
+            runner: windows-latest
+            shard: 2
     runs-on: ${{ matrix.runner }}
     # The merge queue runs on loaded runners, where a full Windows test step that takes 13 minutes
     # unloaded ran past the old 21-minute deadline and ejected a green pull request
@@ -118,12 +126,47 @@ jobs:
       # carries the timing history of main's latest run on its system, and a unit with five passes
       # there gets twice its slowest, never under 6 min: a pull request's kills are never carried back.
       - name: Restore main's test timing history
-        id: timings
+        if: ${{ !matrix.shard }}
         uses: actions/cache/restore@v6
         with:
           path: ~/.storytree/0.3/test-timings.jsonl
           key: test-timings-${{ runner.os }}-${{ github.run_id }}
           restore-keys: test-timings-${{ runner.os }}-
+      # A Windows shard saves only its own units' new times, so each shard restores both shards'
+      # latest saves (else the unsharded one before them) and merges them: every row begins with its
+      # `at`, so sorting orders them in time as well. Both shards must split alike, so `verify` checks
+      # that their plans match (a main save landing between their restores could part them).
+      - name: Restore main's test timing history, shard 1's
+        if: ${{ matrix.shard }}
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: test-timings-${{ runner.os }}-shard-1-${{ github.run_id }}
+          restore-keys: |
+            test-timings-${{ runner.os }}-shard-1-
+            test-timings-${{ runner.os }}-
+      - if: ${{ matrix.shard }}
+        shell: bash
+        run: mv ~/.storytree/0.3/test-timings.jsonl ~/.storytree/0.3/shard-1-timings.jsonl 2>/dev/null || true
+      - name: Restore main's test timing history, shard 2's
+        if: ${{ matrix.shard }}
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.storytree/0.3/test-timings.jsonl
+          key: test-timings-${{ runner.os }}-shard-2-${{ github.run_id }}
+          restore-keys: |
+            test-timings-${{ runner.os }}-shard-2-
+            test-timings-${{ runner.os }}-
+      - name: Merge the shards' timing histories
+        if: ${{ matrix.shard }}
+        shell: bash
+        run: |
+          cd ~/.storytree/0.3 2>/dev/null || exit 0
+          touch test-timings.jsonl shard-1-timings.jsonl
+          LC_ALL=C sort -u shard-1-timings.jsonl test-timings.jsonl > merged.jsonl
+          mv merged.jsonl test-timings.jsonl
+          rm shard-1-timings.jsonl
+          echo "$(wc -l < test-timings.jsonl) timing rows"
       # Until main's history holds a Windows pass of its two drifted units, each keeps its hand-set limit,
       # twice its slowest pass (346 s and 357 s): without one, PR #1627's own run killed cli at 360 s, and
       # PR #1628's did too, under a history saved by a cancelled main run that held no pass of cli.
@@ -133,7 +176,7 @@ jobs:
           passed() { grep -qs "\"platform\":\"win32\".*\"unit\":\"packages/$1\".*\"result\":\"pass\"" ~/.storytree/0.3/test-timings.jsonl; }
           passed cli || pnpm run test --set-limit=cli=720 --reason="no Windows pass in main's history yet; Windows CI passes took up to 346 s, friction_21e0e923a222"
           passed session-management || pnpm run test --set-limit=session-management=720 --reason="no Windows pass in main's history yet; Windows CI passes took up to 357 s, PR 1625"
-      - run: pnpm test
+      - run: pnpm run test ${{ matrix.shard && format('--shard={0}/2', matrix.shard) || '' }}
         env:
           STORYTREE_UNIT_LIMIT_MS: 360000
           STORYTREE_TEST_EVIDENCE: ${{ matrix.system == 'Windows' && '.pgtest/windows-evidence' || matrix.system == 'macOS' && '.pgtest/macos-evidence' || '' }}
@@ -144,7 +187,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ~/.storytree/0.3/test-timings.jsonl
-          key: test-timings-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: test-timings-${{ runner.os }}-${{ matrix.shard && format('shard-{0}-', matrix.shard) || '' }}${{ github.run_id }}-${{ github.run_attempt }}
       # Exercise the distributable before merging packaging/updater changes. A source build
       # passing tests alone does not prove that the signed Apple Silicon .app starts and runs its own
       # Postgres and Node. The Windows installer builds in its own job beside the tests (`installer`);
@@ -166,15 +209,30 @@ jobs:
       # Reuse this Windows execution for own health. Each attempt keeps its own immutable
       # artifact. A failed job uploads too (always()), so its own run can be diagnosed; own health
       # downloads only from a passing run, so a failed attempt's evidence earns no credit. A job
-      # that failed before its tests wrote any only warns about the missing folder.
+      # that failed before its tests wrote any only warns about the missing folder, as does a shard
+      # given no units. Each shard keeps its own; own health downloads both into one folder.
+      - name: Does this shard test anything?
+        id: shard
+        if: always() && matrix.shard
+        shell: bash
+        run: |
+          grep -qx "shard ${{ matrix.shard }}/2: none" .pgtest/shard-plan.txt 2>/dev/null || echo "units=true" >> "$GITHUB_OUTPUT"
       - name: Preserve Windows test evidence
         if: always() && matrix.system == 'Windows'
         uses: actions/upload-artifact@v7
         with:
-          name: windows-test-evidence-${{ github.run_attempt }}
+          name: windows-test-evidence-${{ github.run_attempt }}-shard-${{ matrix.shard }}
           path: .pgtest/windows-evidence
           include-hidden-files: true
-          if-no-files-found: ${{ job.status == 'success' && 'error' || 'warn' }}
+          if-no-files-found: ${{ job.status == 'success' && steps.shard.outputs.units == 'true' && 'error' || 'warn' }}
+      - name: Preserve this shard's plan
+        if: always() && matrix.shard
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-shard-plan-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: .pgtest/shard-plan.txt
+          include-hidden-files: true
+          if-no-files-found: warn
       # The same for macOS: own health credits a platform:darwin skip only from this run (contract 1.11).
       - name: Preserve macOS test evidence
         if: always() && matrix.system == 'macOS'
@@ -251,6 +309,19 @@ jobs:
           test "$RESULT" = success
           test "$SCOPE" = success
           if [ "$CHANGED" = true ]; then test "$INSTALLER" = success; else test "$INSTALLER" = skipped; fi
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: test-shard-plan-*
+          path: shard-plans
+      # Both Windows shards split the units alike, so none fell between them. Each shard's latest
+      # attempt is the one that passed: rerunning only a failed job leaves the other's earlier plan.
+      - name: The Windows shards split the units alike
+        run: |
+          latest() { ls -d shard-plans/test-shard-plan-"$1"-* 2>/dev/null | sort -V | tail -n 1; }
+          one="$(latest 1)" two="$(latest 2)"
+          test -n "$one" && test -n "$two" || { echo "a Windows shard left no plan"; exit 1; }
+          cat "$one/shard-plan.txt" "$two/shard-plan.txt"
+          cmp "$one/shard-plan.txt" "$two/shard-plan.txt"
 
   # Lands the pull request once `verify` passed, through land.yml, which reads whether it is held
   # (a draft, or the `hold` label) when it runs, not from this run's event (see the header).

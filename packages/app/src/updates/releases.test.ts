@@ -273,8 +273,9 @@ test("4.7 Check for updates checks the release feed now, shares a check already 
   assert.equal(updater.request("status").phase, "up-to-date");
 });
 
+// Fails on purpose, so it is declared only in the child run of the test below: a skip here would leave 4.7 not checked.
 const DELIBERATE = "STORYTREE_RELEASES_DELIBERATE_FAILURE";
-test("4.7 deliberately failing while an automatic check runs", { skip: process.env[DELIBERATE] ? false : "other: fails on purpose, so it runs only in the child run of the test below" }, async (t) => {
+if (process.env[DELIBERATE]) test("4.7 deliberately failing while an automatic check runs", async (t) => {
   const feed = await fixture(t);
   const updater = feed.updater(async () => assert.fail("nothing newer to install"), async () => true);
   void updater.check();

@@ -16,6 +16,9 @@
  *   applied (ADR-0966 D4), through the library the caller can reach, marked with the pull request.
  * - Nothing here ever fails a hook or a tool: `gh` missing, signed out or slow means no merge seen,
  *   and a library that cannot apply leaves the changes pending, for the increment's landed close.
+ * - Only the repository's own pull requests count: a fork's, on a branch named like a claim's, ends,
+ *   holds or refuses nothing, and one GitHub does not say the head of makes the whole read as
+ *   unanswered as `gh` failing would, never the repository's own.
  */
 import { statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -127,18 +130,38 @@ async function endMergedOn(context: MergeContext, watch: MergeWatch, asked: (bra
   });
 }
 
+/**
+ * Whether GitHub says `pull`'s head is on the repository asked about (`repository`, its owner/name, when the answer
+ * names it): true or false, or undefined when it does not say, which no reader takes for the repository's own.
+ */
+function ownHead(pull: { isCrossRepository?: unknown; headRepository?: { nameWithOwner?: unknown } | null }, repository?: unknown): boolean | undefined {
+  if (typeof pull.isCrossRepository !== "boolean") return undefined;
+  if (pull.isCrossRepository) return false;
+  if (repository === undefined) return true;
+  const head = pull.headRepository?.nameWithOwner;
+  return typeof head === "string" && typeof repository === "string" ? head === repository : undefined;
+}
+
+/** `pulls` from this repository, or undefined when any one's head GitHub does not say. */
+function ownPulls<T extends object>(pulls: readonly T[], repository?: unknown): T[] | undefined {
+  const own = pulls.map((pull) => ownHead(pull, repository));
+  return own.includes(undefined) ? undefined : pulls.filter((_, at) => own[at]);
+}
+
 /** The merged pull requests from `branch`, through `gh`, run in `folder` so it finds the project's repository. */
 export const ghMergedPulls: MergedPulls = (folder, branch) => mergedPullsThrough("gh")(folder, branch);
 
 /** The merged pull requests, asked of `command` with `prefix` before gh's own arguments. */
 export const mergedPullsThrough = (command: string, prefix: readonly string[] = []): MergedPulls => async (folder, branch) => {
   // No shell: the branch is the user's, not a fixed word. gh itself is an .exe on Windows.
-  const args = [...prefix, "pr", "list", "--state", "merged", "--head", branch, "--json", "number,mergedAt", "--limit", "20"];
+  const args = [...prefix, "pr", "list", "--state", "merged", "--head", branch, "--json", "number,mergedAt,isCrossRepository", "--limit", "20"];
   const answer = await ask(command, args, process.env, GH_TIMEOUT_MS, { cwd: folder, shell: false });
   if (!answer.answered || answer.code !== 0) return [];
   try {
     const pulls = JSON.parse(answer.out) as unknown;
-    return Array.isArray(pulls) ? pulls.filter((pull): pull is MergedPull => typeof pull?.number === "number" && typeof pull?.mergedAt === "string") : [];
+    const own = Array.isArray(pulls) ? ownPulls(pulls.filter((pull) => typeof pull === "object" && pull !== null)) : undefined;
+    return (own ?? []).filter((pull): pull is MergedPull => typeof pull?.number === "number" && typeof pull?.mergedAt === "string")
+      .map(({ number, mergedAt }) => ({ number, mergedAt }));
   } catch {
     return [];
   }
@@ -149,14 +172,19 @@ export const mergedPullsThrough = (command: string, prefix: readonly string[] = 
  * do not say): nothing when `gh` is missing, signed out or slow. A push to a queued branch takes its
  * pull request out of the queue, so such a branch can take no more commits.
  */
-export const ghQueuedPulls: QueuedPulls = async (folder, branch) => {
-  const query = "query($owner:String!,$name:String!,$branch:String!){repository(owner:$owner,name:$name){pullRequests(headRefName:$branch,states:OPEN,first:10){nodes{number isInMergeQueue}}}}";
-  const args = ["api", "graphql", "-F", "owner={owner}", "-F", "name={repo}", "-f", `branch=${branch}`, "-f", `query=${query}`];
-  const answer = await ask("gh", args, process.env, GH_TIMEOUT_MS, { cwd: folder, shell: false });
+export const ghQueuedPulls: QueuedPulls = (folder, branch) => queuedPullsThrough("gh")(folder, branch);
+
+/** The pull requests waiting in the merge queue, asked of `command` with `prefix` before gh's own arguments. */
+export const queuedPullsThrough = (command: string, prefix: readonly string[] = []): QueuedPulls => async (folder, branch) => {
+  const query = "query($owner:String!,$name:String!,$branch:String!){repository(owner:$owner,name:$name){nameWithOwner pullRequests(headRefName:$branch,states:OPEN,first:10){nodes{number isInMergeQueue isCrossRepository headRepository{nameWithOwner}}}}}";
+  const args = [...prefix, "api", "graphql", "-F", "owner={owner}", "-F", "name={repo}", "-f", `branch=${branch}`, "-f", `query=${query}`];
+  const answer = await ask(command, args, process.env, GH_TIMEOUT_MS, { cwd: folder, shell: false });
   if (!answer.answered || answer.code !== 0) return [];
   try {
-    const nodes = (JSON.parse(answer.out) as { data?: { repository?: { pullRequests?: { nodes?: unknown } } } }).data?.repository?.pullRequests?.nodes;
-    return Array.isArray(nodes) ? nodes.filter((pull) => pull?.isInMergeQueue === true && typeof pull.number === "number").map((pull) => pull.number as number) : [];
+    const repository = (JSON.parse(answer.out) as { data?: { repository?: { nameWithOwner?: unknown; pullRequests?: { nodes?: unknown } } } }).data?.repository;
+    const nodes = repository?.pullRequests?.nodes;
+    const own = Array.isArray(nodes) ? ownPulls(nodes.filter((pull) => typeof pull === "object" && pull !== null), repository?.nameWithOwner) : undefined;
+    return (own ?? []).filter((pull) => pull?.isInMergeQueue === true && typeof pull.number === "number").map((pull) => pull.number as number);
   } catch {
     return [];
   }
@@ -173,14 +201,17 @@ const ALL_LIMIT = 1_000;
 const ALL_TIMEOUT_MS = 10_000;
 
 /** Every merged pull request, by its branch, in one call to `gh`: nothing when `gh` is missing, signed out or slow. */
-export const ghAllMergedPulls: AllMergedPulls = async (folder) => {
-  const args = ["pr", "list", "--state", "merged", "--json", "number,mergedAt,headRefName", "--limit", String(ALL_LIMIT)];
-  const answer = await ask("gh", args, process.env, ALL_TIMEOUT_MS, { cwd: folder, shell: false });
+export const ghAllMergedPulls: AllMergedPulls = (folder) => allMergedPullsThrough("gh")(folder);
+
+/** Every merged pull request, by its branch, asked of `command` with `prefix` before gh's own arguments. */
+export const allMergedPullsThrough = (command: string, prefix: readonly string[] = []): AllMergedPulls => async (folder) => {
+  const args = [...prefix, "pr", "list", "--state", "merged", "--json", "number,mergedAt,headRefName,isCrossRepository", "--limit", String(ALL_LIMIT)];
+  const answer = await ask(command, args, process.env, ALL_TIMEOUT_MS, { cwd: folder, shell: false });
   const byBranch = new Map<string, MergedPull[]>();
   if (!answer.answered || answer.code !== 0) return byBranch;
   try {
     const pulls = JSON.parse(answer.out) as unknown;
-    for (const pull of Array.isArray(pulls) ? pulls : []) {
+    for (const pull of (Array.isArray(pulls) ? ownPulls(pulls.filter((pull) => typeof pull === "object" && pull !== null)) : undefined) ?? []) {
       if (typeof pull?.number !== "number" || typeof pull?.mergedAt !== "string" || typeof pull?.headRefName !== "string") continue;
       byBranch.set(pull.headRefName, [...(byBranch.get(pull.headRefName) ?? []), { number: pull.number, mergedAt: pull.mergedAt }]);
     }
@@ -206,28 +237,47 @@ export type AllOpenPulls = (folder: string) => Promise<Map<string, OpenPull> | u
 /** How GitHub sums up a commit's checks, as one of three. */
 const CHECKS: Readonly<Record<string, OpenPull["checks"]>> = { SUCCESS: "passing", PENDING: "pending", EXPECTED: "pending", FAILURE: "failing", ERROR: "failing" };
 
+/** How many pages of open pull requests one look reads at most; more leaves the read unfinished. */
+const OPEN_PAGES = 10;
+
 /**
- * Every open pull request, by its branch, in one call to `gh`: its GraphQL, since `gh pr list` does
- * not say which wait in the merge queue. Undefined when `gh` is missing, signed out or slow.
+ * Every open pull request, by its branch, through `gh`'s GraphQL, since `gh pr list` does not say which
+ * wait in the merge queue, a page of 100 at a time. Undefined when `gh` is missing, signed out or slow.
  */
-export const ghAllOpenPulls: AllOpenPulls = async (folder) => {
-  const query = "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){pullRequests(states:OPEN,first:100,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number headRefName isDraft isInMergeQueue commits(last:1){nodes{commit{statusCheckRollup{state}}}}}}}}";
-  const args = ["api", "graphql", "-F", "owner={owner}", "-F", "name={repo}", "-f", `query=${query}`];
-  const answer = await ask("gh", args, process.env, ALL_TIMEOUT_MS, { cwd: folder, shell: false });
-  if (!answer.answered || answer.code !== 0) return undefined;
-  try {
-    const nodes = (JSON.parse(answer.out) as { data?: { repository?: { pullRequests?: { nodes?: unknown } } } }).data?.repository?.pullRequests?.nodes;
-    if (!Array.isArray(nodes)) return undefined;
-    const byBranch = new Map<string, OpenPull>();
-    for (const pull of nodes) {
-      if (typeof pull?.number !== "number" || typeof pull?.headRefName !== "string" || byBranch.has(pull.headRefName)) continue;
-      const checks = CHECKS[pull.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? ""];
-      byBranch.set(pull.headRefName, { number: pull.number, draft: pull.isDraft === true, ...(checks === undefined ? {} : { checks }), queued: pull.isInMergeQueue === true });
+export const ghAllOpenPulls: AllOpenPulls = (folder) => allOpenPullsThrough("gh")(folder);
+
+/**
+ * Every open pull request of the repository itself, by its branch, asked of `command` with `prefix` before gh's own
+ * arguments. Undefined, as unanswered, when a page cannot be read or finished, or GitHub does not say a pull request's head.
+ */
+export const allOpenPullsThrough = (command: string, prefix: readonly string[] = []): AllOpenPulls => async (folder) => {
+  const query = "query($owner:String!,$name:String!,$after:String){repository(owner:$owner,name:$name){nameWithOwner pullRequests(states:OPEN,first:100,after:$after,orderBy:{field:UPDATED_AT,direction:DESC}){pageInfo{hasNextPage endCursor} nodes{number headRefName isDraft isInMergeQueue isCrossRepository headRepository{nameWithOwner} commits(last:1){nodes{commit{statusCheckRollup{state}}}}}}}}";
+  const byBranch = new Map<string, OpenPull>();
+  let after: string | undefined;
+  for (let page = 0; page < OPEN_PAGES; page++) {
+    const args = [...prefix, "api", "graphql", "-F", "owner={owner}", "-F", "name={repo}", ...(after === undefined ? [] : ["-f", `after=${after}`]), "-f", `query=${query}`];
+    const answer = await ask(command, args, process.env, ALL_TIMEOUT_MS, { cwd: folder, shell: false });
+    if (!answer.answered || answer.code !== 0) return undefined;
+    try {
+      type Page = { data?: { repository?: { nameWithOwner?: unknown; pullRequests?: { pageInfo?: { hasNextPage?: unknown; endCursor?: unknown }; nodes?: unknown } } } };
+      const repository = (JSON.parse(answer.out) as Page).data?.repository;
+      const { nodes, pageInfo } = repository?.pullRequests ?? {};
+      const own = Array.isArray(nodes) ? ownPulls(nodes.filter((pull) => typeof pull === "object" && pull !== null), repository?.nameWithOwner) : undefined;
+      if (own === undefined || typeof pageInfo?.hasNextPage !== "boolean") return undefined;
+      // Only the repository's own reach the map, so a fork's on the same branch never stands in for one.
+      for (const pull of own) {
+        if (typeof pull?.number !== "number" || typeof pull?.headRefName !== "string" || byBranch.has(pull.headRefName)) continue;
+        const checks = CHECKS[pull.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state ?? ""];
+        byBranch.set(pull.headRefName, { number: pull.number, draft: pull.isDraft === true, ...(checks === undefined ? {} : { checks }), queued: pull.isInMergeQueue === true });
+      }
+      if (!pageInfo.hasNextPage) return byBranch;
+      if (typeof pageInfo.endCursor !== "string" || pageInfo.endCursor === "") return undefined;
+      after = pageInfo.endCursor;
+    } catch {
+      return undefined;
     }
-    return byBranch;
-  } catch {
-    return undefined;
   }
+  return undefined;
 };
 
 /**

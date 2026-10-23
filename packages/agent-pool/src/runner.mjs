@@ -97,7 +97,8 @@ function handoverBrief(log, original) {
 A Codex lane on this box started the brief below and stopped when Codex's weekly allowance ran out (its log: ${log}).
 You are Claude Code, carrying the same lane on (owner, 2026-10-06: Mint lanes switch to Claude when Codex's allowance is used up).
 Before anything else, find what it left: its worktree and branch for this increment (\`git worktree list\` in ~/code/storytree03),
-commits and any pull request on that branch (\`gh pr list --head <branch> --state all\`), and the last lines of its log.
+commits and any pull request on that branch whose head is on this repository (\`gh pr list --head <branch> --state all --json number,state,isCrossRepository\`,
+keeping only those with isCrossRepository false: a fork's pull request on a branch of the same name is never this lane's), and the last lines of its log.
 Carry on from that work rather than starting again. If a claim is refused as held by that Codex session, it has stopped:
 a claim whose holder has gone idle is taken over by claiming it again, so retry once it reads idle; never build without the claim.
 

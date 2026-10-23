@@ -22,7 +22,7 @@ import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions } from "../sessions/index.js";
 import { claim, claimAll, claimRefusal, closed, holdForPull, land, letGo, readAttribution, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
-import { boardClaims, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
+import { allMergedPullsThrough, allOpenPullsThrough, boardClaims, queuedPullsThrough, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
 import { staleClaims } from "./stale-claims.js";
 
 interface World {
@@ -537,7 +537,7 @@ test("5.10 asking gh for merged pull requests answers when gh exits, even while 
     // independently of how long a busy runner takes to start gh (queue run 37328670634).
     const gh = path.join(folder, "gh.mjs");
     const pidFile = path.join(folder, "descendant.pid");
-    const merged = [{ number: 9, mergedAt: "2026-09-28T00:00:00Z" }];
+    const merged = [{ number: 9, mergedAt: "2026-09-28T00:00:00Z", isCrossRepository: false }];
     // Detached, as Node would otherwise end it with gh on Windows; in the temporary folder, so it holds no folder the test removes.
     writeFileSync(gh, `import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -552,12 +552,59 @@ process.stdout.write(${JSON.stringify(JSON.stringify(merged))}, () => process.ex
       const result = await mergedPullsThrough(process.execPath, [gh])(folder, "feature/signup & more");
       const elapsed = Date.now() - started;
       t.diagnostic(`gh merge query returned in ${elapsed} ms`);
-      assert.deepEqual(result, merged, `gh must return its merged result while output is held (query took ${elapsed} ms)`);
+      assert.deepEqual(result, [{ number: 9, mergedAt: "2026-09-28T00:00:00Z" }], `gh must return its merged result while output is held (query took ${elapsed} ms)`);
       const pid = Number(readFileSync(pidFile, "utf8"));
       assert.doesNotThrow(() => process.kill(pid, 0), "the descendant still holds gh's output when the answer arrives");
     } finally {
       try { process.kill(Number(readFileSync(pidFile, "utf8")), "SIGKILL"); } catch { /* gh may have failed before spawning. */ }
     }
+  });
+});
+
+/** A `gh` in `folder` that prints `answers`' entry for the GraphQL cursor it is given (`after=…`), or its "" entry with none. */
+function fakeGh(folder: string, name: string, answers: Record<string, unknown>): string {
+  const gh = path.join(folder, `${name}.mjs`);
+  writeFileSync(gh, `const answers = ${JSON.stringify(answers)};
+const after = process.argv.find((arg) => arg.startsWith("after="))?.slice(6) ?? "";
+process.stdout.write(JSON.stringify(answers[after]));
+`);
+  return gh;
+}
+
+test("5.25 the open pull requests a workspace is refused beside are only this repository's, read page by page: a fork's on a branch named for the work is left out, and one GitHub does not say the head of, or an unfinished page, leaves the read incomplete", async () => {
+  await withTempDir(async (folder) => {
+    const node = (number: number, headRefName: string, from: string | null, cross: unknown = from !== "acme/app") =>
+      ({ number, headRefName, isDraft: false, isInMergeQueue: false, ...(cross === null ? {} : { isCrossRepository: cross }), headRepository: from === null ? null : { nameWithOwner: from } });
+    const page = (nodes: unknown[], next?: string) => ({ data: { repository: { nameWithOwner: "acme/app", pullRequests: { pageInfo: { hasNextPage: next !== undefined, endCursor: next ?? null }, nodes } } } });
+    const read = (name: string, answers: Record<string, unknown>) => allOpenPullsThrough(process.execPath, [fakeGh(folder, name, answers)])(folder);
+
+    const pulls = await read("paged", {
+      "": page([node(800, "codex/increment-x-a1b2c3", "mallory/app"), node(801, "codex/increment-y-b2c3d4", null), node(716, "claude/increment-z-d4e5f6", "acme/app")], "c1"),
+      c1: page([node(717, "codex/increment-x-a1b2c3", "acme/app")]),
+    });
+    assert.deepEqual(pulls && [...pulls].map(([branch, pull]) => [branch, pull.number]), [["claude/increment-z-d4e5f6", 716], ["codex/increment-x-a1b2c3", 717]],
+      "the fork's pull requests are left out before the branch is taken, and the second page is read");
+
+    assert.equal(await read("unsaid", { "": page([node(716, "claude/increment-z-d4e5f6", "acme/app", null)]) }), undefined, "no isCrossRepository: incomplete, never this repository's");
+    assert.equal(await read("headless", { "": page([node(716, "claude/increment-z-d4e5f6", null, false)]) }), undefined, "no head repository: incomplete");
+    const queued = (name: string, nodes: unknown[]) => queuedPullsThrough(process.execPath, [fakeGh(folder, name, { "": page(nodes.map((one) => ({ ...(one as object), isInMergeQueue: true }))) })])(folder, "codex/increment-x-a1b2c3");
+    assert.deepEqual(await queued("queued", [node(800, "codex/increment-x-a1b2c3", "mallory/app"), node(717, "codex/increment-x-a1b2c3", "acme/app")]), [717], "a fork's queued pull request does not hold the branch");
+    assert.deepEqual(await queued("queued-unsaid", [node(717, "codex/increment-x-a1b2c3", "acme/app", null)]), []);
+    assert.equal(await read("unfinished", { "": { data: { repository: { nameWithOwner: "acme/app", pullRequests: { pageInfo: { hasNextPage: true, endCursor: null }, nodes: [] } } } } }), undefined, "a next page it cannot ask for");
+  });
+});
+
+test("5.10 a fork's merged pull request from a claim's branch ends nothing: merged reads keep only this repository's, and one GitHub does not say the head of means no merge seen", async () => {
+  await withTempDir(async (folder) => {
+    const mergedAt = "2026-10-01T00:00:00Z";
+    const ours = { number: 10, mergedAt, headRefName: "feature/signup", isCrossRepository: false };
+    const fork = { number: 9, mergedAt, headRefName: "feature/signup", isCrossRepository: true };
+    const unsaid = { number: 11, mergedAt, headRefName: "feature/signup" };
+
+    assert.deepEqual(await mergedPullsThrough(process.execPath, [fakeGh(folder, "one", { "": [fork, ours] })])(folder, "feature/signup"), [{ number: 10, mergedAt }]);
+    assert.deepEqual(await mergedPullsThrough(process.execPath, [fakeGh(folder, "one-unsaid", { "": [ours, unsaid] })])(folder, "feature/signup"), []);
+    assert.deepEqual([...await allMergedPullsThrough(process.execPath, [fakeGh(folder, "all", { "": [fork, ours] })])(folder)], [["feature/signup", [{ number: 10, mergedAt }]]]);
+    assert.deepEqual([...await allMergedPullsThrough(process.execPath, [fakeGh(folder, "all-unsaid", { "": [ours, unsaid] })])(folder)], []);
   });
 });
 

@@ -12,7 +12,7 @@ import { runCapture } from '../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seed = JSON.parse(gunzipSync(readFileSync(path.resolve(here, '../../../forest/src/view/evidence/rows/seed.json.gz'))).toString('utf8'));
 // The desktop app's own build of the page (the capture kit's globe-observing build is not needed here).
-execFileSync(process.execPath, [path.resolve(here, '../../../../apps/desktop/build.mjs')], { stdio: 'inherit' });
+execFileSync(process.execPath, ['--import', 'tsx', path.resolve(here, '../../../../apps/desktop/build.mjs')], { stdio: 'inherit' });
 const dist = path.resolve(here, '../../../../apps/desktop/dist/renderer');
 let choice = { mode: 'hours', from: '01:00', to: '06:00' };
 const update = { phase: 'pending', runningBuild: '0.3.412 (abc1234)', nextBuild: '0.3.415' };
@@ -36,7 +36,7 @@ await runCapture({
   },
   views: [
     { name: 'desktop-quiet-hours', prepare: open, measure: fits, expect: value => { assert.match(value.next, /01:00/); assert.match(value.status, /quiet hours, 01:00 to 06:00/); } },
-    { name: 'desktop-manual-only', prepare: async context => { await open(context); await context.page.locator('input[value="manual"]').check(); await context.page.waitForFunction(() => /only when you say/.test(document.querySelector('#app-update-status').textContent)); }, measure: fits, expect: value => { assert.match(value.next, /download in the background/); assert.match(value.status, /only when you say/); } },
+    { name: 'desktop-manual-only', prepare: async context => { await open(context); await context.page.locator('input[value="manual"]').check(); await context.page.waitForFunction(() => /when you click Restart to update/.test(document.querySelector('#app-update-status').textContent)); }, measure: fits, expect: value => { assert.match(value.next, /download in the background/); assert.match(value.status, /when you click Restart to update/); } },
     { name: 'narrow-quiet-hours', prepare: async context => { await context.page.setViewportSize({ width: 360, height: 760 }); await open(context); await context.page.locator('input[value="hours"]').check(); await context.page.waitForFunction(() => /01:00/.test(document.querySelector('[data-app-install-next]').textContent)); await context.page.locator('[data-app-install-choice]').scrollIntoViewIfNeeded(); }, measure: fits, expect: value => assert.equal(value.scrollsSideways, false) },
   ],
 });

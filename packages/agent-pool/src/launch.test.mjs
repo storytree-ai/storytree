@@ -24,6 +24,8 @@ async function box(t, extra = {}) {
   return {
     lanesDir, events, lines, briefs, repo: join(lanesDir, "repo"), addDirs: ["/wt", lanesDir], pid: 4242, now,
     say: (line) => lines.push(line), argsOf: async () => "", maxLanes: async () => 5,
+    // A clear box: the real reading (/proc on a busy CI runner) would hold dispatch back (pace.mjs).
+    pace: async () => undefined,
     count: async () => { events.push("count"); return counts.length ? counts.shift() : 0; },
     lock: async (fn) => { events.push("lock"); await fn(); events.push("unlock"); },
     prepare: async () => { events.push("prepare"); },

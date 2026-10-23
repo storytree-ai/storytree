@@ -124,6 +124,7 @@ const LIBRARY_API = [
   "changesSince",
   "sendFeedback",
   "feedbackScreenshot",
+  "routeFeedback",
   // Capability 27's fixed data questions.
   "counts",
   "latestChanges",
@@ -528,6 +529,30 @@ test("7.18 sendFeedback writes a feedback record and keeps its screenshot beside
     await assert.rejects(lib.sendFeedback(untyped({ ...note, text: "" })), (error: Error) => error.name === "SchemaError", "a note with no text is refused");
     await assert.rejects(lib.sendFeedback(untyped({ ...note, surface: undefined }), { screenshot: jpeg }), (error: Error) => error.name === "SchemaError", "a note with no surface is refused");
     assert.equal((await lib.list("feedback")).length, 2, "a refused note writes nothing");
+  });
+});
+
+test("7.19 routeFeedback marks a new feedback record routed with its route, target and reason; a missing, non-feedback or already routed record is refused with nothing written, and a routed record must carry its route and reason", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const note = { text: "The gear menu hides the version", surface: "gear", version: "0.3.99", window: { width: 800, height: 600 }, theme: "light" as const, at: "2026-10-24T09:00:00.000Z" };
+    const sent = await lib.sendFeedback(note);
+    const routed = await lib.routeFeedback(sent.id, { route: "increment", routedTo: "increment_000000000001", routeReason: "The gear menu's arc owns it" }, { actor: "session:manager" });
+    assert.deepEqual(routed?.fields, { ...note, status: "routed", screenshot: false, route: "increment", routedTo: "increment_000000000001", routeReason: "The gear menu's arc owns it" });
+    assert.equal((await lib.history({ id: sent.id })).at(-1)!.actor, "session:manager");
+
+    await assert.rejects(lib.routeFeedback(sent.id, { route: "closed", routeReason: "again" }), /already routed/);
+    assert.equal(((await lib.get(sent.id))!.fields as { route?: string }).route, "increment", "a second route writes nothing");
+    assert.equal(await lib.routeFeedback("feedback_000000000000", { route: "closed", routeReason: "gone" }), null);
+    const arc = await lib.createArc({ title: "Gear", intent: "An intent", endState: "An end state" });
+    assert.equal(await lib.routeFeedback(arc.id, { route: "closed", routeReason: "not a note" }), null);
+
+    const other = await lib.sendFeedback({ ...note, text: "Another" });
+    await assert.rejects(lib.routeFeedback(other.id, untyped({ route: "closed", routeReason: "" })), (error: Error) => error.name === "SchemaError", "a route needs its reason");
+    const closed = await lib.routeFeedback(other.id, { route: "closed", routeReason: "Covered by increment_000000000002" });
+    assert.equal(closed?.fields.status, "routed");
+    assert.equal(closed?.fields.routedTo, undefined);
   });
 });
 

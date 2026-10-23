@@ -10,7 +10,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { poolConfig } from "./pool-config.mjs";
+import { poolConfig, readCap } from "./pool-config.mjs";
 import { countEngines } from "./queue.mjs";
 import { readPull } from "./watch.mjs";
 
@@ -139,7 +139,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     lanesDir, now: Date.now, out: console.log,
     argsOf: async (pid) => (await readFile(`/proc/${pid}/cmdline`, "utf8").catch(() => "")).split("\0").join(" ").trim(),
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
-    maxLanes: async () => Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || config.sessions,
+    maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     pull: async (pr) => JSON.parse((await run("gh", ["api", "graphql", "-f", "owner=storytree-ai", "-f", "name=storytree", "-F", `pr=${pr}`, "-f", `query=${QUERY}`],
       { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout).data.repository.pullRequest,
   };

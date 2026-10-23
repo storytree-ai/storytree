@@ -4,7 +4,6 @@
   "checkout": "~/code/storytree03",
   "lanes": "~/storytree-lanes",
   "addDirs": ["~/code/storytree03-wt"],
-  "sessions": 5,
   "engines": { "codex": { "model": "gpt-6-astra" }, "claude": { "model": "claude-opus-5-5" }, "switchAt": 95 },
   "watcher": { "fixesPerRed": 2, "fixesPerPullRequest": 6, "intervalSeconds": 60 }
 }

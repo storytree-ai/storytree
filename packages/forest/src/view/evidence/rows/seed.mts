@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openNamedProject, requireApproval, route } from '@storytree/project-and-caller';
 import { connect } from '@storytree/library';
+import { sanitiseSeed } from '../../../snapshot/evidence-seed.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const where = route(here);
@@ -33,7 +34,7 @@ try {
   const capabilities = tree.stories.reduce((n: number, s: { capabilities: unknown[] }) => n + s.capabilities.length, 0);
   const seed = { projects: ['storytree'], tree, changes, lines: { lines: [], cursor: 0 }, covers,
     stats: { stories: tree.stories.length, capabilities, taken: new Date().toISOString(), changesFolded: 'each record: its created change and its last later change; cursor kept' } };
-  writeFileSync(path.join(here, 'seed.json.gz'), gzipSync(JSON.stringify(seed) + '\n', { level: 9 }));
+  writeFileSync(path.join(here, 'seed.json.gz'), gzipSync(JSON.stringify(sanitiseSeed(seed)) + '\n', { level: 9 }));
   console.log(seed.stats, tree.stories.map((s: { title: string }) => s.title));
 } finally {
   await (storytree as { close?: () => Promise<void> }).close?.();

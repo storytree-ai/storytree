@@ -543,20 +543,59 @@ class ProjectLibrary implements Project {
 /**
  * Set the project's tables up, or bring them up to date, unless they are current already: then
  * nothing is written, and no owner's rights are needed (contract 1.10). When they are behind and
- * the account may not change them, say so and who may (1.11).
+ * the account may not change them, it changes nothing: a project set up before opens as it stands,
+ * with one warning per process saying who may bring it up to date; one never set up is refused,
+ * saying who may set it up (1.11).
  */
 async function openTables(pool: Pool, name: string): Promise<void> {
   if (await tablesCurrent(pool, name)) return;
+  const rights = await schemaRights(pool);
+  if (!rights.mayChange) {
+    if (!rights.setUp) throw cannotSetUpProject(name, rights.account, rights.owner, undefined);
+    if (!behindWarned.has(name)) {
+      behindWarned.add(name);
+      console.warn(
+        `Project "${name}"'s tables are behind this storytree's, and ${quoteIdentifier(rights.account)} may not change them, ` +
+          `so it opens them as they stand. Open it once as the role that owns its database (${quoteIdentifier(rights.owner)}) to bring them up to date.`,
+      );
+    }
+    return;
+  }
   try {
     await applySchema(pool, name);
   } catch (error) {
     if (!isInsufficientPrivilege(error)) throw error;
-    const { rows } = await pool.query<{ account: string; owner: string }>(
-      "SELECT session_user AS account, pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = current_database()",
-    );
-    const [found] = rows;
-    throw found === undefined ? error : cannotSetUpProject(name, found.account, found.owner, error);
+    throw cannotSetUpProject(name, rights.account, rights.owner, error);
   }
+}
+
+/** The projects this process has warned are opened behind, by an account that may not change their tables: each is said once. */
+const behindWarned = new Set<string>();
+
+/** The tables the project schema makes, by name. */
+const SCHEMA_TABLES = PROJECT_SCHEMA.flatMap((statement) => /CREATE TABLE IF NOT EXISTS (\w+)/.exec(statement)?.[1] ?? []);
+
+/**
+ * Whether this connection may change the project's tables: it may create in the public schema and
+ * holds the owner's rights over every schema table already there (an ALTER, or even a CREATE INDEX
+ * IF NOT EXISTS, needs them). Also whether the project was ever set up, the account it signed in
+ * as, and the role that owns its database.
+ */
+async function schemaRights(pool: Pool): Promise<{ mayChange: boolean; setUp: boolean; account: string; owner: string }> {
+  const { rows } = await pool.query<{ mayChange: boolean; setUp: boolean; account: string; owner: string }>(
+    `SELECT has_schema_privilege('public', 'CREATE')
+              AND COALESCE(bool_and(pg_has_role(current_user, c.relowner, 'USAGE')), true) AS "mayChange",
+            to_regclass('public.library_meta') IS NOT NULL AS "setUp",
+            session_user AS account, pg_get_userbyid(d.datdba) AS owner
+       FROM pg_database d
+       LEFT JOIN pg_class c ON c.relnamespace = 'public'::regnamespace AND c.relname = ANY($1::text[])
+      WHERE d.datname = current_database()
+      GROUP BY d.datdba`,
+    [SCHEMA_TABLES],
+  );
+  const [found] = rows;
+  if (found === undefined) throw new Error("The project's database was not found on its own connection.");
+  return found;
 }
 
 /**

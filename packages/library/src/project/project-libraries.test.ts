@@ -447,18 +447,42 @@ test("1.10 opening a project whose tables are current runs no table setup, so it
   }
 });
 
-test("1.11 opening a project whose tables are not current, as an account that may not set them up, is refused saying so", async () => {
+test("1.11 an account that may not change a project's tables opens it set up, behind, with one warning and no table change; one never set up is refused saying so", async (t) => {
   const name = uniqueProjectName();
   const reader = `${name}-reader`;
   let opened: Storytree | undefined;
+  const tables = async (): Promise<string[]> =>
+    withTestClient(
+      async (client) => (await client.query<{ name: string }>("SELECT tablename AS name FROM pg_tables WHERE schemaname = 'public' ORDER BY 1")).rows.map((row) => row.name),
+      databaseOf(name),
+    );
   try {
     await withStorytree([databaseOf(name)], async (storytree) => {
       await storytree.openProject(name);
       await createReader(reader, databaseOf(name));
+      await withTestClient((client) => client.query(`GRANT INSERT, UPDATE ON library_meta, record, record_event TO "${reader}"; GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO "${reader}"`), databaseOf(name));
       // As a project made before its latest table was added stands: set up, but not all the way.
       await withTestClient((client) => client.query("DROP TABLE embedding"), databaseOf(name));
       await withTestClient((client) => client.query("DELETE FROM library_meta WHERE key <> 'project'"), databaseOf(name));
+      const behind = await tables();
 
+      const warn = t.mock.method(console, "warn", () => undefined);
+      opened = await connect({ url: as(reader) });
+      const project = await opened.openProject(name);
+      await project.close();
+      const again = await opened.openProject(name);
+      const saved = await again.transactions.save({ id: "kept", type: "decision", fields: { title: "Kept", text: "Written by an account let write." } });
+      assert.deepEqual(await again.transactions.get("kept"), saved);
+      const warnings = warn.mock.calls.map((call) => String(call.arguments[0])).filter((text) => text.includes(name));
+      warn.mock.restore();
+      assert.equal(warnings.length, 1, `one warning over two opens, not ${JSON.stringify(warnings)}`);
+      assert.ok(warnings[0]!.includes(reader), "it names the account");
+      assert.deepEqual(await tables(), behind, "no table was made or changed");
+      await opened.close();
+      opened = undefined;
+
+      // A project never set up is refused, and nothing is attempted.
+      await withTestClient((client) => client.query("DROP TABLE library_meta, record_event, record, feedback_screenshot CASCADE"), databaseOf(name));
       opened = await connect({ url: as(reader) });
       await assert.rejects(opened.openProject(name), (error: unknown) => {
         assert.ok(error instanceof ConnectionError, `a ConnectionError, not ${String(error)}`);
@@ -467,10 +491,11 @@ test("1.11 opening a project whose tables are not current, as an account that ma
         assert.ok(error.message.includes(reader), "it names the account that was refused");
         return true;
       });
+      assert.deepEqual(await tables(), [], "no table was made");
 
       // Its owner still sets it up, as before.
-      const again = await storytree.openProject(name);
-      assert.equal(again.name, name);
+      assert.equal((await storytree.openProject(name)).name, name);
+      assert.ok((await tables()).includes("embedding"), "its owner sets the tables up");
     });
   } finally {
     await opened?.close();

@@ -4,11 +4,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { appLog } from "./app-log.js";
 import { answerStartMarks, startMarks } from "./start-marks.js";
 
 test("1.33 · a start writes each timing mark once to app.log, as milliseconds from launch", () => {
   const file = path.join(mkdtempSync(path.join(tmpdir(), "start-marks-")), "app.log");
-  const marks = startMarks({ launchedAt: 1_000, file, now: () => 1_250 });
+  const marks = startMarks({ launchedAt: 1_000, log: appLog(file), now: () => 1_250 });
   marks.mark("app ready");
   marks.mark("forest first fresh draw", 3_400.6);
   marks.mark("app ready", 9_000);
@@ -18,15 +19,10 @@ test("1.33 · a start writes each timing mark once to app.log, as milliseconds f
   assert.match(lines[0]!, /^\d{4}-\d{2}-\d{2}T\S+Z /, "each line carries the time it was written");
 });
 
-test("1.33 · a mark that cannot be written never stops the app", () => {
-  const marks = startMarks({ launchedAt: 0, file: path.join(tmpdir(), "no-such-dir", "nested", "app.log") });
-  assert.doesNotThrow(() => marks.mark("app ready"));
-});
-
 test("1.33 · the page's marks reach app.log through the main process; a malformed one is ignored", () => {
   const file = path.join(mkdtempSync(path.join(tmpdir(), "start-marks-")), "app.log");
   const answers = new Map<string, (event: unknown, ...args: unknown[]) => void>();
-  answerStartMarks({ handle: (channel, answer) => answers.set(channel, answer) }, "start-mark", startMarks({ launchedAt: 1_000, file }));
+  answerStartMarks({ handle: (channel, answer) => answers.set(channel, answer) }, "start-mark", startMarks({ launchedAt: 1_000, log: appLog(file) }));
   const answer = answers.get("start-mark")!;
   answer({}, "kept reading read start", "soon");
   answer({}, 42, 1_500);

@@ -117,12 +117,13 @@ import { bringWindowForward } from "./window-shown.js";
 import { PLUGIN_SCHEME, pluginResponse, windowStandIns } from "./stand-ins.js";
 import { finishStartCheck, runWhenReady } from "./start-check.js";
 import { answerStartMarks, processLaunchedAt, startMarks } from "./start-marks.js";
+import { appLog, teeConsole } from "./app-log.js";
 import { START_MARK } from "../bridge.js";
 
 // A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
 declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 
-// The main process's own uncaught errors reach the log (stderr), before startup work can throw.
+// The main process's own uncaught errors reach the log (app.log once teeConsole runs below, stderr in the checks), before startup work can throw.
 // The box then offers Keep going or Restart; before the app is ready only the error box can show, so it keeps going.
 // Each is also kept in the user's own library on every install, held until it opens (lifecycle 1.25), naming the build
 // once it is known and the app's version before.
@@ -151,8 +152,12 @@ logMainErrors(process, {
 
 const args = parseArgs(process.argv);
 const home = appHome();
-/** This start's timing marks, kept in app.log beside the app's data (contract 1.33); the release's checks write none. */
-const marks = args.startCheck || args.callbackCheck ? { mark() {} } : startMarks({ launchedAt: processLaunchedAt(), file: path.join(home.dir, "app.log") });
+/** app.log beside the app's data, bounded (contract 1.34): an installed app has no terminal, so what it says is kept here. */
+const log = appLog(path.join(home.dir, "app.log"));
+// The release's checks and the smoke check say what they say on stderr only, as before.
+if (!args.smoke && !args.startCheck && !args.callbackCheck) teeConsole(console, log);
+/** This start's timing marks, kept in app.log (contract 1.33); the release's checks write none. */
+const marks = args.startCheck || args.callbackCheck ? { mark() {} } : startMarks({ launchedAt: processLaunchedAt(), log });
 /** How long the smoke check may take, start to finish, before it gives up. */
 const SMOKE_TIMEOUT_MS = 180_000;
 
@@ -537,7 +542,7 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
   });
   // The page is the app: it never navigates away or opens other windows.
   keepPageInWindow(window, { headless: args.smoke });
-  // A failure inside the page (a surface's failed refresh, an uncaught throw) is logged with the rest.
+  // A failure inside the page (a surface's failed refresh, an uncaught throw) is kept in app.log with the rest.
   logPageErrors(window.webContents, line => console.error(line));
   // The page names the project; the title adds which build this is.
   titleWindow(window, build);

@@ -50,3 +50,5 @@ inside signing in, "a capability", "each dot is a file", and the panel's diagram
 **Checks.** `tour.test.ts` 2.16 and 2.21 red then green (one line each, the beats pinned to moments, labels per moment, the still
 state); browser journeys `--verify-camera` (2.16 now waits on moments and checks the pathway label and the panel's pointer),
 `--verify-tour --verify-forest` and `--verify-immersive` pass.
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [two-steps.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/map-one-line/two-steps.webm). Each link is its last copy, kept in git history.

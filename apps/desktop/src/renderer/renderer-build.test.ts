@@ -18,5 +18,5 @@ test("3.17 · the whole desktop page, every story's surface mounted in it, bundl
   });
   assert.deepEqual(result.errors, []);
   const [bundle] = result.outputFiles;
-  assert.ok(bundle.text.includes("data-surface-id"), "the bundle carries the page's mounted surfaces");
+  assert.ok(bundle?.text.includes("data-surface-id"), "the bundle carries the page's mounted surfaces");
 });

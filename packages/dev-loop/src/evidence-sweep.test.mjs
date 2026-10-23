@@ -23,6 +23,7 @@ function repository(t) {
   git(root, "init", "-q", "-b", "main");
   git(root, "config", "user.email", "test@example.com");
   git(root, "config", "user.name", "test");
+  git(root, "config", "core.autocrlf", "false"); // a Windows runner's global true would check files out with CRLF
   write(root, "README.md", "readme\n");
   git(root, "add", "-A");
   git(root, "commit", "-qm", "start");

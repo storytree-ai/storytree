@@ -28,7 +28,7 @@ const unused = async (): Promise<never> => { throw new Error("Unexpected help br
 function helpBridge(overrides: Partial<SetupHelpBridge> = {}): SetupHelpBridge {
   return {
     agentConnections: async () => [], readSetupLicense: unused, checkSetupFolder: unused,
-    factoryFolder: unused, chooseFactory: unused, addProject: unused, removeProject: unused, projectSentence: unused, setProjectSentence: unused, deletableProjects: unused, deleteProject: unused,
+    addProject: unused, removeProject: unused, projectSentence: unused, setProjectSentence: unused, deletableProjects: unused, deleteProject: unused,
     openFeedbackDraft: unused, copyHelpText: unused, ...overrides,
   };
 }

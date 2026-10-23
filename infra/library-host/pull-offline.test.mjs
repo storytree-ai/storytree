@@ -8,8 +8,11 @@ import { spawnSync } from 'node:child_process';
 import { gpgEncrypt, pullOffline } from './pull-offline.mjs';
 
 const DBS = ['storytree_storytree', 'storytree-activity', 'storytree-trunks', 'storytree-lag', 'storytree-quality'];
-// The real round trip needs gpg and tar on the machine running the tests.
+// The real round trip needs gpg and tar on the machine running the tests. Windows CI's gpg is Git's MSYS build, which
+// exits 2 making a throwaway key in a temp GNUPGHOME, so the Linux and macOS jobs prove it.
 const tools = ['gpg', 'tar'].every(tool => spawnSync(tool, ['--version']).status === 0);
+const roundTripSkip = process.platform === 'win32' ? 'platform:linux: Windows CI\'s MSYS gpg cannot make a throwaway key'
+  : !tools && 'other: no gpg or tar on this machine';
 const sha = text => createHash('sha256').update(text).digest('hex');
 
 // A fake bucket: object name -> { body, created }, listed the way gcloudBucket lists the real one.
@@ -80,7 +83,7 @@ test('pull-offline stops, leaving nothing unencrypted, when a dump does not matc
   await assert.rejects(readdir(staged), /ENOENT/);
 });
 
-test('the encrypted file opens, with the owner\'s key, to exactly the staged files', { skip: !tools && 'other: no gpg or tar on this machine' }, async (t) => {
+test('the encrypted file opens, with the owner\'s key, to exactly the staged files', { skip: roundTripSkip }, async (t) => {
   const home = await mkdtemp(path.join(tmpdir(), 'gnupg-'));
   const previous = process.env.GNUPGHOME;
   process.env.GNUPGHOME = home;

@@ -8,14 +8,20 @@
 -- The first statement takes that role on, so everything below is granted by the owner itself; an
 -- account that may not is refused at once, with nothing changed.
 --
+-- How much of the server the role may hold (connections, query time, temporary files) is set apart,
+-- by a superuser: infra/library-host/ci-role-limits.sql.
+--
 -- WHAT IT GRANTS. The database lets the account in (CONNECT), the schema lets it name the tables
 -- (USAGE), and then:
---   - it reads every table an open and a health write read: library_meta (is the project current?),
---     record (the contract a health entry is on, the plan it rolls up into) and record_event (a
---     column's history);
+--   - it reads what an open and a health run read, and no other record: library_meta (is the
+--     project current?), and in record and record_event (a column's history) only the health
+--     records and the plan a run walks (story, capability, contract, arc, increment, anchor), so a
+--     decision, a note or a question is not there for it;
 --   - it adds and replaces rows of `record` (INSERT, UPDATE), and adds rows to `record_event`
 --     (INSERT, and USAGE on its numbering sequence), and row-level security below lets those writes
---     through only for health records;
+--     through only for health records. Whether a history entry's id names a record of another kind
+--     is asked of ci_health_record_kind(), which runs as the owner: it sees the records CI cannot,
+--     and answers with a record's kind only;
 --   - it deletes nothing, and changes no table: it neither owns them nor may act as their owner, so
 --     every CREATE, ALTER or DROP is refused. storytree opens a project without touching its tables
 --     when they are current (ADR-0747), so it needs none of that; when they are behind, the open is
@@ -58,11 +64,23 @@ GRANT USAGE ON SEQUENCE record_event_seq_seq TO "storytree-ci-health@storytree-4
 ALTER TABLE record ENABLE ROW LEVEL SECURITY;
 ALTER TABLE record_event ENABLE ROW LEVEL SECURITY;
 
--- It reads every row: a health entry's contract, the plan above it, the history of a column.
+-- It reads health and the plan a run walks: a health entry's contract, the plan above it, the
+-- history of a column. No other kind of record, nor its history.
 DROP POLICY IF EXISTS ci_health_read ON record;
-CREATE POLICY ci_health_read ON record FOR SELECT TO "storytree-ci-health@storytree-498613.iam" USING (true);
+CREATE POLICY ci_health_read ON record FOR SELECT TO "storytree-ci-health@storytree-498613.iam"
+  USING (type = ANY (ARRAY['health', 'story', 'capability', 'contract', 'arc', 'increment', 'anchor']));
 DROP POLICY IF EXISTS ci_health_read ON record_event;
-CREATE POLICY ci_health_read ON record_event FOR SELECT TO "storytree-ci-health@storytree-498613.iam" USING (true);
+CREATE POLICY ci_health_read ON record_event FOR SELECT TO "storytree-ci-health@storytree-498613.iam"
+  USING (type = ANY (ARRAY['health', 'story', 'capability', 'contract', 'arc', 'increment', 'anchor']));
+
+-- The kind of the record an id names, or null when none does, seen as the owner sees it: the
+-- history rule below asks it about ids CI may not read. It runs as the role that made it, the
+-- owner, and only CI's role may call it.
+CREATE OR REPLACE FUNCTION ci_health_record_kind(id text) RETURNS text
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp
+  AS $kind$ SELECT type FROM record WHERE record.id = ci_health_record_kind.id $kind$;
+REVOKE ALL ON FUNCTION ci_health_record_kind(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION ci_health_record_kind(text) TO "storytree-ci-health@storytree-498613.iam";
 
 -- It writes a record only if the record is health, before and after; an update of any other row
 -- (a story's, say) is refused, as is turning a health record into another kind.
@@ -80,18 +98,19 @@ CREATE POLICY ci_health_insert ON record_event FOR INSERT TO "storytree-ci-healt
   WITH CHECK (
     type = 'health'
     AND record->>'type' = 'health'
-    AND NOT EXISTS (SELECT 1 FROM record AS held WHERE held.id = record_event.record_id AND held.type <> 'health')
+    AND coalesce(ci_health_record_kind(record_id), 'health') = 'health'
   );
 
 RESET ROLE;
 
 -- Check: the account's rights, as the database sees them. Expect: may_connect, reads, writes_record,
--- writes_history all true; may_act_as_owner, may_create false; rls on both tables true, forced false.
+-- writes_history, asks_kind all true; may_act_as_owner, may_create false; rls on both tables true, forced false.
 SELECT has_database_privilege('storytree-ci-health@storytree-498613.iam', 'storytree_storytree', 'CONNECT') AS may_connect,
        has_table_privilege('storytree-ci-health@storytree-498613.iam', 'record', 'SELECT')
          AND has_table_privilege('storytree-ci-health@storytree-498613.iam', 'library_meta', 'SELECT') AS reads,
        has_table_privilege('storytree-ci-health@storytree-498613.iam', 'record', 'INSERT, UPDATE') AS writes_record,
        has_table_privilege('storytree-ci-health@storytree-498613.iam', 'record_event', 'INSERT') AS writes_history,
+       has_function_privilege('storytree-ci-health@storytree-498613.iam', 'ci_health_record_kind(text)', 'EXECUTE') AS asks_kind,
        pg_has_role('storytree-ci-health@storytree-498613.iam', datdba, 'SET') AS may_act_as_owner,
        has_schema_privilege('storytree-ci-health@storytree-498613.iam', 'public', 'CREATE') AS may_create,
        (SELECT bool_and(relrowsecurity) FROM pg_class WHERE relname IN ('record', 'record_event') AND relkind = 'r') AS rls,

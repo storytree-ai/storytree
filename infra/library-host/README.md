@@ -80,13 +80,21 @@ The CI role keeps the name it had before the library moved here,
 `storytree-ci-health@storytree-498613.iam`, so the row policies still name the
 right role. On Mint it uses a separate SCRAM password, has no owner membership and
 may only write health records under the `grants.sql` policies; run that file on
-the box (its header says how) when its grants change.
+the box (its header says how) when its grants change. It reads only health records
+and the plan its run walks, and asks `ci_health_record_kind()` (which runs as the
+owner) whether an id names another kind of record.
 
 CI's capability-list check reads the plan as a third role, `ci_plan_read`
 (ADR-0952): read-only, the plan's records and their history, under
 `plan-read-grants.sql`. Run that file on the box when its grants change; the gate's
 contract 7.7 runs the check's reads as a role granted exactly that file, so a
 read the check gains cannot land without its grant.
+
+How much of the server both CI roles may hold is `ci-role-limits.sql`: connection
+limits, a 60-second statement timeout, a 1 GB temporary-file limit, an idle-session
+timeout, and no temporary tables for PUBLIC. Only a superuser may set some of
+those, so it is kept out of the two grants files; its header says how to run it,
+and it is run again when a database is added.
 
 Passwords are generated on Mint, never supplied in argv or printed:
 

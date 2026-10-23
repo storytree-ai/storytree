@@ -15,10 +15,12 @@ health job's Cloud SQL roles, its workload identity binding and its three reposi
 
 ## What the health role can and cannot do
 
-It **can** open the project `storytree`, read its plan and history, and add or replace **health**
+It **can** open the project `storytree`, read its plan (stories, capabilities, contracts, arcs,
+increments, the anchor), its health and their history, and add or replace **health**
 records (a contract's verified test result) with their history entries.
 
-It **cannot** write any other kind of record (a story, a decision, an increment…), change a record
+It **cannot** read any other kind of record (a decision, a note, a question…) or write any but
+health (a story, a decision, an increment…), change a record
 of another kind into health or back, delete anything, create, alter or drop a table, take on the
 role that owns the database, or read or write any other project's records (Postgres lets every
 account connect to a database by default, but no table of any project is granted to it). Row-level

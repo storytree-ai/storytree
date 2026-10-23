@@ -9,6 +9,9 @@
 -- nothing changed. The role itself (LOGIN, its password) is made apart from this file, and its
 -- password is the secret PLAN_PG_PASSWORD in the GitHub environment plan-read.
 --
+-- How much of the server the role may hold (connections, query time, temporary files) is set apart,
+-- by a superuser: infra/library-host/ci-role-limits.sql.
+--
 -- WHAT IT GRANTS. The database lets the role in (CONNECT), the schema lets it name the tables
 -- (USAGE), and then it reads, never writes:
 --   - library_meta (is the project current?);

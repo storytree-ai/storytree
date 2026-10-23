@@ -229,3 +229,47 @@ test("3.12 the Closed tab's range bar: 7 days and a From–to ask the library fo
   assert.deepEqual(asked[1], { from: "2026-10-01", to: "2026-10-20" }, "a From day keeps the shown To");
   assert.deepEqual(lanes(), ["arc_2026-10-01"]);
 });
+
+test("3.18 · the mounted drawer says once when it first draws a freshly read board", async (t) => {
+  const page = new Window({ url: "https://storytree.test" });
+  const document = page.document as unknown as Document;
+  let surface: ReturnType<typeof mountArcSurface> | undefined;
+  const globals = { document: page.document, HTMLElement: page.HTMLElement, localStorage: page.localStorage };
+  const previous = new Map(Object.keys(globals).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(async () => {
+    surface?.stop();
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+    await page.happyDOM.abort();
+  });
+  const arc = record("arc_1", "arc", { title: "Ship the board", intent: "See the work", endState: "Board shipped" });
+  let answer!: (arcs: Awaited<ReturnType<BoardReads["boardArcs"]>>) => void;
+  const reads: BoardReads = {
+    changesSince: async () => ({ changes: [], cursor: 0 }),
+    linesSince: async () => ({ lines: [], cursor: 0 }),
+    boardArcs: () => new Promise((resolve) => { answer = resolve; }), closedArcs: async () => [],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  let fresh = 0;
+  surface = mountArcSurface(document.body, {
+    project: "p", reads, onFreshDraw: () => { fresh += 1; },
+    timers: { now: () => Date.parse("2026-10-02T00:00:00Z"), every: () => () => {} },
+  });
+  const launch = document.querySelector<HTMLButtonElement>("[data-open-arcs]")!;
+  launch.click();
+  await settle();
+  assert.equal(fresh, 0, "nothing is said while the first read is still out");
+  answer([{ arc, increments: [], questions: [], state: "active" }]);
+  await settle();
+  assert.equal(fresh, 1);
+
+  surface.close();
+  launch.click();
+  answer([{ arc, increments: [], questions: [], state: "active" }]);
+  await settle();
+  assert.equal(document.querySelector<HTMLElement>("#arc-drawer")!.dataset.arcState, "ready");
+  assert.equal(fresh, 1, "a reopened drawer's read is not the first fresh draw");
+});

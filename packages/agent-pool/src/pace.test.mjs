@@ -1,46 +1,44 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { test } from "node:test";
 
 import { runPool } from "./launch.mjs";
-import { paceOf, readLanePace } from "./pace.mjs";
+import { readBoxPace, saturationOf } from "./pace.mjs";
 
-const now = Date.parse("2026-10-17T10:00:00Z");
-const usage = (at, ...rateLimits) => ({ usage: { kind: "usage-measured", at, context: { window: 200_000 }, rateLimits } });
-const window = (kind, percentUsed, resetsAt) => ({ kind, percentUsed, ...(resetsAt ? { resetsAt } : {}) });
+const now = Date.parse("2026-10-23T12:00:00Z");
+const GB = 1024 * 1024; // /proc/meminfo counts kB
 
-test("3.20 · the lanes' latest rate-limit reading slows dispatch near a limit and pauses it at the limit until the window resets; no reading, a reset passed or a stale reading holds nothing back", () => {
-  assert.equal(paceOf([], { now }), undefined, "no readings: dispatch as before");
-  assert.equal(paceOf([usage("2026-10-17T09:59:00Z", window("five_hour", 40, "2026-10-17T12:00:00Z"))], { now }), undefined);
+test("3.20 · only a saturated box holds dispatch back: CPU run queue, memory or a GPU really maxed; busy is not saturated, and an unread part holds nothing back", () => {
+  assert.equal(saturationOf({}), undefined, "nothing read: dispatch as usual");
+  const busy = { cores: 12, load5: 14, memTotal: 32 * GB, memAvailable: 3 * GB, gpus: [{ util: 90, memUsed: 5, memTotal: 6 }] };
+  assert.equal(saturationOf(busy), undefined, "busy, not maxed: a load above the cores, 9% memory free and a 90% GPU hold nothing back");
 
-  const slow = paceOf([usage("2026-10-17T09:59:00Z", window("five_hour", 85, "2026-10-17T12:00:00Z"), window("seven_day", 30))], { now });
-  assert.equal(slow.hold, "slow");
-  assert.match(slow.reason, /five_hour 85% used \(resets 2026-10-17T12:00Z\)/);
-
-  // The latest reading of a window wins, whichever lane reported it.
-  const paused = paceOf([
-    usage("2026-10-17T09:50:00Z", window("five_hour", 85, "2026-10-17T12:00:00Z")),
-    usage("2026-10-17T09:58:00Z", window("five_hour", 97, "2026-10-17T12:00:00Z"), window("seven_day", 96, "2026-10-18T00:00:00Z")),
-  ], { now });
-  assert.deepEqual([paused.hold, paused.until], ["pause", Date.parse("2026-10-18T00:00:00Z")], "paused until the last full window resets");
-  assert.match(paused.reason, /no new lane until 2026-10-18T00:00Z/);
-  assert.equal(paceOf([usage("2026-10-17T09:58:00Z", window("five_hour", 97, "2026-10-17T12:00:00Z"))], { now: Date.parse("2026-10-17T12:00:01Z") }), undefined, "the window reset: dispatch resumes");
-  assert.equal(paceOf([usage("2026-10-17T08:00:00Z", window("five_hour", 97))], { now }), undefined, "an undated window unread for an hour no longer counts");
-
-  // A turn that failed on a window after its last reading puts it at the limit, until the reset that reading named.
-  const failed = { ...usage("2026-10-17T09:00:00Z", window("five_hour", 60, "2026-10-17T12:00:00Z")), failed: { kind: "turn-failed", at: "2026-10-17T09:30:00Z", reason: "error", limits: ["five_hour"] } };
-  assert.deepEqual([paceOf([failed], { now }).hold, paceOf([failed], { now }).until], ["pause", Date.parse("2026-10-17T12:00:00Z")]);
+  const cpu = saturationOf({ ...busy, load5: 18 });
+  assert.deepEqual([cpu.hold, cpu.windows], ["pause", ["cpu"]]);
+  assert.match(cpu.reason, /box saturated: CPU load 18\.0 on 12 cores/);
+  assert.deepEqual(saturationOf({ ...busy, memAvailable: 1 * GB }).windows, ["memory"], "5% or less of memory free");
+  assert.deepEqual(saturationOf({ ...busy, gpus: [{ util: 40, memUsed: 1, memTotal: 6 }, { util: 99, memUsed: 1, memTotal: 6 }] }).windows, ["gpu1"]);
+  assert.deepEqual(saturationOf({ ...busy, gpus: [{ util: 10, memUsed: 5.8, memTotal: 6 }] }).windows, ["gpu0"], "a GPU's memory full");
 });
 
-test("3.20 · the dispatcher holds back on the pace, saying why in its status once per change, and dispatches to the cap again once the limit clears; a failed reading dispatches as before", async () => {
+test("3.20 · the box reading comes from /proc and nvidia-smi; Claude's and Codex's usage are never read, and a missing source is left unread", async () => {
+  const files = {
+    "/proc/loadavg": "20.10 19.50 12.00 3/900 4242\n",
+    "/proc/meminfo": "MemTotal:       32808824 kB\nMemFree:          100000 kB\nMemAvailable:   28402864 kB\n",
+  };
+  const readText = async (path) => { if (!(path in files)) throw new Error(`ENOENT ${path}`); return files[path]; };
+  const held = await readBoxPace({ cores: 12, readText, nvidia: async () => "97, 100, 6144\n" });
+  assert.deepEqual(held.windows, ["cpu", "gpu0"], "load 19.5 on 12 cores, and the GPU at 97%");
+
+  const bare = await readBoxPace({ cores: 12, readText: async () => { throw new Error("no /proc"); }, nvidia: async () => { throw new Error("Failed to initialize NVML"); } });
+  assert.equal(bare, undefined, "no /proc and no working nvidia-smi (as on the Mint box's driver mismatch): nothing held back");
+});
+
+test("3.20 · the dispatcher holds back while the box is saturated, saying why in its status once per change, and dispatches to the cap once it clears; usage near a limit never slows it; a failed reading dispatches as usual", async () => {
   const lines = [], started = [], ends = [];
   let engines = 0, looks = 0, stop = false;
   const paces = [
-    { hold: "pause", windows: ["five_hour"], reason: "Claude's five_hour 97% used: no new lane until 12:00Z" },
-    { hold: "pause", windows: ["five_hour"], reason: "Claude's five_hour 98% used: no new lane until 12:00Z" },
-    { hold: "slow", windows: ["five_hour"], reason: "Claude's five_hour 85% used: half the cap" },
+    { hold: "pause", windows: ["cpu"], reason: "box saturated: CPU load 19.5 on 12 cores" },
+    { hold: "pause", windows: ["cpu"], reason: "box saturated: CPU load 19.9 on 12 cores" },
     undefined,
   ];
   await runPool({
@@ -51,44 +49,23 @@ test("3.20 · the dispatcher holds back on the pace, saying why in its status on
     sleep: async () => {
       looks += 1;
       await new Promise((go) => setImmediate(go));
-      if (looks === 2) assert.deepEqual(started, [], "paused: nothing starts");
-      if (looks === 3) assert.deepEqual(started, ["a", "b"], "slowed: half the cap of four");
-      if (looks === 4) { assert.deepEqual(started, ["a", "b", "c", "d"], "clear: up to the cap again"); stop = true; engines = 0; for (const end of ends) end(0); }
+      if (looks === 2) assert.deepEqual(started, [], "saturated: nothing starts");
+      if (looks === 3) { assert.deepEqual(started, ["a", "b", "c", "d"], "clear: the whole cap at once"); stop = true; engines = 0; for (const end of ends) end(0); }
     },
   });
-  const said = lines.filter((line) => /holding back|slowing|rate limits/.test(line));
-  assert.equal(said.length, 3, "said once per change, not once per look");
-  assert.match(said[0], /holding back dispatch: Claude's five_hour 97% used: no new lane until 12:00Z/);
-  assert.match(said[1], /slowing dispatch: Claude's five_hour 85% used: half the cap/);
-  assert.match(said[2], /rate limits clear: dispatching up to the cap/);
+  const said = lines.filter((line) => /holding back|slowing|box clear|rate limit/.test(line));
+  assert.equal(said.length, 2, "said once per change, not once per look");
+  assert.match(said[0], /holding back dispatch: box saturated: CPU load 19\.5 on 12 cores/);
+  assert.match(said[1], /box clear: dispatching up to the cap/);
 
   const failing = [];
   let ran = 0;
   await runPool({
     survey: async () => ({ increments: [{ id: "a", arc: "arc_a", arcState: "active", title: "a", body: "", status: "proposal", parked: "2026-10-01T00:00:00Z" }], holds: { waits: {}, heldOn: {} }, claims: [] }),
-    pace: async () => { throw new Error("library down"); },
+    pace: async () => { throw new Error("proc unreadable"); },
     maxLanes: async () => 1, count: async () => ran, stopFile: "/lanes/pool-stop", exists: async () => ran > 0, now: () => now, say: (line) => failing.push(line),
     launch: async (one, { engineUp }) => { ran += 1; engineUp(); return 0; }, sleep: async () => {},
   });
-  assert.equal(ran, 1, "an unread pace dispatches as before");
-  assert.ok(failing.some((line) => /rate-limit readings unread \(library down\)/.test(line)));
-});
-
-test("3.20 · the pace reads the newest lanes' reported usage, and only while the next lane would run Claude Code", async (t) => {
-  const lanesDir = await mkdtemp(join(tmpdir(), "lane-pace-"));
-  t.after(() => rm(lanesDir, { recursive: true, force: true }));
-  const full = new Map([["S2", usage("2026-10-17T09:59:00Z", window("five_hour", 99, "2026-10-17T12:00:00Z"))]]);
-  const asked = [];
-  const usageOf = async (sessions) => { asked.push(sessions); return full; };
-  const claude = async () => ({ engine: "claude" });
-  assert.equal(await readLanePace({ lanesDir, now: () => now, nextEngine: claude, usageOf }), undefined, "no lane wrote a session id: nothing read");
-  assert.deepEqual(asked, []);
-
-  await writeFile(join(lanesDir, "pool-a-1.session"), "S1\n");
-  await writeFile(join(lanesDir, "pool-b-2.session"), "S2\n");
-  await utimes(join(lanesDir, "pool-a-1.session"), new Date(now - 60_000), new Date(now - 60_000));
-  await utimes(join(lanesDir, "pool-b-2.session"), new Date(now), new Date(now));
-  assert.equal((await readLanePace({ lanesDir, now: () => now, nextEngine: claude, usageOf })).hold, "pause");
-  assert.deepEqual(asked, [["S2", "S1"]], "newest first");
-  assert.equal(await readLanePace({ lanesDir, now: () => now, nextEngine: async () => ({ engine: "codex" }), usageOf }), undefined, "a Codex lane is not held back by Claude's windows");
+  assert.equal(ran, 1, "an unread box dispatches as usual");
+  assert.ok(failing.some((line) => /box readings unread \(proc unreadable\)/.test(line)));
 });

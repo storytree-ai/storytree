@@ -20,18 +20,19 @@
  * Windows runner (2026-10-07, merge-queue job 112536340924) a committed write went unseen by two
  * observations running, in a run about two seconds slower than its passing twins.
  */
-import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { NewLine } from "@storytree/library";
 
+import { runGit, type Git as RunGit } from "../activity/git.js";
+
 /** How long one observation's Git reads may take, together. */
 const OBSERVE_MS = 5_000;
 
 /** Extra edits made visible by this hook; errors leave its ordinary lines untouched and go to `failed`. */
-export function shellEdits(home: string, root: string, line: NewLine, failed: (error: unknown) => void = () => undefined): NewLine[] {
+export function shellEdits(home: string, root: string, line: NewLine, failed: (error: unknown) => void = () => undefined, run: RunGit = runGit): NewLine[] {
   if (!["session-started", "command-started", "command-run", "file-edited"].includes(line.kind)) return [];
   const key = createHash("sha256").update(`${line.session}\0${root}`).digest("hex");
   const file = path.join(home, "shell-edits", `${key}.json`);
@@ -50,7 +51,7 @@ export function shellEdits(home: string, root: string, line: NewLine, failed: (e
       throw error;
     }
     held = true;
-    const git = reader(root, Date.now() + OBSERVE_MS);
+    const git = reader(root, Date.now() + OBSERVE_MS, run);
     const previous = readSnapshot(file);
     const reflog = headLog(root, git);
     const current = { head: head(git), ...snapshot(root, git), reflog: reflog?.length };
@@ -195,15 +196,12 @@ function blobs(git: Git, commit: string, names: string[]): Map<string, string> {
 type Git = (args: string[], input?: string | Buffer) => string;
 
 /** Local reads in `root`, with no shell, all done by `deadline`. A failed or oversized reading never replaces the baseline. */
-function reader(root: string, deadline: number): Git {
+function reader(root: string, deadline: number, run: RunGit): Git {
   return (args, input) => {
     const timeout = deadline - Date.now();
     if (timeout <= 0) throw new Error(`the Git reads took longer than ${OBSERVE_MS} ms`);
     // Never takes the index lock, whose leftover would block the user's own Git in an imported folder.
-    return execFileSync("git", ["--no-optional-locks", ...args], {
-      cwd: root, input, encoding: "utf8", timeout, maxBuffer: 8 * 1024 * 1024,
-      stdio: ["pipe", "pipe", "ignore"], windowsHide: true,
-    });
+    return run(["--no-optional-locks", ...args], { cwd: root, ...(input === undefined ? {} : { input }), timeout, maxBuffer: 8 * 1024 * 1024 });
   };
 }
 

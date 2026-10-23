@@ -27,6 +27,9 @@ import { clearOwned, readClosing, renderClosing } from "./processes/closing/inde
 import { appDatabaseWork, listRuns, renderInventory } from "./processes/listing/index.js";
 import { stopOwned } from "./processes/stopping/index.js";
 
+// For the doors that clear an owner wait to finish the work, the MCP server's clear_wait and the arc verbs (5.57).
+export { claimClearingOwnerWait } from "./claims/claims.js";
+
 /** What a tool has for one call, of what the server hands it. */
 export interface ToolCall {
   readonly library: Library;
@@ -380,7 +383,7 @@ export function claimContext({ log, library, project, caller, folder, quietMs, w
 }
 
 /** Why a claim was refused, as the agent is told it. */
-async function refusalText(library: Library, id: string, answer: Exclude<ClaimAnswer, { ok: true }>): Promise<string> {
+export async function refusalText(library: Library, id: string, answer: Exclude<ClaimAnswer, { ok: true }>): Promise<string> {
   switch (answer.refused) {
     case "held":
       return `${await titleOf(library, id)} is held by ${holderOf(answer.holder, answer.heldFor)}. Pick other work: nobody queues${answer.heldFor.length === 0 ? "" : `; this is free once ${answer.heldFor[0]} closes`}.`;

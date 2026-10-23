@@ -47,7 +47,13 @@ function copyOfMain() {
     return origin.git("rev-parse", "HEAD").trim();
   };
   const head = () => steps.git("rev-parse", "HEAD");
-  return { steps, calls, land, head, failNextInstall: () => (failInstall = true) };
+  const commitInCopy = () => {
+    writeFileSync(path.join(copy, "ahead.txt"), "not on main yet\n");
+    steps.git("add", "-A");
+    steps.git("-c", "user.name=voice test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "ahead of main");
+    return head();
+  };
+  return { steps, calls, land, head, commitInCopy, failNextInstall: () => (failInstall = true) };
 }
 
 test("4.1 the refresh fast-forwards the copy to main, reinstalling only on a lockfile change and restarting only when HEAD moved", () => {
@@ -66,6 +72,13 @@ test("4.1 the refresh fast-forwards the copy to main, reinstalling only on a loc
   const lock = box.land("pnpm-lock.yaml", "lockfileVersion: '9.0'\npackages: {}\n");
   assert.deepEqual(refresh(box.steps), { moved: true, from: code, to: lock, reinstalled: true });
   assert.deepEqual(box.calls, ["install", "restart"], "the lockfile changed: install, then restart");
+});
+
+test("4.1 a copy ahead of main stays where it is and restarts nothing", () => {
+  const box = copyOfMain();
+  const ahead = box.commitInCopy();
+  assert.deepEqual(refresh(box.steps), { moved: false, head: ahead });
+  assert.deepEqual(box.calls, []);
 });
 
 test("4.1 a failed install puts the copy back where it was and restarts nothing, so the next refresh tries the move again", () => {

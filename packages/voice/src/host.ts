@@ -30,10 +30,12 @@ export type RefreshOutcome =
 export function refresh(steps: RefreshSteps): RefreshOutcome {
   steps.git("fetch", "-q", "origin", "main");
   const from = steps.git("rev-parse", "HEAD");
-  const to = steps.git("rev-parse", "FETCH_HEAD");
-  if (from === to) return { moved: false, head: from };
+  if (from === steps.git("rev-parse", "FETCH_HEAD")) return { moved: false, head: from };
+  steps.git("merge", "-q", "--ff-only", "FETCH_HEAD");
+  // A copy already holding main (ahead of it, as on a branch not yet merged) fast-forwards nowhere.
+  const to = steps.git("rev-parse", "HEAD");
+  if (to === from) return { moved: false, head: from };
   const changed = steps.git("diff", "--name-only", from, to, "--", LOCKFILE);
-  steps.git("merge", "-q", "--ff-only", to);
   const reinstalled = changed !== "";
   if (reinstalled) {
     try {

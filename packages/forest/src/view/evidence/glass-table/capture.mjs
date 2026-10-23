@@ -1,7 +1,7 @@
 // The glass sheet as a floating 3D table the user tilts (increment_9922ecd7a56a, ADR-1062): a lit slab seen in perspective,
 // tilted by hand from looking down on the islands, through edge-on with the knowledge graph hanging below, to looking up at
 // it. Drawn by the actual desktop page from the same read-only snapshot of storytree's own library as ../glass-sheet-tilt/
-// (branch spike/glass-sheet's seed.json.gz and survey.json, kept out of this repository for its size). Every tilt is a real
+// (its seed.json.gz and survey.json, kept out of this repository for its size). Every tilt is a real
 // right-drag of the mouse, a real key press or a real press of the Stories or Library button; the selection a real click on
 // an island. Run from the checkout root, in the foreground:
 //   node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/glass-table/capture.mjs <seed folder> --retake

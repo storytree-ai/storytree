@@ -6,7 +6,7 @@ spread north to south, and the only controls are a pan (a drag, or a sideways sc
 the opening view. The mini globe is gone from the sheet.
 
 Drawn by the actual desktop page, 1440 × 960, dark theme, headless Chromium, from the spike's read-only snapshot of
-storytree's own library (27 stories, 142 capabilities; branch `spike/glass-sheet`, its `seed.json.gz` and `survey.json`).
+storytree's own library (27 stories, 142 capabilities; its `seed.json.gz` and `survey.json`).
 
 | Today's globe (the spike's picture, same snapshot) | The glass sheet at rest |
 | --- | --- |

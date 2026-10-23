@@ -104,7 +104,7 @@ import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { answerAppEvents, answerCallbackCheckEvents } from "./app-events.js";
 import { iconColourway } from "./app-icon.js";
 import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
-import { followReleases, installedApp, releasesInstall } from "./releases.js";
+import { channelChoice, followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
 import { logMainErrors } from "./main-errors.js";
@@ -338,6 +338,8 @@ async function run(): Promise<void> {
     && shutDown === undefined && (backups?.canRestart() ?? true);
   // When an update may install itself (updates 4.13): offered only where releases install themselves.
   const installing = installChoice({ available: !args.smoke && releasesInstall(), file: path.join(home.dir, "install-choice.json") });
+  // Which release channel the updater follows (updates 4.24): stable unless the user opts in to alpha.
+  const channels = channelChoice(home.dir, !args.smoke);
   // Restarting into an update stops the app and its database for a minute or two: not under a user or an agent (4.4).
   const quiet = quietMoment({
     launchedAt: Date.now(),
@@ -364,6 +366,8 @@ async function run(): Promise<void> {
     checkForUpdates: (action: unknown) => (releases ?? noUpdates(() => build)).request(action),
     readInstallChoice: () => installing.read(),
     setInstallChoice: (choice: unknown) => installing.set(choice),
+    readReleaseChannel: () => channels.read(),
+    setReleaseChannel: (channel: unknown) => channels.set(channel),
   });
   console.log(`storytree 0.3: ${build}`);
   windowQuery = { ...(problem === undefined ? {} : { problem }) };

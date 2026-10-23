@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { app } from "electron";
-import { ReleaseUpdater, installation, releaseChannel, type InstallChoice, type Installation, type ReleaseOptions } from "@storytree/app";
+import { ReleaseUpdater, installation, releaseChannel, releaseChannelChoice, type InstallChoice, type Installation, type ReleaseOptions } from "@storytree/app";
 import { refreshTools } from "@storytree/app-setup/deliver";
 
 import { appHome } from "../home.js";
@@ -36,13 +36,24 @@ export function releasesInstall(): boolean {
   return thisInstallation().followsReleases;
 }
 
+/** The installer's marker text, which decides an installation's first channel; none on a Mac or a Linux AppImage. */
+function markerText(markerFile: string | undefined): string {
+  return markerFile === undefined ? "" : readFileSync(markerFile, "utf8");
+}
+
+/** The gear's update channel (updates 4.24), offered where releases install; the updater reads it again on its next check. */
+export function channelChoice(home: string, offered: boolean) {
+  const { followsReleases, markerFile } = thisInstallation();
+  return releaseChannelChoice({ available: offered && followsReleases, home, marker: () => markerText(markerFile) });
+}
+
 /** The updater, for the gear's Updates panel; undefined where the app does not update from releases (an ad-hoc signed Mac build among them). */
 export function followReleases(options: ReleaseOptions, home: string, choice: () => InstallChoice): ReleaseUpdater | undefined {
   const { followsReleases, markerFile } = thisInstallation();
   if (!followsReleases) return undefined;
   refreshAgentTools();
 
-  const updater = new ReleaseUpdater({ ...options, home, sandboxOff: app.commandLine.hasSwitch("no-sandbox"), releaseChannel: () => releaseChannel(home, markerFile === undefined ? "" : readFileSync(markerFile, "utf8")) });
+  const updater = new ReleaseUpdater({ ...options, home, sandboxOff: app.commandLine.hasSwitch("no-sandbox"), releaseChannel: () => releaseChannel(home, markerText(markerFile)) });
   const log = releasesLog(path.join(home, "releases.log"));
   updater.logger = log;
   const check = async (): Promise<void> => {

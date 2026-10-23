@@ -18,7 +18,7 @@ export { noUpdates } from "./updates/update-state.js";
 export type { UpdateAction, UpdateState } from "./updates/update-state.js";
 export { seedWriting } from "./updates/seed-writing.js";
 export { ReleaseUpdater } from "./updates/releases.js";
-export { releaseChannel } from "./updates/release-channel.js";
+export { releaseChannel, releaseChannelChoice } from "./updates/release-channel.js";
 export { installation, installedAppDir } from "./updates/installation.js";
 export type { Installation } from "./updates/installation.js";
 export { pinRelease } from "./updates/stable-github.js";

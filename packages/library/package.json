@@ -28,7 +28,7 @@
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
     "@types/ws": "^8.18.2",
-    "electron": "44.4.5",
+    "electron": "44.9.3",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
   },

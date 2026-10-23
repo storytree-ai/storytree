@@ -274,7 +274,7 @@ test("4.7 Check for updates checks the release feed now, shares a check already 
 });
 
 const DELIBERATE = "STORYTREE_RELEASES_DELIBERATE_FAILURE";
-test("4.7 deliberately failing while an automatic check runs", { skip: process.env[DELIBERATE] ? false : "fails on purpose, so it runs only in the child run of the test below" }, async (t) => {
+test("4.7 deliberately failing while an automatic check runs", { skip: process.env[DELIBERATE] ? false : "other: fails on purpose, so it runs only in the child run of the test below" }, async (t) => {
   const feed = await fixture(t);
   const updater = feed.updater(async () => assert.fail("nothing newer to install"), async () => true);
   void updater.check();

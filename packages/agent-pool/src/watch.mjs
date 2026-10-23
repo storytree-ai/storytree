@@ -19,7 +19,7 @@ import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { poolConfig } from "./pool-config.mjs";
+import { poolConfig, readCap } from "./pool-config.mjs";
 import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
 import { attempted, failedJob, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, watchReleases } from "./release-watch.mjs";
 
@@ -60,6 +60,7 @@ const ENQUEUE_TRIES = 3;
  */
 export function readPull(pull, { since, now, graceMs }) {
   const head = pull.headRefOid;
+  if (!ownPull(pull)) return { state: "foreign", head };
   if (pull.state === "MERGED") return { state: "merged", head };
   if (pull.state === "CLOSED") return { state: "closed", head };
   const checks = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [];
@@ -88,8 +89,27 @@ export function readPull(pull, { since, now, graceMs }) {
   return { state: "pending", head };
 }
 
+/** The repository the watcher watches: a pull request whose head is elsewhere (a fork's) is never its to land or fix. */
+export const HOME = "storytree-ai/storytree";
+
+/** Whether `pull`, as GitHub's GraphQL gives it, has its head on HOME: a fork's is not, nor one whose head GitHub does not say. */
+export const ownPull = (pull) => pull?.isCrossRepository === false && pull.headRepository?.nameWithOwner === HOME;
+
+/**
+ * The branch of pull request `pr`, from `gh pr view`'s `view` of it, when its head is on HOME; otherwise it throws, so a
+ * fork's pull request, or one GitHub does not say the head of, is never handed over or adopted.
+ */
+export function ownBranch(pr, view) {
+  const own = view?.isCrossRepository === false && `${view.headRepositoryOwner?.login}/${view.headRepository?.name}` === HOME;
+  if (own && typeof view.headRefName === "string" && view.headRefName) return view.headRefName;
+  throw new Error(`not handed over: PR #${pr}'s head is not on ${HOME}, or GitHub did not say where it is; the watcher takes only this repository's pull requests`);
+}
+
+/** What `gh pr view` is asked, for ownBranch. */
+const VIEW = ["--json", "headRefName,isCrossRepository,headRepository,headRepositoryOwner"];
+
 const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
-  id state isDraft headRefOid headRefName mergeable mergeQueueEntry { state } labels(first: 100) { nodes { name } }
+  id state isDraft headRefOid headRefName isCrossRepository headRepository { nameWithOwner } mergeable mergeQueueEntry { state } labels(first: 100) { nodes { name } }
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
     __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 1) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } }
@@ -226,7 +246,12 @@ export async function handOver({ pr, increment, session, keepOpen = false, onBox
   try {
     // The box's `hand` already says how to close out, so its words are relayed as they are.
     return { code: 0, lines: [(await remote(args)).trim()].filter(Boolean) };
-  } catch (error) { unreached = `could not reach the Mint box's watcher over ssh: ${last(error)}`; }
+  } catch (error) {
+    // The box refused it (a fork's pull request): no other way in takes it either.
+    const refusal = `${error.stdout ?? ""}\n${error.message}`.split("\n").find((line) => line.startsWith("not handed over: "));
+    if (refusal) return { code: 1, lines: [refusal] };
+    unreached = `could not reach the Mint box's watcher over ssh: ${last(error)}`;
+  }
   if (!library) return { code: 1, lines: [unreached, fallback] };
   try {
     return { code: 0, lines: [`${unreached}; handed over through the library instead.`, ...await library({ pr, increment, session, keepOpen })] };
@@ -256,13 +281,26 @@ export async function handThroughLibrary({ pr, increment, session, branch, keepO
     `Close out with: pnpm storytree session close-out --safe yes --why "PR #${pr} open and green, handed to the watcher"`];
 }
 
-/** The box's watcher takes each hand-over written through the library that it has no record of yet, as `hand` would record it (4.30). */
-export async function adoptRequests({ dir, storytree, now = Date.now, say = () => {} }) {
+/**
+ * The box's watcher takes each hand-over written through the library that it has no record of yet, as `hand` would record it (4.30),
+ * once `viewOf` shows its head is on HOME: one GitHub cannot be asked about is left for a later look, and a fork's, or one whose head
+ * GitHub does not say, is refused, its wait and held claims let go (4.32).
+ */
+export async function adoptRequests({ dir, storytree, viewOf, now = Date.now, say = () => {} }) {
   const known = new Set((await records(dir)).map((record) => record.pr));
   for (const line of (await storytree(["arc", "waits"])).split("\n")) {
     const found = REQUEST.exec(line);
     if (!found || known.has(Number(found[1]))) continue;
     const [, pr, session, keepOpen, increment] = found;
+    const view = await viewOf(Number(pr)).catch(() => undefined);
+    if (view === undefined) continue;
+    try { ownBranch(pr, view); } catch (error) {
+      await storytree(["arc", "increment", "unwait", increment, "--for", "event"]).catch(() => "");
+      await storytree(["workspace", "let-go", pr, "--reason", `PR #${pr}'s head is not on ${HOME}; released by the watcher`]).catch(() => "");
+      known.add(Number(pr));
+      say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} PR #${pr}: ${error.message}; ${increment} no longer waits on it`);
+      continue;
+    }
     await save(dir, { fixes: [], fixing: null, pr: Number(pr), increment, session, keepOpen: Boolean(keepOpen), closed: false, handedAt: new Date(now()).toISOString() });
     known.add(Number(pr));
     say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} PR #${pr}: handed over through the library by session ${session}; watching it for ${increment}`);
@@ -354,6 +392,14 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue
     let pull;
     try { pull = await look(pr, record); }
     catch (error) { dated(`PR #${pr}: could not read it (${error.message.split("\n")[0]}); looking again next time`); continue; }
+    if (pull.state === "foreign") {
+      // A fork's pull request, or one GitHub no longer says the head of, is never landed, closed on or fixed (4.32).
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+      await letGo(pr, `PR #${pr}'s head is not on ${HOME}; released by the watcher`);
+      await rm(recordPath(dir, pr), { force: true });
+      dated(`PR #${pr}: its head is not on ${HOME}, or GitHub did not say where it is: no longer watched, and ${increment} no longer waits on it`);
+      continue;
+    }
     if (pull.state === "merged" || pull.state === "closed") {
       if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
       if (pull.state === "merged") {
@@ -526,15 +572,15 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       : await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout,
     project: () => projectOf({ cwd: process.cwd(), repo, home: env.STORYTREE_HOME || join(home, ".storytree", "0.3") }),
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt }),
-    branchOf: async (pr) => (await run("gh", ["pr", "view", String(pr), "--json", "headRefName", "-q", ".headRefName"], { cwd: repo })).stdout.trim(),
+    viewOf: async (pr) => JSON.parse((await run("gh", ["pr", "view", String(pr), ...VIEW], { cwd: repo })).stdout),
     // Off the box, where the shared checkout may not exist (a cloud container), the hand-over's library writes and its
     // branch are read from the folder it runs in: the pull request's branch from GitHub, else the folder's own (4.30).
     here: async (args) => (await run("pnpm", ["-s", "storytree", ...args], { maxBuffer: 16 * 1024 * 1024 })).stdout,
-    ownBranchOf: async (pr) => (await run("gh", ["pr", "view", String(pr), "--json", "headRefName", "-q", ".headRefName"]).catch(() => ({ stdout: "" }))).stdout.trim()
-      || (await run("git", ["branch", "--show-current"])).stdout.trim().replace(/^(main|master)$/, ""),
+    ownViewOf: async (pr) => JSON.parse((await run("gh", ["pr", "view", String(pr), ...VIEW])).stdout),
+    ownBranchOf: async () => (await run("git", ["branch", "--show-current"])).stdout.trim().replace(/^(main|master)$/, ""),
     alive: async (pid) => isFixSession(await argsOf(pid)),
     room: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout)
-      < (Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || config.sessions),
+      < await readCap({ lanesDir, sessions: config.sessions }),
     startFix: async ({ pr, n, brief }) => {
       const base = join(dir, `fix-${pr}-${n}`);
       await writeFile(`${base}-brief.md`, brief);
@@ -593,9 +639,15 @@ export async function main(args, box = {}) {
   const out = b.out ?? console.log;
   const keepOpen = args.includes("--keep-open"), refused = args.includes("--refused");
   if (args[0] === "handover" && /^\d+$/.test(args[1] ?? "") && /^increment_\w+$/.test(args[2] ?? "")) {
+    // A fork's pull request is refused here (4.32); one GitHub cannot be asked about from here is checked by the box, which refuses it too.
+    const view = await b.ownViewOf(Number(args[1])).catch(() => undefined);
+    let branch;
+    if (view !== undefined) {
+      try { branch = ownBranch(args[1], view); } catch (error) { out(error.message); return 1; }
+    }
     const { code, lines } = await handOver({ pr: Number(args[1]), increment: args[2], session: b.session, keepOpen, onBox: b.onBox,
       local: (hand) => main(hand, box), remote: b.remote,
-      library: async (request) => handThroughLibrary({ ...request, branch: await b.ownBranchOf(request.pr).catch(() => ""), storytree: b.here, now: b.now }) });
+      library: async (request) => handThroughLibrary({ ...request, branch: branch ?? await b.ownBranchOf().catch(() => ""), storytree: b.here, now: b.now }) });
     for (const line of lines) out(line);
     return code;
   }
@@ -604,7 +656,8 @@ export async function main(args, box = {}) {
     const at = args.indexOf("--session");
     const session = at > 0 ? args[at + 1] ?? "" : b.session;
     const holder = args.includes("--holder") ? args[args.indexOf("--holder") + 1] : undefined;
-    const branch = await b.branchOf(Number(args[1])).catch(() => "");
+    let branch;
+    try { branch = ownBranch(args[1], await b.viewOf(Number(args[1])).catch(() => undefined)); } catch (error) { out(error.message); return 1; }
     const project = await b.project();
     const { closed, held } = await hand({ dir: b.dir, pr: Number(args[1]), increment: args[2], session, branch, keepOpen, refused, holder, project, storytree: b.storytree, now: b.now,
       startWatcher: () => ensureWatcher({ pidFile: b.pidFile, argsOf: b.argsOf, spawn: () => b.startWatcher(b.log) }) });

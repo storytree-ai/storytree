@@ -274,15 +274,13 @@ test("4.7 Check for updates checks the release feed now, shares a check already 
 });
 
 const DELIBERATE = "STORYTREE_RELEASES_DELIBERATE_FAILURE";
-if (process.env[DELIBERATE]) {
-  test("4.7 deliberately failing while an automatic check runs", async (t) => {
-    const feed = await fixture(t);
-    const updater = feed.updater(async () => assert.fail("nothing newer to install"), async () => true);
-    void updater.check();
-    updater.request("check");
-    assert.equal(updater.request("status").phase, "deliberately wrong");
-  });
-}
+test("4.7 deliberately failing while an automatic check runs", { skip: process.env[DELIBERATE] ? false : "fails on purpose, so it runs only in the child run of the test below" }, async (t) => {
+  const feed = await fixture(t);
+  const updater = feed.updater(async () => assert.fail("nothing newer to install"), async () => true);
+  void updater.check();
+  updater.request("check");
+  assert.equal(updater.request("status").phase, "deliberately wrong");
+});
 
 test("4.7 a failed assertion while an automatic check runs ends the run with its failure reported", async () => {
   const run = await promisify(execFile)(process.execPath, ["--import", "tsx", "--test", "--test-reporter=spec", "--test-name-pattern=deliberately failing", fileURLToPath(import.meta.url)], { env: { ...process.env, NODE_TEST_CONTEXT: undefined, [DELIBERATE]: "1" }, timeout: 20_000, encoding: "utf8" })

@@ -98,6 +98,7 @@ import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
 import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs, ALONE } from "./test-scope.mjs";
+import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
 import { runPool, slowestFirst, testJobs } from "./unit-pool.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
 
@@ -120,6 +121,7 @@ const namedFiles = testArgs.some((arg) => !arg.startsWith("-"));
 const children = new Set(); // the units' test processes, while they run
 let jobs = 1; // how many units at once: testJobs, settled before the lock
 let interrupted = false;
+let server; // the test Postgres this run started, until it is stopped
 let phase = "deciding the scope"; // where a run past its deadline says it stalled
 
 const deadline = runDeadline(process.env);
@@ -127,6 +129,8 @@ if (deadline !== undefined) {
   setTimeout(() => {
     console.error(`\ntest harness: past the run's deadline (STORYTREE_TEST_DEADLINE, ${new Date(deadline).toISOString()}) while ${phase}; ending the run`);
     for (const child of children) killTree(child);
+    // The test Postgres, if this run started it, whose stop the exit skips; the units' own stop on exit (unit-run.mjs).
+    if (server !== undefined) stopServersUnder(server.dataDir);
     process.exit(1);
   }, Math.max(0, deadline + DEADLINE_GRACE_MS - Date.now())).unref();
 }
@@ -200,6 +204,8 @@ async function main() {
 /** The heavy part, run under the machine's heavy-run lock: the test Postgres and the units. */
 async function runHeavy(units) {
   if (interrupted) return 130;
+  phase = "sweeping what earlier runs left in the temp folder";
+  sweepLeftovers({ log: (message) => console.log(`test harness: ${message}`) });
   if (process.env.STORYTREE_TEST_PG_URL) {
     console.log("test Postgres: STORYTREE_TEST_PG_URL is set; using that server");
     const env = process.env;
@@ -207,7 +213,6 @@ async function runHeavy(units) {
   }
   const kept = keepPreviousServerLog(serverLog);
   if (kept !== undefined) console.log(`test Postgres: the previous run's server log is kept in ${path.relative(root, kept)}`);
-  let server;
   phase = "starting the test Postgres";
   try {
     server = await start({
@@ -234,6 +239,7 @@ async function runHeavy(units) {
   } finally {
     phase = "stopping the test Postgres";
     await server.stop();
+    server = undefined;
   }
 }
 

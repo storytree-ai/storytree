@@ -2,8 +2,9 @@ name: CI
 
 # Every change reaches main through a pull request. On each pull request into main, `platforms`
 # installs, typechecks and runs the tests on Linux, macOS and Windows, against the merge of the
-# branch with main, and `verify` passes once all three have. Then `automerge` lands the pull
-# request. Branch protection on main requires `verify`, so nothing merges unless the tests passed on
+# branch with main; beside them, a change that reaches the desktop app builds and checks the Windows
+# installer (`installer`). `verify` passes once all three systems, and that installer, have. Then
+# `automerge` lands the pull request. Branch protection on main requires `verify`, so nothing merges unless the tests passed on
 # every system.
 #
 # main merges through GitHub's merge queue (ADR-0796): `automerge` hands a green pull request to
@@ -48,6 +49,15 @@ on:
     types: [checks_requested]
   push:
     branches: [main]
+
+# What reaches the installer: a change to any of these builds and checks it (the `installer` job on Windows, the
+# macOS test job's last steps). Of the workflows, only those that build or ship the desktop app: most workflow edits
+# build no installer.
+env:
+  INSTALLER_PATHS: >-
+    apps/desktop packages/app pnpm-lock.yaml package.json
+    .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/release-package.yml
+    .github/workflows/release-rehearsal.yml .github/workflows/staging-desktop.yml
 
 # A newer push to the same pull request, or to main, cancels the run it supersedes.
 concurrency:
@@ -189,20 +199,21 @@ jobs:
           include-hidden-files: true
           if-no-files-found: warn
       # Exercise the distributable before merging packaging/updater changes. A source build
-      # passing tests alone does not prove NSIS can unpack the app and its database binaries, or
-      # that the signed Apple Silicon .app starts and runs its own Postgres and Node.
+      # passing tests alone does not prove that the signed Apple Silicon .app starts and runs its own
+      # Postgres and Node. The Windows installer builds in its own job beside the tests (`installer`);
+      # the macOS one stays here, after the tests: it adds about 1.8 min, and a job of its own would
+      # take a second macOS runner of the free plan's five, where macOS jobs already queue 5 to 6 min
+      # at p90 (increment_941fc3fe1d63).
       - name: Does this change reach the installer?
-        if: matrix.system != 'Linux'
+        if: matrix.system == 'macOS'
         id: installer
         shell: bash
         run: |
-          if ! git diff --quiet origin/main...HEAD -- apps/desktop packages/app pnpm-lock.yaml package.json .github/workflows; then
+          if ! git diff --quiet origin/main...HEAD -- $INSTALLER_PATHS; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-      - if: matrix.system != 'Linux' && steps.installer.outputs.changed == 'true'
+      - if: matrix.system == 'macOS' && steps.installer.outputs.changed == 'true'
         run: pnpm desktop:dist
-      - if: matrix.system == 'Windows' && steps.installer.outputs.changed == 'true'
-        run: node apps/desktop/check-install.mjs
       - if: matrix.system == 'macOS' && steps.installer.outputs.changed == 'true'
         run: node --import tsx apps/desktop/check-install-mac.mjs
       # Reuse this Windows execution for own health. Each attempt keeps its own immutable
@@ -261,15 +272,56 @@ jobs:
           path: ~/.storytree/0.3/test-timings.jsonl
           key: test-timings-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
 
+  # Whether the change reaches the Windows installer, decided on a Linux runner in seconds, so the
+  # Windows installer job starts beside the tests only when it has something to build.
+  installer-scope:
+    name: does this change reach the installer?
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - id: diff
+        shell: bash
+        run: |
+          if ! git diff --quiet origin/main...HEAD -- $INSTALLER_PATHS; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The Windows installer, built and checked beside the tests rather than after them: in about 30% of
+  # runs it added 7 min (desktop:dist 5.7, check-install 1.4) to Windows's 16.6-min tests, its
+  # 26-28 min p90 (increment_08dac5c25a06). A source build passing tests alone does not prove NSIS
+  # can unpack the app and its database binaries.
+  installer:
+    name: installer on Windows
+    needs: installer-scope
+    if: needs.installer-scope.outputs.changed == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm desktop:dist
+      - run: node apps/desktop/check-install.mjs
+
   # The check branch protection on main requires, and the one `automerge` waits for; it reports on
   # the merge queue's runs too, so the queue can merge on it. It passes only
-  # if every run in `platforms` passed, or, on a push to main, if the merge queue's run of the same
-  # commit passed it (`queue-verdict`). It runs whatever they did (always()), so a run that failed
+  # if every run in `platforms` passed, and the Windows installer passed or, for a change that does
+  # not reach it, was skipped; or, on a push to main, if the merge queue's run of the same commit
+  # passed it (`queue-verdict`). It runs whatever they did (always()), so a run that failed
   # or was cancelled fails it: were it skipped instead, GitHub would count the skipped check as
   # passed.
   verify:
     name: verify
-    needs: [queue-verdict, platforms]
+    needs: [queue-verdict, platforms, installer-scope, installer]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -278,13 +330,20 @@ jobs:
         env:
           RESULT: ${{ needs.platforms.result }}
           QUEUE_RUN: ${{ needs.queue-verdict.outputs.run-id }}
+          SCOPE: ${{ needs.installer-scope.result }}
+          INSTALLER: ${{ needs.installer.result }}
+          CHANGED: ${{ needs.installer-scope.outputs.changed }}
         run: |
           if [ -n "$QUEUE_RUN" ]; then
             echo "The merge queue's run $QUEUE_RUN passed verify on this commit."
             exit 0
           fi
           echo "platforms: $RESULT"
+          echo "installer scope: $SCOPE (reaches the installer: ${CHANGED:-false})"
+          echo "installer: $INSTALLER"
           test "$RESULT" = success
+          test "$SCOPE" = success
+          if [ "$CHANGED" = true ]; then test "$INSTALLER" = success; else test "$INSTALLER" = skipped; fi
 
   # Lands the pull request once `verify` passed, through land.yml, which reads whether it is held
   # (a draft, or the `hold` label) when it runs, not from this run's event (see the header).

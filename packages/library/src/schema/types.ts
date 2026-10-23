@@ -678,7 +678,8 @@ export const RECORD_SCHEMAS = {
    * named surface in front of him and the story that declares it, what he had selected and the project on show, the
    * app's version, the window's size and theme, and when. `screenshot` says whether a picture of the window is kept
    * beside it (Library API 7.18); the picture's bytes are never in the fields. `status` is new until the session
-   * manager routes it.
+   * manager routes it (Surface feedback 4.2): then `route` says where it went, `routedTo` the increment or question it
+   * went to, and `routeReason` why.
    */
   feedback: z
     .object({
@@ -693,8 +694,23 @@ export const RECORD_SCHEMAS = {
       at: nonEmpty,
       status: z.enum(["new", "routed"]),
       screenshot: z.boolean(),
+      route: z.enum(["increment", "question", "closed"]).optional(),
+      routedTo: nonEmpty.optional(),
+      routeReason: nonEmpty.optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((fields, context) => {
+      const problem = (path: string[], message: string): void => context.addIssue({ code: "custom", path, message });
+      if (fields.status === "routed") {
+        if (fields.route === undefined) problem(["route"], 'a routed note needs field "route": increment, question or closed');
+        if (fields.routeReason === undefined) problem(["routeReason"], 'a routed note needs field "routeReason": why it went there');
+        if (fields.route !== "closed" && fields.routedTo === undefined) problem(["routedTo"], `a note routed to a${fields.route === "increment" ? "n" : ""} ${fields.route ?? "work"} needs field "routedTo": its id`);
+      } else {
+        for (const field of ["route", "routedTo", "routeReason"] as const) {
+          if (fields[field] !== undefined) problem([field], `a new note has no "${field}" yet`);
+        }
+      }
+    }),
 } as const satisfies Record<RecordType, z.ZodType>;
 
 /** The schema version of each type: every record of the type is written on it. */

@@ -165,12 +165,24 @@ export interface Library
   sendFeedback(note: FeedbackNote, options?: WriteOptions & { readonly screenshot?: Uint8Array | undefined }): Promise<SchemaRecord<"feedback">>;
   /** The JPEG a feedback note was sent with, or null for a note sent without one or no note at all. */
   feedbackScreenshot(id: string): Promise<Uint8Array | null>;
+  /**
+   * Mark a new feedback note routed (Surface feedback 4.2): where it went, the increment or question it went to, and why.
+   * Null, with nothing written, when `id` is no live feedback note; a note already routed is refused, as is a route the
+   * type refuses (SchemaError), with nothing written.
+   */
+  routeFeedback(id: string, route: FeedbackRoute, options?: WriteOptions): Promise<SchemaRecord<"feedback"> | null>;
   /** Close this library's connections. */
   close(): Promise<void>;
 }
 
 /** A feedback note as the corner sends it: its record's fields but those the library sets. */
-export type FeedbackNote = Omit<FieldsOf<"feedback">, "status" | "screenshot">;
+export type FeedbackNote = Omit<FieldsOf<"feedback">, "status" | "screenshot" | keyof FeedbackRoute>;
+/** Where a feedback note was routed, and why. */
+export interface FeedbackRoute {
+  readonly route: NonNullable<FieldsOf<"feedback">["route"]>;
+  readonly routedTo?: string;
+  readonly routeReason: string;
+}
 
 /** One change to the project's records, as the history keeps it. */
 export interface Change {
@@ -322,6 +334,18 @@ function libraryOf(project: Project): Library {
       if (!couldBeId(id)) return null;
       const { rows } = await project.pool.query<{ jpeg: Buffer }>("SELECT jpeg FROM feedback_screenshot WHERE record_id = $1", [id]);
       return rows[0] === undefined ? null : new Uint8Array(rows[0].jpeg);
+    },
+    async routeFeedback(id, route, options = {}) {
+      const note = couldBeId(id) ? await project.records.get(id) : null;
+      if (note?.type !== "feedback") return null;
+      const routed = await project.records.edit(id, { ...route, status: "routed" }, {
+        ...options,
+        checkCurrent: (current) => {
+          const { status, route: to, routedTo } = current.fields as FieldsOf<"feedback">;
+          if (status !== "new") throw new Error(`feedback ${id} is already routed (${to ?? "somewhere"}${routedTo === undefined ? "" : ` to ${routedTo}`})`);
+        },
+      });
+      return routed as SchemaRecord<"feedback"> | null;
     },
     close: () => project.close(),
   };

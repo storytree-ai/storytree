@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
+import { restartLimit } from "@storytree/app/lifecycle/restart-limit";
 import { connect, type Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
@@ -132,6 +136,39 @@ test("1.31 while the user's library holds an app error not yet marked submitted,
     const pool = await storytree.ownDatabase(database);
     const { rows } = await pool.query<{ submitted: boolean }>("SELECT submitted_at IS NOT NULL AS submitted FROM main_errors");
     assert.deepEqual(rows.map(row => row.submitted), [true, true]);
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([database]);
+  }
+});
+
+test("1.32 when the app stops restarting itself after five restarts in a row, the stop is recorded as an error in the user's own library and asks to be reported, on an install whose records predate it too", async (t) => {
+  const database = `storytree-app-errors-t-${randomBytes(4).toString("hex")}`;
+  const dir = mkdtempSync(path.join(tmpdir(), "restart-limit-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const storytree: Storytree = await connect({ url: testServerUrl() });
+  try {
+    // An install from before the stop was a kind of error.
+    await storytree.ownDatabase(database, { tables: [
+      `CREATE TABLE main_errors (key text PRIMARY KEY, kind text NOT NULL CHECK (kind IN ('uncaught-exception', 'unhandled-rejection')),
+        build text NOT NULL, stack text NOT NULL, count integer NOT NULL, first_at timestamptz NOT NULL, last_at timestamptz NOT NULL)`,
+    ] });
+    const logged: string[] = [];
+    const records = mainErrorRecords({ build: () => "0.3.41", log: line => logged.push(line), database });
+    await records.open(storytree);
+    const limit = restartLimit({ file: path.join(dir, "restarts.json"), stopped: message => records.record("restarts-stopped", message) });
+    let restarts = 0;
+    for (let start = 0; start < 7; start++) if (limit.mayRestart()) restarts++;
+    await records.settled();
+
+    assert.equal(restarts, 5);
+    assert.deepEqual(logged, [], "the stop is recorded, not dropped");
+    const pool = await storytree.ownDatabase(database);
+    const { rows } = await pool.query<{ kind: string; count: number }>("SELECT kind, count FROM main_errors");
+    assert.deepEqual(rows, [{ kind: "restarts-stopped", count: 2 }], "each refused restart adds to one record");
+    const asked = await records.unsubmitted();
+    assert.equal(asked.length, 1);
+    assert.match(asked[0]!.stack, /stopped restarting itself after 5 restarts in a row/);
   } finally {
     await storytree.close();
     await dropTestDatabases([database]);

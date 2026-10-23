@@ -30,9 +30,13 @@ const SCHEMA: readonly string[] = [
   )`,
   // Installs from before ADR-1122 already have the table.
   "ALTER TABLE main_errors ADD COLUMN IF NOT EXISTS submitted_at timestamptz",
+  // And from before contract 1.32, a kind check without its stopped restarts.
+  "ALTER TABLE main_errors DROP CONSTRAINT IF EXISTS main_errors_kind_check",
+  "ALTER TABLE main_errors ADD CONSTRAINT main_errors_kind_check CHECK (kind IN ('uncaught-exception', 'unhandled-rejection', 'restarts-stopped'))",
 ];
 
-export type MainErrorKind = "uncaught-exception" | "unhandled-rejection";
+/** What went wrong: an uncaught error, or the app stopping restarting itself after too many in a row (contract 1.32). */
+export type MainErrorKind = "uncaught-exception" | "unhandled-rejection" | "restarts-stopped";
 
 interface Held {
   readonly key: string;

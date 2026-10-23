@@ -33,7 +33,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
       <details><summary>Request to paste into your agent</summary><p data-request></p></details>
       <p>Need help or have a suggestion? Use <button type="button" data-feedback>Send feedback</button> to prepare a GitHub issue.</p>
     </div>
-    <div data-content="license" hidden><h3>PolyForm Shield 1.0.0</h3>
+    <div data-content="license" hidden><h3>Apache License 2.0</h3>
       <p>This copy travels with the app and is available offline.</p>
       <p data-license-status role="status"></p><button type="button" data-license-retry hidden>Retry reading license</button>
       <pre data-license></pre>

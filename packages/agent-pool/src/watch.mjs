@@ -355,9 +355,10 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * closed has no wait to clear and nothing to close, and past its limit is only said (4.13). A red only the runner
  * caused (`pull.runner`, from runnerReruns) is rerun instead of fixed, bounded by its runs' attempts (4.29). A stranded
  * one (green and unheld, out of the merge queue) is enqueued at its head, as automerge would, once a head and a refusal
- * tried at most ENQUEUE_TRIES times (4.31).
+ * tried at most ENQUEUE_TRIES times (4.31). A look that saw any merge reads every story's risk reading again, once, from
+ * main (`readRisks`), and says the readings that changed since the last (4.33).
  */
-export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue, alive, room, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -387,6 +388,7 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue
   // The noticeboard, read once a look and only when a refusal named its holder.
   let board;
   const holds = async (session) => (board ??= await tell(["noticeboard"])).split("\n").some((line) => /^\s*- (?:increment|capability) /.test(line) && line.includes(` ${session} `));
+  let merged = false;
   for (const record of all) {
     const { pr, increment } = record;
     let pull;
@@ -403,6 +405,7 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue
     if (pull.state === "merged" || pull.state === "closed") {
       if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
       if (pull.state === "merged") {
+        merged = true;
         if (!record.keepOpen && !record.closed) await tell(["arc", "increment", "close", increment, "--disposition", "landed", "--pr", String(pr)]);
         await letGo(pr, `PR #${pr} merged; released by the watcher`);
         dated(record.closed ? `PR #${pr} merged: ${increment} had already closed`
@@ -502,6 +505,24 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue
     await save(dir, record);
     dated(`PR #${pr} red (${pull.why}): fix session ${counted + 1} of ${allowed} started, log ${fix.log}`);
   }
+  if (merged && readRisks) await refreshRisks({ dir, readRisks, dated });
+}
+
+/**
+ * Every story's standing risk reading, read again from main after a merge (4.33): `readRisks` runs `quality
+ * story-risks` there and returns what it printed, one line a story. The lines that differ from the last reading's,
+ * kept in `dir`, are said; a reading that fails is said and tried again at the next merge.
+ */
+async function refreshRisks({ dir, readRisks, dated }) {
+  const lines = (text) => new Map(text.split("\n").filter((line) => /^\s+story_\w+\s/.test(line)).map((line) => [line.trim().split(/\s/)[0], line.trim()]));
+  let text;
+  try { text = await readRisks(); }
+  catch (error) { dated(`story risk readings: reading main failed (${error.message.split("\n")[0]}); reading again at the next merge`); return; }
+  const kept = join(dir, "story-risks.txt");
+  const last = lines(await readFile(kept, "utf8").catch(() => ""));
+  const changed = [...lines(text)].filter(([id, line]) => last.get(id) !== line).map(([, line]) => line);
+  await writeFile(kept, text);
+  dated(changed.length ? `story risk readings read from main; ${changed.length} changed:\n  ${changed.join("\n  ")}` : "story risk readings read from main; none changed");
 }
 
 /** Start the watcher unless a live one holds its pid file; `spawn` starts it and returns its pid, written at once. */
@@ -572,6 +593,18 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       : await run("pnpm", ["-s", "storytree", ...args], { cwd: repo, maxBuffer: 16 * 1024 * 1024 })).stdout,
     project: () => projectOf({ cwd: process.cwd(), repo, home: env.STORYTREE_HOME || join(home, ".storytree", "0.3") }),
     look: (pr, record) => lookOnGitHub(pr, { repo, since: record.fixes.at(-1)?.at ?? record.handedAt }),
+    // From a checkout of freshly fetched origin/main kept in the watch folder, locked so no reaper takes it, never a merged branch's worktree (4.33).
+    readRisks: async () => {
+      const main = join(dir, "main");
+      await run("git", ["fetch", "--quiet", "origin", "main"], { cwd: repo });
+      if (existsSync(main)) await run("git", ["checkout", "--quiet", "--force", "--detach", "origin/main"], { cwd: main });
+      else {
+        await run("git", ["worktree", "prune"], { cwd: repo });
+        await run("git", ["worktree", "add", "--quiet", "--lock", "--detach", main, "origin/main"], { cwd: repo });
+      }
+      return (await run(process.execPath, ["--import", import.meta.resolve("tsx"), join(repo, "packages", "cli", "src", "bins", "storytree.ts"), "quality", "story-risks"],
+        { cwd: main, env: free, maxBuffer: 16 * 1024 * 1024 })).stdout;
+    },
     viewOf: async (pr) => JSON.parse((await run("gh", ["pr", "view", String(pr), ...VIEW], { cwd: repo })).stdout),
     // Off the box, where the shared checkout may not exist (a cloud container), the hand-over's library writes and its
     // branch are read from the folder it runs in: the pull request's branch from GitHub, else the folder's own (4.30).

@@ -660,6 +660,23 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await records.get(fix.id))?.fields, cleared?.fields);
   });
 
+  contract("10.24", "an increment carries a risk line: its tier, rating, depth, radius, depth flags, the stories it touches and the day read, set and cleared by an edit; a tier, number or day out of range, or a story that is not one, is refused with nothing written", async ({ work, flight, records, transactions }) => {
+    const arc = await work.createArc(ARC);
+    const story = await work.addStory({ title: "Visitor can sign up" });
+    const increment = await flight.addIncrement({ arc: arc.id, ...WORK });
+    const risk = { tier: "high" as const, rating: 8, depth: 3, radius: 2, flags: ["destructive schema"], stories: [story.id], read: "2026-10-23" };
+    assert.deepEqual((await flight.editIncrement(increment.id, { risk }))?.fields.risk, risk);
+    const history = await transactions.history();
+    for (const bad of [{ ...risk, tier: "severe" }, { ...risk, rating: 11 }, { ...risk, depth: 0 }, { ...risk, radius: 5 }, { ...risk, read: "today" }, { ...risk, flags: [""] }]) {
+      await assert.rejects(flight.editIncrement(increment.id, { risk: bad as never }), SchemaError, JSON.stringify(bad));
+    }
+    await assert.rejects(flight.editIncrement(increment.id, { risk: { ...risk, stories: [increment.id] } }), (error: unknown) => error instanceof MissingReferenceError && error.field === "risk.stories");
+    assert.deepEqual(await transactions.history(), history, "nothing was written");
+    const cleared = await flight.editIncrement(increment.id, { risk: undefined });
+    assert.equal("risk" in (cleared?.fields ?? {}), false, "cleared, it carries no risk line");
+    assert.deepEqual((await records.get(increment.id))?.fields, cleared?.fields);
+  });
+
   contract("7.8", "arcViews() answers every live arc's view as arcView does, in a bounded number of reads whatever the number of arcs", async ({ work, flight, records }) => {
     const arcs = [];
     for (let i = 0; i < 4; i++) {

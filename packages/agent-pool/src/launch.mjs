@@ -16,7 +16,7 @@ import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary } from ".
 import { codeVersion, composeBrief, countEngines, holdRunner, waitForSlot } from "./queue.mjs";
 import { runLane as runEngineLane } from "./runner.mjs";
 import { readBoxPace } from "./pace.mjs";
-import { poolConfig } from "./pool-config.mjs";
+import { poolConfig, readCap } from "./pool-config.mjs";
 import { handedOff } from "./watch.mjs";
 
 const run = promisify(execFile);
@@ -201,7 +201,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const { sessionsDir, stopAt } = laneSettings({ home, env, config });
   return {
     lanesDir, repo, addDirs, sessionsDir, stopAt,
-    maxLanes: async () => Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || config.sessions,
+    maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     lock: (fn) => withFlock(join(lanesDir, "night-checkout.lock"), fn),
     prepare: () => prepareCheckout({ repo }),

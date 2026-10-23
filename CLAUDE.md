@@ -22,6 +22,9 @@ The text above that marker is written by hand, and it counts toward the file's 4
 - In Windows PowerShell 5.1, bare `Get-Content` reads a BOM-less UTF-8 file as ANSI, so `·` becomes `Â·`
   and `×` becomes `Ã—` in whatever you send to the library. Read library-bound text with
   `Get-Content -Encoding UTF8 -Raw`, or write it with the Write tool, never bare `Get-Content`.
+- Windows PowerShell 5.1 strips the double quotes inside a native command's argument, so in
+  `ssh mint '... grep -iE "unclean|reboot" ...'` the box's shell runs `reboot` as a command. Send an ssh
+  command to the Mint box that holds quotes or pipes through Bash, never through PowerShell 5.1.
 - `pnpm test` and `pnpm gate` queue behind the machine's heavy-run lock themselves (a waiting run says
   whose run it waits for), so run them plain, in the background: no flock wrapper. A session whose engine
   exits when its turn ends (a Mint lane) runs them in the foreground instead, until the table prints.

@@ -31,8 +31,7 @@ Quality control on one green change before the gate: a fresh-context reviewer th
 7. Answer the implementer with the take's output whole, and end.
 
 
-**Escalation.** `quality brief` refuses because ten reviews of the change have run with findings still standing (ADR-0956 D7): run no review; hand the refusal back to the implementer whole, whose session raises the open question on the arc it names. A brief that cannot be issued for another reason (no diff, not an increment), or a take refused for a reason you cannot correct: hand back the message whole, and end. Never judge a change from anything but its brief, and never record a review you did not run.
-
+**Escalation.** `quality brief` refuses because three reviews of the change have run with findings still standing (ADR-1120 D1): run no review; hand the refusal back to the implementer whole, whose session raises the open question on the arc it names. A brief that cannot be issued for another reason (no diff, not an increment), or a take refused for a reason you cannot correct: hand back the message whole, and end. Never judge a change from anything but its brief, and never record a review you did not run.
 
 **Stands on:** notes in the library; find one by its title with the MCP server's `search_notes`.
 - **Required reading:** Test creation principles

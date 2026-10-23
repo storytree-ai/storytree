@@ -67,6 +67,8 @@ export interface NewIncrement {
   readonly heldOn?: string[];
   /** The one machine that can take it, by its short name; absent, any machine can. */
   readonly machine?: string;
+  /** The escape it fixes: the pull request (`#123`) or live increment that caused it, and the live story it hit. */
+  readonly escape?: Escape;
   /** The increments it is born waiting on, each with why (11): each must be a live increment. */
   readonly waits?: Wait[];
   readonly outcome?: CloseInput;
@@ -83,7 +85,12 @@ export interface IncrementEdit {
   readonly heldOn?: string[] | undefined;
   /** Undefined clears it, so any machine can take it. */
   readonly machine?: string | undefined;
+  /** Undefined clears it: it fixes no escape. */
+  readonly escape?: Escape | undefined;
 }
+
+/** An escape an increment fixes: the change that caused it and the story it hit. */
+export type Escape = NonNullable<FieldsOf<"increment">["escape"]>;
 
 /** A pending plan change, as its increment keeps it (ADR-0966 D1). */
 export type PendingChange = NonNullable<FieldsOf<"increment">["pending"]>[number];
@@ -198,7 +205,7 @@ export class LifecycleError extends Error {
   }
 }
 
-const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "capabilities", "links", "remedies", "heldOn", "machine"]);
+const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "capabilities", "links", "remedies", "heldOn", "machine", "escape"]);
 
 export class WorkInFlight {
   readonly #records: SchemaRecords;
@@ -930,11 +937,14 @@ export class WorkInFlight {
    * (ADR-0949 D2); what it links to any live records; what it remedies live friction (10-a); and
    * what it is held on live questions (12).
    */
-  async #checkNames(fields: { readonly capabilities?: unknown; readonly links?: unknown; readonly remedies?: unknown; readonly heldOn?: unknown }): Promise<void> {
+  async #checkNames(fields: { readonly capabilities?: unknown; readonly links?: unknown; readonly remedies?: unknown; readonly heldOn?: unknown; readonly escape?: Escape | undefined }): Promise<void> {
     await checkReferences(this.#records, "capabilities", fields.capabilities, "capability");
     await checkReferences(this.#records, "links", fields.links, "record");
     await checkReferences(this.#records, "remedies", fields.remedies, "friction");
     await checkReferences(this.#records, "heldOn", fields.heldOn, "question");
+    // A cause that is neither a pull request nor an increment's id is the schema's to refuse.
+    if (fields.escape?.causedBy.startsWith("increment_") === true) await checkReference(this.#records, "escape.causedBy", fields.escape.causedBy, "increment");
+    await checkReference(this.#records, "escape.story", fields.escape?.story, "story");
   }
 
   /** Run `write` once every write queued through this layer before it has settled, so its checks and its write happen together. */

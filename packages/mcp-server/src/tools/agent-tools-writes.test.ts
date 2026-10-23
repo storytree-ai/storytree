@@ -1050,6 +1050,26 @@ test("map 3.9 focus with crossing counts the imports across a line in a mapped i
   });
 });
 
+test("6.99 edit_plan records the escape an increment fixes, the change that caused it and the story it hit, its \"none\" clears it, and a story that is not live is refused with nothing written", async () => {
+  await withProject(async ({ folder, library }) => {
+    await withAgent(folder, claudeCode("claude-1"), async (agent) => {
+      const { arc, story } = await planned(agent);
+      const fix = idOf(await agent.call("park_increment", { arc, title: "Fix sign-up", objective: "Mend it", body: "Red then green" }));
+      const escapeOf = async () => ((await library.get(fix))?.fields as { escape?: unknown }).escape;
+
+      assert.equal(idOf(await agent.call("edit_plan", { id: fix, escape: { caused_by: "#1234", story } })), fix);
+      assert.deepEqual(await escapeOf(), { causedBy: "#1234", story });
+
+      const refused = await agent.call("edit_plan", { id: fix, escape: { caused_by: "#99", story: arc } });
+      assert.equal(refused.isError, true);
+      assert.deepEqual(await escapeOf(), { causedBy: "#1234", story }, "nothing written");
+
+      assert.equal(idOf(await agent.call("edit_plan", { id: fix, escape: "none" })), fix);
+      assert.equal(await escapeOf(), undefined);
+    });
+  });
+});
+
 test("6.62 park_increment and edit_plan set an increment's machine to a machine Machines knows, edit_plan's \"none\" clears it, and an unknown name is refused with nothing written", async () => {
   await withProject(async ({ folder, library }) => {
     const mint = `m-${randomBytes(4).toString("hex")}`;

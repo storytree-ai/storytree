@@ -1,4 +1,4 @@
-/** Capability 4 · Updates. Installed-app updates; development slots keep their own follow-main updater. */
+/** Capability 4 · Updates. Installed-app updates; a development copy does not update itself. */
 import { readFileSync } from "node:fs";
 import path from "node:path";
 

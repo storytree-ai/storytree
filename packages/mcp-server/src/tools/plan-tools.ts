@@ -130,6 +130,10 @@ export function registerPlanTools(define: Define): void {
       capabilities: z.array(z.string().min(1)).optional().describe("An increment's capabilities, replacing them: the ones it changes, and nothing else"),
       links: z.array(z.string().min(1)).optional().describe("An increment's links, replacing them: its stories, notes or decisions"),
       machine: z.string().min(1).optional().describe("The one machine that can take an increment, by the short name Machines knows it by, or \"none\" to clear it, so any machine can"),
+      escape: z
+        .union([z.object({ caused_by: z.string().min(1).describe("The pull request (#123) or increment that caused it"), story: z.string().min(1).describe("The story it hit") }), z.literal("none")])
+        .optional()
+        .describe("The escape an increment fixes, a defect that reached main: the change that caused it and the story it hit, or \"none\" to clear it"),
     }),
     async ({ id: target, ...changes }, call) => editPlan(target, changes, call),
   );
@@ -188,6 +192,7 @@ interface Changes {
   capabilities?: string[] | undefined;
   links?: string[] | undefined;
   machine?: string | undefined;
+  escape?: { caused_by: string; story: string } | "none" | undefined;
   what?: string | undefined;
   audience?: string | undefined;
 }
@@ -198,7 +203,7 @@ const EDITABLE = {
   capability: ["title", "description", "story", "depends_on", "covers"],
   contract: ["title", "description", "capability"],
   arc: ["title", "description", "stories", "intent", "end_state", "priority"],
-  increment: ["title", "capabilities", "links", "machine"],
+  increment: ["title", "capabilities", "links", "machine", "escape"],
   anchor: ["what", "audience"],
 } as const;
 
@@ -219,11 +224,16 @@ async function editPlan(target: string, changes: Changes, call: Call): Promise<A
     const shared = await sharedCapability(target, changes.capabilities, call);
     if (shared !== undefined) return { text: shared, refused: true };
   }
-  const { depends_on: dependsOn, end_state: endState, priority, machine, ...rest } = changes;
+  const { depends_on: dependsOn, end_state: endState, priority, machine, escape, ...rest } = changes;
   const named = machine === undefined ? undefined : await machineChecked(storytree, machine);
   if (named !== undefined && "refused" in named) return named.refused;
-  // "none" clears an arc's priority, and an increment's machine: the library removes a field given as undefined (ADR-0963 D3).
-  const fields = { ...optional({ ...rest, dependsOn, endState }), ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }), ...(named ?? {}) };
+  // "none" clears an arc's priority, and an increment's machine or escape: the library removes a field given as undefined (ADR-0963 D3).
+  const fields = {
+    ...optional({ ...rest, dependsOn, endState }),
+    ...(priority === undefined ? {} : { priority: priority === "none" ? undefined : priority }),
+    ...(named ?? {}),
+    ...(escape === undefined ? {} : { escape: escape === "none" ? undefined : { causedBy: escape.caused_by, story: escape.story } }),
+  };
   if (kind === "story" || kind === "capability" || kind === "contract") {
     const held = await heldOnIncrement(call, { record: target, fields });
     if (held !== undefined) return { text: `Your change to ${kind} ${quoted(String(((await library.get(target))?.fields as { title?: string } | undefined)?.title))} (${target}) is ${held}`, data: { id: target } };

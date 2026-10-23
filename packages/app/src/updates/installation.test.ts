@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 
-import { installation, type RunningApp } from "./installation.js";
+import { installation, installedAppDir, type RunningApp } from "./installation.js";
 
 function machine(t: TestContext): string {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-installation-"));
@@ -91,4 +91,31 @@ test("4.21 a Linux AppImage the delivery record's folder holds is installed and 
   assert.deepEqual(installation({ ...app, packaged: false }), none, "a development run is never installed");
   assert.deepEqual(installation({ ...app, appImage: undefined }), none, "an unpacked build runs from no AppImage");
   assert.deepEqual(installation({ ...app, appImage: path.join(dir, "Downloads", "storytree-0.3") }), none, "a downloaded copy is not the installed one");
+});
+
+test("4.21 any copy of the app finds the installed one on this machine: the Windows installer's folder, or the Mac bundle or Linux folder the delivery record names while it is there", (t) => {
+  const dir = machine(t);
+  const home = path.join(dir, "home");
+  const localAppData = path.join(dir, "local");
+  mkdirSync(home, { recursive: true });
+  assert.equal(installedAppDir(home, localAppData), undefined, "nothing installed");
+
+  const windows = path.join(localAppData, "Programs", "storytree-0.3");
+  mkdirSync(path.join(windows, "resources"), { recursive: true });
+  assert.equal(installedAppDir(home, localAppData), undefined, "a folder without the installer's marker is not the installed app");
+  writeFileSync(path.join(windows, "resources", "storytree-installed"), "alpha");
+  assert.equal(installedAppDir(home, localAppData), windows);
+
+  const bundle = path.join(dir, "Applications", "storytree-0.3.app");
+  delivered(home, bundle);
+  assert.equal(installedAppDir(home, ""), undefined, "a recorded bundle that is gone is no installed app");
+  macApp(home, bundle);
+  assert.equal(installedAppDir(home, ""), bundle);
+
+  const folder = path.join(dir, "storytree");
+  delivered(home, folder);
+  mkdirSync(folder, { recursive: true });
+  assert.equal(installedAppDir(home, ""), undefined, "a recorded folder without its AppImage is no installed app");
+  writeFileSync(path.join(folder, "storytree-0.3"), "AppImage");
+  assert.equal(installedAppDir(home, ""), folder);
 });

@@ -33,7 +33,7 @@ test("1.12 the installed app opens at sign-in, straight to the tray, until the u
   assert.equal(items.calls.at(-1)?.openAtLogin, true);
 });
 
-test("1.12 a development copy, portable build or runtime slot never registers itself to open at sign-in", () => {
+test("1.12 a development copy or portable build never registers itself to open at sign-in", () => {
   const file = path.join(mkdtempSync(path.join(tmpdir(), "sign-in-")), "sign-in.json");
   const items = fakeLoginItems();
   const notInstalled = signIn({ installed: false, file, loginItems: items });

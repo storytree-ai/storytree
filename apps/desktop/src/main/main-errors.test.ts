@@ -1,13 +1,25 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
+import { appLog } from "./app-log.js";
 import { logMainErrors, type MainProcess } from "./main-errors.js";
 
-test("1.22 the main process's uncaught exceptions and unhandled rejections reach the app's log with their stack", () => {
+/** app.log's entries, split at each one's timestamp, since a stack runs over several lines. */
+function entries(file: string): string[] {
+  return readFileSync(file, "utf8").split(/^\d{4}-\d\d-\d\dT\S+Z /m).slice(1).map(entry => entry.replace(/\n$/, ""));
+}
+
+test("1.22 the main process's uncaught exceptions and unhandled rejections reach app.log with their stack", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "main-errors-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, "app.log");
   const heard = new Map<string, (reason: unknown) => void>();
   const main: MainProcess = { on: (event: string, listener: (reason: unknown) => void) => { heard.set(event, listener); } };
-  const logged: string[] = [];
-  logMainErrors(main, { log: line => logged.push(line), ask: async () => "keep-going", restart: () => {} });
+  const log = appLog(file);
+  logMainErrors(main, { log: line => log.write(line), ask: async () => "keep-going", restart: () => {} });
 
   const thrown = new TypeError("Object has been destroyed");
   thrown.stack = "TypeError: Object has been destroyed\n    at titleWindow (main.cjs:12:3)";
@@ -15,6 +27,7 @@ test("1.22 the main process's uncaught exceptions and unhandled rejections reach
   heard.get("unhandledRejection")!(new Error("connection reset"));
   heard.get("unhandledRejection")!("not an error");
 
+  const logged = entries(file);
   assert.equal(logged[0], "main process uncaught exception: TypeError: Object has been destroyed\n    at titleWindow (main.cjs:12:3)");
   assert.match(logged[1]!, /^main process unhandled rejection: Error: connection reset\n {4}at /);
   assert.equal(logged[2], "main process unhandled rejection: not an error");

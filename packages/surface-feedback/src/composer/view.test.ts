@@ -3,8 +3,6 @@ import { test } from "node:test";
 import type { Browser, Page } from "playwright-core";
 
 import { bundled, launchChrome } from "../testing/page.js";
-// The page runs the module bundled; importing it here too lets the package's allocation see this test reaches it.
-import "./view.js";
 
 const SURFACES = [
   { id: "globe", name: "Forest globe", story: "forest" },
@@ -27,7 +25,7 @@ async function mounted(browser: Browser): Promise<Page> {
   // Served from localhost, a secure context, as the app's own file is: the clipboard is there.
   await page.route("http://localhost/corner", (route) => route.fulfill({ contentType: "text/html", body: PAGE }));
   await page.goto("http://localhost/corner");
-  await page.addScriptTag({ content: await bundled(new URL("./view.ts", import.meta.url), "corner") });
+  await page.addScriptTag({ content: await bundled({ entryPoints: [new URL("./view.ts", import.meta.url)] }, "corner") });
   await page.evaluate(`(() => {
     window.calls = [];
     window.sends = [];

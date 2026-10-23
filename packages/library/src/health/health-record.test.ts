@@ -593,6 +593,8 @@ for (const backend of [memory, postgres]) {
       { capability: form.id, reason: "no test names it", waits: { since: pending.at, by: run.by, note: run.note } },
       { capability: page.id, reason: "no test names it", waits: { since: newer.at, by: run.by, note: run.note } },
     ], "held back, saying the run they wait on");
+    const recording = new Date(Date.parse(newer.at) + 60 * 60 * 1000);
+    assert.equal((await health.worklist({ now: recording })).filter(({ waits }) => waits !== undefined).length, 2, "a run an hour into recording, inside Own health's time limit, still holds them");
     const ended = new Date(Date.parse(newer.at) + 2 * 60 * 60 * 1000);
     assert.deepEqual((await health.worklist({ now: ended })).map(({ waits }) => waits), [undefined, undefined], "a run past its time waits for nothing");
 
@@ -634,7 +636,9 @@ for (const backend of [memory, postgres]) {
     assert.match(waits.note ?? "", /8c3903b4/, "it says the commit it waits on");
     assert.ok(recorded.at > merged.at);
 
-    const over = new Date(Date.parse(merged.at) + 2 * 60 * 60 * 1000);
+    const recording = new Date(Date.parse(merged.at) + 2 * 60 * 60 * 1000);
+    assert.notEqual((await health.worklist({ changed, now: recording })).find(({ capability }) => capability === form.id)!.waits, undefined, "a commit whose run may still be recording two hours on still holds it");
+    const over = new Date(Date.parse(merged.at) + 3 * 60 * 60 * 1000);
     assert.equal((await health.worklist({ changed, now: over })).find(({ capability }) => capability === form.id)!.waits, undefined, "a commit past its run's time waits for nothing");
 
     await later();

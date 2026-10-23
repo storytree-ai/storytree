@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { bundled, launchChrome, pageWith } from "../testing/page.js";
-// The page runs the module bundled; importing it here too lets the package's allocation see this test reaches it.
-import "./resolve.js";
 
 const PAGE = `
   <style>[data-surface-id] { min-width: 10px; min-height: 10px; }</style>
@@ -18,7 +16,7 @@ const PAGE = `
 test("2.1 · the top-most named surface on show is recorded: an open popover or dialog, then an overlay, then a side panel, then the main view; none on show names none", async (t) => {
   const browser = await launchChrome();
   t.after(() => browser.close());
-  const page = await pageWith(browser, PAGE, [await bundled(new URL("./resolve.ts", import.meta.url), "naming")]);
+  const page = await pageWith(browser, PAGE, [await bundled({ entryPoints: [new URL("./resolve.ts", import.meta.url)] }, "naming")]);
   const front = () => page.evaluate("naming.surfaceInFront(document)");
   const show = (selector: string) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).hidden = false`);
 

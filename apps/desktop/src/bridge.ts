@@ -33,8 +33,13 @@ export interface StoryPageBridge {
   sendFeedback(note: { text: string; surface: string; selection?: string; project?: string; window: { width: number; height: number }; theme: "light" | "dark" }, screenshot?: string): Promise<{ id: string }>;
 }
 
+/** The channel a start-timing mark from the page reaches the main process on (contract 1.33). */
+export const START_MARK = "storytree:start-mark";
+
 export interface StorytreeBridge
   extends SetupHelpBridge, SurfacesBridge, JourneyBridge, UpdatesBridge, LifecycleBridge, ProjectsBridge, PageReadsBridge, StoryPageBridge {
+  /** Mark that this start reached `name` now, written once to app.log as milliseconds from launch (contract 1.33). */
+  startMark(name: string): Promise<void>;
   /** The views of the factory plugins standing in for switched-off parts, which the page mounts while their surfaces are on. */
   readonly pluginViews: readonly PluginView[];
 }
@@ -72,5 +77,6 @@ export function createBridge(
     // A factory plugin standing in for a switched-off part: its channels, which the main process answers, read from the factory as it started.
     ...Object.assign({}, ...(options.standIns?.channels ?? []).map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))),
     pluginViews: options.standIns?.views ?? [],
+    startMark: async (name) => { await invoke(START_MARK, name, Date.now()); },
   };
 }

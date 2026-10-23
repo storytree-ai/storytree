@@ -159,11 +159,11 @@ async function showForest(name: string): Promise<void> {
   // One live reading for every surface on the page, started from the reading kept at the last start
   // (ADR-0836 D3, D4); the surfaces hearing one news share one read of the tree.
   const reads = joinedReads(window.storytree);
-  const page = pageReading({ project: name, reads, kept: pageKeptReading(`storytree.page-reading.v1:${name}`) });
+  const page = pageReading({ project: name, reads, kept: timedRead(pageKeptReading(`storytree.page-reading.v1:${name}`)) });
   mine.page = page;
   const history = () => page.held().changes;
   const states = keptWorkStates();
-  if (surfaceOn(surfaces, "arcs")) mine.arcs = mountArcSurface(content, { project: name, reads, reading: page });
+  if (surfaceOn(surfaces, "arcs")) mine.arcs = mountArcSurface(content, { project: name, reads, reading: page, onFreshDraw: () => startMark("arcs first fresh draw") });
   let tree: AnnotatedTree | undefined;
   /** The code survey last read, which counts a mapped story's files and lines for its panel. */
   let surveyed: Parameters<typeof forestScene>[3] = {};
@@ -304,10 +304,30 @@ async function showForest(name: string): Promise<void> {
       showFreshness(undefined);
       showReadError(undefined);
       setState("ready");
+      startMark("forest first fresh draw");
     },
     onError: failed,
     onSettled: () => { if (showing === mine) showProgress(false); },
   });
+}
+
+/** The start-timing marks this page has sent; the main process writes each once to app.log (lifecycle 1.33). */
+const marked = new Set<string>();
+function startMark(name: string): void {
+  if (marked.has(name)) return;
+  marked.add(name);
+  void window.storytree.startMark(name).catch(() => {});
+}
+
+/** The kept reading, its read-back marked as it starts and ends (lifecycle 1.33). */
+function timedRead(kept: ReturnType<typeof pageKeptReading>): ReturnType<typeof pageKeptReading> {
+  return {
+    ...kept,
+    read: async () => {
+      startMark("kept reading read start");
+      try { return await kept.read(); } finally { startMark("kept reading read end"); }
+    },
+  };
 }
 
 /** Draw project `name` again from the start, as the surfaces now say. */

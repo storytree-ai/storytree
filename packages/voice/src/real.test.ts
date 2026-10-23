@@ -1,5 +1,5 @@
 /**
- * Contracts 2.2, 2.8, 2.9 and 1.13 against the real storytree command line and a throwaway library on the Postgres
+ * Contracts 2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3 and 1.13 against the real storytree command line and a throwaway library on the Postgres
  * `pnpm test` provides: the door's shaping of the command line's real output, and the session its children record as.
  */
 import assert from "node:assert/strict";
@@ -25,7 +25,7 @@ const root = fileURLToPath(new URL("../../../", import.meta.url));
 /** The command line from this checkout's source, run directly as the door runs it on the box. */
 const CLI = [process.execPath, "--import", pathToFileURL(path.join(root, "node_modules", "tsx", "dist", "loader.mjs")).href, path.join(root, "packages", "cli", "src", "bins", "storytree.ts")];
 
-test("2.2, 2.8, 2.9, 1.13 against the real command line: catch_up's order, what landed, a record's history, and the voice session its children record as", async () => {
+test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: catch_up's order, what landed, a record's history, tell_me, count, find, and the voice session its children record as", async () => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-voice-real-")));
   const project = `t-${randomBytes(4).toString("hex")}`;
   const server = await connectLibrary({ url: testServerUrl() });
@@ -43,7 +43,7 @@ test("2.2, 2.8, 2.9, 1.13 against the real command line: catch_up's order, what 
     await library.addWaitFor(waiting.id, { releaser: "owner", note: "Say when the phone call works." });
     const older = await library.raiseQuestion({ arc: arc.id, title: "Sign in through WorkOS?", stakes: "s", statement: "s", context: "c", options: "a or b" });
     await new Promise((resolve) => setTimeout(resolve, 20));
-    const newer = await library.raiseQuestion({ arc: arc.id, title: "Keep the secret address alone?", stakes: "s", statement: "s", context: "c", options: "a or b" });
+    const newer = await library.raiseQuestion({ arc: arc.id, title: "Keep the secret door address alone?", stakes: "s", statement: "s", context: "c", options: "a or b" });
     const done = await library.addIncrement({ arc: arc.id, title: "A tested read door", objective: "o", body: "b" });
     await library.closeIncrement(done.id, { disposition: "landed", pr: "#1721" });
 
@@ -64,6 +64,19 @@ test("2.2, 2.8, 2.9, 1.13 against the real command line: catch_up's order, what 
       const entries = history.split("\n").filter((line) => /^\d+\. /.test(line));
       assert.ok(entries.length >= 2, history);
       assert.match(entries.at(-1)!, /^\d+\. \S+ created by \S+$/);
+
+      const said = async (name: string, args: Record<string, unknown>) => textOf((await client.callTool({ name, arguments: args })) as never);
+      // tell_me: catch_up's number 1 is the owner's wait; title words find the one question; a word in two titles asks which one.
+      assert.match(await said("tell_me", { handle: "number one" }), new RegExp(`^increment: Install the door on the box\\n[^]* — ${waiting.id}$`));
+      const question = await said("tell_me", { handle: "the question about WorkOS" });
+      assert.match(question, /^Question: Sign in through WorkOS\?/);
+      assert.ok(question.endsWith(` — ${older.id}`), question);
+      const which = await said("tell_me", { handle: "the door" });
+      assert.match(which, /^Which one\? 2 match/);
+      assert.ok(!/\b(?:Created|Stakes):/.test(which), which);
+      assert.match(await said("tell_me", { handle: "the voice reaches storytree arc" }), new RegExp(`^arc: Voice reaches storytree\\n[^]* — ${arc.id}$`));
+      assert.match(await said("count", {}), new RegExp(`^ +1 open: Voice reaches storytree — ${arc.id}$`, "m"));
+      assert.equal(await said("find", { query: "tested read" }), `1. increment: A tested read door — ${done.id}`);
 
       // The children ran as the day's voice session, never as the owner's: the sessions list names it.
       const sessions = execFileSync(CLI[0]!, [...CLI.slice(1), "session", "list", "--all", "--json"], { cwd: folder, env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_SESSION_ID: "", CODEX_THREAD_ID: "", STORYTREE_SESSION_ID: "" }, encoding: "utf8" });

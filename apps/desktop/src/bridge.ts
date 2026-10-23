@@ -17,7 +17,7 @@ import PAGE_CHANNELS from "#parts/pageChannels";
 import { pageMethods, type PageStandIns, type PluginView } from "./page-operations.js";
 
 /**
- * The page operations the forest and Lag in real use name in their manifests (ADR-1030), as the frame hands them on:
+ * The page operations the forest, Lag in real use and Surface feedback name in their manifests (ADR-1030), as the frame hands them on:
  * its own copy (ADR-1017 D2), with the code survey's shape taken from the library, where it is defined (D1).
  */
 export interface StoryPageBridge {
@@ -25,6 +25,12 @@ export interface StoryPageBridge {
   codeSurvey(project: string): Promise<Readonly<Record<string, StorySurvey>>>;
   /** Lag in real use's: the page's readings of how long it took to answer. */
   recordLag(readings: readonly object[]): Promise<void>;
+  /** Surface feedback's: whether the corner is offered here, and the surfaces a note may name. */
+  feedbackSetup(): Promise<{ offered: boolean; surfaces: readonly { id: string; name: string; story: string }[] }>;
+  /** Surface feedback's: a picture of the window, kept in the main process, named by the token returned. */
+  captureForFeedback(): Promise<string | undefined>;
+  /** Surface feedback's: the note written, with the picture its token names. */
+  sendFeedback(note: { text: string; surface: string; selection?: string; project?: string; window: { width: number; height: number }; theme: "light" | "dark" }, screenshot?: string): Promise<{ id: string }>;
 }
 
 export interface StorytreeBridge
@@ -62,7 +68,7 @@ export function createBridge(
     ...pageMethods<Omit<SetupHelpBridge, "feedbackIdentity">>(SETUP_HELP_CHANNELS, invoke),
     ...pageMethods<PageReadsBridge>(PAGE_READS_CHANNELS, invoke),
     // The stories whose manifests name their page channels (ADR-1030); the page's type above still names them for the renderer.
-    ...(Object.assign({}, ...PAGE_CHANNELS.parts.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey"> & SettingsBridge),
+    ...(Object.assign({}, ...PAGE_CHANNELS.parts.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey" | "feedbackSetup" | "captureForFeedback" | "sendFeedback"> & SettingsBridge),
     // A factory plugin standing in for a switched-off part: its channels, which the main process answers, read from the factory as it started.
     ...Object.assign({}, ...(options.standIns?.channels ?? []).map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))),
     pluginViews: options.standIns?.views ?? [],

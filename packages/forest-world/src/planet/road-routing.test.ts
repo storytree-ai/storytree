@@ -5,7 +5,8 @@ import { routeTrails, type TrailNetwork } from '../core/routing.js';
 import { planetPathwayDrawing, type CrossRouting } from './pathways.js';
 import { drawnAtOnce, routedDrawing, routeInWorker, type RoadRouter, type RoadWorker } from './road-routing.js';
 import { answerRouting } from './road-worker.js';
-import { nextLiveRoads } from './live-roads.js';
+import { roadSegmentWindows } from './growth.js';
+import { liveRoadProgress, liveRoadsGrowing, nextLiveRoads } from './live-roads.js';
 
 const R = 218;
 const island = (story: string, capabilities: string[]): Island => ({
@@ -145,4 +146,31 @@ test('4.21 while a moved layout\'s roads are routed, a live globe forgets no roa
   const after = nextLiveRoads(waiting, (await routing)!.plan, 5);
   assert.equal(after.get('b1->a1'), arrived.get('b1->a1'), 'the road drawn before keeps its arrival');
   assert.equal(after.get('b2->a2')?.start, 5, 'only the added road arrives now');
+});
+
+test('4.21 a road whose spans an earlier road already drew whole is kept while a moved layout is routed, so it is not drawn on again', async () => {
+  // Two links between the same islands share one span: the later arrival is drawn whole by the earlier one's window
+  // while its own time still runs. Forgetting it there regrew its spans from nothing once routed (3.35 on macOS CI, run 39945705905).
+  const one: ForestScene = { ...scene, links: [{ from: 'b1', to: 'a1' }] };
+  const { router, asked } = heldRouter();
+  const routedOne = routedDrawing(one, layout(0.81), R, drawnAtOnce(one, layout(0.81), R).routing!, router, new AbortController().signal);
+  asked[0]!.answer();
+  const routedBoth = routedDrawing(scene, layout(0.81), R, drawnAtOnce(scene, layout(0.81), R).routing!, router, new AbortController().signal);
+  asked[1]!.answer();
+  const drawn = (await routedBoth)!;
+  assert.deepEqual(drawn.plan.segments.map(segment => segment.links.length), [2], 'both roads run on one shared span');
+  const first = nextLiveRoads(new Map(), (await routedOne)!.plan, 0);
+  const book = nextLiveRoads(first, drawn.plan, 0.2);
+  const later = book.get('b2->a2')!, now = first.get('b1->a1')!.seconds + 0.01;
+  assert.ok(now < later.start + later.seconds, 'the later road\'s own time still runs');
+  assert.equal(liveRoadProgress(roadSegmentWindows(drawn.plan, book).get(drawn.plan.segments[0]!.id), now, false), 1, 'its one span is drawn whole');
+  const moved = drawnAtOnce(scene, layout(0.83), R, { spots: layout(0.81), radius: R, drawing: drawn });
+  const waiting = nextLiveRoads(book, moved.drawing.plan, now, true, drawn.plan);
+  assert.deepEqual([...waiting.keys()].sort(), ['b1->a1', 'b2->a2'], 'no road drawn whole is forgotten');
+  const routing = routedDrawing(scene, layout(0.83), R, moved.routing!, router, new AbortController().signal);
+  asked[2]!.answer();
+  const rerouted = (await routing)!.plan, after = nextLiveRoads(waiting, rerouted, now);
+  const windows = roadSegmentWindows(rerouted, after);
+  for (const segment of rerouted.segments) assert.equal(liveRoadProgress(windows.get(segment.id), now, false), 1, 'every rerouted span is drawn whole');
+  assert.equal(liveRoadsGrowing(after, now, false), false);
 });

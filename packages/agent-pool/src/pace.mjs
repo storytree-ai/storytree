@@ -1,70 +1,42 @@
-// Capability 3 · The dispatcher's pace (ADR-1056 D3): it reads the rate-limit windows the lanes' Claude Code mod reports,
-// and slows or pauses dispatch while the lanes near a limit, resuming when the window resets. Lanes without readings dispatch as before.
-import { readdir, readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+// Capability 3 · The dispatcher's pace (ADR-1139, which replaces ADR-1056 D3's rate-limit pacing): a new lane is held back only
+// while the box itself is saturated, so one more lane would slow every lane. Claude's and Codex's usage never hold it back.
+import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { availableParallelism } from "node:os";
+import { promisify } from "node:util";
 
-import { pickEngine, readLatestAllowance } from "./engine.mjs";
-import { withLibrary } from "./feed.mjs";
+const run = promisify(execFile);
 
-const iso = (ms) => new Date(ms).toISOString().replace(/:\d{2}\.\d{3}Z$/, "Z");
+/** Really maxed, not merely busy: a run queue half again the cores, 5% of memory or less free, a GPU 95% busy or full. */
+export const SATURATED = { loadPerCore: 1.5, memoryFree: 0.05, gpu: 0.95 };
 
 /**
- * The pace the lanes' readings call for (each a session's latest reported `usage` and `failed` turn, context.ts's reportedUsageOf):
- * the latest reading of each rate-limit window, a failed turn that names a window putting it at 100% from then; a window
- * whose reset has passed, or with no reset that has gone unread for `staleMs`, no longer counts. Any window at `pauseAt`
- * or more pauses dispatch until the last of those resets; at `slowAt` or more it slows; otherwise, and with no readings, undefined.
+ * The hold a box reading calls for: a pause naming each saturated part with its reading, else undefined. A part not read
+ * (no /proc, no working nvidia-smi) holds nothing back. `reading`: { cores, load5, memTotal, memAvailable, gpus: [{ util, memUsed, memTotal }] }.
  */
-export function paceOf(readings, { now, slowAt = 80, pauseAt = 95, staleMs = 60 * 60_000 }) {
-  const windows = new Map();
-  for (const { usage } of readings) {
-    if (!usage) continue;
-    const at = Date.parse(usage.at);
-    for (const limit of usage.rateLimits) if (!(windows.get(limit.kind)?.at >= at)) windows.set(limit.kind, { ...limit, at });
+export function saturationOf(reading, limits = SATURATED) {
+  const full = [];
+  const { cores, load5, memTotal, memAvailable, gpus = [] } = reading;
+  if (cores && Number.isFinite(load5) && load5 / cores >= limits.loadPerCore) full.push(["cpu", `CPU load ${load5.toFixed(1)} on ${cores} cores`]);
+  if (memTotal && Number.isFinite(memAvailable) && memAvailable / memTotal <= limits.memoryFree) {
+    full.push(["memory", `memory ${Math.round(100 * (1 - memAvailable / memTotal))}% used`]);
   }
-  for (const { failed } of readings) {
-    const at = Date.parse(failed?.at);
-    for (const kind of failed?.limits ?? []) {
-      const seen = windows.get(kind);
-      if (seen?.at >= at) continue;
-      const resetsAt = seen?.resetsAt && Date.parse(seen.resetsAt) > at ? seen.resetsAt : undefined;
-      windows.set(kind, { kind, percentUsed: 100, ...(resetsAt ? { resetsAt } : {}), at });
+  gpus.forEach(({ util, memUsed, memTotal: gpuTotal }, i) => {
+    if (util >= 100 * limits.gpu || (gpuTotal && memUsed / gpuTotal >= limits.gpu)) {
+      full.push([`gpu${i}`, `GPU ${i} ${util}% busy, memory ${Math.round(100 * memUsed / gpuTotal)}% used`]);
     }
-  }
-  const live = [...windows.values()].filter((one) => (one.resetsAt ? Date.parse(one.resetsAt) > now : now - one.at < staleMs));
-  const said = (some) => some.map((one) => `${one.kind} ${Math.round(one.percentUsed)}% used${one.resetsAt ? ` (resets ${iso(Date.parse(one.resetsAt))})` : ""}`).join(", ");
-  const full = live.filter((one) => one.percentUsed >= pauseAt);
-  if (full.length) {
-    const resets = full.map((one) => Date.parse(one.resetsAt)).filter(Number.isFinite);
-    const until = resets.length === full.length ? Math.max(...resets) : undefined;
-    return { hold: "pause", windows: full.map((one) => one.kind), ...(until ? { until } : {}),
-      reason: `Claude's ${said(full)}: no new lane ${until ? `until ${iso(until)}` : "until a fresh reading is lower"}` };
-  }
-  const near = live.filter((one) => one.percentUsed >= slowAt);
-  if (near.length) return { hold: "slow", windows: near.map((one) => one.kind), reason: `Claude's ${said(near)}: half the cap` };
-  return undefined;
+  });
+  if (!full.length) return undefined;
+  return { hold: "pause", windows: full.map(([kind]) => kind), reason: `box saturated: ${full.map(([, said]) => said).join(", ")}` };
 }
 
-/** The session ids the lanes' mod wrote beside their logs (runner.mjs's `<log>.session`), the `newest` most recently written. */
-export async function laneSessions(lanesDir, { newest = 8 } = {}) {
-  const names = (await readdir(lanesDir).catch(() => [])).filter((name) => name.endsWith(".session"));
-  const dated = await Promise.all(names.map(async (name) => ({ name, at: (await stat(join(lanesDir, name)).catch(() => undefined))?.mtimeMs ?? 0 })));
-  const ids = await Promise.all(dated.sort((a, b) => b.at - a.at).slice(0, newest).map(async ({ name }) => (await readFile(join(lanesDir, name), "utf8").catch(() => "")).trim()));
-  return [...new Set(ids.filter(Boolean))];
-}
+const nvidiaSmi = async () => (await run("nvidia-smi", ["--query-gpu=utilization.gpu,memory.used,memory.total", "--format=csv,noheader,nounits"], { timeout: 10_000 })).stdout;
 
-/** Each of `sessions`' latest reported usage and failed turn, from the shared library. */
-async function libraryUsage(sessions, project) {
-  const { openActivityLog, reportedUsageOf } = await import("@storytree/session-management");
-  return withLibrary(project, async (_library, storytree) => reportedUsageOf(await openActivityLog(storytree), project, sessions));
-}
-
-/**
- * The dispatcher's pace now: paceOf over the newest lanes' readings while the next lane would run Claude Code; a Codex lane
- * spends Codex's allowance, which the lane runner guards, so it is never held back by Claude's windows.
- */
-export async function readLanePace({ lanesDir, sessionsDir, stopAt, now = Date.now, project = "storytree", usageOf = libraryUsage,
-  nextEngine = async () => pickEngine({ lanesDir, reading: await readLatestAllowance(sessionsDir), now: now() / 1000, stopAt }) }) {
-  const sessions = await laneSessions(lanesDir);
-  if (!sessions.length || (await nextEngine()).engine !== "claude") return undefined;
-  return paceOf([...(await usageOf(sessions, project)).values()], { now: now() });
+/** The box's saturation now, read from /proc/loadavg, /proc/meminfo and nvidia-smi; each source that fails is left unread. */
+export async function readBoxPace({ cores = availableParallelism(), readText = (path) => readFile(path, "utf8"), nvidia = nvidiaSmi } = {}) {
+  const [load, memory, gpu] = await Promise.all([readText("/proc/loadavg"), readText("/proc/meminfo"), nvidia()].map((p) => p.catch(() => "")));
+  const kB = (name) => Number(memory.match(new RegExp(`^${name}:\\s+(\\d+)`, "m"))?.[1]);
+  const gpus = gpu.split("\n").map((line) => line.split(",").map(Number)).filter((parts) => parts.length === 3 && parts.every(Number.isFinite))
+    .map(([util, memUsed, memTotal]) => ({ util, memUsed, memTotal }));
+  return saturationOf({ cores, load5: Number(load.split(/\s+/)[1]), memTotal: kB("MemTotal"), memAvailable: kB("MemAvailable"), gpus });
 }

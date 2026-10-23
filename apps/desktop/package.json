@@ -6,6 +6,7 @@
   "type": "module",
   "main": "dist/main.cjs",
   "imports": {
+    "#parts/namedSurfaces": "./src/main/parts/named-surfaces.ts",
     "#parts/pageAnswers": "./src/main/parts/page-answers.ts",
     "#parts/pageChannels": "./src/parts/page-channels.ts",
     "#parts/surfaces": "./src/main/parts/surfaces.ts"
@@ -42,7 +43,8 @@
     "playwright-core": "1.60.0",
     "typescript": "~7.0.2",
     "@storytree/plugin-loader": "workspace:*",
-    "@storytree/project-and-caller": "workspace:*"
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/surface-feedback": "workspace:*"
   },
   "optionalDependencies": {
     "@embedded-postgres/darwin-arm64": "17.10.0-beta.17",

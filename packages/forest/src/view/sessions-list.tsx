@@ -561,7 +561,8 @@ export function SessionsList({ rows, loading = false, refreshing = false, error,
         onClick={event => { event.stopPropagation(); onToggleFull(); }}>{stripFull ? "Restore" : "Expand"}</button>}
       <span className="sessions-caret" aria-hidden="true">{stripOpen ? "▾" : "▴"}</span>
     </header>
-    <div id="sessions-body" className="sessions-body" hidden={!stripOpen}>
+    {/* Expanded to fill the pane, the list is a canvas of its own (Surface feedback names it); open at its usual height, it is a strip under the globe. */}
+    <div id="sessions-body" className="sessions-body" hidden={!stripOpen} data-surface-id={stripOpen && stripFull ? "sessions" : undefined} data-surface-layer="panel">
     {tab === "history" ? <HistoryBody rows={history} range={range} onRange={onRange ?? setOwnRange} now={now} selected={selected}
       onSelect={session => onSelect?.(historySelection(session, selected))} search={search} onSearch={onSearch}
       idle={idleShown.map(entry => sessionItem(entry, entry.depth === 0 ? IDLE_LEAD : undefined))} /> : <>

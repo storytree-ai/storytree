@@ -158,7 +158,10 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
-          name: windows-test-evidence-${{ steps.evidence.outputs.attempt }}
+          # One artifact per Windows test shard; each unit's evidence is its own `unit-*` folder,
+          # so both merge into one without colliding.
+          pattern: windows-test-evidence-${{ steps.evidence.outputs.attempt }}-shard-*
+          merge-multiple: true
           path: .pgtest/windows-evidence
           run-id: ${{ steps.evidence.outputs.run-id }}
           github-token: ${{ github.token }}

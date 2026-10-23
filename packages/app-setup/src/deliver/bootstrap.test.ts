@@ -10,18 +10,20 @@ import { test } from "node:test";
 test("1.10 release delivery assets publish a stable command, an explicit development command and a channel-aware installer manifest", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-delivery-assets-"));
   try {
-    const bytes = Buffer.from("the already-built installer");
-    writeFileSync(path.join(dir, "storytree-0.3-0.3.123-setup.exe"), bytes);
+    const built = { x64: Buffer.from("the x64 installer"), arm64: Buffer.from("the arm64 installer, longer") };
+    for (const [arch, bytes] of Object.entries(built)) writeFileSync(path.join(dir, `storytree-0.3-0.3.123-windows-${arch}-setup.exe`), bytes);
     const { deliveryAssets } = await import(new URL("../../../../apps/desktop/delivery-assets.mjs", import.meta.url).href);
     deliveryAssets(dir, "0.3.123");
     const manifest = JSON.parse(readFileSync(path.join(dir, "storytree-delivery.json"), "utf8"));
     assert.equal(manifest.channelSchema, 1);
-    assert.deepEqual(manifest.installer, {
-      name: "storytree-0.3-0.3.123-setup.exe",
+    assert.deepEqual(manifest.architectures, ["x64", "arm64"]);
+    // Each architecture's own installer, so a machine downloads only the app it runs.
+    assert.deepEqual(manifest.installers, Object.fromEntries(Object.entries(built).map(([arch, bytes]) => [arch, {
+      name: `storytree-0.3-0.3.123-windows-${arch}-setup.exe`,
       sha256: createHash("sha256").update(bytes).digest("hex"),
       sha512: createHash("sha512").update(bytes).digest("base64"),
       size: bytes.length,
-    });
+    }])));
     assert.match(readFileSync(path.join(dir, "install-storytree.txt"), "utf8"), /raw\.githubusercontent\.com\/storytree-ai\/storytree\/release-channel-stable\/install-storytree\.ps1/);
     assert.match(readFileSync(path.join(dir, "install-storytree-development.txt"), "utf8"), /releases\/latest\/download\/install-storytree\.ps1.*-Channel development/);
   } finally { rmSync(dir, { recursive: true, force: true }); }

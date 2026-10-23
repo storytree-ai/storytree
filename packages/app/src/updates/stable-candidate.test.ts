@@ -57,6 +57,10 @@ test("4.23 GitHub's release says which platforms it carries, and a release run p
   const asset = (name: string) => ({ name, browser_download_url: "", id: 1, size: 1 });
   assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.5-setup.exe", "storytree-0.3-0.3.5-linux-x86_64.AppImage", "latest-linux.yml", "latest.yml"].map(asset) }), ["windows", "linux"]);
   assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.4-setup.exe", "storytree-0.3-0.3.5-mac-arm64.zip", "latest-mac.yml"].map(asset) }), ["mac"]);
+  // Windows' build is its two installers, one per architecture; one alone is not a build.
+  const split = (...arches: string[]) => arches.map(arch => `storytree-0.3-0.3.5-windows-${arch}-setup.exe`);
+  assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: [...split("x64", "arm64"), "latest.yml"].map(asset) }), ["windows"]);
+  assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: [...split("x64"), "latest.yml"].map(asset) }), []);
   // A feed carried from an earlier build (4.6) is not this release's build of its platform.
   assert.deepEqual(releasePlatforms({ tag_name: "v0.3.5", assets: ["storytree-0.3-0.3.5-setup.exe", "latest.yml", "latest-mac.yml", "latest-linux.yml"].map(asset) }), ["windows"]);
   const run = (id: number, publish: string, acceptance: string | null) => ({ id, jobs: [{ name: "source", conclusion: "success" }, { name: "publish", conclusion: publish }, { name: "mac-acceptance / run", conclusion: acceptance }] });

@@ -6,7 +6,8 @@ From Windows PowerShell (5.1+) or PowerShell 7:
 & ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))
 ```
 
-The command downloads the existing combined x64/arm64 NSIS installer, checks its release
+The command detects the machine's architecture and downloads only that architecture's NSIS
+installer (`storytree-0.3-<version>-windows-x64-setup.exe` or `-windows-arm64-setup.exe`), checks its release
 checksum, and installs the app plus its own Node 24 runtime and complete agent-tool bundle.
 No npm, source checkout or global Node installation is needed. Once the script is loaded, a
 verified installation is reused without querying the feed or downloading an installer; the
@@ -24,8 +25,8 @@ not an updater. An already installed and signed-in agent is still required; Help
 guide explains connection, project consent and the received-hook check.
 
 `pnpm desktop:dist` bundles and packages the app locally, without publishing, even when a GitHub
-token is present. It produces a combined x64/arm64 NSIS installer, its update metadata and
-blockmap, plus the existing arm64 portable executable and unpacked app. NSIS installs per user.
+token is present. It produces an NSIS installer and blockmap for each of x64 and arm64, one update feed
+(`latest.yml`) naming both, from which each installed app's updater takes its own architecture's, plus the existing arm64 portable executable and unpacked app. NSIS installs per user.
 The ARM64 archive uses the BCJ filter because NSIS's bundled extractor cannot decode the newer
 ARM64 filter. Keep this workaround for both targets. Packaging builds the `storytree` command's
 launcher program for each target with LLVM (clang, lld-link, llvm-dlltool; ADR-0854), which the
@@ -47,7 +48,7 @@ not trigger a push workflow. It selects a merged commit, checks that it is still
 verifies that exact commit on Linux, macOS and Windows before packaging. Release versions use
 the desktop's major/minor and main's first-parent commit count as the patch number. Only the
 workflow creates release tags. A rerun skips published versions and can finish an interrupted
-draft; an older run cannot replace a newer release. The installer, blockmap and `latest.yml`
+draft; an older run cannot replace a newer release. The installers, blockmaps and `latest.yml`
 and the delivery script, one-liner and checksum manifest are uploaded before the draft is published. Changing the release numbering or major/minor is
 a deliberate release change, not a hand-edited patch bump.
 

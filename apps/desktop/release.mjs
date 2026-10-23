@@ -137,8 +137,8 @@ function publication(tag, version, names, dir) {
       writeFileSync(path.join(dir, PLATFORM_FEED[platform]), feed);
       uploads.push(PLATFORM_FEED[platform]);
     }
-    if (absent.includes("windows")) { windowsBootstraps(dir); uploads.push("install-storytree.ps1", "install-storytree.txt", "install-storytree-development.txt"); }
-    if (absent.includes("mac")) { macBootstraps(dir); uploads.push("install-storytree.sh", "install-storytree-mac.txt", "install-storytree-mac-development.txt"); }
+    if (absent.includes("windows")) { windowsBootstraps(dir); uploads.push("install-storytree.ps1", "install-storytree.txt", "install-storytree-alpha.txt"); }
+    if (absent.includes("mac")) { macBootstraps(dir); uploads.push("install-storytree.sh", "install-storytree-mac.txt", "install-storytree-mac-alpha.txt"); }
   }
   const manifest = releaseDelivery(version, mine, earlier);
   writeFileSync(path.join(dir, "storytree-delivery.json"), JSON.stringify(manifest, null, 2) + "\n");
@@ -189,12 +189,12 @@ function notes(command, macCommand, sha) {
     "",
     "It installs the app and opens it; Help → First-run guide in the app connects your agent.",
     "",
-    `Windows x64 and arm64 installer, built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
+    `Windows installers, one per architecture (\`windows-x64-setup.exe\` for most PCs, \`windows-arm64-setup.exe\` for ARM PCs such as Snapdragon laptops; the one-liner picks for you), built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
     "",
     // The draft is written before the Mac build, so the workflow says whether its certificate is set; the Mac upload
     // replaces this with Apple's answer.
     macReleaseNote(process.env.STORYTREE_MAC_SIGNED === "true" ? "pending" : "ad-hoc"),
     "",
-    "Development installations follow every published build. To install development explicitly, use the command in install-storytree-development.txt (Windows) or install-storytree-mac-development.txt (Mac and Linux). Existing installations retain their channel.",
+    "Alpha installations follow every published build. To install alpha explicitly, use the command in install-storytree-alpha.txt (Windows) or install-storytree-mac-alpha.txt (Mac and Linux). Existing installations retain their channel.",
   ].join("\n");
 }

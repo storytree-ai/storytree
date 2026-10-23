@@ -41,7 +41,8 @@ export interface PinCandidate {
   channelSchema: number;
   draft: boolean;
   prerelease: boolean;
-  installer: { url: string; sha256: string; sha512: string; size: number };
+  /** Windows' installers: one per architecture (windowsInstallers), or the one for both of a build from before the split. */
+  installers: { url: string; sha256: string; sha512: string; size: number }[];
   /** The release's one-line installers: Windows' always, the Mac's once releases publish it. */
   bootstrap: Bootstraps;
   /** Each platform feed the release itself published. */
@@ -76,7 +77,7 @@ export function readStableManifest(value: unknown): StableManifest {
   if (!manifest || manifest.schema !== 1 || manifest.channel !== "stable" || typeof manifest.version !== "string" ||
       !manifest.pin || !/^[a-f0-9]{40}$/.test(manifest.pin.commit) || !Array.isArray(manifest.pin.includedIncrements) ||
       !manifest.pin.includedIncrements.every(id => typeof id === "string") || !Array.isArray(manifest.pin.increments) ||
-      !Array.isArray(manifest.files) || manifest.files.length !== 1 || typeof manifest.releaseNotes !== "string" ||
+      !Array.isArray(manifest.files) || manifest.files.length < 1 || manifest.files.length > 2 || typeof manifest.releaseNotes !== "string" ||
       (manifest.feeds !== undefined && (typeof manifest.feeds !== "object" || manifest.feeds === null))) throw new Error("The stable pin is unreadable; refusing to replace it");
   buildNumber(manifest.version);
   for (const [p, feed] of Object.entries(manifest.feeds ?? {})) {
@@ -87,6 +88,14 @@ export function readStableManifest(value: unknown): StableManifest {
 }
 
 const RELEASES = "https://github.com/storytree-ai/storytree/releases/download";
+
+/**
+ * The Windows installer names a release of `version` publishes: one per architecture, which an installed app's updater
+ * tells apart by its architecture in the name, or, for a build from before they were split, one carrying both.
+ */
+export function windowsInstallers(version: string, combined = false): string[] {
+  return combined ? [`storytree-0.3-${version}-setup.exe`] : ["x64", "arm64"].map(arch => `storytree-0.3-${version}-windows-${arch}-setup.exe`);
+}
 
 function checkFeed(platform: FeedPlatform, feed: PlatformFeed, version: string): void {
   const { name, build } = FEED_PLATFORMS[platform];
@@ -149,12 +158,12 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
     }
   }
   const candidate = await ports.candidate(version);
-  const installer = candidate.installer;
-  const expectedUrl = `https://github.com/storytree-ai/storytree/releases/download/v${version}/storytree-0.3-${version}-setup.exe`;
+  const installers = candidate.installers;
+  const urls = installers.map(i => i.url).join(" ");
+  const own = [false, true].some(combined => windowsInstallers(version, combined).map(name => `${RELEASES}/v${version}/${name}`).join(" ") === urls);
   if (candidate.version !== version || candidate.draft || candidate.prerelease || candidate.channelSchema !== 1 ||
-      !/^[a-f0-9]{40}$/.test(candidate.commit) || !candidate.bootstrap.ps1 || installer.url !== expectedUrl ||
-      !/^[a-f0-9]{64}$/i.test(installer.sha256) || !/^[A-Za-z0-9+/]{86}==$/.test(installer.sha512) ||
-      !Number.isSafeInteger(installer.size) || installer.size < 1) {
+      !/^[a-f0-9]{40}$/.test(candidate.commit) || !candidate.bootstrap.ps1 || !own || !installers.every(installer =>
+        /^[a-f0-9]{64}$/i.test(installer.sha256) && /^[A-Za-z0-9+/]{86}==$/.test(installer.sha512) && Number.isSafeInteger(installer.size) && installer.size >= 1)) {
     throw new Error("The release is incomplete or does not support stable installation channels; pin a complete channel-aware release");
   }
   const platforms = (Object.keys(FEED_PLATFORMS) as FeedPlatform[]).filter(p => candidate.feeds[p] !== undefined);
@@ -183,7 +192,7 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
   }
   const manifest: StableManifest = {
     schema: 1, channel: "stable", version,
-    files: [{ url: installer.url, sha512: installer.sha512, size: installer.size }], releaseNotes, feeds,
+    files: installers.map(({ url, sha512, size }) => ({ url, sha512, size })), releaseNotes, feeds,
     pin: { commit: candidate.commit, at: ports.now(), ...(previous ? { previous: previous.manifest.version } : {}), ...(expedited ? { expedited } : {}), covers: ["windows", ...platforms],
       increments, includedIncrements: [...included] },
   };

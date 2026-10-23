@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -31,7 +31,7 @@ for (const story of seed.tree.stories) for (const capability of story.capabiliti
   if (PARKED[capability.id]) capability.parkedOn = [{ arc: `arc-${PARKED[capability.id]}`, title: PARKED[capability.id] }];
 }
 phase('launch browser');
-await withCapture({ folder: here, dist: path.join(here, 'dist', ...(smoke ? ['smoke'] : [])) }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: buildFolder(here, ...(smoke ? ['smoke'] : [])) }, async ({ browser, origin, out, settle }) => {
 phase('browser ready');
 const settleView = page => settle(page, smoke ? 2 : 12);
 const picture = (page, name) => smoke ? undefined : page.screenshot({ path: path.join(out, name), timeout: 180000 });

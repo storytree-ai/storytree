@@ -1,0 +1,9 @@
+0.3.1691 started by the harness at 2026-10-22T05:21:04Z with STORYTREE_HOME set to the run's home (--background)
+2026-10-22T05:13:06.496Z downloaded; waiting for a quiet moment (no seed writing, no one using the window or an agent working) or the user's say-so
+2026-10-22T05:16:06.537Z Install: isSilent: true, isForceRunAfter: true
+2026-10-22T05:21:08.085Z Following the development release channel
+2026-10-22T05:21:08.085Z Checking for update
+2026-10-22T05:21:10.288Z Update for version 0.3.1691 is not available (latest version: 0.3.1691, downgrade is disallowed).
+{"at":"2026-10-22T05:21:22.638Z","agentActiveAt":"2026-10-22T04:44:01.225Z","seedWriting":false}
+
+[exited with code 0]

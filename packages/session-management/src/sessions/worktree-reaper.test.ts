@@ -4,17 +4,20 @@
  * Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
 import { connect } from "@storytree/library";
+import { start } from "@storytree/local-postgres";
 
 import { openActivityLog } from "../activity/index.js";
 import { claim, release } from "../claims/index.js";
 import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions, reapWorktrees } from "./index.js";
+import { EMPTY_TRASH } from "./worktree-reaper.js";
 
 test("4.12, 4.18 a new admitted claim reopens a closed-out session and keeps its fresh worktree before any edit; a later close-out permits reaping", async () => {
   const storytree = await connect({ url: testServerUrl() });
@@ -132,4 +135,157 @@ test("4.18 a clean worktree whose head is in main, and whose sessions have all c
   } finally {
     await log.close();
   }
+});
+
+test("4.18 a merged worktree is compared with origin/main when the clone has no origin/HEAD and its local main is behind", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      git(repo, "commit", "-q", "--allow-empty", "-m", "first");
+      git(dir, "init", "-q", "--bare", "-b", "main", path.join(dir, "origin.git"));
+      git(repo, "remote", "add", "origin", path.join(dir, "origin.git"));
+      git(repo, "push", "-q", "origin", "main");
+      const folder = path.join(repo, ".claude", "worktrees", "landed");
+      git(repo, "worktree", "add", "-q", "-b", "claude/landed", folder, "main");
+      git(folder, "commit", "-q", "--allow-empty", "-m", "work");
+      git(folder, "push", "-q", "origin", "HEAD:main");
+      assert.throws(() => git(repo, "rev-parse", "--abbrev-ref", "origin/HEAD"), "no origin/HEAD in this clone");
+
+      const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
+      await log.append(project, { ...here, session: "s-landed", folder, branch: "claude/landed", kind: "file-edited", files: ["x.ts"] });
+      await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: "claude/landed", open: false, how: "not-ahead" });
+      await log.append(project, { ...here, session: "s-landed", folder, branch: "claude/landed", kind: "closed-out", safe: true, why: "merged", running: 0 });
+      const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+      assert.deepEqual(await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch), [folder]);
+      assert.equal(existsSync(folder), false);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/data has that server stopped and the folder removed", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, ".gitignore"), ".pgtest/\n");
+      git(repo, "add", ".gitignore");
+      git(repo, "commit", "-q", "-m", "first");
+      const folder = path.join(repo, ".claude", "worktrees", "tested");
+      git(repo, "worktree", "add", "-q", "-b", "claude/tested", folder, "main");
+      // A run whose harness was killed outright leaves its server running, never stopped.
+      const server = await start({ dataDir: path.join(folder, ".pgtest", "data"), serverLog: path.join(dir, "pg.log"), toolLog: path.join(dir, "tools.log") });
+      try {
+        const pid = Number(readFileSync(path.join(server.dataDir, "postmaster.pid"), "utf8").split("\n")[0]);
+        const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
+        await log.append(project, { ...here, session: "s-tested", folder, branch: "claude/tested", kind: "file-edited", files: ["x.ts"] });
+        await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: "claude/tested", open: false, how: "not-ahead" });
+        await log.append(project, { ...here, session: "s-tested", folder, branch: "claude/tested", kind: "closed-out", safe: true, why: "merged", running: 0 });
+        const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+        assert.deepEqual(await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch), [folder]);
+        assert.equal(existsSync(folder), false);
+        assert.throws(() => process.kill(pid, 0), "the server is stopped");
+      } finally {
+        await server.stop();
+      }
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.37 a worktree whose folder cannot be renamed for a moment after its test Postgres stops, as Windows releases a killed server's handles late, is still removed", { skip: process.platform === "win32" && "platform:posix: a read-only parent folder does not stop a rename on Windows" }, async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, ".gitignore"), ".pgtest/\n");
+      git(repo, "add", ".gitignore");
+      git(repo, "commit", "-q", "-m", "first");
+      const trees = path.join(repo, ".claude", "worktrees");
+      const folder = path.join(trees, "released-late");
+      git(repo, "worktree", "add", "-q", "-b", "claude/released-late", folder, "main");
+      const server = await start({ dataDir: path.join(folder, ".pgtest", "data"), serverLog: path.join(dir, "pg.log"), toolLog: path.join(dir, "tools.log") });
+      // Held as a killed server's handles hold it: no rename until a moment after the server stops.
+      chmodSync(trees, 0o555);
+      let release: NodeJS.Timeout | undefined;
+      try {
+        const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
+        await log.append(project, { ...here, session: "s-late", folder, branch: "claude/released-late", kind: "file-edited", files: ["x.ts"] });
+        await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: "claude/released-late", open: false, how: "not-ahead" });
+        await log.append(project, { ...here, session: "s-late", folder, branch: "claude/released-late", kind: "closed-out", safe: true, why: "merged", running: 0 });
+        const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+        release = setTimeout(() => chmodSync(trees, 0o755), 400);
+        assert.deepEqual(await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch), [folder]);
+        assert.equal(existsSync(folder), false);
+      } finally {
+        clearTimeout(release);
+        chmodSync(trees, 0o755);
+        await server.stop();
+      }
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.36 a folder under .claude/worktrees that git no longer lists goes once idle if git has all its content, its links removed and never followed; one holding content git lacks, one a live process works in, or one a session wrote in lately stays", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  await withTempDir(async (dir) => {
+    const repo = path.join(dir, "site");
+    git(dir, "init", "-q", "-b", "main", repo);
+    writeFileSync(path.join(repo, "a.txt"), "a\n");
+    writeFileSync(path.join(repo, ".gitignore"), "node_modules/\n.claude/\n");
+    git(repo, "add", "a.txt", ".gitignore");
+    git(repo, "commit", "-q", "-m", "first");
+    const trees = path.join(repo, ".claude", "worktrees");
+    // A removal that failed on long paths: git no longer lists it, and its checkout is still there.
+    const orphan = path.join(trees, "orphan");
+    git(repo, "worktree", "add", "-q", "-b", "claude/orphan", orphan, "main");
+    rmSync(path.join(orphan, ".git"));
+    git(repo, "worktree", "prune");
+    const store = path.join(dir, "store", "pkg");
+    mkdirSync(store, { recursive: true });
+    writeFileSync(path.join(store, "index.js"), "kept\n");
+    mkdirSync(path.join(orphan, "node_modules"));
+    writeFileSync(path.join(orphan, "node_modules", "built.js"), "generated\n");
+    symlinkSync(store, path.join(orphan, "node_modules", "pkg"), "junction");
+    const folder = (name: string, files: Record<string, string>) => {
+      mkdirSync(path.join(trees, name), { recursive: true });
+      for (const [file, text] of Object.entries(files)) writeFileSync(path.join(trees, name, file), text);
+      return path.join(trees, name);
+    };
+    const empty = folder("empty", {});
+    const unique = folder("unique", { "a.txt": "a\n", "notes.txt": "only here\n" });
+    const used = folder("used", { "a.txt": "a\n" });
+    const recent = folder("recent", { "a.txt": "a\n" });
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60_000);
+    for (const one of [orphan, empty, unique, used, recent]) utimesSync(one, twoDaysAgo, twoDaysAgo);
+    await log.append(project, { harness: "claude-code", source: "hook", machine: "here", session: "s-recent", folder: recent, branch: "main", kind: "file-edited", files: ["a.txt"] });
+    const user = spawn(process.execPath, ["-e", "console.log('ready'); setInterval(() => {}, 1000)"], { cwd: used, stdio: ["ignore", "pipe", "ignore"] });
+    try {
+      await new Promise((resolve) => user.stdout.once("data", resolve));
+      // The trash is emptied by the script the detached process runs, here in the foreground.
+      const emptyNow = (trash: string) => execFileSync(process.execPath, ["-e", EMPTY_TRASH, trash]);
+      const reaped = await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, { everyMs: 0, budgetMs: 60_000, protect: [], empty: emptyNow });
+      assert.deepEqual([...reaped].sort(), [empty, orphan].sort());
+      for (const gone of [empty, orphan]) assert.equal(existsSync(gone), false, `${gone} is deleted`);
+      for (const kept of [unique, used, recent]) assert.equal(existsSync(kept), true, `${kept} stays`);
+      assert.equal(existsSync(path.join(repo, ".git", "storytree-reaped")), false, "the trash is emptied, the link with it");
+      assert.equal(existsSync(path.join(store, "index.js")), true, "the link's target is untouched");
+    } finally {
+      user.kill();
+      await new Promise((resolve) => (user.exitCode === null && user.signalCode === null ? user.once("exit", resolve) : resolve(undefined)));
+      await log.close();
+    }
+  });
 });

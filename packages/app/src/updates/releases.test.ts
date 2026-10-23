@@ -48,16 +48,16 @@ const electron: { autoUpdater?: Squirrel } = {};
   require.cache[id] = { id, filename: id, loaded: true, exports: electron } as NodeJS.Module;
 }
 
-test("4.15 stable downloads only the pinned artifact while development continues to advance; no stable feed never falls back", async (t) => {
+test("4.15 stable downloads only the pinned artifact while alpha continues to advance; no stable feed never falls back", async (t) => {
   const feed = await fixture(t);
   feed.version = "0.3.9";
   feed.stable = "0.3.2";
   const stable = feed.updater(async () => {}, async () => false, async () => false, "stable");
-  const development = feed.updater(async () => {}, async () => false, async () => false, "development");
+  const alpha = feed.updater(async () => {}, async () => false, async () => false, "alpha");
   assert.equal(await stable.check(), "waiting");
   assert.equal(stable.request("status").nextBuild, "0.3.2");
-  assert.equal(await development.check(), "waiting");
-  assert.equal(development.request("status").nextBuild, "0.3.9");
+  assert.equal(await alpha.check(), "waiting");
+  assert.equal(alpha.request("status").nextBuild, "0.3.9");
   feed.stable = undefined;
   let installed = 0;
   const unpinned = feed.updater(async () => { installed++; }, async () => true, async () => true, "stable");
@@ -94,7 +94,7 @@ async function pinnedBranch(installer: Buffer, version: string): Promise<Map<str
     previous: async () => undefined,
     formerPin: async () => undefined,
     candidate: async () => ({ version, commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false,
-      installer: { url: at("setup.exe"), sha256: "a".repeat(64), ...digest }, bootstrap: { ps1: "bootstrap" },
+      installers: ["x64", "arm64"].map(arch => ({ url: at(`windows-${arch}-setup.exe`), sha256: "a".repeat(64), ...digest })), bootstrap: { ps1: "bootstrap" },
       // An arch-neutral name: MacUpdater drops arm64 files on an Intel host, which this test may run on.
       feeds: { mac: { version, files: [{ url: at("mac.zip"), ...digest }] }, linux: { version, files: [{ url: at("linux-x86_64.AppImage"), ...digest }] } } }),
     pullRequests: async () => new Set(), increments: async () => [], publish: async () => {}, now: () => "2026-10-16T00:00:00.000Z",
@@ -107,10 +107,18 @@ async function pinnedBranch(installer: Buffer, version: string): Promise<Map<str
   return branch;
 }
 
-test("4.15 a stable Mac install and a stable Linux install each take only the pinned build, from the feeds the pin wrote, while development moves on", async (t) => {
+test("4.15 a stable Windows, Mac and Linux install each take only the pinned build, Windows its own architecture's installer, from the feeds the pin wrote, while development moves on", async (t) => {
+  const windowsFeed = await fixture(t, "win32");
+  windowsFeed.version = "0.3.9";
+  windowsFeed.stableBranch = await pinnedBranch(windowsFeed.installer, "0.3.2");
+  const windows = windowsFeed.updater(async () => {}, async () => false, async () => false, "stable");
+  assert.equal(await windows.check(), "waiting");
+  assert.equal(windows.request("status").nextBuild, "0.3.2");
+  assert.deepEqual(windowsFeed.fetched, [`/release/storytree-ai/storytree/releases/download/v0.3.2/storytree-0.3-0.3.2-windows-${process.arch}-setup.exe`]);
+
   const feed = await fixture(t, "darwin");
   feed.version = "0.3.9";
-  feed.stableBranch = await pinnedBranch(feed.installer, "0.3.2");
+  feed.stableBranch = windowsFeed.stableBranch;
   const mac = feed.updater(async () => {}, async () => false, async () => false, "stable");
   assert.equal(await mac.check(), "waiting");
   assert.equal(mac.request("status").nextBuild, "0.3.2");
@@ -224,7 +232,8 @@ for (const platform of PLATFORMS) {
       const result = await updater.check();
       assert.equal(windowOpen, true, "a snapshot never strands the user in shutdown");
       assert.equal(result, "waiting");
-      assert.equal(updater.request("status").phase, "pending");
+      // The user's asked restart reads as waiting for the write, never as offered again.
+      assert.equal(updater.request("status").phase, entry === "menu" ? "ready" : "pending");
       assert.match(updater.request("status").reason ?? "", /library.*writing/i);
       finishSnapshot();
       await new Promise(resolve => setImmediate(resolve));
@@ -299,6 +308,32 @@ test("4.12 an explicit install overrides a run hold but still waits for a seed",
   assert.equal(launches, 1);
 });
 
+test("4.4 a restart the user asked for while a seed was writing says it waits, and goes as soon as the seed ends, with no further check", async (t) => {
+  const feed = await fixture(t);
+  feed.version = "0.3.2";
+  feed.recheck = 10;
+  let writing = false;
+  let launches = 0;
+  const updater = feed.updater(async () => { launches++; }, async () => !writing, async () => false);
+  t.after(() => updater.stop());
+  assert.equal(await updater.check(), "waiting");
+  assert.equal(updater.request("status").phase, "pending");
+  // Downloaded: from here the updater's own clock is the test's.
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve)); };
+  writing = true;
+  assert.equal(updater.request("install").phase, "restarting", "the click reads as taken at once");
+  await settle();
+  assert.equal(updater.request("status").phase, "ready", "held, not offered again");
+  t.mock.timers.tick(10);
+  await settle();
+  assert.equal(launches, 0, "still held while the seed writes");
+  writing = false;
+  t.mock.timers.tick(10);
+  await settle();
+  assert.equal(launches, 1);
+});
+
 for (const platform of PLATFORMS) {
   test(`4.5 ${platform}: a failed feed or corrupt download leaves the app running and can be retried; equal and older releases never restart it`, hostRuns(platform), async (t) => {
     const feed = await fixture(t, platform);
@@ -334,7 +369,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-release-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const installer = Buffer.from("fixture release payload — never executed");
-  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false };
+  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false, recheck: undefined as number | undefined };
   const files = (base = "") => ["setup.exe", "storytree-mac.zip", "storytree-linux.AppImage"].map(url => ({ url: `${base}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
   const server = createServer((request, response) => {
     if (state.offline) { response.writeHead(404).end(); return; }
@@ -384,9 +419,9 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   return Object.assign(state, {
     holds: path.join(dir, "update-holds"),
     appImage,
-    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "development") {
+    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "alpha") {
       if (platform === "darwin") electron.autoUpdater = state.squirrel = new Squirrel();
-      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", sandboxOff: state.sandboxOff, ...(channel ? { releaseChannel: () => channel } : {}) }, {
+      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", sandboxOff: state.sandboxOff, ...(state.recheck === undefined ? {} : { recheck: state.recheck }), ...(channel ? { releaseChannel: () => channel } : {}) }, {
         version: state.running, name: "storytree-test", isPackaged: true,
         appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),

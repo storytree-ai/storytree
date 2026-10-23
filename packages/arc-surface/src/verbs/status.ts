@@ -19,9 +19,9 @@ type Status = (typeof STATES)[number];
 const SPAN = /^(\d+)([mhd])$/;
 const UNIT_MS = { m: 60_000, h: 3_600_000, d: 86_400_000 } as const;
 
-/** `--since`: a time, or a span back from `now` (30m, 2h, 1d); not given, two hours back. */
-function sinceOf(given: string | undefined, now: number): number {
-  if (given === undefined) return now - 2 * UNIT_MS.h;
+/** `--since`: a time, or a span back from `now` (30m, 2h, 1d); not given, `fallback` back (two hours unless said). Shared with `arc recent`. */
+export function sinceOf(given: string | undefined, now: number, fallback = 2 * UNIT_MS.h): number {
+  if (given === undefined) return now - fallback;
   const span = SPAN.exec(given);
   if (span !== null) return now - Number(span[1]) * UNIT_MS[span[2] as keyof typeof UNIT_MS];
   const at = /^\d{4}-\d{2}-\d{2}/.test(given) ? Date.parse(given) : NaN;
@@ -30,7 +30,7 @@ function sinceOf(given: string | undefined, now: number): number {
 }
 
 /** A time as the line says it: to the minute, in UTC. */
-const timeSaid = (at: string): string => `${at.slice(0, 16).replace("T", " ")} UTC`;
+export const timeSaid = (at: string): string => `${at.slice(0, 16).replace("T", " ")} UTC`;
 
 const named = (bar: Pick<Bar, "id" | "title">): string => `${bar.id} ${bar.title}`;
 

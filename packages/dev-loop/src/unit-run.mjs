@@ -29,6 +29,8 @@ import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/ca
 
 import { parseJunit } from "@storytree/ci-health/test-run";
 
+import { stopServersUnder, unitTempPrefix } from "./test-leftovers.mjs";
+
 /** The variables that name an agent's session to a command: each watched harness's, and storytree's own. */
 const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => (harness.shellSession === undefined ? [] : [harness.shellSession])), SESSION_ENV];
 
@@ -48,6 +50,11 @@ const limitsFile = (home) => path.join(home, "test-limits.json");
 const tsx = import.meta.resolve("tsx"); // from here, so a unit whose cwd is elsewhere still finds it
 const reporter = fileURLToPath(new URL("./test-running-reporter.mjs", import.meta.url));
 let runs = 0;
+// The units' temp folders while they run: a harness that exits mid-unit (past its run's deadline) stops their servers.
+const liveTemps = new Set();
+process.on("exit", () => {
+  for (const temp of liveTemps) stopServersUnder(temp);
+});
 
 /**
  * Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs }.
@@ -86,9 +93,14 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
   for (const name of SESSION_VARIABLES) delete own[name];
   // A temp folder of the unit's own, named by each platform's variable and removed with whatever its
   // tests left in it when it ends: a run leaves nothing of its own in the system temp folder
-  // (increment_74ca830203db). A run killed with its harness may leave this one folder.
-  const temp = mkdtempSync(path.join(tmpdir(), "st-unit-"));
+  // (increment_74ca830203db). A Postgres a test started there is stopped first, however the unit
+  // ended (increment_e72347bdd355). A run killed with its harness may leave this one folder, which
+  // the next run's start sweeps (test-leftovers.mjs).
+  const temp = mkdtempSync(path.join(tmpdir(), unitTempPrefix()));
+  liveTemps.add(temp);
   const removeTemp = () => {
+    liveTemps.delete(temp);
+    stopServersUnder(temp, { log: (message) => console.error(`test harness: ${message}`) });
     try {
       rmSync(temp, { recursive: true, force: true, maxRetries: 5 });
     } catch (error) {
@@ -97,7 +109,11 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
   };
   const started = Date.now();
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--import", tsx, "--test", ...guard, ...args, ...files], {
+    // Options before any file: node hands whatever follows the first file to the tests as their own
+    // argv, so `pnpm run test <file> --test-name-pattern=<p>` would run every test (friction_d5da3da1aac6).
+    const options = args.filter((arg) => arg.startsWith("-"));
+    const named = args.filter((arg) => !arg.startsWith("-"));
+    const child = spawn(process.execPath, ["--import", tsx, "--test", ...guard, ...options, ...named, ...files], {
       cwd: root,
       env: { ...own, STORYTREE_TEST_RUNNING: runningFile, TMPDIR: temp, TMP: temp, TEMP: temp },
       stdio,

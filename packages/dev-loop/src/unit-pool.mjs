@@ -51,6 +51,49 @@ export function slowestFirst(units, { root, history = () => undefined }) {
   return weighed.map(({ unit }) => unit);
 }
 
+/**
+ * `--shard=<i>/<n>` taken out of the runner's arguments, before test-scope.mjs reads the rest: shard
+ * i of n, n at least 2. A malformed or out-of-range one is a `refusal`.
+ */
+export function takeShard(argv) {
+  let shard;
+  let refusal;
+  const rest = argv.filter((arg) => {
+    if (!arg.startsWith("--shard=")) return true;
+    const [, index, count] = /^--shard=(\d+)\/(\d+)$/.exec(arg) ?? [];
+    if (Number(count) >= 2 && Number(index) >= 1 && Number(index) <= Number(count)) shard = { index: Number(index), count: Number(count) };
+    else refusal ??= `${arg}: give --shard=<i>/<n> to run shard i of n, with n at least 2 and i from 1 to n`;
+    return false;
+  });
+  return { shard, argv: rest, refusal };
+}
+
+/**
+ * The units split into `count` shards whose times are near equal (increment_6163234e706b: Windows's
+ * CI tests run as two jobs, its test step paced by the sum of its units' times, not its slowest):
+ * longest first, each onto the shard with the least time so far, the lowest-numbered on a tie. A
+ * unit's weight is `history(unit)`, else the median of the units that have one, else 1. Every shard
+ * given the same units and history decides the same split, so no unit falls between them.
+ */
+export function shardUnits(units, count, { history = () => undefined } = {}) {
+  const known = units.map(history).filter((ms) => ms !== undefined).sort((a, b) => a - b);
+  const median = known.length === 0 ? 1 : known[Math.floor((known.length - 1) / 2)];
+  const weighed = units.map((unit, index) => ({ unit, index, ms: history(unit) ?? median }));
+  weighed.sort((a, b) => b.ms - a.ms || a.index - b.index);
+  const shards = Array.from({ length: count }, () => ({ ms: 0, units: [] }));
+  for (const { unit, ms } of weighed) {
+    const lightest = shards.reduce((best, shard) => (shard.ms < best.ms ? shard : best));
+    lightest.ms += ms;
+    lightest.units.push(unit);
+  }
+  return shards.map((shard) => shard.units);
+}
+
+/** Every shard's units, a line each: printed by each shard, so the shards' logs together name every unit. */
+export function shardPlan(shards) {
+  return shards.map((units, i) => `shard ${i + 1}/${shards.length}: ${units.join(", ") || "none"}\n`).join("");
+}
+
 /** The bytes of a unit's test files: a package's `src/**\/*.test.{ts,mjs}`, or the one file a unit names. */
 function testBytes(root, unit) {
   const at = path.join(root, unit);

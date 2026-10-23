@@ -27,6 +27,15 @@ test("4.13 a ready update says when it installs under the user's choice", () => 
   assert.match(said(), /0\.3\.401/);
 });
 
+test("4.4 a restart held by the library's writing says it waits for a snapshot or a seed, then restarts by itself", () => {
+  const [title, detail] = updateText({ ...at, phase: "ready", reason: "Waiting for the library to finish writing before restarting." });
+  assert.notEqual(title, "");
+  assert.match(detail, /snapshot/);
+  assert.match(detail, /seed/);
+  assert.match(detail, /restarts/);
+  assert.doesNotMatch(detail, /quiet moment/);
+});
+
 test("4.9 a failed update says its reason and that the running app is unchanged", () => {
   const [title, detail] = updateText({ ...at, phase: "failed", reason: "The build stopped at typecheck." });
   assert.notEqual(title, "");

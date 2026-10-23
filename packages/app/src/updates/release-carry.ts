@@ -2,7 +2,7 @@
  * Capability 4 · Updates. Contract 4.6: one platform's failure holds only that platform (ADR-1032 D4).
  * A release publishes with the platforms whose builds are in it. A platform whose build is not carries its last good
  * build forward instead: its update feed and its delivery manifest entry are copied from the newest earlier release,
- * naming that build's own version and files, so every reader of GitHub's "latest" release (the development updater,
+ * naming that build's own version and files, so every reader of GitHub's "latest" release (the alpha updater,
  * the one-liners, a stable pin's candidate) still finds the platform's files, and an install on that build sees no
  * update. Nothing is rebuilt or re-uploaded but these small files. Imported by apps/desktop/release.mjs under plain
  * Node, so it imports nothing relative.
@@ -19,7 +19,9 @@ export interface DeliveryManifest {
   channelSchema?: number;
   version: string;
   architectures?: string[];
-  /** Windows' installer; `version` is set when it is an earlier build's, carried. */
+  /** Each Windows architecture's own installer; `version` is set when it is an earlier build's, carried. */
+  installers?: Record<string, Entry>;
+  /** The one Windows installer, for both architectures, of a build from before they were split. */
   installer?: Entry;
   macos?: Record<string, Entry>;
   linux?: Record<string, Entry>;
@@ -49,14 +51,17 @@ const own = (entry: Entry, version: string): Entry => ({ ...entry, version: entr
 
 /** The part of an earlier release's manifest a platform's one-liner reads, each entry naming the build it really is. */
 export function carriedEntry(platform: ReleasePlatform, earlier: DeliveryManifest): Partial<DeliveryManifest> {
+  const each = (entries: Record<string, Entry>) => Object.fromEntries(Object.entries(entries).map(([arch, entry]) => [arch, own(entry, earlier.version)]));
   if (platform === "windows") {
+    const architectures = earlier.architectures ?? [];
+    if (earlier.installers && Object.keys(earlier.installers).length) return { architectures, installers: each(earlier.installers) };
     if (!earlier.installer) throw new Error(`Release ${earlier.version} has no Windows build to carry`);
-    return { architectures: earlier.architectures ?? [], installer: own(earlier.installer, earlier.version) };
+    return { architectures, installer: own(earlier.installer, earlier.version) };
   }
   const key = platform === "mac" ? "macos" : "linux";
   const entries = earlier[key];
   if (!entries || !Object.keys(entries).length) throw new Error(`Release ${earlier.version} has no ${PLATFORM_NAME[platform]} build to carry`);
-  return { [key]: Object.fromEntries(Object.entries(entries).map(([arch, entry]) => [arch, own(entry, earlier.version)])) };
+  return { [key]: each(entries) };
 }
 
 /**

@@ -7,6 +7,7 @@
 import type { AnnotatedCapability, AnnotatedStory, AnnotatedTree } from "@storytree/library";
 import { drillDown, forestScene, layoutTree, type StoryPanel, type TreeLayout } from "@storytree/forest";
 import { workStates } from "@storytree/arc-surface";
+import { growthPlan, growthProgress } from "@storytree/forest-world/geometry";
 import type { GrowthSnapshot } from "../forest-data.js";
 import saved from "../shop-snapshot.json" with { type: "json" };
 import { columnsOf, SMALL, wrap, type Beat, type Grounding, type Rect } from "./script.js";
@@ -107,10 +108,31 @@ export function quantiseInto(palette: readonly string[]): (pixels: Uint8ClampedA
 /** Puts RGBA pixels into the map's palette in place. */
 export const quantise = quantiseInto(MAP_PALETTE);
 
-/** What the short hands the forest's view (`PlanetView`) at a moment: the shop's plan on the glass sheet, the wishlist's island
- * selected once he has clicked it, and nothing over it the scene does not draw itself. */
-export const mapProps = (selected: string | undefined) => ({ scene: snapshot.scene, places, selected, wisps: [] as const,
-  library: false, surfaces: { nameplates: false, knowledgeCore: false } });
+/** How the storytree side's map grows from a brand-new project: from the empty sheet, every stage of the shop's saved growth
+ * (its first four stories planned, their land filling in as each pull request lands, the other four, the shop as saved), then
+ * the wishlist, replayed by the forest's own growth (islands rising, roads drawing on) in `seconds`, starting `after` the cut to
+ * the map so the empty sheet is seen first. */
+export const GROW = { after: 0.4, seconds: 4.2 } as const;
+export const GROWTH = growthPlan([...(shop.stages ?? []).map(({ id, at, scene }) => ({ id, at, scene })), { id: "wishlist", scene: snapshot.scene }],
+  { seconds: GROW.seconds });
+
+/** Seconds into the map's growth at `seconds`, while the beat it grows in plays; undefined outside it, where the map is whole. */
+export function growthAt(beats: readonly Beat[], seconds: number): number | undefined {
+  const grows = beats.find(beat => beat.grows);
+  return grows && seconds >= grows.from && seconds < grows.to ? seconds - grows.from - GROW.after : undefined;
+}
+
+/** Whether an island has risen whole at `seconds`, and so is named on the map. */
+export function risenAt(beats: readonly Beat[], seconds: number): (story: string) => boolean {
+  const at = growthAt(beats, seconds);
+  return story => at === undefined || growthProgress(GROWTH.islands.get(story), at, false) >= 1;
+}
+
+/** What the short hands the forest's view (`PlanetView`) at a moment: the shop's plan on the glass sheet, grown as far as
+ * `growing` seconds into its growth when it is growing, the wishlist's island selected once he has clicked it, and nothing over it
+ * the scene does not draw itself. */
+export const mapProps = (selected: string | undefined, growing?: number) => ({ scene: snapshot.scene, places, selected, wisps: [] as const,
+  library: false, surfaces: { nameplates: false, knowledgeCore: false }, growth: growing === undefined ? undefined : { plan: GROWTH, at: growing } });
 
 /** When, into the beat he clicks in, the cursor lands on the island, its panel has opened, and the cursor reaches the panel's
  * button that opens its graph full size and presses it. */

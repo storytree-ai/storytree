@@ -20,7 +20,8 @@
     "./processes/testing": "./src/processes/testing/child.ts",
     "./processes/verbs": "./src/processes/verbs.ts",
     "./friction": "./src/friction/index.ts",
-    "./friction/verbs": "./src/friction/verbs.ts"
+    "./friction/verbs": "./src/friction/verbs.ts",
+    "./schedules/verbs": "./src/schedules/verbs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -76,6 +77,10 @@
       {
         "from": "./friction/verbs",
         "export": "FRICTION_FAMILIES"
+      },
+      {
+        "from": "./schedules/verbs",
+        "export": "SCHEDULE_FAMILIES"
       }
     ],
     "guidance": [
@@ -93,6 +98,11 @@
         "from": "./processes/listing",
         "export": "runsGuidance",
         "order": 90
+      },
+      {
+        "from": "./schedules/verbs",
+        "export": "scheduleGuidance",
+        "order": 95
       }
     ]
   }

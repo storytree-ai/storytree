@@ -2,7 +2,8 @@
 // only way to reach it (capability 7 · Library API, the library story). At run time this entry
 // exports connect(), the errors a caller may need to catch by class, the name a seed's
 // connection carries while it writes (SEED_CONNECTION), and the schema an activity log line is
-// checked against (NEW_LINE, ADR-1017 D3). Everything else it exports
+// checked against (NEW_LINE, ADR-1017 D3), and the one reader of a process's schedule (parseSchedule, OWNER_TIME_ZONE,
+// ADR-1105 D1), so what works out what is due reads the words as they were validated. Everything else it exports
 // is a type, and none of them reaches a connection pool, a store or a table, but for one: a
 // connection's own database beside the projects (contract 7.7). The package exports
 // nothing but this entry, so the internals behind it cannot be imported at all.
@@ -15,9 +16,9 @@ export { knowledgeGuidance, LinkLoopError, SupersessionLoopError } from "./knowl
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
 export { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, RetireRefusedError, WaitLoopError } from "./work/index.js";
-export { MissingUpgradeError, NewerSchemaError, NEW_LINE, SchemaError, UnknownTypeError } from "./schema/index.js";
+export { MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, SchemaError, UnknownTypeError } from "./schema/index.js";
 
-export type { Agent, CodeEdge, EdgeFile, FieldsOf, FileImport, KnowledgeKind, Line, LineKind, LinesSince, NewLine, RecordType, SchemaRecord, StorySurvey, SurveyedFile, SurveyedTest, WriteOptions } from "./schema/index.js";
+export type { Agent, CodeEdge, EdgeFile, FieldsOf, FileImport, KnowledgeKind, Line, LineKind, LinesSince, NewLine, RecordType, ScheduleRule, SchemaRecord, StorySurvey, SurveyedFile, SurveyedTest, WriteOptions } from "./schema/index.js";
 export type { HistoryEntry, HistoryFilter, RecordEnvelope } from "./transactions/index.js";
 export type {
   ArcEdit,

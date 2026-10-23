@@ -11,7 +11,7 @@
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { surfaceOn, surfaceSetting } from "@storytree/app/surfaces";
 import { mountAppMenu, renderNoProjects } from "@storytree/app/view";
-import { mountAddProject, mountDeleteProject, mountProjectSentence, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
+import { mountAddProject, mountDeleteProject, mountFactory, mountProjectSentence, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
 import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveReading, type PageReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { drawingOf, drillDown, forestDrawn, forestReading, forestScene, keptDrawing, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
@@ -23,6 +23,7 @@ import { mountFeedbackCorner } from "@storytree/surface-feedback/view";
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
+import { mountPluginViews } from "./plugin-views.js";
 import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 
 import { attachPanZoom, openForestView, mountLibraryPanel, renderStoryPanel, mountSessionsList, mountTreeSpace, type ForestView, type GlobeLocator, type GlobeOpening, type PanZoom, type TreeOpening, type TreeSpace } from "@storytree/forest/view";
@@ -65,6 +66,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   mountProjectSentence: (host, current) => mountProjectSentence(host, window.storytree, { current }),
   mountRemoveProject: (host, current, onRemoved) => mountRemoveProject(host, window.storytree, { current, onRemoved }),
   mountDeleteProject: (host, onDeleted) => mountDeleteProject(host, window.storytree, { onDeleted }),
+  mountFactory: (host) => mountFactory(host, window.storytree),
 });
 const consentHost = document.createElement("div");
 document.body.append(consentHost);
@@ -77,7 +79,7 @@ const corner = mountFeedbackCorner(document, window.storytree, {
 window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); consentHost.remove(); lagRecorder?.stop(); corner.stop(); });
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
-let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined; teaching: ReturnType<typeof mountTeaching> | undefined } | undefined;
+let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined; teaching: ReturnType<typeof mountTeaching> | undefined; plugins?: { stop(): void } } | undefined;
 let current: string | undefined;
 /** Whether the project on show is the user's factory, which its teaching cards read (ADR-1048 D3). */
 let onFactory = false;
@@ -251,6 +253,13 @@ async function showForest(name: string): Promise<void> {
   core.onSelect(session => mine.sessions?.select(session));
   // The first time each kind appears on this map, its card shows beside it (ADR-1048 D1).
   mine.teaching = mountTeaching(content, { journal: seenCards, locate });
+  // A factory plugin standing in for a switched-off part draws its surfaces from the factory, while each is on.
+  if (window.storytree.pluginViews.length > 0) {
+    const plugins = await mountPluginViews(content, window.storytree.pluginViews, (id) => surfaceOn(surfaces, id), { project: name, bridge: window.storytree });
+    if (showing !== mine) return plugins.stop();
+    mine.plugins = plugins;
+    for (const { surface, why } of plugins.failed) console.error(`The ${surface} surface could not be loaded from the factory: ${why}`);
+  }
 
   // The tree this project last drew, at once and marked as not yet fresh, while the first read runs,
   // drawn with the survey, story order and work states it was drawn with, so the fresh drawing of an
@@ -310,6 +319,7 @@ async function redraw(name: string): Promise<void> {
 }
 
 function stopShowing(): void {
+  showing?.plugins?.stop();
   showing?.teaching?.stop();
   showing?.card?.();
   showing?.tree?.stop();

@@ -127,6 +127,20 @@ console.error("a different file's stderr"); test("healthy neighbor", () => {});`
   assert.doesNotMatch(diagnostics, /healthy\.test\.mjs|a different file's stderr/);
 });
 
+// friction_d5da3da1aac6: `pnpm run test <file> --test-name-pattern=<p>` ran every test in the file.
+test("6.19 · node's --test-* options given after a named file still reach node --test, so a name-filtered run runs only the matching tests", async (t) => {
+  const root = fixture(t, {
+    "named.test.mjs": `import { appendFileSync } from "node:fs";
+import { test } from "node:test";
+test("wanted", () => appendFileSync("RAN", "wanted\\n"));
+test("unwanted", () => appendFileSync("RAN", "unwanted\\n"));`,
+  });
+  // As `pnpm run test named.test.mjs --test-name-pattern=wanted` hands them on: the file first.
+  const run = await runUnit({ root, files: [], env: process.env, args: ["named.test.mjs", "--test-name-pattern=^wanted$"], stdio: "ignore" });
+  assert.equal(run.code, 0);
+  assert.equal(readFileSync(path.join(root, "RAN"), "utf8"), "wanted\n");
+});
+
 test("6.1 a test that fails leaving a handle open ends its unit with that failure, not a hang", async (t) => {
   const root = fixture(t, {
     "leak.test.mjs": `import { test } from "node:test"; import assert from "node:assert"; import net from "node:net";
@@ -393,21 +407,32 @@ test("6.1 a run of named files past its deadline says it was killed, naming the 
 
 // increment_7f43f74526ab: CI's job limit cancelled a macOS run and its whole log was lost, so nobody
 // could name what stalled. Given STORYTREE_TEST_DEADLINE, a run ends itself first and says where.
-function harnessRun(t, files, { deadline, home }) {
+function harnessRun(t, files, { deadline, home, timeout = 40_000 }) {
   const dir = fixture(t, files);
   const repo = fileURLToPath(new URL("../../..", import.meta.url));
   const env = { ...process.env, STORYTREE_HOME: home ?? path.join(dir, "home"), STORYTREE_TEST_PG_URL: "postgres://unused", STORYTREE_TEST_DEADLINE: String(deadline) };
   delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
   delete env.NODE_TEST_CONTEXT;
   const files_ = Object.keys(files).map((name) => path.join(dir, name));
-  const run = spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", ...files_], { cwd: repo, env, encoding: "utf8", timeout: 40_000 });
+  const run = spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", ...files_], { cwd: repo, env, encoding: "utf8", timeout });
   return { status: run.status, output: `${run.stdout}${run.stderr}` };
 }
 
-test("6.1 a run given a deadline cuts the unit it is running to the time left, naming the test still running", (t) => {
-  const run = harnessRun(t, {
-    "hangs.test.mjs": `import { test } from "node:test";\ntest("never ends", () => new Promise(() => { setInterval(() => {}, 1000); }));`,
-  }, { deadline: Math.ceil(Date.now() / 1000) + 4 });
+test("6.1 a run given a deadline cuts the unit it is running to the time left, naming the test still running", { timeout: 180_000 }, (t) => {
+  // On a loaded runner the child's start can use up a short budget before the test begins (friction_b0dddfa7a7ad),
+  // so the hanging test marks when it started, and the budget widens until it starts with time to spare.
+  const marks = mkdtempSync(path.join(tmpdir(), "unit-run-mark-"));
+  t.after(() => rmSync(marks, { recursive: true, force: true }));
+  const marker = path.join(marks, "started");
+  let run;
+  for (const budget of [4, 8, 16, 32]) {
+    rmSync(marker, { force: true });
+    const deadline = Math.ceil(Date.now() / 1000) + budget;
+    run = harnessRun(t, {
+      "hangs.test.mjs": `import { writeFileSync } from "node:fs";\nimport { test } from "node:test";\ntest("never ends", () => { writeFileSync(${JSON.stringify(marker)}, String(Date.now())); return new Promise(() => { setInterval(() => {}, 1000); }); });`,
+    }, { deadline, timeout: budget * 1000 + 40_000 });
+    if (existsSync(marker) && Number(readFileSync(marker, "utf8")) < deadline * 1000 - 2000) break;
+  }
   assert.equal(run.status, 1, run.output);
   assert.match(run.output, /test harness: .*timed out after .*cut to the run's deadline\), killed; still running: .*hangs\.test\.mjs › never ends/);
 });

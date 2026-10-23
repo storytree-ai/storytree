@@ -5,6 +5,7 @@ import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build, stop } from 'esbuild';
+import { buildFolder } from '../../../../apps/desktop/src/capture/output.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pkgDir = path.resolve(here, '../..');
 export const mutation = process.argv.find(arg => arg.startsWith('--mutate='))?.slice('--mutate='.length);
@@ -41,4 +42,4 @@ export async function buildPage(out) {
 
   } finally { stop(); }
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await buildPage(path.join(here, 'dist'));
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await buildPage(buildFolder(here));

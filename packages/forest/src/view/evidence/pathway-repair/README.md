@@ -159,7 +159,7 @@ npx tsx packages/forest/src/view/evidence/pathway-repair/endpoint-diagnostic.mts
 | --- | --- | --- |
 | The agent link selected | [Before](before-motion-selected.png) | [After](after-motion-selected.png) |
 | Distinct cyan and violet lanes inland | [Before detail](before-motion-selected-detail.png) | [After detail](after-motion-selected-detail.png) |
-| Directional draw-on at observed compositor timing | [Before clip](before-motion.webm) | [After clip](after-motion.webm) |
+| Directional draw-on at observed compositor timing | [Before clip](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/forest/src/view/evidence/pathway-repair/before-motion.webm) | [After clip](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/forest/src/view/evidence/pathway-repair/after-motion.webm) |
 
 Both recordings use the current gate/test lock, Chrome 151 with ANGLE Vulkan
 SwiftShader, and the same seed, survey, viewport and scripted camera. These are real
@@ -225,7 +225,7 @@ stand in for this behavior.
 | Settled 130-link graph, before restoring the dependency (camera faces the two islands) | [Before addition](after-live-before-addition.png) |
 | Restored beige crossing growing out of The library | [Addition partial compositor frame](after-live-addition-mid.jpg) |
 | All 131 saved links restored | [Addition completion](after-live-addition-complete.png) |
-| Live addition at the actual compositor timing | [Before repair](before-live.webm) · [After repair](after-live.webm) |
+| Live addition at the actual compositor timing | [Before repair](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/forest/src/view/evidence/pathway-repair/before-live.webm) · [After repair](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/forest/src/view/evidence/pathway-repair/after-live.webm) |
 
 The fixture removes only Agent tools' saved dependency on Library API before
 navigation, then restores its exact original dependency list through a normal
@@ -394,3 +394,5 @@ Use a separate output folder for the optional opening run. Video encoding retain
 the observed compositor timing, including the poll delay, and holds real pictures
 between frames; it does not generate intermediate motion. The capture allows the
 software compositor to present the final submitted frame before stopping its video.
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [after-live.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/forest/src/view/evidence/pathway-repair/after-live.webm), [after-motion.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/forest/src/view/evidence/pathway-repair/after-motion.webm), [before-live.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/forest/src/view/evidence/pathway-repair/before-live.webm), [before-motion.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/forest/src/view/evidence/pathway-repair/before-motion.webm). Each link is its last copy, kept in git history.

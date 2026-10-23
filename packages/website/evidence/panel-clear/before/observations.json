@@ -1,0 +1,159 @@
+{
+ "desktop": {
+  "viewport": {
+   "width": 1600,
+   "height": 1000
+  },
+  "hand": "map",
+  "panel": {
+   "x": 1027,
+   "y": 149,
+   "w": 480,
+   "h": 666
+  },
+  "controls": {
+   "compass": {
+    "box": {
+     "x": 1445,
+     "y": 143,
+     "w": 64,
+     "h": 64
+    },
+    "overlapsPanel": true
+   },
+   "zoom": {
+    "box": {
+     "x": 1459,
+     "y": 539,
+     "w": 46,
+     "h": 90
+    },
+    "overlapsPanel": true
+   },
+   "exit": {
+    "box": null,
+    "overlapsPanel": false
+   }
+  },
+  "closeOnTop": true
+ },
+ "touch-laptop-in-hand": {
+  "viewport": {
+   "width": 1600,
+   "height": 1000
+  },
+  "hand": "map",
+  "panel": {
+   "x": 1027,
+   "y": 149,
+   "w": 480,
+   "h": 666
+  },
+  "controls": {
+   "compass": {
+    "box": {
+     "x": 1445,
+     "y": 143,
+     "w": 64,
+     "h": 64
+    },
+    "overlapsPanel": true
+   },
+   "zoom": {
+    "box": {
+     "x": 1459,
+     "y": 539,
+     "w": 46,
+     "h": 90
+    },
+    "overlapsPanel": true
+   },
+   "exit": {
+    "box": {
+     "x": 960,
+     "y": 585,
+     "w": 145,
+     "h": 44
+    },
+    "overlapsPanel": true
+   }
+  },
+  "closeOnTop": true
+ },
+ "phone-in-hand": {
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "hand": "map",
+  "panel": {
+   "x": 25,
+   "y": 266,
+   "w": 340,
+   "h": 488
+  },
+  "controls": {
+   "compass": {
+    "box": {
+     "x": 301,
+     "y": 208,
+     "w": 72,
+     "h": 72
+    },
+    "overlapsPanel": true
+   },
+   "zoom": {
+    "box": {
+     "x": 317,
+     "y": 500,
+     "w": 46,
+     "h": 90
+    },
+    "overlapsPanel": true
+   },
+   "exit": {
+    "box": {
+     "x": 123,
+     "y": 546,
+     "w": 145,
+     "h": 44
+    },
+    "overlapsPanel": true
+   }
+  },
+  "closeOnTop": true
+ },
+ "phone-after-done": {
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "hand": "page",
+  "panel": {
+   "x": 25,
+   "y": 266,
+   "w": 340,
+   "h": 488
+  },
+  "controls": {
+   "compass": {
+    "box": {
+     "x": 301,
+     "y": 208,
+     "w": 72,
+     "h": 72
+    },
+    "overlapsPanel": true
+   },
+   "zoom": {
+    "box": null,
+    "overlapsPanel": false
+   },
+   "exit": {
+    "box": null,
+    "overlapsPanel": false
+   }
+  },
+  "closeOnTop": false
+ }
+}

@@ -7,14 +7,14 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const [from, label] = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
 if (from === undefined || !['before', 'after'].includes(label)) throw new Error('Name the snapshot folder, then before or after.');
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(from, 'seed.json.gz'))).toString('utf8'));
 const survey = JSON.parse(readFileSync(path.join(from, 'survey.json'), 'utf8'));
-const dist = path.join(here, 'dist');
+const dist = buildFolder(here);
 await buildCapture({ dist });
 
 await withCapture({ folder: here, dist }, async ({ browser, origin, out, settle }) => {

@@ -4,6 +4,8 @@
  * the arc surface and the forest read.
  */
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { runInNewContext } from "node:vm";
@@ -13,7 +15,7 @@ import type { Page } from "playwright-core";
 import type { Line, NewLine } from "@storytree/library";
 import { workStates } from "@storytree/arc-surface";
 
-import { fakeBridge, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
+import { buildFolder, fakeBridge, launchPlan, outputFolder, seedWorkStates, visibleGlobeTargets, zoomGlobe } from "./index.js";
 
 const checkout = path.resolve(import.meta.dirname, "../../../..");
 
@@ -141,4 +143,21 @@ test("a capture run to check it writes to a scratch folder, and re-takes into it
   assert.ok(scratch.startsWith(path.join("/scratch", "")), scratch);
   assert.notEqual(outputFolder(path.join(checkout, "packages", "forest", "evidence", "wisps"), { argv: [], tmp: "/scratch" }), scratch, "two evidence folders get two scratch folders");
   assert.equal(outputFolder(folder, { argv: ["node", "capture.mjs", "--retake"], tmp: "/scratch" }), folder);
+});
+
+test("2.18 an evidence build writes its bundle to the checkout's ignored build folder, leaving nothing new beside the evidence it serves", () => {
+  const files = (folder: string) => readdirSync(folder, { recursive: true }).map(String).sort();
+  for (const [name, args, build] of [["north-up", [], "dist"], ["rows", [checkout, "2-18-check"], "2-18-check"]] as const) {
+    const folder = path.join(checkout, "packages", "forest", "src", "view", "evidence", name);
+    const before = files(folder);
+    execFileSync(process.execPath, ["--import", "tsx", path.join(folder, "build.mjs"), ...args], { cwd: checkout, stdio: "pipe" });
+    try {
+      assert.deepEqual(files(folder), before, `${name}'s build left files beside its evidence`);
+      const built = buildFolder(folder, build);
+      assert.ok(files(built).includes("renderer.js"), `${name}'s bundle is in ${built}`);
+      assert.ok(path.relative(path.join(checkout, "packages"), built).startsWith(".."), "the build folder is outside every package");
+      execFileSync("git", ["check-ignore", "-q", built], { cwd: checkout });
+    } finally { rmSync(buildFolder(folder), { recursive: true, force: true }); rmSync(path.join(folder, "dist"), { recursive: true, force: true }); }
+  }
+  assert.notEqual(buildFolder(path.join(checkout, "packages", "forest", "evidence", "a")), buildFolder(path.join(checkout, "packages", "forest-world", "evidence", "a")), "two evidence folders get two build folders");
 });

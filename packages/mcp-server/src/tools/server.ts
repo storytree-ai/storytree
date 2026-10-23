@@ -41,8 +41,8 @@ import { McpServer, type CallToolResult, type ServerContext } from "@modelcontex
 import { callLines, endMergedClaims, type ActivityLog, type MergeWatch } from "@storytree/session-management";
 import { agentOf, harnessOfClient, SESSION_ENV, lineOf, requestOf, seenCaller, type Caller } from "@storytree/project-and-caller/caller";
 import { verdictOf } from "@storytree/experiments";
-import { findProject, idleAfterMs, importsOf, machineOf, readPartsOff, route, storytreeHome, type ImportedFolder, type LocateOptions, type Route } from "@storytree/project-and-caller";
-import { mount } from "@storytree/plugin-loader";
+import { findProject, idleAfterMs, importsOf, machineOf, readPartsOff, readStandIns, route, storytreeHome, type ImportedFolder, type LocateOptions, type Route } from "@storytree/project-and-caller";
+import { mount, standIn } from "@storytree/plugin-loader";
 import { heldBack, type Agent, type HealthWorkItem, type Library, type Storytree, type WriteOptions } from "@storytree/library";
 import type { Consumer } from "@storytree/library/verbs";
 import { NOTE_TOOLS } from "@storytree/library/commands";
@@ -249,10 +249,12 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   // The machine whose approved trunks let this folder reach its project (ADR-0942): the home setup records them in.
   const home = options.setup?.storytreeHome ?? (options.dataDir === undefined ? storytreeHome() : path.dirname(path.resolve(options.dataDir)));
   // The parts this computer switches off (ADR-1095), read as the server starts: their tools are not served, and the card
-  // leaves out their sections and names them, so an agent asks for none of them.
+  // leaves out their sections and names them, so an agent asks for none of them. A plugin in this computer's factory
+  // folder named to stand in for a part switched off is served in its place (the plugin loader's capability 5).
   const off = readPartsOff(home);
+  const standIns = readStandIns(home);
   const extensions = [
-    ...mount(TOOL_PARTS, off).mounted.flatMap((part) => part(host) ?? []),
+    ...mount(standIn(TOOL_PARTS, "tools", standIns), off).mounted.flatMap((part) => part(host) ?? []),
     ...options.extensions ?? [],
   ];
   const card = habitsCard(off);
@@ -398,7 +400,7 @@ export function createAgentTools(options: AgentToolOptions): AgentTools {
   mountTools(define, NOTE_TOOLS);
   // Every verb a mounted part's command families declare a tool for (Friction's, Session management's), from their
   // manifests: a part switched off takes its tools with it (ADR-1095).
-  const verbs = mount(VERB_PARTS, off).mounted.flatMap(verbsOf);
+  const verbs = mount(standIn(VERB_PARTS, "verbs", standIns), off).mounted.flatMap(verbsOf);
   mountTools(define, options.drain === undefined ? verbs : drainedBy(verbs, options.drain), verbHome);
   for (const extension of extensions) extension.registerTools?.(define);
   for (const extension of extensions) extension.registerOwnerTools?.(defineForOwner);

@@ -58,7 +58,7 @@ const briefVerb = verb({
     diff: { kind: "text", optional: true, describe: "the change's diff against its default branch, as git diff gives it" },
   },
   async act({ increment, diff }, context: QualityVerbContext) {
-    const { branchBase, branchDiff, briefText, changeFolder, openReviews } = await import("../index.js");
+    const { briefText, changeFolder, openReviews, worktreeChange } = await import("../index.js");
     const reviews = await openReviews(server(context));
     // The change is the branch the increment was claimed on, wherever this runs (contract 2.8).
     let folder = context.folder;
@@ -66,7 +66,7 @@ const briefVerb = verb({
       const { readClaims } = await import("@storytree/session-management");
       folder = changeFolder(context.folder, (await readClaims(context.log as Parameters<typeof readClaims>[0], context.project)).find((claim) => claim.increment === increment)?.branch);
     }
-    const brief = await reviews.brief(context.library, increment, diff ?? branchDiff(folder), diff === undefined ? branchBase(folder) : undefined);
+    const brief = await reviews.brief(context.library, increment, diff ?? worktreeChange(folder));
     return {
       text: briefText(brief),
       next: [{ command: `quality take ${increment} --return @<file>`, why: "record the review's return, as JSON" }],

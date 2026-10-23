@@ -1,0 +1,6 @@
+process 37880, "C:\Users\mickh\AppData\Local\Programs\storytree-0.3-acceptance\storytree-0.3.exe" --updated, parent explorer.exe, started 2026-10-22T05:56:58.8520190Z
+window title: Error
+MainInstructionIcon
+storytree 0.3 cannot start
+the storytree 0.3 app that follows merged main is set up on this machine (C:\Users\mickh\.storytree\0.3\runtime), and only one storytree app may run per machine. Quit it from its tray icon and delete that folder to switch to this installed app, or uninstall this one to keep following main.
+OK

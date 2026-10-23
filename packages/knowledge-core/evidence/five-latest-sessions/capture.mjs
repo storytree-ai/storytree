@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { sessionColour } from '../../../forest/src/agent-claims/agent-claims.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -67,7 +67,7 @@ const colour = Object.fromEntries(ids.map(session => [session, sessionColour(ses
 assert.equal(new Set(Object.values(colour)).size, ids.length, 'the seven sessions wear seven colours');
 const inPackage = file => file.replace(/^packages\/[^/]+\//, '');
 
-await withCapture({ folder: here, dist: path.join(root, 'packages/forest/evidence/sessions-list/dist/production') }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: buildFolder(path.join(root, 'packages/forest/evidence/sessions-list'), 'production') }, async ({ browser, origin, out, settle }) => {
   const measure = page => page.evaluate(colours => {
     const { scene } = window.__globe;
     const trails = [], circles = {}, notes = {}, windowed = {};

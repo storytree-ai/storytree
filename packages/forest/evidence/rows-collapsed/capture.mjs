@@ -5,10 +5,10 @@ import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureSeed, fakeBridge, seedFile, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, captureSeed, fakeBridge, seedFile, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.join(here, '../bottom-panel/dist/production');
+const dist = buildFolder(path.join(here, '../bottom-panel'), 'production');
 const { seed } = captureSeed('forest');
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
 const now = Date.now();

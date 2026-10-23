@@ -14,7 +14,7 @@ import type { StorySurvey } from "@storytree/library";
 
 import PAGE_CHANNELS from "#parts/pageChannels";
 
-import { pageMethods } from "./page-operations.js";
+import { pageMethods, type PageStandIns, type PluginView } from "./page-operations.js";
 
 /**
  * The page operations the forest, Lag in real use and Surface feedback name in their manifests (ADR-1030), as the frame hands them on:
@@ -34,11 +34,18 @@ export interface StoryPageBridge {
 }
 
 export interface StorytreeBridge
-  extends SetupHelpBridge, SurfacesBridge, JourneyBridge, UpdatesBridge, LifecycleBridge, ProjectsBridge, PageReadsBridge, StoryPageBridge {}
+  extends SetupHelpBridge, SurfacesBridge, JourneyBridge, UpdatesBridge, LifecycleBridge, ProjectsBridge, PageReadsBridge, StoryPageBridge {
+  /** The views of the factory plugins standing in for switched-off parts, which the page mounts while their surfaces are on. */
+  readonly pluginViews: readonly PluginView[];
+}
 
-/** What the main process told the preload about the bridge: whether this build offers sign-in for feedback (app setup contract 5.6). */
+/**
+ * What the main process told the preload about the bridge: whether this build offers sign-in for feedback (app setup
+ * contract 5.6), and the page channels and views of the factory plugins standing in for switched-off parts.
+ */
 export interface BridgeOptions {
   feedbackIdentity?: boolean;
+  standIns?: PageStandIns;
 }
 
 /**
@@ -62,5 +69,8 @@ export function createBridge(
     ...pageMethods<PageReadsBridge>(PAGE_READS_CHANNELS, invoke),
     // The stories whose manifests name their page channels (ADR-1030); the page's type above still names them for the renderer.
     ...(Object.assign({}, ...PAGE_CHANNELS.parts.map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))) as Pick<StorytreeBridge, "recordLag" | "codeSurvey" | "feedbackSetup" | "captureForFeedback" | "sendFeedback"> & SettingsBridge),
+    // A factory plugin standing in for a switched-off part: its channels, which the main process answers, read from the factory as it started.
+    ...Object.assign({}, ...(options.standIns?.channels ?? []).map((channels) => pageMethods<Record<string, unknown>>(channels, invoke))),
+    pluginViews: options.standIns?.views ?? [],
   };
 }

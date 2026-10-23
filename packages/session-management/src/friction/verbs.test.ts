@@ -92,7 +92,11 @@ test("17.16 · `friction drain` lists the unrouted reports other branches filed 
     const routed = await library.writeKnowledge("friction", { ...fields, title: "Routed", provenance: provenance("another/branch") });
     await library.editNote(routed.id, { route: "nothing", routeReason: "Passed" });
     const later: { id: string }[] = [];
-    for (const title of ["Third", "Fourth"]) later.push(await library.writeKnowledge("friction", { ...fields, title, provenance: provenance("another/branch") }));
+    // Creation time is to the millisecond and ties fall to the random id, so each report is written in a later millisecond.
+    for (const title of ["Third", "Fourth"]) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      later.push(await library.writeKnowledge("friction", { ...fields, title, provenance: provenance("another/branch") }));
+    }
 
     await onBranch(library, "fix/mail", async (context) => {
       const drained = await verbNamed("drain").act({}, context, WORDS);

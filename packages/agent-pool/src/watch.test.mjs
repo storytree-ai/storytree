@@ -30,8 +30,8 @@ async function box(t, { looks = {}, board = "" } = {}) {
   return { dir, calls, fixes, lines, live, looks, options, tick: (ms) => { clock += ms; }, noRoom: () => { room = false; } };
 }
 
-const pull = ({ state = "OPEN", head = "h1", checks = [], removed = [], queued = false, mergeable = "MERGEABLE" } = {}) => ({
-  state, headRefOid: head, mergeable, mergeQueueEntry: queued ? { state: "QUEUED" } : null,
+const pull = ({ state = "OPEN", head = "h1", checks = [], removed = [], queued = false, mergeable = "MERGEABLE", draft = false, labels = [] } = {}) => ({
+  id: "PR_41", state, headRefOid: head, mergeable, isDraft: draft, labels: { nodes: labels.map((name) => ({ name })) }, mergeQueueEntry: queued ? { state: "QUEUED" } : null,
   commits: { nodes: [{ commit: { statusCheckRollup: { contexts: { nodes: checks } } } }] },
   timelineItems: { nodes: removed },
 });
@@ -719,4 +719,42 @@ test("4.29 · a failed check is read as its CI run when every failed check names
   const job = (name, run) => ({ ...failed, name, detailsUrl: `https://github.com/storytree-ai/storytree/actions/runs/${run}/job/7${run}` });
   assert.deepEqual(readPull(pull({ checks: [passed, job("verify on macOS", 5), job("verify", 5)] }), options).runs, [5]);
   assert.equal(readPull(pull({ checks: [job("verify on macOS", 5), failed] }), options).runs, undefined);
+});
+
+test("4.31 · a green, unheld pull request outside the merge queue reads as stranded; a held, pending, queued, unverified or just-removed one does not", () => {
+  const options = { since: minutes(-60), now: at, graceMs: 10 * 60_000 };
+  const skipped = { __typename: "CheckRun", name: "automerge", status: "COMPLETED", conclusion: "SKIPPED" };
+  assert.deepEqual(readPull(pull({ checks: [passed, skipped] }), options), { state: "pending", head: "h1", stranded: "PR_41" });
+  assert.equal(readPull(pull({ checks: [passed, skipped], draft: true }), options).stranded, undefined, "a draft is held");
+  assert.equal(readPull(pull({ checks: [passed, skipped], labels: ["hold"] }), options).stranded, undefined, "the hold label holds it");
+  assert.equal(readPull(pull({ checks: [passed, skipped], queued: true }), options).stranded, undefined, "already queued");
+  assert.equal(readPull(pull({ checks: [passed, { ...skipped, status: "IN_PROGRESS", conclusion: null }] }), options).stranded, undefined, "automerge may still land it");
+  assert.equal(readPull(pull({ checks: [skipped] }), options).stranded, undefined, "verify has not passed");
+  assert.equal(readPull(pull({ checks: [passed], removed: [{ createdAt: minutes(-5), reason: "failed_checks" }] }), options).stranded, undefined, "the requeue's grace");
+  assert.equal(readPull(pull({ checks: [passed, failed] }), options).state, "red");
+});
+
+test("4.31 · the watcher enqueues a stranded pull request at its head once, retries a refusal at most three times, and leaves a held one alone", async (t) => {
+  const b = await box(t);
+  const enqueued = [];
+  let refuse = false;
+  b.options.enqueue = async (id, head) => { if (refuse) throw new Error("not mergeable yet"); enqueued.push([id, head]); };
+  await handOff(b);
+  b.looks[41] = { state: "pending", head: "h1" };
+  await watchOnce(b.options);
+  assert.deepEqual(enqueued, [], "a pull request that is not stranded is not enqueued");
+  b.looks[41] = { state: "pending", head: "h1", stranded: "PR_41" };
+  await watchOnce(b.options);
+  await watchOnce(b.options);
+  assert.deepEqual(enqueued, [["PR_41", "h1"]], "enqueued once at its head");
+  assert.match(b.lines.at(-1), /PR #41 .*merge queue/);
+  assert.equal(b.fixes.length, 0);
+  refuse = true;
+  b.looks[41] = { state: "pending", head: "h2", stranded: "PR_41" };
+  for (let i = 0; i < 5; i++) await watchOnce(b.options);
+  assert.equal(b.lines.filter((line) => /refused/.test(line)).length, 3, "a refused enqueue is tried three times on a head, then left");
+  refuse = false;
+  b.looks[41] = { state: "pending", head: "h3", stranded: "PR_41" };
+  await watchOnce(b.options);
+  assert.deepEqual(enqueued.at(-1), ["PR_41", "h3"], "a new head is enqueued afresh");
 });

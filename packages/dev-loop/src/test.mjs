@@ -23,9 +23,16 @@
 //   pnpm run test --only=cli,forest  run the named packages (dir, dir name or package name)
 //   pnpm run test --rerun-failed     run what the last run in this checkout failed or never reached
 //   pnpm run test --jobs=<n>         test n units at once; 1 runs them one after another
+//   pnpm run test --shard=<i>/<n>    run shard i of n of the scoped units (CI's two Windows jobs)
 //   pnpm run test <files>            run just those files, as one unit under UNIT_LIMIT_MS (or
 //                                    STORYTREE_UNIT_LIMIT_MS); killed there, it says so
 //   pnpm run test --help             print the usage (TEST_USAGE) and run nothing
+//
+// Sharded (--shard=<i>/<n>, unit-pool.mjs shardUnits): the scoped units are split into n shards of
+// near-equal time by this machine's recent passes, the same split in every shard given the same
+// history; the run prints every shard's units, writes them to .pgtest/shard-plan.txt (CI's `verify`
+// checks its shards wrote the same) and runs its own, and its table is followed by the plan again,
+// so the shards' tables together name every unit.
 //
 // An unknown flag is refused, naming the known ones, before the heavy-run lock or a Postgres is taken.
 //
@@ -98,7 +105,8 @@ import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
 import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs, ALONE } from "./test-scope.mjs";
-import { runPool, slowestFirst, testJobs } from "./unit-pool.mjs";
+import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
+import { runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
 import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
@@ -107,8 +115,11 @@ const dataDir = path.join(work, "data");
 const serverLog = path.join(work, "pg.log");
 const toolLog = path.join(work, "tools.log");
 const recordFile = path.join(work, "last-run.json");
+const shardPlanFile = path.join(work, "shard-plan.txt");
 
-const { flags, testArgs, help, refusal: flagRefusal } = parseTestArgs(process.argv.slice(2));
+const { shard, argv, refusal: shardRefusal } = takeShard(process.argv.slice(2));
+const { flags, testArgs, help, refusal: argRefusal } = parseTestArgs(argv);
+const flagRefusal = shardRefusal ?? argRefusal;
 if (help || flagRefusal !== undefined) {
   // Before the lock or a Postgres: asking how to run the tests never runs them.
   if (flagRefusal !== undefined) console.error(`test harness: ${flagRefusal}\n`);
@@ -120,13 +131,17 @@ const namedFiles = testArgs.some((arg) => !arg.startsWith("-"));
 const children = new Set(); // the units' test processes, while they run
 let jobs = 1; // how many units at once: testJobs, settled before the lock
 let interrupted = false;
+let server; // the test Postgres this run started, until it is stopped
 let phase = "deciding the scope"; // where a run past its deadline says it stalled
+let plannedShards; // every shard's units, when this run is one shard of several
 
 const deadline = runDeadline(process.env);
 if (deadline !== undefined) {
   setTimeout(() => {
     console.error(`\ntest harness: past the run's deadline (STORYTREE_TEST_DEADLINE, ${new Date(deadline).toISOString()}) while ${phase}; ending the run`);
     for (const child of children) killTree(child);
+    // The test Postgres, if this run started it, whose stop the exit skips; the units' own stop on exit (unit-run.mjs).
+    if (server !== undefined) stopServersUnder(server.dataDir);
     process.exit(1);
   }, Math.max(0, deadline + DEADLINE_GRACE_MS - Date.now())).unref();
 }
@@ -165,6 +180,10 @@ async function main() {
   }
   if (flags.setLimit !== undefined || flags.clearLimit !== undefined) return changeLimit();
   let units;
+  if (namedFiles && shard !== undefined) {
+    console.error("test harness: --shard splits the scoped units; it cannot split files named on the command line");
+    return 1;
+  }
   if (namedFiles) {
     console.log("scope: files — the files named on the command line");
   } else {
@@ -178,12 +197,20 @@ async function main() {
     }
     console.log(scopeLine(plan.decision));
     console.log(`units: ${plan.units.join(", ") || "none"}`);
+    units = plan.units;
+    if (shard !== undefined) {
+      const passTimes = recentPassTimes();
+      plannedShards = shardUnits(units, shard.count, { history: (unit) => passTimes.get(unit) });
+      units = plannedShards[shard.index - 1];
+      process.stdout.write(`shards, split by this machine's recent pass times:\n${shardPlan(plannedShards)}`);
+      console.log(`this run is shard ${shard.index}/${shard.count}: ${units.join(", ") || "none"}`);
+      if (!flags.scope) writeShardPlan();
+    }
     if (flags.scope) return 0;
-    if (plan.units.length === 0) {
+    if (units.length === 0) {
       console.log("nothing to run");
       return 0;
     }
-    units = plan.units;
     jobs = Math.min(jobs, units.length);
     if (jobs > 1) console.log(`jobs: ${jobs} units at once (${jobsSource}), slowest first; each unit's output prints whole when it ends`);
     else if (jobsSource.startsWith("default:")) console.log(`jobs: 1 unit at a time (${jobsSource}); --jobs=<n> tests more at once`);
@@ -200,6 +227,8 @@ async function main() {
 /** The heavy part, run under the machine's heavy-run lock: the test Postgres and the units. */
 async function runHeavy(units) {
   if (interrupted) return 130;
+  phase = "sweeping what earlier runs left in the temp folder";
+  sweepLeftovers({ log: (message) => console.log(`test harness: ${message}`) });
   if (process.env.STORYTREE_TEST_PG_URL) {
     console.log("test Postgres: STORYTREE_TEST_PG_URL is set; using that server");
     const env = process.env;
@@ -207,7 +236,6 @@ async function runHeavy(units) {
   }
   const kept = keepPreviousServerLog(serverLog);
   if (kept !== undefined) console.log(`test Postgres: the previous run's server log is kept in ${path.relative(root, kept)}`);
-  let server;
   phase = "starting the test Postgres";
   try {
     server = await start({
@@ -234,6 +262,7 @@ async function runHeavy(units) {
   } finally {
     phase = "stopping the test Postgres";
     await server.stop();
+    server = undefined;
   }
 }
 
@@ -284,6 +313,7 @@ async function runTests(env, units) {
     console.log(`test harness: could not add this run's times to the timing history: ${error.message}`);
   }
   console.log(`\n${resultsTable(results, { reasons })}`);
+  if (plannedShards !== undefined) process.stdout.write(`this was shard ${shard.index}/${shard.count}; every shard's units:\n${shardPlan(plannedShards)}`);
   return Object.values(results).every((result) => result === "pass") ? 0 : 1;
 }
 
@@ -327,6 +357,16 @@ function changeLimit() {
   const { ms, source } = unitLimit(unit, { jobs });
   console.log(`${unit}: deadline ${ms / 1000} s on this machine (${source})`);
   return 0;
+}
+
+/** Every shard's units, for CI's `verify` to check that its shards split the units alike. */
+function writeShardPlan() {
+  try {
+    mkdirSync(work, { recursive: true });
+    writeFileSync(shardPlanFile, shardPlan(plannedShards));
+  } catch (error) {
+    console.log(`test harness: could not write the shard plan to ${path.relative(root, shardPlanFile)}: ${error.message}`);
+  }
 }
 
 /** The last recorded result of each unit, or undefined if this checkout has none. */

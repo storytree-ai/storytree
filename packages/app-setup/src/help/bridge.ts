@@ -9,6 +9,19 @@ export interface AddedFolder {
   folder: string;
 }
 
+/** This computer's factory folder: storytree's own, or one switched to, with who switched it and when (2.22). */
+export interface FactoryFolder {
+  folder: string;
+  chosen: boolean;
+  switched?: { through: "desktop app" | "command line" | "agent tool"; session?: string; at: string };
+}
+
+/** A folder made this computer's factory from the app: an empty one set up, or one already a factory. */
+export interface ChosenFactory {
+  status: "set up" | "already a factory";
+  folder: string;
+}
+
 /**
  * An agent's connection as the first-run guide shows it: today only Codex, whose hooks run only once
  * the user has trusted them there; `step` is the one thing to do while they wait.
@@ -50,6 +63,10 @@ export interface SetupHelpBridge {
   /** Each connected agent that still needs a step from the user, or has taken it; read now. */
   agentConnections(): Promise<AgentConnection[]>;
   checkSetupFolder(): Promise<readonly SetupLine[] | null>;
+  /** This computer's factory folder, read now. */
+  factoryFolder(): Promise<FactoryFolder>;
+  /** Pick a folder and make it this computer's factory, with no approval (question_0b0b82eb8fbc); null when the picker was cancelled, a folder that cannot be one refused with why. */
+  chooseFactory(): Promise<ChosenFactory | null>;
   /** Pick a folder and make it a project (ADR-0752 D2), or null when the picker was cancelled. */
   addProject(): Promise<AddedFolder | null>;
   /** Take a project off this computer's list and free its folder here (`kept`: its marker is in git, left for the user); its records stay in the library. */
@@ -71,6 +88,8 @@ export const SETUP_HELP_CHANNELS = {
   readSetupLicense: "storytree:read-setup-license",
   agentConnections: "storytree:agent-connections",
   checkSetupFolder: "storytree:check-setup-folder",
+  factoryFolder: "storytree:factory-folder",
+  chooseFactory: "storytree:choose-factory",
   addProject: "storytree:add-project",
   removeProject: "storytree:remove-project",
   projectSentence: "storytree:project-sentence",

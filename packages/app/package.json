@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./lifecycle/bridge": "./src/lifecycle/bridge.ts",
+    "./lifecycle/restart-limit": "./src/lifecycle/restart-limit.ts",
     "./lifecycle/verbs": "./src/lifecycle/verbs.ts",
     "./lag": "./src/lag/index.ts",
     "./lag/bridge": "./src/lag/bridge.ts",

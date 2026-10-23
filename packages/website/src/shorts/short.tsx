@@ -12,7 +12,7 @@ import { createKnowledgeCore } from "@storytree/knowledge-core/view";
 import type { CastMap } from "./cast.js";
 import { drawScene, SCRIPT, type Flag, type Marks, type SceneInputs, type Words } from "./scene.js";
 import { FONT, LOW, SCALE, SCREEN } from "./script.js";
-import { aimAt, MAP, mapProps, quantise, selectedAt, snapshot } from "./view.js";
+import { aimAt, growthAt, MAP, mapProps, quantise, selectedAt, snapshot } from "./view.js";
 
 /** What a short with the forest's view on its screen hands the frame that draws it: the view's canvas, its tilt and its aims
  * (each settled before the first frame), the props the view is given at a moment and where it is aimed, the palette its
@@ -27,7 +27,7 @@ export type MapShort = {
 };
 
 /** The first short, "seeing what agents built". */
-export const FIRST: MapShort = { map: MAP, scene: snapshot.scene, props: seconds => mapProps(selectedAt(SCRIPT.with, seconds)),
+export const FIRST: MapShort = { map: MAP, scene: snapshot.scene, props: seconds => mapProps(selectedAt(SCRIPT.with, seconds), growthAt(SCRIPT.with, seconds)),
   aimAt: seconds => aimAt(SCRIPT.with, seconds), quantise, draw: drawScene };
 /** The seam the forest hands an evidence capture its canvas's live state through (PlanetWorldCanvas's CAPTURE_SEAM). */
 const CAPTURE_SEAM = "__storytreeCaptureGlobe";
@@ -151,8 +151,11 @@ export function MapShortFrame({ short, lateBy = 0 }: { short: MapShort; lateBy?:
   useEffect(() => { if (controls && get) void settled(short, controls, get).then(setMarks); }, [short, controls, get]);
   useEffect(() => { if (get && assets && marks) continueRender(loading); }, [get, assets, marks, loading]);
   const seconds = frame / fps, props = short.props(seconds), at = short.aimAt(seconds);
-  // The view's props, as one value that changes only when they do: a selection or a claim taken or let go.
-  const shown = JSON.stringify([props.selected, props.wisps]);
+  // A growth is held back until the view has settled whole and its islands are found, so a frame that grows the map finds every
+  // island where the whole map has it.
+  const growth = marks ? props.growth : undefined;
+  // The view's props, as one value that changes only when they do: a selection, a claim taken or let go, or the growth's moment.
+  const shown = JSON.stringify([props.selected, props.wisps, growth?.at]);
   const ignore = useCallback(() => {}, []);
   useLayoutEffect(() => {
     if (!get || !assets || !marks) return;
@@ -169,7 +172,7 @@ export function MapShortFrame({ short, lateBy = 0 }: { short: MapShort; lateBy?:
   }, [short, get, controls, assets, marks, frame, fps, seconds, durationInFrames, shown, at, lateBy]);
   return <AbsoluteFill style={{ background: "#000" }}>
     <div style={{ position: "absolute", left: 0, top: 0, width: short.map.width, height: short.map.height, isolation: "isolate", zIndex: 0 }}>
-      <PlanetView {...props} core={core} onPick={ignore} onNote={ignore} onControls={setControls} />
+      <PlanetView {...props} growth={growth} core={core} onPick={ignore} onNote={ignore} onControls={setControls} />
     </div>
     <canvas ref={canvas} width={LOW.width} height={LOW.height}
       style={{ position: "absolute", left: 0, top: 0, zIndex: 1, width: LOW.width * SCALE, height: LOW.height * SCALE, imageRendering: "pixelated" }} />

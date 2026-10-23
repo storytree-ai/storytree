@@ -47,7 +47,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
-import { AFTER_TOOL, ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, CODEX_DELIVERS_FROM, codexDelivers, codexToolArguments, defaultHomes, EDIT_GATE, EVENT, HOOK_EVENT_TOOL, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, SHELL_GUARD, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
+import { AFTER_TOOL, ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, CODEX_DELIVERS_FROM, codexDelivers, codexToolArguments, defaultHomes, EDIT_GATE, EVENT, MOD_TOOLS, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, SHELL_GUARD, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
 import { HARNESS_IDS } from "@storytree/project-and-caller/caller";
 
 import { piExtension } from "./pi-extension.js";
@@ -223,8 +223,8 @@ function claudeEntries({ node, script }: HookCommand): Record<string, HookEntry[
   return {
     SessionStart: [{ hooks: [run(true)] }],
     PreToolUse: [
-      // Every storytree tool but hook_event, which Claude Code's mod calls to deliver an event: no agent asks for it.
-      { matcher: `${STORYTREE_TOOLS}(?!${HOOK_EVENT_TOOL.slice(STORYTREE_TOOLS.length)}$).*`, hooks: [run(false)] },
+      // Every storytree tool but those Claude Code's mod calls itself (hook_event, heartbeat): no agent asks for them.
+      { matcher: `${STORYTREE_TOOLS}(?!(?:${MOD_TOOLS.map((tool) => tool.slice(STORYTREE_TOOLS.length)).join("|")})$).*`, hooks: [run(false)] },
       { matcher: "Bash|PowerShell", hooks: [run(true)] },
       // Before each file edit, in the foreground: an edit to a capability the session may not write is refused (ADR-0949 D3).
       { matcher: "Write|Edit|MultiEdit|NotebookEdit", hooks: [{ type: "command", command: node, args: [script, "claude-code", EDIT_GATE] }] },

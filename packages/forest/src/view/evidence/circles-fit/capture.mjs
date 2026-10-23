@@ -1,5 +1,5 @@
 // Seeded, repeatable capture of one build of the actual desktop page: `node capture.mjs <before|after>`
-// serves dist/<label>/ (made by build.mjs) to headless Chromium with a stand-in bridge answering from
+// serves <label>/ in its build folder (made by build.mjs) to headless Chromium with a stand-in bridge answering from
 // seed.json.gz and survey.json, the same for both builds; same 1440 x 960 viewport, same programmatic
 // turns and zoom; nothing is hand-panned. Run under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`. Writes
 // <label>-front.png, <label>-world.png, <label>-crowded.png and measurements-<label>.json.
@@ -7,13 +7,13 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv.slice(2).find(arg => arg !== '--retake');
 assert.ok(['before', 'after'].includes(label), 'usage: node capture.mjs <before|after>');
-const dist = path.join(here, 'dist', label);
+const dist = buildFolder(here, label);
 const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, 'seed.json.gz'))).toString('utf8'));
 const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
 const WORLD = seed.tree.stories.find(s => s.title === 'The world').id;

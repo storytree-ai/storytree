@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
@@ -28,7 +28,7 @@ for (const story of seed.tree.stories) for (const cap of story.capabilities) for
   if (dep === SELECTED) expected.set(from, 'down');
 }
 
-await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: buildFolder(here) }, async ({ browser, origin, out, settle }) => {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1, colorScheme: 'dark' });
   const errors = [], warnings = [];
   page.on('pageerror', error => errors.push(String(error)));

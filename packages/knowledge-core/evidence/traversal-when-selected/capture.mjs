@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { captureOutput, captureSeed, runCapture, seedFile } from '../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, captureOutput, captureSeed, runCapture, seedFile } from '../../../../apps/desktop/src/capture/index.ts';
 import { sessionColour } from '../../../forest/src/agent-claims/agent-claims.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -121,7 +121,7 @@ const whileFramesCome = async (page, target, predicate, arg, capMs) => {
 const results = { label, sessions: SESSIONS, selected: SELECTED, colours: colour, reads };
 phase('launch the browser and load the page');
 await runCapture({
-  folder: here, dist: path.join(here, 'dist', smoke ? 'smoke' : label), seed, survey,
+  folder: here, dist: buildFolder(here, smoke ? 'smoke' : label), seed, survey,
   answers: { windowReading, windowReadings: async (project, sessions) => Promise.all(sessions.map(one => windowReading(project, one))), idleAfterMs: async () => 30 * 60_000, leaveAfterMs: async () => 60 * 60_000 },
   prepare: async ({ page }) => {
     phase('page loaded');

@@ -4,7 +4,7 @@
  * the real Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -144,4 +144,44 @@ test("17.2 · The library declares search_notes, open, write_note and correct_no
   assert.deepEqual(((await library.get(term))?.fields as { links?: string[] } | undefined)?.links, [cover.id], "a definition links inside the cover opened last");
 
   await assert.rejects(toolOf("write_note").act({ kind: "memory", fields: {}, links: [], title: undefined, text: undefined, term: undefined, meaning: undefined, front_cover_of: undefined }, context, WORDS), VerbRefusal);
+});
+
+test("17.4 · One field round-trips byte for byte: library read --field and the open tool's field give a record's stored value exactly, and library edit @file writes it back unchanged", async (t) => {
+  const storytree = await connect({ url: testServerUrl() });
+  const project = uniqueProjectName();
+  const folder = mkdtempSync(path.join(tmpdir(), "storytree-library-field-"));
+  t.after(async () => {
+    rmSync(folder, { recursive: true, force: true });
+    try {
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const library = await storytree.openProject(project);
+  const family = LIBRARY_FAMILIES.find((one) => one.name === "library")!;
+  const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family.verbs.find((one) => mounted(one.command) && one.command.name === name)!;
+  const toolOf = (name: string): Verb<VerbInputs, NoteToolContext> => NOTE_TOOLS.find((one) => mounted(one.tool) && one.tool.name === name)!;
+  const base = { library, project, session: "curator", folder, writer: { actor: "session:curator" }, claims: async () => [] };
+  const context: LibraryVerbContext = { ...base, testedNumbers: async () => ({ tested: [], untested: [] }) };
+  const reads: NoteRead[] = [];
+  const tools: NoteToolContext = { ...base, notesRead: async () => reads, recordReads: async (more) => void reads.push(...more), presenterOf: async () => undefined };
+
+  const text = "  D1. The owner's call: it isn’t ‘settled’ yet.\r\n\n\tIndented, with \"quotes\" and a trailing space \n\n";
+  const decision = await library.recordDecision({ status: "accepted", title: "Exact words", text });
+  const read = await verbOf("read").act({ ids: [decision.id], linked: false, field: "text" }, context, WORDS);
+  assert.deepEqual([read.text, read.raw], [text, true], "the command line prints the stored value raw");
+  const opened = await toolOf("open").act({ id: decision.id, field: "text" }, tools, WORDS);
+  assert.equal(opened.text, text, "the open tool gives the same value");
+  assert.deepEqual(reads.at(-1), { note: decision.id, found: "id", read: "whole" }, "reading a field reads the artifact");
+
+  const file = path.join(folder, "text.txt");
+  writeFileSync(file, read.text);
+  const edited = readFileSync(file, "utf8").replace("isn’t", "is not");
+  writeFileSync(file, edited);
+  await verbOf("edit").act({ "<id>": decision.id, "<fields>": { text: readFileSync(file, "utf8") } }, context, WORDS); // as the door reads `--text @text.txt`
+  const back = await verbOf("read").act({ ids: [decision.id], linked: false, field: "text" }, context, WORDS);
+  assert.equal(back.text, edited, "the edited file comes back byte for byte");
+
+  await assert.rejects(toolOf("open").act({ id: decision.id, field: "answer" }, tools, WORDS), (error: unknown) => error instanceof VerbRefusal && /"answer".*\btext\b/.test(error.message));
 });

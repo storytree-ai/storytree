@@ -1,0 +1,5 @@
+restoring the snapshot of "storytree" taken 2026-10-21T21:18:00.564Z into "storytree-seed-r14"
+the app's library: C:\Users\mickh\.storytree\acceptance-4.4\home\pgdata
+the storytree 0.3 app is running (process 70444): writing into its library while it runs
+another seed is writing the library: waiting for it to finish …
+restored: 7956 records and 749220 history entries into "storytree-seed-r14"

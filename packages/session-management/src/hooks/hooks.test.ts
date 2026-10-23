@@ -218,7 +218,8 @@ test("3.2 recorded Codex hook inputs make the same four lines, with the edited f
   });
 });
 
-for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} shell writes survive offline hooks, without attributing existing dirt or read-only commands`, async () => {
+for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} shell writes survive offline hooks, without attributing existing dirt or read-only commands`, { timeout: 120_000 }, async () => {
+  // About thirty hooks run one after another; a slow Windows runner has taken past a minute (PR #1693, 2026-10-23).
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const folder = await projectFolder(dir, project);
@@ -1066,20 +1067,29 @@ test("3.45 a `claude -p` session's last turn is recorded without the mod though 
       const folder = await projectFolder(dir, project, home);
       placeTestServer(path.join(home, "pgdata"), { port: (slow.address() as AddressInfo).port });
       // As setup registers Claude Code's end-of-turn hook (the app setup's hooks-config.ts): async, with --after-tool.
-      const child = spawn(process.execPath, [hook, "claude-code", AFTER_TOOL], { env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_ENTRYPOINT: "sdk-cli" }, stdio: ["pipe", "ignore", "ignore"], shell: false });
-      // As `claude -p` does at its turn's end (2.1.284, measured on the Mint box): SIGTERM soon after the hook starts, then gone when it exits.
-      const term = setTimeout(() => child.kill("SIGTERM"), 100);
-      const kill = setTimeout(() => child.kill("SIGKILL"), 400);
-      await new Promise<void>((resolve) => {
-        child.on("exit", () => resolve());
-        child.stdin.end(recorded("claude-code", "stop", folder));
-      });
-      clearTimeout(term);
-      clearTimeout(kill);
+      // As `claude -p` does at its turn's end (2.1.284, measured on the Mint box): SIGTERM soon after the hook starts, then
+      // gone when it exits. The SIGTERM lands before the hook has its input, so it is still at work: idle, a hook given its
+      // input at once has handed off before 100 ms. A hook killed by that SIGTERM never ran: one that hands off at once
+      // ignores it from its first statement, so on a runner loaded enough that Node had not reached it, the run is the
+      // machine's and is run again (seen on macOS CI, 2026-10-21); a hook that is not deaf dies so every time. Node keeps
+      // no SIGTERM ignored before it starts, so no hook can do better.
+      const ended: string[] = [];
+      for (let run = 0; run < 10 && (ended.length === 0 || ended.at(-1) === "SIGTERM"); run++) {
+        const child = spawn(process.execPath, [hook, "claude-code", AFTER_TOOL], { env: { ...process.env, STORYTREE_HOME: home, CLAUDE_CODE_ENTRYPOINT: "sdk-cli" }, stdio: ["pipe", "ignore", "ignore"], shell: false });
+        child.stdin.on("error", () => undefined);
+        const term = setTimeout(() => {
+          child.kill("SIGTERM");
+          child.stdin.end(recorded("claude-code", "stop", folder));
+        }, 100);
+        const kill = setTimeout(() => child.kill("SIGKILL"), 400);
+        ended.push(await new Promise<string>((resolve) => child.on("exit", (code, signal) => resolve(signal ?? `exit ${code}`))));
+        clearTimeout(term);
+        clearTimeout(kill);
+      }
 
       const deadline = Date.now() + 12_000;
       while (!(await linesOf(project)).some((line) => line.kind === "turn-ended") && Date.now() < deadline) await sleep(100);
-      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"]);
+      assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"], `the hook's runs ended: ${ended.join(", ")}`);
     });
   } finally {
     slow.close();
@@ -1661,10 +1671,11 @@ test("3.43 · The Claude Code mod's usage becomes a usage-measured line, and its
   }
 });
 
-test("3.42 A Claude Code command hook, finding the tool server's note of its event (the mod delivered it), stands down without reaching the library; with no note it records the event as before; the PreToolUse of the mod's own hook_event call records nothing", { timeout: 60_000 }, async () => {
+test("3.42 A Claude Code command hook, finding the tool server's note of its event (the mod delivered it), stands down without reaching the library; with no note it records the event as before; the PreToolUse of the mod's own hook_event or heartbeat call records nothing", { timeout: 60_000 }, async () => {
   // Claude Code's mod reaches the tool server as a tool call, which raises a PreToolUse of its own: no agent asked for it.
   const delivering = { ...JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work")), tool_name: "mcp__storytree__hook_event" };
   assert.equal(hookLines("claude-code", delivering), undefined);
+  assert.equal(hookLines("claude-code", { ...delivering, tool_name: "mcp__storytree__heartbeat" }), undefined, "nor does the mod's heartbeat call");
   const asking = JSON.parse(recorded("claude-code", "pre-tool-use-storytree", "/work")) as { tool_name: string };
   const made = hookLines("claude-code", asking)?.lines.map((line) => ({ kind: line.kind, tool: (line as { tool?: string }).tool }));
   assert.deepEqual(made, [{ kind: "tool-requested", tool: asking.tool_name.slice("mcp__storytree__".length) }], "another storytree tool's request still makes its line");

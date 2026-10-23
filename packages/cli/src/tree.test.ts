@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.8 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.10 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -193,5 +193,49 @@ test("10.7 `storytree health worklist` says on a proposed capability's line when
     const line = ran.stdout.split(/\r?\n/).find((one) => one.includes("Email form"))!;
     assert.match(line, /proposed — not built, the agent's to move.*its tests already pass on main; only its proposed flag is left/);
     assert.match(ran.stdout, new RegExp(`storytree capability built ${form.id}`));
+  });
+});
+
+test("10.9 `storytree plan` prints what the show_plan tool answers: each story, capability and contract with its health, and the arcs; a window it cannot read is refused as the tool refuses it", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const form = await library.addCapability({ title: "Email form", story: story.id });
+    const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
+    await library.reportHealth(check.id, "passing", { by: "agent" });
+    const arc = await library.createArc({ title: "Sign-up works", intent: "Visitors can sign up", endState: "The form sends its email" });
+
+    const ran = await world.run(["plan"]);
+
+    assert.equal(ran.code, 0, ran.stderr);
+    assert.deepEqual(ran.stdout.trimEnd().split(/\r?\n/), [
+      "The project has no anchor yet (project-anchor): say what it is and who it is for with edit_plan.",
+      `Story "Visitor can sign up" (${story.id}): reported passing, verified not checked`,
+      `  Capability "${form.fields.title}" (${form.id}): reported passing, verified not checked; proposed — not built, the agent's to move; nobody holds it`,
+      `    Contract "1.1 · Rejects an email with no @" (${check.id}): reported passing, verified not checked`,
+      `Arc "Sign-up works" (${arc.id}) grows no stories yet`,
+      "No sessions yet.",
+    ]);
+
+    const wrong = await world.run(["plan", "--closed", "week", "--from", "2026-10-01"]);
+    assert.equal(wrong.code, 1, wrong.stdout);
+    assert.match(wrong.stderr, /Give closed, or from and to, not both\./);
+  });
+});
+
+test("10.10 `storytree show`, the word agents reach for by the show_plan tool, prints the plan as `storytree plan` does; given a record's id it names `storytree library read <id>` and `storytree arc show <arc>`", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    await library.createArc({ title: "Sign-up works", intent: "Visitors can sign up", endState: "The form sends its email" });
+
+    const shown = await world.run(["show"]);
+    const planned = await world.run(["plan"]);
+    assert.equal(shown.code, 0, shown.stderr);
+    assert.equal(shown.stdout, planned.stdout);
+
+    const one = await world.run(["show", "contract_6cb815863354"]);
+    assert.equal(one.code, 2, one.stdout);
+    assert.match(one.stderr, /storytree library read contract_6cb815863354/);
+    assert.match(one.stderr, /storytree arc show <arc>/);
   });
 });

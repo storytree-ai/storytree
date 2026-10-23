@@ -63,4 +63,18 @@ export interface ForestScene {
    * type-only when only the code's types join them; optional for callers drawing land alone. An end may instead name an
    * island as a whole, by its story, where there is no capability to name (a mapped island, ADR-0993). */
   links?: readonly { from: string; to: string; typeOnly?: true }[];
+  /** Plumbing calls between stories (ADR-1085 D3): a build step, a cleanup or a forwarder, island to island, by story,
+   * with the importing files behind each; drawn by kind and never counted as a dependency. Optional, like `links`. */
+  plumbing?: readonly Plumbing[];
+}
+
+/** What a plumbing call is: the words it is labelled with, never a value word. */
+export type PlumbingKind = "build step" | "cleanup" | "forwarder";
+
+/** One plumbing call from a story's island to another's, with the files (in the `from` story's package) making it. */
+export interface Plumbing {
+  from: string;
+  to: string;
+  kind: PlumbingKind;
+  files: readonly string[];
 }

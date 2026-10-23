@@ -37,10 +37,14 @@ home="$root/home"; app="$root/Applications/storytree-0.3.app"
 st_channel "$home" "$app" ""; check "$ST_CHANNEL" stable "a first install defaults to stable"
 check "$(ls -A "$root")" "" "choosing a channel writes nothing"
 st_save_channel "$home" stable
-st_channel "$home" "$app" development; check "$ST_CHANNEL" development "an explicit retry replaces a failed download's leftover record"
+st_channel "$home" "$app" alpha; check "$ST_CHANNEL" alpha "an explicit retry replaces a failed download's leftover record"
 mkdir -p "$app"
-refused "already uses stable" "an installed app's channel is not silently changed" st_channel "$home" "$app" development
+refused "already uses stable" "an installed app's channel is not silently changed" st_channel "$home" "$app" alpha
 st_channel "$home" "$app" ""; check "$ST_CHANNEL" stable "a repeat keeps the installed channel"
+# Alpha's old name, development, still reads and asks for alpha (ADR-1121).
+printf '{"schema":1,"channel":"development"}' > "$home/release-channel.json"
+st_channel "$home" "$app" ""; check "$ST_CHANNEL" alpha "a record saved as development is alpha"
+st_channel "$home" "$app" development; check "$ST_CHANNEL" alpha "the old one-liner's --channel development asks for alpha"
 printf '{broken' > "$home/release-channel.json"
 refused "channel could not be read" "a damaged record stops delivery" st_channel "$home" "$app" ""
 refused "valid release channel" "an unknown channel is refused" st_channel "$home" "$app" preview

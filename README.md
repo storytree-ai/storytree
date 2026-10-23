@@ -96,6 +96,12 @@ steps:
   - run: storytree arc list
 ```
 
+## Reporting an error
+
+If storytree shows you an error, ask your agent to submit a GitHub issue on this repository,
+[`storytree-ai/storytree`](https://github.com/storytree-ai/storytree/issues), and it will be worked
+on. That is the current workflow; the desktop app's error box says the same (ADR-1119).
+
 ## Where this stands
 
 Each of 0.3's stories has its own package (see How changes land), and all of them are planned in
@@ -177,7 +183,6 @@ prompt to check that each test still protects something the product does. It is 
 
 ## License
 
-Storytree is **source-available**, not open source: it is licensed under the
-[PolyForm Shield License 1.0.0](LICENSE). Anyone, businesses included, may use, modify and embed it;
-the one thing the license does not allow is providing a product that competes with storytree.
-Competing use needs a separate grant from the owner.
+Storytree is **open source**, licensed under the [Apache License 2.0](LICENSE); see [NOTICE](NOTICE).
+Anyone, businesses included, may use, modify, embed and redistribute it, including in products of
+their own, under that license's terms.

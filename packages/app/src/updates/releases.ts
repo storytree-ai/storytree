@@ -23,6 +23,8 @@ export interface ReleaseOptions {
   readonly bundle?: string;
   /** On Linux, this app was started with --no-sandbox (its menu entry's, where the kernel blocks the sandbox), so the replaced AppImage is too. */
   readonly sandboxOff?: boolean;
+  /** How soon, in milliseconds, a restart the user asked for checks again while a seed or snapshot holds it; by default five seconds. */
+  readonly recheck?: number;
 }
 
 type Check = "current" | "waiting" | "restarting" | "stopped";
@@ -154,6 +156,7 @@ export class ReleaseUpdater {
   private next: string | undefined;
   private state: UpdateState;
   private selectedChannel: ReleaseChannel | undefined;
+  private recheck: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly options: ReleaseOptions, app?: AppAdapter, platform: NodeJS.Platform = process.platform) {
     const Base = releaseBase(platform);
@@ -183,7 +186,9 @@ export class ReleaseUpdater {
     if (action !== "check" && action !== "install" && action !== "status") throw new Error("Unknown update action");
     if (action === "install") this.asked = true;
     if (action !== "status") {
-      if (this.checking === undefined && !this.downloaded) this.set("checking");
+      // The user's say-so is taken at once: the gear reads it as restarting, not as offered again.
+      if (action === "install" && this.downloaded && this.restarting === undefined) this.set("restarting");
+      else if (this.checking === undefined && !this.downloaded) this.set("checking");
       const run = () => this.check().catch(() => { /* the state says why */ });
       // A check already past its quiet test would not install: asking runs another once it ends.
       void (action === "install" && this.checking !== undefined ? this.checking.catch(() => {}).then(run) : run());
@@ -193,6 +198,7 @@ export class ReleaseUpdater {
 
   stop(): void {
     this.stopped = true;
+    clearTimeout(this.recheck);
     this.cancellation?.cancel();
   }
 
@@ -222,17 +228,26 @@ export class ReleaseUpdater {
     const canRestart = await this.options.canRestart();
     if (this.stopped) return "stopped";
     const holds = this.asked || this.options.home === undefined ? [] : heldUpdateRuns(this.options.home);
+    // The user may ask while this check runs: their restart, set at once, is never shown as offered again.
     if (holds.length > 0) {
       const reason = `Automatic updates are held for: ${holds.join(", ")}. They resume when the runs finish or their holds expire.`;
-      this.set("pending", { reason });
+      if (!this.asked) this.set("pending", { reason });
       this.base.logger?.info(reason);
       return "waiting";
     }
     if (!canRestart) {
-      this.set("pending", { reason: "Waiting for the library to finish writing before restarting." });
+      const reason = "Waiting for the library to finish writing before restarting.";
+      if (!this.asked) { this.set("pending", { reason }); return "waiting"; }
+      // Asked and held by a seed or snapshot: wait, and follow the hold's end closely rather than the next scheduled check.
+      this.set("ready", { reason });
+      this.recheck ??= setTimeout(() => {
+        this.recheck = undefined;
+        this.check().catch(() => { /* the state says why */ });
+      }, this.options.recheck ?? 5_000);
+      this.recheck.unref?.();
       return "waiting";
     }
-    if (!quiet) { this.set("pending"); return "waiting"; }
+    if (!quiet) { if (!this.asked) this.set("pending"); return "waiting"; }
     this.set("restarting");
     this.restarting = this.base.installRelease();
     await this.restarting;

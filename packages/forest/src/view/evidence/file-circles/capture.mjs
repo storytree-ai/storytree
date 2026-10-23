@@ -6,13 +6,13 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 // survey.json is readCodeSurvey(<this checkout>, seed.tree), precomputed by `tsx survey.mjs`.
 const survey = JSON.parse(readFileSync(path.join(here, 'survey.json'), 'utf8'));
-await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: buildFolder(here) }, async ({ browser, origin, out, settle }) => {
 
 
 /** Per island: its circles against the surveyed files, whether each circle's middle lies inside its own territory, radii in ground units, overlap and coverage. */

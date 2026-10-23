@@ -62,6 +62,13 @@ jobs:
           elif [ "$queued" = true ]; then held=true; echo "Already in the merge queue: nothing more to do."
           fi
           echo "held=$held" >> "$GITHUB_OUTPUT"
+      # The enqueue's retry rule (packages/dev-loop/src/land-enqueue.mjs), and nothing else.
+      - uses: actions/checkout@v6
+        if: steps.held.outputs.held == 'false'
+        with:
+          sparse-checkout: packages/dev-loop/src/land-enqueue.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
       # With a merge queue required on main, enqueue the pull request at the commit `verify` passed
       # (expectedHeadOid): the queue tests it on top of main and merges it. It enqueues with the
       # MERGE_QUEUE_TOKEN secret, never this workflow's own token: GitHub starts no workflow from an
@@ -89,16 +96,15 @@ jobs:
               echo "::error::main requires the merge queue, but the MERGE_QUEUE_TOKEN secret is not set, so this pull request cannot be enqueued (an entry this workflow's own token enqueued would never be checked)."
               exit 1
             fi
-            # GitHub can refuse the enqueue seconds after this run's `verify` passed on this very
-            # commit, before it has taken the result in, with any of three wordings that name required
-            # checks as not yet passed: `Required status check "verify" is in progress` (PR #681: verify
-            # done 15:18:28, refused 15:18:34, the commit's only run), `... is queued` (PR #1589 run
-            # 39276813479, PR #1591 run 39283756431), or `2 of 2 required status checks have not
-            # succeeded` with every check green (PR #1589 run 39284191451). Those refusals alone are
-            # retried, a bounded number of times, still at expectedHeadOid, and only while the pull
-            # request's head is still the commit `verify` passed: a newer push has a run of its own.
-            # Any other refusal, or the same ones past the last try, fails here as before.
-            for attempt in 1 2 3 4 5 6; do
+            # GitHub can refuse the enqueue after this run's `verify` passed on this very commit,
+            # before it has taken the result in, naming required checks as not yet passed (`... is
+            # queued`, `... is expected`, `... is in progress`, `... have not succeeded`). Whether a
+            # refusal is tried again, for how long, is packages/dev-loop/src/land-enqueue.mjs's call
+            # (five minutes: PR #1684 was refused for 75 s and more). Every try is at expectedHeadOid,
+            # and only while the pull request's head is still the commit `verify` passed: a newer
+            # push has a run of its own.
+            start=$SECONDS
+            for attempt in $(seq 1 40); do
               if out=$(GH_TOKEN="$QUEUE_TOKEN" gh api graphql -f id="$PR_ID" -f sha="$SHA" \
                 -f query='mutation($id: ID!, $sha: GitObjectID!) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $sha}) { mergeQueueEntry { position } } }' \
                 --jq '"Entered the merge queue at position \(.data.enqueuePullRequest.mergeQueueEntry.position)."' 2>&1); then
@@ -106,17 +112,15 @@ jobs:
                 exit 0
               fi
               echo "$out"
-              if ! grep -Eq 'Required status check "[^"]+" is (in progress|queued|expected)|required status checks? (has|have) not succeeded' <<< "$out"; then exit 1; fi
+              if ! node packages/dev-loop/src/land-enqueue.mjs "$((SECONDS - start))" <<< "$out"; then exit 1; fi
               head=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
               if [ "$head" != "$SHA" ]; then
                 echo "::error::The pull request's head moved to $head after verify passed $SHA, so this run does not enqueue it: the newer push's run does."
                 exit 1
               fi
-              if [ "$attempt" = 6 ]; then break; fi
-              echo "verify passed on $SHA in this run, but GitHub still reads the required checks as not passed: trying again in 15 s (attempt $attempt of 6)."
               sleep 15
             done
-            echo "::error::GitHub still reads the required checks as not passed on $SHA after six tries over 75 s, although this run's verify passed it. Not enqueued; re-run this job to try again."
+            echo "::error::GitHub still reads the required checks as not passed on $SHA after 40 tries, although this run's verify passed it. Not enqueued; re-run this job to try again."
             exit 1
           else
             gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --auto --merge --match-head-commit "$SHA" --delete-branch

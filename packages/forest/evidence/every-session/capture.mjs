@@ -5,10 +5,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const dist = path.join(here, '../sessions-list/dist/production');
+const dist = buildFolder(path.join(here, '../sessions-list'), 'production');
 const seed = JSON.parse(readFileSync(path.join(here, '../../src/view/evidence/library-dots-clickable/seed.json'), 'utf8'));
 const forest = seed.tree.stories.find(story => story.title === 'The forest');
 const ids = { claimed: 'every-claimed', unclaimed: 'every-unclaimed', twoTrees: 'every-two-worktrees', idle: 'every-idle', ended: 'every-ended' };

@@ -198,6 +198,8 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
         ["reinforce", { friction: "friction_000000000000", evidence: "#81: timed out again" }],
         ["friction_drain", {}],
         ["route", { friction: "friction_000000000000", to: "nothing", reason: "a one-off" }],
+        ["schedule_due", {}],
+        ["schedule_ran", { process: "process_000000000000", outcome: "ok" }],
         ["record_resteer", { title: "Redirected", description: "Redirected", doing: "a", redirect: "b", evidence: '"not that"', disposition: "taste", "judged-by": "owner" }],
         ["raise_question", { arc: "arc_000000000000", title: "Which mailer?", stakes: "Cost", statement: "Mailgun or SES?", context: "Both work", options: "Mailgun; SES" }],
         ["correct_question", { question: "question_000000000000", title: "Which mailer, Mailgun or SES?" }],

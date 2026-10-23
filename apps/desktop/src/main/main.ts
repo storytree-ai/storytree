@@ -44,8 +44,8 @@ import SURFACES from "#parts/surfaces";
 import PAGE_ANSWERS from "#parts/pageAnswers";
 import PAGE_CHANNELS from "#parts/pageChannels";
 import { mount } from "@storytree/plugin-loader/switch";
-import { readPartsOff } from "@storytree/project-and-caller";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, safeStorage, shell, Tray } from "electron";
+import { readPartsOff, readStandIns } from "@storytree/project-and-caller";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powerMonitor, protocol, safeStorage, shell, Tray } from "electron";
 
 import {
   agentActiveAt,
@@ -84,6 +84,7 @@ import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANN
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/app-setup/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
+import { restartLimit } from "@storytree/app/lifecycle/restart-limit";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
 import { sourceVersion } from "@storytree/app/version";
@@ -104,24 +105,55 @@ import { createCeremony, createPublicWorkOS, createSessionManager, registerProto
 import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-session";
 
 import { APP_OWNER, appHome } from "../home.js";
-import { answerPage, answerPageParts, declaredSurfaces } from "../page-operations.js";
+import { answerPage, answerPageParts, declaredSurfaces, STAND_INS_OFFERED } from "../page-operations.js";
 import { parseArgs } from "./args.js";
 import { registersSignInScheme, routeCallback } from "./callback-check.js";
-import { followTaskbar, iconColourway } from "./app-icon.js";
+import { answerAppEvents, answerCallbackCheckEvents } from "./app-events.js";
+import { iconColourway } from "./app-icon.js";
 import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
+import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
 import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
+import { lateReads, projectAnswers } from "./late-reads.js";
+import { keepPageInWindow } from "./page-window.js";
+import { keepTray } from "./tray.js";
 import { titleWindow } from "./window-title.js";
+import { bringWindowForward } from "./window-shown.js";
+import { PLUGIN_SCHEME, pluginResponse, windowStandIns } from "./stand-ins.js";
 import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
 // A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
 declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 
 // The main process's own uncaught errors reach the log (app.log once logTo runs below, stderr in the checks), before startup work can throw.
-logMainErrors(process, { log: line => console.error(line), showError: (title, content) => dialog.showErrorBox(title, content) });
+// The box then offers Keep going or Restart; before the app is ready only the error box can show, so it keeps going.
+// Each is also kept in the user's own library on every install, held until it opens (lifecycle 1.25), naming the build
+// once it is known and the app's version before.
+/** Which build this is (`main 80bcc63`, or the development checkout), shown in the title and the tray. */
+let build = "";
+const errorRecords = mainErrorRecords({ build: () => build || app.getVersion(), log: line => console.error(line) });
+logMainErrors(process, {
+  log: line => console.error(line),
+  record: errorRecords.record,
+  ask: async ({ title, message, detail, buttons }) => {
+    if (!app.isReady()) {
+      dialog.showErrorBox(title, `${message}\n\n${detail}`);
+      return "keep-going";
+    }
+    const { response } = await dialog.showMessageBox({ type: "error", title, message, detail, buttons: [...buttons], defaultId: 0, cancelId: 0, noLink: true });
+    return response === 1 ? "restart" : "keep-going";
+  },
+  restart: () => {
+    const appImage = process.env.APPIMAGE;
+    lifecycle.restart(
+      thisBuild({ execPath: process.execPath, argv: process.argv, ...(appImage === undefined ? {} : { appImage }) }),
+      BrowserWindow.getAllWindows().some(window => window.isVisible()),
+    ).catch((error: unknown) => console.error(messageOf(error)));
+  },
+});
 
 const args = parseArgs(process.argv);
 const home = appHome();
@@ -151,14 +183,14 @@ let backups: ReturnType<typeof keepBackups> | undefined;
 let journey: JourneyRuntime | undefined;
 /** The parts this computer switches off, read once as the app starts (ADR-1095). */
 let partsOff: readonly string[] = [];
+/** The window's parts with the factory plugins standing in for switched-off parts composed in, as the app starts. */
+let parts = windowStandIns({ surfaces: SURFACES, pageAnswers: PAGE_ANSWERS, pageChannels: PAGE_CHANNELS }, { plugins: {} }, []);
 /** An installed app's release updater, which answers the gear's Updates panel in its place. */
 let releases: ReturnType<typeof followReleases>;
 /** What the window was opened with, so it can be opened again after it is closed. */
 let windowQuery: { project?: string; problem?: string } = {};
 /** Held here so it is not garbage-collected, which would remove the icon. */
 let tray: Tray | undefined;
-/** Which build this is (`main 80bcc63`, or the development checkout), shown in the title and the tray. */
-let build = "";
 /** The runtime slot this app runs from, when it is the app that follows merged main. */
 const slot = slotOf(home.runtime, app.getAppPath());
 const lifecycle = background({
@@ -167,6 +199,10 @@ const lifecycle = background({
   stopDatabase: shutdown,
   exit: (code) => app.exit(code),
   relaunch,
+  // After five restarts in a row the app stops restarting itself, and the stop is an error the user is asked to report (lifecycle 1.32).
+  ...(args.smoke || args.startCheck || args.callbackCheck ? {} : {
+    limit: restartLimit({ file: path.join(home.dir, "restarts.json"), stopped: message => errorRecords.record("restarts-stopped", message) }),
+  }),
 });
 // The app that follows merged main runs with no terminal, so what it says goes to a log beside its data.
 if (slot !== undefined && !args.smoke && !args.startCheck && !args.callbackCheck) logTo(path.join(home.dir, "app.log"));
@@ -184,44 +220,21 @@ if (refusal !== undefined) {
   app.exit(0); // asked to quit, and none is running: start nothing
 } else if (args.callbackCheck) {
   // Hold the lock with no window or library, and report each callback a later start hands over; a later `--quit` ends it.
-  app.on("second-instance", (_event, argv) => {
-    for (const url of callbackUrls(argv)) deliverCallback(url);
-    if (parseArgs(argv).quit) app.exit(0);
-  });
-  app.on("open-url", (event, url) => {
-    event.preventDefault();
-    deliverCallback(url);
-  });
-  for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => app.exit(0));
+  answerCallbackCheckEvents(app, process, { deliver: deliverCallback, exit: (code) => app.exit(code) });
   void runWhenReady(app.whenReady(), checkCallbacks, fail);
 } else {
   // A second start shows the window; one that arrives while the app is quitting or restarting opens
-  // it again once it has stopped, instead of being lost.
-  app.on("second-instance", (_event, argv) => {
-    // On Windows and Linux a sign-in's callback deep link arrives as a second start's argument.
-    for (const url of callbackUrls(argv)) deliverCallback(url);
-    if (lifecycle.secondStart({ quit: parseArgs(argv).quit }) === "show") showWindow();
-  });
-  // On macOS it arrives as open-url, before the app is ready when it started the app.
-  app.on("open-url", (event, url) => {
-    event.preventDefault();
-    deliverCallback(url);
-  });
-  app.on("activate", () => showWindow());
-  // Closing the last window leaves the app, and its database, running in the background.
-  app.on("window-all-closed", () => lifecycle.windowClosed());
-  // Quitting waits for Postgres to stop; app.exit then ends the app without asking again.
-  app.on("before-quit", (event) => {
-    event.preventDefault();
-    void lifecycle.quit();
-  });
-  for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => app.quit());
+  // it again once it has stopped, instead of being lost. Closing the last window leaves the app, and its
+  // database, running in the background; quitting waits for Postgres to stop.
+  answerAppEvents(app, process, { deliver: deliverCallback, lifecycle, showWindow, quitApp: () => app.quit() });
   if (args.smoke) {
     setTimeout(() => {
       console.error(`smoke: gave up after ${SMOKE_TIMEOUT_MS / 1000} s`);
       void lifecycle.quit(1);
     }, SMOKE_TIMEOUT_MS).unref();
   }
+  // A stand-in's views reach the page over the window's own scheme, which must be named before the app is ready.
+  protocol.registerSchemesAsPrivileged([{ scheme: PLUGIN_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
   // A failure in run, not only in whenReady, ends the app: half-started, it would hold the lock with no handlers.
   void runWhenReady(app.whenReady(), run, fail);
 }
@@ -237,8 +250,12 @@ async function run(): Promise<void> {
   const treesRead = new Map<unknown, AnnotatedTree>();
   // The parts this computer switches off (ADR-1095), read as the app starts: their surfaces and page operations are not mounted.
   partsOff = readPartsOff(home.dir);
+  // A factory plugin named to stand in for a switched-off part is mounted in its place, read from the factory as the app starts.
+  parts = windowStandIns({ surfaces: SURFACES, pageAnswers: PAGE_ANSWERS, pageChannels: PAGE_CHANNELS }, readStandIns(home.dir), partsOff);
+  ipcMain.on(STAND_INS_OFFERED, (event) => { event.returnValue = parts.page; });
+  protocol.handle(PLUGIN_SCHEME, (request) => pluginResponse(request.url, parts.served));
   // The page operations the stories' manifests name, each answered with what the frame offers (ADR-1021, ADR-1030 D2).
-  answerPageParts(ipcMain, PAGE_ANSWERS, PAGE_CHANNELS, {
+  answerPageParts(ipcMain, parts.pageAnswers, parts.pageChannels, {
     home: home.dir,
     appVersion,
     library: open,
@@ -253,7 +270,7 @@ async function run(): Promise<void> {
     },
   }, partsOff);
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
-  const surfaces = surfacesActions(mount(SURFACES, partsOff).mounted, home.dir);
+  const surfaces = surfacesActions(mount(parts.surfaces, partsOff).mounted, home.dir);
   answerPage(ipcMain, SURFACES_CHANNELS, surfaces);
   // Setup help stays in the frame (ADR-1030 D4): its actions need Electron's dialog, shell and clipboard, the license
   // file's path and the open library, and adding a project also tells the journey, which the frame holds.
@@ -286,21 +303,10 @@ async function run(): Promise<void> {
     }
   }
 
-  answerPage(ipcMain, PROJECTS_CHANNELS, {
-    listProjects: () => (reads === undefined ? [] : reads.listProjects()),
-    projectSelection: () => projects?.read() ?? { projects: [], current: undefined },
-    chooseProject: (name: unknown) => {
-      if (projects === undefined) throw new Error("The library is not open");
-      return projects.choose(name);
-    },
-  });
+  answerPage(ipcMain, PROJECTS_CHANNELS, projectAnswers({ reads: () => reads, projects: () => projects }));
   // Each read asks the library open by then: these are answered before it opens, and again after it reopens.
-  const lateReads = Object.fromEntries(Object.keys(PAGE_READS_CHANNELS).map((method) => [method, (...asked: unknown[]) => {
-    const now = open();
-    return (now[method as keyof typeof PAGE_READS_CHANNELS] as (...asked: unknown[]) => unknown).apply(now, asked);
-  }])) as unknown as PageReads;
   answerPage(ipcMain, PAGE_READS_CHANNELS, {
-    ...lateReads,
+    ...lateReads(Object.keys(PAGE_READS_CHANNELS) as (keyof typeof PAGE_READS_CHANNELS & keyof PageReads)[], open),
     projectTree: async (name: unknown) => {
       const tree = await open().projectTree(name);
       treesRead.set(name, tree);
@@ -315,6 +321,7 @@ async function run(): Promise<void> {
 
   let problem: string | undefined;
   let project: string | undefined;
+  let errorsOpened: Promise<void> | undefined;
   try {
     // Where the library lives is the user's library setting: this app's own Postgres (the default),
     // or a Cloud SQL instance, when no Postgres is started here at all (ADR-0734, ADR-0735 D4).
@@ -324,6 +331,7 @@ async function run(): Promise<void> {
       connect,
     });
     ({ storytree, postgres } = opened);
+    errorsOpened = errorRecords.open(opened.storytree);
     console.log(`library: ${opened.where}`);
     reads = pageReads({ storytree, transcriptCacheHome: path.join(home.dir, "transcripts") });
     const pages = reads;
@@ -406,6 +414,10 @@ async function run(): Promise<void> {
   else {
     if (!args.background) openWindow(windowQuery);
     showTray();
+    // An error the library holds that is not yet reported asks to be, until it is marked submitted (lifecycle 1.31, ADR-1122).
+    void errorsOpened?.then(() => errorRecords.settled())
+      .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
+      .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
     addStartMenuShortcut();
     try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
     if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });
@@ -419,16 +431,18 @@ async function run(): Promise<void> {
 /** The tray icon, whose menu brings the window back or quits the app. */
 function showTray(): void {
   // The mark, in the colourway of the taskbar it sits on, worn again when that setting changes (contract 1.17).
-  followTaskbar(nativeTheme, (colourway) => {
-    if (tray === undefined) tray = new Tray(createTrayIcon(colourway));
-    else tray.setImage(createTrayIcon(colourway));
-    for (const window of BrowserWindow.getAllWindows()) window.setIcon(createWindowIcon(colourway));
+  tray = keepTray({
+    theme: nativeTheme,
+    items: TRAY_MENU,
+    build,
+    makeTray: (image) => new Tray(image),
+    trayIcon: createTrayIcon,
+    windowIcon: createWindowIcon,
+    windows: () => BrowserWindow.getAllWindows(),
+    buildMenu: (items) => Menu.buildFromTemplate(items),
+    show: showWindow,
+    quit: () => app.quit(),
   });
-  if (tray === undefined) return;
-  tray.setToolTip(`storytree 0.3 · ${build}`);
-  const actions = { show: showWindow, quit: () => app.quit() };
-  tray.setContextMenu(Menu.buildFromTemplate(TRAY_MENU.map((item) => ({ label: item.label, click: actions[item.id] }))));
-  tray.on("click", showWindow);
 }
 
 /**
@@ -472,12 +486,7 @@ async function checkCallbacks(): Promise<void> {
 
 /** Bring the window forward, opening it again on the same project if it was closed. */
 function showWindow(): void {
-  if (shutDown !== undefined) return;
-  const [open] = BrowserWindow.getAllWindows();
-  const window = open ?? openWindow(windowQuery);
-  if (window.isMinimized()) window.restore();
-  window.show();
-  window.focus();
+  bringWindowForward(BrowserWindow.getAllWindows(), { stopping: shutDown !== undefined, open: () => openWindow(windowQuery) });
 }
 
 /**
@@ -594,11 +603,9 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
     },
   });
   // The page is the app: it never navigates away or opens other windows.
-  window.webContents.on("will-navigate", (event) => event.preventDefault());
-  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  keepPageInWindow(window, { headless: args.smoke });
   // A failure inside the page (a surface's failed refresh, an uncaught throw) is kept in app.log with the rest.
   logPageErrors(window.webContents, line => console.error(line));
-  if (!args.smoke) window.once("ready-to-show", () => window.show());
   // The page names the project; the title adds which build this is.
   titleWindow(window, build);
   // The lag instrument measures the catalogue with the page's lag recorder on and off (STORYTREE_LAG_RECORDER=off).
@@ -626,7 +633,7 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
       return { title: pick.querySelector("summary .row-title").innerText, contracts: pick.querySelectorAll("[data-contract-id]").length };
     })()`)) as { title: string; contracts: number } | null;
     // A surface switched off draws nothing to judge (ADR-0750); the forest's globe is always on.
-    const read = await surfacesActions(mount(SURFACES, partsOff).mounted, home.dir).readSurfaces();
+    const read = await surfacesActions(mount(parts.surfaces, partsOff).mounted, home.dir).readSurfaces();
     const arcsOn = !read.ok || surfaceOn(read.value, "arcs");
     const arcProblems = project !== undefined && state === "ready" && arcsOn ? await smokeArcSurface(window.webContents, project, open()) : [];
     if (state === "ready" && args.forestMode !== undefined) {

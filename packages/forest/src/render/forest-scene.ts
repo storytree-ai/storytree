@@ -14,7 +14,7 @@
  *   islands it touched, without a reload.
  * - The project's sentence sits above the plan it governs, with what the plan has not yet said (ADR-1085 D1).
  */
-import { PLACE_WIDTH, type CapabilityWord, type ForestScene as WorldScene, type Island, type PlacedTree, type TreeForm } from "@storytree/forest-world/scene";
+import { PLACE_WIDTH, type CapabilityWord, type ForestScene as WorldScene, type Island, type PlacedTree, type Plumbing, type PlumbingKind, type TreeForm } from "@storytree/forest-world/scene";
 import type { AnnotatedTree, Change, StorySurvey } from "@storytree/library";
 
 import { grove, type PartStates } from "../capability-tree/capability-tree.js";
@@ -71,7 +71,27 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
     const key = JSON.stringify([story.title, x, z, placed.map(({ capability, form, status, contracts }) => [capability, form, status, contracts]), land?.territories, area]);
     return { story: story.id, title: story.title, x, z, trees: placed, ...(land === undefined ? {} : { land }), area, key };
   });
-  return { islands, links: capabilityLinks(tree, survey) };
+  const plumbing = plumbingCalls(tree, survey);
+  return { islands, links: capabilityLinks(tree, survey), ...(plumbing.length === 0 ? {} : { plumbing }) };
+}
+
+/**
+ * The plumbing calls between stories (ADR-1085 D3, ADR-1078 rule 5): each survey edge file marked a forwarder, or
+ * declared a build step or cleanup, gathered into one island-to-island entry per (story, story, kind) with its files.
+ * The map draws them by kind for the user to judge; it names no value.
+ */
+function plumbingCalls(tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>): Plumbing[] {
+  const calls = new Map<string, { from: string; to: string; kind: PlumbingKind; files: Set<string> }>();
+  for (const story of tree.stories) for (const edge of survey[story.id]?.edges ?? []) for (const file of edge.files) {
+    const kind: PlumbingKind | undefined = file.forwarder === true ? "forwarder" : file.plumbing;
+    if (kind === undefined || edge.story === story.id) continue;
+    const key = JSON.stringify([story.id, edge.story, kind]);
+    const call = calls.get(key) ?? { from: story.id, to: edge.story, kind, files: new Set<string>() };
+    call.files.add(file.from);
+    calls.set(key, call);
+  }
+  return [...calls.values()].map(({ files, ...call }) => ({ ...call, files: [...files].sort() }))
+    .sort((a, b) => (a.from + a.to + a.kind < b.from + b.to + b.kind ? -1 : 1));
 }
 
 /**
@@ -84,7 +104,9 @@ export function forestScene(tree: AnnotatedTree, history: readonly Pick<Change, 
 function capabilityLinks(tree: AnnotatedTree, survey: Readonly<Record<string, StorySurvey>>): { from: string; to: string; typeOnly?: true }[] {
   const links = new Map<string, { from: string; to: string; typeOnly?: true }>(tree.stories.flatMap(story => story.capabilities.flatMap(capability =>
     capability.dependsOn.map(to => [`${capability.id}->${to}`, { from: capability.id, to }] as const))));
-  for (const story of tree.stories) for (const { from, to, typeOnly } of survey[story.id]?.edges ?? []) {
+  for (const story of tree.stories) for (const { from, to, typeOnly, files } of survey[story.id]?.edges ?? []) {
+    // An edge made only of plumbing calls is no dependency (ADR-1085 D3): plumbingCalls draws it by kind instead.
+    if (files.length > 0 && files.every((file) => file.forwarder === true || file.plumbing !== undefined)) continue;
     if (from !== undefined && to !== undefined && !links.has(`${from}->${to}`)) links.set(`${from}->${to}`, { from, to, ...(typeOnly ? { typeOnly } : {}) });
   }
   const mapped = new Set(tree.stories.filter(story => story.mapped !== undefined).map(({ id }) => id));

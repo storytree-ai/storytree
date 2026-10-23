@@ -1,6 +1,6 @@
 /** Capability 6 · Agent tools: the other stories' tools the server mounts, read from their packages' manifests (ADR-1021). */
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -63,4 +63,35 @@ test("6.95 the tool server serves no tool of a part this computer switches off, 
   const setupOff = await served(["app-setup"]);
   for (const tool of setupTools) assert.ok(!setupOff.includes(tool), `${tool}, in App setup's tool part, goes with it`);
   for (const tool of ["check_setup", "set_up_project", ...mapTools]) assert.ok(setupOff.includes(tool), `${tool} stays with App setup off`);
+});
+
+test("6.98 with a factory folder chosen and a factory plugin named to stand in for experiments, a part nothing stands on, the tool server serves the plugin's verb tools where experiments' were, and not once experiments is on again", async (t) => {
+  const folder = mkdtempSync(path.join(tmpdir(), "stand-in-"));
+  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  const plugin = path.join(folder, "factory", "plugins", "my-health");
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(path.join(plugin, "package.json"), JSON.stringify({ name: "my-health", type: "module", exports: { "./verbs": "./verbs.js" }, storytree: { interface: 1, verbs: [{ from: "./verbs", export: "families" }] } }));
+  writeFileSync(path.join(plugin, "verbs.js"), `const check = {
+  command: { family: "health", name: "check", summary: "my own health check" },
+  tool: { name: "my_health_check", description: "my own health check" },
+  inputs: {},
+  callerless: true,
+  act: async () => ({ text: "my health is fine" }),
+};
+export const families = [{ name: "health", summary: "my own health", order: 18, verbs: [check] }];
+`);
+  const served = async (settings: object) => {
+    writeFileSync(path.join(folder, "settings.json"), JSON.stringify({ factory: path.join(folder, "factory"), ...settings }));
+    const tools = createAgentTools({ folder, env: {}, setup: { storytreeHome: folder } });
+    try {
+      return tools.tools;
+    } finally {
+      await tools.close();
+    }
+  };
+  const standingIn = await served({ "parts-off": ["experiments"], "stand-ins": { experiments: "my-health" } });
+  assert.ok(standingIn.includes("my_health_check"), "the plugin's tool is served");
+  assert.ok(standingIn.includes("check_setup"), "the rest still are");
+  const on = await served({ "parts-off": [], "stand-ins": {} });
+  assert.ok(!on.includes("my_health_check"), "switched back on, the plugin's tool is not served");
 });

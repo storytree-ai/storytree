@@ -38,3 +38,5 @@ Checks:
 Residue (parked on the arc): at 1280×800, reached from the claim step, the parallel step's camera leaves Browsing and the
 cart on the sessions list's top edge, so their island names sit under the list. That is the camera's framing, not the tags',
 and moving it would move the phone view too.
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [1440-claim-to-parallel.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/agents-laptop/1440-claim-to-parallel.webm). Each link is its last copy, kept in git history.

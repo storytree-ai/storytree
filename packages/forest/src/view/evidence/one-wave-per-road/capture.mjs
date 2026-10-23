@@ -9,7 +9,7 @@ import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCapture, runCapture, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
+import { buildCapture, buildFolder, runCapture, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const [label, checkout] = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
@@ -18,7 +18,7 @@ const seed = JSON.parse(gunzipSync(readFileSync(path.join(here, '..', 'lanes-at-
 const byTitle = title => seed.tree.stories.find(story => story.title === title).id;
 const SELECTED = byTitle('The library'), KEYS = byTitle('Keys'), FACING = [SELECTED, byTitle('The map'), KEYS];
 const MOMENTS = [0.2, 0.5, 0.8, 1.2, 1.6, 2.2, 2.8, 3.6];
-const dist = path.join(here, 'dist', label);
+const dist = buildFolder(here, label);
 await buildCapture({ dist, ...(checkout ? { root: path.resolve(checkout) } : {}) });
 
 // In-page: turn the globe so the given islands' middle faces the viewer, a little left of the story panel.

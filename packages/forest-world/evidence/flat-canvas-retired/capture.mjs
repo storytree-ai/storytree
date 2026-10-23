@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runCapture } from '../../../../apps/desktop/src/capture/index.ts';
+import { buildFolder, runCapture } from '../../../../apps/desktop/src/capture/index.ts';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const label = process.argv[2];
 assert.ok(/^(before|after)\w*$/.test(label ?? ''), 'pass a before/after build label');
@@ -26,7 +26,7 @@ const turnTo = radians => async ({ page, settle }) => {
 };
 
 await runCapture({
-  folder: here, dist: path.join(here, 'dist', label.replace(/\d+$/, '')), seed, survey,
+  folder: here, dist: buildFolder(here, label.replace(/\d+$/, '')), seed, survey,
   prepare: async ({ page }) => {
     await page.waitForFunction(ids => document.body.dataset.state === 'ready' && window.__globe && window.__nav
       && ids.every(id => !!window.__globe.scene.getObjectByName(`planet:${id}`)?.getObjectByName('island-ground')), seed.tree.stories.map(s => s.id), { timeout: 120000 });

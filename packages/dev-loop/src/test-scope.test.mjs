@@ -94,6 +94,61 @@ test("a package whose code reaches into another by a relative path depends on it
   assert.deepEqual(decision.dirs, ["packages/forest", "packages/world"]);
 });
 
+test("1.1 an evidence script no test runs reaches no package; one a test names, or one it imports, still does", (t) => {
+  const root = workspace(t, {
+    packages: {
+      "packages/website": { name: "@x/website", files: { "src/site.ts": "" } },
+      "packages/world": {
+        name: "@x/world",
+        files: {
+          "src/w.test.ts": '/** A comment\'s ** names nothing. */\nrun(globSync("evidence/*/build.mjs"));\n',
+          "evidence/tour/unrun-tour.mjs": 'const site = "../../../website/src/site.ts";\n',
+        },
+      },
+      "packages/forest": {
+        name: "@x/forest",
+        files: {
+          "src/f.test.ts": 'run("packages/forest/evidence/look/build.mjs");\n',
+          "evidence/look/build.mjs": 'import "./page.js";\n',
+          "evidence/look/page.tsx": 'import "../../../website/src/site.ts";\n',
+        },
+      },
+      "packages/shop": {
+        name: "@x/shop",
+        files: {
+          "src/s.test.ts": 'const folder = "./evidence/named-folder";\n',
+          "src/evidence/named-folder/probe.mjs": 'const site = "../../../../website/src/site.ts";\n',
+        },
+      },
+    },
+  });
+  const decision = classify(["packages/website/src/site.ts"], readWorkspace(root));
+  assert.deepEqual(decision.dirs, ["packages/forest", "packages/shop", "packages/website"]);
+});
+
+test("1.1 a glob naming no script, such as a git pathspec over every evidence folder, keeps no evidence script", (t) => {
+  const root = workspace(t, {
+    packages: {
+      "packages/website": { name: "@x/website", files: { "src/site.ts": "" } },
+      "packages/world": {
+        name: "@x/world",
+        files: {
+          "src/sweep.mjs": 'git("ls-files", "--", ".", ":(exclude,glob)**/evidence/**");\nconst all = "evidence/*";\n',
+          "evidence/tour/unrun-tour.mjs": 'const site = "../../../website/src/site.ts";\n',
+          "evidence/top.mjs": 'const site = "../../website/src/site.ts";\n',
+        },
+      },
+    },
+  });
+  const decision = classify(["packages/website/src/site.ts"], readWorkspace(root));
+  assert.deepEqual(decision.dirs, ["packages/website"]);
+});
+
+test("1.1 the real workspace: the capture scripts no test runs (forest-world's website-reveal, forest's probe-website) draw no edge into website", () => {
+  const ws = readWorkspace(repoRoot);
+  for (const dir of ["packages/forest", "packages/forest-world"]) assert.ok(!ws.find((p) => p.dir === dir).reaches.includes("packages/website"), dir);
+});
+
 test("the real workspace's undeclared reach is found: app-setup builds cli's bin by path", () => {
   const ws = readWorkspace(repoRoot);
   assert.ok(ws.find((p) => p.dir === "packages/app-setup").reaches.includes("packages/cli"));

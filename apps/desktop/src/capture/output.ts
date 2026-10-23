@@ -23,6 +23,17 @@ export function outputFolder(folder: string, { argv, tmp }: CaptureRun = { argv:
   return path.join(tmp, "storytree-captures", name);
 }
 
+/**
+ * The folder an evidence `folder`'s capture build (its bundled page) goes to, `parts` naming one of several builds:
+ * under the checkout's ignored .evidence-builds/, never beside the evidence, so a build leaves no untracked output
+ * in a package's source or evidence folders, and deleting that one folder clears every build.
+ */
+export function buildFolder(folder: string, ...parts: string[]): string {
+  const inCheckout = path.relative(CHECKOUT, folder);
+  const name = inCheckout.startsWith("..") || path.isAbsolute(inCheckout) ? path.basename(folder) : inCheckout;
+  return path.join(CHECKOUT, ".evidence-builds", name, ...parts);
+}
+
 /** outputFolder for this run, made if it is missing and said on stderr, so the capture's reader knows where to look. */
 export function captureOutput(folder: string): string {
   const out = outputFolder(folder);

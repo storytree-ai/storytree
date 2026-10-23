@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 const here = path.dirname(fileURLToPath(import.meta.url));
 const seed = JSON.parse(readFileSync(path.join(here, 'seed.json'), 'utf8'));
 const census = JSON.parse(readFileSync(path.join(here, 'measurements.json'), 'utf8'));
@@ -22,7 +22,7 @@ async function check(contract, name, run, story = 'The forest') {
   });
   if (failure) throw failure;
 }
-await withCapture({ folder: here, dist: path.join(here, 'dist') }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: buildFolder(here) }, async ({ browser, origin, out, settle }) => {
 
 async function measure(page) {
   return page.evaluate(() => {

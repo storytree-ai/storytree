@@ -52,8 +52,8 @@
 .arc-bar { position: relative; flex: 0 0 16px; width: 16px; height: 8px; border-radius: 50%; }
 .arc-green { background: #5b9975; } .arc-red { background: #be6463; } .arc-yellow { background: #d3a84c; } .arc-grey { background: #8d9498; }
 .arc-check-back { outline: 1px solid #d3a84c; outline-offset: 1px; }
-/* A holder's flag: its foot at the oval's middle, a little left of centre, so the pennant flies over the oval; a second holder stands beside. */
-.arc-agent-mark { position: absolute; left: calc(3px + var(--flag-at, 0) * 5px); top: -11px; overflow: visible; pointer-events: none; }
+/* A holder's flag: its foot at the oval's middle, a little left of centre, so the pennant flies over the oval. An increment has one holder, so one flag. */
+.arc-agent-mark { position: absolute; left: 3px; top: -11px; overflow: visible; pointer-events: none; }
 .arc-other-waits { color: var(--muted, #adb8b2); font-size: .68rem; }
 .arc-queue { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 2px 14px 7px 27px; color: var(--muted, #adb8b2); font-size: .75rem; }
 .arc-queue-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem !important; background: transparent; border: 1px solid var(--line, #43504d); border-radius: 4px; padding: 1px 6px; }

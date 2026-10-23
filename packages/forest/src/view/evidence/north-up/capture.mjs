@@ -1,17 +1,17 @@
 // The globe after real pointer drags on the actual desktop page: where north points on screen after each.
 // Same seed and viewport as file-circles. `node capture.mjs <dist> <prefix>` after `node build.mjs`;
-// the before pictures come from origin/main bundled into another dist (see build.mjs).
+// the before pictures come from origin/main bundled into another build folder (see build.mjs).
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
+import { buildFolder, fakeBridge, withCapture } from '../../../../../../apps/desktop/src/capture/index.ts'; // run with node --import tsx
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const [dist = 'dist', prefix = 'after'] = process.argv.slice(2).filter(arg => arg !== '--retake');
 const seed = JSON.parse(readFileSync(path.join(here, '../knowledge-under-islands/seed.json'), 'utf8'));
 const survey = JSON.parse(readFileSync(path.join(here, '../file-circles/survey.json'), 'utf8'));
-await withCapture({ folder: here, dist: path.join(here, dist) }, async ({ browser, origin, out, settle }) => {
+await withCapture({ folder: here, dist: buildFolder(here, dist) }, async ({ browser, origin, out, settle }) => {
 
 /** North's bearing on screen in degrees clockwise from straight up, and how far it leans toward the eye. */
 const north = page => page.evaluate(() => {

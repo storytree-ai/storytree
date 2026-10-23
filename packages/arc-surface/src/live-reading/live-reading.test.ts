@@ -269,6 +269,32 @@ test("what the page reading holds keeps only what a surface reads: each reported
   reading.stop();
 });
 
+test("what the page reading holds of a record keeps only the fields a surface reads: an increment without its body, an agent's role without its workflow", async () => {
+  const app = new App();
+  const at = new Date(0).toISOString();
+  const change = (seq: number, type: string, fields: Record<string, unknown>): Change => ({ seq, recordId: `${type}_1`, type, action: "updated",
+    record: { id: `${type}_1`, type, version: seq, fields, createdAt: at, updatedAt: at } });
+  app.changes.push(
+    change(1, "increment", { title: "Time it", status: "closed", outcome: { disposition: "landed", pr: 7, note: "n".repeat(1_000) }, body: "b".repeat(1_000), pending: ["p".repeat(1_000)] }),
+    change(2, "agent", { title: "session-orchestrator", role: "You drive.", workflow: "w".repeat(1_000), tools: ["t".repeat(1_000)] }),
+    change(3, "decision", { title: "ADR-1", text: "We decided.", status: "accepted", links: ["capability_1"], authority: "a".repeat(1_000) }),
+    change(4, "capability", { title: "Arc surface", story: "story_1", description: "Draws arcs." }),
+  );
+  const reading = pageReading({ project: "shop", reads: app, timers: new Clock() });
+  const heard: News[] = [];
+  reading.subscribe({ onNews: (news) => heard.push(news) });
+  await settle();
+
+  assert.equal((heard[0]?.changes[0]?.record.fields as { body?: string }).body?.length, 1_000, "the news itself is whole");
+  assert.deepEqual(reading.held().changes.map(({ seq, record }) => [seq, record.fields]), [
+    [1, { title: "Time it", status: "closed", outcome: { disposition: "landed" } }],
+    [2, { title: "session-orchestrator", role: "You drive." }],
+    [3, { title: "ADR-1", text: "We decided.", status: "accepted", links: ["capability_1"] }],
+    [4, { title: "Arc surface", story: "story_1", description: "Draws arcs." }],
+  ]);
+  reading.stop();
+});
+
 test("the page reading holds the log's sessions and claims folded, and drops every line no surface reads one by one", async () => {
   const app = new App();
   const at = new Date(0).toISOString();

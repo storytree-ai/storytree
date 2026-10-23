@@ -8,7 +8,7 @@ export { fakeBridge } from "./fake-bridge.js";
 export type { FakeBridge, FakeBridgeOptions } from "./fake-bridge.js";
 export { browserProcess, closeBrowser, launch, launchPlan, loadPlaywright } from "./launch.js";
 export type { LaunchPlan, Machine } from "./launch.js";
-export { captureOutput, outputFolder } from "./output.js";
+export { buildFolder, captureOutput, outputFolder } from "./output.js";
 export type { CaptureRun } from "./output.js";
 export { seedWorkStates } from "./testing/seed.js";
 export { runCapture, withCapture, settle } from "./runner.js";

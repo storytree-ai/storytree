@@ -43,3 +43,5 @@ frame.
 
 **Measured only here.** Frame rates and motion smoothness on a hardware GPU (the laptop) were not measured; the box draws with
 SwiftShader.
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [1440-map-chapter.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/map-six-steps/1440-map-chapter.webm). Each link is its last copy, kept in git history.

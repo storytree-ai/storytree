@@ -10,7 +10,7 @@ export interface PublishedBuild { version: string; publishedAt: string; platform
 export interface Concern { id: string; title: string; text: string }
 export interface CandidatePorts {
   pinned(): Promise<StableManifest | undefined>;
-  /** Published development builds newer than the pin, newest first. */
+  /** Published alpha builds newer than the pin, newest first. */
   builds(after: string | undefined): Promise<readonly PublishedBuild[]>;
   /** Whether the build's release run passed, its acceptance run included, and the run that says so. */
   runs(build: PublishedBuild): Promise<{ passed: boolean; evidence: string }>;
@@ -25,7 +25,7 @@ export interface StableCandidate {
   passedOver: { version: string; reasons: string[] }[];
 }
 
-/** A day on the development installs (the owner's machines, the Mint box) before a build may be stable. */
+/** A day on the alpha installs (the owner's machines, the Mint box) before a build may be stable. */
 const SOAK_HOURS = 24;
 const build = (version: string) => Number(version.slice(4));
 const nameOf = (p: Platform) => p === "windows" ? "Windows" : FEED_PLATFORMS[p].name;
@@ -51,7 +51,7 @@ export async function stableCandidate(ports: CandidatePorts): Promise<StableCand
     const reasons: string[] = [];
     const missing = covers.filter(p => !b.platforms.includes(p));
     if (missing.length) reasons.push(`it has no ${list(missing.map(nameOf))} build, which the pin covers`);
-    if (hours < SOAK_HOURS) reasons.push(`published ${hours} hour${hours === 1 ? "" : "s"} ago, under the ${SOAK_HOURS} the development installs run it first`);
+    if (hours < SOAK_HOURS) reasons.push(`published ${hours} hour${hours === 1 ? "" : "s"} ago, under the ${SOAK_HOURS} the alpha installs run it first`);
     for (const c of concerns) {
       if (c.at <= build(b.version) && (!pinned || c.at > build(pinned.version))) reasons.push(`${c.id} names a regression in 0.3.${c.at}: ${c.title}`);
     }
@@ -61,7 +61,7 @@ export async function stableCandidate(ports: CandidatePorts): Promise<StableCand
         return { ...(pinned ? { pinned: pinned.version } : {}), passedOver, candidate: { version: b.version, notes: await ports.notes(b.version), evidence: [
           `Covers ${list(covers.map(nameOf))}, as the pin does.`,
           runs.evidence,
-          `Published ${hours} hours ago: the development installs have run it or a later build for at least ${SOAK_HOURS}.`,
+          `Published ${hours} hours ago: the alpha installs have run it or a later build for at least ${SOAK_HOURS}.`,
           `No open friction or question names a regression in it or an earlier unpinned build.`,
         ] } };
       }

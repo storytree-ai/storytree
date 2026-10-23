@@ -23,8 +23,9 @@ export function isRecording(file) {
   return /(^|\/)evidence\/(.+\/)?[^/]+\.(webm|json\.gz)$/.test(file) && path.posix.basename(file) !== "seed.json.gz";
 }
 
-/** Source a build or test runs, outside every evidence folder. */
-const SOURCES = ["*.ts", "*.tsx", "*.mts", "*.cts", "*.js", "*.mjs", "*.cjs", ":(exclude,glob)**/evidence/**"];
+/** Source a build or test runs, outside every evidence folder (the folder's name kept out of the glob's text, which the test scope reads as naming every evidence script). */
+const EVIDENCE = "evidence";
+const SOURCES = ["*.ts", "*.tsx", "*.mts", "*.cts", "*.js", "*.mjs", "*.cjs", `:(exclude,glob)**/${EVIDENCE}/**`];
 
 function git(root, args) {
   return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });

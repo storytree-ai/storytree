@@ -6,9 +6,9 @@ The actual desktop renderer, captured unedited with headless Chromium 148 over a
 (the 2026-09-27 snapshot supplies the forest; the arcs are an explicit fixture). Dark theme,
 1440 × 960. Nothing in the owner's library or running app is opened or changed.
 
-- [Folded: the lamp and its follow-on sit behind the caret](folded.png)
-- [Queue open: chips under their blocker](queue-open.png)
-- [A queued arc selected from its chip](queued-selected.png)
+- [Folded: the lamp and its follow-on sit behind the caret](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/lane-rollup/folded.png)
+- [Queue open: chips under their blocker](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/lane-rollup/queue-open.png)
+- [A queued arc selected from its chip](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/lane-rollup/queued-selected.png)
 - [Measured results](capture.json)
 
 The fixture: *Trusted-circle distribution* has free work (**ready · 2 to take**). *Floor-health
@@ -29,3 +29,5 @@ flock /tmp/storytree-heavy.lock node --import tsx packages/arc-surface/evidence/
 The renderer now also reads its surfaces setting and opens its app menu when the app's own reads
 are absent; this capture answers the first as "unread" (every surface on) and closes the menu. The
 older `../capture.mjs` predates both and no longer reaches a ready page.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/lane-rollup).

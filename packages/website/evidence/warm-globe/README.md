@@ -71,9 +71,9 @@ exited 0.
 
 The browser runs exercise local builds; they do not attest hardware-GPU performance.
 
-![Desktop handover, after the first flight](after/handover-1440.png)
+![Desktop handover, after the first flight](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/warm-globe/after/handover-1440.png)
 
-![Phone handover](after/handover-390.png)
+![Phone handover](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/warm-globe/after/handover-390.png)
 
 ## Reproduce
 
@@ -86,3 +86,5 @@ node packages/website/evidence/capture.mjs warm-globe/recording --verify-recordi
 # Any build, measuring only (copy each build's packages/website/dist aside first):
 node packages/website/evidence/warm-globe/measure.mjs <dist> <label>
 ```
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/warm-globe/after) (2).

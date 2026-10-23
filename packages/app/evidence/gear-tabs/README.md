@@ -17,10 +17,12 @@ looking through the tabs saves nothing.
 
 | Shot | What it shows |
 |---|---|
-| [1-sessions.png](1-sessions.png) | Sessions: context guidance, the time before a quiet claim can be taken over, and the time before a finished session leaves the list. |
-| [2-library.png](2-library.png) | Library: where the library lives, on this computer. |
-| [3-library-cloud-sql-fields.png](3-library-cloud-sql-fields.png) | Google Cloud SQL chosen (not saved): its connection fields. |
-| [4-surfaces.png](4-surfaces.png) | Surfaces: the list from the Surfaces menu, unchanged, every on/off switch and opening zoom. |
+| [1-sessions.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-tabs/1-sessions.png) | Sessions: context guidance, the time before a quiet claim can be taken over, and the time before a finished session leaves the list. |
+| [2-library.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-tabs/2-library.png) | Library: where the library lives, on this computer. |
+| [3-library-cloud-sql-fields.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-tabs/3-library-cloud-sql-fields.png) | Google Cloud SQL chosen (not saved): its connection fields. |
+| [4-surfaces.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-tabs/4-surfaces.png) | Surfaces: the list from the Surfaces menu, unchanged, every on/off switch and opening zoom. |
 
 Run it after `node apps/desktop/build.mjs`, under the heavy lock:
 `STORYTREE_EMBEDDER=off flock /tmp/storytree-heavy.lock node --import tsx packages/app/evidence/gear-tabs/capture.mjs`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-tabs).

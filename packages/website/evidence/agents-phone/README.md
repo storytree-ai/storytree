@@ -32,3 +32,5 @@ Checks:
 
 Laptop residue, parked as increment_d9d744221102: at 1440 the parallel step's Part 2 and Part 3 tags overlap
 (`before/1440-agents-parallel.png`). It is left as it was, on the instruction that the desktop stay unchanged.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 46 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-phone/after) (21), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-phone/before) (21), [`journey/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-phone/journey) (4).

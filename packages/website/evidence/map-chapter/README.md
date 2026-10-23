@@ -32,3 +32,5 @@ Checks: `tour.test.ts` 2.16 red, then green. Browser journeys `--verify-tour` (t
 no ADR numbers, and the comparison on its last step), `--verify-camera` (the shop grows from its first stories to eight
 during the growth step), `--verify-immersive`, `--verify-forest`, `--verify-recording`, `--verify-opening`,
 `--verify-opening-frames` and `--verify-enlarged`, and `arrival/capture.mjs` (`--only map` makes these pictures), all pass.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 77 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-chapter).

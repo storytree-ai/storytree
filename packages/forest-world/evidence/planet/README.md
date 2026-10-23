@@ -27,7 +27,7 @@ Before is the unchanged engine with this capture (`red-measurements.json`); afte
 without the kept clock a lane drawing on would restart when the globe returns. The node half of the
 contract is `src/planet/paint-while-seen.test.ts`.
 
-![The globe back on screen, drawing](back-on-screen.png)
+![The globe back on screen, drawing](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/planet/back-on-screen.png)
 
 Run from the repository root after `pnpm install`, with Playwright Chromium installed, under the
 machine's heavy-run lock:
@@ -63,7 +63,9 @@ asked R3F for a frame, so a still globe stayed blank; the fix (`src/planet/redra
 for one. Off screen the ask is dropped and the 6.10 return draws it. Its node half is
 `src/planet/redraw-on-restore.test.ts`.
 
-![The globe after its context came back](context-restored.png)
+![The globe after its context came back](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/planet/context-restored.png)
 
 Run as above, importing `context-loss.mjs` instead of `capture.mjs` (pass `--red` to write the
 before file).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/planet).

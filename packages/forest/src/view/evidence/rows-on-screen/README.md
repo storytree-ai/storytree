@@ -23,8 +23,8 @@ the app opens on now. Its scripts and files are `measure.mts`, `experiments.mts`
 
 | | |
 | --- | --- |
-| [opening.png](opening.png) | The view the app opens on: spun 2.5° and tilted 18° toward the islands' middle (ADR-0855 D3) |
-| [front.png](front.png) | The same globe with no spin and no tilt |
+| [opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows-on-screen/opening.png) | The view the app opens on: spun 2.5° and tilted 18° toward the islands' middle (ADR-0855 D3) |
+| [front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows-on-screen/front.png) | The same globe with no spin and no tilt |
 | [opening-dependencies.svg](opening-dependencies.svg) | A schematic of the opening view: every dependency the rows are built from, green where the dependent is north of what it depends on, on screen; red where it is south; dashed grey where an end is behind the globe |
 | [opening-pathways.svg](opening-pathways.svg) | The same for the pathways the globe draws |
 
@@ -63,8 +63,8 @@ each read at a level opening (spun to the islands' middle, no tilt):
 | Layout | Globe radius | Islands drawn at | Readable | Behind | Dependencies seen pointing north |
 | --- | --- | --- | --- | --- | --- |
 | Today | 250 | 100% | 11 of 21 | 5 | 21 of 60 |
-| Islands pushed at most 34° from their row place, the globe grows instead ([variant-pushed-34.png](variant-pushed-34.png)) | 305 | 82% of today's width | 14 | 1 | 37 of 60 |
-| Islands pushed at most 17°, as before ADR-0910 ([variant-pushed-17.png](variant-pushed-17.png)) | 463 | 54% | 19 | 0 | 55 of 60 |
+| Islands pushed at most 34° from their row place, the globe grows instead ([variant-pushed-34.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows-on-screen/variant-pushed-34.png)) | 305 | 82% of today's width | 14 | 1 | 37 of 60 |
+| Islands pushed at most 17°, as before ADR-0910 ([variant-pushed-17.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows-on-screen/variant-pushed-17.png)) | 463 | 54% | 19 | 0 | 55 of 60 |
 | Rows from 60° south to 60° north | 231 | 108% | 9 | 4 | 14 of 60 |
 | Sea between islands as before ADR-0910 (12, not 36) | 218 | 115% | 12 | 3 | 24 of 60 |
 | Rows ranked by the plan's dependencies (4 rows) | 255 | 98% | 10 | 5 | 12 of 19 |
@@ -86,9 +86,9 @@ pull against each other (ADR-0910 asked for bigger land; ADR-0839 for rows).
 
 | | |
 | --- | --- |
-| [spun-half-round.png](spun-half-round.png) | A sideways drag of half the canvas's height: 1 island readable, 5 at the rim, 15 behind the globe |
-| [tilted-to-the-limit.png](tilted-to-the-limit.png) | Tilted down to the limit: 3 readable; the rows are rings round the pole, and The forest (row 6) is drawn above The command line (row 8) |
-| [zoomed-out-to-the-limit.png](zoomed-out-to-the-limit.png) | The wheel out as far as it goes |
+| [spun-half-round.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows-on-screen/spun-half-round.png) | A sideways drag of half the canvas's height: 1 island readable, 5 at the rim, 15 behind the globe |
+| [tilted-to-the-limit.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows-on-screen/tilted-to-the-limit.png) | Tilted down to the limit: 3 readable; the rows are rings round the pole, and The forest (row 6) is drawn above The command line (row 8) |
+| [zoomed-out-to-the-limit.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows-on-screen/zoomed-out-to-the-limit.png) | The wheel out as far as it goes |
 
 The fewest islands each limit would leave readable, over every turn it allows (`experiments.json`, `turning`);
 storytree's islands lie between 117° west and 133° east, 51° south and 51° north:
@@ -131,7 +131,7 @@ pictures for the owner to look at; nothing here is recorded as accepted (ADR-079
 
 | View | Before | After |
 | --- | --- | --- |
-| As the app opens storytree's own globe | [before-opening.png](before-opening.png) | [after-opening.png](after-opening.png) |
+| As the app opens storytree's own globe | [before-opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows-on-screen/before-opening.png) | [after-opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows-on-screen/after-opening.png) |
 
 Measured on the opening view (`measurements-*.json`), over the islands facing the eye, with each story's row
 ranked as the app ranks it (the survey's package dependencies, ADR-0840 D2):
@@ -163,3 +163,5 @@ node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capt
 
 Append `--retake` to a capture command to replace these committed pictures; without it the output goes below
 `/tmp/storytree-captures`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 9 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows-on-screen).

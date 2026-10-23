@@ -50,7 +50,9 @@ pnpm gate
 
 Chapter 1: the visitor sees the same CRT and streamed jokes, with no competing globe startup; the terminal keeps their attention. At the turn, the still covers the cold load and the globe's existing flight introduces Chapter 2. Replay gives Chapter 1 the screen and renderer budget again. This changes lifecycle, not copy or visual design.
 
-- [Desktop handover](after/handover-1440.png) and [phone handover](after/handover-390.png), after the first camera flight.
-- [Desktop ready](journeys/1440-ready.png), [desktop peak](journeys/1440-peak.png), [phone peak](journeys/390-peak.png).
+- [Desktop handover](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/defer-globe/after/handover-1440.png) and [phone handover](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/defer-globe/after/handover-390.png), after the first camera flight.
+- [Desktop ready](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/defer-globe/journeys/1440-ready.png), [desktop peak](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/defer-globe/journeys/1440-peak.png), [phone peak](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/defer-globe/journeys/390-peak.png).
 
 The browser tests exercise local builds and synthetic waitlist validation/transport. They do not attest a live external waitlist insertion or hardware GPU performance.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 8 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/defer-globe/after) (2), [`journeys/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/defer-globe/journeys) (6).

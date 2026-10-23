@@ -14,14 +14,14 @@ planned yellow; no reported health or activity was invented.
 
 | View | Before: #90's 0.18 shell | After: 0.08 shell |
 | --- | --- | --- |
-| Front | ![Before, front](before-front.png) | ![After, front](after-front.png) |
-| Quarter turn | ![Before, quarter turn](before-quarter-turn.png) | ![After, quarter turn](after-quarter-turn.png) |
+| Front | ![Before, front](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/shell/before-front.png) | ![After, front](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/shell/after-front.png) |
+| Quarter turn | ![Before, quarter turn](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/shell/before-quarter-turn.png) | ![After, quarter turn](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/shell/after-quarter-turn.png) |
 
 The before bundle is the product at red commit `1c13912`, which retains #90's shell
 code. The after bundle changes only its opacity. Both use the **same seed**, camera,
 zoom, light and frozen placements; new seed IDs can change coast shapes, so these
 matched captures isolate the opacity change. #90's original
-[front](../packed/seeded-packed.png) and [quarter turn](../packed/seeded-quarter-turn.png)
+[front](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/packed/seeded-packed.png) and [quarter turn](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/packed/seeded-quarter-turn.png)
 remain available with their [capture notes](../packed/README.md).
 
 At 0.08 the outline still shows the ball and the land's limited coverage. The
@@ -55,3 +55,5 @@ merged. `build.mjs before` saved the 0.18 bundle before the source edit;
 exact screen-up quarter turn. Raw measurements and seed input remain in `dist/`.
 Every seed, test and Chromium run held `/tmp/storytree-heavy.lock`. No new test
 framework ships. The laptop session supplies the Electron `pnpm desktop:smoke` view.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/shell).

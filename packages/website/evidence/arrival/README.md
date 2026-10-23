@@ -6,9 +6,9 @@
 
 The time-lapse now replays **storytree's own project** (`src/own-snapshot.json`, saved by `refresh-own.ts`, PR #603): 24 dated stages from 25 September to 4 October 2026, its 19 islands arriving in the order they were recorded, its knowledge notes gathering in the core, its claims on the coasts, and its land as `main` stood at each stage. The card names it: **"This is storytree, built with storytree."** / "8 days of its agents' work: every island, road and note, replayed from its own records." (the number of days and the dates are filled from the saved growth at build). The value statement and the three fixes sit over storytree's whole globe. Then a new beat, **"Let's start small"**, cuts to the shop's globe, whole, narrowed to its three teaching stories (Browse products and pick them → Review the cart and use the menu → Check out), ringed, with the other six dimmed. The shop is read from its saved snapshot, so the rebuilt shop is a data swap. **The naming and the cut's lines are the agent's DRAFT** (marked in `src/tour-copy.ts`) for the owner to replace.
 
-![Desktop: growth, value, the cut](arrival-strip.png)
+![Desktop: growth, value, the cut](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/arrival/arrival-strip.png)
 
-![Phone: pain, growth, value, fixes, the cut](phone-strip.png)
+![Phone: pain, growth, value, fixes, the cut](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/arrival/phone-strip.png)
 
 | Step | The visitor sees | Likely feels / thinks |
 |---|---|---|
@@ -35,7 +35,7 @@ Then the tour carries on into Conduit's chapters as before.
 
 Both are built; `data-fixes-look` on `#chapter2` picks one (`index.html` ships **beside**). Each row plays as its line arrives: top row of `fixes-looks.png` is **beside**, bottom row is **resolve**, each at about 0.4 s, 1 s and settled.
 
-![The two looks](fixes-looks.png)
+![The two looks](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/arrival/fixes-looks.png)
 
 - **beside**: the pain is said in red in its own box; an arrow draws, and the fix arrives in green beside it, while the pain settles back. It reads as a before and after table: quick to scan, the pain stays legible.
 - **resolve**: the pain is said large in red where the fix will stand; it then shrinks to a small red caption, the row's edge turns from red to green, and the fix rises in its place. It reads as the pain being overcome rather than compared, and gives the fix the larger type.
@@ -51,7 +51,7 @@ Phone (390 px): `390-4-fixes-beside.png`, `390-4-fixes-resolve.png`.
 | Value | Two lines alone over the finished shop (`1440-3-value.png`) | The promise in one read, with the proof still on screen |
 | Fixes | Three pains, each answered (`fixes-looks.png`) | "Those are my three problems, and each has an answer on the map" |
 
-![The arrival, frame by frame](arrival-strip.png)
+![The arrival, frame by frame](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/arrival/arrival-strip.png)
 
 A clip of it playing at 1×, pain to fixes, on SwiftShader: [arrival.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/arrival/arrival.webm). Phone frames: `phone-strip.png`.
 
@@ -76,4 +76,5 @@ pnpm --filter @storytree/website build && node packages/website/evidence/arrival
 
 It asserts: Act 2 opens on the pain with the shop's globe at its point and no name shown; the growth's moment rises as the step plays, holds while paused, and the shop is whole on the value step; the value statement stands alone; all three fixes show while the tour waits, in each look; the principles are the fixes' depth with no decision list; reduced motion and no WebGL keep the screen dark under the pain; Act 1's exit lands on the pain; and the browser reports no errors.
 
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 36 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/arrival).
 Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [arrival.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/arrival/arrival.webm). Each link is its last copy, kept in git history.

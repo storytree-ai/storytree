@@ -33,9 +33,9 @@ on 2026-10-11 from `main` at 93eeaead, whose pacing is [one wave per road](../on
 
 | | Before | After |
 | --- | --- | --- |
-| Draw-on strip, the globe's part of each frame | [before-strip.png](before-strip.png): 2 of 18 lanes whole at 0.4 s, 17 at 0.7 s, all by 1.0 s | [after-strip.png](after-strip.png): 1 whole at 1.0 s, 4 at 1.4 s, 9 at 1.9 s, 17 at 2.6 s, all by 4.0 s (the longest, 756 ground units, at 3.02 s) |
-| Mid-draw, full size | | [after-frame-2.png](after-frame-2.png) (0.4 s: the trunk's head climbing north) |
-| Reduced motion, first frame after the click | [before-reduced-motion.png](before-reduced-motion.png) | [after-reduced-motion.png](after-reduced-motion.png): all 18 whole, no heads, rings settled |
+| Draw-on strip, the globe's part of each frame | [before-strip.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-draw-on/before-strip.png): 2 of 18 lanes whole at 0.4 s, 17 at 0.7 s, all by 1.0 s | [after-strip.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-draw-on/after-strip.png): 1 whole at 1.0 s, 4 at 1.4 s, 9 at 1.9 s, 17 at 2.6 s, all by 4.0 s (the longest, 756 ground units, at 3.02 s) |
+| Mid-draw, full size | | [after-frame-2.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-draw-on/after-frame-2.png) (0.4 s: the trunk's head climbing north) |
+| Reduced motion, first frame after the click | [before-reduced-motion.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-draw-on/before-reduced-motion.png) | [after-reduced-motion.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-draw-on/after-reduced-motion.png): all 18 whole, no heads, rings settled |
 
 Under one wave per road the down lanes all start on the click and climb the trunk as one front; the selection settles
 when the longest lane (756 ground units, 3.02 s) is whole.
@@ -51,3 +51,5 @@ node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/s
 
 Each run builds the desktop page of its checkout with `buildCapture` into ignored `dist/`. Without `--retake`, the
 output goes to a scratch folder.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-draw-on).

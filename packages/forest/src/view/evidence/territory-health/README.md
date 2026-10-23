@@ -12,13 +12,13 @@ accepted (ADR-0794).
 
 | View | Picture |
 | --- | --- |
-| Resting front view: all three words on the globe | [front.png](front.png) |
-| Close-up (camera zoom x2.6) on The agent link: two live claims (blue, magenta) beside unclaimed territories, and a red one | [close-up-agent-link.png](close-up-agent-link.png) |
-| Close-up (x2.6) on The command line: its largest territory, Unclaimed code, as uncharted land | [close-up-command-line.png](close-up-command-line.png) |
-| Close-up (x2.6) on The forest: a quiet session's faded claim on the yellow Story node render; proposed Story nodes in yellow | [close-up-forest.png](close-up-forest.png) |
-| Close-up (x2.6) on The library: the red Cloud connection beside a live claim on Library transactions | [close-up-library.png](close-up-library.png) |
-| Close-up (x2.6) on The arc surface: the parked Arc surface in slate grey beside green Work states, yellow Agents on the board and Briefing, and hatched uncharted land (ADR-0992) | [close-up-arc-surface.png](close-up-arc-surface.png) |
-| The globe turned half round from The library: the two failing islands behind it show rim markers | [rim-markers.png](rim-markers.png) |
+| Resting front view: all three words on the globe | [front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territory-health/front.png) |
+| Close-up (camera zoom x2.6) on The agent link: two live claims (blue, magenta) beside unclaimed territories, and a red one | [close-up-agent-link.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territory-health/close-up-agent-link.png) |
+| Close-up (x2.6) on The command line: its largest territory, Unclaimed code, as uncharted land | [close-up-command-line.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territory-health/close-up-command-line.png) |
+| Close-up (x2.6) on The forest: a quiet session's faded claim on the yellow Story node render; proposed Story nodes in yellow | [close-up-forest.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territory-health/close-up-forest.png) |
+| Close-up (x2.6) on The library: the red Cloud connection beside a live claim on Library transactions | [close-up-library.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territory-health/close-up-library.png) |
+| Close-up (x2.6) on The arc surface: the parked Arc surface in slate grey beside green Work states, yellow Agents on the board and Briefing, and hatched uncharted land (ADR-0992) | [close-up-arc-surface.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territory-health/close-up-arc-surface.png) |
+| The globe turned half round from The library: the two failing islands behind it show rim markers | [rim-markers.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territory-health/rim-markers.png) |
 
 Renderer: headless Chromium 148, ANGLE / Vulkan SwiftShader, 1440 x 960, dark theme, device scale 1.
 Seed: the eight-story, 58-capability snapshot of `../knowledge-under-islands`, with the code survey and
@@ -126,3 +126,5 @@ are 1 px and alias slightly (visible as a faint moire on the small islands); the
 - The coast side of a claimed territory's band lies on the session's coast arc (ADR-0804 D9), in the
   same colour, so the two read as one there; inland, the band alone marks the claim. (Overtaken: ADR-0923
   removed the coast arc, and the band is now the only claim mark.)
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 7 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territory-health).

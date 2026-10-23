@@ -31,3 +31,5 @@ Checks:
 
 Residue (parked on the arc): on short phones (320×700 and smaller), the longer steps still scroll a little in the space
 under the globe. So does the arrival's fixes slide, which already did on main.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 190 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/one-format/after) (60), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/one-format/before) (65), [`immersive/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/one-format/immersive) (65).

@@ -40,3 +40,5 @@ storytree 0.3.358 installed and running normally, with the debug port closed. Pr
 Their folders, the fresh Codex homes (which held copies of the Codex sign-in) and
 `C:\Users\mickh\st-codexharden` are deleted. The note `~\.storytree\0.3\codex-hooks-ran` stays. Codex is
 installed and signed in. The owner's `~\.codex` is as described above. No scheduled tasks are left.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 1 picture, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/codex-hardening-live).

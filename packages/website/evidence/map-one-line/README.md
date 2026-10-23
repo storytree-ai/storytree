@@ -26,13 +26,13 @@ nothing that arrives on a timer is lost to a visitor who stops; reduced motion k
 `two-steps.webm`, the two steps played through at 1440 at 0.75×. `seen.json` records each picture's moment, its labels and
 whether any label crowds the screen's edge, the card, the bar, a panel or an island's name: none does.
 
-- Laptop: [stories paused](1440-map-stories-paused.png) (all four "a story" labels and the pathway), [capabilities paused](1440-map-capabilities-paused.png),
-  [the panel's moment](1440-map-capabilities-moment-3.png).
-- Phone: the pathway at 390 ([moment 5](390-map-stories-moment-5.png)) and the file at 390 ([moment 2](390-map-capabilities-moment-2.png)), as
+- Laptop: [stories paused](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-one-line/1440-map-stories-paused.png) (all four "a story" labels and the pathway), [capabilities paused](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-one-line/1440-map-capabilities-paused.png),
+  [the panel's moment](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-one-line/1440-map-capabilities-moment-3.png).
+- Phone: the pathway at 390 ([moment 5](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-one-line/390-map-stories-moment-5.png)) and the file at 390 ([moment 2](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-one-line/390-map-capabilities-moment-2.png)), as
   before; a phone never opens the story panel, so it has no panel label, and 320 shows no label on these steps (each would crowd
   an island's name), so the How carries them in words.
-- No WebGL: the step's note, the one line and How and why, at [1440](1440-map-stories-no-webgl.png), [390](390-map-stories-no-webgl.png),
-  [320](320-map-capabilities-no-webgl.png).
+- No WebGL: the step's note, the one line and How and why, at [1440](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-one-line/1440-map-stories-no-webgl.png), [390](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-one-line/390-map-stories-no-webgl.png),
+  [320](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-one-line/320-map-capabilities-no-webgl.png).
 
 **See:** one line on the left; the islands rising one by one with "a story" beside each; a pathway named where it is drawn; then
 inside signing in, "a capability", "each dot is a file", and the panel's diagram outlined with its words beneath it.
@@ -51,4 +51,5 @@ inside signing in, "a capability", "each dot is a file", and the panel's diagram
 state); browser journeys `--verify-camera` (2.16 now waits on moments and checks the pathway label and the panel's pointer),
 `--verify-tour --verify-forest` and `--verify-immersive` pass.
 
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 36 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-one-line).
 Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [two-steps.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/map-one-line/two-steps.webm). Each link is its last copy, kept in git history.

@@ -11,3 +11,5 @@ window reading; run both through `node "<checkout>/packages/dev-loop/src/heavy-l
 **Since rows start collapsed (forest 7.8, 2026-10-11 re-run):** the capture no longer folds the row first; it checks every row starts
 collapsed. `--smoke` builds its own page and takes no pictures; forest's numbered 7.8 browser test runs it, so a control the capture
 waits for that the strip stops drawing fails on the changing branch.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/row-detail).

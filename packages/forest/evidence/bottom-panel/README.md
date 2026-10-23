@@ -10,9 +10,9 @@ PLANET_PLAYWRIGHT=<playwright-core/index.mjs> PLANET_CHROMIUM=<chrome-headless-s
 
 ## Pictures
 
-- [Desktop, expanded](bottom-desktop-expanded.png) and [collapsed](bottom-desktop-collapsed.png)
-- [Narrow (420px), expanded](bottom-narrow-expanded.png) and [collapsed](bottom-narrow-collapsed.png)
-- [Desktop with the story panel open at the right and the stale-forest mark showing](bottom-desktop-story-panel-and-stale-mark.png)
+- [Desktop, expanded](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/bottom-panel/bottom-desktop-expanded.png) and [collapsed](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/bottom-panel/bottom-desktop-collapsed.png)
+- [Narrow (420px), expanded](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/bottom-panel/bottom-narrow-expanded.png) and [collapsed](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/bottom-panel/bottom-narrow-collapsed.png)
+- [Desktop with the story panel open at the right and the stale-forest mark showing](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/bottom-panel/bottom-desktop-story-panel-and-stale-mark.png)
 - [Measures](measures.json)
 
 ## Measures
@@ -38,3 +38,5 @@ PLANET_PLAYWRIGHT=<playwright-core/index.mjs> PLANET_CHROMIUM=<chrome-headless-s
 
 **Since rows start collapsed (forest 7.8, 2026-10-11 re-run):** the capture opens the builder's row before measuring its detail, so
 Running counts its two commands, not the waiting session's third. The pictures above are from before, re-taken only with `--retake`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/bottom-panel).

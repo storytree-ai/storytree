@@ -21,10 +21,10 @@ Every route moves. These are pictures for the owner to look at; nothing here is 
 
 | View | Before | After |
 | --- | --- | --- |
-| The globe unturned, its front facing the eye | [before-front.png](before-front.png) | [after-front.png](after-front.png) |
-| The world facing the eye | [before-the-world.png](before-the-world.png) | [after-the-world.png](after-the-world.png) |
-| The agent link facing the eye | [before-the-agent-link.png](before-the-agent-link.png) | [after-the-agent-link.png](after-the-agent-link.png) |
-| The command line facing the eye | [before-the-command-line.png](before-the-command-line.png) | [after-the-command-line.png](after-the-command-line.png) |
+| The globe unturned, its front facing the eye | [before-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/real-coast/before-front.png) | [after-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/real-coast/after-front.png) |
+| The world facing the eye | [before-the-world.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/real-coast/before-the-world.png) | [after-the-world.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/real-coast/after-the-world.png) |
+| The agent link facing the eye | [before-the-agent-link.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/real-coast/before-the-agent-link.png) | [after-the-agent-link.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/real-coast/after-the-agent-link.png) |
+| The command line facing the eye | [before-the-command-line.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/real-coast/before-the-command-line.png) | [after-the-command-line.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/real-coast/after-the-command-line.png) |
 
 Renderer: headless Chromium, ANGLE / SwiftShader, 1440 x 960, dark theme, device scale 1. Both builds get the same
 stand-in bridge, seed, survey, viewport and turns. **Before** is this branch with the one change that hands the router
@@ -35,3 +35,5 @@ the outline taken out of `pathways.ts` (so both builds measure `unrouted` the sa
 `node --import tsx build.mjs <checkout> before` (with the `outline:` handoff removed from that checkout's
 `pathways.ts`), `node --import tsx build.mjs <this checkout> after`, then
 `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before|after --retake`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 8 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/real-coast).

@@ -25,9 +25,9 @@ Every route moves once. These are pictures for the owner to look at; nothing her
 
 | View | Before | After |
 | --- | --- | --- |
-| The globe unturned, its front facing the eye | [before-front.png](before-front.png) | [after-front.png](after-front.png) |
-| The world facing the eye | [before-the-world.png](before-the-world.png) | [after-the-world.png](after-the-world.png) |
-| The librarian, turned a little toward The world | [before-librarian-to-world.png](before-librarian-to-world.png) | [after-librarian-to-world.png](after-librarian-to-world.png) |
+| The globe unturned, its front facing the eye | [before-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/island-centred-chart/before-front.png) | [after-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/island-centred-chart/after-front.png) |
+| The world facing the eye | [before-the-world.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/island-centred-chart/before-the-world.png) | [after-the-world.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/island-centred-chart/after-the-world.png) |
+| The librarian, turned a little toward The world | [before-librarian-to-world.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/island-centred-chart/before-librarian-to-world.png) | [after-librarian-to-world.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/island-centred-chart/after-librarian-to-world.png) |
 
 Before, The agent link's road comes straight down onto The world's tip, the surface fill; after, it is routed round
 and docks on The world's near coast.
@@ -41,3 +41,5 @@ worktree; **after** is this branch. The page reads 28 roads before and 27 after 
 `node --import tsx build.mjs <before checkout> before`, `node --import tsx build.mjs <this checkout> after`, then
 `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before|after --retake`. The unrouted lengths are each
 cross segment's `unrouted`; for the before build, the same one line was added to a scratch copy of its `pathways.ts`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/island-centred-chart).

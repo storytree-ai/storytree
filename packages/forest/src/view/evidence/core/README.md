@@ -15,7 +15,7 @@ bridge replaced by reads captured through the library's public API on the test P
 globe is ADR-0648's packed one (radius 160, #90). Every picture was taken after the same pointer
 drag, so the core is seen from an angle rather than end-on.
 
-- [The real seed](core-seeded-turned.png): this repo's stories and decisions synced into a
+- [The real seed](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/core/core-seeded-turned.png): this repo's stories and decisions synced into a
   scratch project. Of its 74 notes, 69 hang at depth 1 under their shelves and the five
   whole-project decisions orbit outside; and every story's entrance is named. There are no links, ghosts or
   reads yet, so the panel says "no recorded reads" and every note is grey.
@@ -24,13 +24,13 @@ drag, so the core is seen from an angle rather than end-on.
   on no shelf, and eight made-up reads by an orchestrator, an explorer subagent (with its task)
   and an unknown agent across two sessions. **The loop is diagnostic**: the library refuses
   loops (#87), so it was added only to the page's input and never written.
-  - [A session selected](core-example-session.png): the legend, and the orchestrator's jump,
+  - [A session selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/core/core-example-session.png): the legend, and the orchestrator's jump,
     dashed and bowed, from the Cart cover to the replaced Search decision.
-  - [A note pinned](core-example-pinned.png): its card and its two stored links out, drawn as
+  - [A note pinned](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/core/core-example-pinned.png): its card and its two stored links out, drawn as
     white arrows.
-  - [Replay paused at step 2 of 6, sized by Links in](core-example-replay-paused.png): only the
+  - [Replay paused at step 2 of 6, sized by Links in](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/core/core-example-replay-paused.png): only the
     first two reads are lit.
-  - [Back to the globe](core-example-back-to-globe.png): the islands, sea and turn return.
+  - [Back to the globe](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/core/core-example-back-to-globe.png): the islands, sea and turn return.
 
 ## Checks
 
@@ -38,3 +38,5 @@ There were no page errors. The smoke readout (`data-drew`) is unchanged in every
 development build still emits the existing drei `Html` nested-root warning noted for the globe.
 The behaviour is proven by `packages/knowledge-core/src/look-inside`'s tests (contracts 4.1–4.5).
 The drawing is for the owner's eye.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/core).

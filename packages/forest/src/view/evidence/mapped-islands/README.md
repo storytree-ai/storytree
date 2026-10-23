@@ -9,11 +9,11 @@ This is a picture for the owner to judge; nothing here is recorded as accepted (
 
 | View | Picture |
 | --- | --- |
-| Storytree's eight stories with three mapped ones of about 2,000 (storefront), 20,000 (api) and 200,000 (core) lines, each importing the next, so core is lowest and storefront highest; the shipped cap | [beside-shipped.png](beside-shipped.png) |
-| The same with the cap at 30,000 ground units², the first value tried | [beside-cap-30000.png](beside-cap-30000.png) |
-| The same with no cap: land per line as for a built island | [beside-cap-1000000000.png](beside-cap-1000000000.png) |
-| A click on api: its panel says it is mapped, with 20 files and 20,000 lines, and shows no health | [close-up-shipped.png](close-up-shipped.png) |
-| A project whose only stories are mapped, never verified and with no survey: it opens on brown land | [only-mapped-shipped.png](only-mapped-shipped.png) |
+| Storytree's eight stories with three mapped ones of about 2,000 (storefront), 20,000 (api) and 200,000 (core) lines, each importing the next, so core is lowest and storefront highest; the shipped cap | [beside-shipped.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/mapped-islands/beside-shipped.png) |
+| The same with the cap at 30,000 ground units², the first value tried | [beside-cap-30000.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/mapped-islands/beside-cap-30000.png) |
+| The same with no cap: land per line as for a built island | [beside-cap-1000000000.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/mapped-islands/beside-cap-1000000000.png) |
+| A click on api: its panel says it is mapped, with 20 files and 20,000 lines, and shows no health | [close-up-shipped.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/mapped-islands/close-up-shipped.png) |
+| A project whose only stories are mapped, never verified and with no survey: it opens on brown land | [only-mapped-shipped.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/mapped-islands/only-mapped-shipped.png) |
 
 **Choosing the cap.** Each island's reach (its coast's farthest point from its middle, in ground units), from the
 measurements files; the largest built island is The agent link, at 93.6.
@@ -33,3 +33,5 @@ Renderer: headless Chromium, ANGLE / SwiftShader, 1440 x 960, dark theme, device
 `../knowledge-under-islands` with the code survey of `../session-tints`, each capability given its verified
 column's word. Taken on the Mint box on 2026-10-11. Run `node build.mjs [cap]`, then
 `node --import tsx capture.mjs [cap] --retake`, under `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" --`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/mapped-islands).

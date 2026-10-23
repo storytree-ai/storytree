@@ -14,3 +14,5 @@ the harness step's line while it plays. `seen.json` records the card, the marks 
 
 **Choices made here.** The line is data on the step (`marksNote` in `src/tour-copy.ts`), drawn under `#tour-marks` and hidden
 with them, and in free play. It is quieter than the marks' names (regular weight, 15px, 14px on a phone).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/harness-mcp/after) (2), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/harness-mcp/before) (2).

@@ -9,15 +9,15 @@ explicit fixture (16 arcs, so the board has more rows than the half-height drawe
 1x scale. Nothing in the owner's library or running app is opened or changed. **The owner has not accepted
 the look.**
 
-- [Half height, 1440 × 960](drawer-half.png) — the control reads Expand
-- [Expanded, 1440 × 960](drawer-expanded.png) — Restore, focused from the keyboard
-- [Expanded, 360 × 640](drawer-expanded-narrow.png)
-- [Half height, 360 × 640](drawer-half-narrow.png)
+- [Half height, 1440 × 960](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-expand/drawer-half.png) — the control reads Expand
+- [Expanded, 1440 × 960](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-expand/drawer-expanded.png) — Restore, focused from the keyboard
+- [Expanded, 360 × 640](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-expand/drawer-expanded-narrow.png)
+- [Half height, 360 × 640](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-expand/drawer-half-narrow.png)
 - [Every measured box](capture.json)
 
-![half](drawer-half.png)
-![expanded](drawer-expanded.png)
-![narrow expanded](drawer-expanded-narrow.png)
+![half](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-expand/drawer-half.png)
+![expanded](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-expand/drawer-expanded.png)
+![narrow expanded](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-expand/drawer-expanded-narrow.png)
 
 ## What the capture proves
 
@@ -68,3 +68,5 @@ node --import tsx packages/arc-surface/evidence/drawer-expand/capture.mjs --reta
 
 Without `--retake` the pictures and `capture.json` go to a scratch folder. `CAPTURE_PLAYWRIGHT` and
 `CAPTURE_CHROMIUM` name other Playwright or Chromium installs by path.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-expand).

@@ -63,3 +63,5 @@ serves it with the suite's own server and runs the unmodified spec; copy `grade/
 
 Not proven here: a session open in an interactive agent window across an update (the turns were headless, so
 no agent process lived between turns); Windows arm64 (dropped from the MVP).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 25 pictures, each one's last copy kept in git history at [`shots/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots) (25).

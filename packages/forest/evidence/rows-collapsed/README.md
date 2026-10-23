@@ -10,8 +10,8 @@ PLANET_PLAYWRIGHT=<playwright-core/index.mjs> PLANET_CHROMIUM=<chrome-headless-s
 
 ## Pictures
 
-- [Fresh load: every row collapsed](collapsed.png)
-- [One row opened by its expander](one-expanded.png)
+- [Fresh load: every row collapsed](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/rows-collapsed/collapsed.png)
+- [One row opened by its expander](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/rows-collapsed/one-expanded.png)
 - [Measures](measures.json)
 
 ## Measures
@@ -19,3 +19,5 @@ PLANET_PLAYWRIGHT=<playwright-core/index.mjs> PLANET_CHROMIUM=<chrome-headless-s
 - Fresh load: three rows at work, every expander `aria-expanded="false"`, no detail drawn, the builder's subagent folded under its "+1"; the strip is 157px tall.
 - Clicking the builder's expander opens only that row: its Worktrees, Running and Files, then its child; the strip grows to 257px.
 - Clicking it again restores the fresh list exactly. No expand-all control.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/rows-collapsed).

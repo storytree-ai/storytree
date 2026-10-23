@@ -18,15 +18,15 @@ own library as `../glass-sheet-tilt/` (27 stories). Every move is a real key pre
 
 | At rest | After Q |
 | --- | --- |
-| ![rest](sheet-rest.png) | ![after Q](sheet-after-q.png) |
+| ![rest](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-spin/sheet-rest.png) | ![after Q](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-spin/sheet-after-q.png) |
 
 | A right-drag to an odd heading, compass showing it | Then T: the underside, the heading held |
 | --- | --- |
-| ![odd heading](sheet-odd-heading.png) | ![underside spun](sheet-underside-spun.png) |
+| ![odd heading](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-spin/sheet-odd-heading.png) | ![underside spun](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-spin/sheet-underside-spun.png) |
 
 Frame sequences, the page's clock held and stepped: D held for half a second (top), and E pressed (bottom).
 
-![pan and spin frames](pan-and-spin-frames.png)
+![pan and spin frames](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-spin/pan-and-spin-frames.png)
 
 `sheet-home.png` is the view after Home from a Q spin: the same as the rest view.
 
@@ -47,3 +47,5 @@ over to the Library face at the tilt, its compass mirrored about the window's ho
 Re-take, from the checkout root, in the foreground:
 
     node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/glass-sheet-spin/capture.mjs <seed folder> --retake
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-spin).

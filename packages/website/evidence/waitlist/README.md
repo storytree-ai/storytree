@@ -2,9 +2,9 @@
 
 The waitlist replaces both install entry links and the install section. The blank form, its native optional choices, the one-email promise and the adjacent AI disclosure are pictured at 1440 px and 390 px; “How we keep this” is expanded in the section pictures. These are evidence of the built appearance, not an owner acceptance.
 
-- [Laptop, 1440 px](1440-waitlist.png)
-- [Phone, 390 px](390-waitlist.png)
-- [Full laptop page](1440.png) and [full phone page](390.png)
+- [Laptop, 1440 px](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/waitlist/1440-waitlist.png)
+- [Phone, 390 px](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/waitlist/390-waitlist.png)
+- [Full laptop page](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/waitlist/1440.png) and [full phone page](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/waitlist/390.png)
 - [Measurements](measurements.json), [200% text measurements](enlarged-measurements.json), and [browser observations](observations.json)
 
 The reproducible capture uses the existing `storytree-opening-seen=yes` return-visitor setting before navigation and reduced motion. This removes the opening's scroll-to-exit reflow from the waitlist pictures. The separate existing Chapter 1 proof runs without that setting. The forms in the appearance pictures are blank; synthetic offline success evidence is separately named `visit/offline-synthetic-joined-390.png`.
@@ -40,3 +40,5 @@ Implementation sources read on 2026-10-02: [here.now Site Data reference](https:
 Finalize warnings make the publisher fail loudly. A warning can be returned after publication has occurred; failure does not imply an atomic rollback. Live manifest/finalize evidence and anonymous-read refusal are checked after CI publishes. A stored live row and subsequent deletion require the owner's explicit approval and a supplied address; this evidence makes no such claim.
 
 The final pre-merge browser run retains an external failure: GitHub returned HTTP 503 for the unchanged license link (a repeat also saw HTTP 504 for the repository). The local waitlist, fallback, navigation, focus, enlarged text and 3D-fallback observations passed. The repository API resolves the license to the same URL and its existing blob; this does not turn the failed browser delivery observation into a pass. The session report records any later recheck.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 46 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/waitlist) (35), [`visit/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/waitlist/visit) (11).

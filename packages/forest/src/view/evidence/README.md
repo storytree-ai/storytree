@@ -28,17 +28,17 @@ These pictures use a fresh `pnpm seed:library` after merging lane E's parser fix
 stories and 53 capability trees**. Its agent work-state log is empty, so the trees
 are planned yellow. No health was invented for the seeded pictures.
 
-- [Opening globe](seeded-globe.png)
-- [After a pointer drag](seeded-turned.png)
-- [Clicking the front island opens its story](seeded-selected.png)
-- [The flat Forest, one click away](seeded-forest.png)
+- [Opening globe](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/seeded-globe.png)
+- [After a pointer drag](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/seeded-turned.png)
+- [Clicking the front island opens its story](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/seeded-selected.png)
+- [The flat Forest, one click away](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/seeded-forest.png)
 
 The following are explicitly **diagnostic copies** of that seed: two capabilities
 were set to landed and reported failing in the browser input, and one capability
 was claimed. These changes were never written to the seeded library.
 
-- [A hidden failure has an edge marker; a claim appears at its tree](failure-marker.png)
-- [Clicking the edge marker brings its island to the eye](failure-focused.png)
+- [A hidden failure has an edge marker; a claim appears at its tree](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/failure-marker.png)
+- [Clicking the edge marker brings its island to the eye](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/failure-focused.png)
 
 ## Checks
 
@@ -69,3 +69,5 @@ through a turned scene with an opaque sea, and failure turns under an orbited
 camera. A separate regression test protects the browser bundle: the agent-link
 browser entry had begun traversing the Node-only merge watcher through its claims
 barrel. It now exports its pure reading directly from the claims module.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence).

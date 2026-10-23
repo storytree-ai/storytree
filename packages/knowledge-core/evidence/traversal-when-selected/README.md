@@ -13,10 +13,10 @@ Storytree's own globe (the code-rows snapshot and its code survey, `packages/for
 | coast tints / claimed fills | 5 / 5 | 5 / 5 | 5 / 5 | 5 / 5 |
 | rows listed | 5 | 5 | 5 | 5 |
 
-- [Before, none selected: every session's traversal in its colour](before-none-selected.png)
-- [After, none selected: knowledge points unlit, no lines, no lit file circles; coasts and claimed fills as before](after-none-selected.png)
-- [Before, "Survey the agent link" selected](before-one-selected.png)
-- [After, the same session selected: unchanged](after-one-selected.png)
+- [Before, none selected: every session's traversal in its colour](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/traversal-when-selected/before-none-selected.png)
+- [After, none selected: knowledge points unlit, no lines, no lit file circles; coasts and claimed fills as before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/traversal-when-selected/after-none-selected.png)
+- [Before, "Survey the agent link" selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/traversal-when-selected/before-one-selected.png)
+- [After, the same session selected: unchanged](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/traversal-when-selected/after-one-selected.png)
 - [What each run read from the scene](measurements-before.json), [and after](measurements-after.json)
 
 Counted from the scene's userData: `knowledge-trail:` lines, `knowledge-point:` dots with `lit` or `window` state, `file-lit:` fills and `territory:` meshes with `claimedBy`. The coast tints in the table and the measurements were counted too when these pictures were taken; ADR-0923 then removed coast tints, so since 2026-10-05 the capture waits for `territory-claim:` outlines instead and counts no coast tints. The captures in `../five-latest-sessions`, `../window-all-sessions`, `../window-files-all-sessions`, `../all-sessions` and `../shared-note` record the no-selection view this decision removes.
@@ -29,3 +29,5 @@ node --import tsx packages/knowledge-core/evidence/traversal-when-selected/captu
 ```
 
 `src/traversal-smoke.test.ts` builds this page as `smoke` and runs `capture.mjs after --smoke` in installed Chrome (`CAPTURE_CHANNEL`, default `chrome`): no pictures and no fixed rests, so a scene target one of these waits names that the globe no longer draws fails that test on the changing branch. Measured on the Mint box, 2026-10-07: about 18 s green; with `knowledge-point:` renamed it fails at the selected window's wait after its 30 s bound.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/traversal-when-selected).

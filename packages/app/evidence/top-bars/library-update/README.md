@@ -59,13 +59,13 @@ reader/writer semantics remain as landed in #182.
 
 ## Captures for the owner
 
-- [Closed bars](../bars-closed.png)
-- [Arc drawer open below both bars](../arcs-open.png)
-- [Projects](../overlay-projects.png)
-- [Settings](../overlay-settings.png)
-- [Updates](../overlay-updates.png)
-- [Help](../overlay-help.png)
-- [Settings in a narrow window](../narrow-settings.png)
+- [Closed bars](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/bars-closed.png)
+- [Arc drawer open below both bars](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/arcs-open.png)
+- [Projects](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/overlay-projects.png)
+- [Settings](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/overlay-settings.png)
+- [Updates](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/overlay-updates.png)
+- [Help](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/overlay-help.png)
+- [Settings in a narrow window](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/narrow-settings.png)
 
 The evidence route is [capture.mjs](../capture.mjs) and
 [electron-capture.mjs](../electron-capture.mjs), using the supplied real snapshot and

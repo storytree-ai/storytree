@@ -29,3 +29,5 @@ not green" appear in the panel's text. The panel's scrollWidth equals its client
 The shared capture kit resolves Playwright from this checkout. Pictures and measurements
 go to the machine’s temporary `storytree-captures/` folder by default; add `--retake`
 to replace the committed evidence in this directory.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/report-only).

@@ -22,6 +22,8 @@ North's bearing on screen, in degrees clockwise from straight up (`*-measurement
 | drag 70, 40 | −2.7 | 0 |
 | drag 0, −700 | −171.8 (upside down) | 0, tilted 88° and held there |
 
-- [Opening](after-opening.png) · [before](before-opening.png)
-- [After four drags](after-four-drags.png) · [before](before-four-drags.png)
-- [A long drag up stops just short of the pole](after-tilted-to-the-pole.png) · [before: the globe turned over](before-tilted-to-the-pole.png)
+- [Opening](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/north-up/after-opening.png) · [before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/north-up/before-opening.png)
+- [After four drags](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/north-up/after-four-drags.png) · [before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/north-up/before-four-drags.png)
+- [A long drag up stops just short of the pole](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/north-up/after-tilted-to-the-pole.png) · [before: the globe turned over](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/north-up/before-tilted-to-the-pole.png)
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/north-up).

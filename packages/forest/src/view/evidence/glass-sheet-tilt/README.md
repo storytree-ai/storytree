@@ -23,20 +23,20 @@ are hidden by the capture: they sit over the sheet and are not the subject.
 
 | Top face, at rest | Before: top-down (`../glass-sheet-turn/`) |
 | --- | --- |
-| ![top](sheet-top.png) | ![before](../glass-sheet-turn/sheet-top.png) |
+| ![top](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-tilt/sheet-top.png) | ![before](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-turn/sheet-top.png) |
 
 | Underside, at rest | Before: top-down underside |
 | --- | --- |
-| ![underside](sheet-underside.png) | ![before](../glass-sheet-turn/sheet-underside.png) |
+| ![underside](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-tilt/sheet-underside.png) | ![before](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-turn/sheet-underside.png) |
 
 Mid-turn, the page's clock held where the eased turn stands nearly edge-on: the islands' plates on the glass, and the graph
 hanging beneath them.
 
-![mid-turn](sheet-mid-turn.png)
+![mid-turn](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-tilt/sheet-mid-turn.png)
 
 | The knowledge core selected, top face | The same selection, turned over |
 | --- | --- |
-| ![top selected](sheet-top-selected.png) | ![underside selected](sheet-underside-selected.png) |
+| ![top selected](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-tilt/sheet-top-selected.png) | ![underside selected](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-tilt/sheet-underside-selected.png) |
 
 ## Measured (`measurements.json`)
 
@@ -58,3 +58,5 @@ up the window toward the pool, and the links are many (1003 in this snapshot); A
 Re-take, from the checkout root, in the foreground:
 
     node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/glass-sheet-tilt/capture.mjs <seed folder> --retake
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-tilt).

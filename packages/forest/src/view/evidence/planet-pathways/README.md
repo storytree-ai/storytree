@@ -10,7 +10,7 @@ docking at the actual shores, with the existing worn paths continuing inland.
 
 | Opening view | Exact quarter turn |
 | --- | --- |
-| ![The seeded stories and their native pathways](front.png) | ![The same planet turned 90 degrees](quarter-turn.png) |
+| ![The seeded stories and their native pathways](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/planet-pathways/front.png) | ![The same planet turned 90 degrees](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/planet-pathways/quarter-turn.png) |
 
 Renderer: **headless Chromium 148.0.7778.96, ANGLE / Vulkan 1.3.0 SwiftShader
 Device (Subzero)**; dark theme, device scale 1. These are browser captures;
@@ -103,3 +103,5 @@ node packages/dev-loop/src/heavy-lock.mjs -- env STORYTREE_HOME="$CAPTURE_STORYT
 
 [export.mjs](export.mjs) requires `STORYTREE_HOME`, reads through the same
 `pageReads` API as Electron, and never edits the owner's live library.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/planet-pathways).

@@ -23,11 +23,11 @@ opening a story panel. No live library or transcript is read or written.
 
 ## Captures and measurements
 
-- [Default strip](sessions-list.png): four active root rows, collapsed individually, and `1 idle`.
-- [Hover links to islands](sessions-list-hover.png): both held islands brighten with neutral rings; the others dim.
-- [Idle group opened](sessions-list-idle.png).
-- [Row detail and children](sessions-list-expanded.png): explicit child rows and window files, including the muted gone file.
-- [Story panel open](sessions-list-panel.png): the strip makes room for the panel.
+- [Default strip](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/sessions-list/sessions-list.png): four active root rows, collapsed individually, and `1 idle`.
+- [Hover links to islands](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/sessions-list/sessions-list-hover.png): both held islands brighten with neutral rings; the others dim.
+- [Idle group opened](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/sessions-list/sessions-list-idle.png).
+- [Row detail and children](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/sessions-list/sessions-list-expanded.png): explicit child rows and window files, including the muted gone file.
+- [Story panel open](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/sessions-list/sessions-list-panel.png): the strip makes room for the panel.
 - [Machine measurements and assertions](capture.json).
 - [Observed stale-fixture failure](refresh-red.txt): the old capture times out expecting the idle row to start visible.
 
@@ -65,3 +65,5 @@ Generated bundles stay in ignored `dist/`.
 
 `red.txt`, `green.txt` and `library-update/` preserve the original implementation's
 historical evidence. They are not current gate results or current product guidance.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/sessions-list).

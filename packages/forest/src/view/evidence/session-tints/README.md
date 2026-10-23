@@ -9,10 +9,10 @@ judge; nothing here is recorded as accepted (ADR-0794).
 
 | View | Picture |
 | --- | --- |
-| Resting front view, all eight islands | [front.png](front.png) |
-| Close-up (camera zoom x2.6) on The agent link: two claimed territories, two sessions | [close-up-agent-link.png](close-up-agent-link.png) |
-| Close-up (x2.6) on The forest: the quiet session's faded outline | [close-up-forest.png](close-up-forest.png) |
-| Same three, with session ids whose hashed colours sit close together (hue 356 and 335) | [as-hashed-front.png](as-hashed-front.png), [as-hashed-close-up-agent-link.png](as-hashed-close-up-agent-link.png), [as-hashed-close-up-forest.png](as-hashed-close-up-forest.png) |
+| Resting front view, all eight islands | [front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/session-tints/front.png) |
+| Close-up (camera zoom x2.6) on The agent link: two claimed territories, two sessions | [close-up-agent-link.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/session-tints/close-up-agent-link.png) |
+| Close-up (x2.6) on The forest: the quiet session's faded outline | [close-up-forest.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/session-tints/close-up-forest.png) |
+| Same three, with session ids whose hashed colours sit close together (hue 356 and 335) | [as-hashed-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/session-tints/as-hashed-front.png), [as-hashed-close-up-agent-link.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/session-tints/as-hashed-close-up-agent-link.png), [as-hashed-close-up-forest.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/session-tints/as-hashed-close-up-forest.png) |
 
 The coast-tint look these replace (2026-10-01, increment `increment_11b7ea2173b2`) is in this folder's
 history at commit `a96587d1`.
@@ -47,12 +47,12 @@ asserts that no island carries a coast tint. Full numbers: [measurements.json](m
 
 ## What the pictures show, and what to judge
 
-- **Legible at the resting view.** In [front.png](front.png) The agent link's two claimed territories show
+- **Legible at the resting view.** In [front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/session-tints/front.png) The agent link's two claimed territories show
   as a magenta and a blue outline on the island, and the rest of the island is plainly unclaimed. Judge
   whether 1.2 is wide enough at rest, or too heavy close up.
-- **Two sessions, two parts** ([close-up-agent-link.png](close-up-agent-link.png)): each outline follows exactly the
+- **Two sessions, two parts** ([close-up-agent-link.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/session-tints/close-up-agent-link.png)): each outline follows exactly the
   territory its session claimed; where the two meet, both run side by side along the shared border.
-- **Faded look** ([close-up-forest.png](close-up-forest.png)): the quiet session's outline is at 0.6 opacity against 0.95.
+- **Faded look** ([close-up-forest.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/session-tints/close-up-forest.png)): the quiet session's outline is at 0.6 opacity against 0.95.
 - **A claim on a capability with no surveyed code draws nothing.** Such a capability has no territory,
   and with the coast tint gone there is no other mark; the session's row still lists it.
 
@@ -62,3 +62,5 @@ asserts that no island carries a coast tint. Full numbers: [measurements.json](m
    still mark two separate claimed parts. Not fixed here, as before.
 2. The stand-in bridge has no readings, so the sessions panel shows empty token bars; that is the
    capture bridge, not the page.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/session-tints).

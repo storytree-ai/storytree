@@ -36,7 +36,7 @@
     "@workos-inc/node": "^10.4.0",
     "@workos/authkit-electron": "0.1.2",
     "@workos/authkit-session": "0.6.0",
-    "electron": "44.4.5",
+    "electron": "44.9.3",
     "electron-builder": "26.15.3",
     "esbuild": "^0.28.2",
     "google-auth-library": "^10.6.2",

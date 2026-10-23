@@ -240,9 +240,11 @@ function protectWindows(paths: readonly string[]): void {
       else { [System.IO.File]::SetAccessControl($item, $acl) }
     }
   `;
+  // Windows PowerShell's first start on a loaded machine (a CI runner, under Defender) loads .NET
+  // cold and outlasted 60 s while the test Postgres started (CI run 39952854378), so it gets 180 s.
   execFileSync(path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
     ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(script, "utf16le").toString("base64")],
-    { env: { ...process.env, STORYTREE_PRIVATE_PATHS: paths.join("\n") }, stdio: ["ignore", "ignore", "pipe"], timeout: 60_000, windowsHide: true });
+    { env: { ...process.env, STORYTREE_PRIVATE_PATHS: paths.join("\n") }, stdio: ["ignore", "ignore", "pipe"], timeout: 180_000, windowsHide: true });
 }
 
 function isCode(error: unknown, code: string): boolean {

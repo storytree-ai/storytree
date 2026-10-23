@@ -2,7 +2,7 @@
 // ADR-0928: reviewed operator tools for this host, never imported by the product.
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { createReadStream } from 'node:fs';
+import { createReadStream, realpathSync } from 'node:fs';
 import { mkdir, readFile, writeFile, stat, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -351,7 +351,8 @@ async function operationLock() {
   return lock;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Node runs the entry point from its real path, so compare real paths (macOS's /var is a symlink).
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).catch(error => { console.error(error.message); process.exitCode = 1; });
 }
 

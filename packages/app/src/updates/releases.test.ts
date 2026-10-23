@@ -203,7 +203,7 @@ for (const platform of PLATFORMS) {
   });
 
   for (const entry of ["automatic", "menu"] as const) {
-    test(`4.4 ${platform}: the ${entry} release restart keeps its window open while a snapshot is being written`, hostRuns(platform), async (t) => {
+    test(`4.8 ${platform}: the ${entry} release restart keeps its window open while a snapshot is being written`, hostRuns(platform), async (t) => {
       const feed = await fixture(t, platform);
       feed.version = "0.3.2";
       let finishSnapshot!: () => void;
@@ -254,6 +254,20 @@ test("4.4 linux: an AppImage its menu entry started with --no-sandbox, where the
   const updater = feed.updater(async (target) => { launches.push(target); }, async () => true);
   assert.equal(await updater.check(), "restarting");
   assert.deepEqual(launches, [{ execPath: feed.appImage, args: ["--no-sandbox"] }]);
+});
+
+test("4.7 Check for updates checks the release feed now, shares a check already running, and says the app is up to date with its running build", async (t) => {
+  const feed = await fixture(t);
+  const updater = feed.updater(async () => assert.fail("nothing newer to install"), async () => true);
+  const automatic = updater.check();
+  updater.request("check");
+  assert.equal(await automatic, "current");
+  assert.equal(feed.checks, 1, "the asked check joined the automatic one");
+  assert.deepEqual(updater.request("status"), { phase: "up-to-date", runningBuild: "0.3.1" });
+  updater.request("check");
+  while (updater.request("status").phase === "checking") await new Promise(resolve => setImmediate(resolve));
+  assert.equal(feed.checks, 2, "asking again checks now");
+  assert.equal(updater.request("status").phase, "up-to-date");
 });
 
 test("4.12 a named run holds an automatic release install until released, without holding the download", async (t) => {
@@ -369,7 +383,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-release-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const installer = Buffer.from("fixture release payload — never executed");
-  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false, recheck: undefined as number | undefined };
+  const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, checks: 0, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false, recheck: undefined as number | undefined };
   const files = (base = "") => ["setup.exe", "storytree-mac.zip", "storytree-linux.AppImage"].map(url => ({ url: `${base}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
   const server = createServer((request, response) => {
     if (state.offline) { response.writeHead(404).end(); return; }
@@ -384,6 +398,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
       if (!state.stable) { response.writeHead(404).end(); return; }
       response.end(JSON.stringify({ version: state.stable, files: files(`http://127.0.0.1:${(server.address() as { port: number }).port}/`) }));
     } else if (/^\/latest(-mac|-linux)?\.yml/.test(request.url ?? "")) {
+      state.checks++;
       response.end(JSON.stringify({ version: state.version, files: files() }));
     } else if (request.url === "/setup.exe" || request.url === "/storytree-mac.zip" || request.url === "/storytree-linux.AppImage") {
       state.downloads++;

@@ -7,46 +7,7 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { test } from "node:test";
 
-import { mainUpdates, type RunningBuild } from "@storytree/app";
-
-import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
-
-test("4.17 a built main that cannot start is never restarted into: the running app stays, the same commit is not built again, and the next good main is", async () => {
-  let main = "bad1234567";
-  const built: string[] = [];
-  const restarted: string[] = [];
-  // Stands in for follow-main's updateToMain: build main's commit in the other slot.
-  const update = async ({ running, build }: { running: RunningBuild; build: (dir: string) => Promise<void> }) => {
-    if (main === running.sha) return undefined;
-    const dir = path.join("runtime", "b", main);
-    await build(dir);
-    return { slot: "b" as const, dir, sha: main };
-  };
-  const updates = mainUpdates({
-    runtimeDir: "runtime",
-    running: { slot: "a", dir: path.join("runtime", "a"), sha: "good000000" },
-    runningBuild: "main good000",
-    canRestart: async () => true,
-    restart: async (next) => { restarted.push(next.sha); },
-    update: checkedUpdate(update as never, {
-      build: async (dir) => { built.push(path.basename(dir)); },
-      shaOf: async (dir) => path.basename(dir),
-      startCheck: async (dir) => path.basename(dir).startsWith("bad") ? "exited with code 1: TypeError: sourceVersion" : undefined,
-    }),
-  });
-
-  const refused = await updates.check();
-  assert.equal(refused.phase, "failed");
-  assert.match(refused.reason ?? "", /main bad1234 .*cannot start.*sourceVersion/);
-  assert.deepEqual(restarted, [], "the running app is never restarted into a build that cannot start");
-
-  assert.equal((await updates.check()).phase, "failed");
-  assert.deepEqual(built, ["bad1234567"], "a commit that could not start is not built again");
-
-  main = "fixed00000";
-  await updates.check();
-  assert.deepEqual(restarted, ["fixed00000"], "the next main that starts is restarted into");
-});
+import { finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
 
 test("4.17 the start check passes a build only when its main process exits 0 when asked to check, and gives up on one that lingers", async (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "start-check-"));

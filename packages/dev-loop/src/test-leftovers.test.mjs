@@ -73,6 +73,12 @@ process.exit(0);`);
   return postmaster(dataDir);
 }
 
+/** Make a data folder's owner record name a gone process: the exited starter's own pid, Windows can reuse at once. */
+function goneOwner(dataDir) {
+  const owner = `${dataDir}.owner.json`;
+  writeFileSync(owner, JSON.stringify({ ...JSON.parse(readFileSync(owner, "utf8")), pid: deadPid() }));
+}
+
 /** A stopper for a server the test itself must stop if what it tests did not. */
 function stopLater(steps, pid) {
   steps.push(() => {
@@ -125,6 +131,7 @@ test("6.21 · a run's start stops any Postgres server in Temp left by a run that
   const legacy = path.join(temp, "storytree-local-postgres-Xy9876");
   const stale = abandoned(path.join(legacy, "stale"));
   stopLater(steps, stale);
+  goneOwner(path.join(legacy, "stale"));
   const owned = await start({ dataDir: path.join(legacy, "owned") });
   steps.push(() => owned.stop());
   const liveRun = path.join(temp, `st-unit-${process.pid}-LiVe99`);

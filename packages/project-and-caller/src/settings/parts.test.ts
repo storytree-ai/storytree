@@ -65,7 +65,8 @@ test("2.20 `settings set factory <folder>` chooses this computer's factory folde
     assert.throws(() => switchPart("forest", "plugin", parts, home), /names the plugin/);
     assert.deepEqual(switchPart("forest", "on", parts, home), []);
     assert.deepEqual(readStandIns(home).plugins, {});
-    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { factory: path.join(home, "factory"), "parts-off": [], "stand-ins": {} });
+    const { "factory-switched": _switched, ...saved } = JSON.parse(readFileSync(file, "utf8"));
+    assert.deepEqual(saved, { factory: path.join(home, "factory"), "parts-off": [], "stand-ins": {} });
   });
 });
 
@@ -89,7 +90,23 @@ test("2.21 With no factory setting, storytree makes and uses its own factory fol
 
     mkdirSync(path.join(dir, "mine"));
     setFactory(path.join(dir, "mine"), home);
-    assert.deepEqual(makeFactoryFolder(home), { folder: path.join(dir, "mine"), chosen: true });
+    assert.deepEqual({ ...makeFactoryFolder(home), switched: undefined }, { folder: path.join(dir, "mine"), chosen: true, switched: undefined });
     assert.equal(readStandIns(home).folder, path.join(dir, "mine"));
+  });
+});
+
+test("2.22 Switching or importing the factory folder asks for no approval and records who switched it and when: the desktop app, the command line or an agent's session, kept beside the folder and read back with it, and storytree's own folder has no record", async () => {
+  await withTempDir((home) => {
+    mkdirSync(path.join(home, "mine"));
+    assert.equal(factoryFolder(home).switched, undefined, "storytree's own folder was switched by no one");
+    setFactory(path.join(home, "mine"), home, { through: "agent tool", session: "s-1" }, new Date("2026-10-23T05:00:00.000Z"));
+    assert.deepEqual(factoryFolder(home), { folder: path.join(home, "mine"), chosen: true, switched: { through: "agent tool", session: "s-1", at: "2026-10-23T05:00:00.000Z" } });
+
+    mkdirSync(path.join(home, "theirs"));
+    setFactory(path.join(home, "theirs"), home, { through: "desktop app" }, new Date("2026-10-23T06:00:00.000Z"));
+    assert.deepEqual(factoryFolder(home).switched, { through: "desktop app", at: "2026-10-23T06:00:00.000Z" }, "the latest switch replaces the one before");
+
+    writeFileSync(path.join(home, "settings.json"), JSON.stringify({ factory: path.join(home, "theirs"), "factory-switched": { through: "a stranger" } }));
+    assert.throws(() => factoryFolder(home), /factory-switched/, "a damaged record is reported");
   });
 });

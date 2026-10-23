@@ -62,6 +62,7 @@ test("10.1 · a recording goes only when every arc it was made for has closed an
   pullRequest(root, 17, "claude/increment-aaaaaaaaaaaa-4", {
     "packages/web/evidence/read/input-clip.webm": "input",
     "packages/web/src/reads.ts": "export const clip = \"input-clip.webm\";\n",
+    "packages/web/src/fixture.test.ts": "export const other = \"packages/web/evidence/other/trace.json.gz\";\n",
   });
   onMain(root, { "packages/web/evidence/stray/clip.webm": "stray" });
 

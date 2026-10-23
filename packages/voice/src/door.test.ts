@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { after, test } from "node:test";
 
 import { BUSY, CANCELLED, Children, Gate, LIMITS, Refusal } from "./children.js";
+import { main } from "./bins/voice.js";
 import { loadConfig, voiceSession } from "./config.js";
 import {
   FAKE_CLI, INITIALIZE, LEGACY_HEADERS, MCP_HEADERS, TUNNEL_HOST, alive, childrenIn, gitRepo, messagesOf, newToken, raw, seen, testDoor, textOf, toolCall, until, wait,
@@ -222,7 +223,6 @@ test("1.10 an idle connection stays open for 100 s: the door keeps the socket an
 });
 
 test("1.11 the door refuses to start, with one plain line and exit 1, on a bad secret, an unreadable repository or a range that is not a CIDR", async () => {
-  const bin = fileURLToPath(new URL("bins/voice.ts", import.meta.url));
   const scratch = mkdtempSync(path.join(os.tmpdir(), "storytree-voice-bin-"));
   const file = path.join(scratch, "a-file");
   writeFileSync(file, "");
@@ -237,28 +237,32 @@ test("1.11 the door refuses to start, with one plain line and exit 1, on a bad s
       ["a range that is not a CIDR", { VOICE_TOKEN: good, ALLOWED_CIDRS: "160.79.104.0/21,10.0.0.1" }, /ALLOWED_CIDRS/],
     ];
     for (const [label, env, why] of cases) {
-      const child = spawn(process.execPath, ["--import", "tsx", bin], {
-        cwd: fileURLToPath(new URL("..", import.meta.url)),
-        env: { ...process.env, PORT: "0", REPO_DIR: repo.dir, VOICE_SPIKE_TOKEN: "", ...env },
-        stdio: ["ignore", "pipe", "pipe"],
-      });
       let stderr = "";
-      let stdout = "";
-      child.stderr.on("data", (chunk) => (stderr += chunk));
-      child.stdout.on("data", (chunk) => (stdout += chunk));
-      const code = await new Promise<number | null>((resolve) => {
-        const timer = setTimeout(() => child.kill(), 15_000);
-        child.on("exit", (exit) => {
-          clearTimeout(timer);
-          resolve(exit);
-        });
-      });
-      assert.equal(code, 1, `${label}: ${stdout}${stderr}`);
+      const exits: number[] = [];
+      const door = await main({ PORT: "0", REPO_DIR: repo.dir, ...env }, { stderr: (line) => (stderr += line), exit: (code) => exits.push(code) });
+      assert.equal(door, undefined, label);
+      assert.deepEqual(exits, [1], label);
       assert.equal(stderr.trim().split("\n").length, 1, `${label}: ${stderr}`);
-      assert.match(stderr, /refused to start/, label);
+      assert.match(stderr, /^voice door refused to start: /, label);
       assert.match(stderr, why, label);
       if (env.VOICE_TOKEN) assert.ok(!stderr.includes(env.VOICE_TOKEN), `${label}: the secret is in the message`);
     }
+    // Good settings start it, and the spike's secret variable is still read.
+    const started = await main({ PORT: "0", REPO_DIR: repo.dir, VOICE_SPIKE_TOKEN: newToken() }, { stderr: () => {}, exit: () => assert.fail("it exited") });
+    assert.ok(started !== undefined && started.port > 0);
+    await started.close();
+
+    // Run as a program, the refusal is the process's exit code.
+    const child = spawn(process.execPath, ["--import", "tsx", fileURLToPath(new URL("bins/voice.ts", import.meta.url))], {
+      cwd: fileURLToPath(new URL("..", import.meta.url)),
+      env: { ...process.env, PORT: "0", REPO_DIR: repo.dir, VOICE_TOKEN: "short", VOICE_SPIKE_TOKEN: "" },
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let stderr = "";
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    const code = await new Promise<number | null>((resolve) => child.on("exit", resolve));
+    assert.equal(code, 1, stderr);
+    assert.match(stderr, /refused to start: VOICE_TOKEN/);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

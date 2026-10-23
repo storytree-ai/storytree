@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
-import { mainErrorRecords } from "./main-error-records.js";
+import { askToReportErrors, mainErrorRecords } from "./main-error-records.js";
 import { logMainErrors, type MainProcess } from "./main-errors.js";
 
 function testServerUrl(): string {
@@ -92,5 +92,45 @@ test("1.26 when the library cannot take the errors, app.log keeps writing them a
     assert.deepEqual(unhandled, []);
   } finally {
     process.off("unhandledRejection", onUnhandled);
+  }
+});
+
+test("1.31 while the user's library holds an app error not yet marked submitted, opening the app asks to have their agent submit a GitHub issue; \"It's been submitted\" marks it so and the box stops, and Keep going leaves it asking", async () => {
+  const database = `storytree-app-errors-t-${randomBytes(4).toString("hex")}`;
+  const storytree: Storytree = await connect({ url: testServerUrl() });
+  try {
+    const opening = async (answer: "keep-going" | "submitted") => {
+      const records = mainErrorRecords({ build: () => "0.3.41", log: () => {}, database });
+      await records.open(storytree);
+      const asked: { detail: string; buttons: readonly string[] }[] = [];
+      await askToReportErrors(records, { ask: async message => { asked.push(message); return answer; } });
+      return { records, asked };
+    };
+
+    assert.deepEqual((await opening("submitted")).asked, [], "no error, no box");
+
+    const first = await opening("keep-going");
+    first.records.record("uncaught-exception", "TypeError: Object has been destroyed\n    at titleWindow (main.cjs:12:3)");
+    first.records.record("unhandled-rejection", "Error: connection reset\n    at read (main.cjs:9:9)");
+    await first.records.settled();
+
+    const kept = await opening("keep-going");
+    assert.equal(kept.asked.length, 1);
+    assert.deepEqual(kept.asked[0]!.buttons, ["Keep going", "It's been submitted"]);
+    assert.match(kept.asked[0]!.detail, /ask your agent to submit a GitHub issue on github\.com\/storytree-ai\/storytree/);
+    assert.match(kept.asked[0]!.detail, /we'll work on it/);
+    assert.match(kept.asked[0]!.detail, /TypeError: Object has been destroyed/);
+    assert.match(kept.asked[0]!.detail, /Error: connection reset/);
+    assert.doesNotMatch(kept.asked[0]!.detail, /titleWindow/, "only each error's first line");
+
+    assert.equal((await opening("submitted")).asked.length, 1, "Keep going leaves it asking");
+    assert.deepEqual((await opening("keep-going")).asked, [], "once submitted, the box stops");
+
+    const pool = await storytree.ownDatabase(database);
+    const { rows } = await pool.query<{ submitted: boolean }>("SELECT submitted_at IS NOT NULL AS submitted FROM main_errors");
+    assert.deepEqual(rows.map(row => row.submitted), [true, true]);
+  } finally {
+    await storytree.close();
+    await dropTestDatabases([database]);
   }
 });

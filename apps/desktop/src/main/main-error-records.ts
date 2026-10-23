@@ -7,6 +7,9 @@
  *
  * Errors before the library opens are held, a bounded few, and written once it does. A write that fails is said in the
  * log and dropped: app.log keeps the error either way, and the failure raises nothing (contract 1.26).
+ *
+ * Each record is written not yet submitted. While one is, opening the app asks the person to have their agent submit a
+ * GitHub issue, until they mark it submitted from that box (contract 1.31, ADR-1122).
  */
 import { createHash } from "node:crypto";
 
@@ -25,6 +28,8 @@ const SCHEMA: readonly string[] = [
     first_at timestamptz NOT NULL,
     last_at  timestamptz NOT NULL
   )`,
+  // Installs from before ADR-1122 already have the table.
+  "ALTER TABLE main_errors ADD COLUMN IF NOT EXISTS submitted_at timestamptz",
 ];
 
 export type MainErrorKind = "uncaught-exception" | "unhandled-rejection";
@@ -48,6 +53,15 @@ export interface MainErrorRecords {
   open(server: Pick<Storytree, "ownDatabase">): Promise<void>;
   /** Resolves once every write asked for so far has finished. */
   settled(): Promise<void>;
+  /** The recorded errors not yet marked submitted, oldest first; none while the library is not open. */
+  unsubmitted(): Promise<readonly UnsubmittedError[]>;
+  /** Mark these records submitted, so the app stops asking about them. */
+  markSubmitted(keys: readonly string[]): Promise<void>;
+}
+
+export interface UnsubmittedError {
+  readonly key: string;
+  readonly stack: string;
 }
 
 /**
@@ -102,7 +116,44 @@ export function mainErrorRecords({ build, log, now = () => new Date(), hold = 50
     async settled() {
       while (writing !== undefined) await writing;
     },
+    async unsubmitted() {
+      if (pool === undefined) return [];
+      const { rows } = await pool.query<UnsubmittedError>("SELECT key, stack FROM main_errors WHERE submitted_at IS NULL ORDER BY first_at");
+      return rows;
+    },
+    async markSubmitted(keys) {
+      if (pool === undefined || keys.length === 0) return;
+      await pool.query("UPDATE main_errors SET submitted_at = $2 WHERE key = ANY($1) AND submitted_at IS NULL", [keys, now()]);
+    },
   };
+}
+
+/** What the box about unsubmitted errors says, and its two ways out, in that order. */
+export interface ReportMessage {
+  readonly title: string;
+  readonly message: string;
+  readonly detail: string;
+  readonly buttons: readonly ["Keep going", "It's been submitted"];
+}
+
+/**
+ * When the library holds errors not yet submitted, ask once, in ADR-1119's words, for the person's agent to submit a
+ * GitHub issue. "It's been submitted" marks every error the box listed; Keep going (the default) leaves them to ask again.
+ */
+export async function askToReportErrors(
+  records: Pick<MainErrorRecords, "unsubmitted" | "markSubmitted">,
+  { ask }: { ask: (message: ReportMessage) => Promise<"keep-going" | "submitted"> },
+): Promise<void> {
+  const errors = await records.unsubmitted();
+  if (errors.length === 0) return;
+  const lines = errors.map(error => `- ${error.stack.split("\n")[0]}`).join("\n");
+  const choice = await ask({
+    title: "storytree 0.3",
+    message: errors.length === 1 ? "Something went wrong in storytree, and it has not been reported yet." : `${errors.length} things went wrong in storytree, and they have not been reported yet.`,
+    detail: `Please ask your agent to submit a GitHub issue on github.com/storytree-ai/storytree, and we'll work on it. Once it has been submitted, say so here and this stops asking; until the next update, keep going with storytree as it is.\n\nWhat went wrong:\n${lines}`,
+    buttons: ["Keep going", "It's been submitted"],
+  });
+  if (choice === "submitted") await records.markSubmitted(errors.map(error => error.key));
 }
 
 async function writeRows(pool: Pool, rows: readonly Held[]): Promise<void> {

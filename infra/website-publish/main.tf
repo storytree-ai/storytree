@@ -4,12 +4,14 @@
 # credentials for any of it.
 #
 # GitHub's OIDC token -> the workload identity pool `github-actions` -> infra/ci-health's provider
-# `storytree-0-3-main`, which accepts ONLY this repository's token on main -> the service account
-# storytree-website-publish -> read access to ONE secret, heredotnow_api_key.
+# `storytree-0-3-main`, which accepts ONLY this repository's token on main -> the binding, which
+# admits ONLY .github/workflows/website.yml -> the service account storytree-website-publish ->
+# read access to ONE secret, heredotnow_api_key.
 #
 # The provider is reused, not made again: its condition is already exactly this repository on
-# main, which is what publishing needs. So infra/ci-health must be applied first; the data source
-# below fails the plan clearly if it is not.
+# main, which is what publishing needs, and it maps job_workflow_ref, which the binding below
+# names. So infra/ci-health must be applied first; the data source below fails the plan clearly
+# if it is not.
 #
 # Its own state (prefix website-publish-0.3), beside ci-health's, so applying this never touches
 # ci-health's or 0.2's resources.
@@ -37,13 +39,6 @@ variable "secret_id" {
   type        = string
   default     = "heredotnow_api_key"
   description = "The Secret Manager secret holding the here.now API key (created by the owner)."
-}
-
-# storytree-ai/storytree, by its numeric id: `gh api repos/storytree-ai/storytree --jq .id`. A
-# name can be taken again by another repository after a rename or a deletion; the id cannot.
-variable "repository_id" {
-  type    = string
-  default = "1388231144"
 }
 
 provider "google" {
@@ -78,14 +73,13 @@ resource "google_secret_manager_secret_iam_member" "website_publish_key" {
   member    = "serviceAccount:${google_service_account.website_publish.email}"
 }
 
-# Tokens from this repository may act as the account. As in infra/ci-health, the principal set is
-# keyed on repository_id, which only the main-only provider above maps, so a token can match only
-# through it, and so only on main. Any workflow of this repository on main can therefore act as
-# it, as with ci-health's account; what it can reach is the one secret.
+# Only the website workflow on main may act as the account. The principal set is keyed on
+# job_workflow_ref, which only the main-only provider above maps, so a token can match only through
+# it, and so only on main, and only from .github/workflows/website.yml.
 resource "google_service_account_iam_member" "website_publish_workload_identity" {
   service_account_id = google_service_account.website_publish.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${local.pool}/attribute.repository_id/${var.repository_id}"
+  member             = "principalSet://iam.googleapis.com/${local.pool}/attribute.job_workflow_ref/storytree-ai/storytree/.github/workflows/website.yml@refs/heads/main"
 }
 
 # ── The repository variables (README.md step 2) ──────────────────────────────────────────────

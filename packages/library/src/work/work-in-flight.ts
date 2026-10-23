@@ -87,7 +87,12 @@ export interface IncrementEdit {
   readonly machine?: string | undefined;
   /** Undefined clears it: it fixes no escape. */
   readonly escape?: Escape | undefined;
+  /** Undefined clears it: no risk line read. Its stories must be live stories. */
+  readonly risk?: RiskLine | undefined;
 }
+
+/** An increment's risk line: its tier, rating, depth, radius, flags, the stories it touches and the day read. */
+export type RiskLine = NonNullable<FieldsOf<"increment">["risk"]>;
 
 /** An escape an increment fixes: the change that caused it and the story it hit. */
 export type Escape = NonNullable<FieldsOf<"increment">["escape"]>;
@@ -205,7 +210,7 @@ export class LifecycleError extends Error {
   }
 }
 
-const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "capabilities", "links", "remedies", "heldOn", "machine", "escape"]);
+const EDITABLE: ReadonlySet<string> = new Set(["title", "objective", "body", "capabilities", "links", "remedies", "heldOn", "machine", "escape", "risk"]);
 
 export class WorkInFlight {
   readonly #records: SchemaRecords;
@@ -937,7 +942,7 @@ export class WorkInFlight {
    * (ADR-0949 D2); what it links to any live records; what it remedies live friction (10-a); and
    * what it is held on live questions (12).
    */
-  async #checkNames(fields: { readonly capabilities?: unknown; readonly links?: unknown; readonly remedies?: unknown; readonly heldOn?: unknown; readonly escape?: Escape | undefined }): Promise<void> {
+  async #checkNames(fields: { readonly capabilities?: unknown; readonly links?: unknown; readonly remedies?: unknown; readonly heldOn?: unknown; readonly escape?: Escape | undefined; readonly risk?: RiskLine | undefined }): Promise<void> {
     await checkReferences(this.#records, "capabilities", fields.capabilities, "capability");
     await checkReferences(this.#records, "links", fields.links, "record");
     await checkReferences(this.#records, "remedies", fields.remedies, "friction");
@@ -945,6 +950,7 @@ export class WorkInFlight {
     // A cause that is neither a pull request nor an increment's id is the schema's to refuse.
     if (fields.escape?.causedBy.startsWith("increment_") === true) await checkReference(this.#records, "escape.causedBy", fields.escape.causedBy, "increment");
     await checkReference(this.#records, "escape.story", fields.escape?.story, "story");
+    await checkReferences(this.#records, "risk.stories", fields.risk?.stories, "story");
   }
 
   /** Run `write` once every write queued through this layer before it has settled, so its checks and its write happen together. */

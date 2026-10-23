@@ -425,10 +425,15 @@ jobs:
 
   # Lands the pull request once `verify` passed, through land.yml, which reads whether it is held
   # (a draft, or the `hold` label) when it runs, not from this run's event (see the header).
+  # `always()` keeps GitHub from adding its implicit `success()`, which also reads the jobs before
+  # `verify`: on a pull request `queue verdict` and often `installer` are skipped, which would skip
+  # this job though `verify` passed, so it reads `verify`'s own result instead.
   automerge:
     name: automerge
     needs: verify
     if: >-
+      always() &&
+      needs.verify.result == 'success' &&
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository
     permissions:

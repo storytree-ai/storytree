@@ -2,6 +2,7 @@
  * A real Chrome page holding one of this package's browser modules, bundled as the app's renderer bundles it: what the
  * view and naming tests drive, since popovers and the top layer are the browser's own.
  */
+import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { chromium, type Browser, type Page } from "playwright-core";
 
@@ -9,7 +10,8 @@ import { chromium, type Browser, type Page } from "playwright-core";
  * The module at `entry` (this package's file URL) bundled as a script that puts its exports on `globalThis[name]`.
  */
 export async function bundled(entry: URL, name: string): Promise<string> {
-  const result = await build({ entryPoints: [entry.pathname], bundle: true, write: false, format: "iife", globalName: name, platform: "browser", target: "es2023", logLevel: "silent" });
+  // A file path, not `entry.pathname`: on Windows that reads "/C:/…", which esbuild cannot resolve.
+  const result = await build({ entryPoints: [fileURLToPath(entry)], bundle: true, write: false, format: "iife", globalName: name, platform: "browser", target: "es2023", logLevel: "silent" });
   return result.outputFiles[0]!.text;
 }
 

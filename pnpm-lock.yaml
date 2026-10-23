@@ -26,6 +26,9 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:packages/session-management
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       pg:
         specifier: ^8.23.0
         version: 8.23.0

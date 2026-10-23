@@ -29,8 +29,8 @@ if (process.argv.includes('--dry-run')) {
       INSERT INTO backup_smoke.entry(value) VALUES ('first'), ('second');`);
     const entry = await o.dump(o.LOCAL, source, directory);
     assert.deepEqual(entry.rows, { 'backup_smoke.entry': '2' });
-    await assert.rejects(o.restore(o.LOCAL, target, o.OWNER, directory, { ...entry, sha256: '0'.repeat(64) }), /checksum mismatch/);
-    await o.restore(o.LOCAL, target, o.OWNER, directory, entry);
+    await assert.rejects(o.restore(target, directory, { ...entry, sha256: '0'.repeat(64) }), /checksum mismatch/);
+    await o.restore(target, directory, entry);
     const added = await o.query(o.LOCAL, target, "INSERT INTO backup_smoke.entry(value) VALUES ('third') RETURNING id::text");
     assert.equal(added[0].id, '3');
     assert.equal((await o.query(o.LOCAL, target, "SELECT count(*)::int AS n FROM pg_indexes WHERE schemaname='backup_smoke'")).pop().n, 2);

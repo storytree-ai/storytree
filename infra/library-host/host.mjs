@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, writeFile, stat, copyFile, symlink, unlink } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, stat, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,8 +17,14 @@ const ADC = path.join(homedir(), '.config/gcloud/application_default_credentials
 const GCLOUD = path.join(homedir(), 'google-cloud-sdk/bin/gcloud');
 const BUCKET = 'gs://storytree-498613-library-backups';
 const ACCOUNT = 'storytree-mint@storytree-498613.iam.gserviceaccount.com';
+// The box's PostgreSQL 16 clients by absolute path, never whatever a PATH lookup finds first.
+const PG_BIN = '/usr/lib/postgresql/16/bin';
 const LOCAL = { host: '/var/run/postgresql', port: 5432, user: 'mickh' };
 const OWNER = 'storytree_library';
+// The backup timer's whole PATH: gcloud and the PostgreSQL clients are named by absolute path.
+const UNIT_PATH = '/usr/bin:/bin';
+// A backup's uploads finish within this long of the time its prefix is named for (about ten minutes in October 2026).
+const UPLOAD_WINDOW_MS = 2 * 60 * 60 * 1000;
 // The name CI's role had before the library moved here, so grants.sql's row policies name it unchanged. Local SCRAM, not IAM.
 const CI = 'storytree-ci-health@storytree-498613.iam';
 // The three 0.3 databases. 0.2's frozen `storytree` was never moved here (owner, 2026-10-07: "we dont need backups
@@ -53,6 +59,38 @@ export function checkedManifest(manifest) {
   return manifest;
 }
 
+// A restore takes only a prefix the off-box check verified: its manifest's SHA-256 is on the verified list (one hash
+// opening each line; `#` lines are comments), its name's time is not in the future, and every object in it was
+// created in the upload window after that time.
+export function checkedPrefix({ prefix, manifestHash, verified, objects, now = new Date() }) {
+  const listed = new Set(verified.split('\n').map(line => line.trim()).filter(line => !line.startsWith('#'))
+    .map(line => line.split(/\s+/)[0]).filter(hash => /^[a-f0-9]{64}$/.test(hash)));
+  if (!listed.has(manifestHash)) throw new Error('This backup\'s manifest is not verified off the box; refused before any restore');
+  const name = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(\d{3})Z-[a-f0-9]{8}$/.exec(path.basename(prefix ?? ''));
+  if (!name) throw new Error('The backup prefix carries no timestamp');
+  const [, y, mo, d, h, mi, sec, ms] = name.map(Number);
+  const at = Date.UTC(y, mo - 1, d, h, mi, sec, ms);
+  if (at > now.getTime()) throw new Error('The backup prefix is stamped in the future');
+  const created = objects.map(object => Date.parse(object.creation_time));
+  // Creation times are reported to the second.
+  if (!created.length || created.some(t => !(t >= Math.floor(at / 1000) * 1000 && t <= at + UPLOAD_WINDOW_MS))) {
+    throw new Error('The backup\'s object creation times do not match its prefix\'s timestamp');
+  }
+}
+
+export function restorer(password) {
+  return { host: '127.0.0.1', port: 5432, user: OWNER, password };
+}
+export function restoreCommand(server, name, file) {
+  return { command: path.join(PG_BIN, 'pg_restore'),
+    args: ['--no-password', '--exit-on-error', '--single-transaction', '--no-owner', '--no-acl', '-d', name, file],
+    env: pgEnv(server, name) };
+}
+export function dumpCommand(server, database, snapshot, owner, file) {
+  return { command: path.join(PG_BIN, 'pg_dump'),
+    args: ['-Fc', '--no-password', `--snapshot=${snapshot}`, `--role=${owner}`, '-f', file], env: pgEnv(server, database) };
+}
+
 async function exclusive(file, content) {
   await writeFile(file, content, { flag: 'wx', mode: 0o600 });
 }
@@ -83,12 +121,13 @@ async function run(command, args, { env = {}, input, quiet = false } = {}) {
 }
 function pgEnv(server, database, role) {
   return { PGHOST: server.host, PGPORT: String(server.port), PGUSER: server.user, PGDATABASE: database,
-    PGCONNECT_TIMEOUT: '15', ...(role ? { PGOPTIONS: `-c role=${role}` } : {}) };
+    PGCONNECT_TIMEOUT: '15', ...(server.password ? { PGPASSWORD: server.password } : {}),
+    ...(role ? { PGOPTIONS: `-c role=${role}` } : {}) };
 }
 async function connect(server, database = 'postgres', role) {
   // pg also consults the parent environment when a config value is empty.
   for (const name of Object.keys(process.env)) if (name.startsWith('PG')) delete process.env[name];
-  const client = new pg.Client({ ...server, database, password: '', connectionTimeoutMillis: 15000,
+  const client = new pg.Client({ ...server, database, password: server.password ?? '', connectionTimeoutMillis: 15000,
     ...(role ? { options: `-c role=${role}` } : {}) });
   client.on('error', () => {});
   await client.connect();
@@ -132,7 +171,8 @@ async function dump(server, database, directory) {
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const version = (await client.query('SHOW server_version')).rows[0].server_version;
     const snapshot = (await client.query('SELECT pg_export_snapshot() AS id')).rows[0].id;
-    await run('pg_dump', ['-Fc', '--no-password', `--snapshot=${snapshot}`, `--role=${owner}`, '-f', path.join(directory, file)], { env: pgEnv(server, database) });
+    const { command, args, env } = dumpCommand(server, database, snapshot, owner, path.join(directory, file));
+    await run(command, args, { env });
     const rows = await counts(client);
     await client.query('COMMIT');
     return { name: database, file, owner, version, snapshot, rows, bytes: (await stat(path.join(directory, file))).size, sha256: await sha256(path.join(directory, file)) };
@@ -151,17 +191,21 @@ async function dropCreated(server, name) {
   await ownedDatabase(server, name);
   await query(server, 'postgres', `DROP DATABASE ${q(name)}`);
 }
-async function restore(server, name, owner, directory, entry) {
+// A dump's SQL runs, and its counts are read, as the library's own role over 127.0.0.1, never as the superuser
+// that creates and drops the scratch database around it. The database is the role's, so its objects become the role's.
+async function restore(name, directory, entry) {
   if (await sha256(path.join(directory, entry.file)) !== entry.sha256) throw new Error('Dump checksum mismatch');
-  await run('pg_restore', ['--no-password', '--exit-on-error', '--single-transaction', '--no-owner', '--no-acl', `--role=${owner}`, '-d', name, path.join(directory, entry.file)], { env: pgEnv(server, name) });
-  const client = await connect(server, name, owner);
+  const server = restorer((await readFile(PASSWORD, 'utf8')).trim());
+  const { command, args, env } = restoreCommand(server, name, path.join(directory, entry.file));
+  await run(command, args, { env });
+  const client = await connect(server, name);
   try { checkedCounts(entry.rows, await counts(client)); } finally { await client.end(); }
 }
-async function scratchRestore(server, directory, entry, name = `st_verify_${randomBytes(8).toString('hex')}`, owner = OWNER) {
+async function scratchRestore(directory, entry, name = `st_verify_${randomBytes(8).toString('hex')}`) {
   // CREATE fails if the name already exists; cleanup only follows our successful CREATE.
-  await newDatabase(server, name, owner);
-  try { await restore(server, name, owner, directory, entry); }
-  finally { await dropCreated(server, name); }
+  await newDatabase(LOCAL, name, OWNER);
+  try { await restore(name, directory, entry); }
+  finally { await dropCreated(LOCAL, name); }
 }
 
 async function provision() {
@@ -196,7 +240,7 @@ async function backup() {
     // storytree-lag and storytree-quality were made by their own packages, not here, so they carry no mark; dump still refuses a stranger's database.
     if (DBS.includes(name)) await ownedDatabase(LOCAL, name);
     const entry = await dump(LOCAL, name, directory);
-    await scratchRestore(LOCAL, directory, entry);
+    await scratchRestore(directory, entry);
     manifest.databases.push(entry);
     console.log(`Dumped, restored and checked ${name}`);
   }
@@ -213,11 +257,15 @@ async function backup() {
   console.log(`Verified backup: ${prefix}`);
   return { directory, manifest, prefix };
 }
-async function download(prefix) {
+async function download(prefix, verifiedFile) {
   if (!new RegExp('^' + BUCKET + '/backups/[A-Za-z0-9-]+$').test(prefix ?? '')) throw new Error('Give one backup prefix from this bucket');
+  if (!verifiedFile) throw new Error('Give the off-box verified list with --verified <file>');
+  const verified = await readFile(verifiedFile, 'utf8');
   const directory = path.join(LOGS, 'download-' + stamp());
   await mkdir(directory, { mode: 0o700 });
+  const objects = JSON.parse(await storage(['objects', 'list', `${prefix}/*`, '--format=json(name,creation_time)']));
   await storage(['cp', `${prefix}/manifest.json`, path.join(directory, 'manifest.json')]);
+  checkedPrefix({ prefix, manifestHash: await sha256(path.join(directory, 'manifest.json')), verified, objects });
   const manifest = checkedManifest(await json(path.join(directory, 'manifest.json')));
   for (const entry of manifest.databases) {
     await storage(['cp', `${prefix}/${entry.file}`, path.join(directory, entry.file)]);
@@ -225,11 +273,25 @@ async function download(prefix) {
   }
   return { directory, manifest };
 }
-async function bucketRestore(prefix) {
-  const { directory, manifest } = await download(prefix);
-  for (const entry of manifest.databases) await scratchRestore(LOCAL, directory, entry);
+async function bucketRestore(prefix, verifiedFile) {
+  const { directory, manifest } = await download(prefix, verifiedFile);
+  for (const entry of manifest.databases) await scratchRestore(directory, entry);
   await exclusive(path.join(directory, 'local-restore-passed'), new Date().toISOString());
   console.log(`Bucket restore proof: ${directory}`);
+}
+
+// The reviewed script and its pg dependency, bundled into one file in a runtime folder outside the disposable
+// worktree: nothing a backup runs resolves from any checkout's node_modules.
+export async function bundleRuntime(runtime) {
+  const { build } = await import('esbuild');
+  await build({ entryPoints: [path.join(HERE, 'host.mjs')], outfile: path.join(runtime, 'host.mjs'), bundle: true,
+    platform: 'node', format: 'esm', external: ['pg-native', 'esbuild'], logLevel: 'error',
+    banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" } });
+}
+export function timerUnits(runtime, permanent, node) {
+  const service = `[Unit]\nDescription=Verified Storytree library backups\n\n[Service]\nType=oneshot\nWorkingDirectory=${permanent}\nEnvironment=PATH=${UNIT_PATH}\nEnvironment=LIBRARY_HOST_REPO=${permanent}\nExecStart=${node} ${runtime}/host.mjs backup\nUMask=0077\nStandardOutput=append:${LOGS}/timer.log\nStandardError=append:${LOGS}/timer.log\n`;
+  const timer = '[Unit]\nDescription=Back up Storytree every six hours\n\n[Timer]\nOnCalendar=*-*-* 00,06,12,18:00:00 UTC\nPersistent=true\nRandomizedDelaySec=60\n\n[Install]\nWantedBy=timers.target\n';
+  return { service, timer };
 }
 
 async function installTimer() {
@@ -237,15 +299,11 @@ async function installTimer() {
   if (linger !== 'Linger=yes') throw new Error('Linger is off; owner must run sudo loginctl enable-linger mickh');
   const units = path.join(homedir(), '.config/systemd/user');
   await mkdir(units, { recursive: true });
-  // Freeze the reviewed script outside the disposable worktree. pg resolves from the permanent
-  // checkout's installed dependencies; no source from that checkout is run by a backup.
   const permanent = path.join(homedir(), 'code/storytree03');
   const runtime = path.join(ROOT, 'runtime-' + stamp());
   await mkdir(runtime, { mode: 0o700 });
-  await copyFile(path.join(HERE, 'host.mjs'), path.join(runtime, 'host.mjs'), 1);
-  await symlink(path.join(permanent, 'node_modules'), path.join(runtime, 'node_modules'), 'dir');
-  const service = `[Unit]\nDescription=Verified Storytree library backups\n\n[Service]\nType=oneshot\nWorkingDirectory=${permanent}\nEnvironment=PATH=${process.env.PATH}\nEnvironment=LIBRARY_HOST_REPO=${permanent}\nExecStart=${process.execPath} ${runtime}/host.mjs backup\nUMask=0077\nStandardOutput=append:${LOGS}/timer.log\nStandardError=append:${LOGS}/timer.log\n`;
-  const timer = '[Unit]\nDescription=Back up Storytree every six hours\n\n[Timer]\nOnCalendar=*-*-* 00,06,12,18:00:00 UTC\nPersistent=true\nRandomizedDelaySec=60\n\n[Install]\nWantedBy=timers.target\n';
+  await bundleRuntime(runtime);
+  const { service, timer } = timerUnits(runtime, permanent, process.execPath);
   await exclusive(path.join(units, 'storytree-library-backup.service'), service);
   await exclusive(path.join(units, 'storytree-library-backup.timer'), timer);
   await run('systemctl', ['--user', 'daemon-reload']);
@@ -257,11 +315,17 @@ const actions = ['provision', 'backup', 'restore-backup', 'install-timer'];
 export async function main(args) {
   const [action, ...rest] = args;
   const dry = rest.includes('--dry-run');
-  const positional = rest.filter(arg => arg !== '--dry-run');
-  if (!actions.includes(action) || positional.length > (action === 'restore-backup' ? 1 : 0)) throw new Error(`Usage: host.mjs ${actions.join('|')} [backup-prefix] [--dry-run]`);
+  const at = rest.indexOf('--verified');
+  const verifiedFile = at >= 0 ? rest[at + 1] : undefined;
+  const positional = rest.filter((arg, i) => arg !== '--dry-run' && (at < 0 || (i !== at && i !== at + 1)));
+  if (!actions.includes(action) || positional.length > (action === 'restore-backup' ? 1 : 0) ||
+      (at >= 0 && (action !== 'restore-backup' || !verifiedFile))) {
+    throw new Error(`Usage: host.mjs ${actions.join('|')} [backup-prefix --verified <file>] [--dry-run]`);
+  }
   if (dry) {
     console.log(`DRY RUN ${action}: databases ${BACKED.join(', ')}; local socket ${LOCAL.host}:${LOCAL.port}; bucket ${BUCKET}.`);
     console.log('Create-only local files/roles/databases; marked scratch databases only may be dropped; uploads require all restored row counts to match.');
+    console.log(`Dumps restore as ${OWNER} over 127.0.0.1; a bucket restore takes only a prefix whose manifest is on the off-box verified list.`);
     console.log('Real Storytree settings are untouched. No subprocess, connection or write was made.');
     return;
   }
@@ -272,7 +336,7 @@ export async function main(args) {
   try {
     if (action === 'provision') await provision();
     else if (action === 'backup') await backup();
-    else if (action === 'restore-backup') await bucketRestore(positional[0]);
+    else if (action === 'restore-backup') await bucketRestore(positional[0], verifiedFile);
     else if (action === 'install-timer') await installTimer();
   } finally { await lock.end(); }
 }

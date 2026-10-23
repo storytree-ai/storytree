@@ -1,15 +1,18 @@
 // Capability 10 · Evidence recordings follow their arc. A recording made as evidence (a .webm clip, a V8
-// trace or coverage .json.gz under an evidence folder) lives as long as its arc (ADR-1123 D1): once every
-// arc it was made for has closed and nothing active names it, it leaves main, and its folder's README
-// links its last copy by commit (D2: history is kept). Each tracked recording is mapped through the
-// commits that added or changed it to the pull requests that merged them into main, their branches and
-// increments (the increment a branch's name carries, else the one whose close names the pull request),
-// and those increments' arcs. It stays when any of those arcs is not closed, when it maps to no pull
-// request or increment, when an increment on an arc that is not closed names it or its folder, and when
-// a source file outside the evidence folders names it, since a build or test reads it then (D3; a
-// seed.json.gz is always an input). `pnpm evidence:sweep` lists what goes and what stays, and why;
-// `--apply` deletes what goes and stages it with the READMEs, ready to commit. The session manager's
-// routine runs it and parks an increment to land what it lists.
+// trace or coverage .json.gz under an evidence folder) lives as long as its arc (ADR-1123 D1), and so does
+// a screenshot (a .png there, ADR-1127 D1): once every arc it was made for has closed and nothing active
+// names it, it leaves main, and its folder's README links its last copy by commit (D2: history is kept).
+// Each tracked piece of evidence is mapped through the commits that added or changed it to the pull
+// requests that merged them into main, their branches and increments (the increment a branch's name
+// carries, else the one whose close names the pull request), and those increments' arcs. It stays when
+// any of those arcs is not closed, when it maps to no pull request or increment, when an increment on an
+// arc that is not closed names it or its folder, and when a source file outside the evidence folders
+// names it, since a build or test reads it then (D3; a seed.json.gz is always an input, and so is a
+// picture under INPUTS, which a script inside an evidence folder reads: ADR-1127 D2). `pnpm
+// evidence:sweep` lists what goes and what stays, and why; `--apply` deletes what goes, repoints every
+// Markdown link to it at its last copy (an image embed at the raw file, so it still renders, a plain link
+// at the blob) and stages it with the READMEs, ready to commit. The session manager's routine runs it and
+// parks an increment to land what it lists.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -18,10 +21,17 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { incrementOfBranch } from "./capability-list.mjs";
 
-/** A recording: a clip, trace or coverage file under a folder named evidence, never a seed a capture reads. */
-export function isRecording(file) {
-  return /(^|\/)evidence\/(.+\/)?[^/]+\.(webm|json\.gz)$/.test(file) && path.posix.basename(file) !== "seed.json.gz";
+/** Evidence: a clip, trace, coverage file or screenshot under a folder named evidence, never a seed a capture reads. */
+export function isEvidence(file) {
+  return /(^|\/)evidence\/(.+\/)?[^/]+\.(webm|json\.gz|png)$/.test(file) && path.posix.basename(file) !== "seed.json.gz";
 }
+
+/**
+ * Folders of pictures a script inside an evidence folder reads, which the source search cannot see (it
+ * leaves those folders out, since their capture scripts write their pictures): first-short's PixelLab
+ * frames and the owner's reference, which assemble-cast.mjs builds the website's sprite sheet from (ADR-1127 D2).
+ */
+export const INPUTS = ["packages/website/evidence/first-short/pixellab/", "packages/website/evidence/first-short/reference/"];
 
 /** Source a build or test runs, outside every evidence folder (the folder's name kept out of the glob's text, which the test scope reads as naming every evidence script). */
 const EVIDENCE = "evidence";
@@ -49,7 +59,7 @@ function pullRequestsOf(root, file, head) {
 const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * The first source file at `head` naming the recording `file`, if any does: its name quoted whole, or
+ * The first source file at `head` naming the evidence `file`, if any does: its name quoted whole, or
  * after its own folder's name (a same-named file in another folder is not it).
  */
 function readerOf(root, head, file) {
@@ -69,11 +79,11 @@ function readerOf(root, head, file) {
 const prOf = (ref) => /^#?(\d+)$/.exec(String(ref ?? "").trim())?.[1];
 
 /**
- * What a sweep of `root`'s recordings at `head` would do, over `arcs` (the library's arcViews: each arc with
- * its state and increments): `go`, each recording to delete with its arcs and pull requests, and `keep`,
- * each recording that stays with why. Both in path order.
+ * What a sweep of `root`'s evidence at `head` would do, over `arcs` (the library's arcViews: each arc with
+ * its state and increments): `go`, each file to delete with its arcs and pull requests, and `keep`,
+ * each file that stays with why. Both in path order.
  */
-export function sweepPlan(root, arcs, { head = "HEAD" } = {}) {
+export function sweepPlan(root, arcs, { head = "HEAD", inputs = INPUTS } = {}) {
   const tracked = lines(git(root, ["ls-tree", "-r", "--name-only", head]));
   const arcOf = new Map();
   const byPr = new Map();
@@ -91,7 +101,11 @@ export function sweepPlan(root, arcs, { head = "HEAD" } = {}) {
   }
   const go = [];
   const keep = [];
-  for (const file of tracked.filter(isRecording).sort()) {
+  for (const file of tracked.filter(isEvidence).sort()) {
+    if (inputs.some((folder) => file.startsWith(folder))) {
+      keep.push({ file, why: "an input a script reads (ADR-1127 D2)" });
+      continue;
+    }
     const reader = readerOf(root, head, file);
     if (reader !== undefined) {
       keep.push({ file, why: `${reader} reads it` });
@@ -129,24 +143,49 @@ export function sweepPlan(root, arcs, { head = "HEAD" } = {}) {
   return { go, keep };
 }
 
+/** The repository path a Markdown link in `markdown` points at, or undefined for an address, an anchor or a rooted path. */
+function linked(markdown, target) {
+  if (/^[a-z][a-z0-9+.-]*:|^[#/]/i.test(target)) return undefined;
+  let bare = target.replace(/[?#].*$/, "");
+  try {
+    bare = decodeURI(bare);
+  } catch {
+    return undefined;
+  }
+  return path.posix.normalize(path.posix.join(path.posix.dirname(markdown), bare));
+}
+
 /**
- * Delete `plan`'s recordings from `root` and give each folder's README a link to every one's last copy at
- * `commit` in `repository` (its GitHub address), rewriting a link the README already had to it; the
- * deletions and READMEs are staged.
+ * Delete `plan`'s evidence from `root`, repoint every link to it in a tracked Markdown file at its last copy
+ * at `commit` in `repository` (its GitHub address: an image embed at the raw file, a plain link at the
+ * blob), and give each folder's README a link to every one's last copy; the deletions, the repointed
+ * files and the READMEs are staged.
  */
 export function applySweep(root, plan, { commit, date, repository }) {
+  const gone = new Set(plan.go.map((one) => one.file));
+  const link = (file) => `${repository}/blob/${commit}/${file}`;
+  const repointed = [];
+  for (const markdown of lines(git(root, ["ls-files", "--", "*.md"]))) {
+    if (!existsSync(path.join(root, markdown))) continue;
+    const text = readFileSync(path.join(root, markdown), "utf8");
+    const next = text.replace(/(!?)\[([^\]]*)\]\(([^()\s]+)((?:\s+"[^"]*")?)\)/g, (whole, bang, label, target, title) => {
+      const file = linked(markdown, target);
+      if (file === undefined || !gone.has(file)) return whole;
+      return `${bang}[${label}](${repository}/${bang === "!" ? "raw" : "blob"}/${commit}/${file}${title})`;
+    });
+    if (next !== text) {
+      writeFileSync(path.join(root, markdown), next);
+      repointed.push(markdown);
+    }
+  }
+  if (repointed.length > 0) git(root, ["add", "--", ...repointed]);
   const byFolder = new Map();
   for (const { file } of plan.go) byFolder.set(path.posix.dirname(file), [...(byFolder.get(path.posix.dirname(file)) ?? []), file]);
   for (const [folder, files] of byFolder) {
     const readme = path.posix.join(folder, "README.md");
-    let text = existsSync(path.join(root, readme)) ? readFileSync(path.join(root, readme), "utf8") : `# ${path.posix.basename(folder)}\n`;
-    const link = (file) => `${repository}/blob/${commit}/${file}`;
-    for (const file of files) {
-      text = text.replace(new RegExp(`\\]\\((\\./)?${escaped(path.posix.basename(file))}\\)`, "g"), `](${link(file)})`);
-    }
+    const text = existsSync(path.join(root, readme)) ? readFileSync(path.join(root, readme), "utf8") : `# ${path.posix.basename(folder)}\n`;
     const listed = files.map((file) => `[${path.posix.basename(file)}](${link(file)})`).join(", ");
-    text = `${text.trimEnd()}\n\nRemoved from \`main\` on ${date}, its arc closed (ADR-1123): ${listed}. Each link is its last copy, kept in git history.\n`;
-    writeFileSync(path.join(root, readme), text);
+    writeFileSync(path.join(root, readme), `${text.trimEnd()}\n\nRemoved from \`main\` on ${date}, its arc closed (ADR-1123): ${listed}. Each link is its last copy, kept in git history.\n`);
     git(root, ["rm", "-q", "--", ...files]);
     git(root, ["add", "--", readme]);
   }
@@ -167,7 +206,7 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
   const plan = sweepPlan(root, arcs);
   for (const { file, why } of plan.keep) console.log(`keep  ${file}  (${why})`);
   for (const { file, arcs: closed, prs } of plan.go) console.log(`go    ${file}  (${closed.join(", ")} closed; ${prs.map((pr) => `#${pr}`).join(" ")})`);
-  console.log(`${plan.go.length} recording${plan.go.length === 1 ? "" : "s"} can leave main, ${plan.keep.length} stay.`);
+  console.log(`${plan.go.length} evidence file${plan.go.length === 1 ? "" : "s"} can leave main, ${plan.keep.length} stay.`);
   if (apply && plan.go.length > 0) {
     const commit = git(root, ["rev-parse", "HEAD"]).trim();
     applySweep(root, plan, { commit, date: new Date().toISOString().slice(0, 10), repository: repositoryOf(root) });

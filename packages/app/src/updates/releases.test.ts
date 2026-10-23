@@ -273,8 +273,9 @@ test("4.7 Check for updates checks the release feed now, shares a check already 
   assert.equal(updater.request("status").phase, "up-to-date");
 });
 
+// Its title names no contract: its skip outside the child run would otherwise leave 4.7 not checked on every run.
 const DELIBERATE = "STORYTREE_RELEASES_DELIBERATE_FAILURE";
-test("4.7 deliberately failing while an automatic check runs", { skip: process.env[DELIBERATE] ? false : "other: fails on purpose, so it runs only in the child run of the test below" }, async (t) => {
+test("deliberately failing while an automatic check runs", { skip: process.env[DELIBERATE] ? false : "other: fails on purpose, so it runs only in the child run of 4.7's test below" }, async (t) => {
   const feed = await fixture(t);
   const updater = feed.updater(async () => assert.fail("nothing newer to install"), async () => true);
   void updater.check();
@@ -287,7 +288,7 @@ test("4.7 a failed assertion while an automatic check runs ends the run with its
     .then(() => assert.fail("the deliberately failing test passed"), (error: { code?: number; killed?: boolean; stdout?: string }) => error);
   assert.equal(run.killed, false, "the run hung until the timeout killed it");
   assert.equal(run.code, 1);
-  assert.match(run.stdout ?? "", /✖ 4\.7 deliberately failing/);
+  assert.match(run.stdout ?? "", /✖ deliberately failing/);
 });
 
 test("4.12 a named run holds an automatic release install until released, without holding the download", async (t) => {

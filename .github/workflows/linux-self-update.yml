@@ -39,14 +39,15 @@ jobs:
     # Ten minutes' settle after the launch, three-minute checks, a forty-minute wait and the fallback fit inside.
     timeout-minutes: 75
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
+          persist-credentials: false
           sparse-checkout: packages/app-setup/evidence/linux-acceptance/harness
       - name: Install the starting build, make an arc, and leave it idle until it updates itself
         run: bash packages/app-setup/evidence/linux-acceptance/harness/self-update.sh "$RUNNER_TEMP/linux-self-update" "${{ matrix.from }}"
       - name: Fail unless it took a newer release with its arc kept and the setup check passing
         run: bash packages/app-setup/evidence/linux-acceptance/harness/judge-self-update.sh "$RUNNER_TEMP/linux-self-update" "${{ matrix.require }}"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: linux-self-update-${{ matrix.leg }}

@@ -1,0 +1,15 @@
+# Dependabot proposes updates to the workflows' pinned actions, once a week in one pull request, and
+# only for releases at least seven days old. Each of its pull requests opens with the `hold` label,
+# and ci.yml's automerge never lands one: the owner reads it and takes the label off to land it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"]
+    labels: [hold]

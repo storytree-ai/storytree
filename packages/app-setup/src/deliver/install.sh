@@ -2,7 +2,7 @@
 # storytree 0.3's one-line install on an Apple Silicon Mac or x64 Linux, the twin of install.ps1:
 #   curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh
 # POSIX sh, also run under bash and zsh. Needs no Node, Homebrew, jq or checkout. Every step is a function and the
-# last line runs them, so a download cut short runs nothing. Choose development with: | sh -s -- --channel development
+# last line runs them, so a download cut short runs nothing. Choose alpha with: | sh -s -- --channel alpha
 # It is laid out by system and chip: Linux is a branch of it, not a second script.
 
 ST_REPO=storytree-ai/storytree
@@ -93,22 +93,25 @@ st_install_dir() {
 }
 
 # st_channel HOME INSTALLDIR REQUESTED: chooses the release channel without writing it, so a failed download can be retried.
+# Alpha's old name, development, is read as alpha wherever it appears (ADR-1121).
 st_channel() {
-  case "$3" in "" | stable | development) ;; *) st_fail 'Choose a valid release channel: stable or development'; return ;; esac
+  st_wanted=$3
+  case "$st_wanted" in "" | stable | alpha) ;; development) st_wanted=alpha ;; *) st_fail 'Choose a valid release channel: stable or alpha'; return ;; esac
   st_existing=
   if [ -f "$1/release-channel.json" ]; then
     st_existing=$(st_json channel < "$1/release-channel.json")
     case "$(st_json schema < "$1/release-channel.json")/$st_existing" in
-      1/stable | 1/development) ;;
+      1/stable | 1/alpha) ;;
+      1/development) st_existing=alpha ;;
       *) st_fail "The saved release channel could not be read. Keep $1/release-channel.json for diagnosis; delivery will not replace it"; return ;;
     esac
     # With no app installed, the record is what a failed delivery left behind; an explicit choice replaces it.
-    if [ ! -e "$2" ] && [ -n "$3" ]; then st_existing=; fi
+    if [ ! -e "$2" ] && [ -n "$st_wanted" ]; then st_existing=; fi
   fi
-  if [ -n "$st_existing" ] && [ -n "$3" ] && [ "$st_existing" != "$3" ]; then
-    st_fail "This installation already uses $st_existing. Delivery cannot change its release channel to $3"; return
+  if [ -n "$st_existing" ] && [ -n "$st_wanted" ] && [ "$st_existing" != "$st_wanted" ]; then
+    st_fail "This installation already uses $st_existing. Delivery cannot change its release channel to $st_wanted"; return
   fi
-  ST_CHANNEL=${st_existing:-${3:-stable}}
+  ST_CHANNEL=${st_existing:-${st_wanted:-stable}}
 }
 
 st_save_channel() {
@@ -129,13 +132,13 @@ st_download() {
 st_release() {
   st_pinned=
   if [ -n "${STORYTREE_ACCEPTANCE_VERSION:-}" ]; then
-    [ "$1" = stable ] || { st_fail 'An acceptance version installs as stable; this installation uses development'; return; }
+    [ "$1" = stable ] || { st_fail 'An acceptance version installs as stable; this installation uses alpha'; return; }
     st_pinned=$STORYTREE_ACCEPTANCE_VERSION
     st_bad='STORYTREE_ACCEPTANCE_VERSION must name a 0.3.<n> release'
   elif [ "$1" = stable ]; then
     st_fetch "https://raw.githubusercontent.com/$ST_REPO/release-channel-stable/latest.yml" "$3" || { st_fail 'the stable release pin could not be read'; return; }
     st_pinned=$(st_json version < "$3")
-    st_bad='The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired'
+    st_bad='The stable release pin is invalid. No alpha release was selected; retry after the stable pin is repaired'
     case "$(st_json schema < "$3")/$(st_json channel < "$3")" in 1/stable) ;; *) st_fail "$st_bad"; return ;; esac
   fi
   if [ "$1" = stable ]; then
@@ -472,7 +475,7 @@ st_main() {
     case "$1" in
       --channel) st_requested=${2:-}; shift ;;
       --channel=*) st_requested=${1#--channel=} ;;
-      *) st_fail "unknown option $1; the only option is --channel stable|development"; return ;;
+      *) st_fail "unknown option $1; the only option is --channel stable|alpha"; return ;;
     esac
     shift
   done

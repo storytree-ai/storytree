@@ -32,12 +32,12 @@ export function deliveryAssets(dir, version) {
 export function windowsBootstraps(dir) {
   cpSync(path.join(here, "../../packages/app-setup/src/deliver/install.ps1"), path.join(dir, "install-storytree.ps1"));
   writeFileSync(path.join(dir, "install-storytree.txt"), INSTALL_COMMAND);
-  writeFileSync(path.join(dir, "install-storytree-development.txt"), "& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1'))) -Channel development\r\n");
+  writeFileSync(path.join(dir, "install-storytree-alpha.txt"), "& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1'))) -Channel alpha\r\n");
 }
 
-/** The Mac one-liners: stable follows the owner's pin, development the latest release. */
+/** The Mac one-liners: stable follows the owner's pin, alpha the latest release. */
 export const MAC_INSTALL_COMMAND = "curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh\n";
-const MAC_DEVELOPMENT_COMMAND = "curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel development\n";
+const MAC_ALPHA_COMMAND = "curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel alpha\n";
 
 export function macDeliveryAssets(dir, version) {
   const name = `storytree-0.3-${version}-mac-arm64.zip`;
@@ -51,7 +51,7 @@ export function macDeliveryAssets(dir, version) {
 export function macBootstraps(dir) {
   cpSync(path.join(here, "../../packages/app-setup/src/deliver/install.sh"), path.join(dir, "install-storytree.sh"));
   writeFileSync(path.join(dir, "install-storytree-mac.txt"), MAC_INSTALL_COMMAND);
-  writeFileSync(path.join(dir, "install-storytree-mac-development.txt"), MAC_DEVELOPMENT_COMMAND);
+  writeFileSync(path.join(dir, "install-storytree-mac-alpha.txt"), MAC_ALPHA_COMMAND);
 }
 
 export function linuxDeliveryAssets(dir, version) {

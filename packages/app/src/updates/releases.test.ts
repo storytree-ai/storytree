@@ -48,16 +48,16 @@ const electron: { autoUpdater?: Squirrel } = {};
   require.cache[id] = { id, filename: id, loaded: true, exports: electron } as NodeJS.Module;
 }
 
-test("4.15 stable downloads only the pinned artifact while development continues to advance; no stable feed never falls back", async (t) => {
+test("4.15 stable downloads only the pinned artifact while alpha continues to advance; no stable feed never falls back", async (t) => {
   const feed = await fixture(t);
   feed.version = "0.3.9";
   feed.stable = "0.3.2";
   const stable = feed.updater(async () => {}, async () => false, async () => false, "stable");
-  const development = feed.updater(async () => {}, async () => false, async () => false, "development");
+  const alpha = feed.updater(async () => {}, async () => false, async () => false, "alpha");
   assert.equal(await stable.check(), "waiting");
   assert.equal(stable.request("status").nextBuild, "0.3.2");
-  assert.equal(await development.check(), "waiting");
-  assert.equal(development.request("status").nextBuild, "0.3.9");
+  assert.equal(await alpha.check(), "waiting");
+  assert.equal(alpha.request("status").nextBuild, "0.3.9");
   feed.stable = undefined;
   let installed = 0;
   const unpinned = feed.updater(async () => { installed++; }, async () => true, async () => true, "stable");
@@ -419,7 +419,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   return Object.assign(state, {
     holds: path.join(dir, "update-holds"),
     appImage,
-    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "development") {
+    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "alpha") {
       if (platform === "darwin") electron.autoUpdater = state.squirrel = new Squirrel();
       const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", sandboxOff: state.sandboxOff, ...(state.recheck === undefined ? {} : { recheck: state.recheck }), ...(channel ? { releaseChannel: () => channel } : {}) }, {
         version: state.running, name: "storytree-test", isPackaged: true,

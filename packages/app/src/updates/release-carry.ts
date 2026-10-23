@@ -2,7 +2,7 @@
  * Capability 4 · Updates. Contract 4.6: one platform's failure holds only that platform (ADR-1032 D4).
  * A release publishes with the platforms whose builds are in it. A platform whose build is not carries its last good
  * build forward instead: its update feed and its delivery manifest entry are copied from the newest earlier release,
- * naming that build's own version and files, so every reader of GitHub's "latest" release (the development updater,
+ * naming that build's own version and files, so every reader of GitHub's "latest" release (the alpha updater,
  * the one-liners, a stable pin's candidate) still finds the platform's files, and an install on that build sees no
  * update. Nothing is rebuilt or re-uploaded but these small files. Imported by apps/desktop/release.mjs under plain
  * Node, so it imports nothing relative.

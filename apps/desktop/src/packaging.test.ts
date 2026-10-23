@@ -18,11 +18,11 @@ import { releaseDelivery } from "@storytree/app/updates/release-carry";
 // One NSIS installer per architecture; latest.yml names both, and each installed app's updater takes its own.
 const windows = (version: string) => [
   ...["x64", "arm64"].flatMap((arch) => [`storytree-0.3-${version}-windows-${arch}-setup.exe`, `storytree-0.3-${version}-windows-${arch}-setup.exe.blockmap`]), "latest.yml",
-  "install-storytree.ps1", "install-storytree.txt", "install-storytree-development.txt", "storytree-delivery.json",
+  "install-storytree.ps1", "install-storytree.txt", "install-storytree-alpha.txt", "storytree-delivery.json",
 ];
 const mac = (version: string) => [
   `storytree-0.3-${version}-mac-arm64.zip`, `storytree-0.3-${version}-mac-arm64.zip.blockmap`, "latest-mac.yml",
-  "install-storytree.sh", "install-storytree-mac.txt", "install-storytree-mac-development.txt", "storytree-delivery-mac.json",
+  "install-storytree.sh", "install-storytree-mac.txt", "install-storytree-mac-alpha.txt", "storytree-delivery-mac.json",
 ];
 // The AppImage carries its blockmap inside it, so latest-linux.yml and its delivery entry are its only companions.
 const linux = (version: string) => [`storytree-0.3-${version}-linux-x86_64.AppImage`, "latest-linux.yml", "storytree-delivery-linux.json"];
@@ -65,7 +65,7 @@ test("4.6 the Mac runner stages the shell bootstrap, its one-liners and the Mac 
     });
     assert.equal(readFileSync(path.join(dir, "install-storytree.sh"), "utf8"), readFileSync(new URL("../../../packages/app-setup/src/deliver/install.sh", import.meta.url), "utf8"));
     assert.equal(readFileSync(path.join(dir, "install-storytree-mac.txt"), "utf8"), "curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh\n");
-    assert.equal(readFileSync(path.join(dir, "install-storytree-mac-development.txt"), "utf8"), "curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel development\n");
+    assert.equal(readFileSync(path.join(dir, "install-storytree-mac-alpha.txt"), "utf8"), "curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel alpha\n");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

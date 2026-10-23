@@ -216,13 +216,14 @@ test("4.37 a worktree whose folder cannot be renamed for a moment after its test
       const server = await start({ dataDir: path.join(folder, ".pgtest", "data"), serverLog: path.join(dir, "pg.log"), toolLog: path.join(dir, "tools.log") });
       // Held as a killed server's handles hold it: no rename until a moment after the server stops.
       chmodSync(trees, 0o555);
-      const release = setTimeout(() => chmodSync(trees, 0o755), 400);
+      let release: NodeJS.Timeout | undefined;
       try {
         const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
         await log.append(project, { ...here, session: "s-late", folder, branch: "claude/released-late", kind: "file-edited", files: ["x.ts"] });
         await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: "claude/released-late", open: false, how: "not-ahead" });
         await log.append(project, { ...here, session: "s-late", folder, branch: "claude/released-late", kind: "closed-out", safe: true, why: "merged", running: 0 });
         const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+        release = setTimeout(() => chmodSync(trees, 0o755), 400);
         assert.deepEqual(await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch), [folder]);
         assert.equal(existsSync(folder), false);
       } finally {

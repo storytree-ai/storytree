@@ -5,7 +5,7 @@ import { STABLE_BRANCH } from "./release-channel.js";
 import { versionAt } from "./release-source.js";
 import { stableCandidate, type PublishedBuild, type StableCandidate } from "./stable-candidate.js";
 import {
-  FEED_PLATFORMS, mergedPullRequests, moveStableBack, pinCoverage, pinStable, readStableManifest,
+  FEED_PLATFORMS, mergedPullRequests, moveStableBack, pinCoverage, pinStable, readStableManifest, windowsInstallers,
   type Bootstraps, type FeedPlatform, type PinPorts, type PlatformFeed, type PlatformFeeds, type StableManifest,
 } from "./stable-pin.js";
 
@@ -105,13 +105,13 @@ export async function formerPin(version: string, api: GithubRequest): Promise<St
   }
 }
 
-/** The platforms a release has its own build of: Windows by its installer, the Mac and Linux by the builds their feeds name; a feed carried from an earlier build (4.6) counts for nothing. */
+/** The platforms a release has its own build of: Windows by its installers, the Mac and Linux by the builds their feeds name; a feed carried from an earlier build (4.6) counts for nothing. */
 export function releasePlatforms(release: Pick<Release, "tag_name" | "assets">): PublishedBuild["platforms"] {
   const names = new Set(release.assets.map(a => a.name));
   const version = release.tag_name.slice(1);
   const built = (end: string) => [...names].some(n => n.startsWith(`storytree-0.3-${version}-`) && n.endsWith(end));
   return [
-    ...(names.has(`storytree-0.3-${version}-setup.exe`) ? ["windows" as const] : []),
+    ...([false, true].some(combined => windowsInstallers(version, combined).every(n => names.has(n))) ? ["windows" as const] : []),
     ...(Object.keys(FEED_PLATFORMS) as FeedPlatform[]).filter(p => names.has(FEED_PLATFORMS[p].file) && built(FEED_PLATFORMS[p].build)),
   ];
 }
@@ -212,13 +212,19 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
       const commit = git("rev-parse", `v${wanted}^{commit}`);
       git("merge-base", "--is-ancestor", commit, "origin/main");
       if (versionAt(git, commit) !== wanted) throw new Error("Release tag and merged build version do not match");
+      type Entry = { name: string; sha256: string; sha512: string; size: number };
       const delivery = JSON.parse(download(release, "storytree-delivery.json")) as {
-        schema: number; version: string; channelSchema: number; architectures: string[];
-        installer: { name: string; sha256: string; sha512: string; size: number };
+        schema: number; version: string; channelSchema: number; architectures: string[]; installers?: Record<string, Entry>; installer?: Entry;
       };
       if (delivery.schema !== 1 || delivery.version !== wanted || !delivery.architectures?.includes("x64") || !delivery.architectures.includes("arm64")) throw new Error("Release delivery manifest does not match the selected build");
-      const installer = asset(release, `storytree-0.3-${wanted}-setup.exe`);
-      if (delivery.installer.name !== installer.name || delivery.installer.size !== installer.size) throw new Error("Release installer does not match its delivery manifest");
+      // One installer per architecture, or the one for both of a build from before the split.
+      const entries = delivery.installers ? [delivery.installers["x64"], delivery.installers["arm64"]] : [delivery.installer];
+      const installers = windowsInstallers(wanted, !delivery.installers).map((name, i) => {
+        const entry = entries[i];
+        const installer = asset(release, name);
+        if (entry?.name !== installer.name || entry.size !== installer.size) throw new Error("Release installer does not match its delivery manifest");
+        return { ...entry, url: installer.browser_download_url };
+      });
       // The development updater's complete publication is required too; it remains untouched.
       asset(release, "latest.yml");
       const feeds: PlatformFeeds = {};
@@ -233,7 +239,7 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
         }
       }
       return { version: wanted, commit, channelSchema: delivery.channelSchema, draft: release.draft, prerelease: release.prerelease,
-        installer: { ...delivery.installer, url: installer.browser_download_url }, feeds, bootstrap: {
+        installers, feeds, bootstrap: {
           ps1: download(release, "install-storytree.ps1"),
           ...(release.assets.some(a => a.name === "install-storytree.sh") ? { sh: download(release, "install-storytree.sh") } : {}),
         } };

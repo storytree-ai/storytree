@@ -144,16 +144,22 @@ function Get-StorytreeAsset($Release, [string]$Name) {
   return $url
 }
 
-# A release whose Windows build failed names the last good installer, with that build's version (4.6). Its own release,
-# which built it, is read instead, once: that release names its installer as its own.
-function Get-StorytreeWindowsBuild($Release, $Manifest, [scriptblock]$Fetch, [scriptblock]$ReadManifest) {
-  $carried = [string]$Manifest.installer.version
+# Each architecture has its own installer; a release from before the split names one that carries both.
+function Get-StorytreeWindowsEntry($Manifest, [string]$Architecture) {
+  if ($Manifest.installers) { return $Manifest.installers.$Architecture }
+  return $Manifest.installer
+}
+
+# A release whose Windows build failed names the last good installers, with that build's version (4.6). Its own release,
+# which built them, is read instead, once: that release names its installers as its own.
+function Get-StorytreeWindowsBuild($Release, $Manifest, [string]$Architecture, [scriptblock]$Fetch, [scriptblock]$ReadManifest) {
+  $carried = [string](Get-StorytreeWindowsEntry $Manifest $Architecture).version
   if (-not $carried -or "v$carried" -ceq $Release.tag_name) { return @{ release = $Release; manifest = $Manifest } }
   if ($carried -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'release manifest names no valid Windows build' }
   $earlier = & $Fetch "https://api.github.com/repos/storytree-ai/storytree/releases/tags/v$carried"
   if ($earlier.tag_name -cne "v$carried") { throw "the Windows build $carried was not found" }
   $earlierManifest = & $ReadManifest (Get-StorytreeAsset $earlier 'storytree-delivery.json')
-  $again = [string]$earlierManifest.installer.version
+  $again = [string](Get-StorytreeWindowsEntry $earlierManifest $Architecture).version
   if ($again -and $again -cne $carried) { throw "release $carried does not name its own Windows build" }
   return @{ release = $earlier; manifest = $earlierManifest }
 }
@@ -163,9 +169,10 @@ function Select-StorytreeInstaller($Release, $Manifest, [string]$Architecture, [
   $version = $Release.tag_name.Substring(1)
   if ($Manifest.schema -ne 1 -or $Manifest.version -cne $version -or $Architecture -notin $Manifest.architectures) { throw 'release manifest version or architecture does not match' }
   if ($SelectedChannel -ceq 'stable' -and $Manifest.channelSchema -ne 1) { throw 'The pinned installer cannot preserve the stable release channel. Pin a channel-aware build before installing.' }
-  $name = "storytree-0.3-$version-setup.exe"
-  if ($Manifest.installer.name -cne $name -or $Manifest.installer.sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'release manifest has no valid installer checksum' }
-  return @{ url = (Get-StorytreeAsset $Release $name); sha256 = $Manifest.installer.sha256; name = $name }
+  $entry = Get-StorytreeWindowsEntry $Manifest $Architecture
+  $name = if ($Manifest.installers) { "storytree-0.3-$version-windows-$Architecture-setup.exe" } else { "storytree-0.3-$version-setup.exe" }
+  if (-not $entry -or $entry.name -cne $name -or $entry.sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw "release manifest has no valid installer checksum for Windows $Architecture" }
+  return @{ url = (Get-StorytreeAsset $Release $name); sha256 = $entry.sha256; name = $name }
 }
 
 function Assert-StorytreeDownload([string]$File, [string]$Expected) {
@@ -276,7 +283,7 @@ try {
       $release = Get-StorytreeRelease $selectedChannel { param($Url) Invoke-RestMethod $Url -Headers $headers } $env:STORYTREE_ACCEPTANCE_VERSION
       $manifestUrl = Get-StorytreeAsset $release 'storytree-delivery.json'
       $manifest = Invoke-RestMethod $manifestUrl
-      $build = Get-StorytreeWindowsBuild $release $manifest { param($Url) Invoke-RestMethod $Url -Headers $headers } { param($Url) Invoke-RestMethod $Url }
+      $build = Get-StorytreeWindowsBuild $release $manifest $Arch { param($Url) Invoke-RestMethod $Url -Headers $headers } { param($Url) Invoke-RestMethod $Url }
       $asset = Select-StorytreeInstaller $build.release $build.manifest $Arch $selectedChannel
       $script:downloadDir = Join-Path ([IO.Path]::GetTempPath()) ('storytree-delivery-' + [Guid]::NewGuid().ToString('N'))
       New-Item -ItemType Directory -Path $script:downloadDir | Out-Null

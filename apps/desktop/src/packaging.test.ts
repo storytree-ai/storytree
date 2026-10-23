@@ -15,8 +15,9 @@ import { hostPlatform, missingAssets, platformUploads, PLATFORMS } from "../rele
 import { linuxDeliveryAssets, macDeliveryAssets } from "../delivery-assets.mjs";
 import { releaseDelivery } from "@storytree/app/updates/release-carry";
 
+// One NSIS installer per architecture; latest.yml names both, and each installed app's updater takes its own.
 const windows = (version: string) => [
-  `storytree-0.3-${version}-setup.exe`, `storytree-0.3-${version}-setup.exe.blockmap`, "latest.yml",
+  ...["x64", "arm64"].flatMap((arch) => [`storytree-0.3-${version}-windows-${arch}-setup.exe`, `storytree-0.3-${version}-windows-${arch}-setup.exe.blockmap`]), "latest.yml",
   "install-storytree.ps1", "install-storytree.txt", "install-storytree-development.txt", "storytree-delivery.json",
 ];
 const mac = (version: string) => [
@@ -31,6 +32,9 @@ test("4.6 a platform's build is in a release only when its whole asset set is: a
   assert.deepEqual(missingAssets(all("0.3.700"), "0.3.700"), {});
   assert.deepEqual(missingAssets(windows("0.3.700"), "0.3.700"), { mac: mac("0.3.700"), linux: linux("0.3.700") });
   assert.deepEqual(missingAssets(all("0.3.700").filter((name) => name !== "latest-mac.yml"), "0.3.700"), { mac: ["latest-mac.yml"] });
+  // Windows' build is in only with both architectures' installers.
+  assert.deepEqual(missingAssets(all("0.3.700").filter((name) => !name.includes("arm64-setup")), "0.3.700"),
+    { windows: ["storytree-0.3-0.3.700-windows-arm64-setup.exe", "storytree-0.3-0.3.700-windows-arm64-setup.exe.blockmap"] });
   assert.deepEqual(missingAssets(all("0.3.700").filter((name) => name !== "latest-linux.yml"), "0.3.700"), { linux: ["latest-linux.yml"] });
   assert.deepEqual(missingAssets(all("0.3.700").filter((name) => !name.endsWith(".AppImage")), "0.3.700"), { linux: ["storytree-0.3-0.3.700-linux-x86_64.AppImage"] });
   // Another version's assets are not this release's.
@@ -79,7 +83,7 @@ test("app setup 1.13 the Linux runner writes the AppImage's checksum entry besid
 });
 
 test("app setup 1.13 publishing merges the Linux AppImage's entry beside the Mac app's, and refuses another version's", () => {
-  const windows = { schema: 1, channelSchema: 1, version: "0.3.700", installer: { name: "storytree-0.3-0.3.700-setup.exe", sha256: "a".repeat(64), sha512: "b", size: 3 } };
+  const windows = { schema: 1, channelSchema: 1, version: "0.3.700", installers: { x64: { name: "storytree-0.3-0.3.700-windows-x64-setup.exe", sha256: "a".repeat(64), sha512: "b", size: 3 } } };
   const arm64 = { name: "storytree-0.3-0.3.700-mac-arm64.zip", sha256: "c".repeat(64), size: 5 };
   const x64 = { name: "storytree-0.3-0.3.700-linux-x86_64.AppImage", sha256: "d".repeat(64), size: 7 };
   const merged = releaseDelivery("0.3.700", { windows, mac: { version: "0.3.700", macos: { arm64 } }, linux: { version: "0.3.700", linux: { x64 } } });
@@ -119,7 +123,8 @@ esac
 `, { mode: 0o755 });
     const sets = path.join(root, "sets");
     mkdirSync(sets);
-    const windowsEntry = { schema: 1, channelSchema: 1, version: "0.3.700", architectures: ["x64", "arm64"], installer: { name: "storytree-0.3-0.3.700-setup.exe", sha256: "a".repeat(64) } };
+    const windowsEntry = { schema: 1, channelSchema: 1, version: "0.3.700", architectures: ["x64", "arm64"], installers: {
+      x64: { name: "storytree-0.3-0.3.700-windows-x64-setup.exe", sha256: "a".repeat(64) }, arm64: { name: "storytree-0.3-0.3.700-windows-arm64-setup.exe", sha256: "b".repeat(64) } } };
     writeFileSync(path.join(sets, "windows.names"), windows("0.3.700").join("\n"));
     writeFileSync(path.join(sets, "storytree-delivery.json"), JSON.stringify(windowsEntry));
     writeFileSync(path.join(sets, "linux.names"), linux("0.3.700").join("\n"));

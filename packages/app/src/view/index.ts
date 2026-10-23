@@ -6,7 +6,7 @@ import { factoryOf, renderAppMenu, renderProjectPicker } from "./render.js";
 import { appMenuStyles } from "./styles.js";
 import { mountSurfaces } from "./surfaces.js";
 import { switchProject } from "./switch.js";
-import { mountInstallChoice, mountSignIn, mountUpdates, type InstallChoiceBridge, type SignInBridge } from "./updates.js";
+import { mountInstallChoice, mountReleaseChannel, mountSignIn, mountUpdates, type InstallChoiceBridge, type ReleaseChannelBridge, type SignInBridge } from "./updates.js";
 import type { UpdatesBridge } from "../updates/bridge.js";
 
 export { renderNoProjects } from "./render.js";
@@ -23,6 +23,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   signIn?: SignInBridge;
   /** When a downloaded release may install itself, where the app installs releases (updates 4.13). */
   installChoice?: InstallChoiceBridge;
+  /** Which release channel the app follows, where it installs releases (updates 4.24). */
+  releaseChannel?: ReleaseChannelBridge;
   /** The app setup's Add project control; it reports the project added, which is then shown. `add` starts it from the bar's "New project…". */
   mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void; add(): void };
   /** The app setup's project sentence for the project on show: what it is and who it is for, edited in place (ADR-1085 D1 as narrowed). */
@@ -90,6 +92,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     gear.toggleAttribute("data-update-pending", waiting);
     gear.title = waiting ? "App menu: an update is ready to install" : "App menu";
   }, installChoice.choice);
+  const releaseChannel = mountReleaseChannel(menu, options.releaseChannel);
   const signIn = mountSignIn(menu, options.signIn);
   let section = "projects";
   let stopped = false;
@@ -181,7 +184,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     },
     stop(): void {
       stopped = true;
-      updates.stop(); journey?.stop(); installChoice.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); projectSentence?.stop(); removeProject?.stop(); deleteProject?.stop(); factory?.stop();
+      updates.stop(); journey?.stop(); installChoice.stop(); releaseChannel.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); projectSentence?.stop(); removeProject?.stop(); deleteProject?.stop(); factory?.stop();
       options.background.inert = wasInert;
       document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);

@@ -25,7 +25,7 @@
 // package: a change there runs everything, so the full run carries it (increment_e557d7df8a07).
 
 import { execFileSync } from "node:child_process";
-import { existsSync, globSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const WORKSPACE_ROOTS = ["packages", "apps"];
@@ -33,6 +33,9 @@ const INFRA = "infra";
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
 const RELATIVE_PATH = /["'`](\.{1,2}\/[^"'`$\r\n]*)["'`]/g;
 const PATH_TOKEN = /[\w.*-]+(?:\/[\w.*-]+)*\/?/g;
+/** A dynamic import or require of a computed path, or a relative path built from a template: imports that cannot be read. */
+const UNREADABLE_IMPORT = /\b(?:import|require)\s*\(\s*(?!["'][^"'`]*["']\s*[,)])[^)\s]|`\.{1,2}\/[^`]*\$\{/;
+const SPECIFIER = /["'`](@?[\w.-]+(?:\/[\w.-]+)*)["'`]/g;
 
 /**
  * Checks that a change inside any one package can fail, so every scoped run carries them as units
@@ -64,8 +67,9 @@ export function readWorkspace(root) {
   }
   const names = new Set(packages.map((p) => p.name));
   for (const pkg of packages) pkg.deps = pkg.deps.filter((name) => names.has(name));
-  const reaching = reachingPaths(root, packages);
-  for (const pkg of packages) pkg.reaches = reachesOf(pkg, packages, reaching);
+  const { reaching, sources } = reachingPaths(root, packages);
+  const reached = reachedFiles(root, packages, sources);
+  for (const pkg of packages) Object.assign(pkg, reachesOf(pkg, packages, reaching, reached));
   packages.sort((a, b) => (a.dir < b.dir ? -1 : 1));
   packages.rootDeps = dependencyNames(readManifest(path.join(root, "package.json")) ?? {}).filter((n) => names.has(n));
   return packages;
@@ -148,20 +152,79 @@ function reachingPaths(root, packages) {
       if (imported) keep(imported);
     }
   }
-  return [...kept].map(({ at, targets }) => ({ at, targets }));
+  return { reaching: [...kept].map(({ at, targets }) => ({ at, targets })), sources };
 }
 
-/** The other packages' dirs that a relative path written in this package's code resolves into. */
-function reachesOf(pkg, packages, reaching) {
-  const reached = new Set();
+/**
+ * What a repo path written in code stands for: the source file it names (an import's `.js` finding
+ * its `.ts`), another file in the checkout, or neither (a folder, a build output, a path not on disk).
+ */
+function reachedFiles(root, packages, sources) {
+  const bare = (file) => file.replace(SOURCE, "");
+  const byPath = new Map(sources.map((s) => [bare(s.at), s]));
+  const names = packages.map((p) => [p.name, p.dir]);
+  const resolve = (target) => {
+    const source = byPath.get(bare(target));
+    if (source) return { source };
+    try {
+      const stat = statSync(path.join(root, target));
+      if (stat.isFile()) return { file: target };
+      if (stat.isDirectory() && !target.split("/").includes("dist")) return { folder: target };
+    } catch {}
+    return {};
+  };
+  /** Each file a reached source can run or read, by relative path or package name, and the packages it reaches whole. */
+  const walk = (source, into, seen) => {
+    if (seen.has(source)) return;
+    seen.add(source);
+    into.files.add(source.at);
+    if (UNREADABLE_IMPORT.test(source.text)) into.dirs.add(packages.find((p) => source.at.startsWith(`${p.dir}/`)).dir);
+    for (const target of source.targets) reach(target, into, seen);
+    for (const [, specifier] of source.text.matchAll(SPECIFIER)) {
+      const named = names.find(([name]) => specifier === name || specifier.startsWith(`${name}/`));
+      if (named) into.dirs.add(named[1]);
+    }
+  };
+  /** What a path depends on: a source and what it imports, a file, everything under a folder, or else its whole package. */
+  const reach = (target, into, seen) => {
+    const { source, file, folder } = resolve(target);
+    if (source) walk(source, into, seen);
+    else if (file) into.files.add(file);
+    else if (folder) {
+      into.folders.add(`${folder}/`);
+      for (const inside of sources) if (inside.at.startsWith(`${folder}/`)) walk(inside, into, seen);
+    } else {
+      const owner = packages.find((p) => target === p.dir || target.startsWith(`${p.dir}/`));
+      if (owner) into.dirs.add(owner.dir);
+    }
+  };
+  return { reach };
+}
+
+/**
+ * The other packages' dirs that a relative path written in this package's code resolves into
+ * (`reaches`), and what this package depends on through those paths (`through`): a path to another
+ * package's file depends on that file and whatever it imports, by path or package name, and no more,
+ * so a capture reaching desktop's capture kit is not a dependent of all desktop is built from
+ * (increment_e6a2a86d876b). A path to a folder, a build output or anything not on disk depends on
+ * the whole package it is in, since what it reads cannot be followed.
+ */
+function reachesOf(pkg, packages, reaching, { reach }) {
+  const reaches = new Set();
+  const through = { files: new Set(), folders: new Set(), dirs: new Set() };
+  const seen = new Set();
   for (const { at, targets } of reaching) {
     if (!at.startsWith(`${pkg.dir}/`)) continue;
     for (const target of targets) {
       const owner = packages.find((p) => p !== pkg && (target === p.dir || target.startsWith(`${p.dir}/`)));
-      if (owner) reached.add(owner.dir);
+      if (!owner) continue;
+      reaches.add(owner.dir);
+      reach(target, through, seen);
     }
   }
-  return [...reached].sort();
+  through.dirs.delete(pkg.dir);
+  const sorted = (set) => [...set].sort();
+  return { reaches: sorted(reaches), through: { files: sorted(through.files), folders: sorted(through.folders), dirs: sorted(through.dirs) } };
 }
 
 /**
@@ -188,11 +251,15 @@ export function classify(files, workspace) {
     touched.add(owner.dir);
   }
   const selected = new Set(touched);
+  for (const pkg of workspace) {
+    const { files = [], folders = [] } = pkg.through ?? {};
+    if (changed.some((file) => files.includes(file) || folders.some((folder) => file.startsWith(folder)))) selected.add(pkg.dir);
+  }
   for (let grew = true; grew; ) {
     grew = false;
     for (const pkg of workspace) {
       if (selected.has(pkg.dir)) continue;
-      const uses = [...pkg.deps.map((name) => workspace.find((p) => p.name === name)?.dir), ...pkg.reaches];
+      const uses = [...pkg.deps.map((name) => workspace.find((p) => p.name === name)?.dir), ...(pkg.through?.dirs ?? [])];
       if (uses.some((dir) => selected.has(dir))) {
         selected.add(pkg.dir);
         grew = true;

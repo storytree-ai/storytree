@@ -1,7 +1,7 @@
 /**
- * Capability 2 · Change review and capability 4 · Review loop bound (ADR-0956 D1, D7). What the
+ * Capability 2 · Change review and capability 4 · Review loop bound (ADR-0956 D1, D7, ADR-1120). What the
  * change-reviewer reads, the brief, and what it returns, taken into the QA ledger; and the loop of reviews of
- * one change, bounded at ten.
+ * one change, bounded at three.
  *
  * - A change is one increment's branch, named by the increment. Each review of it is one iteration: a brief
  *   issued, then the reviewer's return taken. A brief not yet taken is replaced by the next one issued.
@@ -18,13 +18,15 @@
  *   is briefed with those changes as the thing under review, in the package `plan`, where a hit names the record as its file;
  *   with neither a diff nor a pending change the brief is refused (2.10).
  *   From the second review on it also holds each earlier hit with the implementer's answer, and the
- *   rejections the reviewer must judge (4.2).
+ *   rejections the reviewer must judge (4.2). A brief read from the change's worktree then holds only the diff since the last
+ *   review taken, naming it, unless that review's commit has left the branch's history or the branch has taken in its default
+ *   branch since, when it holds the whole diff again (4.5, ADR-1120 D2).
  * - A return is taken whole or not at all: it answers every check and contract in its brief, and judges every
  *   rejection, and nothing else (2.2, 4.2), and names the review it answers, so a return left from an earlier
  *   review, as one read from another folder's /tmp may be, is refused (2.9).
  * - A finding stands while it is unanswered, or rejected for a reason no later review accepted (4.1). With
- *   one standing after the tenth review, the eleventh brief is refused, naming the arc for the session's
- *   question (4.3); the refusal itself writes nothing.
+ *   one standing after the third review, the fourth brief is refused, naming the arc for the session's
+ *   question (4.3, ADR-1120 D1); the refusal itself writes nothing.
  * - Capability 5 · Graduation (ADR-0956 D5): a check graduated whole leaves the brief, and one graduated in part stays in the brief with the part Architecture checks
  *   now enforces named (5.2), and what Architecture checks' graduated checks find on the change is taken with the return,
  *   recorded as theirs under the check each graduated from (5.3).
@@ -37,8 +39,8 @@ import { checks as liveChecks, type Graduated } from "../checks/checks.js";
 import type { GraduatedFindings } from "../graduation/graduation.js";
 import { HIT_COLUMNS, hitRow, inTransaction, ledgerDatabase, writeReview, type HitRecord, type HitRow } from "../ledger/ledger.js";
 
-/** The reviews of one change that may run while a finding still stands (ADR-0956 D7). */
-export const REVIEW_LIMIT = 10;
+/** The reviews of one change that may run while a finding still stands (ADR-1120 D1, replacing ADR-0956 D7's ten). */
+export const REVIEW_LIMIT = 3;
 
 /** One review's brief: everything the change-reviewer reads. */
 export interface Brief {
@@ -46,8 +48,12 @@ export interface Brief {
   /** The change: the increment whose branch it is. */
   readonly change: string;
   readonly iteration: number;
-  /** The branch's diff against origin/main. */
+  /** The branch's diff against origin/main, or, from the second review on, only what changed since the review `since` names (contract 4.5). */
   readonly diff: string;
+  /** The commits a brief read from a worktree read: the branch's, and where it parted from its default branch (contract 4.5). */
+  readonly mark?: Mark;
+  /** The earlier review whose commit the diff is read since, when it is not the whole change (contract 4.5). */
+  readonly since?: { readonly review: number; readonly head: string };
   /** The branch the diff was read against, when it was read from a worktree: `local` when the repository has no origin/main (contract 2.7). */
   readonly base?: Base;
   /** The packages the diff touches (`root` for files outside any package), and `plan` when the increment changes the plan pending its merge (contract 2.10). */
@@ -85,6 +91,21 @@ export interface Base {
   readonly local?: true;
 }
 
+/** Where a change stood when a brief read it: the branch's commit, and the commit it parted from its default branch at. */
+export interface Mark {
+  readonly head: string;
+  readonly from: string;
+}
+
+/** A change read from its worktree: its whole diff, the branch it was read against and its mark, and how to read what changed since an earlier mark. */
+export interface WorktreeChange {
+  readonly diff: string;
+  readonly base?: Base;
+  readonly mark?: Mark;
+  /** The diff from `mark`'s commit to the worktree, or undefined when that commit is not in the branch's history. */
+  since(mark: Mark): string | undefined;
+}
+
 /** What the change-reviewer returns for one brief. */
 export interface ReviewReturn {
   /** The review it answers: its brief's number, so a return left from an earlier review is never taken for this one (contract 2.9). */
@@ -114,9 +135,10 @@ export interface Taken {
 export interface Reviews {
   /**
    * Issue the next brief for `change` (an increment of `library`'s project), its diff given, with the branch it was read against
-   * when known; refused after the tenth with a finding standing.
+   * when known, or read from its worktree, when from the second review on only what changed since the last review taken is
+   * briefed (contract 4.5); refused after the third with a finding standing.
    */
-  brief(library: Library, change: string, diff: string, base?: Base): Promise<Brief>;
+  brief(library: Library, change: string, diff: string | WorktreeChange, base?: Base): Promise<Brief>;
   /**
    * Take the reviewer's return on `change`'s brief awaiting one, or refuse it naming what it gets wrong, writing nothing.
    * What Architecture checks' graduated checks found on the change, when given, is recorded with it as theirs (contract 5.3).
@@ -164,7 +186,9 @@ class PgReviews implements Reviews {
     this.#pool = pool;
   }
 
-  async brief(library: Library, change: string, diff: string, base?: Base): Promise<Brief> {
+  async brief(library: Library, change: string, read: string | WorktreeChange, given?: Base): Promise<Brief> {
+    const diff = typeof read === "string" ? read : read.diff;
+    const base = typeof read === "string" ? given : read.base;
     const increment = await library.get(change);
     if (increment === null || increment.type !== "increment") throw new Error(`${change} is not an increment in project "${library.name}": a change is reviewed by its increment.`);
     const pendingChanges = (increment.fields as { pending?: PendingChange[] }).pending ?? [];
@@ -179,7 +203,7 @@ class PgReviews implements Reviews {
     if (taken >= REVIEW_LIMIT && count > 0) {
       const arc = (increment.fields as { arc: string }).arc;
       throw new Error([
-        `${taken} reviews of ${change} have run and ${count} finding${count === 1 ? "" : "s"} still stand${count === 1 ? "s" : ""}, so no further review runs (ADR-0956 D7).`,
+        `${taken} reviews of ${change} have run and ${count} finding${count === 1 ? "" : "s"} still stand${count === 1 ? "s" : ""}, so no further review runs (ADR-1120 D1).`,
         ...standing.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.answer === "rejected" ? `rejected: ${hit.reason}` : "unanswered"}`),
         ...unmet.map(({ contract, why }) => `  contract ${contract} not met: ${why}`),
         `Raise an open question on arc ${arc} holding ${change}, in ADR-0944 D4's order: land what is green, push the rest and name its branch in the residue, raise the question, release the claims.`,
@@ -217,8 +241,15 @@ class PgReviews implements Reviews {
       const head = { record: change.record, type: change.type, title: title(await library.get(change.record)) ?? change.record };
       return "retire" in change ? { ...head, retire: change.retire } : { ...head, after: change.after };
     }));
+    // From the second review on, only what changed since the last review taken, while its commit is in the branch's history and
+    // the branch has taken in nothing of its default branch since (contract 4.5).
+    const mark = typeof read === "string" ? undefined : read.mark;
+    const last = mark === undefined || taken === 0 ? undefined : await this.#lastTaken(project, change);
+    const newer = last?.mark === undefined || last.mark.from !== mark!.from ? undefined : (read as WorktreeChange).since(last.mark);
+    const since = newer === undefined ? undefined : { review: last!.iteration, head: last!.mark!.head };
     const brief: Brief = {
-      project, change, iteration: taken + 1, diff, ...(base === undefined ? {} : { base }), packages, capabilities: listed, contracts, retired,
+      project, change, iteration: taken + 1, diff: newer ?? diff, ...(base === undefined ? {} : { base }),
+      ...(mark === undefined ? {} : { mark }), ...(since === undefined ? {} : { since }), packages, capabilities: listed, contracts, retired,
       ...(plan.length === 0 ? {} : { plan }),
       checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
@@ -286,6 +317,15 @@ class PgReviews implements Reviews {
     return rows[0]!.taken;
   }
 
+  /** The latest brief of `change` whose return was taken. */
+  async #lastTaken(project: string, change: string): Promise<Brief | undefined> {
+    const { rows } = await this.#pool.query<{ brief: Brief }>(
+      "SELECT brief FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NOT NULL ORDER BY iteration DESC LIMIT 1",
+      [project, change],
+    );
+    return rows[0]?.brief;
+  }
+
   async #hits(project: string, change: string, where: string): Promise<HitRow[]> {
     const { rows } = await this.#pool.query<HitRecord>(`SELECT ${HIT_COLUMNS} FROM quality_hits WHERE project = $1 AND change = $2 AND ${where} ORDER BY id`, [project, change]);
     return rows.map(hitRow);
@@ -346,6 +386,43 @@ export function branchDiff(cwd: string, base = branchBase(cwd)?.ref): string {
   }
   const untracked = git("ls-files", "--others", "--exclude-standard", "-z").split("\0").filter((file) => file !== "");
   return [git("diff", from), ...untracked.map((file) => newFileDiff(cwd, file))].join("");
+}
+
+/**
+ * The change checked out in `cwd`: its whole diff against its default branch (`branchDiff`), that branch, and its mark, from
+ * which a later brief reads only what changed since (contract 4.5): the diff from the marked commit to the worktree, its
+ * uncommitted and untracked work included, or undefined once that commit has left the branch's history.
+ */
+export function worktreeChange(cwd: string): WorktreeChange {
+  const git = (...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 256 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+  const base = branchBase(cwd);
+  let mark: Mark | undefined;
+  try {
+    const head = git("rev-parse", "HEAD").trim();
+    let from = head;
+    try {
+      if (base !== undefined) from = git("merge-base", base.ref, "HEAD").trim();
+    } catch {
+      // No default branch to compare to: the branch is marked against its own commit.
+    }
+    mark = { head, from };
+  } catch {
+    // A folder with no commit has no mark, so every brief reads it whole.
+  }
+  return {
+    diff: branchDiff(cwd, base?.ref),
+    ...(base === undefined ? {} : { base }),
+    ...(mark === undefined ? {} : { mark }),
+    since(earlier) {
+      try {
+        git("merge-base", "--is-ancestor", earlier.head, "HEAD");
+      } catch {
+        return undefined;
+      }
+      const untracked = git("ls-files", "--others", "--exclude-standard", "-z").split("\0").filter((file) => file !== "");
+      return [git("diff", earlier.head), ...untracked.map((file) => newFileDiff(cwd, file))].join("");
+    },
+  };
 }
 
 /**
@@ -460,7 +537,9 @@ export function briefText(brief: Brief): string {
       `Judge each of these rejections, accepting its reason or not: ${brief.judge.length === 0 ? "none" : brief.judge.map((id) => `hit ${id}`).join(", ")}.`,
     ]),
     "",
-    diffPackages(brief.diff).length === 0 ? "The diff touches no file: the change under review is its pending plan changes." : brief.base?.local ? `The diff against ${brief.base.ref}, this repository's own default branch: it has no origin/main.` : `The diff against ${brief.base?.ref ?? "origin/main"}:`,
+    brief.since !== undefined
+      ? `${brief.diff === "" ? "Nothing changed" : "The diff of what changed"} since review ${brief.since.review} (commit ${brief.since.head.slice(0, 12)}), which read the whole change: judge the checks and contracts on what changed, the whole change being in its worktree, and raise no finding the earlier hits already hold.`
+      : diffPackages(brief.diff).length === 0 ? "The diff touches no file: the change under review is its pending plan changes." : brief.base?.local ? `The diff against ${brief.base.ref}, this repository's own default branch: it has no origin/main.` : `The diff against ${brief.base?.ref ?? "origin/main"}:`,
     brief.diff,
   ].join("\n");
 }

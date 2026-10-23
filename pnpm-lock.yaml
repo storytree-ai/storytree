@@ -948,6 +948,43 @@ importers:
         specifier: ~7.0.2
         version: 7.0.2
 
+  packages/voice:
+    dependencies:
+      '@modelcontextprotocol/server':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@storytree/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@modelcontextprotocol/client':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@storytree/app-setup':
+        specifier: workspace:*
+        version: link:../app-setup
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
   packages/website:
     dependencies:
       '@react-three/fiber':

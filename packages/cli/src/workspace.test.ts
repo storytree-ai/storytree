@@ -120,8 +120,8 @@ test("11.8 work with an open pull request is refused naming it and --despite-ope
   await inWorld(command, async (world) => {
     const increment = await withRepository(world);
     // gh's GraphQL answers that an open pull request is on a branch a workspace made for this increment.
-    const pulls = [{ number: 41, headRefName: `claude/${increment.replace(/_/g, "-")}-a1b2c3`, isDraft: false, isInMergeQueue: false }];
-    writeFileSync(path.join(world.folder, "api"), `process.stdout.write(${JSON.stringify(JSON.stringify({ data: { repository: { pullRequests: { nodes: pulls } } } }))});\n`);
+    const pulls = [{ number: 41, headRefName: `claude/${increment.replace(/_/g, "-")}-a1b2c3`, isDraft: false, isInMergeQueue: false, isCrossRepository: false, headRepository: { nameWithOwner: "acme/app" } }];
+    writeFileSync(path.join(world.folder, "api"), openPulls(pulls));
     const env = { CLAUDE_CODE_SESSION_ID: "claude-9", PATH: [ghFolder, process.env.PATH ?? process.env.Path ?? ""].join(path.delimiter) };
     const log = await openActivityLog(testServerUrl());
     try {
@@ -142,6 +142,30 @@ test("11.8 work with an open pull request is refused naming it and --despite-ope
     }
   });
 });
+
+test("11.8 an open pull request from a fork, on a branch named for the work, refuses nothing: the workspace is made and claimed without --despite-open-pulls", async () => {
+  await inWorld(command, async (world) => {
+    const increment = await withRepository(world);
+    const pulls = [{ number: 42, headRefName: `claude/${increment.replace(/_/g, "-")}-a1b2c3`, isDraft: false, isInMergeQueue: false, isCrossRepository: true, headRepository: { nameWithOwner: "mallory/app" } }];
+    writeFileSync(path.join(world.folder, "api"), openPulls(pulls));
+    const env = { CLAUDE_CODE_SESSION_ID: "claude-9", PATH: [ghFolder, process.env.PATH ?? process.env.Path ?? ""].join(path.delimiter) };
+    const log = await openActivityLog(testServerUrl());
+    try {
+      const made = await world.run(["workspace", increment, "--reason", "build form"], env);
+      assert.equal(made.code, 0, made.stderr);
+      assert.doesNotMatch(made.stdout + made.stderr, /#42/);
+      assert.equal((await readClaims(log, world.project))[0]?.session, "claude-9");
+    } finally {
+      await log.close();
+    }
+  });
+});
+
+/** An `api` script for the fake `gh` that answers GraphQL with `pulls` as the repository's open pull requests, on one page. */
+function openPulls(pulls: unknown[]): string {
+  const answer = { data: { repository: { nameWithOwner: "acme/app", pullRequests: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: pulls } } } };
+  return `process.stdout.write(${JSON.stringify(JSON.stringify(answer))});\n`;
+}
 
 test("11.4 Codex prepares app creation then attaches its returned folder; an invalid directory and a person-only shell are refused", async () => {
   await inWorld(command, async (world) => {

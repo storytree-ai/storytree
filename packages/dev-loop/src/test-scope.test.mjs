@@ -144,6 +144,37 @@ test("1.1 a glob naming no script, such as a git pathspec over every evidence fo
   assert.deepEqual(decision.dirs, ["packages/website"]);
 });
 
+test("1.1 a path into another package's file depends only on that file and what it imports; a folder or a file not in the checkout, on the whole package", (t) => {
+  const root = workspace(t, {
+    packages: {
+      "packages/website": { name: "@x/website", files: { "src/site.ts": "" } },
+      "packages/library": { name: "@x/library", files: { "src/l.ts": "" } },
+      "apps/desktop": {
+        name: "@x/desktop",
+        deps: ["@x/website"],
+        files: {
+          "src/main.ts": 'import "@x/website";\n',
+          "src/capture/index.ts": 'export * from "./output.js";\n',
+          "src/capture/output.ts": 'import { read } from "@x/library/read";\n',
+        },
+      },
+      "packages/forest": { name: "@x/forest", files: { "evidence/look/build.mjs": 'import "../../../../apps/desktop/src/capture/index.ts";\n', "src/f.test.ts": 'run("evidence/look/build.mjs");\n' } },
+      "packages/arc": { name: "@x/arc", files: { "src/a.test.ts": 'const dist = "../../../apps/desktop/dist/renderer";\n' } },
+      "packages/shop": { name: "@x/shop", files: { "src/s.test.ts": 'const folder = "../../../apps/desktop/src";\n' } },
+    },
+  });
+  const ws = readWorkspace(root);
+  assert.deepEqual(classify(["packages/website/src/site.ts"], ws).dirs, ["apps/desktop", "packages/arc", "packages/shop", "packages/website"]);
+  assert.deepEqual(classify(["apps/desktop/src/main.ts"], ws).dirs, ["apps/desktop", "packages/arc", "packages/shop"]);
+  assert.deepEqual(classify(["apps/desktop/src/capture/output.ts"], ws).dirs, ["apps/desktop", "packages/arc", "packages/forest", "packages/shop"]);
+  assert.deepEqual(classify(["packages/library/src/l.ts"], ws).dirs, ["packages/forest", "packages/library", "packages/shop"], "a package the reached file imports by name is followed");
+});
+
+test("1.1 the real workspace: a website-only change runs website and desktop, not the packages whose captures and tests reach into desktop's files", () => {
+  const decision = classify(["packages/website/src/site.ts"], readWorkspace(repoRoot));
+  assert.deepEqual(decision.dirs, ["apps/desktop", "packages/website"]);
+});
+
 test("1.1 the real workspace: the capture scripts no test runs (forest-world's website-reveal, forest's probe-website) draw no edge into website", () => {
   const ws = readWorkspace(repoRoot);
   for (const dir of ["packages/forest", "packages/forest-world"]) assert.ok(!ws.find((p) => p.dir === dir).reaches.includes("packages/website"), dir);

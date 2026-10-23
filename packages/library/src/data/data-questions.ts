@@ -3,8 +3,8 @@
  * SQL over the project's own tables, so an answer comes back in milliseconds and nothing a caller writes reaches
  * Postgres but a bound value. How many records of each kind and status, and open increments by arc; the latest changes,
  * read by the change log's sequence number (its primary key), never by its unindexed timestamp; the records whose title
- * holds given words; a decision by its number. Health readings are left out of every answer, and no answer holds more
- * than ANSWER_ROWS rows.
+ * holds a word starting with each word given; a decision by its number. Health readings are left out of every answer,
+ * and no answer holds more than ANSWER_ROWS rows.
  *
  * They read the project's own rows: a product project's records inherited from its factory (ADR-1040 D4) are not
  * among them, and an increment stored on the retired ready step (ADR-0909 D4) counts as the proposal it reads as.
@@ -55,9 +55,9 @@ const STATUS = `CASE type
   WHEN 'friction' THEN fields->>'state'
 END`;
 
-/** `words` as ILIKE patterns, each matching the word anywhere, its own wildcards escaped. */
+/** `words` as Postgres regular expressions, each matching a word that starts with it, its own specials escaped. */
 function patterns(words: readonly string[]): string[] {
-  return words.map((word) => `%${word.replace(/[\\%_]/g, (character) => `\\${character}`)}%`);
+  return words.map((word) => `\\m${word.replace(/[\\^$.|?*+()[\]{}]/g, (character) => `\\${character}`)}`);
 }
 
 /** The fixed data questions, over one project's database. */
@@ -105,12 +105,12 @@ export class DataQuestions {
     return rows.map((row) => ({ seq: Number(row.seq), at: row.at.toISOString(), action: row.action, type: row.type, id: row.id, title: row.title }));
   }
 
-  /** The live records whose title holds every one of `words`, any case, most recently changed first; ANSWER_ROWS at most. */
+  /** The live records whose title has a word starting with each of `words`, any case, most recently changed first; ANSWER_ROWS at most. */
   async findByTitle(words: readonly string[]): Promise<TitleHit[]> {
     if (words.length === 0) return [];
     const { rows } = await this.#pool.query<TitleHit>(
       `SELECT id, type, ${TITLE} AS title FROM record
-        WHERE type <> 'health' AND ${TITLE} ILIKE ALL($1::text[])
+        WHERE type <> 'health' AND ${TITLE} ~* ALL($1::text[])
         ORDER BY updated_at DESC, id LIMIT ${ANSWER_ROWS}`,
       [patterns(words)],
     );

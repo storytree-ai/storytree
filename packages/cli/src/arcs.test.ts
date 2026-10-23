@@ -143,7 +143,7 @@ test("4.9 `arc increment wait --for` makes an increment wait for you, or for an 
   });
 });
 
-test("4.14 `arc increment wait --for owner` releases the waiting session's claims on the increment and the capability claims taken under it; `--for event` releases nothing", async () => {
+test("4.14 `arc increment wait --for owner` releases the waiting session's claims on the increment and the capability claims taken under it; `--for event` releases nothing; `unwait --for owner --claim` claims it for the session before the wait clears", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
@@ -166,6 +166,13 @@ test("4.14 `arc increment wait --for owner` releases the waiting session's claim
       assert.equal(owner.code, 0, owner.stderr);
       assert.match(owner.stdout, new RegExp(`Released your claims on ${increment}, ${capability}`));
       assert.deepEqual(await held(), [other]);
+
+      const unevent = await world.run(["arc", "increment", "unwait", increment, "--for", "event"], { CODEX_THREAD_ID: "codex-wait" });
+      assert.equal(unevent.code, 0, unevent.stderr);
+      const finishing = await world.run(["arc", "increment", "unwait", increment, "--for", "owner", "--claim", "finishing the upload"], { CODEX_THREAD_ID: "codex-wait" });
+      assert.equal(finishing.code, 0, finishing.stderr);
+      assert.deepEqual(await library.waitsFor(increment), []);
+      assert.deepEqual((await held()).sort(), [other, increment].sort(), "it holds the increment from the clear on");
     } finally {
       await log.close();
     }

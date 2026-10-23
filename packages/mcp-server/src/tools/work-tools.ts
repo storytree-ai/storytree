@@ -14,6 +14,7 @@ import { z } from "zod";
 
 import { closed, currentBranch, increments, releaseAsked } from "@storytree/session-management";
 import { incrementMachine, MachineNameError } from "@storytree/session-management/machines";
+import { claimClearingOwnerWait, claimContext as sessionClaimContext, refusalText } from "@storytree/session-management/tools";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -154,17 +155,28 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "clear_wait",
-    "Stop an increment or arc waiting on another (`on`), or an increment waiting for the owner or an outside event (`for`).",
+    "Stop an increment or arc waiting on another (`on`), or an increment waiting for the owner or an outside event (`for`). Clearing a wait for the owner so you can finish the increment yourself, give `claim`: it is claimed for you before the wait clears, so the pool never starts a lane on it in between.",
     z.object({
       waiter: z.string().min(1).describe("The id of the increment or arc that waits"),
       on: z.string().min(1).optional().describe("The id of what it waits on; or give `for` instead"),
       for: z.enum(["owner", "event"]).optional().describe("Instead of `on`: stop it waiting for the owner, or for an outside event"),
+      claim: z.string().min(1).optional().describe("With `for: owner`, when you will finish it yourself: your claim's reason, taken before the wait clears"),
     }),
-    async ({ waiter, on, for: releaser }, { library, writer }) => {
+    async ({ waiter, on, for: releaser, claim }, call) => {
+      const { library, writer } = call;
       if ((on === undefined) === (releaser === undefined)) return { text: "Give either `on` (work it waits on) or `for` (the owner or an outside event).", refused: true };
+      if (claim !== undefined) {
+        if (releaser !== "owner") return { text: "`claim` goes with `for: owner`: claim the work another way.", refused: true };
+        // Claimed first, through the owner wait, then cleared: it never reads ready and unclaimed in between (5.57).
+        const answer = await claimClearingOwnerWait(sessionClaimContext(call), waiter, claim);
+        if (!answer.ok) return { text: `${await refusalText(library, waiter, answer)} Its wait for the owner stands.`, refused: true };
+        return { text: `${waiter} no longer waits for the owner, and you hold it: ${claim}.`, data: { id: waiter } };
+      }
       const done = on !== undefined ? await library.removeWait(waiter, on, writer) : await library.removeWaitFor(waiter, releaser!, writer);
       if (done === null) return { text: `There is no increment or arc ${waiter} in this project's plan.`, refused: true };
-      return { text: `${waiter} no longer waits ${on !== undefined ? `on ${on}` : `for ${releasedBy(releaser!)}`}.`, data: { id: waiter } };
+      // Nobody holds it now, so the pool may start a lane on it (5.57).
+      const ready = releaser === "owner" ? " Nobody holds it, so the pool may start it now: to finish it yourself, claim it at once." : "";
+      return { text: `${waiter} no longer waits ${on !== undefined ? `on ${on}` : `for ${releasedBy(releaser!)}`}.${ready}`, data: { id: waiter } };
     },
   );
 

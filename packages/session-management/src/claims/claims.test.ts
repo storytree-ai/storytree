@@ -21,7 +21,7 @@ import { countingStore } from "@storytree/project-and-caller/testing/egress";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions } from "../sessions/index.js";
-import { claim, claimAll, claimRefusal, closed, holdForPull, land, letGo, readAttribution, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { claim, claimAll, claimClearingOwnerWait, claimRefusal, closed, holdForPull, land, letGo, readAttribution, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { allMergedPullsThrough, allOpenPullsThrough, boardClaims, queuedPullsThrough, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
 import { staleClaims } from "./stale-claims.js";
 
@@ -1180,5 +1180,35 @@ test("5.55 several capabilities are claimed in one call, in ascending id order w
     assert.ok((await claim(as("A"), emailForm, "the email form first")).ok);
     assert.ok((await claimAll(as("A"), [passwordReset, emailForm], "building sign-up")).ok);
     assert.deepEqual((await readClaims(log, project)).filter(({ session }) => session === "A").map(({ capability }) => capability).sort(), [emailForm, passwordReset].sort(), "both held");
+  });
+});
+
+test("5.57 a session clearing an owner wait to finish the increment itself claims it first, through that wait, so it holds it from the clear until the close; anything else still holding it refuses the claim and leaves the wait standing", async () => {
+  await withWorld(async ({ log, project, library, as }) => {
+    const { arc, park } = await arcOf(library);
+    const install = await park("real install");
+    await library.addWaitFor(install, { releaser: "owner", note: "run the install on the old laptop" });
+
+    const cleared = await claimClearingOwnerWait(as("A"), install, "finishing the install");
+    assert.ok(cleared.ok, JSON.stringify(cleared));
+    assert.deepEqual(await library.waitsFor(install), [], "the owner wait is cleared");
+    assert.equal((await readClaim(log, project, install))?.session, "A", "A holds it the moment the wait is gone, so a dispatcher skips it");
+    assert.equal(await statusOf(library, arc, install), "active");
+    const late = await claim(as("B"), install, "a pool lane");
+    assert.ok(!late.ok && late.refused === "held", "a lane started in between is refused");
+
+    await library.closeIncrement(install, { pr: "#9", disposition: "landed" });
+    await closed(as("A"), install, "landed");
+    assert.equal(await readClaim(log, project, install), undefined, "the close ends the claim");
+
+    const held = await park("held elsewhere");
+    await library.addWaitFor(held, { releaser: "owner", note: "sign in" });
+    const blocker = await park("blocker");
+    await library.addWait(held, blocker, "it needs the blocker");
+    const refused = await claimClearingOwnerWait(as("A"), held, "finishing it");
+    assert.ok(!refused.ok && refused.refused === "waiting");
+    assert.deepEqual(refused.waits.map(({ on }) => on), [blocker], "only what else holds it is named");
+    assert.equal((await library.waitsFor(held)).length, 1, "the owner wait stands");
+    assert.equal(await readClaim(log, project, held), undefined);
   });
 });

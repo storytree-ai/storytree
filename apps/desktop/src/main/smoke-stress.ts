@@ -28,3 +28,37 @@ export async function stressWindow<W>(first: W, rounds: number, { open, loaded, 
   await close(current);
   return open();
 }
+
+/** What the stress touches of an Electron window. */
+export interface StressedWindow {
+  isDestroyed(): boolean;
+  once(event: "closed", listener: () => void): unknown;
+  close(): void;
+}
+
+/**
+ * The stress's steps on Electron's windows: `reopen` brings the window back as a second start does, and the window it
+ * opened is the one still alive; closing resolves once it is gone, at once for one already destroyed, which is never touched.
+ */
+export function windowSteps<W extends StressedWindow>({ windows, reopen, loaded, log }: {
+  windows: () => readonly W[];
+  reopen: () => void;
+  loaded: (window: W) => Promise<unknown>;
+  log: (line: string) => void;
+}): StressSteps<W> {
+  return {
+    open() {
+      reopen();
+      const opened = windows().find((one) => !one.isDestroyed());
+      if (opened === undefined) throw new Error("the window did not open again");
+      return opened;
+    },
+    loaded: async (window) => { if (!window.isDestroyed()) await loaded(window); },
+    close: (window) => new Promise<void>((resolve) => {
+      if (window.isDestroyed()) return resolve();
+      window.once("closed", () => resolve());
+      window.close();
+    }),
+    log,
+  };
+}

@@ -117,7 +117,7 @@ import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { mainErrorRecords } from "./main-error-records.js";
 import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
-import { stressWindow } from "./smoke-stress.js";
+import { stressWindow, windowSteps } from "./smoke-stress.js";
 import { smokeVerdict } from "./smoke-verdict.js";
 import { lateReads, projectAnswers } from "./late-reads.js";
 import { keepPageInWindow } from "./page-window.js";
@@ -677,15 +677,12 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
       for (const problem of problems) console.error(`smoke: ${problem}`);
     }
     // The window is closed and reopened at awkward moments, and the quit below lands while the last one loads.
-    await stressWindow(window, args.stress, {
-      open: () => {
-        showWindow();
-        return BrowserWindow.getAllWindows().find((one) => !one.isDestroyed()) ?? openWindow(windowQuery);
-      },
-      loaded: (one) => pageState(one).then(() => {}),
-      close: (one) => new Promise<void>((resolve) => { one.once("closed", () => resolve()); one.close(); }),
+    await stressWindow(window, args.stress, windowSteps({
+      windows: () => BrowserWindow.getAllWindows(),
+      reopen: showWindow,
+      loaded: pageState,
       log: (line) => console.log(line),
-    });
+    }));
   } catch (error) {
     code = 1;
     console.error(`smoke: ${messageOf(error)}`);

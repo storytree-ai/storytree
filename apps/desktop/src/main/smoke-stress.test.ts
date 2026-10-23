@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { stressWindow } from "./smoke-stress.js";
+import { stressWindow, windowSteps } from "./smoke-stress.js";
 
 test("1.30 · the smoke check's stress closes the window, reopens it, closes it while it loads, and leaves one loading for the quit", async () => {
   const steps: string[] = [];
@@ -30,4 +30,42 @@ test("1.30 · with no rounds asked the stress touches nothing", async () => {
   });
   assert.equal(last, "first");
   assert.deepEqual(touched, []);
+});
+
+test("1.30 · the stress's window steps open the window again through the app's reopening, and never touch a destroyed window", async () => {
+  const touched: string[] = [];
+  const fake = (name: string, destroyed = false) => {
+    const window = {
+      destroyed,
+      isDestroyed: () => window.destroyed,
+      once: (_event: "closed", listener: () => void) => { window.closed = listener; },
+      closed: undefined as undefined | (() => void),
+      close: () => {
+        if (window.destroyed) throw new TypeError("Object has been destroyed");
+        touched.push(`close ${name}`);
+        window.destroyed = true;
+        window.closed?.();
+      },
+    };
+    return window;
+  };
+  const gone = fake("gone", true);
+  const live = fake("live");
+  let all = [gone];
+  const steps = windowSteps({
+    windows: () => all,
+    reopen: () => { touched.push("reopen"); all = [gone, live]; },
+    loaded: async (window) => { touched.push(`loaded ${window === live ? "live" : "gone"}`); },
+    log: () => {},
+  });
+  await steps.close(gone);
+  await steps.loaded(gone);
+  assert.equal(steps.open(), live, "the window opened is the one still alive");
+  await steps.loaded(live);
+  await steps.close(live);
+  assert.deepEqual(touched, ["reopen", "loaded live", "close live"]);
+
+  all = [gone];
+  const none = windowSteps({ windows: () => all, reopen: () => {}, loaded: async () => {}, log: () => {} });
+  assert.throws(() => none.open(), /did not open again/);
 });

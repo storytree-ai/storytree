@@ -1,11 +1,13 @@
 /** Capability 2 · Arm workspaces: the `experiment arm` verbs the command line mounts, refused away from the cluster that holds the library. */
 import assert from "node:assert/strict";
+import { userInfo } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import { VerbRefusal, type DoorWords } from "@storytree/library/verbs";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 
-import { ARM_FAMILY } from "./arm-verbs.js";
+import { ARM_FAMILY, localAdmin } from "./arm-verbs.js";
 import { EXPERIMENT_FAMILIES } from "./record/verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
@@ -31,4 +33,13 @@ test("2.4 · Experiments declares `experiment arm make`, `grant` and `drop`, whi
       else process.env.STORYTREE_HOME = before;
     }
   });
+});
+
+test("2.6 · The arm verbs sign in to the cluster as this machine's own user over its local socket, with no password, never as the library's role", () => {
+  const admin = localAdmin("postgres://storytree_library@127.0.0.1:5433/storytree", "storytree-activity");
+  assert.equal(admin.user, userInfo().username);
+  assert.equal(admin.password, undefined);
+  assert.ok(path.isAbsolute(admin.host!), `${admin.host} is a socket folder`);
+  assert.equal(admin.port, 5433);
+  assert.equal(admin.database, "storytree-activity");
 });

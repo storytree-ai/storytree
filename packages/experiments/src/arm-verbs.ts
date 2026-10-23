@@ -1,14 +1,16 @@
 /**
  * Capability 2 · Arm workspaces. The `experiment arm` verbs (ADR-1033 D3), an inner family the `experiment` family in
  * record/verbs.ts mounts: `experiment arm make`, `grant` and `drop`. They
- * act as the caller's own library role on the cluster that holds its library, signed in with its `postgres` key, and open
- * no project: the real one is never read or written. The cluster is reached only on this machine (ADR-1064 D3 puts the
- * arms on the Mint box's), so the role's password never leaves it. They are no tools: an arm is made by whoever runs the
- * experiment, not by a lane.
+ * act on the cluster that holds the caller's library as this machine's own user, signed in over the cluster's local socket
+ * as its local admin, never as the library's role, and open no project: the real one is never read or written. The
+ * cluster is reached only on this machine (ADR-1064 D3 puts the arms on the Mint box's), so the library's role needs no
+ * right to make roles. They are no tools: an arm is made by whoever runs the experiment, not by a lane.
  */
+import { userInfo } from "node:os";
 import path from "node:path";
 
-import { resolveKey } from "@storytree/keys";
+import type { ClientConfig } from "pg";
+
 import { verb, VerbRefusal, type VerbFamilies, type VerbPlace } from "@storytree/library/verbs";
 import { readLibrary, storytreeHome } from "@storytree/project-and-caller";
 
@@ -24,25 +26,31 @@ const ARM_INPUTS = {
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
+/** Where the cluster's local socket is, as Debian's and Ubuntu's Postgres packages put it (the Mint box's). */
+const SOCKET_FOLDER = "/var/run/postgresql";
+
 /**
- * The cluster that holds this caller's library, signed in as its role, with its address and the way to its other databases
- * as that role; refused when it is not one here.
+ * The cluster's local admin on `database`: this machine's own user, signed in over the socket of the cluster at `address`
+ * (its port), which the cluster lets in as the role of that name without a password.
+ */
+export function localAdmin(address: string, database: string): ClientConfig {
+  const port = new URL(address).port;
+  return { host: SOCKET_FOLDER, port: port === "" ? 5432 : Number(port), user: userInfo().username, database };
+}
+
+/**
+ * The cluster that holds this caller's library, signed in as its local admin, with the library's address and the way to
+ * its other databases as that admin; refused when it is not one here.
  */
 async function cluster<T>(body: (admin: import("pg").Client, server: string, shared: SharedOptions) => Promise<T>): Promise<T> {
   const library = readLibrary();
   if (library.location !== "postgres" || !LOOPBACK.has(new URL(library.address).hostname)) {
     throw new VerbRefusal("An experiment's arms are made on the Postgres cluster that holds your library, on this machine: run this where the library setting is a postgres address on 127.0.0.1 (the Mint box).");
   }
-  const password = resolveKey("postgres");
-  if (password === undefined) throw new VerbRefusal("There is no password saved for your library: save it with `storytree auth set postgres`, then try again.");
-  const signedIn = new URL(library.address);
-  signedIn.password = password;
   const pg = (await import("pg")).default;
-  const admin = new pg.Client({ connectionString: signedIn.href });
+  const admin = new pg.Client(localAdmin(library.address, "postgres"));
   const onDatabase: OnDatabase = async (database, inside) => {
-    const there = new URL(signedIn.href);
-    there.pathname = `/${encodeURIComponent(database)}`;
-    const client = new pg.Client({ connectionString: there.href });
+    const client = new pg.Client(localAdmin(library.address, database));
     await client.connect();
     try {
       return await inside(client);

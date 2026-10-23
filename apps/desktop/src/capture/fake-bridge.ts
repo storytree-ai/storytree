@@ -112,6 +112,7 @@ const QUIET: StorytreeBridge = {
   sendFeedback: async () => { throw new Error("a capture's stand-in bridge writes no feedback"); },
   // Data, not a method: a capture mounts no factory plugin's views.
   pluginViews: [],
+  startMark: async () => {},
 };
 
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */

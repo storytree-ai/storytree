@@ -116,6 +116,8 @@ import { titleWindow } from "./window-title.js";
 import { bringWindowForward } from "./window-shown.js";
 import { PLUGIN_SCHEME, pluginResponse, windowStandIns } from "./stand-ins.js";
 import { finishStartCheck, runWhenReady } from "./start-check.js";
+import { answerStartMarks, processLaunchedAt, startMarks } from "./start-marks.js";
+import { START_MARK } from "../bridge.js";
 
 // A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
 declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
@@ -149,6 +151,8 @@ logMainErrors(process, {
 
 const args = parseArgs(process.argv);
 const home = appHome();
+/** This start's timing marks, kept in app.log beside the app's data (contract 1.33); the release's checks write none. */
+const marks = args.startCheck || args.callbackCheck ? { mark() {} } : startMarks({ launchedAt: processLaunchedAt(), file: path.join(home.dir, "app.log") });
 /** How long the smoke check may take, start to finish, before it gives up. */
 const SMOKE_TIMEOUT_MS = 180_000;
 
@@ -220,6 +224,8 @@ if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
 }
 
 async function run(): Promise<void> {
+  marks.mark("app ready");
+  answerStartMarks(ipcMain, START_MARK, marks);
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   const appVersion = app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0");
   // The journey stays in the frame, not in a manifest (ADR-1030 D4): the frame is its client too, telling it of the launch,
@@ -313,6 +319,7 @@ async function run(): Promise<void> {
     ({ storytree, postgres } = opened);
     errorsOpened = errorRecords.open(opened.storytree);
     console.log(`library: ${opened.where}`);
+    marks.mark("library open");
     reads = pageReads({ storytree, transcriptCacheHome: path.join(home.dir, "transcripts") });
     const pages = reads;
     projects = projectSelection({
@@ -536,6 +543,7 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
   titleWindow(window, build);
   // The lag instrument measures the catalogue with the page's lag recorder on and off (STORYTREE_LAG_RECORDER=off).
   const recorder = process.env.STORYTREE_LAG_RECORDER === "off" ? { "lag-recorder": "off" } : {};
+  window.once("ready-to-show", () => marks.mark("window ready to show"));
   void window.loadFile(path.join(__dirname, "renderer", "index.html"), { query: { ...query, ...recorder } });
   return window;
 }

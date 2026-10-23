@@ -122,6 +122,11 @@ const LIBRARY_API = [
   "retireQuestion",
   "returnIncrement",
   "changesSince",
+  // Capability 27's fixed data questions.
+  "counts",
+  "latestChanges",
+  "findByTitle",
+  "decisionNumbered",
   "close",
 ];
 

@@ -16,7 +16,7 @@ import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, 
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("17.1 · The library declares the library family first among storytree's families, its eleven verbs as commands and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
+test("17.1 · The library declares the library family first among storytree's families, its eleven verbs as commands, then capability 27's three, and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-library-verbs-"));
@@ -33,7 +33,7 @@ test("17.1 · The library declares the library family first among storytree's fa
   const family = LIBRARY_FAMILIES.find((one) => one.name === "library");
   assert.equal(family!.order, 1);
   const names = family!.verbs.map((one) => mounted(one.command) ? one.command.name : undefined);
-  assert.deepEqual(names, ["search", "phrase", "links", "related", "new", "read", "edit", "refile", "retire", "list", "history"]);
+  assert.deepEqual(names.slice(0, 11), ["search", "phrase", "links", "related", "new", "read", "edit", "refile", "retire", "list", "history"], "its own eleven first, capability 27's after them");
   assert.ok(family!.verbs.every((one) => !mounted(one.tool)), "no verb is a tool");
   const verbOf = (name: string): Verb<VerbInputs, LibraryVerbContext> => family!.verbs[names.indexOf(name)]!;
 

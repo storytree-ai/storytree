@@ -10,7 +10,8 @@
     "./view/styles.css": "./src/view/styles.css",
     "./code-survey": "./src/code-survey/read-survey.ts",
     "./page": "./src/render/page.ts",
-    "./snapshot": "./src/snapshot/forest-snapshot.ts"
+    "./snapshot": "./src/snapshot/forest-snapshot.ts",
+    "./evidence-seed": "./src/snapshot/evidence-seed.ts"
   },
   "storytree": {
     "surfaces": [

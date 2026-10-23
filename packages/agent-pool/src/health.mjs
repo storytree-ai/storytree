@@ -12,7 +12,7 @@ import { promisify } from "node:util";
 
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { countEngines } from "./queue.mjs";
-import { readPull } from "./watch.mjs";
+import { HOME, readPull } from "./watch.mjs";
 
 const run = promisify(execFile);
 const DISPATCHER = /launch\.mjs pool( |$)/;
@@ -114,6 +114,7 @@ export async function poolHealth(b) {
     try { raw = await b.pull(record.pr); }
     catch (error) { concerns.push(`${name}: could not read it on GitHub (${String(error.message).split("\n")[0]})`); continue; }
     const pull = readPull(raw, { since: record.fixes?.at(-1)?.at ?? record.handedAt, now, graceMs: 10 * 60_000 });
+    if (pull.state === "foreign") { concerns.push(`${name}: its head is not on ${HOME}, or GitHub did not say where it is`); continue; }
     if (stalledGreen(raw)) concerns.push(`${name} stalled green: open, ready, clean and its verify passed, but not in the merge queue`);
     const fixes = record.fixes?.length ?? 0;
     details.push(`hand-off ${name}: handed ${ago(now - Date.parse(record.handedAt))} ago, ${pull.state}${pull.why ? ` (${pull.why})` : ""}, `
@@ -125,7 +126,7 @@ export async function poolHealth(b) {
 }
 
 const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
-  state isDraft mergeStateStatus headRefOid headRefName mergeable mergeQueueEntry { state } labels(first: 20) { nodes { name } }
+  state isDraft mergeStateStatus headRefOid headRefName isCrossRepository headRepository { nameWithOwner } mergeable mergeQueueEntry { state } labels(first: 20) { nodes { name } }
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
     __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 1) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } }

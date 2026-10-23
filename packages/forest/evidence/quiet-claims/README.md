@@ -7,7 +7,7 @@ The map carries no agent name, reason text or hooks warning. A hookless holder s
 unfaded past the quiet time; a holder with hook evidence still fades when idle.
 Landing, release and session-end readings retain their existing behavior.
 
-![Four claims at their capability trees: three hookless and one idle](quiet-claims.png)
+![Four claims at their capability trees: three hookless and one idle](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/quiet-claims/quiet-claims.png)
 
 The dot is styled inside the forest package and does not intercept pointer input.
 Its React key uses capability and session identity. Claim reasons stay in the agent log.
@@ -68,3 +68,5 @@ changes before implementation; a librarian-curator checked all six old fields ag
 the supplied snapshot and found no blocking curation issue. Application, decision
 numbering and increment closure remain with the laptop supervisor. No friction item
 or owner redirection arose during this lane.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 1 picture, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/quiet-claims).

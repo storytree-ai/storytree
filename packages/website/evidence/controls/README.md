@@ -31,6 +31,8 @@ change in PR #333, the temporary scene entry is 1,252,132 bytes plus a 638-byte 
 It is still an eager stub: the scene, lazy loading and matching fallback remain site-b's work.
 The now-outdated tree legend is recorded for the next copy increment.
 
-[Desktop](1440.png) · [Phone](390.png) · [Narrow phone](320.png) ·
-[Command focus](390-focus-command.png) · [Copy focus](390-focus-copy.png) ·
+[Desktop](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/controls/1440.png) · [Phone](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/controls/390.png) · [Narrow phone](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/controls/320.png) ·
+[Command focus](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/controls/390-focus-command.png) · [Copy focus](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/controls/390-focus-copy.png) ·
 [Measurements](measurements.json)
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 9 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/controls).

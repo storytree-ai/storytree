@@ -49,3 +49,5 @@ Validation after integrating PR #827:
 | Five-width map framing | PASS — 20 captures, zero misses |
 
 All 20 step stills, the story panel and the additional yellow-health frame were visually reviewed. The 76.08-second clip was inspected at representative moments. The full arrival observation retains its measured frame rates; those shared-machine SwiftShader readings are observations, not a performance acceptance claim.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 22 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-four).

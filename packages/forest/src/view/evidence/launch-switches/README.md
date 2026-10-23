@@ -8,3 +8,5 @@ the desktop capture kit: `node --import tsx capture.mjs [--retake]`.
 
 Each `.json` holds the two switches' `aria-pressed` as read from the page, and the capture asserts them (contract 3.10).
 The website's free play is not pictured: it keeps opening with both switches on.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/launch-switches).

@@ -29,3 +29,5 @@ How:
 Checks: `--verify-immersive` passed whole three runs running on this branch (390, 320×844, 320×700, 320×568 and the laptops),
 `--verify-recording` passed. At 320×568 the claim step's Checkout name is half under the arcs drawer and Part 3's tag lies
 on Admin's name; neither island is tagged on that step.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-short-phone/after) (4), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-short-phone/before) (2).

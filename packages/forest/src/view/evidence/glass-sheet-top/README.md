@@ -10,11 +10,11 @@ storytree's own library (27 stories, 142 capabilities; branch `spike/glass-sheet
 
 | Today's globe (the spike's picture, same snapshot) | The glass sheet at rest |
 | --- | --- |
-| ![globe](globe-front.png) | ![sheet at rest](sheet-top.png) |
+| ![globe](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-top/globe-front.png) | ![sheet at rest](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-top/sheet-top.png) |
 
 | Dragged and scrolled east | Zoomed in by the wheel |
 | --- | --- |
-| ![scrolled east](sheet-scrolled-east.png) | ![zoomed](sheet-zoomed.png) |
+| ![scrolled east](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-top/sheet-scrolled-east.png) | ![zoomed](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-top/sheet-zoomed.png) |
 
 ## Measured (`measurements.json`)
 
@@ -44,3 +44,5 @@ From the checkout root, in the foreground, with a folder holding the snapshot (`
 ```sh
 node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/glass-sheet-top/capture.mjs <folder> --retake
 ```
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-top).

@@ -61,3 +61,5 @@ label are the agent's draft in `src/opening-copy.ts`, for the owner to replace; 
 - Windows have a fixed top-left slot (4 columns on a wide screen, 3 on a tablet) with only a few pixels of jitter,
   rather than 0.2's heavily overlapping layout, so no text is hidden behind a neighbour.
 - Older lines scroll off the top of a window like a real terminal, so a half-cut first line is expected.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 24 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/terminal).

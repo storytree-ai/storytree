@@ -8,10 +8,10 @@ accepted (ADR-0794).
 
 | View | Picture |
 | --- | --- |
-| Resting front view, all eight islands | [front.png](front.png) |
-| Close-up (camera zoom x2.6) on The agent link | [close-up.png](close-up.png) |
-| Hover on the agent link's largest circle (`src/readings.ts`, 384 lines) | [hover.png](hover.png), cropped [hover-crop.png](hover-crop.png) |
-| Hover on its largest circle whose middle lies on its own territory (`src/activity/activity-log.ts`, 343 lines) | [hover-on-territory.png](hover-on-territory.png), cropped [hover-on-territory-crop.png](hover-on-territory-crop.png) |
+| Resting front view, all eight islands | [front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/file-circles/front.png) |
+| Close-up (camera zoom x2.6) on The agent link | [close-up.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/file-circles/close-up.png) |
+| Hover on the agent link's largest circle (`src/readings.ts`, 384 lines) | [hover.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/file-circles/hover.png), cropped [hover-crop.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/file-circles/hover-crop.png) |
+| Hover on its largest circle whose middle lies on its own territory (`src/activity/activity-log.ts`, 343 lines) | [hover-on-territory.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/file-circles/hover-on-territory.png), cropped [hover-on-territory-crop.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/file-circles/hover-on-territory-crop.png) |
 
 Renderer: headless Chromium 148, ANGLE / Vulkan SwiftShader, 1440 x 960, dark theme, device scale 1.
 Seed: the same eight-story, 58-capability snapshot as [../territories](../territories/README.md), with
@@ -83,14 +83,14 @@ the island's ground area.
   (The command line's 10.2, The knowledge core's 10.0, The library's 9.9) are as wide as a large part
   of a small island; judge whether one big file dominating its island is the wanted reading.
 - **A circle that does not sit on its territory is a defect, by the marks' own meaning** (a circle
-  says "this file belongs to this capability's land"). In [close-up.png](close-up.png) roughly half
-  the circles ring the islands in open sea, including the agent link's largest ([hover.png](hover.png)).
+  says "this file belongs to this capability's land"). In [close-up.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/file-circles/close-up.png) roughly half
+  the circles ring the islands in open sea, including the agent link's largest ([hover.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/file-circles/hover.png)).
   I did not judge this a pass: it breaks the meaning of the mark, and the measure above quantifies it.
 - **Overlap.** 59 overlapping pairs across all islands, 22 on The agent link; overlapping circles
   show as a brighter lens, so overlap is visible but the two files are not separable inside it.
 - **Hover.** The label sits under the cursor, readable on the dark sea and on the tint. Its text is
   the specified "path · N lines · capability title" and a long capability title wraps onto a second
-  line ([hover-on-territory-crop.png](hover-on-territory-crop.png)). The pointed circle itself is not
+  line ([hover-on-territory-crop.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/file-circles/hover-on-territory-crop.png)). The pointed circle itself is not
   highlighted, so at the resting zoom of a busy island it is hard to tell which circle the label
   names.
 
@@ -102,3 +102,5 @@ the island's ground area.
    so the cap is evidently measured against something larger than the coast's ground (probably the
    round pre-coast disc).
 3. No hover highlight on the pointed circle.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/file-circles).

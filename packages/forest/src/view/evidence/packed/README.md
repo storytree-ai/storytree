@@ -9,9 +9,9 @@ with its HTML, styles, renderer and forest engine. Electron's bridge is answered
 have **57 capability trees**, all planned yellow: the seed's work-state log is empty and
 its reported health was not changed.
 
-- [Eight seeded stories, opening view](seeded-packed.png)
-- [The same seed after a quarter turn](seeded-quarter-turn.png)
-- [36-story sample](sample-36.png) — explicitly synthetic; the original seven-story seed's counts repeated,
+- [Eight seeded stories, opening view](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/packed/seeded-packed.png)
+- [The same seed after a quarter turn](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/packed/seeded-quarter-turn.png)
+- [36-story sample](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/packed/sample-36.png) — explicitly synthetic; the original seven-story seed's counts repeated,
   with every fourth story planned and the others landed and reported passing, as in the spike.
 
 The world contains a radius-160 light grey shell (`#bfbfbf`), opacity 0.18, double-sided,
@@ -41,8 +41,8 @@ The following pictures use a **diagnostic browser copy** of the current eight-st
 in the forest and one in the library landed and reported failing, plus one Codex claim.
 None of those diagnostic records was written to the seeded library.
 
-- [Failures on the far side remain reachable at the edge](failure-hidden.png)
-- [Clicking the marker faces the failure; selecting it opens its panel, with its claim](failure-focused.png)
+- [Failures on the far side remain reachable at the edge](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/packed/failure-hidden.png)
+- [Clicking the marker faces the failure; selecting it opens its panel, with its claim](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/packed/failure-focused.png)
 
 The browser check verified opening toward the first failing story, claim text, land picking,
 dragging without selection, wheel zoom, hidden-failure markers after turning away, marker
@@ -67,3 +67,5 @@ The laptop session adds the owner's Electron `pnpm desktop:smoke` capture.
 Red `dc6cca9` failed four checks before green `67754f7`. The fresh-seed coast regression
 failed at red `f901293`, then passed with the corrected frozen table at green `58d7215`.
 `pnpm typecheck` and the full `pnpm test` pass: 1,844 passed, two skipped, zero failed.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/packed).

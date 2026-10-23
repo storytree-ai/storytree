@@ -41,3 +41,5 @@ start hook set and status line). Claude Code installed but **signed out**. Folde
 Folder` and `C:\Users\mickh\PF Second Project` (each holding only `.storytree.json`); harness outputs in
 `C:\Users\mickh\st-retest\rpf`. No Git, Node, gh or Codex; no scheduled tasks, firewall rules or debugging ports
 (`state-after.txt`). The earlier retest's `Retest 3 …` folders were removed by the reset. Reolink untouched.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [`shots/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/project-folder/live/shots) (5).

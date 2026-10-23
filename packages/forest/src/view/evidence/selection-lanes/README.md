@@ -13,10 +13,10 @@ rotation setter, so the story and its neighbours face the viewer, a little left 
 
 | Picture | Shows |
 | --- | --- |
-| [unselected.png](unselected.png) | Nothing selected: roads only, no lane mesh. |
-| [selected.png](selected.png) | After a click on the story's island and 1.6 s: 12 lanes fully drawn over their roads. |
-| [mid-draw.png](mid-draw.png) | The same click, 400 ms after it: the page runs on Playwright's clock, paused at the click and run forward 400 ms, so the picture is at exactly that moment however slow software GL is; all 12 lanes partial ([measurements.json](measurements.json) `midDraw` gives each one's drawn fraction then). |
-| [deselected.png](deselected.png) | After a click on open sea: no lane mesh again. |
+| [unselected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/selection-lanes/unselected.png) | Nothing selected: roads only, no lane mesh. |
+| [selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/selection-lanes/selected.png) | After a click on the story's island and 1.6 s: 12 lanes fully drawn over their roads. |
+| [mid-draw.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/selection-lanes/mid-draw.png) | The same click, 400 ms after it: the page runs on Playwright's clock, paused at the click and run forward 400 ms, so the picture is at exactly that moment however slow software GL is; all 12 lanes partial ([measurements.json](measurements.json) `midDraw` gives each one's drawn fraction then). |
+| [deselected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/selection-lanes/deselected.png) | After a click on open sea: no lane mesh again. |
 
 [measurements.json](measurements.json) holds, per lane at the final frame, its name, direction, colour, vertex count,
 drawn fraction (the lane shader's drawn length over the lane's length; all 1), length and draw seconds, and whether its first vertices sit at the
@@ -39,3 +39,5 @@ The command wrapper takes the same heavy-run lock as gate/test on Linux, macOS a
 The evidence script does not import another story's package. Without `--retake` the output
 goes to a scratch folder. `PLANET_PLAYWRIGHT` and
 `PLANET_CHROMIUM` can override the Playwright and Chromium paths.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/selection-lanes).

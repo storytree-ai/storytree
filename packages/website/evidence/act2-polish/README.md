@@ -18,3 +18,5 @@ See / feel / think:
 Checks: `tour.test.ts` 2.4 and 2.15 red then green; browser journeys `--verify-immersive` (pain centred, small print in the corner, 0.75× on arrival: red then green), `--verify-tour`, `--verify-camera`, `--verify-forest`, `--verify-recording`, `--verify-opening`, `--verify-opening-frames`, `--verify-enlarged` and `arrival/capture.mjs` pass.
 
 Reproduce: `pnpm --filter @storytree/website build && node packages/website/evidence/capture.mjs act2-polish --verify-immersive` and `node packages/website/evidence/arrival/capture.mjs --only closeFlight`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 35 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/act2-polish).

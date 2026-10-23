@@ -11,3 +11,5 @@ this change (at #252, where the agent link already reads close-outs but the list
   is gone. "fix-login" said safe, but its branch is unmerged: "needs you", with the disagreement under it. The session
   on main said not safe: "needs you", with its why. The three quiet sessions fold into "3 idle", collapsed.
 - `after-idle-open.png`: "3 idle" opened: the quiet sessions listed dimmed beneath it.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/close-out).

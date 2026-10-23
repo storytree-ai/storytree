@@ -29,3 +29,5 @@ top (or the waitlist button's, whichever is higher) to the screen's foot. It wri
 | Fixes, 1280 | `before/own-globe-failed-fixes-1280.png`: The app setup, CI health, The dev loop off the right edge; The command line under the compass; The world in the bar | `after/own-globe-fixes-1280.png` |
 | Free play, 1440 / 1280 | `before/own-globe-failed-freeplay-*.png`: Keys and Process ledger in free play's line | `after/own-globe-freeplay-*.png` |
 | Everything, 1440 / 1280 | `before/own-globe-everything-*.png` | `after/own-globe-everything-*.png` |
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 26 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/own-globe-laptop/after) (10), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/own-globe-laptop/before) (16).

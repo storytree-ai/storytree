@@ -202,3 +202,5 @@ GitHub's merge commits (`Merge pull request #N`). It now reads both (website con
 - grade logs (`grade-logs/`).
 
 The grade folder, with its mirror clone, is `~/storytree-lanes/shop-guarded-grade/`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 10 pictures, each one's last copy kept in git history at [`shots/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/shop-guarded/shots) (10).

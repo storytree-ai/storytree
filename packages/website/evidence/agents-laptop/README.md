@@ -38,3 +38,5 @@ Checks:
 Residue (parked on the arc): at 1280×800, reached from the claim step, the parallel step's camera leaves Browsing and the
 cart on the sessions list's top edge, so their island names sit under the list. That is the camera's framing, not the tags',
 and moving it would move the phone view too.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 120 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-laptop/after) (35), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-laptop/before) (35), [`journey/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-laptop/journey) (50).

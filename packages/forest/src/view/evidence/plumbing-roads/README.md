@@ -10,9 +10,9 @@ two islands it joins, labelled with its kind's words only: **build step**, **cle
 
 | View | Picture |
 | --- | --- |
-| Storytree's own map as it opens: Setup's build step to Plugin loader runs the whole sheet, its label at the middle; Setup's cleanup to Code review is labelled beside Map view | [opening.png](opening.png) |
-| Panned east so Setup, Desktop app, Code review and the cleanup road are on screen | [setup-east.png](setup-east.png) |
-| Framed on the middle of the two chips and wheeled in two notches: the build step's chip and the cleanup's both on screen, and the cleanup road's last stretch to Code review a thin road only plumbing uses | [both-labels.png](both-labels.png) |
+| Storytree's own map as it opens: Setup's build step to Plugin loader runs the whole sheet, its label at the middle; Setup's cleanup to Code review is labelled beside Map view | [opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/plumbing-roads/opening.png) |
+| Panned east so Setup, Desktop app, Code review and the cleanup road are on screen | [setup-east.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/plumbing-roads/setup-east.png) |
+| Framed on the middle of the two chips and wheeled in two notches: the build step's chip and the cleanup's both on screen, and the cleanup road's last stretch to Code review a thin road only plumbing uses | [both-labels.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/plumbing-roads/both-labels.png) |
 
 ## How a plumbing road looks, and the principles it is judged by
 
@@ -67,3 +67,5 @@ Renderer: headless Chromium, ANGLE / SwiftShader, 1440 x 960, dark theme, device
 
 From the repository root: `node --import tsx packages/forest/src/view/evidence/plumbing-roads/build.mjs`, then
 `node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/plumbing-roads/capture.mjs --retake`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/plumbing-roads).

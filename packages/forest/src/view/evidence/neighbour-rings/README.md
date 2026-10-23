@@ -12,9 +12,9 @@ on both sides of the selected one, so the "both reads violet" rule is covered by
 
 | Picture | Shows |
 | --- | --- |
-| [selected.png](selected.png) | Settled, 1.6 s after the click: three violet rings and one teal ring on the neighbours, yellow ring on the agent link. |
-| [pulse.png](pulse.png) | About 0.1 s after the click: the same rings still wide and faint (best effort; the capture retries up to eight times and keeps the first whose rings were still settling after the picture). |
-| [deselected.png](deselected.png) | After a click on open sea: no ring of any colour. |
+| [selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/neighbour-rings/selected.png) | Settled, 1.6 s after the click: three violet rings and one teal ring on the neighbours, yellow ring on the agent link. |
+| [pulse.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/neighbour-rings/pulse.png) | About 0.1 s after the click: the same rings still wide and faint (best effort; the capture retries up to eight times and keeps the first whose rings were still settling after the picture). |
+| [deselected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/neighbour-rings/deselected.png) | After a click on open sea: no ring of any colour. |
 
 [measurements.json](measurements.json) lists every ring mesh (name, relation, colour, opacity, inner and outer radius,
 width, render order, depth flags) when unselected, settled and deselected, the pulse readings before and after its
@@ -37,3 +37,5 @@ The command wrapper takes the same heavy-run lock as gate/test on Linux, macOS a
 The evidence script does not import another story's package. Without `--retake` the output
 goes to a scratch folder. `PLANET_PLAYWRIGHT` and `PLANET_CHROMIUM` override
 the Playwright and Chromium paths.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/neighbour-rings).

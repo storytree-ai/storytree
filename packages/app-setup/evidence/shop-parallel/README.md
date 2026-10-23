@@ -263,3 +263,5 @@ untested with the exact contract no test proves ("no test names it, the agent's 
 The app's globe did not change colour for it, before or after a restart (`shots/verified-health.png`,
 `verified-health-restart.png`): the user's own globe does not yet show what storytree verified, while the
 website's export of the same project does. Parked as increment_c4d50c340617 (arc_e05282628cd8).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 10 pictures, each one's last copy kept in git history at [`shots/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/shop-parallel/shots) (10).

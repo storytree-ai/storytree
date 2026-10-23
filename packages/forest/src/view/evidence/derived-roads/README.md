@@ -11,9 +11,9 @@ nothing. A selection lights roads only, with no rings.
 
 | View | Before (main) | After (this branch) |
 | --- | --- | --- |
-| The globe unturned, its front facing the eye | [before-front.png](before-front.png) | [after-front.png](after-front.png) |
-| As the app opens it | [before-opening.png](before-opening.png) | [after-opening.png](after-opening.png) |
-| The website selected, turned to face the eye | [before-website-selected.png](before-website-selected.png) | [after-website-selected.png](after-website-selected.png) |
+| The globe unturned, its front facing the eye | [before-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/derived-roads/before-front.png) | [after-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/derived-roads/after-front.png) |
+| As the app opens it | [before-opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/derived-roads/before-opening.png) | [after-opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/derived-roads/after-opening.png) |
+| The website selected, turned to face the eye | [before-website-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/derived-roads/before-website-selected.png) | [after-website-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/derived-roads/after-website-selected.png) |
 
 - **Roads between stories: 54 before, 330 after**, 116 of them type-only (`*-front.json`, `rows.json`). Type-only
   roads do not yet look different from the others; telling them apart is the next increment on the arc.
@@ -45,3 +45,5 @@ From this folder: `tsx seed.mts`, `tsx survey.mjs`, `node --import tsx build.mjs
 `node --import tsx build.mjs <this checkout> after`, then
 `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before|after --retake`, and
 `tsx rows.mts <main checkout> <this checkout>` for `rows.json`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/derived-roads).

@@ -37,3 +37,5 @@ Checks:
 Residue (parked on the arc): 2.18's tag check is already red on main at 390×844 (a tag on a ring on agents-parallel), and
 throws before 2.19 is reached, so this run was observed with that check skipped locally. On the shortest phones (320×568)
 the agents-claim and agents-parallel tags and the sessions list can fall on the words of a long step.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 18 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/short-phone/after) (9), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/short-phone/before) (9).

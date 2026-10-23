@@ -32,3 +32,5 @@ note. 1440, 1280 and 390 are clear on every step.
 - Step 3's pathways switch on as its second line is said; they do not draw along their length (that motion is the drawing
   engine's, in `packages/forest-world`).
 - The narration lighting each planned story as it is named (the old step 2) is retired with that step.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 75 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-seven/after) (35), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-seven/before) (40).

@@ -31,3 +31,5 @@ Checks:
   three runs), and it is parked on the arc.
 - A short phone (320×700) has about 121px between the sessions list and the card, and three tags and three names stacked
   need about 126px, so not every name can be clear there; that is parked on the arc as its own increment.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 8 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-parallel-phone/after) (4), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-parallel-phone/before) (4).

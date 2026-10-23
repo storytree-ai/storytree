@@ -13,3 +13,5 @@ whole reads. A drawn path on storytree's globe needs its saved reading re-record
 **Re-recorded (increment_d8611dbb5d46).** The saved reading now covers 2 October 2026, 17:30 to 21:45 UTC: 236 note reads, 22
 of them whole, across sessions 01a0fdba (8), 01a0fdf0 (7) and 01a0fe5f (7, with subagents). `after-1440.png` and `after-390.png`
 now show 01a0fdba's recorded reading path drawn across the knowledge core.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/freeplay-reading-path).

@@ -9,9 +9,9 @@ no capability link to another story, so selecting it lit nothing.
 
 | | |
 | --- | --- |
-| [before-website-selected.png](before-website-selected.png) | main: The website selected, no lane lit |
-| [after-website-selected.png](after-website-selected.png) | this branch: five blue "builds on" lanes, one to each of The arc surface, CI health, The forest, The knowledge core and The world |
-| [after-website-turned.png](after-website-turned.png) | the same selection spun 75° about the poles: the lane to The forest runs over the horizon (98% of it behind the globe) and CI health's 66% |
+| [before-website-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/row-lanes/before-website-selected.png) | main: The website selected, no lane lit |
+| [after-website-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/row-lanes/after-website-selected.png) | this branch: five blue "builds on" lanes, one to each of The arc surface, CI health, The forest, The knowledge core and The world |
+| [after-website-turned.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/row-lanes/after-website-turned.png) | the same selection spun 75° about the poles: the lane to The forest runs over the horizon (98% of it behind the globe) and CI health's 66% |
 
 The measurements are `before-website-*.json` and `after-website-*.json`.
 
@@ -30,3 +30,5 @@ node --import tsx build.mjs <this checkout> after
 node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before --retake
 node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs after --retake
 ```
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/row-lanes).

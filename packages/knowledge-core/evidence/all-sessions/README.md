@@ -6,11 +6,11 @@ Each session's reading path draws too (ADR-0740): a curve from each full read to
 
 A new step's line grows from its earlier read to its later one as it is read, and each known agent's path is replayed in a loop by a glow travelling its steps in recorded order, bright at its head and fading behind (ADR-0742). Paths carry no arrowheads. Opening the view grows nothing; with reduced motion nothing grows or glows.
 
-- [No session selected: three sessions, four shared notes](all-sessions.png)
-- [One session selected](one-session.png)
-- [Drilled into a session with an explorer subagent: a darker shade of the same hue](drill-in-shades.png)
-- [A new step's line growing](path-growing.png)
-- [The paths' looping glow](path-glow.png)
+- [No session selected: three sessions, four shared notes](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/all-sessions/all-sessions.png)
+- [One session selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/all-sessions/one-session.png)
+- [Drilled into a session with an explorer subagent: a darker shade of the same hue](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/all-sessions/drill-in-shades.png)
+- [A new step's line growing](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/all-sessions/path-growing.png)
+- [The paths' looping glow](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/all-sessions/path-glow.png)
 - [What the capture asserted](capture.json)
 
 These are the real desktop page in headless Chromium (SwiftShader) on Windows, over the forest snapshot with three synthetic sessions reading real shelf-placed notes.
@@ -19,3 +19,5 @@ These are the real desktop page in headless Chromium (SwiftShader) on Windows, o
 node packages/forest/evidence/sessions-list/build.mjs
 node --import tsx packages/knowledge-core/evidence/all-sessions/capture.mjs
 ```
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/all-sessions).

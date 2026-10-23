@@ -52,10 +52,12 @@ Only six files change owner: `forest-view.tsx`, `index.ts`, `island-overlays.tsx
 `tree-space.ts` to Drill-down (4). This allocates files by executed functions; it does not claim
 every branch ran. `index.ts` is executed through its export getters, read by the page.
 
-![A story selected on the globe](globe-selected.png)
+![A story selected on the globe](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/mounted-views/globe-selected.png)
 
-![Library mode on the same canvas](globe-library.png)
+![Library mode on the same canvas](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/mounted-views/globe-library.png)
 
-![A session's held island lit, the rest dimmed](session-highlight.png)
+![A session's held island lit, the rest dimmed](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/mounted-views/session-highlight.png)
 
-![The capability tree's own space, fitted](tree-space.png)
+![The capability tree's own space, fitted](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/mounted-views/tree-space.png)
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 7 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/mounted-views).

@@ -8,3 +8,5 @@ factory's card beside the switch. `factory-more.png`: its More, what and why, ho
 product's own stays its own, and the decisions behind it. `factory-parts.png`: after Got it, the factory open on the glass
 sheet's Library face, its role, note and check hung there, and the role's card beside the role's dot (forest 3.63). `back-on-product.json`: back to the product and to the factory again, no card shows.
 Retake with `node --import tsx capture.mjs --retake`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/overlays/factory-switch).

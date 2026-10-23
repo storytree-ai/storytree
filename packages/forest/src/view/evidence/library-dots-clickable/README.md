@@ -44,11 +44,11 @@ open card when ordinary live polling reports that its artifact was retired.
 
 ## Pictures and machine proof
 
-- [Forest front](forest-front.png)
-- [Library front](library-front.png)
-- [Card opened by clicking a dot in Forest](forest-card.png)
-- [Card opened by clicking a dot in Library](library-card.png)
-- [Hover title](forest-tooltip.png)
+- [Forest front](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/library-dots-clickable/forest-front.png)
+- [Library front](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/library-dots-clickable/library-front.png)
+- [Card opened by clicking a dot in Forest](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/library-dots-clickable/forest-card.png)
+- [Card opened by clicking a dot in Library](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/library-dots-clickable/library-card.png)
+- [Hover title](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/library-dots-clickable/forest-tooltip.png)
 - [Census and separation assertions](measurements.json)
 - [Browser interaction assertions](interactions.json)
 - [Observed red test output](red.txt)
@@ -89,3 +89,5 @@ Default runs write to the temporary `storytree-captures/` folder. To refresh the
 committed expected census and then its browser evidence, pass `--retake` to both
 `measure.mjs` and `capture.mjs`. The capture always compares against the committed
 `measurements.json`; a scratch census never silently replaces that baseline.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/library-dots-clickable).

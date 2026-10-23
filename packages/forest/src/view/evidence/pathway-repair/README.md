@@ -93,8 +93,8 @@ are evidence for review alongside the numbered behavior tests.
 
 | View | Before | Territory endpoint seam |
 | --- | --- | --- |
-| The agent link selected | [Before](before-selected.png) | [After](endpoints-selected.png) |
-| Its inland endpoints against the visible territories | [Before detail](before-selected-detail.png) | [After detail](endpoints-selected-detail.png) |
+| The agent link selected | [Before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/before-selected.png) | [After](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/endpoints-selected.png) |
+| Its inland endpoints against the visible territories | [Before detail](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/before-selected-detail.png) | [After detail](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/endpoints-selected-detail.png) |
 
 The second build uses the same saved data, camera, viewport and thirteen selected
 link identities. [Measurements](measurements.json) includes the two actual bundle
@@ -157,8 +157,8 @@ npx tsx packages/forest/src/view/evidence/pathway-repair/endpoint-diagnostic.mts
 
 | View | Endpoint-fixed baseline | Motion and shared lanes repaired |
 | --- | --- | --- |
-| The agent link selected | [Before](before-motion-selected.png) | [After](after-motion-selected.png) |
-| Distinct cyan and violet lanes inland | [Before detail](before-motion-selected-detail.png) | [After detail](after-motion-selected-detail.png) |
+| The agent link selected | [Before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/before-motion-selected.png) | [After](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/after-motion-selected.png) |
+| Distinct cyan and violet lanes inland | [Before detail](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/before-motion-selected-detail.png) | [After detail](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/after-motion-selected-detail.png) |
 | Directional draw-on at observed compositor timing | [Before clip](before-motion.webm) | [After clip](after-motion.webm) |
 
 Both recordings use the current gate/test lock, Chrome 151 with ANGLE Vulkan
@@ -221,10 +221,10 @@ stand in for this behavior.
 | Actual desktop view | Evidence |
 | --- | --- |
 | First display, roads still growing (opening camera) | [Initial partial compositor frame](after-live-first-display-mid.jpg) |
-| Same first display, completed | [Initial completion](after-live-first-display-complete.png) |
-| Settled 130-link graph, before restoring the dependency (camera faces the two islands) | [Before addition](after-live-before-addition.png) |
+| Same first display, completed | [Initial completion](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/after-live-first-display-complete.png) |
+| Settled 130-link graph, before restoring the dependency (camera faces the two islands) | [Before addition](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/after-live-before-addition.png) |
 | Restored beige crossing growing out of The library | [Addition partial compositor frame](after-live-addition-mid.jpg) |
-| All 131 saved links restored | [Addition completion](after-live-addition-complete.png) |
+| All 131 saved links restored | [Addition completion](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair/after-live-addition-complete.png) |
 | Live addition at the actual compositor timing | [Before repair](before-live.webm) · [After repair](after-live.webm) |
 
 The fixture removes only Agent tools' saved dependency on Library API before
@@ -394,3 +394,5 @@ Use a separate output folder for the optional opening run. Video encoding retain
 the observed compositor timing, including the poll delay, and holds real pictures
 between frames; it does not generate intermediate motion. The capture allows the
 software compositor to present the final submitted frame before stopping its video.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 11 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/pathway-repair).

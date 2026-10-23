@@ -14,8 +14,8 @@ with dark colour-scheme emulation and the same default camera. The restored snap
 `2026-09-28T07-26-00-491Z.json`: 1,628 records, 10 stories, 71 capabilities, and its real arcs.
 No fixture arcs, questions or claims were added. **The owner has not accepted the look.**
 
-- **A · Closed bar at rest:** [bar-closed.png](bar-closed.png).
-- **A · Bar with drawer open:** [bar-open.png](bar-open.png).
+- **A · Closed bar at rest:** [bar-closed.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/arc-bar/bar-closed.png).
+- **A · Bar with drawer open:** [bar-open.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/arc-bar/bar-open.png).
 - [Native window state and drawing readings](electron-capture.json).
 - [Browser geometry and interaction measurements](capture.json).
 
@@ -83,6 +83,8 @@ app's own 48 px bar along the top edge and put the arc bar directly below it. Th
 geometry now asserts that layout: the app bar at (0, 0) across 1,440 px with the gear inside it;
 the arc bar at x=0, y=48, the full 1,440 px wide and 48 px tall; the drawer opening at the arc
 bar's bottom edge; and, at 360 px, a 360 px arc bar with the gear above it. Every other
-assertion is unchanged. [bar-closed.png](bar-closed.png), [bar-open.png](bar-open.png) and
+assertion is unchanged. [bar-closed.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/arc-bar/bar-closed.png), [bar-open.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/arc-bar/bar-open.png) and
 [capture.json](capture.json) are now this browser capture's re-take (1,440 × 960, snapshot
 `2026-09-28T07-26-00-491Z.json`); the Electron readings above are the earlier native take.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/arc-bar).

@@ -19,13 +19,13 @@ Both fill in their land the same way: each capability's territory is hidden unti
 
 The shop, frame by frame (the capture's own `at` moments in seconds, with risen islands, notes, territories and file circles, and the claimed territories outlined):
 
-![The shop's growth](shop-strip.png)
+![The shop's growth](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/growth/shop-strip.png)
 
 The claims show at 3.9 s (one territory), 5.7 s (five, on Checkout and Cart: `shop-04.png`) and 9.6 s (two), and none at the end.
 
 storytree's saved reading, grown from one point: notes appearing inside, territories and file circles filling in (counts per frame):
 
-![storytree's growth](storytree-strip.png)
+![storytree's growth](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/growth/storytree-strip.png)
 
 Clips of each playing in real time: [shop-growth.webm](shop-growth.webm), [storytree-growth.webm](storytree-growth.webm). Single frames are `shop-NN.png` and `storytree-NN.png`.
 
@@ -37,11 +37,11 @@ Clips of each playing in real time: [shop-growth.webm](shop-growth.webm), [story
 
 The shop on the sheet, beside its globe above:
 
-![The shop's growth on the glass sheet](shop-sheet-strip.png)
+![The shop's growth on the glass sheet](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/growth/shop-sheet-strip.png)
 
 storytree's saved reading on the sheet (re-read since the globe's pictures: 25 islands and 919 notes now):
 
-![storytree's growth on the glass sheet](storytree-sheet-strip.png)
+![storytree's growth on the glass sheet](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/growth/storytree-sheet-strip.png)
 
 Clips: [shop-sheet-growth.webm](shop-sheet-growth.webm), [storytree-sheet-growth.webm](storytree-sheet-growth.webm); single frames `shop-sheet-NN.png` and `storytree-sheet-NN.png`; `measurements-sheet.json` holds the run. Its frame rates, read as below (headless Chromium 148, SwiftShader, 1440×900, on the Mint box with other lanes running): the shop 27.21 fps growing (p95 107.6 ms) against 22.73 whole (136 ms); storytree 24.23 fps growing (92.4 ms) against 16.8 whole (115 ms).
 
@@ -73,3 +73,5 @@ It asserts the following:
 - a recorded session outlines a territory it held during the shop's growth, and none is held at its end;
 - under reduced motion every island, note, territory and file circle shows at once;
 - the browser reports no errors.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 44 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/growth).

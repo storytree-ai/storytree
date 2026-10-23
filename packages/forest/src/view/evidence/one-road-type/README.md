@@ -12,10 +12,10 @@ in each mesh's userData); only the drawing stopped using it. Lanes inland along 
 
 | View | Before (main) | After (this branch) |
 | --- | --- | --- |
-| Nothing selected, The library facing | [before-unlit.png](before-unlit.png) | [after-unlit.png](after-unlit.png) |
-| Nothing selected, close up | [before-unlit-close.png](before-unlit-close.png) | [after-unlit-close.png](after-unlit-close.png) |
-| The library selected | [before-the-library-selected.png](before-the-library-selected.png) | [after-the-library-selected.png](after-the-library-selected.png) |
-| The library selected, close up | [before-the-library-close.png](before-the-library-close.png) | [after-the-library-close.png](after-the-library-close.png) |
+| Nothing selected, The library facing | [before-unlit.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-road-type/before-unlit.png) | [after-unlit.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-road-type/after-unlit.png) |
+| Nothing selected, close up | [before-unlit-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-road-type/before-unlit-close.png) | [after-unlit-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-road-type/after-unlit-close.png) |
+| The library selected | [before-the-library-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-road-type/before-the-library-selected.png) | [after-the-library-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-road-type/after-the-library-selected.png) |
+| The library selected, close up | [before-the-library-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-road-type/before-the-library-close.png) | [after-the-library-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-road-type/after-the-library-close.png) |
 
 **Measured** (the `.json` beside each picture): 75 road segments, 54 of them carrying a type-only link, before and after.
 Solid cores drawn down a shared road: 52 before, 0 after. The library selected: the same 135 lanes, 90 of them
@@ -29,3 +29,5 @@ Renderer: headless Chromium, ANGLE / SwiftShader, 1440 x 960, dark theme, device
 and survey. From this folder: `node --import tsx build.mjs <main checkout> before`,
 `node --import tsx build.mjs <this checkout> after`, then
 `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before|after --retake`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 8 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-road-type).

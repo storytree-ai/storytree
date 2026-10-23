@@ -112,3 +112,5 @@ Left on the machine on purpose, for the second slice's runs: the project `reddit
 built stories, the agent's question and its held Stats increment), the viewer clone with the Stats page
 uncommitted, and `~\st-import` with the harness. The full transcripts (UTF-16 JSON lines, 2 to 4 MB each) are kept
 off the repository, in `~/storytree-lanes/import-run-170f452bae21/` on the Mint box.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 10 pictures, each one's last copy kept in git history at [`shots/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/import-run/shots) (10).

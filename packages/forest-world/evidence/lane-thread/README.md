@@ -15,9 +15,9 @@ the moving head already uses. Where both colours share a road, each thread keeps
 
 | View | Before (main, 920c7ea4) | After (this branch) |
 | --- | --- | --- |
-| The library selected (135 lit links) | [before-the-library-selected.png](before-the-library-selected.png) | [after-the-library-selected.png](after-the-library-selected.png) |
-| The library selected, close up | [before-the-library-close.png](before-the-library-close.png) | [after-the-library-close.png](after-the-library-close.png) |
-| The app setup selected (38 lit links, both colours) | [before-the-app-setup-selected.png](before-the-app-setup-selected.png) | [after-the-app-setup-selected.png](after-the-app-setup-selected.png) |
+| The library selected (135 lit links) | [before-the-library-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/lane-thread/before-the-library-selected.png) | [after-the-library-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/lane-thread/after-the-library-selected.png) |
+| The library selected, close up | [before-the-library-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/lane-thread/before-the-library-close.png) | [after-the-library-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/lane-thread/after-the-library-close.png) |
+| The app setup selected (38 lit links, both colours) | [before-the-app-setup-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/lane-thread/before-the-app-setup-selected.png) | [after-the-app-setup-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/lane-thread/after-the-app-setup-selected.png) |
 
 Frame time in the capture's page (median of 25 frames, software drawing, so only the comparison means anything): The
 library selected 9.5 ms before and 9.1 ms after; The app setup selected 5.0 ms before and 8.4 ms after, from one run
@@ -33,3 +33,5 @@ desktop page from a checkout and selects each story on storytree's own globe: he
 `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before|after`. Its pictures land
 in the scratch folder it names; the six here are copies of `*-the-library-selected.png`, `*-the-library-close.png` and
 `*-the-app-setup-selected.png`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/lane-thread).

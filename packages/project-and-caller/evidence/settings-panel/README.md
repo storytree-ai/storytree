@@ -14,10 +14,10 @@ run, keeping the renderer and shared bridge file outside this lane’s changes.
 The owner accepts the look. These unedited **Electron `pnpm desktop:smoke`** captures use
 the supplied real snapshot, restored into a throwaway `STORYTREE_HOME`:
 
-- [Gear with Settings enabled](menu-open.png)
-- [Panel at the default](panel-default.png)
-- [Panel after saving 420,000 tokens](panel-set.png)
-- [Refused zero with the writer’s reason](panel-refused.png)
+- [Gear with Settings enabled](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/project-and-caller/evidence/settings-panel/menu-open.png)
+- [Panel at the default](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/project-and-caller/evidence/settings-panel/panel-default.png)
+- [Panel after saving 420,000 tokens](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/project-and-caller/evidence/settings-panel/panel-set.png)
+- [Refused zero with the writer’s reason](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/project-and-caller/evidence/settings-panel/panel-refused.png)
 - [Electron smoke states](electron-capture.json)
 - [Geometry and interaction results](capture.json)
 - [Red proof](red.txt)
@@ -70,3 +70,5 @@ retry checks. Both drivers close their browsers and temporary database processes
 Guidance is NOT RUN: no role or supporting guidance changed. No decision-log curation
 was needed. The supervisor applies story text and closes the increment; this lane does
 not write the live library or accept the appearance.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/project-and-caller/evidence/settings-panel).

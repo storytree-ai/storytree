@@ -80,3 +80,5 @@ and served at `/404.html`, but here.now does not use it for missing addresses, a
 setting that would. For the same reason, 1.7's not-found half measured that bare page here, not the site's.
 The local run showed no such failure, so this is a publishing gap; it is its own increment on the website arc
 ("The published site's missing pages show its own not-found page").
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 20 pictures, each one's last copy kept in git history at [`2026-10-01/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/acceptance-run/2026-10-01) (10), [`2026-10-01-published/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/acceptance-run/2026-10-01-published) (10).

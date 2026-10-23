@@ -15,10 +15,10 @@ plan cutover). It supplies the real forest beneath the drawer; explicitly create
 exercise waiting, claimed, quiet, queued, parked and closed states. The temporary database is
 removed after capture, and the source snapshot and live library are never changed.
 
-- [Closed: the full-width arc bar](drawer-closed.png)
-- [Open: dense two-line rows](drawer-open.png)
-- [Queue: chips beneath the blocker](queue-expanded.png)
-- [Question: reading replaces the list](question-reading.png)
+- [Closed: the full-width arc bar](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-shape/drawer-closed.png)
+- [Open: dense two-line rows](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-shape/drawer-open.png)
+- [Queue: chips beneath the blocker](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-shape/queue-expanded.png)
+- [Question: reading replaces the list](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-shape/question-reading.png)
 - [Measured acceptance results](capture.json)
 - [Initial failing rendering tests](red.txt)
 - [Multi-queue smoke regression reproduced before its fix](queue-smoke-red.txt)
@@ -57,3 +57,5 @@ two rendering behavior tests, followed by the separately reproduced multiple-que
 
 0.2 was read only. Its Library switch and artifact links are omitted by ADR-0660 D2/D3;
 drag resizing was outside this increment. No fresh decision was written.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/drawer-shape).

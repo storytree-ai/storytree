@@ -122,14 +122,32 @@ function goneProject(project: string): ProjectFolderError {
  */
 export async function requireApproval(storytree: Storytree, project: string, folder: string, home: string = storytreeHome()): Promise<void> {
   const machine = machineOf(home);
-  const at = canonical(inMainCheckout(canonical(path.resolve(folder))));
+  const at = checkoutOf(folder);
   // A hook runs at every step: an approval this machine has seen is remembered, so the trunks are asked once.
-  if (remembered(home, machine.id).some((trunk) => trunk.project === project && within(at, trunk.folder))) return;
+  if (rememberedHere(project, at, home, machine.id)) return;
   const trunk = await approvedTrunk(storytree, project, machine.id, at);
   if (trunk !== undefined) return rememberApproval(home, machine.id, trunk);
   // A project deleted, perhaps from another computer, took its trunks with it: say that, not "approve it".
   if (!(await storytree.listProjects()).includes(project)) throw goneProject(project);
   throw new ProjectFolderError(`${at} names storytree project "${project}", but it is not approved as "${project}"'s checkout on this machine, so storytree opens nothing and records nothing here. If this is your checkout of "${project}", approve it on purpose: \`storytree doctor --join ${project}\` in a terminal there, or ask your agent to join it.`);
+}
+
+/**
+ * Whether this machine remembers `folder` (a git worktree's main checkout standing for it) as in `project`'s approved
+ * trunk, read from this machine alone: what a hook asks before it runs anything in the folder, such as git (contract
+ * Hooks 3.46). An approval not yet seen here reads false until requireApproval has asked the library.
+ */
+export function approvedHere(project: string, folder: string, home: string = storytreeHome()): boolean {
+  return rememberedHere(project, checkoutOf(folder), home, machineOf(home).id);
+}
+
+function rememberedHere(project: string, at: string, home: string, machine: string): boolean {
+  return remembered(home, machine).some((trunk) => trunk.project === project && within(at, trunk.folder));
+}
+
+/** The folder an approval is judged at: `folder`'s place in its main checkout, its links resolved. */
+function checkoutOf(folder: string): string {
+  return canonical(inMainCheckout(canonical(path.resolve(folder))));
 }
 
 /**

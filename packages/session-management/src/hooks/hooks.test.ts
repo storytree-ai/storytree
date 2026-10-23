@@ -38,7 +38,9 @@ import { EDIT_GATE } from "./edit-gate.js";
 import { DEADLINE_MS } from "./deadlines.js";
 import { SHELL_GUARD } from "./shell-guard.js";
 import { hookFailures, hookFailuresFile } from "./failures.js";
-import { BACKGROUND, hookLines, type ReachLog } from "./hooks.js";
+import { BACKGROUND, hookLines, runHook as runHookHere, type ReachLog } from "./hooks.js";
+import { CLOSE_OUT_REMINDER } from "./close-out-reminder.js";
+import { runGit, type Git } from "../activity/git.js";
 import { hookTools } from "./tools.js";
 import { AFTER_TOOL, codexToolArguments } from "./codex-delivery.js";
 import { queueFolder } from "./queue.js";
@@ -1732,6 +1734,58 @@ test("3.42 A Claude Code command hook, finding the tool server's note of its eve
       } finally {
         await log.close();
       }
+    });
+  } finally {
+    if (was === undefined) delete process.env.STORYTREE_HOME;
+    else process.env.STORYTREE_HOME = was;
+    await dropTestProjects([project]);
+  }
+});
+
+test("3.46 a hook runs no git in a downloaded folder whose marker names a project: not at a session's start, after a shell command, nor at a turn's end; in the approved checkout it does, with the repository's own file-system monitor never started", async () => {
+  const project = uniqueProjectName();
+  const was = process.env.STORYTREE_HOME;
+  try {
+    await withTempDir(async (dir) => {
+      const home = storytreeHome(dir, true);
+      process.env.STORYTREE_HOME = home;
+      const approved = await projectFolder(dir, project);
+      // A downloaded folder whose marker names the same project: a claim, not an approval.
+      const download = path.join(dir, "download");
+      mkdirSync(download);
+      writeFileSync(path.join(download, MARKER_FILE), JSON.stringify({ project }));
+      for (const folder of [approved, download]) {
+        git(folder, "init", "-q", "-b", "main");
+        git(folder, "add", ".");
+        git(folder, "commit", "-q", "-m", "first");
+        git(folder, "checkout", "-q", "-b", "fix-login");
+        git(folder, "commit", "-q", "--allow-empty", "-m", "fix");
+        // The repository's own config names a program git starts when it reads the working tree.
+        git(folder, "config", "core.fsmonitor", "echo ran > fsmonitor-ran");
+      }
+      const ran: { cwd: string; args: readonly string[] }[] = [];
+      const counted: Git = (args, options) => {
+        ran.push({ cwd: options.cwd, args });
+        return runGit(args, options);
+      };
+      const hooks = async (folder: string) => {
+        const session = `${project}-${path.basename(folder)}`;
+        const run = (name: string, flags: string[] = [], extra: Record<string, unknown> = {}) =>
+          runHookHere({ argv: ["claude-code", ...flags], input: JSON.stringify({ ...JSON.parse(recorded("claude-code", name, folder)), session_id: session, ...extra }), git: counted, declaredCapabilities: async () => new Map() });
+        await run("session-start-startup");
+        await run("pre-tool-use-bash");
+        await run("post-tool-use-bash", [SHELL_GUARD]);
+        await run("stop", [CLOSE_OUT_REMINDER], { stop_hook_active: false });
+      };
+      const inFolder = (folder: string) => ran.filter(({ cwd }) => path.resolve(cwd).startsWith(path.resolve(folder)));
+
+      await hooks(download);
+      assert.deepEqual(inFolder(download), [], "no hook runs git in a folder not approved here");
+
+      await hooks(approved);
+      const commands = new Set(inFolder(approved).map(({ args }) => args.find((arg) => !arg.startsWith("-"))));
+      for (const command of ["status", "merge-base"]) assert.ok(commands.has(command), `the approved checkout's hooks run git ${command}: ${[...commands].join(", ")}`);
+      assert.equal(existsSync(path.join(approved, "fsmonitor-ran")), false, "and its configured file-system monitor never runs");
     });
   } finally {
     if (was === undefined) delete process.env.STORYTREE_HOME;

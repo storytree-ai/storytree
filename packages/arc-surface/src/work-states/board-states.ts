@@ -57,7 +57,9 @@ export function incrementState(increment: BoardIncrement["fields"], facts: Incre
   const noted = facts.waitsFor ?? [];
   const holding = noted.filter(({ holds }) => holds);
   const passed = noted.some(({ holds }) => !holds) ? { checkBackPassed: true as const } : {};
-  if (facts.heldOn?.length || holding.some(({ releaser }) => releaser === "owner")) return { state: "waiting-on-you", color: "yellow", progress, ...passed };
+  // An owner wait on work that still waits on open work is not his yet: it reads as waiting on that work until it lands.
+  const asksYou = holding.some(({ releaser }) => releaser === "owner") && !facts.waits?.length;
+  if (facts.heldOn?.length || asksYou) return { state: "waiting-on-you", color: "yellow", progress, ...passed };
   // Work it waits on is held on the owner's question, so the owner, not the work, is what it waits for.
   if (facts.behind?.length) return { state: "waiting-on-you", color: "yellow", progress, ...passed, behind: [...facts.behind] };
   if (facts.waits?.length || holding.length) return { state: "queued", color: "yellow", progress, ...passed };

@@ -1,6 +1,7 @@
 /** Capability 3 · Surfaces. The app story's controls; the desktop frame only mounts them. */
 import { markSvg, type MarkRoles } from "@storytree/mark/drawing";
 import type { FactoryPlace } from "../projects/selection.js";
+import { MENU_TABS } from "../surfaces/named.js";
 
 /** The mark's roles on the page (its drawing only: the page cannot load the package's file writers): the page's stylesheet sets these from its own light or dark colours (contract 2.11). */
 const PAGE_MARK: MarkRoles = { ocean: "var(--mark-ocean)", land: "var(--mark-land)", tree: "var(--mark-tree)", leaf: "var(--mark-leaf)" };
@@ -16,17 +17,17 @@ export function renderAppMenu(): string {
     <div class="app-menu-window">
       <div class="app-menu-body">
         <nav class="app-menu-sections" aria-label="App sections">
-          ${["Projects", "Sessions", "Sharing", "Library", "Surfaces", "Updates", "Help"].map((label) => `<button type="button" data-app-section="${label.toLowerCase()}" aria-controls="app-${label.toLowerCase()}" aria-pressed="${label === "Projects"}">${label}</button>`).join("")}
+          ${MENU_TABS.map((label) => `<button type="button" data-app-section="${label.toLowerCase()}" aria-controls="app-${label.toLowerCase()}" aria-pressed="${label === "Projects"}">${label}</button>`).join("")}
           <button type="button" class="app-menu-close" data-app-close aria-label="Close app menu">Close <span aria-hidden="true">×</span></button>
         </nav>
         <div class="app-menu-content">
-          <section id="app-projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Add, describe or remove projects, and choose your factory. The project on show is chosen in the bar above.</p><div data-app-add-project></div><div data-app-project-sentence></div><div data-app-remove-project></div><div data-app-delete-project></div><div data-app-factory></div></section>
-          <section id="app-sessions" aria-label="Sessions" hidden><div data-app-settings="sessions"></div><div data-app-decision-rights></div></section>
-          <section id="app-sharing" aria-label="Sharing" hidden><div data-app-journey></div></section>
-          <section id="app-library" aria-label="Library" hidden><div data-app-settings="library"></div></section>
-          <section id="app-surfaces" aria-label="Surfaces" hidden><div data-app-surfaces></div></section>
-          <section id="app-updates" aria-labelledby="app-updates-title" hidden><h2 id="app-updates-title" tabindex="-1">Updates</h2><p class="app-section-description">Keep storytree up to date.</p><button type="button" data-app-updates aria-describedby="app-update-status">Check for updates</button><div id="app-update-status" class="app-update-status" role="status" aria-live="polite" aria-atomic="true" hidden></div><fieldset class="app-install-choice" data-app-install-choice hidden><legend>When updates install</legend><label><input type="radio" name="app-install-mode" value="quiet"><span><strong>When no one is using it</strong><span>Once the window and your agents have been idle for ten minutes.</span></span></label><label><input type="radio" name="app-install-mode" value="hours"><span><strong>Only during quiet hours</strong><span class="app-install-hours"><input type="time" data-app-install-from aria-label="Quiet hours start" value="01:00"> to <input type="time" data-app-install-to aria-label="Quiet hours end" value="06:00"></span></span></label><label><input type="radio" name="app-install-mode" value="manual"><span><strong>Only when I choose</strong><span>Nothing installs until you press Check for updates, then Restart to update.</span></span></label><p class="app-install-next" data-app-install-next></p><p class="app-install-error" data-app-install-error role="alert" hidden></p></fieldset><label class="app-sign-in" data-app-sign-in hidden><input type="checkbox"><span><strong>Open at sign-in</strong><span>storytree opens in the tray when you sign in, so it keeps itself and your agents’ hooks up to date.</span><span class="app-sign-in-error" role="alert" hidden></span></span></label></section>
-          <section id="app-help" aria-label="Help" hidden><div data-app-help></div></section>
+          <section id="app-projects" data-surface-id="menu:projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Add, describe or remove projects, and choose your factory. The project on show is chosen in the bar above.</p><div data-app-add-project></div><div data-app-project-sentence></div><div data-app-remove-project></div><div data-app-delete-project></div><div data-app-factory></div></section>
+          <section id="app-sessions" data-surface-id="menu:sessions" aria-label="Sessions" hidden><div data-app-settings="sessions"></div><div data-app-decision-rights></div></section>
+          <section id="app-sharing" data-surface-id="menu:sharing" aria-label="Sharing" hidden><div data-app-journey></div></section>
+          <section id="app-library" data-surface-id="menu:library" aria-label="Library" hidden><div data-app-settings="library"></div></section>
+          <section id="app-surfaces" data-surface-id="menu:surfaces" aria-label="Surfaces" hidden><div data-app-surfaces></div></section>
+          <section id="app-updates" data-surface-id="menu:updates" aria-labelledby="app-updates-title" hidden><h2 id="app-updates-title" tabindex="-1">Updates</h2><p class="app-section-description">Keep storytree up to date.</p><button type="button" data-app-updates aria-describedby="app-update-status">Check for updates</button><div id="app-update-status" class="app-update-status" role="status" aria-live="polite" aria-atomic="true" hidden></div><fieldset class="app-install-choice" data-app-install-choice hidden><legend>When updates install</legend><label><input type="radio" name="app-install-mode" value="quiet"><span><strong>When no one is using it</strong><span>Once the window and your agents have been idle for ten minutes.</span></span></label><label><input type="radio" name="app-install-mode" value="hours"><span><strong>Only during quiet hours</strong><span class="app-install-hours"><input type="time" data-app-install-from aria-label="Quiet hours start" value="01:00"> to <input type="time" data-app-install-to aria-label="Quiet hours end" value="06:00"></span></span></label><label><input type="radio" name="app-install-mode" value="manual"><span><strong>Only when I choose</strong><span>Nothing installs until you press Check for updates, then Restart to update.</span></span></label><p class="app-install-next" data-app-install-next></p><p class="app-install-error" data-app-install-error role="alert" hidden></p></fieldset><fieldset class="app-install-choice" data-app-release-channel hidden><legend>Update channel</legend><label><input type="radio" name="app-release-channel" value="stable"><span><strong>Stable</strong><span>Releases that have been tried before they are offered. Recommended.</span></span></label><label><input type="radio" name="app-release-channel" value="alpha"><span><strong>Alpha</strong><span>Opt in to every new release as soon as it is published, before it is tried. Moving back to stable keeps this build until stable passes it.</span></span></label><p class="app-install-next">A change applies at the next check for updates.</p><p class="app-install-error" data-app-release-channel-error role="alert" hidden></p></fieldset><label class="app-sign-in" data-app-sign-in hidden><input type="checkbox"><span><strong>Open at sign-in</strong><span>storytree opens in the tray when you sign in, so it keeps itself and your agents’ hooks up to date.</span><span class="app-sign-in-error" role="alert" hidden></span></span></label></section>
+          <section id="app-help" data-surface-id="menu:help" aria-label="Help" hidden><div data-app-help></div></section>
         </div>
       </div>
     </div>
@@ -36,7 +37,7 @@ export function renderAppMenu(): string {
 /** The page when the library has no projects at all: how a user starts their first project. */
 export function renderNoProjects(): string {
   return [
-    `<div class="empty">`,
+    `<div class="empty" data-surface-id="no-projects">`,
     markSvg(PAGE_MARK).trim().replace("<svg ", `<svg class="app-mark" aria-hidden="true" `),
     `<h1>No projects yet</h1>`,
     `<p>This app shows the projects in storytree 0.3's local library, and it has none yet.</p>`,

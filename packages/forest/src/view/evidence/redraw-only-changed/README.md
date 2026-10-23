@@ -26,3 +26,5 @@ every poll; `HOVER=1` sweeps the pointer over an island and reads the tooltips. 
 The shared runner owns the server and browser lifetime, without adding settling frames
 to the timed probe. Output prefixes (and `PROFILE`, when set) supply a filename inside
 the temporary `storytree-captures/` folder; `--retake` writes into this evidence directory.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/redraw-only-changed).

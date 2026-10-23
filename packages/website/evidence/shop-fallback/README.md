@@ -18,11 +18,11 @@ project, or says plainly why no picture can stand for it:
 
 | Width | Shop tour step | Shop free play | storytree free play |
 | --- | --- | --- | --- |
-| 1440×900 | [Picture](journeys/forest-no-webgl-1440-shop-step.png) | [Picture](journeys/forest-no-webgl-1440-shop.png) | [Picture](journeys/forest-no-webgl-1440-storytree.png) |
-| 1280×800 | [Picture](journeys/forest-no-webgl-1280-shop-step.png) | [Picture](journeys/forest-no-webgl-1280-shop.png) | [Picture](journeys/forest-no-webgl-1280-storytree.png) |
-| 390×844 | [Picture](journeys/forest-no-webgl-390-shop-step.png) | [Picture](journeys/forest-no-webgl-390-shop.png) | [Picture](journeys/forest-no-webgl-390-storytree.png) |
-| 320×844 | [Picture](journeys/forest-no-webgl-320-shop-step.png) | [Picture](journeys/forest-no-webgl-320-shop.png) | [Picture](journeys/forest-no-webgl-320-storytree.png) |
-| 1440, scene code fails | [Picture](journeys/forest-scene-fails-1440-shop-step.png) | [Picture](journeys/forest-scene-fails-1440-shop.png) | [Picture](journeys/forest-scene-fails-1440-storytree.png) |
+| 1440×900 | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-1440-shop-step.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-1440-shop.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-1440-storytree.png) |
+| 1280×800 | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-1280-shop-step.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-1280-shop.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-1280-storytree.png) |
+| 390×844 | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-390-shop-step.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-390-shop.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-390-storytree.png) |
+| 320×844 | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-320-shop-step.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-320-shop.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-no-webgl-320-storytree.png) |
+| 1440, scene code fails | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-scene-fails-1440-shop-step.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-scene-fails-1440-shop.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/forest-scene-fails-1440-storytree.png) |
 
 **See:** a dark stage with the shop's finished map in free play; on a tour step, one dashed note at the top of the words' column
 (the top of the screen on a phone), the step's words beneath it. On the arcs step the arcs panel covers the note, as it would
@@ -40,7 +40,7 @@ Red: [`red/forest-observations.json`](red/forest-observations.json), on the bran
 note, the shop had no still, and storytree's still was never actually visible in the views checked. Green:
 [`journeys/forest-observations.json`](journeys/forest-observations.json) (2.1, 2.2 ×5, 2.3 pass);
 [`journeys/tour-observations.json`](journeys/tour-observations.json) (2.4–2.8 pass, including no-WebGL shop free play at 390,
-[picture](journeys/390-no-webgl-shop-arcs.png)); [`review/fallback-review.json`](review/fallback-review.json) (the shop still
+[picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys/390-no-webgl-shop-arcs.png)); [`review/fallback-review.json`](review/fallback-review.json) (the shop still
 shown at all four widths); the arrival's `reduced` journey (2.11, storytree's still never under the pain) passes.
 
 ```sh
@@ -52,3 +52,5 @@ node packages/website/evidence/capture.mjs shop-fallback/review --review-fallbac
 ```
 
 Chromium headless with SwiftShader on the Mint box; no hardware GPU.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 33 pictures, each one's last copy kept in git history at [`journeys/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/journeys) (18), [`red/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/red) (3), [`review/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop-fallback/review) (12).

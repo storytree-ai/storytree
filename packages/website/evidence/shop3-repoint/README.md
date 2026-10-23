@@ -48,3 +48,5 @@ A test now holds every stage a step names to one the replay draws (2.16).
     is rebuilt clean".
 - **2.14, 2.17:** project `shop3`, the story `Cart`, and the live session names at the two recorded moments.
 - **Saved snapshot 3.11:** the export names stages by pull request whether it was merged or squashed.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 68 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop3-repoint/after) (34), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/shop3-repoint/before) (34).

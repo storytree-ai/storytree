@@ -15,10 +15,11 @@ const HEALTH: Readonly<Record<HealthState, string>> = { passing: "passing", fail
  * With the capability tree switched off (ADR-0750) it is the story's sentences alone: a capability is
  * picked only in the tree, so its details go with it.
  */
+// Its head, on show exactly while the panel is, names the panel as the Story panel's canvas (Surface feedback).
 export function renderStoryPanel(panel: StoryPanel, selected: string | undefined, { tree = true }: { tree?: boolean } = {}): string {
   const shown = tree ? panel.capabilities.find(({ id }) => id === selected) : undefined;
   return `
-    <header class="panel-head">
+    <header class="panel-head" data-surface-id="story-panel" data-surface-layer="panel">
       <h2>${text(panel.title)}</h2>
       <button type="button" class="panel-close" aria-label="Close">×</button>
     </header>

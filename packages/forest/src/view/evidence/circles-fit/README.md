@@ -12,9 +12,9 @@ and an island whose circles would not fit grows its land. These are pictures for
 
 | View | Before | After |
 | --- | --- | --- |
-| Resting front view of the whole globe | [before-front.png](before-front.png) | [after-front.png](after-front.png) |
-| Close-up (zoom x2.6 of the resting zoom) facing The world | [before-world.png](before-world.png) | [after-world.png](after-world.png) |
-| Close-up (zoom x2.6) facing The agent link, the island with the most files (91) | [before-crowded.png](before-crowded.png) | [after-crowded.png](after-crowded.png) |
+| Resting front view of the whole globe | [before-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/before-front.png) | [after-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/after-front.png) |
+| Close-up (zoom x2.6 of the resting zoom) facing The world | [before-world.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/before-world.png) | [after-world.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/after-world.png) |
+| Close-up (zoom x2.6) facing The agent link, the island with the most files (91) | [before-crowded.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/before-crowded.png) | [after-crowded.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/after-crowded.png) |
 
 Renderer: headless Chromium 148, ANGLE / SwiftShader, 1440 x 960, dark theme, device scale 1. Both
 builds get the same stand-in bridge, seed, survey, viewport, turns and zoom; nothing is hand-panned.
@@ -82,13 +82,15 @@ island ground mesh's area.
 ## What the pictures show
 
 - **Before**: circles visibly cross territory borders and the coast. On The world
-  ([before-world.png](before-world.png)) discs sit on the coastline at the top and on the left, and
-  across the green/grey border; on The agent link ([before-crowded.png](before-crowded.png)) several
+  ([before-world.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/before-world.png)) discs sit on the coastline at the top and on the left, and
+  across the green/grey border; on The agent link ([before-crowded.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/before-crowded.png)) several
   discs straddle the coast on its right and bottom edges, and The library's and The app's do the same.
 - **After**: no disc crosses a border or the coast in any of the three pictures. The circles spread
   over each territory as an even scatter, with clear space between neighbours, rather than bunching
-  in its middle: on The world ([after-world.png](after-world.png)) they cover the large grey territory
-  and the green ones edge to edge; on The agent link ([after-crowded.png](after-crowded.png)) each
+  in its middle: on The world ([after-world.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/after-world.png)) they cover the large grey territory
+  and the green ones edge to edge; on The agent link ([after-crowded.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/after-crowded.png)) each
   territory carries its own scatter. A few of The world's small green cells on its left show no
   circle at all. The circles are smaller than before's, so at the resting front view
-  ([after-front.png](after-front.png)) they read as fine speckle on each island.
+  ([after-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit/after-front.png)) they read as fine speckle on each island.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/circles-fit).

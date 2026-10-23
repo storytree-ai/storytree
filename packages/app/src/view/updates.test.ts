@@ -6,7 +6,7 @@ import { Window, type HTMLInputElement } from "happy-dom";
 
 import type { InstallChoice, InstallChoiceState } from "../updates/install-choice.js";
 import { renderAppMenu } from "./render.js";
-import { mountInstallChoice, updateText } from "./updates.js";
+import { mountInstallChoice, mountReleaseChannel, updateText } from "./updates.js";
 
 const at = { runningBuild: "0.3.400 (abc1234)", nextBuild: "0.3.401 (def5678)" };
 
@@ -106,4 +106,47 @@ test("4.14 the install choice is hidden where the app does not install releases"
   await setImmediate();
   assert.equal(host.querySelector("[data-app-install-choice]")!.hasAttribute("hidden"), true);
   mounted.stop();
+});
+
+test("4.24 the Updates section shows the update channel, stable by default, saves an explicit move to alpha, and keeps the old one when a change is refused", async () => {
+  const window = new Window();
+  const host = window.document.createElement("div");
+  host.innerHTML = renderAppMenu();
+  let kept: "stable" | "alpha" = "stable";
+  let refuse = false;
+  const mounted = mountReleaseChannel(host as unknown as HTMLElement, {
+    async read() { return { available: true, channel: kept }; },
+    async set(channel) {
+      if (refuse) throw new Error("Choose alpha or stable.");
+      kept = channel;
+      return { available: true, channel: kept };
+    },
+  });
+  await setImmediate();
+  const field = host.querySelector("[data-app-release-channel]")!;
+  const radio = (channel: string) => field.querySelector(`input[value="${channel}"]`) as HTMLInputElement;
+  assert.equal(field.hasAttribute("hidden"), false);
+  assert.equal(radio("stable").checked, true);
+  assert.match(radio("alpha").closest("label")!.textContent, /opt in/i);
+
+  radio("alpha").checked = true;
+  radio("alpha").dispatchEvent(new window.Event("change", { bubbles: true }));
+  await setImmediate();
+  assert.equal(kept, "alpha");
+  assert.equal(radio("alpha").checked, true);
+
+  refuse = true;
+  radio("stable").checked = true;
+  radio("stable").dispatchEvent(new window.Event("change", { bubbles: true }));
+  await setImmediate();
+  assert.equal(radio("alpha").checked, true, "a refused change keeps the old channel");
+  assert.match(field.querySelector("[data-app-release-channel-error]")!.textContent, /alpha or stable/);
+  mounted.stop();
+
+  const hidden = window.document.createElement("div");
+  hidden.innerHTML = renderAppMenu();
+  const elsewhere = mountReleaseChannel(hidden as unknown as HTMLElement, { async read() { return { available: false, channel: "stable" }; }, async set() { throw new Error("unused"); } });
+  await setImmediate();
+  assert.equal(hidden.querySelector("[data-app-release-channel]")!.hasAttribute("hidden"), true);
+  elsewhere.stop();
 });

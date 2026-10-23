@@ -19,6 +19,7 @@ import { mountJourneyConsent, mountJourneySettings } from "@storytree/app-setup/
 import { journal, type Target } from "@storytree/website/overlays";
 import { mountJournal, mountTeaching } from "@storytree/website/overlays/view";
 import { mountLagRecorder } from "@storytree/app/lag/view";
+import { mountFeedbackCorner } from "@storytree/surface-feedback/view";
 import type { AnnotatedTree } from "@storytree/library";
 
 import type { StorytreeBridge } from "../bridge.js";
@@ -42,6 +43,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   checkForUpdates: (action) => window.storytree.checkForUpdates(action),
   signIn: { read: () => window.storytree.readSignIn(), set: (on) => window.storytree.setSignIn(on) },
   installChoice: { read: () => window.storytree.readInstallChoice(), set: (choice) => window.storytree.setInstallChoice(choice) },
+  releaseChannel: { read: () => window.storytree.readReleaseChannel(), set: (channel) => window.storytree.setReleaseChannel(channel) },
   chooseProject: async (name) => { await window.storytree.chooseProject(name); },
   onChosen: () => following?.refresh(),
   // A surface switched or set in the Surfaces menu shows at once: the project is drawn again.
@@ -71,7 +73,11 @@ const consentHost = document.createElement("div");
 document.body.append(consentHost);
 const consent = mountJourneyConsent(consentHost, window.storytree);
 const lagRecorder = mountLagRecorder(window.storytree);
-window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); consentHost.remove(); lagRecorder?.stop(); });
+// The feedback corner, above every canvas; a note records the project on show and the story node or note selected.
+const corner = mountFeedbackCorner(document, window.storytree, {
+  shown: () => ({ project: document.body.dataset.project, selection: document.body.dataset.selected ?? document.body.dataset.note }),
+});
+window.addEventListener("beforeunload", () => { appMenu.stop(); consent.stop(); consentHost.remove(); lagRecorder?.stop(); corner.stop(); });
 
 /** The project on show's forest and live reading, stopped when another project is shown. */
 let showing: { page: PageReading | undefined; reading: LiveReading | undefined; view: ForestView | undefined; arcs: ArcSurface | undefined; sessions: ReturnType<typeof mountSessionsList> | undefined; card: (() => void) | undefined; tree: TreeSpace | undefined; teaching: ReturnType<typeof mountTeaching> | undefined; plugins?: { stop(): void } } | undefined;
@@ -153,11 +159,11 @@ async function showForest(name: string): Promise<void> {
   // One live reading for every surface on the page, started from the reading kept at the last start
   // (ADR-0836 D3, D4); the surfaces hearing one news share one read of the tree.
   const reads = joinedReads(window.storytree);
-  const page = pageReading({ project: name, reads, kept: pageKeptReading(`storytree.page-reading.v1:${name}`) });
+  const page = pageReading({ project: name, reads, kept: timedRead(pageKeptReading(`storytree.page-reading.v1:${name}`)) });
   mine.page = page;
   const history = () => page.held().changes;
   const states = keptWorkStates();
-  if (surfaceOn(surfaces, "arcs")) mine.arcs = mountArcSurface(content, { project: name, reads, reading: page });
+  if (surfaceOn(surfaces, "arcs")) mine.arcs = mountArcSurface(content, { project: name, reads, reading: page, onFreshDraw: () => startMark("arcs first fresh draw") });
   let tree: AnnotatedTree | undefined;
   /** The code survey last read, which counts a mapped story's files and lines for its panel. */
   let surveyed: Parameters<typeof forestScene>[3] = {};
@@ -298,10 +304,30 @@ async function showForest(name: string): Promise<void> {
       showFreshness(undefined);
       showReadError(undefined);
       setState("ready");
+      startMark("forest first fresh draw");
     },
     onError: failed,
     onSettled: () => { if (showing === mine) showProgress(false); },
   });
+}
+
+/** The start-timing marks this page has sent; the main process writes each once to app.log (lifecycle 1.33). */
+const marked = new Set<string>();
+function startMark(name: string): void {
+  if (marked.has(name)) return;
+  marked.add(name);
+  void window.storytree.startMark(name).catch(() => {});
+}
+
+/** The kept reading, its read-back marked as it starts and ends (lifecycle 1.33). */
+function timedRead(kept: ReturnType<typeof pageKeptReading>): ReturnType<typeof pageKeptReading> {
+  return {
+    ...kept,
+    read: async () => {
+      startMark("kept reading read start");
+      try { return await kept.read(); } finally { startMark("kept reading read end"); }
+    },
+  };
 }
 
 /** Draw project `name` again from the start, as the surfaces now say. */
@@ -413,6 +439,7 @@ function showMessage(state: string, heading: string, text: string): void {
   stopShowing();
   const box = document.createElement("div");
   box.className = "empty";
+  box.dataset.surfaceId = "app-message";
   const title = document.createElement("h1");
   title.textContent = heading;
   const body = document.createElement("p");

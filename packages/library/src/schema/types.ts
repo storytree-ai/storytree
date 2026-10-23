@@ -30,7 +30,8 @@ export type RecordType =
   | "definition"
   | KnowledgeKind
   | "increment"
-  | "question";
+  | "question"
+  | "feedback";
 
 /**
  * Capability 6's kinds beyond decisions and definitions: ADR-0640's eight, each with 0.2's fields
@@ -102,6 +103,22 @@ const pendingChange = z.union([
   z.object({ ...pendingHead, before: z.record(z.string(), z.unknown()), after: z.record(z.string(), z.unknown()) }).strict(),
   z.object({ ...pendingHead, retire: nonEmpty }).strict(),
 ]);
+
+/**
+ * A story's or capability's own guardrails (question_4cec0ba23052): extra checks only it carries, such
+ * as a real-app run for a screen, each with what triggers it: any change to it, or a formal release.
+ * Standard unit and integration tests are not listed. Optional, so no version bump.
+ */
+const guardrails = z.array(z.object({ check: nonEmpty, trigger: z.enum(["change", "release"]) }).strict()).optional();
+
+/** Who a story reaches (question_1740edf77e9e): the owner alone, the invited users, or the public. */
+export const RISK_AUDIENCES = ["owner", "invited", "public"] as const;
+
+/** A change's risk tier (question_0f21964e8ce0), lowest first. */
+export const RISK_TIERS = ["low", "medium", "high"] as const;
+
+/** A reading's whole-number value from `min` to `max`. */
+const scale = (min: number, max: number) => z.number().int().min(min).max(max);
 
 /**
  * What every one of the eight kinds carries (6-a): a title, a one-line description, and links to
@@ -207,6 +224,29 @@ export const RECORD_SCHEMAS = {
        * folder ("." for the folder itself), and `folders` the folders that hold its code. Optional, so no version bump.
        */
       mapped: z.object({ from: nonEmpty, package: nonEmpty, folders: z.array(nonEmpty) }).strict().optional(),
+      /**
+       * Its risk reading, set up front and read deterministically (question_1740edf77e9e): a blast depth
+       * (1 to 3, how bad a fault in it is) and a blast radius (1 to 4, how far one reaches: the stories
+       * downstream of it and the audience it serves, with the users that audience counts), each with the
+       * day read and why. Optional, so no version bump.
+       */
+      risk: z
+        .object({
+          depth: z.object({ value: scale(1, 3), read: day, reason: nonEmpty }).strict(),
+          radius: z
+            .object({
+              value: scale(1, 4),
+              downstream: z.number().int().min(0),
+              audience: z.enum(RISK_AUDIENCES),
+              users: z.number().int().min(0).optional(),
+              read: day,
+              reason: nonEmpty,
+            })
+            .strict(),
+        })
+        .strict()
+        .optional(),
+      guardrails,
     })
     .strict(),
   /**
@@ -228,6 +268,7 @@ export const RECORD_SCHEMAS = {
        * Optional, so no version bump.
        */
       covers: z.array(nonEmpty).min(1).optional(),
+      guardrails,
     })
     .strict(),
   contract: z
@@ -539,6 +580,23 @@ export const RECORD_SCHEMAS = {
         .object({ causedBy: z.string().regex(/^#?\d+$|^increment_/, "a pull request (#123) or an increment"), story: z.string() })
         .strict()
         .optional(),
+      /**
+       * Its risk line (question_0f21964e8ce0), read from the paths it changes: its tier, rating (2 x depth
+       * + radius), the change's own depth and radius, the depth flags that raised it, the stories it
+       * touches and the day read. Optional, so no version bump.
+       */
+      risk: z
+        .object({
+          tier: z.enum(RISK_TIERS),
+          rating: scale(3, 10),
+          depth: scale(1, 3),
+          radius: scale(1, 4),
+          flags: z.array(nonEmpty),
+          stories: ids,
+          read: day,
+        })
+        .strict()
+        .optional(),
       /** How it closed: absent until it does. */
       outcome: z
         .object({
@@ -615,6 +673,28 @@ export const RECORD_SCHEMAS = {
         }
       }
     }),
+  /**
+   * A note the owner sent from the desktop app's feedback corner (Surface feedback, capability 3): what he wrote, the
+   * named surface in front of him and the story that declares it, what he had selected and the project on show, the
+   * app's version, the window's size and theme, and when. `screenshot` says whether a picture of the window is kept
+   * beside it (Library API 7.18); the picture's bytes are never in the fields. `status` is new until the session
+   * manager routes it.
+   */
+  feedback: z
+    .object({
+      text: nonEmpty,
+      surface: nonEmpty,
+      story: nonEmpty.optional(),
+      selection: nonEmpty.optional(),
+      project: nonEmpty.optional(),
+      version: nonEmpty,
+      window: z.object({ width: z.number().int().nonnegative(), height: z.number().int().nonnegative() }).strict(),
+      theme: z.enum(["light", "dark"]),
+      at: nonEmpty,
+      status: z.enum(["new", "routed"]),
+      screenshot: z.boolean(),
+    })
+    .strict(),
 } as const satisfies Record<RecordType, z.ZodType>;
 
 /** The schema version of each type: every record of the type is written on it. */
@@ -641,6 +721,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   experiment: 1,
   increment: 3,
   question: 1,
+  feedback: 1,
 };
 
 /** The fields of a record of type `T`, as its schema declares them. */

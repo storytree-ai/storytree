@@ -14,3 +14,5 @@ node --import tsx packages/website/evidence/capture.mjs pain-line --verify-openi
 The contract 1.8 journey takes `390-pain.png` once both lines are on screen at 390 × 844, then `1440-pain.png` at
 1440 × 900 in the same frame. In the run that made these, the turn reached the pain line 1.1 s after the exit and handed over
 9.4 s after it; reduced motion shows both lines at once, with no animation, then hands over.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/pain-line).

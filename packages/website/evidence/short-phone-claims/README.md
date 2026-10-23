@@ -16,3 +16,5 @@ clear of each other.
 
 Check: the map chapter's framing check no longer carries `320 map-claims Checkout: not drawn` as a known miss; it fails on
 main at 320 on that miss and passes here at all five widths.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/short-phone-claims/after) (2), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/short-phone-claims/before) (1).

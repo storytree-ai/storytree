@@ -110,7 +110,9 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     environment: own-health
-    timeout-minutes: 45
+    # Recording runs every story's tests in turn: about 43 minutes in October 2026, and growing. At 45
+    # minutes most runs timed out unrecorded (increment_f3274849cc7e), so this leaves room to grow.
+    timeout-minutes: 90
     permissions:
       actions: read # download Windows and macOS evidence from the exact CI run
       contents: read

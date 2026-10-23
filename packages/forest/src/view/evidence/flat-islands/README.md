@@ -7,9 +7,9 @@ accepted (ADR-0794).
 
 | View | Picture | Before (same seed, `../knowledge-under-islands`) |
 | --- | --- | --- |
-| Resting view | [front.png](front.png) | [production-front.png](../knowledge-under-islands/production-front.png) |
-| Close-up (camera zoom x2.6) | [close-up.png](close-up.png) | |
-| Quarter turn | [quarter-turn.png](quarter-turn.png) | [production-quarter-turn.png](../knowledge-under-islands/production-quarter-turn.png) |
+| Resting view | [front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/flat-islands/front.png) | [production-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-under-islands/production-front.png) |
+| Close-up (camera zoom x2.6) | [close-up.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/flat-islands/close-up.png) | |
+| Quarter turn | [quarter-turn.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/flat-islands/quarter-turn.png) | [production-quarter-turn.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-under-islands/production-quarter-turn.png) |
 
 Renderer: **headless Chromium 148.0.7778.96, ANGLE / Vulkan 1.3.0 SwiftShader**, 1440 x 960, dark
 theme, device scale 1. The seed is the committed eight-story, 58-capability snapshot of the
@@ -47,3 +47,5 @@ observation hooks; run both under `node "<checkout>/packages/dev-loop/src/heavy-
   island is still marked by the page's edge marker and name, not by its surface. The wisps and the
   worn on-island paths are untouched by this increment, except that the ground the wisps orbited
   is now flat, and the on-island worn paths (drawn into the old ground) are no longer drawn.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/flat-islands).

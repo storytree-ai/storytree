@@ -1,16 +1,22 @@
 /** Capability 4 · The planet. Live dependency roads (The drawing engine 4.16). */
-import { crossingLength, linkKey, type GrowthWindow } from './growth.js';
+import { crossingLength, linkKey, roadSegmentWindows, type GrowthWindow } from './growth.js';
 import { roadDrawSeconds, roadProgress } from './lanes.js';
 import type { PlanetPathways } from './pathways.js';
 
 /** Arrivals follow real links, so rerouting or a poll cannot restart an existing road.
  * Removing a link forgets its arrival; adding it again gives it a new one. While the plan's roads are still being
  * routed (The drawing engine 4.21) it keeps every road that finished drawing, so those are not drawn on again when they arrive;
- * one still drawing when its roads were taken away draws on afresh. */
-export function nextLiveRoads(previous: ReadonlyMap<string, GrowthWindow>, plan: PlanetPathways, elapsed: number, routing = false): ReadonlyMap<string, GrowthWindow> {
+ * one still drawing when its roads were taken away draws on afresh. A road whose spans all drew whole on `drawn`, the
+ * plan last routed, has finished drawing though its own time runs on (an earlier road shares them): it is kept, its time ended now. */
+export function nextLiveRoads(previous: ReadonlyMap<string, GrowthWindow>, plan: PlanetPathways, elapsed: number, routing = false,
+  drawn?: PlanetPathways): ReadonlyMap<string, GrowthWindow> {
   if (routing) {
-    const drawn = [...previous].filter(([, road]) => elapsed >= road.start + road.seconds);
-    return drawn.length === previous.size ? previous : new Map(drawn);
+    const windows = drawn === undefined ? undefined : roadSegmentWindows(drawn, previous);
+    const whole = (key: string) => drawn?.edges.find(edge => linkKey(edge) === key)?.segments
+      .every(ref => liveRoadProgress(windows!.get(ref.id), elapsed, false) === 1) ?? false;
+    const kept = [...previous].flatMap(([key, road]): [string, GrowthWindow][] => elapsed >= road.start + road.seconds ? [[key, road]]
+      : whole(key) ? [[key, { start: elapsed - road.seconds, seconds: road.seconds }]] : []);
+    return kept.every(([key, road]) => previous.get(key) === road) && kept.length === previous.size ? previous : new Map(kept);
   }
   const keys = new Set(plan.edges.map(linkKey));
   if (keys.size === previous.size && [...keys].every(key => previous.has(key))) return previous;

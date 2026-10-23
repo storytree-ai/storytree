@@ -26,5 +26,7 @@ Both builds log one page error from the capture's stand-in bridge (`reading 'cho
 
 | | before | after |
 |---|---|---|
-| The agent link selected | ![before](before-selected.png) | ![after](after-selected.png) |
-| Pointing at Agent tools | ![before](before-hover.png) | ![after](after-hover.png) |
+| The agent link selected | ![before](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/capability-names/before-selected.png) | ![after](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/capability-names/after-selected.png) |
+| Pointing at Agent tools | ![before](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/capability-names/before-hover.png) | ![after](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/capability-names/after-hover.png) |
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/capability-names).

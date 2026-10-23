@@ -297,6 +297,24 @@ test("8.28 a '#' specifier the importing package's package.json imports field na
   assert.deepEqual(survey.files.map(({ path, capability }) => [path, capability]), [["src/parts/tools.ts", "cap-tools"], ["src/parts/other.ts", undefined]]);
 });
 
+test("8.34 a test file's literal new URL entry point inside an entryPoints array is an ordinary import of the file it names; a URL elsewhere reaches nothing", () => {
+  const tree = [
+    { path: "src/view/view.ts", text: 'import { palette } from "./styles.js";\nexport const view = palette;\n' },
+    { path: "src/view/styles.ts", text: "export const palette = 1;\n" },
+    { path: "src/view/script.ts", text: "export const script = 1;\n" },
+    { path: "src/view/view.test.ts", text: [
+      'import { fileURLToPath } from "node:url";',
+      'const page = bundled({ entryPoints: [fileURLToPath(new URL("./view.ts", import.meta.url))] });',
+      'const other = spawn(fileURLToPath(new URL("./script.ts", import.meta.url)));',
+      'test("4.2 the view draws in the browser", () => [page, other]);',
+    ].join("\n") },
+  ];
+  const survey = surveyStory(tree, [{ id: "cap-view", title: "4 · View" }], {}, "site");
+  assert.deepEqual(survey.files.map(({ path, capability }) => [path, capability]), [
+    ["src/view/view.ts", "cap-view"], ["src/view/styles.ts", "cap-view"], ["src/view/script.ts", undefined],
+  ]);
+});
+
 test("8.14 a test file that runs an imported behaviour suite carries the suite's numbered titles, for its proofs and its reach; comments and a file that registers no tests credit nothing", () => {
   const suite = [
     'import { test } from "node:test";',

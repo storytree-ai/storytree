@@ -7,10 +7,10 @@ the owner to judge; nothing here is recorded as accepted (ADR-0794).
 
 | View | Picture |
 | --- | --- |
-| Resting view | [front.png](front.png) (the densest island, The agent link, is already near the centre: [densest-resting.png](densest-resting.png) is the same view after facing it) |
-| Close-up (camera zoom x2.6) on the densest island | [close-up.png](close-up.png) |
-| After clicking a territory: the panel open on that capability | [click-territory.png](click-territory.png) (close-up), [click-territory-resting.png](click-territory-resting.png) (resting zoom) |
-| Diagnostic: the island whose territories reach furthest past its coast | [worst-outside-close-up.png](worst-outside-close-up.png) |
+| Resting view | [front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territories/front.png) (the densest island, The agent link, is already near the centre: [densest-resting.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territories/densest-resting.png) is the same view after facing it) |
+| Close-up (camera zoom x2.6) on the densest island | [close-up.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territories/close-up.png) |
+| After clicking a territory: the panel open on that capability | [click-territory.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territories/click-territory.png) (close-up), [click-territory-resting.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territories/click-territory-resting.png) (resting zoom) |
+| Diagnostic: the island whose territories reach furthest past its coast | [worst-outside-close-up.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territories/worst-outside-close-up.png) |
 
 Renderer: headless Chromium 148, ANGLE / Vulkan SwiftShader, 1440 x 960, dark theme, device scale 1.
 Seed: the eight-story, 58-capability snapshot of `../knowledge-under-islands` (same as
@@ -68,6 +68,8 @@ Full numbers are in [measurements.json](measurements.json).
 ## Problems seen
 
 - The first capture's spill past concave coasts is fixed (see above);
-  [worst-outside-close-up.png](worst-outside-close-up.png) is The library's west coast again, after
+  [worst-outside-close-up.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territories/worst-outside-close-up.png) is The library's west coast again, after
   the fix. Nothing else seen: no z-fighting (territories sit 0.05 above the ground with `depthWrite`
   off), and clicks select correctly.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/territories).

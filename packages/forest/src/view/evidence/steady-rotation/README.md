@@ -15,12 +15,14 @@ Under each frame: the tilt from straight down, and how far right of the middle t
 
 Before (main at `ad89a6d8`): the near edge goes left until level, then turns back.
 
-![before](drag-before.png)
+![before](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/steady-rotation/drag-before.png)
 
 After: the near edge keeps going right all the way.
 
-![after](drag-after.png)
+![after](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/steady-rotation/drag-after.png)
 
 Drawn by the actual desktop page, 1440 × 960, dark theme, headless Chromium (SwiftShader), from the same read-only snapshot
 of storytree's own library as `../glass-table/`. Each frame is a real right-drag of the mouse; `measurements.json` holds
 both runs. The tilt's stall as it passes level is its own increment (`increment_057d5c0cb2be`).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/steady-rotation).

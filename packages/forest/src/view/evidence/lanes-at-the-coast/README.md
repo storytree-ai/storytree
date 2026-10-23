@@ -13,8 +13,8 @@ The map and Keys, then The library clicked. Same seed, turn and click for both b
 
 | | Before | After |
 | --- | --- | --- |
-| The library selected: 18 lanes (1 up, to Keys; 17 down, from The map, The command line, The agent link and The knowledge core) | [before-library-selected.png](before-library-selected.png) | [after-library-selected.png](after-library-selected.png) |
-| Close-up at the library's dock of the road carrying the most lit lanes (17 down lanes share it), zoomed to just short of where the globe changes to the library's notes | [before-shared-trunk.png](before-shared-trunk.png) | [after-shared-trunk.png](after-shared-trunk.png) |
+| The library selected: 18 lanes (1 up, to Keys; 17 down, from The map, The command line, The agent link and The knowledge core) | [before-library-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-at-the-coast/before-library-selected.png) | [after-library-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-at-the-coast/after-library-selected.png) |
+| Close-up at the library's dock of the road carrying the most lit lanes (17 down lanes share it), zoomed to just short of where the globe changes to the library's notes | [before-shared-trunk.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-at-the-coast/before-shared-trunk.png) | [after-shared-trunk.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-at-the-coast/after-shared-trunk.png) |
 
 The JSON beside each picture gives every lane mesh and how far each of its ends sits from the nearest end of a road
 between islands. Before, ends lay up to 103 ground units away, inland at capabilities. After, every end lies 0.12 from
@@ -37,3 +37,5 @@ node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/s
 Each run builds the desktop page of its checkout with `buildCapture` into ignored `dist/`. Without `--retake`, the
 output goes to a scratch folder. To refresh the seed, run `tsx seed.mts` in this folder. It reads the library and
 writes nothing to it.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-at-the-coast).

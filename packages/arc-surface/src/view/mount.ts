@@ -11,14 +11,17 @@ import { renderBoard, renderHandle, renderSizeControl, sizeControl } from "./ren
 import { readPreferences, restorePick, writePreferences } from "./preferences.js";
 
 export interface ArcSurface { open(): void; close(): void; stop(): void }
-/** A nonmodal top drawer: its host and the forest below keep receiving input. */
-export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading }): ArcSurface {
+/**
+ * A nonmodal top drawer: its host and the forest below keep receiving input. `onFreshDraw` is told once, when the drawer
+ * first draws a board read fresh since this mount (3.18), which the app times from its start.
+ */
+export function mountArcSurface(host: HTMLElement, options: { project: string; reads: BoardReads; timers?: Timers; reading?: PageReading; onFreshDraw?: () => void }): ArcSurface {
   const root = document.createElement("div");
   root.className = "arc-surface-mount";
   const saved = readPreferences(options.project);
   // 3.10: expanded, the drawer fills the window below the two bars; the stylesheet reads it from the drawer.
   let expanded = saved.expanded === true;
-  root.innerHTML = `${renderHandle(options.project, false)}<section id="arc-drawer" class="arc-overlay" aria-label="Arc surface" data-expanded="${expanded}" hidden>${renderHandle(options.project, true)}${renderSizeControl(expanded)}<div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
+  root.innerHTML = `${renderHandle(options.project, false)}<section id="arc-drawer" class="arc-overlay" aria-label="Arc surface" data-surface-id="arcs" data-surface-layer="overlay" data-expanded="${expanded}" hidden>${renderHandle(options.project, true)}${renderSizeControl(expanded)}<div class="arc-status" role="status"></div><div class="arc-body"></div></section>`;
   host.append(root);
   const launch = root.querySelector<HTMLButtonElement>("[data-open-arcs]")!;
   const drawer = root.querySelector<HTMLElement>(".arc-overlay")!;
@@ -44,6 +47,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
   function draw(next: BoardState, preservePosition = true): void {
     const sameScope = state?.board?.scope === next.board?.scope;
     state = next;
+    const firstFresh = next.status === "ready" && !readFresh;
     if (next.status === "ready") readFresh = true;
     drawer.dataset.arcState = next.status;
     status.textContent = next.status === "loading" ? "Reading arcs…" : next.status === "refreshing" ? "Showing the arcs as last read. Refreshing…"
@@ -72,6 +76,7 @@ export function mountArcSurface(host: HTMLElement, options: { project: string; r
       increments: [...new Set([...body.querySelectorAll<HTMLElement>("[data-increment-id]")].map((node) => node.dataset.incrementId!))],
       holders: [...body.querySelectorAll<HTMLElement>("[data-agent-session]")].map((node) => ({ work: node.dataset.workId!, session: node.dataset.agentSession!, label: node.dataset.agentLabel! })),
     });
+    if (firstFresh) options.onFreshDraw?.();
   }
   const surface: ArcSurface = {
     open() {

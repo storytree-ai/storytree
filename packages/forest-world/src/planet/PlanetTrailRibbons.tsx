@@ -160,8 +160,10 @@ export function Pathways({ plan, reveal, live = false, visible = true, routing =
     new Map(plan.edges.map(edge => [linkKey(edge), { start: 0, seconds: 1 }]))), [plan]);
   const liveClock = useRef({ elapsed: 0, started: false, reduced: reducedMotion(), roads: new Map<string, GrowthWindow>() as ReadonlyMap<string, GrowthWindow> });
   const state = liveClock.current;
+  // The plan last routed: what the roads were drawn on before a moved layout took them away to route again.
+  const routed = useRef(plan);
   if (live) {
-    const next = nextLiveRoads(state.roads, plan, state.elapsed, routing);
+    const next = nextLiveRoads(state.roads, plan, state.elapsed, routing, routed.current);
     if (next !== state.roads) {
       // A new arrival gets an undrawn first frame even after a long idle interval.
       if ([...next.keys()].some(key => !state.roads.has(key))) state.started = false;
@@ -169,6 +171,7 @@ export function Pathways({ plan, reveal, live = false, visible = true, routing =
       state.reduced = reducedMotion();
     }
   }
+  if (!routing) routed.current = plan;
   const windows = useMemo(() => live ? roadSegmentWindows(plan, state.roads) : reveal, [plan, live, state.roads, reveal]);
   const meshes = useMemo(() => plan.segments
     .map(route => {

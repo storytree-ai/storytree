@@ -8,3 +8,5 @@
   - `red-add-project.txt`: the add-project action missing before the change.
   - `capture.mjs`: the built desktop renderer headless, with the app setup's real add-project action on a throwaway Postgres and a scripted folder (`My Second Site`) standing in for the native picker. It asserts the button is in Projects, the added project is shown and both are selectable, and that adding the same folder again creates nothing. Pictures: `projects-add-button.png`, `projects-after-add.png`, `help-add-a-project.png` (the guide's three ways). The Electron `dialog.showOpenDialog` itself is not driven here.
 - Live check on the Windows laptop (v0.3.271): `live/README.md`. The installer's folder step and Add project with the real folder dialog passed; the two real Claude Code sessions were not run because Claude Code there is signed out.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/project-folder).

@@ -14,11 +14,11 @@ without edges i would just position them spread out creating a sea floor."
 
 | | Before (the pool, from `packages/forest/src/view/evidence/glass-library-look/`) | After |
 | --- | --- | --- |
-| From above (40°) | ![](../../../../../forest/src/view/evidence/glass-library-look/library-above.png) | ![](library-above.png) |
-| Side on (85°) | ![](../../../../../forest/src/view/evidence/glass-library-look/library-side-on.png) | ![](library-side-on.png) |
-| From below (140°) | ![](../../../../../forest/src/view/evidence/glass-library-look/library-below.png) | ![](library-below.png) |
+| From above (40°) | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-library-look/library-above.png) | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/src/view/evidence/sea-floor/library-above.png) |
+| Side on (85°) | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-library-look/library-side-on.png) | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/src/view/evidence/sea-floor/library-side-on.png) |
+| From below (140°) | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-library-look/library-below.png) | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/src/view/evidence/sea-floor/library-below.png) |
 
-One note between two islands, ringed: ![](library-above-between.png) "Friction drains at every landing" (decision_13a84b8340ca),
+One note between two islands, ringed: ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/src/view/evidence/sea-floor/library-above-between.png) "Friction drains at every landing" (decision_13a84b8340ca),
 pulled toward both The librarian and The agent link.
 
 | | Before | After |
@@ -40,4 +40,6 @@ read-only snapshot of storytree's library, 2026-10-16, the floor held 41 notes o
 every kind) and 22 after (97). `library-below-after-pass.png` is the after picture, drawn from below (140°) by `capture.mjs` on that
 snapshot. The committed seed is unchanged, so `--retake` redraws the pictures above, not this one.
 
-![](library-below-after-pass.png)
+![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/src/view/evidence/sea-floor/library-below-after-pass.png)
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/src/view/evidence/sea-floor).

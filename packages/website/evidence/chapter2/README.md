@@ -8,11 +8,11 @@ The saved project and 287 recorded events remain unchanged. Playback compresses 
 
 | View | Desktop | 390 px |
 | --- | --- | --- |
-| Busy globe and opening problem | [1440](1440-busy.png) | [390](390-busy.png) |
-| Capability territories | [1440](1440-capabilities.png) | [390](390-capabilities.png) |
-| Read-only free play | [1440](1440-freeplay.png) | [390](390-freeplay.png) |
+| Busy globe and opening problem | [1440](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2/1440-busy.png) | [390](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2/390-busy.png) |
+| Capability territories | [1440](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2/1440-capabilities.png) | [390](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2/390-capabilities.png) |
+| Read-only free play | [1440](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2/1440-freeplay.png) | [390](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2/390-freeplay.png) |
 
-Also captured: [sourced comparison](390-comparison.png), [no WebGL](390-no-webgl.png), [reduced motion](390-reduced-motion.png), and [no script](390-no-script.png). Phone text, controls, contrast and stacking were inspected; the camera remains an interactive app drawing. A no-script visitor receives the static opening and contact path, while no-WebGL visitors retain the guided text and app reading panels.
+Also captured: [sourced comparison](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2/390-comparison.png), [no WebGL](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2/390-no-webgl.png), [reduced motion](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2/390-reduced-motion.png), and [no script](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2/390-no-script.png). Phone text, controls, contrast and stacking were inspected; the camera remains an interactive app drawing. A no-script visitor receives the static opening and contact path, while no-WebGL visitors retain the guided text and app reading panels.
 
 ## Observed red, then green
 
@@ -33,3 +33,5 @@ flock /tmp/storytree-heavy.lock node packages/website/evidence/capture.mjs chapt
 Comparison copy follows the durable research (`definition_b0b80acc7330`, linked from ADR-0857); its primary sources were rechecked on 2026-10-03. CodeScene receives credit for hotspots and change coupling. The settled owner answer remains settled, with no claim that Storytree ships those views or that a trial is part of this landing.
 
 No allocation tests or allocation metadata were changed. Noticeboard, open pull requests and all worktrees were inspected before write batches; no overlapping website work was found.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 43 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/chapter2).

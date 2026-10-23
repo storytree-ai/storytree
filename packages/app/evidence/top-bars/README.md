@@ -19,13 +19,13 @@ using the supplied `2026-09-28T09-15-09-235Z.json` snapshot restored into an iso
 and all-scope arc smoke verification and exits successfully. CDP captures the current
 composited viewport; Electron's own `capturePage()` sometimes retained an earlier frame.
 
-- [Closed bars](bars-closed.png)
-- [Arc drawer open](arcs-open.png)
-- [Projects](overlay-projects.png)
-- [Settings](overlay-settings.png)
-- [Updates](overlay-updates.png)
-- [Help](overlay-help.png)
-- [Narrow Settings](narrow-settings.png)
+- [Closed bars](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/bars-closed.png)
+- [Arc drawer open](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/arcs-open.png)
+- [Projects](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/overlay-projects.png)
+- [Settings](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/overlay-settings.png)
+- [Updates](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/overlay-updates.png)
+- [Help](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/overlay-help.png)
+- [Narrow Settings](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars/narrow-settings.png)
 - [Native capture state and geometry](electron-capture.json)
 
 The six wide captures are 1120 × 860. The narrow capture uses a 360 × 640 CSS viewport
@@ -97,3 +97,5 @@ contract IDs from #182, so the checklist explicitly reconciles that landing firs
 not open” from IPC polling after the successful census, during shutdown. The gear
 lane already recorded this in its README. Desktop main-process lifecycle is outside
 this lane's fence; the running browser checks report zero page errors.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 7 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/top-bars).

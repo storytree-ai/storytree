@@ -6,7 +6,8 @@
  * kind under its id (ADR-1058 D2), or retire one with its reason and
  * writer. Long text can come from a file; refusals are the library's own messages. No verb is a tool: an agent searches,
  * opens, writes and corrects artifacts with the tools the library declares beside them (notes.ts), which record its reads.
- * Beside it the list mounts capability 13's `adr` family (adr.ts, ADR-1077 D2).
+ * Capability 27's fixed data questions (`count`, `changes`, `find`) join the family from data/commands.ts, and `read`
+ * takes a decision's number in place of its id. Beside it the list mounts capability 13's `adr` family (adr.ts, ADR-1077 D2).
  *
  * - `new` hands the fields to the one library function that writes that kind, and the library
  *   judges them. A new contract skips the numbers its story package's tests carry, and one whose title runs past
@@ -29,6 +30,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import { ANCHOR_ID, CONTRACT_DEFINITION, LONG_CONTRACT_TITLE, SchemaError, type KnowledgeKind, type Library, type PendingChange, type PhraseKind, type PlanChange, type RecordType, type WriteOptions } from "../index.js";
 import { fieldValue, verb, VerbRefusal, type VerbContext, type VerbFamily } from "../verbs/verb.js";
+import { changes, count, decisionNamed, find } from "../data/commands.js";
 import { ADR_FAMILY } from "./adr.js";
 
 /** A claim as the door reads it: the session holding it, the increment or capability it is for, and since when. */
@@ -281,7 +283,7 @@ function wholeRecord(record: Stored): string {
 }
 
 const read = verb({
-  command: { family: "library", name: "read", summary: "records, whole, in one start (--linked adds the records their id lists name); or one record's field exactly as stored", usage: "library read <id> [<id>…] [--linked] [--field <name>]" },
+  command: { family: "library", name: "read", summary: "records, whole, in one start (--linked adds the records their id lists name); or one record's field exactly as stored", usage: "library read <id|decision number> [<id>…] [--linked] [--field <name>]" },
   tool: NOT_A_TOOL,
   inputs: {
     ids: { kind: "text", word: 0, many: true, optional: true, describe: "the records' ids" },
@@ -290,7 +292,8 @@ const read = verb({
   },
   async act({ ids: given, linked: withLinked, field }, context: LibraryVerbContext) {
     needed(given[0], "the record's id");
-    const ids = [...new Set(given)];
+    // A decision may be named by its number (1103 or ADR-1103), capability 27's lookup.
+    const ids = [...new Set(await Promise.all(given.map(async (id) => (await decisionNamed(context.library, id)) ?? id)))];
     const library = context.library;
     const records = await Promise.all(ids.map((id) => library.get(id)));
     const missing = ids.filter((_, index) => records[index] === null);
@@ -499,5 +502,5 @@ export const LIBRARY_FAMILIES: readonly VerbFamily<LibraryVerbContext>[] = [{
   summary: "read, search and write the project's records",
   order: 1,
   guesses: { show: "library read <id>", get: "library read <id>", open: "library read <id>", view: "library read <id>", pull: "library read <id>", artifact: "library read <id>" },
-  verbs: [search, phrase, links, related, create, read, edit, refile, retire, list, history],
+  verbs: [search, phrase, links, related, create, read, edit, refile, retire, list, history, count, changes, find],
 }, ADR_FAMILY];

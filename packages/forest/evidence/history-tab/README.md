@@ -14,3 +14,5 @@ Run: `node ../sessions-list/build.mjs && node --import tsx capture.mjs --retake`
 
 The capture asserts that the globe above the strip is pixel-identical before and after opening History and after
 choosing a range (7.22), and that clicking the selected row again lets the selection go (7.23).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/history-tab).

@@ -28,7 +28,7 @@ already used it without changing views, so it needs no edit in this landing.
 
 ## Result
 
-![The seeded globe with no view switch](seeded-globe-only.png)
+![The seeded globe with no view switch](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-only/seeded-globe-only.png)
 
 Renderer: **headless Chromium 148.0.7778.96, ANGLE / Vulkan SwiftShader Device
 (Subzero)**. This is an untouched 1440 × 960 PNG, dark theme, device scale 1.
@@ -59,3 +59,5 @@ seeding and export. `PLANET_PLAYWRIGHT` names the installed playwright-core
 Seed, export, Chromium and verification commands held `/tmp/storytree-heavy.lock`
 with `flock`. This is a record of that run, not a reproducible recipe on current
 main; use the linked Forest/Library recipe for current evidence.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 1 picture, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-only).

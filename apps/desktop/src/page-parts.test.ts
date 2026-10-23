@@ -25,6 +25,9 @@ import pageChannels from "./parts/page-channels.js";
 import { createBridge } from "./bridge.js";
 import { answerPageParts } from "./page-operations.js";
 
+/** The feedback corner's side of the frame, which these tests do not use: nothing declared, no library, no window. */
+const NO_FEEDBACK = { declaredSurfaces: [], server: () => undefined, captureWindow: async () => undefined };
+
 test("1.18 a story's page operations its package's manifest names are answered in the main process and offered to the page, the frame naming no story: a lag reading the page sends is kept in the app's home, stamped with the app's version", async (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "storytree-page-parts-"));
   t.after(() => rmSync(home, { recursive: true, force: true }));
@@ -35,6 +38,7 @@ test("1.18 a story's page operations its package's manifest names are answered i
     library: () => { throw new Error("the library is not open"); },
     treeRead: () => undefined,
     surveyWorker: path.join(home, "survey-worker.cjs"),
+    ...NO_FEEDBACK,
   });
 
   assert.equal(import.meta.resolve("#parts/pageAnswers"), new URL("./main/parts/page-answers.ts", import.meta.url).href, "the app's #parts/pageAnswers is its composing module");
@@ -63,6 +67,7 @@ test("1.18 the settings panel's page operations its manifest names are answered 
     library: () => { throw new Error("the library is not open"); },
     treeRead: () => undefined,
     surveyWorker: path.join(home, "survey-worker.cjs"),
+    ...NO_FEEDBACK,
   });
 
   const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args));
@@ -95,6 +100,7 @@ test("1.18 the forest's code survey its manifest names is answered from what the
     }),
     treeRead: (project) => project === "shop" ? tree : undefined,
     surveyWorker,
+    ...NO_FEEDBACK,
   });
 
   const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args));
@@ -113,6 +119,7 @@ test("1.20 the page operations of a part this computer switches off are not answ
     library: () => { throw new Error("the library is not open"); },
     treeRead: () => undefined,
     surveyWorker: path.join(home, "survey-worker.cjs"),
+    ...NO_FEEDBACK,
   }, ["app"]);
 
   const page = createBridge(async (channel, ...args) => handlers.get(channel)!({}, ...args));

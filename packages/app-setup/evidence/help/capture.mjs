@@ -21,7 +21,7 @@ const { pageReads, projectSelection } = await import(desktop.resolve('@storytree
 const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? 'playwright-core');
 const out = process.env.STORYTREE_HELP_OUT ?? path.join(root, 'packages/app-setup/evidence/help/capture');
 mkdirSync(out, { recursive: true });
-assert.equal(spawnSync(process.execPath, ['apps/desktop/build.mjs'], { cwd: root, stdio: 'inherit' }).status, 0);
+assert.equal(spawnSync(process.execPath, ['--import', 'tsx', 'apps/desktop/build.mjs'], { cwd: root, stdio: 'inherit' }).status, 0);
 const home = mkdtempSync(path.join(tmpdir(), 'storytree-help-'));
 const licenseFile = path.join(home, 'LICENSE');
 const license = readFileSync(path.join(root, 'LICENSE'), 'utf8');

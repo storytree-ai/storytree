@@ -8,13 +8,14 @@
 // connection's own database beside the projects (contract 7.7). The package exports
 // nothing but this entry, so the internals behind it cannot be imported at all.
 export { connect } from "./api/index.js";
-export type { Change, Changes, Library, Storytree } from "./api/index.js";
+export type { Change, Changes, FeedbackNote, Library, Storytree } from "./api/index.js";
 export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, OwnDatabaseOptions, ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./project/index.js";
 
 export { ConnectionError, connectionString, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
 export { knowledgeGuidance, LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
+export type { Counts, KindCount, RecentChange, TitleHit } from "./data/data-questions.js";
 export { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, SchemaError, UnknownTypeError } from "./schema/index.js";
 

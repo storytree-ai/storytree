@@ -12,10 +12,10 @@ Nothing visible changed. The same four views, before (main at 40cde6b9) and afte
 
 | View | Before | After |
 |---|---|---|
-| The app's forest page, Stories, 1440×960 | [before](before-app-stories.png) | [after](after-app-stories.png) |
-| The app's forest page, Library, 1440×960 | [before](before-app-library.png) | [after](after-app-library.png) |
-| The website's free play, 1440×900 | [before](before-website-1440.png) | [after](after-website-1440.png) |
-| The website's free play, 390×844 | [before](before-website-390.png) | [after](after-website-390.png) |
+| The app's forest page, Stories, 1440×960 | [before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-retired/before-app-stories.png) | [after](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-retired/after-app-stories.png) |
+| The app's forest page, Library, 1440×960 | [before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-retired/before-app-library.png) | [after](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-retired/after-app-library.png) |
+| The website's free play, 1440×900 | [before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-retired/before-website-1440.png) | [after](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-retired/after-website-1440.png) |
+| The website's free play, 390×844 | [before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-retired/before-website-390.png) | [after](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-retired/after-website-390.png) |
 
 Sizes ([before](before-sizes.txt), [after](after-sizes.txt)):
 
@@ -31,3 +31,5 @@ Sizes ([before](before-sizes.txt), [after](after-sizes.txt)):
 
 The app pictures are drawn by the actual desktop page from the read-only snapshot glass-sheet-tilt/ used (`capture.mjs`);
 the website's by the built site skipped to free play (`capture-website.mjs`). Both scripts say how to run them.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 8 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/globe-retired).

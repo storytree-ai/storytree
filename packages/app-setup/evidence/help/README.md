@@ -38,12 +38,12 @@ checkout. Browser acceptance is additional to the regular node tests, not a new 
 
 ## Pictures for review
 
-- [First launch without a project](capture/first-run.png)
-- [Public setup diagnostics](capture/diagnostics.png)
-- [License while offline](capture/offline-license.png)
-- [Feedback draft opened](capture/feedback-draft.png)
-- [First forest](capture/first-project.png) and [second forest](capture/second-project.png)
-- [Minimum window](capture/small-window.png) and [library failure, dark theme](capture/library-error-dark.png)
+- [First launch without a project](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/help/capture/first-run.png)
+- [Public setup diagnostics](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/help/capture/diagnostics.png)
+- [License while offline](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/help/capture/offline-license.png)
+- [Feedback draft opened](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/help/capture/feedback-draft.png)
+- [First forest](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/help/capture/first-project.png) and [second forest](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/help/capture/second-project.png)
+- [Minimum window](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/help/capture/small-window.png) and [library failure, dark theme](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/help/capture/library-error-dark.png)
 
 Geometry and actions were checked by the capture. These pictures are supplied for the owner's
 visual review; this lane does not attest the owner's acceptance of the appearance.
@@ -79,3 +79,5 @@ It adds the package importer and desktop workspace link, without changing depend
 Local checks used `pnpm install --lockfile=false` to install workspace links without crossing the
 fence. The patch is ready for review/application if the fence is expanded. This is an integration
 blocker, not a passing frozen-install result.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 8 pictures, each one's last copy kept in git history at [`capture/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/help/capture) (8).

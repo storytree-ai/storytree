@@ -26,7 +26,8 @@ try {
     await page.goto(origin);
     await page.evaluate(() => window.proof.mount(true));
     // Let the real viewport observer finish its initial resume before taking over the clock.
-    await page.waitForFunction(() => window.proof.ready() && window.proof.frameloop() === 'demand');
+    // The first draw on a loaded Windows runner can take longer than Playwright's 30 s default.
+    await page.waitForFunction(() => window.proof.ready() && window.proof.frameloop() === 'demand', null, { timeout: 60_000 });
     await page.evaluate(() => window.proof.freeze());
     const frame = async delta => page.evaluate(delta => {
       window.proof.frame(delta);

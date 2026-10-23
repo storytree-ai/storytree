@@ -69,6 +69,8 @@ const QUIET: StorytreeBridge = {
   setSignIn: async () => ({ available: false, on: false }),
   readInstallChoice: async () => ({ available: false, choice: { mode: "quiet" } }),
   setInstallChoice: async () => { throw new Error("a capture's stand-in bridge keeps no install choice"); },
+  readReleaseChannel: async () => ({ available: false, channel: "stable" }),
+  setReleaseChannel: async () => { throw new Error("a capture's stand-in bridge keeps no release channel"); },
   readSetupLicense: async () => "",
   agentConnections: async () => [],
   checkSetupFolder: async () => null,
@@ -105,8 +107,12 @@ const QUIET: StorytreeBridge = {
   standingDelegations: async () => undefined,
   codeSurvey: async () => ({}),
   recordLag: async () => {},
+  feedbackSetup: async () => ({ offered: false, surfaces: [] }),
+  captureForFeedback: async () => undefined,
+  sendFeedback: async () => { throw new Error("a capture's stand-in bridge writes no feedback"); },
   // Data, not a method: a capture mounts no factory plugin's views.
   pluginViews: [],
+  startMark: async () => {},
 };
 
 /** A fake bridge answering with `answers`, and with the quiet answers for the rest, typed against the desktop app's own bridge. */

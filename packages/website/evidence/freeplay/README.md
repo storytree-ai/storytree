@@ -14,11 +14,11 @@ allocation metadata, waitlist promise or storage behavior.
 
 ## Pictures
 
-- [Desktop exit while browsing](1440-exit.png)
-- [Phone exit and readable arc choices](390-exit.png)
-- [Desktop free-play surfaces](1440-freeplay.png)
-- [Phone free-play surfaces](390-freeplay.png)
-- [Phone without WebGL](390-no-webgl.png)
+- [Desktop exit while browsing](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/freeplay/1440-exit.png)
+- [Phone exit and readable arc choices](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/freeplay/390-exit.png)
+- [Desktop free-play surfaces](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/freeplay/1440-freeplay.png)
+- [Phone free-play surfaces](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/freeplay/390-freeplay.png)
+- [Phone without WebGL](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/freeplay/390-no-webgl.png)
 
 The exit pictures are viewport captures. The other pictures capture the full
 chapter, so a fixed exit appears at the position of the viewport during capture.
@@ -54,3 +54,5 @@ On the shared Mint box, each build, capture and gate runs under
 boundaries, workspace typecheck and plan edges. Guidance is not run because no
 role or supporting guidance record changed. The test-ratio report is read, not
 used as a gate.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/freeplay).

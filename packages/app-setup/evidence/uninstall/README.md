@@ -66,3 +66,5 @@ the start; Codex's `config.toml` identical apart from its storytree table now be
 `Uninstall Proof Project`, both backups and this run's working folder were deleted, except one log,
 `C:\Users\mickh\st-uninstall\restore.stdout.txt`: the app started by the restore install holds it open, and it can be
 deleted once the app restarts. No scheduled tasks are left.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [`run/roundA/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/uninstall/run/roundA) (3).

@@ -46,8 +46,8 @@ six-story seed from before that unrelated addition; this lane changes no
 story files. The supervisor can refresh the app screenshot after that seed
 issue is corrected.
 
-- [Opening view beside the flat canvas](evidence/seeded-globe.png)
-- [After dragging, zooming and turning](evidence/seeded-globe-turned.png)
+- [Opening view beside the flat canvas](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/src/planet/evidence/seeded-globe.png)
+- [After dragging, zooming and turning](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/src/planet/evidence/seeded-globe-turned.png)
 - [Renderer and interaction measurements](evidence/capture.json)
 
 Renderer: headless Chromium, ANGLE / Vulkan SwiftShader Device (Subzero).

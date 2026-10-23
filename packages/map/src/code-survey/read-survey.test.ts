@@ -14,6 +14,7 @@ import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
 import { capabilitiesOfFiles, codeSurveyReader, offThreadSurveyReader, readCodeSurvey, testedNumbers, untestedContracts } from "./read-survey.js";
 import { focusProject } from "../read.js";
+import { importedSource } from "./survey-source.js";
 // 8.16 runs this module on a worker thread; imported here, with no parent port, it answers nothing.
 import "./survey-worker.js";
 
@@ -603,6 +604,84 @@ test("8.11 an unreachable origin with no fetched main fails instead of presentin
     git("init", "-b", "main");
     git("remote", "add", "origin", path.join(folder, "missing.git"));
     await assert.rejects(codeSurveyReader().read(folder, tree), /merged.*origin\/main/i);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("8.35 the survey's Git runs no program its repository's settings name, and its fetch of main is skipped, with the reason, when those settings name an upload program, an ssh command or a credential helper", async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), "code-survey-config-"));
+  const checkout = path.join(folder, "checkout");
+  const other = path.join(folder, "other");
+  const origin = path.join(folder, "origin.git");
+  const marker = path.join(folder, "ran.txt").replaceAll("\\", "/");
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: "pipe", windowsHide: true }).trim();
+  const commit = (cwd: string) => {
+    git(cwd, "add", ".");
+    git(cwd, "-c", "user.name=Survey test", "-c", "user.email=survey@example.test", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "fixture");
+  };
+  const land = async (lines: number) => {
+    await writeFile(path.join(other, "packages/shop/src/claim.ts"), Array.from({ length: lines }, (_, at) => `export const line${at} = ${at};\n`).join(""));
+    commit(other);
+    git(other, "push", "--quiet", "origin", "main");
+  };
+  const ran = () => readFile(marker, "utf8").catch(() => "");
+  const claimLines = async (reading: Promise<Record<string, StorySurvey>>) => (await reading)["story-shop"]?.files[0]?.lines;
+  try {
+    // Each program the checkout's settings could start writes its name to the marker.
+    const script = async (name: string, tail = "") => {
+      const file = path.join(folder, `${name}.sh`);
+      await writeFile(file, `#!/bin/sh\necho ${name} >> "${marker}"\n${tail}`);
+      await chmod(file, 0o755);
+      return file.replaceAll("\\", "/");
+    };
+    const hooks = path.join(folder, "hooks");
+    await mkdir(hooks);
+    for (const hook of ["reference-transaction", "post-index-change", "post-checkout"]) {
+      await writeFile(path.join(hooks, hook), `#!/bin/sh\necho ${hook} >> "${marker}"\n`);
+      await chmod(path.join(hooks, hook), 0o755);
+    }
+    await mkdir(path.join(checkout, "packages/shop/src"), { recursive: true });
+    await writeFile(path.join(checkout, "packages/shop/src/claim.ts"), "export const claim = 1;\n");
+    git(folder, "init", "--quiet", "--bare", "-b", "main", origin);
+    git(checkout, "init", "--quiet", "-b", "main");
+    git(checkout, "remote", "add", "origin", origin);
+    commit(checkout);
+    git(checkout, "push", "--quiet", "origin", "main");
+    git(folder, "clone", "--quiet", origin, other);
+    git(checkout, "config", "core.fsmonitor", await script("fsmonitor"));
+    git(checkout, "config", "core.hooksPath", hooks.replaceAll("\\", "/"));
+    await writeFile(path.join(checkout, "packages/shop/src/local.ts"), "export const local = 1;\n");
+    await land(2);
+
+    const reader = codeSurveyReader();
+    assert.equal(await claimLines(reader.read(checkout, tree)), 2, "an ordinary origin is still fetched");
+    await importedSource(checkout, file => readFile(file, "utf8"));
+    assert.equal(await ran(), "", "no hook nor file monitor ran");
+
+    let lines = 2;
+    for (const [key, value] of [["remote.origin.uploadpack", `${await script("uploadpack", 'exec git-upload-pack "$@"\n')}`],
+      ["core.sshCommand", await script("ssh")], ["credential.helper", await script("credential")]] as const) {
+      git(checkout, "config", key, value);
+      await land(++lines);
+      assert.equal(await claimLines(reader.read(checkout, tree)), 2, `${key} skips the fetch and the survey stays on the main already fetched`);
+      git(checkout, "config", "--unset", key);
+    }
+    // A command-running transport the checkout allows for itself is still refused.
+    git(checkout, "config", "protocol.ext.allow", "always");
+    git(checkout, "remote", "set-url", "origin", `ext::${(await script("ext")).replaceAll(" ", "% ")}`);
+    assert.equal(await claimLines(reader.read(checkout, tree)), 2);
+    assert.equal(await ran(), "", "nothing the settings name ran");
+
+    git(checkout, "remote", "set-url", "origin", origin);
+    assert.equal(await claimLines(reader.read(checkout, tree)), lines, "with the settings gone the fetch resumes");
+    // With no main fetched before, the refusal says why the fetch was skipped.
+    git(checkout, "update-ref", "-d", "refs/remotes/origin/main");
+    await rm(marker); // This test's own update ran the checkout's hooks.
+    git(checkout, "config", "core.sshCommand", await script("ssh"));
+    await assert.rejects(codeSurveyReader().read(checkout, tree), (error: Error) =>
+      /origin\/main/.test(error.message) && /core\.sshcommand/i.test(String((error.cause as Error | undefined)?.message)));
+    assert.equal(await ran(), "");
   } finally {
     await rm(folder, { recursive: true, force: true });
   }

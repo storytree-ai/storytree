@@ -1,6 +1,8 @@
 /** Capability 8 · Files from disk or an immutable merged Git tree; never check out over local work. */
 import { type ChildProcess, execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { lstat, readdir, realpath, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -48,9 +50,15 @@ export interface SurveySource {
 
 const execute = promisify(execFile);
 const MAX_BYTES = 64 * 1024 * 1024;
+/** No program a repository's own settings name runs: no file monitor, no hook (from a folder that never exists), no command transport. */
+const NEUTRAL = ["-c", "core.fsmonitor=false", "-c", `core.hooksPath=${path.join(tmpdir(), `storytree-no-hooks-${randomUUID()}`)}`, "-c", "protocol.ext.allow=never"];
+/** The fetch of main speaks only transports that run nothing named in the repository's settings. */
+const FETCH_PROTOCOLS = ["-c", "protocol.allow=never", ...["https", "ssh", "file", "git"].flatMap(name => ["-c", `protocol.${name}.allow=always`])];
+/** Repository settings that name a program a fetch would run; any one of them skips the fetch. */
+const FETCH_PROGRAMS = "^(remote\\.origin\\.uploadpack|core\\.sshcommand|credential\\..*helper)$";
 
 async function git(folder: string, args: string[], input?: string): Promise<Buffer> {
-  const run = execute("git", args, {
+  const run = execute("git", [...NEUTRAL, ...args], {
     cwd: folder, encoding: "buffer", maxBuffer: MAX_BYTES, windowsHide: true,
     env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "Never" },
   });
@@ -124,8 +132,16 @@ async function refresh(common: string, root: string, kept: Repository, startFrom
   });
   if (!origin) return undefined; // A local-only project keeps its primary-folder reading.
   const fetchedMain = () => gitText(common, [...args, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}"]);
-  const fetch = () => git(common, [...args, "fetch", "--quiet", "--no-tags", "--no-auto-maintenance", "--no-recurse-submodules", "--no-write-fetch-head",
-    "origin", "+refs/heads/main:refs/remotes/origin/main"]).then(() => undefined, (error: unknown) => error ?? new Error("Git fetch failed."));
+  const fetch = async () => {
+    const programs = await gitText(common, [...args, "config", "--local", "--includes", "--name-only", "--get-regexp", FETCH_PROGRAMS]).catch((error: { code?: number }) => {
+      if (error.code === 1) return "";
+      throw error;
+    }).catch((error: unknown) => error ?? new Error("Git config could not be read."));
+    if (typeof programs !== "string") return programs;
+    if (programs) return new Error(`Skipped fetching origin/main: this repository's settings name a program the fetch would run (${programs.split("\n").join(", ")}).`);
+    return git(common, [...FETCH_PROTOCOLS, ...args, "fetch", "--quiet", "--no-tags", "--no-auto-maintenance", "--no-recurse-submodules", "--no-write-fetch-head",
+      "origin", "+refs/heads/main:refs/remotes/origin/main"]).then(() => undefined, (error: unknown) => error ?? new Error("Git fetch failed."));
+  };
   let fetchError: unknown;
   // A start answers its first ask from the main already fetched and fetches meanwhile (8.27).
   const already = startFromFetched && kept.commit === undefined && kept.fetching === undefined ? await fetchedMain().catch(() => undefined) : undefined;

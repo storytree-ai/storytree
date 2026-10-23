@@ -48,8 +48,13 @@ function pullRequestsOf(root, file, head) {
 
 const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** The first source file at `head` naming `name` whole (not as the tail of a longer name), if any does. */
-function readerOf(root, head, name) {
+/**
+ * The first source file at `head` naming the recording `file`, if any does: its name quoted whole, or
+ * after its own folder's name (a same-named file in another folder is not it).
+ */
+function readerOf(root, head, file) {
+  const name = path.posix.basename(file);
+  const folder = path.posix.basename(path.posix.dirname(file));
   let hits;
   try {
     hits = lines(git(root, ["grep", "-l", "-F", "-e", name, head, "--", ...SOURCES]));
@@ -57,7 +62,7 @@ function readerOf(root, head, name) {
     if (error.status === 1) return undefined;
     throw error;
   }
-  const named = new RegExp(`(^|[^\\w.-])${escaped(name)}(?![\\w.-])`);
+  const named = new RegExp(`(?:(?:^|[^\\w.-])${escaped(folder)}/|["'\`])${escaped(name)}(?![\\w.-])`);
   return hits.map((hit) => hit.slice(head.length + 1)).sort().find((source) => named.test(git(root, ["show", `${head}:${source}`])));
 }
 
@@ -87,7 +92,7 @@ export function sweepPlan(root, arcs, { head = "HEAD" } = {}) {
   const go = [];
   const keep = [];
   for (const file of tracked.filter(isRecording).sort()) {
-    const reader = readerOf(root, head, path.posix.basename(file));
+    const reader = readerOf(root, head, file);
     if (reader !== undefined) {
       keep.push({ file, why: `${reader} reads it` });
       continue;

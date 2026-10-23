@@ -1,12 +1,42 @@
 # storytree
 
+## Official sources
+
+Storytree has two homes and no others: this repository,
+[github.com/storytree-ai/storytree](https://github.com/storytree-ai/storytree), and
+[storytree.dev](https://storytree.dev). Its maintainer is [@HuaMick](https://github.com/HuaMick).
+
+- Installers come only from this repository's
+  [Releases](https://github.com/storytree-ai/storytree/releases), through one one-liner per
+  platform. On Windows, in PowerShell:
+
+  ```powershell
+  & ([scriptblock]::Create((Invoke-RestMethod 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.ps1')))
+  ```
+
+  On a Mac or Linux, in a terminal:
+
+  ```sh
+  curl -fsSL https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.sh | sh
+  ```
+
+- Storytree is not published on npm, PyPI, Homebrew, winget, Docker Hub or any MCP registry. A
+  package there under its name is not ours.
+- Maintainers never send download links in issues, email or direct messages.
+- To check a download by hand, compare its SHA-256 with the `sha256:` digest GitHub shows beside
+  that file on the [release page](https://github.com/storytree-ai/storytree/releases):
+  `Get-FileHash <file> -Algorithm SHA256` in PowerShell, `shasum -a 256 <file>` on a Mac,
+  `sha256sum <file>` on Linux. The one-liners make this check for you.
+
+To report a security problem, see [SECURITY.md](SECURITY.md).
+
 ## Install
 
 You need Windows x64 (an arm64 build is included but not yet tested) and Claude Code or Codex,
 installed and signed in. In Windows PowerShell (5.1+) or PowerShell 7, run:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))
+& ([scriptblock]::Create((Invoke-RestMethod 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.ps1')))
 ```
 
 It installs the app and opens it. Then open **Help → First-run guide** in the app to connect your
@@ -101,6 +131,8 @@ steps:
 If storytree shows you an error, ask your agent to submit a GitHub issue on this repository,
 [`storytree-ai/storytree`](https://github.com/storytree-ai/storytree/issues), and it will be worked
 on. That is the current workflow; the desktop app's error box says the same (ADR-1119).
+A security problem is the exception: report it privately, as [SECURITY.md](SECURITY.md) says, never
+in a public issue.
 
 ## Where this stands
 

@@ -1,7 +1,7 @@
 {
   "name": "storytree",
   "private": true,
-  "license": "PolyForm-Shield-1.0.0",
+  "license": "Apache-2.0",
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "engines": {

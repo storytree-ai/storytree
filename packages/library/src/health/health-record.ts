@@ -162,9 +162,9 @@ export interface PendingRun {
 
 /**
  * How long a pending mark holds: the Own health job's own time limit (.github/workflows/own-health.yml's
- * 45 minutes), so a run that died without recording holds nothing after it.
+ * 90 minutes), so a run that died without recording holds nothing after it.
  */
-export const PENDING_FOR = 45 * 60 * 1000;
+export const PENDING_FOR = 90 * 60 * 1000;
 
 /** The newest commit on main that changed a story's code, and when it was committed (an ISO 8601 timestamp). */
 export interface ChangedOnMain {
@@ -174,10 +174,10 @@ export interface ChangedOnMain {
 
 /**
  * How long a commit to main holds back its story's capabilities before its own-health run records
- * them: CI's 35 minutes (.github/workflows/ci.yml), then the Own health job's 5 and 45, plus the 5 its
+ * them: CI's 35 minutes (.github/workflows/ci.yml), then the Own health job's 5 and 90, plus the 5 its
  * automerge may take to start it. A run that failed or never started holds nothing after it.
  */
-export const MERGE_WAITS_FOR = 90 * 60 * 1000;
+export const MERGE_WAITS_FOR = 135 * 60 * 1000;
 
 /** Fetched origin/main's newest commit, when it was committed, and the contracts its tests name by number. */
 export interface NamedOnMain extends ChangedOnMain {

@@ -38,7 +38,10 @@ try {
   }
 
   const electron = createRequire(path.join(desktop, "package.json"))("electron");
-  const args = [desktop, "--smoke", "--stress", STRESS_ROUNDS, "--screenshot", screenshot, "--no-sandbox", ...process.argv.slice(2)];
+  // A runner has no GPU: Chromium draws with SwiftShader, as the settings panel's Electron capture does, or capturing the
+  // page fails (UnknownVizError).
+  const software = ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"];
+  const args = [desktop, "--smoke", "--stress", STRESS_ROUNDS, "--screenshot", screenshot, "--no-sandbox", ...software, ...process.argv.slice(2)];
   code = await new Promise((resolve, reject) => {
     const child = spawn(electron, args, { stdio: "inherit", env: { ...process.env, STORYTREE_HOME: home } });
     child.on("error", reject);

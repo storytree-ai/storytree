@@ -14,3 +14,5 @@ On the shop, Find lists the shop's islands and notes. The story panel, the arcs 
 Phone: on the shop, the globe's nameplate layout pushes several names away from their islands at 390 px. This is the defect parked on the arc from increment_24f45ba457c7, in packages/forest.
 
 Browser journeys: `--verify-tour` (2.6 and 2.13 without WebGL: opens on the shop, its still hidden and storytree's sessions not shown, then switches to storytree and opens a story, a note, the arcs and the sessions) and `--verify-immersive` (2.13 at 1440, 390 and 320: opens on the whole shop with the selector inside the viewport and 44 px phone targets, then switches to storytree's story panel) pass.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/freeplay-projects).

@@ -192,3 +192,5 @@ Before and after: app 0.3.1322, no `st-*` task, no update hold, DevTools port cl
 for the arc's next runs: `~\st-redo` with both projects, their libraries, and both viewer clones as the agents and
 the user left them (a: the Stats page uncommitted plus the user's two commits; b: the viewer wired to the storytree
 packages, uncommitted).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [`shots/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/import-run-redo/shots) (2).

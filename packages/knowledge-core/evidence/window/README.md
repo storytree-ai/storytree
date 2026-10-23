@@ -7,8 +7,8 @@ Increment `increment_a308cd8414aa`. The agent link folds a session's transcript 
 
 With no session selected no window is drawn, and no one session's window is asked for (every listed session's window is read in one batch for the all-sessions view, ADR-0754 D1). The colour is one no session wears: session colours are 80% saturated hues.
 
-- [No session selected](window-none-selected.png)
-- [The session selected: five rings, three in-view lines, beside its reading-path curves](window-selected.png)
+- [No session selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/window/window-none-selected.png)
+- [The session selected: five rings, three in-view lines, beside its reading-path curves](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/window/window-selected.png)
 - [What the capture asserted](capture.json)
 
 Files the session holds are in the reading but not drawn: the globe has no place for a file.
@@ -25,3 +25,5 @@ node --import tsx packages/knowledge-core/evidence/window/capture.mjs
 **Since ADR-0921 (2026-10-11 re-run):** with none selected nothing is lit, so the capture waits for the knowledge dots to be drawn and
 checks none is lit, then waits for every ring the selected window holds. `--smoke` builds its own page and takes no pictures;
 knowledge-core's numbered 4.7 · 4.16 window test runs it.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/window).

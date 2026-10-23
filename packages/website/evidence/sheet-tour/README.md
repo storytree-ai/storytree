@@ -16,3 +16,5 @@ Known, and parked as increment_b1db42e3cae2: where storytree's sheet (or the sho
 is framed from its west edge, so the easternmost names run off the right edge (for example `sheet/1440-everything.png`,
 `sheet/320-grow.png`, `sheet/320-freeplay.png`); contracts 2.22 and 2.23 are restated for the sheet there, with their
 browser check.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 128 pictures, each one's last copy kept in git history at [`globe/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/sheet-tour/globe) (64), [`sheet/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/sheet-tour/sheet) (64).

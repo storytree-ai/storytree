@@ -21,12 +21,12 @@ road, a thread along the borders rather than a road. No line crosses open land.
 
 | View | Before (main) | After (this branch) |
 | --- | --- | --- |
-| Nothing selected, The library facing | [before-unlit.png](before-unlit.png) | [after-unlit.png](after-unlit.png) |
-| Nothing selected, close up | [before-unlit-close.png](before-unlit-close.png) | [after-unlit-close.png](after-unlit-close.png) |
-| The library selected | [before-the-library-selected.png](before-the-library-selected.png) | [after-the-library-selected.png](after-the-library-selected.png) |
-| The library selected, close up | [before-the-library-close.png](before-the-library-close.png) | [after-the-library-close.png](after-the-library-close.png) |
-| The app setup selected | [before-the-app-setup-selected.png](before-the-app-setup-selected.png) | [after-the-app-setup-selected.png](after-the-app-setup-selected.png) |
-| The app setup selected, close up | [before-the-app-setup-close.png](before-the-app-setup-close.png) | [after-the-app-setup-close.png](after-the-app-setup-close.png) |
+| Nothing selected, The library facing | [before-unlit.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/before-unlit.png) | [after-unlit.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/after-unlit.png) |
+| Nothing selected, close up | [before-unlit-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/before-unlit-close.png) | [after-unlit-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/after-unlit-close.png) |
+| The library selected | [before-the-library-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/before-the-library-selected.png) | [after-the-library-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/after-the-library-selected.png) |
+| The library selected, close up | [before-the-library-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/before-the-library-close.png) | [after-the-library-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/after-the-library-close.png) |
+| The app setup selected | [before-the-app-setup-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/before-the-app-setup-selected.png) | [after-the-app-setup-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/after-the-app-setup-selected.png) |
+| The app setup selected, close up | [before-the-app-setup-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/before-the-app-setup-close.png) | [after-the-app-setup-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland/after-the-app-setup-close.png) |
 
 - **The library selected:** the same 135 lanes. 90 of them are type-only and dashed. Their marks go from 18 to 77,
   one at each lane's end in its territory rather than one per dock. Lane length in total goes from 52,210 to 74,310
@@ -65,3 +65,5 @@ stand-in bridge, seed, survey, viewport, turns and clicks. From this folder:
 `node --import tsx build.mjs <main checkout> before`, `node --import tsx build.mjs <this checkout> after`, then
 `node "<checkout>/packages/dev-loop/src/heavy-lock.mjs" -- node --import tsx capture.mjs before|after --retake`. From
 the repository root: `tsx packages/forest/src/view/evidence/lanes-inland/measure.mts <checkout> 5`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 12 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/lanes-inland).

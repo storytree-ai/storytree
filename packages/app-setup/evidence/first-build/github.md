@@ -213,7 +213,7 @@ or pull-request result has been proven at this capture because authentication
 is still pending. The second turn subsequently closes that increment with
 the merged PR, as recorded above.
 
-![Conduit's five frontend stories and new CI story](shots/c919-github-forest.png)
+![Conduit's five frontend stories and new CI story](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-github-forest.png)
 
 The default sessions list shows two old sessions. The new GitHub session is
 absent; `session list --all` reports it as **ended, hidden**, with no close-out,
@@ -222,13 +222,13 @@ work. This observation is recorded as `friction_e3958b554bd4`. The lower forest
 labels also meet the sessions panel, continuing the known label-layout issue
 from the folder-only trial.
 
-![Default sessions list after the GitHub turn](shots/c919-github-sessions.png)
+![Default sessions list after the GitHub turn](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-github-sessions.png)
 
 After the refused merge command terminates the second turn, the session stays
 listed with its fix name and a 141.3K context reading. PR #2 is still open at
 this capture; the view is not evidence of a completed close-out.
 
-![Feed-fix session after the interrupted second turn](shots/c919-github-after-ci.png)
+![Feed-fix session after the interrupted second turn](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-github-after-ci.png)
 
 The final independent library read confirms both implementation increments
 closed with PRs #1 and #2, no remaining claims, and the builder session
@@ -316,7 +316,7 @@ the full foreground Codex process inside the desktop task, expires after 180
 minutes at most for this invocation, and is removed when the turn exits.
 It does not merely wrap the detached task launcher.
 
-![Conduit plan after correction, storytree 0.3.559](shots/c919-backend-plan.png)
+![Conduit plan after correction, storytree 0.3.559](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-backend-plan.png)
 
 The forest shows frontend and backend stories and their links, with labels
 still crowded (the existing nameplate issue, `friction_92d59bf69b1e`). The sessions strip reads zero active, three idle. Independent
@@ -364,7 +364,7 @@ no material blocker. This grade establishes account-API behavior; a frontend
 against the owned backend is not yet implemented or claimed passing.
 
 
-![Authentication session working on storytree 0.3.559](shots/c919-backend1-active.png)
+![Authentication session working on storytree 0.3.559](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-backend1-active.png)
 
 This window-only capture uses PrintWindow while Codex is running. Storytree
 shows one active session, *Build persistent backend accounts*, and three idle
@@ -431,14 +431,14 @@ The desktop task is deleted and its finite update hold is gone. The merged
 archive is byte-identical to the graded committed tree (SHA-256
 `61d1e0122028282e35cd170472a6b3e6662b080f8014ab62b97ca549040b9c60`).
 
-![White forest canvas during article session](shots/c919-backend2-white.png)
+![White forest canvas during article session](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-backend2-white.png)
 
 During the article turn, PrintWindow captures a white canvas while story labels
 and the session strip remain visible. A separate actual-screen capture after
 the turn reproduces it, so this is not solely PrintWindow omitting rendered
 pixels. Reopening the app between turns restores the forest, still on 0.3.559:
 
-![Forest restored after reopening the app](shots/c919-backend2-reopened.png)
+![Forest restored after reopening the app](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-backend2-reopened.png)
 
 The cause is unconfirmed; this observation does not establish WebGL context
 loss. It is recorded as residue for the existing canvas browser-proof work,
@@ -467,7 +467,7 @@ remaining six files explicitly deferred. The revised seed recipe alternates
 authors and checks the 24-article total and both authors on page one.
 
 
-![Comments session working on storytree 0.3.559](shots/c919-backend3-active.png)
+![Comments session working on storytree 0.3.559](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-backend3-active.png)
 
 The normal forest remains visible during comments after the earlier restart.
 The session strip shows one active session and three idle; the screenshot is
@@ -645,9 +645,9 @@ production security audit.
 These app-only browser viewports show the copied final build using its own API
 and disposable acceptance records after the fullstack suite:
 
-![Conduit tag feed served by its owned backend](shots/c919-owned-feed.png)
+![Conduit tag feed served by its owned backend](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-owned-feed.png)
 
-![Conduit article served by its owned backend](shots/c919-owned-article.png)
+![Conduit article served by its owned backend](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-owned-article.png)
 
 
 The final hosted API job `37006628523` independently passes the same 154
@@ -727,7 +727,7 @@ session; its two older idle sessions belong to the preceding folder-only trial
 and are left untouched. The forest remains visible, with the already recorded
 crowded-nameplate limitation.
 
-![Final Conduit forest after all trial sessions close](shots/c919-backend-final.png)
+![Final Conduit forest after all trial sessions close](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/first-build/shots/c919-backend-final.png)
 
 
 Before the backend evidence PR, main is refreshed to `5328be25` and the complete

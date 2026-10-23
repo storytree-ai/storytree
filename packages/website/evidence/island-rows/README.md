@@ -10,8 +10,8 @@ journey, polished from the visitor's seat" (arc_e42da2528db8).
 
 | | The pathways step, its four islands whole (02:46 UTC) | The finished shop, free play |
 | --- | --- | --- |
-| Today: every island at its place in the finished shop | [pinned-pathways-step.png](pinned-pathways-step.png) | [pinned-finished-shop.png](pinned-finished-shop.png) |
-| The four at their own plan's places | [rows-pathways-step.png](rows-pathways-step.png) | [rows-finished-shop.png](rows-finished-shop.png) (the same layout; only the tilt it was left at differs) |
+| Today: every island at its place in the finished shop | [pinned-pathways-step.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/island-rows/pinned-pathways-step.png) | [pinned-finished-shop.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/island-rows/pinned-finished-shop.png) |
+| The four at their own plan's places | [rows-pathways-step.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/island-rows/rows-pathways-step.png) | [rows-finished-shop.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/island-rows/rows-finished-shop.png) (the same layout; only the tilt it was left at differs) |
 
 Island middles on the page, 1440 x 900 (`pinned.json`, `rows.json`):
 
@@ -63,3 +63,5 @@ return { ...saved, places: saved.places.map(place => ({ ...place, place: firstRo
 
 Rerun: `WEBSITE_SHA=$(git rev-parse HEAD) pnpm --filter @storytree/website build`, then
 `node --import tsx packages/website/evidence/island-rows/capture.mjs pinned` (or `rows` on the changed build).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/island-rows).

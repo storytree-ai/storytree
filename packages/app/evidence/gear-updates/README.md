@@ -13,14 +13,14 @@ retry while leaving the running app alone. A checkout explains that it does not 
 The owner accepts the appearance. The lane has **not** accepted it. These are unedited
 `pnpm desktop:smoke` Electron window captures using the supplied real library snapshot:
 
-- [Enabled menu entry](menu-enabled.png)
-- [Up to date, with the running build](up-to-date.png)
-- [Checking](checking.png)
-- [Building the update](building.png)
-- [Ready, waiting for a library writer](ready.png)
-- [Restarting](restarting.png)
-- [Failed, with the reason](failed.png)
-- [Not running from a runtime slot](unavailable.png)
+- [Enabled menu entry](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-updates/menu-enabled.png)
+- [Up to date, with the running build](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-updates/up-to-date.png)
+- [Checking](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-updates/checking.png)
+- [Building the update](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-updates/building.png)
+- [Ready, waiting for a library writer](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-updates/ready.png)
+- [Restarting](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-updates/restarting.png)
+- [Failed, with the reason](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-updates/failed.png)
+- [Not running from a runtime slot](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-updates/unavailable.png)
 - [Electron capture provenance and smoke readings](electron-capture.json)
 - [Browser interaction and geometry readings](capture.json)
 
@@ -79,3 +79,5 @@ The supervisor applies the [library patch and checklist](library-update/README.m
 the captures to the owner, and closes the increment. The lane does not access either live
 store or create claims, decisions or questions. No decision-log or agent-role curation was
 needed; the new durable behaviour and proof are included in the proposed library patch.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 8 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear-updates).

@@ -14,13 +14,13 @@ own library as the top face's evidence (27 stories, 142 capabilities; branch `sp
 
 | Top face | Edge-on, half way through the turn |
 | --- | --- |
-| ![top](sheet-top.png) | ![edge-on](sheet-edge-on.png) |
+| ![top](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-turn/sheet-top.png) | ![edge-on](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-turn/sheet-edge-on.png) |
 
 | Underside | Underside, The knowledge core selected |
 | --- | --- |
-| ![underside](sheet-underside.png) | ![underside selected](sheet-underside-selected.png) |
+| ![underside](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-turn/sheet-underside.png) | ![underside selected](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-turn/sheet-underside-selected.png) |
 
-The top face with the same selection: ![top selected](sheet-top-selected.png)
+The top face with the same selection: ![top selected](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-turn/sheet-top-selected.png)
 
 ## Measured (`measurements.json`)
 
@@ -58,3 +58,5 @@ sit over its own story name, and the links are many (541); D5 makes them a one-l
 Re-take, from the checkout root, in the foreground:
 
     node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/glass-sheet-turn/capture.mjs <seed folder> --retake
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-turn).

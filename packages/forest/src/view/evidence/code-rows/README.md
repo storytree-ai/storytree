@@ -8,9 +8,9 @@ the owner to look at; nothing here is recorded as accepted (ADR-0794).
 
 | View | Before | After |
 | --- | --- | --- |
-| The globe unturned, its front facing the eye | [before-front.png](before-front.png) | [after-front.png](after-front.png) |
-| The same, zoomed out (x0.7) | [before-wide.png](before-wide.png) | [after-wide.png](after-wide.png) |
-| As the app opens it (turned toward a failing island) | [before-opening.png](before-opening.png) | [after-opening.png](after-opening.png) |
+| The globe unturned, its front facing the eye | [before-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/before-front.png) | [after-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/after-front.png) |
+| The same, zoomed out (x0.7) | [before-wide.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/before-wide.png) | [after-wide.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/after-wide.png) |
+| As the app opens it (turned toward a failing island) | [before-opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/before-opening.png) | [after-opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/after-opening.png) |
 
 Every package edge between two stories (36, from `survey.json`'s `dependsOn`) and whether the dependent's
 island sits north of its dependency's: **before 20 of 36, after 35 of 36**. The rows go from three to seven:
@@ -65,9 +65,9 @@ are its before; **nudged** is this branch, same seed, survey, viewport and turns
 
 | View | Before (after, above) | Nudged |
 | --- | --- | --- |
-| The globe unturned, its front facing the eye | [after-front.png](after-front.png) | [nudged-front.png](nudged-front.png) |
-| The same, zoomed out (x0.7) | [after-wide.png](after-wide.png) | [nudged-wide.png](nudged-wide.png) |
-| As the app opens it | [after-opening.png](after-opening.png) | [nudged-opening.png](nudged-opening.png) |
+| The globe unturned, its front facing the eye | [after-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/after-front.png) | [nudged-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/nudged-front.png) |
+| The same, zoomed out (x0.7) | [after-wide.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/after-wide.png) | [nudged-wide.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/nudged-wide.png) |
+| As the app opens it | [after-opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/after-opening.png) | [nudged-opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows/nudged-opening.png) |
 
 - Nudging now keeps each island within 0.4 of the rows' spacing of its row's latitude, so it can never be
   pushed past a row below or above; where that leaves no room, the globe grows instead. The librarian goes
@@ -85,3 +85,5 @@ live in `apps/desktop/src/capture`. The default output is the matching folder be
 `/tmp/storytree-captures`; append `--retake` to the capture command to replace these
 committed pictures deliberately. Use `CAPTURE_CHROMIUM` or `CAPTURE_PLAYWRIGHT` for
 an explicit browser override; no machine-specific home path is needed.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 9 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/code-rows).

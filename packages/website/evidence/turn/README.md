@@ -25,7 +25,7 @@ This box's GPU has no working driver, so no browser here renders on hardware. On
 
 The turn, frame by frame: before (top) and after (bottom). The screenshots themselves are slow on SwiftShader, so these show the dark landing and the first pain words, not each step of the collapse. Before the fix, the screen stays dark with no words for seconds.
 
-![The turn](turn-strip.png)
+![The turn](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/turn/turn-strip.png)
 
 ## Reproduce
 
@@ -35,3 +35,5 @@ node packages/website/evidence/capture.mjs <out> --verify-opening-frames
 node packages/website/evidence/warm-globe/measure.mjs packages/website/dist branch
 node packages/website/evidence/turn/capture.mjs packages/website/dist after
 ```
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 11 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/turn).

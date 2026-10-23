@@ -22,6 +22,8 @@ land clear of the story panel) and a click on the island with the most capabilit
 "Below" is measured against every point of the island's drawn land on the near side, so a plate over its
 own coast counts as a miss (`measurements-*.json`).
 
-- [Opening](nameplates-after-opening.png) · [before](nameplates-before-opening.png)
-- [After the drags](nameplates-after-after-drags.png) · [before](nameplates-before-after-drags.png)
-- [The world selected](nameplates-after-selected.png) · [before](nameplates-before-selected.png)
+- [Opening](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/nameplates/nameplates-after-opening.png) · [before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/nameplates/nameplates-before-opening.png)
+- [After the drags](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/nameplates/nameplates-after-after-drags.png) · [before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/nameplates/nameplates-before-after-drags.png)
+- [The world selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/nameplates/nameplates-after-selected.png) · [before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/nameplates/nameplates-before-selected.png)
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/nameplates).

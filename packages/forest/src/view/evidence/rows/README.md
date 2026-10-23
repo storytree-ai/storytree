@@ -11,9 +11,9 @@ are drawn. These are pictures for the owner to look at; nothing here is recorded
 
 | View | Before | After |
 | --- | --- | --- |
-| The globe unturned, its front facing the eye (the page's eye, spin and tilt zero) | [before-front.png](before-front.png) | [after-front.png](after-front.png) |
-| The same, zoomed out (x0.7) | [before-wide.png](before-wide.png) | [after-wide.png](after-wide.png) |
-| As the app opens it (turned toward a failing island) | [before-opening.png](before-opening.png) | [after-opening.png](after-opening.png) |
+| The globe unturned, its front facing the eye (the page's eye, spin and tilt zero) | [before-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows/before-front.png) | [after-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows/after-front.png) |
+| The same, zoomed out (x0.7) | [before-wide.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows/before-wide.png) | [after-wide.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows/after-wide.png) |
+| As the app opens it (turned toward a failing island) | [before-opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows/before-opening.png) | [after-opening.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows/after-opening.png) |
 
 Every dependency between two stories, and whether the dependent's island sits north of its dependency's
 (`measurements-*.json`, `edges`): **before 5 of 14, after 14 of 14**. The after's rows, measured on the
@@ -51,3 +51,5 @@ live in `apps/desktop/src/capture`. The default output is the matching folder be
 `/tmp/storytree-captures`; append `--retake` to the capture command to replace these
 committed pictures deliberately. Use `CAPTURE_CHROMIUM` or `CAPTURE_PLAYWRIGHT` for
 an explicit browser override; no machine-specific home path is needed.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/rows).

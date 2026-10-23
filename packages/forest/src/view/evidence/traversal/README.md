@@ -9,11 +9,11 @@ raise anything wrong from; nothing here is recorded as accepted (ADR-0794).
 
 | View | Picture |
 | --- | --- |
-| No session selected: nothing of the code is lit | [0-none-selected.png](0-none-selected.png) |
-| Resting front view, the session selected | [1-front-selected.png](1-front-selected.png) |
-| The knowledge core island, camera zoom x2.4 | [2-knowledge-core.png](2-knowledge-core.png), closer (x6): [2b-knowledge-core-close.png](2b-knowledge-core-close.png) |
-| The forest island: two files, a solid hop, and the dive and hop leaving it | [3-forest.png](3-forest.png), closer (x6): [3b-forest-close.png](3b-forest-close.png) |
-| The far hop from the forest to the agent link, both islands in view | [4-hop-to-agent-link.png](4-hop-to-agent-link.png) |
+| No session selected: nothing of the code is lit | [0-none-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/traversal/0-none-selected.png) |
+| Resting front view, the session selected | [1-front-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/traversal/1-front-selected.png) |
+| The knowledge core island, camera zoom x2.4 | [2-knowledge-core.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/traversal/2-knowledge-core.png), closer (x6): [2b-knowledge-core-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/traversal/2b-knowledge-core-close.png) |
+| The forest island: two files, a solid hop, and the dive and hop leaving it | [3-forest.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/traversal/3-forest.png), closer (x6): [3b-forest-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/traversal/3b-forest-close.png) |
+| The far hop from the forest to the agent link, both islands in view | [4-hop-to-agent-link.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/traversal/4-hop-to-agent-link.png) |
 
 Renderer: headless Chromium 148, ANGLE / Vulkan SwiftShader, 1440 x 960, dark theme, device scale 1,
 reduced motion (so the replay's finished picture is what is drawn). Seed: the eight-story snapshot of
@@ -65,7 +65,7 @@ Read from the drawn scene, radii in the globe's own units (the sea's shell is 21
   not drawn). Solid means an import between the two files, dotted means none, as a stored link means solid for
   notes. The dives are dotted, since no import or link joins a file and a note; this is a judgment made here
   (the ADR does not say), reversible. Pass.
-- **Legible at the resting view.** At [1-front-selected.png](1-front-selected.png) the picture reads: the
+- **Legible at the resting view.** At [1-front-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/traversal/1-front-selected.png) the picture reads: the
   knowledge core's land is lit as one territory, and dotted lines cross from it to the two notes and to the
   forest and agent link, with the lit circles ringed on each of the three islands, though a lit circle is
   only 2 to 5 px across (4 to 10 px with its ring) and the arcs' lift above the surface cannot be seen from
@@ -81,6 +81,8 @@ Read from the drawn scene, radii in the globe's own units (the sea's shell is 21
 - **The session's traversal is bright on every island.** The forest and agent link islands are dimmed (the
   session emphasis) while a session is selected; the first capture found the lit circles dimmed with them or
   wiped by the emphasis's restore. Lighting is now laid over the circles as separate marks the emphasis skips,
-  so the far islands' lit circles read at full strength ([3-forest.png](3-forest.png)).
+  so the far islands' lit circles read at full strength ([3-forest.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/traversal/3-forest.png)).
 - **Replay.** The finished picture is shown; each file circle lights at once, not as the replay's head
   reaches it (the notes do): with motion on, a circle is lit before its line grows.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 7 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/traversal).

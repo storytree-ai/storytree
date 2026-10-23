@@ -32,3 +32,5 @@ writes `own-globe-observations.json` for `pnpm record:acceptance`.
 | Fixes, 320 | `before/own-globe-failed-fixes-320.png`: names under the compass and off both edges | `after/own-globe-fixes-320.png` |
 | Everything, 320 | `before/own-globe-failed-everything-320.png`: The command line under the compass | `after/own-globe-everything-320.png` |
 | Free play, 390 / 320 | `before/own-globe-failed-freeplay-*.png`: names off both edges | `after/own-globe-freeplay-*.png` |
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 29 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/own-globe-phone/after) (10), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/own-globe-phone/before) (19).

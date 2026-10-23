@@ -28,13 +28,13 @@ against the snapshot `2026-09-28T13-42-19-911Z.json` restored into a fresh throw
 passes the smoke's own census and exits 0 ([log](smoke-panel-panned-popout.txt),
 [state](electron-capture.json)).
 
-- [panel.png](panel.png) — The command line's panel: the tree in its own space, at full size,
+- [panel.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/captree-inpanel/panel.png) — The command line's panel: the tree in its own space, at full size,
   centred on the capability shown below (1 · Front door: the recorded offset of its card from the
   frame's centre is 0, 0). The pop-out icon is in the frame's corner.
-- [panned.png](panned.png) — the same after dragging the tree down inside the panel (the capture
+- [panned.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/captree-inpanel/panned.png) — the same after dragging the tree down inside the panel (the capture
   asserts the drag chose nothing), then clicking 4 · Arcs and increments there: the panel below now
   explains it, and the tree kept its panned place through the redraw (asserted).
-- [popout.png](popout.png) — the pop-out icon clicked: #204's larger window opens beside the
+- [popout.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/captree-inpanel/popout.png) — the pop-out icon clicked: #204's larger window opens beside the
   panel, which narrows; the panel's own space stays where it was.
 
 What I make of them: the cards in the panel are now as readable as in the larger window, and the
@@ -71,3 +71,5 @@ desktop's ignored `node_modules`.
 The shared capture kit resolves Playwright from this checkout. Pictures and measurements
 go to the machine’s temporary `storytree-captures/` folder by default; add `--retake`
 to replace the committed evidence in this directory.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/captree-inpanel).

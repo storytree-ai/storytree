@@ -19,11 +19,11 @@ Run after the static build:
 node packages/website/evidence/capture.mjs map-copy --verify-controls
 ```
 
-- [Desktop, 1440 px](1440.png)
-- [Phone, 390 px](390.png)
-- [Narrow phone, 320 px](320.png)
-- [Phone command focus](390-focus-command.png)
-- [Phone copy focus](390-focus-copy.png)
+- [Desktop, 1440 px](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-copy/1440.png)
+- [Phone, 390 px](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-copy/390.png)
+- [Narrow phone, 320 px](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-copy/320.png)
+- [Phone command focus](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-copy/390-focus-command.png)
+- [Phone copy focus](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-copy/390-focus-copy.png)
 - [Measurements](measurements.json)
 
 All three widths have no horizontal overflow or browser errors. JavaScript-disabled
@@ -61,3 +61,5 @@ sizes are comparisons, not observed here.now transfer sizes.
 The full local gate passes on the PR #337 base: typecheck and all package tests.
 Guidance was not run because no agent role or its underpinning notes changed.
 Copy is reviewed against the product; no tests pin its wording (ADR-0623).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 9 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-copy).

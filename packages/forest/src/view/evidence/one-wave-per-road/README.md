@@ -39,9 +39,9 @@ trunk.
 
 | | Before | After |
 | --- | --- | --- |
-| Draw-on strip, the globe's part of each frame | [before-strip.png](before-strip.png) | [after-strip.png](after-strip.png) |
-| Mid-draw, full size | | [after-frame-2.png](after-frame-2.png) (0.5 s: one warm head climbing the trunk) |
-| Reduced motion, first frame after the click | | [after-reduced-motion.png](after-reduced-motion.png): all 18 whole, no heads |
+| Draw-on strip, the globe's part of each frame | [before-strip.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-wave-per-road/before-strip.png) | [after-strip.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-wave-per-road/after-strip.png) |
+| Mid-draw, full size | | [after-frame-2.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-wave-per-road/after-frame-2.png) (0.5 s: one warm head climbing the trunk) |
+| Reduced motion, first frame after the click | | [after-reduced-motion.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-wave-per-road/after-reduced-motion.png): all 18 whole, no heads |
 
 ## Reproduce
 
@@ -54,3 +54,5 @@ node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/s
 
 Each run builds the desktop page of its checkout with `buildCapture` into ignored `dist/`. Without `--retake`, the
 output goes to a scratch folder.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/one-wave-per-road).

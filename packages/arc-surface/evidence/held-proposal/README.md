@@ -4,8 +4,8 @@ The actual desktop renderer, captured unedited with headless Chrome 154 on the o
 laptop over an isolated Postgres. Dark theme, 1440 × 960. Nothing in the owner's library or
 running app is opened or changed.
 
-- [Before: the renderer built without the fix](before.png) ([readings](before.json))
-- [After](after.png) ([readings](after.json))
+- [Before: the renderer built without the fix](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/held-proposal/before.png) ([readings](before.json))
+- [After](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/held-proposal/after.png) ([readings](after.json))
 
 The fixture follows the board the owner reviewed on 2026-10-05. *One owner-approved waitlist row*
 holds its proposal *Send one live waitlist entry* on his question: before, that bar was grey and
@@ -22,3 +22,5 @@ renderer without the fix; `--retake` writes here instead of a scratch folder):
 node apps/desktop/build.mjs
 CAPTURE_CHROMIUM="C:/Program Files/Google/Chrome/Application/chrome.exe" node --import tsx packages/arc-surface/evidence/held-proposal/capture.mjs --retake
 ```
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/held-proposal).

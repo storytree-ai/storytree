@@ -17,9 +17,9 @@ pixel (`compare.mjs`).
 
 | View | Before | After | Pixels that differ |
 |---|---|---|---|
-| Desktop, front | ![](before-storytree-front.png) | ![](after-storytree-front.png) | 0 of 1,382,400 |
-| Desktop, quarter turn | ![](before-storytree-quarter.png) | ![](after-storytree-quarter.png) | 0 in 3 of 5 takes (see below) |
-| Website, 390 px | ![](before-website-390.png) | ![](after-website-390.png) | 0 of 329,160, in both takes |
+| Desktop, front | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/flat-canvas-retired/before-storytree-front.png) | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/flat-canvas-retired/after-storytree-front.png) | 0 of 1,382,400 |
+| Desktop, quarter turn | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/flat-canvas-retired/before-storytree-quarter.png) | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/flat-canvas-retired/after-storytree-quarter.png) | 0 in 3 of 5 takes (see below) |
+| Website, 390 px | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/flat-canvas-retired/before-website-390.png) | ![](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/flat-canvas-retired/after-website-390.png) | 0 of 329,160, in both takes |
 
 The desktop capture is not repeatable take to take, on either build: the front settles in one of two states
 (274,059 pixels apart) in both, the known residue of increment_cd3f4ba29cb2 ("Globe captures open at the same
@@ -42,3 +42,5 @@ JSON-identical, before the old path was deleted.
 | Website assets | 8,277,116 bytes | 8,235,983 bytes |
 
 The desktop app stopped loading the 1.78 MB kit in #639, so the bundles shrink only by the code.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/flat-canvas-retired).

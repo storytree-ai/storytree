@@ -31,4 +31,6 @@ The home stylesheet is 7,715 bytes and its copy-control script is 682 bytes befo
 Copy was checked against the current README, license, forest scene/drill-down implementation,
 and ADR-0798. The preview is labelled a saved snapshot and health as the agent's report.
 
-[Desktop](1440.png) · [Phone](390.png) · [Measurements](measurements.json)
+[Desktop](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/home/1440.png) · [Phone](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/home/390.png) · [Measurements](measurements.json)
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/home).

@@ -39,8 +39,8 @@ All five of signing in's flags are in the session's colour, `hsl(300, 80%, 68%)`
 
 | Moment | Desktop | Phone |
 | --- | --- | --- |
-| The agents chapter's claim step, How open | [1440](1440-agents-claim.png) | [390](390-agents-claim.png) |
-| Parallel sessions, How open | [1440](1440-agents-parallel.png) | [390](390-agents-parallel.png) |
+| The agents chapter's claim step, How open | [1440](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/recorded-claims/1440-agents-claim.png) | [390](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/recorded-claims/390-agents-claim.png) |
+| Parallel sessions, How open | [1440](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/recorded-claims/1440-agents-parallel.png) | [390](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/recorded-claims/390-agents-parallel.png) |
 
 ## Reproduce
 
@@ -54,3 +54,5 @@ node --import tsx packages/website/evidence/recorded-claims.mjs
 With no argument it writes here and the first island's pictures to `../map-five`; given a folder, it writes everything there. It does not replace the page with a fixture, synthesise claims, connect to the live library, submit a waitlist entry, or send analytics events.
 
 Evidence was captured on Mint with headless Chromium/SwiftShader. These are desktop and phone viewport checks, not native device or hardware GPU performance measurements.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/recorded-claims).

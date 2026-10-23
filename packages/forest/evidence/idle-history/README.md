@@ -11,10 +11,10 @@ CAPTURE_PLAYWRIGHT=<playwright-core/index.mjs> CAPTURE_CHROMIUM=<chrome-headless
 
 ## Pictures
 
-- [Live lists only the sessions at work](live-at-work-only.png): no "N idle" row; the header counts 2.
-- [History lists the idle sessions first](history-idle-first.png), each led by "idle" and drawn as its live row was (one expanded: its
+- [Live lists only the sessions at work](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/idle-history/live-at-work-only.png): no "N idle" row; the header counts 2.
+- [History lists the idle sessions first](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/idle-history/history-idle-first.png), each led by "idle" and drawn as its live row was (one expanded: its
   worktree and files), then the sessions that left today, led by how they ended.
-- [A search typed](history-search-typed.png) ("landed 1181" keeps the one row), and [a search with nothing left](history-search-none.png).
+- [A search typed](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/idle-history/history-search-typed.png) ("landed 1181" keeps the one row), and [a search with nothing left](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/idle-history/history-search-none.png).
 - [Measures](measures.json)
 
 ## Measures
@@ -28,3 +28,5 @@ CAPTURE_PLAYWRIGHT=<playwright-core/index.mjs> CAPTURE_CHROMIUM=<chrome-headless
 
 History's existing rows: the idle lead sits in the outcome column ended rows use, in its neutral outline, so the two kinds read as one list.
 The search box takes the range bar's input style.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/idle-history).

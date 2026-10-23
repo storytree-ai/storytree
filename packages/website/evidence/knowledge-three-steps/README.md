@@ -49,4 +49,5 @@ Made with `node packages/website/evidence/arrival/capture.mjs --only knowledgeSt
 **Measured only here.** Frame rates and motion smoothness on a hardware GPU (the laptop) were not measured; the box draws with
 SwiftShader.
 
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 30 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/knowledge-three-steps).
 Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [1440-knowledge-chapter.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/knowledge-three-steps/1440-knowledge-chapter.webm). Each link is its last copy, kept in git history.

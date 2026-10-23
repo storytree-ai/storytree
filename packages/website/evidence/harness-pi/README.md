@@ -24,3 +24,5 @@ implies no endorsement):
   same file as `/logo-on-light.svg` and `/logo-auto.svg`), fetched 2026-10-12, sha256
   `abd66e7868b2d24f0f0895f9237ee8a6dcb22337583b0dc54aeb595acecb4d6b`. pi.dev is Pi's home, linked from
   github.com/earendil-works/pi (package `@earendil-works/pi-coding-agent`).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/harness-pi/after) (2), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/harness-pi/before) (2).

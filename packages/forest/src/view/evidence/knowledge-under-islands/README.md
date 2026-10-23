@@ -19,8 +19,8 @@ no-shelf artifacts moved from outside the shell to a small centre cluster.
 
 | View | Without the new layer (same seed) | Production |
 | --- | --- | --- |
-| Front | [Baseline](baseline-front.png) | [Faint points](production-front.png) |
-| Quarter turn | [Baseline](baseline-quarter-turn.png) | [Faint points](production-quarter-turn.png) |
+| Front | [Baseline](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-under-islands/baseline-front.png) | [Faint points](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-under-islands/production-front.png) |
+| Quarter turn | [Baseline](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-under-islands/baseline-quarter-turn.png) | [Faint points](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-under-islands/production-quarter-turn.png) |
 
 Raw 1440 × 960 screenshots, dark theme, device scale 1. Renderer: **headless
 Chromium 148.0.7778.96, ANGLE / Vulkan 1.3.0, SwiftShader Device (Subzero)**. The
@@ -68,8 +68,8 @@ opening faces the failure; a 180° turn keeps its edge marker; clicking the mark
 reveals it; the claim remains visible; clicking the island opens its story panel.
 Diagnostic state never reaches the database or [real seed](seed.json).
 
-- [Hidden failure](production-synthetic-failure-hidden.png)
-- [Revealed failure and claim](production-synthetic-failure-focused.png)
+- [Hidden failure](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-under-islands/production-synthetic-failure-hidden.png)
+- [Revealed failure and claim](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-under-islands/production-synthetic-failure-focused.png)
 
 ## Main's library migration during landing
 
@@ -126,3 +126,5 @@ The instrument was borrowed from the spike, never merged or cherry-picked. Its
 production bundle substitutes only the Electron read bridge with the exported data
 and exposes scene/navigation observation hooks. The baseline omits only the new
 inside-slot component. No production drawing is substituted for the screenshots.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 8 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-under-islands).

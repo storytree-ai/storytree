@@ -10,9 +10,9 @@ The owner accepts the appearance. These are unedited **Electron `pnpm desktop:sm
 window captures of the supplied real snapshot: 1,628 records, 10 stories and 71 capabilities.
 The independent arc drawer is open because the existing smoke check exercises it.
 
-- [Menu closed](menu-closed.png)
-- [Menu open](menu-open.png)
-- [Project switcher open inside the menu](project-switcher-open.png)
+- [Menu closed](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear/menu-closed.png)
+- [Menu open](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear/menu-open.png)
+- [Project switcher open inside the menu](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear/project-switcher-open.png)
 - [Electron state and drawing readings](electron-capture.json)
 - [Behaviour and geometry measurements](capture.json)
 - [Red proof](red.txt)
@@ -69,3 +69,5 @@ and exit 0, followed by existing IPC polling during shutdown that reports “the
 open” (for example `menu-closed-smoke.txt`, after its `smoke: project` line). The browser
 interaction run records zero page errors while running. The shutdown race is in desktop's
 main-process lifecycle, outside this lane's fence; retain it as a separate lifecycle follow-up.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app/evidence/gear).

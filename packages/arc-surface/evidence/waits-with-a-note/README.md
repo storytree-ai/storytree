@@ -6,8 +6,8 @@ The actual desktop renderer, captured unedited with headless Chromium 148 over a
 and an explicit fixture. Dark theme, 1440 × 960 at 2× scale. Nothing in the owner's library or running
 app is opened or changed.
 
-- [The drawer, resting view](board.png)
-- [The lanes, close up](lanes.png)
+- [The drawer, resting view](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/waits-with-a-note/board.png)
+- [The lanes, close up](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/waits-with-a-note/lanes.png)
 - [Measured results, including every bar's and marker's hover text](capture.json)
 
 The fixture, top to bottom (the library is asked for its holds as of three days on, through its own
@@ -54,3 +54,5 @@ Reproduce from the repository root:
 node apps/desktop/build.mjs
 node --import tsx packages/arc-surface/evidence/waits-with-a-note/capture.mjs --retake
 ```
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/waits-with-a-note).

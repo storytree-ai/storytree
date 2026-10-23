@@ -22,3 +22,5 @@ the right edge, as in `../sheet-tour/sheet/1440-grow.png` and `320-freeplay.png`
 The saved stills in `public/` (`forest-*.png`, `shop-*.png`, shown when WebGL cannot draw) are retaken from the sheet by
 `shop-stills.mjs`, now cut to the sheet's band instead of a square. (Since 2026-10-20 storytree's are retaken from the framed
 map by [`../forest/forest-stills.mjs`](../forest/forest-stills.mjs), and the shop's have left the page.)
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 26 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/sheet-names).

@@ -7,13 +7,13 @@ as accepted (ADR-0794).
 
 | View | Before | After |
 | --- | --- | --- |
-| storytree's own globe as the app opens it | [before-storytree.png](before-storytree.png) | [after-storytree.png](after-storytree.png) |
-| The same globe after the same quarter turn east, by a real pointer drag | [before-storytree-quarter-turn.png](before-storytree-quarter-turn.png) | [after-storytree-quarter-turn.png](after-storytree-quarter-turn.png) |
-| Five stories depending on nothing: one row (1.10) | [before-row.png](before-row.png) | [after-row.png](after-row.png) |
-| The same five in a chain (1.10) | [before-chain.png](before-chain.png) | [after-chain.png](after-chain.png) |
-| The agent link selected and zoomed in: its capability names (3.33) | [before-agent-link-selected.png](before-agent-link-selected.png) | [after-agent-link-selected.png](after-agent-link-selected.png) |
-| The website at 390 x 844, the shop's start-small cut (3.31) | [website-before-390-cut.png](website-before-390-cut.png) | [website-after-390-cut.png](website-after-390-cut.png) |
-| The website at 1440 x 900, the same cut | [website-before-1440-cut.png](website-before-1440-cut.png) | [website-after-1440-cut.png](website-after-1440-cut.png) |
+| storytree's own globe as the app opens it | [before-storytree.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/before-storytree.png) | [after-storytree.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/after-storytree.png) |
+| The same globe after the same quarter turn east, by a real pointer drag | [before-storytree-quarter-turn.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/before-storytree-quarter-turn.png) | [after-storytree-quarter-turn.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/after-storytree-quarter-turn.png) |
+| Five stories depending on nothing: one row (1.10) | [before-row.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/before-row.png) | [after-row.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/after-row.png) |
+| The same five in a chain (1.10) | [before-chain.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/before-chain.png) | [after-chain.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/after-chain.png) |
+| The agent link selected and zoomed in: its capability names (3.33) | [before-agent-link-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/before-agent-link-selected.png) | [after-agent-link-selected.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/after-agent-link-selected.png) |
+| The website at 390 x 844, the shop's start-small cut (3.31) | [website-before-390-cut.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/website-before-390-cut.png) | [website-after-390-cut.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/website-after-390-cut.png) |
+| The website at 1440 x 900, the same cut | [website-before-1440-cut.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/website-before-1440-cut.png) | [website-after-1440-cut.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put/website-after-1440-cut.png) |
 
 Measured in the page (`measurements-*.json`, `website-measurements-*.json`):
 
@@ -51,3 +51,5 @@ little between loads (increment_cd3f4ba29cb2), so before and after are each meas
 `node --import tsx build.mjs <checkout> before|after`, then `node --import tsx capture.mjs before|after`; for the website,
 `pnpm --filter @storytree/website build` in the checkout, then `node --import tsx website.mjs <checkout>/packages/website/dist before|after`.
 Append `--retake` to replace the committed pictures; otherwise they go below `/tmp/storytree-captures`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 18 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/names-stay-put).

@@ -29,14 +29,14 @@ press; the selection a real click on an island. Beside the earlier builds' pictu
 
 | | Nothing selected | A story selected (The knowledge core) |
 | --- | --- | --- |
-| Top resting view, 40° from above | ![top](table-top.png) | ![top, selected](table-top-selected.png) |
-| Part-way, 65° | ![part-way](table-part-way.png) | ![part-way, selected](table-part-way-selected.png) |
-| Edge-on, 86°: islands above, the graph below | ![edge-on](table-edge-on.png) | ![edge-on, selected](table-edge-on-selected.png) |
-| Underside resting view, 40° from below | ![underside](table-underside.png) | ![underside, selected](table-underside-selected.png) |
+| Top resting view, 40° from above | ![top](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-table/table-top.png) | ![top, selected](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-table/table-top-selected.png) |
+| Part-way, 65° | ![part-way](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-table/table-part-way.png) | ![part-way, selected](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-table/table-part-way-selected.png) |
+| Edge-on, 86°: islands above, the graph below | ![edge-on](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-table/table-edge-on.png) | ![edge-on, selected](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-table/table-edge-on-selected.png) |
+| Underside resting view, 40° from below | ![underside](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-table/table-underside.png) | ![underside, selected](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-table/table-underside-selected.png) |
 
 One continuous right-drag, from straight down on the islands to straight up at the graph, 20° a frame:
 
-![tilt frames](tilt-frames.png)
+![tilt frames](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-table/tilt-frames.png)
 
 ## Measured (`measurements.json`)
 
@@ -53,3 +53,5 @@ every view: 0.1°.
 
 Under the software renderer, passing level stalls the swing for a moment, while the islands change to outlines and back;
 that is recorded as its own increment on the arc.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 9 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-table).

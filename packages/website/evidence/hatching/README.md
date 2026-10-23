@@ -23,3 +23,5 @@ The hatching itself stays on the globe until the rebuild removes it; nothing in 
 Check: `tour.test.ts` "2.16 · until the shop is rebuilt clean ..." reads the shop's saved territories at each step's moment.
 It asserts that map-code and map-health frame the story with the least unallocated code, and that neither carries a tag.
 It was red, then green.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 170 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/hatching/after) (85), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/hatching/before) (85).

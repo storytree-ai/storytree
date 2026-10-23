@@ -30,3 +30,5 @@ rather than doubling the name.
 Pictures: `<width>-<step>-line-<n>.png` as the line is said (`-green` for the health step held near its end), and
 `…-before.png` for the same moment with the labels hidden. Made with `node packages/website/evidence/arrival/capture.mjs --only mapLabels`
 and `… --only mapLabels --before`, after `pnpm --filter @storytree/website build`, on SwiftShader at the tour's own 0.75×.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 76 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-labels).

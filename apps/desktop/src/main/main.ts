@@ -112,7 +112,7 @@ import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
-import { askToReportErrors, mainErrorRecords } from "./main-error-records.js";
+import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
 import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
 import { lateReads, projectAnswers } from "./late-reads.js";
@@ -402,12 +402,9 @@ async function run(): Promise<void> {
     if (!args.background) openWindow(windowQuery);
     showTray();
     // An error the library holds that is not yet reported asks to be, until it is marked submitted (lifecycle 1.31, ADR-1122).
-    void errorsOpened?.then(() => errorRecords.settled()).then(() => askToReportErrors(errorRecords, {
-      ask: async ({ title, message, detail, buttons }) => {
-        const { response } = await dialog.showMessageBox({ type: "warning", title, message, detail, buttons: [...buttons], defaultId: 0, cancelId: 0, noLink: true });
-        return response === 1 ? "submitted" : "keep-going";
-      },
-    })).catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
+    void errorsOpened?.then(() => errorRecords.settled())
+      .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
+      .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
     addStartMenuShortcut();
     try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
     if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });

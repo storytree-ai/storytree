@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { connect, type Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
-import { askToReportErrors, mainErrorRecords } from "./main-error-records.js";
+import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
 import { logMainErrors, type MainProcess } from "./main-errors.js";
 
 function testServerUrl(): string {
@@ -99,11 +99,12 @@ test("1.31 while the user's library holds an app error not yet marked submitted,
   const database = `storytree-app-errors-t-${randomBytes(4).toString("hex")}`;
   const storytree: Storytree = await connect({ url: testServerUrl() });
   try {
+    // The box's buttons, as the person presses them: 0 is Keep going (also closing it), 1 is "It's been submitted".
     const opening = async (answer: "keep-going" | "submitted") => {
       const records = mainErrorRecords({ build: () => "0.3.41", log: () => {}, database });
       await records.open(storytree);
-      const asked: { detail: string; buttons: readonly string[] }[] = [];
-      await askToReportErrors(records, { ask: async message => { asked.push(message); return answer; } });
+      const asked: { detail: string; buttons: readonly string[]; defaultId: number; cancelId: number }[] = [];
+      await askToReportErrors(records, { ask: reportBox(async options => { asked.push(options); return { response: answer === "submitted" ? 1 : 0 }; }) });
       return { records, asked };
     };
 
@@ -117,6 +118,8 @@ test("1.31 while the user's library holds an app error not yet marked submitted,
     const kept = await opening("keep-going");
     assert.equal(kept.asked.length, 1);
     assert.deepEqual(kept.asked[0]!.buttons, ["Keep going", "It's been submitted"]);
+    assert.equal(kept.asked[0]!.defaultId, 0);
+    assert.equal(kept.asked[0]!.cancelId, 0);
     assert.match(kept.asked[0]!.detail, /ask your agent to submit a GitHub issue on github\.com\/storytree-ai\/storytree/);
     assert.match(kept.asked[0]!.detail, /we'll work on it/);
     assert.match(kept.asked[0]!.detail, /TypeError: Object has been destroyed/);

@@ -136,6 +136,16 @@ export interface ReportMessage {
   readonly buttons: readonly ["Keep going", "It's been submitted"];
 }
 
+/** The message box `askToReportErrors` asks through: Keep going is the default, and closing the box keeps going too. */
+export function reportBox(
+  show: (options: ReportMessage & { type: "warning"; buttons: string[]; defaultId: 0; cancelId: 0; noLink: true }) => Promise<{ response: number }>,
+): (message: ReportMessage) => Promise<"keep-going" | "submitted"> {
+  return async ({ title, message, detail, buttons }) => {
+    const { response } = await show({ type: "warning", title, message, detail, buttons: [...buttons], defaultId: 0, cancelId: 0, noLink: true });
+    return response === 1 ? "submitted" : "keep-going";
+  };
+}
+
 /**
  * When the library holds errors not yet submitted, ask once, in ADR-1119's words, for the person's agent to submit a
  * GitHub issue. "It's been submitted" marks every error the box listed; Keep going (the default) leaves them to ask again.

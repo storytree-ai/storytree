@@ -94,7 +94,7 @@ test("27.3 · library find lists live records whose title holds every word, at m
   const cut = (await run("find", { words: ["very", "long"] })).split("\n").find((line) => line.includes("increment_"))!;
   assert.ok(cut.length < 140 && cut.endsWith("…"), `a long title is cut: ${cut}`);
 
-  const number = String((await library.get(decision.id))!.fields.number);
+  const number = String(decision.fields.number);
   for (const name of [number, `ADR-${number.padStart(4, "0")}`, `adr-${number}`]) {
     assert.match(await run("find", { words: [name] }), new RegExp(`${decision.id}\\s+\\[decision\\]\\s+Speak plainly`), `${name} finds the decision`);
   }
@@ -103,7 +103,7 @@ test("27.3 · library find lists live records whose title holds every word, at m
 test("27.4 · library read takes a decision's number, 1103 or ADR-1103, in place of its id", async (t) => {
   const { library, run } = await world(t);
   const decision = await library.recordDecision({ status: "accepted", title: "Speak plainly", text: "D1. Short answers." });
-  const number = Number((await library.get(decision.id))!.fields.number);
+  const number = Number(decision.fields.number);
   for (const name of [String(number), `ADR-${String(number).padStart(4, "0")}`]) {
     const read = await run("read", { ids: [name], linked: false, field: undefined });
     assert.match(read, new RegExp(`^${decision.id}  \\[decision\\]`), `${name} reads the decision whole`);

@@ -15,7 +15,6 @@ export { ConnectionError, connectionString, ProjectGoneError, ProjectNameError, 
 export { knowledgeGuidance, LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";
-export { ANSWER_ROWS } from "./data/data-questions.js";
 export type { Counts, KindCount, RecentChange, TitleHit } from "./data/data-questions.js";
 export { ANCHOR_ID, anchorGaps, CONTRACT_DEFINITION, LifecycleError, LONG_CONTRACT_TITLE, planGuidance, RetireRefusedError, WaitLoopError } from "./work/index.js";
 export { MissingUpgradeError, NewerSchemaError, NEW_LINE, OWNER_TIME_ZONE, parseSchedule, SchemaError, UnknownTypeError } from "./schema/index.js";

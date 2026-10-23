@@ -16,7 +16,7 @@ import { LIBRARY_FAMILIES, NOTE_TOOLS, type HeldClaim, type LibraryVerbContext, 
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
 
-test("17.1 · The library declares the library family first among storytree's families, its eleven verbs as commands and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
+test("17.1 · The library declares the library family first among storytree's families, its eleven verbs as commands, then capability 27's three, and none as a tool; a verb reads a phrase from @file in the caller's folder, refile rewrites an artifact as another kind under its id, and edit run by a session holding an increment holds a planned record's change on it", async (t) => {
   const storytree = await connect({ url: testServerUrl() });
   const project = uniqueProjectName();
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-library-verbs-"));

@@ -4,7 +4,8 @@
  * in plain text, at most ANSWER_ROWS rows, each value cut to one short line. None is a tool: the voice door mounts the
  * questions it needs itself.
  */
-import { ANSWER_ROWS, type Library, type TitleHit } from "../index.js";
+import type { Library } from "../index.js";
+import { ANSWER_ROWS, type TitleHit } from "./data-questions.js";
 import { verb, VerbRefusal, type VerbContext } from "../verbs/verb.js";
 
 /** The longest a value is shown: past it, it is cut, so no answer runs long. */

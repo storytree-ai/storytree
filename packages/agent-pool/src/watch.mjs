@@ -19,7 +19,7 @@ import { setTimeout as wait } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { poolConfig } from "./pool-config.mjs";
+import { poolConfig, readCap } from "./pool-config.mjs";
 import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
 import { attempted, failedJob, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, watchReleases } from "./release-watch.mjs";
 
@@ -534,7 +534,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       || (await run("git", ["branch", "--show-current"])).stdout.trim().replace(/^(main|master)$/, ""),
     alive: async (pid) => isFixSession(await argsOf(pid)),
     room: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout)
-      < (Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || config.sessions),
+      < await readCap({ lanesDir, sessions: config.sessions }),
     startFix: async ({ pr, n, brief }) => {
       const base = join(dir, `fix-${pr}-${n}`);
       await writeFile(`${base}-brief.md`, brief);

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
-import { poolConfig } from "./pool-config.mjs";
+import { poolConfig, readCap } from "./pool-config.mjs";
 
 /** The checkout these tests run in, as Git names it. */
 const CHECKOUT = resolve(execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: import.meta.dirname, encoding: "utf8" }).trim());
@@ -41,11 +41,22 @@ test("3.15 · the pool reads its machine, checkout, lanes, session cap, models a
   assert.throws(() => poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), /could not read the agent pool's configuration/);
 });
 
-test("3.16 · with no configuration the pool runs on general defaults: this checkout, no other machine, the engines' own models, Codex until it is spent", async (t) => {
+test("3.16 · with no configuration the pool runs on general defaults: this checkout, no other machine, no pinned session cap, the engines' own models, Codex until it is spent", async (t) => {
   const file = await configFile(t);
   assert.deepEqual(poolConfig({ home: "/home/u", env: { AGENT_POOL_CONFIG: file } }), {
     machine: undefined, checkout: CHECKOUT, remoteCheckout: CHECKOUT, lanesDir: join("/home/u", ".storytree/agent-pool"),
-    addDirs: [join("/home/u", ".storytree/agent-pool")], sessions: 2, models: { codex: undefined, claude: undefined }, switchAt: 100,
+    addDirs: [join("/home/u", ".storytree/agent-pool")], sessions: undefined, models: { codex: undefined, claude: undefined }, switchAt: 100,
     watcher: { fixesPerRed: 2, fixesPerPullRequest: 6, intervalMs: 60_000 },
   });
+});
+
+test("3.17 · with nothing pinning it, the cap is what the box's size allows: the smaller of its cores and its memory per lane, at least one", async () => {
+  const GiB = 1024 ** 3;
+  const unpinned = { lanesDir: "/lanes", readText: async () => { throw new Error("ENOENT"); } };
+  assert.equal(await readCap({ ...unpinned, box: { cores: 12, memoryBytes: 32 * GiB } }), 6, "the Mint box: 12 cores / 2 = 6, under 32 GB / 3 GB = 10");
+  assert.equal(await readCap({ ...unpinned, box: { cores: 32, memoryBytes: 16 * GiB } }), 5, "memory bound: 16 GB / 3 GB");
+  assert.equal(await readCap({ ...unpinned, box: { cores: 1, memoryBytes: 2 * GiB } }), 1, "a small machine still runs one");
+  assert.equal(await readCap({ ...unpinned, sessions: 4, box: { cores: 12, memoryBytes: 32 * GiB } }), 4, "a configured sessions count pins it");
+  assert.equal(await readCap({ lanesDir: "/lanes", sessions: 4, box: { cores: 12, memoryBytes: 32 * GiB },
+    readText: async (path) => { assert.equal(path, join("/lanes", "night-max-lanes")); return "7\n"; } }), 7, "night-max-lanes pins it over both");
 });

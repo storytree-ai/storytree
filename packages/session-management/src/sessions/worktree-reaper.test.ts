@@ -200,7 +200,7 @@ test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/dat
   }
 });
 
-test("4.37 a worktree whose folder cannot be renamed for a moment after its test Postgres stops, as Windows releases a killed server's handles late, is still removed", { skip: process.platform === "win32" && "a read-only parent folder does not stop a rename on Windows" }, async () => {
+test("4.37 a worktree whose folder cannot be renamed for a moment after its test Postgres stops, as Windows releases a killed server's handles late, is still removed", { skip: process.platform === "win32" && "platform:posix: a read-only parent folder does not stop a rename on Windows" }, async () => {
   const log = await openActivityLog(testServerUrl());
   const project = uniqueProjectName();
   try {

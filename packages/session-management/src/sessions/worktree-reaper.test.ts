@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -192,6 +192,42 @@ test("4.37 a worktree reaped while a test Postgres still runs on its .pgtest/dat
         assert.equal(existsSync(folder), false);
         assert.throws(() => process.kill(pid, 0), "the server is stopped");
       } finally {
+        await server.stop();
+      }
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.37 a worktree whose folder cannot be renamed for a moment after its test Postgres stops, as Windows releases a killed server's handles late, is still removed", { skip: process.platform === "win32" && "a read-only parent folder does not stop a rename on Windows" }, async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, ".gitignore"), ".pgtest/\n");
+      git(repo, "add", ".gitignore");
+      git(repo, "commit", "-q", "-m", "first");
+      const trees = path.join(repo, ".claude", "worktrees");
+      const folder = path.join(trees, "released-late");
+      git(repo, "worktree", "add", "-q", "-b", "claude/released-late", folder, "main");
+      const server = await start({ dataDir: path.join(folder, ".pgtest", "data"), serverLog: path.join(dir, "pg.log"), toolLog: path.join(dir, "tools.log") });
+      // Held as a killed server's handles hold it: no rename until a moment after the server stops.
+      chmodSync(trees, 0o555);
+      const release = setTimeout(() => chmodSync(trees, 0o755), 400);
+      try {
+        const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
+        await log.append(project, { ...here, session: "s-late", folder, branch: "claude/released-late", kind: "file-edited", files: ["x.ts"] });
+        await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: "claude/released-late", open: false, how: "not-ahead" });
+        await log.append(project, { ...here, session: "s-late", folder, branch: "claude/released-late", kind: "closed-out", safe: true, why: "merged", running: 0 });
+        const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+        assert.deepEqual(await reapWorktrees({ log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" }, watch), [folder]);
+        assert.equal(existsSync(folder), false);
+      } finally {
+        clearTimeout(release);
+        chmodSync(trees, 0o755);
         await server.stop();
       }
     });

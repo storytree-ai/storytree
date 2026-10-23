@@ -148,10 +148,59 @@ const graduateVerb = verb({
   },
 });
 
+const riskVerb = verb({
+  consumers: ["agent"],
+  command: { family: "quality", name: "risk", summary: "read an increment's change for its risk line (tier, rating, depth, radius, flags, stories) and write it on the increment", usage: "quality risk <increment> [--diff @file]" },
+  tool: NO_TOOL,
+  inputs: {
+    increment: { kind: "text", word: 0, describe: "the increment whose change is read" },
+    diff: { kind: "text", optional: true, describe: "the change's diff against its default branch, as git diff gives it" },
+  },
+  async act({ increment, diff }, context: QualityVerbContext) {
+    const { branchDiff, changeFolder, PackageGraph, readChange, readPackages, riskLineText } = await import("../index.js");
+    let folder = context.folder;
+    if (diff === undefined && context.log !== undefined) {
+      const { readClaims } = await import("@storytree/session-management");
+      folder = changeFolder(context.folder, (await readClaims(context.log as Parameters<typeof readClaims>[0], context.project)).find((claim) => claim.increment === increment)?.branch);
+    }
+    const stories = (await context.library.list("story")).filter((story) => story.fields.mapped === undefined).map((story) => ({ id: story.id, title: story.fields.title }));
+    const line = readChange(diff ?? branchDiff(folder), new PackageGraph(readPackages(folder)), stories, today());
+    if ((await context.library.editIncrement(increment, { risk: line }, context.writer)) === null) throw new VerbRefusal(`no increment "${increment}" in this project`);
+    return { text: `Wrote ${increment}'s risk line: ${riskLineText(line)}` };
+  },
+});
+
+const storyRisksVerb = verb({
+  consumers: ["agent"],
+  command: { family: "quality", name: "story-risks", summary: "read every story's standing risk reading (blast depth and radius) from its package's code and the package graph, and write it on the story" },
+  tool: NO_TOOL,
+  inputs: {},
+  async act(_input, context: QualityVerbContext) {
+    const { checkoutSource, PackageGraph, readPackages, readStory } = await import("../index.js");
+    const graph = new PackageGraph(readPackages(context.folder));
+    const source = checkoutSource(context.folder);
+    const read = today();
+    const lines: string[] = [];
+    for (const story of await context.library.list("story")) {
+      if (story.fields.mapped !== undefined) continue;
+      const reading = readStory({ id: story.id, title: story.fields.title }, graph, source, read);
+      if (reading === undefined) continue;
+      await context.library.editStory(story.id, { risk: reading }, context.writer);
+      lines.push(`  ${story.id}  ${story.fields.title}: ${2 * reading.depth.value + reading.radius.value} · depth ${reading.depth.value} (${reading.depth.reason}) · radius ${reading.radius.value} (${reading.radius.reason})`);
+    }
+    return { text: lines.length === 0 ? "No story has a package in this checkout to read." : [`Wrote ${lines.length} stories' risk readings:`, ...lines].join("\n") };
+  },
+});
+
+/** Today, as a reading's day (YYYY-MM-DD). */
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /** The command line's `quality` family, 10th among `storytree`'s families. */
 export const QUALITY_FAMILIES: readonly VerbFamily<QualityVerbContext>[] = [{
   name: "quality",
-  summary: "the quality control checks, the QA ledger, the change-reviewer's loop (brief, take, answer, standing), and graduating a check",
+  summary: "the quality control checks, the QA ledger, the change-reviewer's loop (brief, take, answer, standing), graduating a check, and the risk reading",
   order: 10,
-  verbs: [checksVerb, ledgerVerb, briefVerb, takeVerb, answerVerb, standingVerb, graduateVerb],
+  verbs: [checksVerb, ledgerVerb, briefVerb, takeVerb, answerVerb, standingVerb, graduateVerb, riskVerb, storyRisksVerb],
 }];

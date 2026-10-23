@@ -42,3 +42,30 @@ The four confirmations already have concrete remediation increments with owning 
 No new owner question is needed. The existing transport policy question and the wider arc's trusted-checkout migration question remain visible. Conditional/unverified claims retain their exact missing proof; none is called a clean result. No new implementation outside track X or changes to live services, credentials, grants or machine configuration occurred.
 
 The repository gate and three-platform PR/queue CI validate this evidence-only tree; their exact results belong to the increment landing record and track X lane report. They do not independently verify remediations. Friction and health drains were empty; no decision, role or guidance changed and curation had nothing to amend.
+
+## Status, 2026-10-24
+
+Each of this record's fifteen findings, with the pull requests that changed the code it names. A
+finding marked unverified with no pull request was left unchanged on purpose; the conditions in its
+row above say what would reopen it.
+
+| Original ID | Fix pull requests |
+| --- | --- |
+| desktop-install-002 | [#857](https://github.com/storytree-ai/storytree/pull/857), Windows [#875](https://github.com/storytree-ai/storytree/pull/875) |
+| desktop-install-003 | [#860](https://github.com/storytree-ai/storytree/pull/860), [#863](https://github.com/storytree-ai/storytree/pull/863), Windows [#871](https://github.com/storytree-ai/storytree/pull/871), [#885](https://github.com/storytree-ai/storytree/pull/885) |
+| identity-secrets-001 | [#908](https://github.com/storytree-ai/storytree/pull/908), [#1007](https://github.com/storytree-ai/storytree/pull/1007) |
+| identity-secrets-002 | None: unverified |
+| identity-secrets-003 | None: the identity server it concerns is not built |
+| identity-secrets-004 | None: the identity server it concerns is not built |
+| identity-secrets-005 | None: the identity server it concerns is not built |
+| storage-library-004 | None: unverified |
+| web-ui-002 | None: unverified |
+| web-ui-003 | None: unverified |
+| web-ui-004 | [#867](https://github.com/storytree-ai/storytree/pull/867) |
+| web-ui-005 | None: unverified |
+| delivery-infra-001 | [#878](https://github.com/storytree-ai/storytree/pull/878), [#1050](https://github.com/storytree-ai/storytree/pull/1050) |
+| delivery-infra-002 | [#868](https://github.com/storytree-ai/storytree/pull/868) |
+| delivery-infra-003 | [#862](https://github.com/storytree-ai/storytree/pull/862) |
+
+An independent re-check of the merged fixes (`increment_8862d4069e34`) closed on 2026-10-10 and
+found every confirmed finding fixed.

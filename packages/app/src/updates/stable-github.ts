@@ -27,7 +27,7 @@ export async function publishStable(manifest: StableManifest, bootstrap: Bootstr
     ...(bootstrap.sh === undefined ? [] : [{ path: "install-storytree.sh", mode: "100644", type: "blob", content: bootstrap.sh }]),
     ...Object.entries(manifest.feeds ?? {}).map(([platform, feed]) => (
       { path: FEED_PLATFORMS[platform as FeedPlatform].file, mode: "100644", type: "blob", content: JSON.stringify(feed, null, 2) + "\n" })),
-    { path: "README.md", mode: "100644", type: "blob", content: `${manifest.releaseNotes}\n\n${pinCoverage(manifest)}\n\nPinned from ${manifest.pin.commit}. Installer bytes remain on their original development releases.\n` },
+    { path: "README.md", mode: "100644", type: "blob", content: `${manifest.releaseNotes}\n\n${pinCoverage(manifest)}\n\nPinned from ${manifest.pin.commit}. Installer bytes remain on their original alpha releases.\n` },
   ] }) as { sha: string };
   const back = manifest.pin.movedBackFrom;
   const commit = await api("git/commits", "POST", {
@@ -205,7 +205,7 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
     formerPin: wanted => formerPin(wanted, api),
     async candidate(wanted) {
       const release = await api(`releases/tags/v${wanted}`) as Release;
-      if (release.tag_name !== `v${wanted}` || release.draft || release.prerelease) throw new Error("Pin a published development build by its 0.3.<n> version");
+      if (release.tag_name !== `v${wanted}` || release.draft || release.prerelease) throw new Error("Pin a published alpha build by its 0.3.<n> version");
       const remote = git("remote", "get-url", "origin");
       if (!/^(?:https:\/\/github\.com\/|git@github\.com:)storytree-ai\/storytree(?:\.git)?$/.test(remote)) throw new Error("Pin from a storytree checkout whose origin is storytree-ai/storytree");
       git("fetch", "origin", "+refs/heads/main:refs/remotes/origin/main", `refs/tags/v${wanted}:refs/tags/v${wanted}`);
@@ -225,7 +225,7 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
         if (entry?.name !== installer.name || entry.size !== installer.size) throw new Error("Release installer does not match its delivery manifest");
         return { ...entry, url: installer.browser_download_url };
       });
-      // The development updater's complete publication is required too; it remains untouched.
+      // The alpha updater's complete publication is required too; it remains untouched.
       asset(release, "latest.yml");
       const feeds: PlatformFeeds = {};
       for (const platform of Object.keys(FEED_PLATFORMS) as FeedPlatform[]) {

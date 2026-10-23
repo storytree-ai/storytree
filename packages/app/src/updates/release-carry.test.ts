@@ -14,7 +14,7 @@ const macFeed = (version: string) => [
   `path: storytree-0.3-${version}-mac-arm64.zip`, `sha512: ${sha("a")}`, "releaseDate: '2026-10-13T23:27:48.872Z'", "",
 ].join("\n");
 
-/** What the development updater reads: GitHub's latest release is `tag`, and its latest-mac.yml is `feed`. */
+/** What the alpha updater reads: GitHub's latest release is `tag`, and its latest-mac.yml is `feed`. */
 async function developmentCheck(tag: string, feed: string) {
   const read: string[] = [];
   const answer = (pathname: string) => {

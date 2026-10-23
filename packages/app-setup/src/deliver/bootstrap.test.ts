@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-test("1.10 release delivery assets publish a stable command, an explicit development command and a channel-aware installer manifest", async () => {
+test("1.10 release delivery assets publish a stable command, an explicit alpha command and a channel-aware installer manifest", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-delivery-assets-"));
   try {
     const built = { x64: Buffer.from("the x64 installer"), arm64: Buffer.from("the arm64 installer, longer") };
@@ -25,7 +25,7 @@ test("1.10 release delivery assets publish a stable command, an explicit develop
       size: bytes.length,
     }])));
     assert.match(readFileSync(path.join(dir, "install-storytree.txt"), "utf8"), /raw\.githubusercontent\.com\/storytree-ai\/storytree\/release-channel-stable\/install-storytree\.ps1/);
-    assert.match(readFileSync(path.join(dir, "install-storytree-development.txt"), "utf8"), /releases\/latest\/download\/install-storytree\.ps1.*-Channel development/);
+    assert.match(readFileSync(path.join(dir, "install-storytree-alpha.txt"), "utf8"), /releases\/latest\/download\/install-storytree\.ps1.*-Channel alpha/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

@@ -14,13 +14,13 @@ try {
   Assert ($saved.schema -eq 1 -and $saved.channel -ceq 'stable') 'saving puts the channel on disk'
   Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'stable') 'rerun keeps stable'
   # A record with no installed app is what a failed download left behind: an explicit choice replaces it.
-  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'development') -eq 'development') 'retry on development after a failed stable download'
-  Save-StorytreeChannel $channelHome 'development'
-  Assert ((Get-Content -LiteralPath $channelFile -Raw | ConvertFrom-Json).channel -ceq 'development') 'the explicit retry replaces the leftover record'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'alpha') -eq 'alpha') 'retry on alpha after a failed stable download'
+  Save-StorytreeChannel $channelHome 'alpha'
+  Assert ((Get-Content -LiteralPath $channelFile -Raw | ConvertFrom-Json).channel -ceq 'alpha') 'the explicit retry replaces the leftover record'
   Save-StorytreeChannel $channelHome 'stable'
   New-Item -ItemType Directory -Path $channelInstall -Force | Out-Null
   [IO.File]::WriteAllText((Join-Path $channelInstall 'storytree-0.3.exe'), 'app')
-  try { Resolve-StorytreeChannel $channelHome $channelInstall 'development'; throw 'accepted conflict' }
+  try { Resolve-StorytreeChannel $channelHome $channelInstall 'alpha'; throw 'accepted conflict' }
   catch { Assert ($_.Exception.Message -match 'already.*stable') 'an explicit conflicting channel cannot silently migrate an install' }
   Remove-Item -LiteralPath (Join-Path $channelInstall 'storytree-0.3.exe')
   [IO.File]::WriteAllText($channelFile, '{broken')
@@ -33,17 +33,19 @@ try {
   New-Item -ItemType Directory -Path (Join-Path $channelInstall 'resources') -Force | Out-Null
   [IO.File]::WriteAllText((Join-Path $channelInstall 'resources/storytree-installed'), 'nsis')
   try { Resolve-StorytreeChannel $channelHome $channelInstall 'stable'; throw 'accepted legacy switch' }
-  catch { Assert ($_.Exception.Message -match 'already.*development') 'stable default cannot overwrite legacy development' }
-  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'development') 'legacy owner install remains development'
+  catch { Assert ($_.Exception.Message -match 'already.*alpha') 'stable default cannot overwrite legacy alpha' }
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'alpha') 'legacy owner install remains alpha'
+  # Alpha's old name, development, is what an owner install saved before ADR-1121: it reads as alpha.
   Save-StorytreeChannel $channelHome 'development'
   [IO.File]::WriteAllText((Join-Path $channelInstall 'resources/storytree-installed'), 'nsis-stable')
-  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'development') 'saved channel survives a newer marker'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'alpha') 'saved channel survives a newer marker'
   try { Resolve-StorytreeChannel $channelHome $channelInstall 'stable'; throw 'accepted conflict' }
-  catch { Assert ($_.Exception.Message -match 'already.*development') 'a marked installation keeps its saved channel' }
+  catch { Assert ($_.Exception.Message -match 'already.*alpha') 'a marked installation keeps its saved channel' }
   Remove-Item -LiteralPath $channelFile
   Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'stable') 'new installer marker selects stable'
   Remove-Item -LiteralPath $channelInstall -Recurse -Force
-  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'development') -eq 'development') 'a fresh install accepts explicit development'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'alpha') -eq 'alpha') 'a fresh install accepts explicit alpha'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'development') -eq 'alpha') "the old one-liner's -Channel development asks for alpha"
 } finally { if (Test-Path -LiteralPath $channelRoot) { Remove-Item -LiteralPath $channelRoot -Recurse -Force } }
 $script:ReleaseUrls = [Collections.Generic.List[string]]::new()
 $script:StablePointer = @{ schema = 1; channel = 'stable'; version = '0.3.123' }
@@ -61,8 +63,8 @@ $selected = Get-StorytreeRelease 'stable' $fetchRelease
 Assert ($selected.tag_name -eq 'v0.3.123') 'stable selects the pinned release'
 Assert (($script:ReleaseUrls -join ',') -eq 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/latest.yml,https://api.github.com/repos/storytree-ai/storytree/releases/tags/v0.3.123') 'stable never consults latest'
 $script:ReleaseUrls.Clear()
-Get-StorytreeRelease 'development' $fetchRelease | Out-Null
-Assert (($script:ReleaseUrls -join ',') -eq 'https://api.github.com/repos/storytree-ai/storytree/releases/latest') 'explicit development follows releases'
+Get-StorytreeRelease 'alpha' $fetchRelease | Out-Null
+Assert (($script:ReleaseUrls -join ',') -eq 'https://api.github.com/repos/storytree-ai/storytree/releases/latest') 'explicit alpha follows releases'
 foreach ($bad in @(@{schema=2;channel='stable';version='0.3.123'}, @{schema=1;channel='development';version='0.3.123'}, @{schema=1;channel='stable';version='evil/path'})) {
   $script:StablePointer = $bad; $script:ReleaseUrls.Clear()
   try { Get-StorytreeRelease 'stable' $fetchRelease; throw 'accepted invalid pointer' }
@@ -78,8 +80,8 @@ $script:ReleaseUrls.Clear()
 $selected = Get-StorytreeRelease 'stable' $fetchRelease '0.3.123'
 Assert ($selected.tag_name -eq 'v0.3.123') 'an acceptance version selects that release'
 Assert (($script:ReleaseUrls -join ',') -eq 'https://api.github.com/repos/storytree-ai/storytree/releases/tags/v0.3.123') 'an acceptance version reads neither the pin nor latest'
-try { Get-StorytreeRelease 'development' $fetchRelease '0.3.123'; throw 'accepted development' }
-catch { Assert ($_.Exception.Message -match 'installs as stable') 'an acceptance version on development stops delivery' }
+try { Get-StorytreeRelease 'alpha' $fetchRelease '0.3.123'; throw 'accepted alpha' }
+catch { Assert ($_.Exception.Message -match 'installs as stable') 'an acceptance version on alpha stops delivery' }
 try { Get-StorytreeRelease 'stable' $fetchRelease 'latest'; throw 'accepted latest' }
 catch { Assert ($_.Exception.Message -match '0\.3\.<n>') 'an acceptance version that names no release stops delivery' }
 try { Get-StorytreeRelease 'stable' $fetchRelease '0.3.124'; throw 'accepted another build' }

@@ -11,9 +11,9 @@ export const PLATFORMS = {
       // One NSIS installer per architecture; latest.yml names both, and each installed app's updater takes its own.
       ...WINDOWS_ARCHITECTURES.flatMap((arch) => [windowsInstaller(version, arch), `${windowsInstaller(version, arch)}.blockmap`]), "latest.yml",
       // The one-command delivery: its bootstrap, one-liners and installer checksum manifest.
-      "install-storytree.ps1", "install-storytree.txt", "install-storytree-development.txt", "storytree-delivery.json",
+      "install-storytree.ps1", "install-storytree.txt", "install-storytree-alpha.txt", "storytree-delivery.json",
     ],
-    uploads: (name) => /^(install-storytree(-development)?\.(ps1|txt)|storytree-delivery\.json|latest\.yml)$/.test(name) || /\.(exe|exe\.blockmap)$/.test(name),
+    uploads: (name) => /^(install-storytree(-alpha)?\.(ps1|txt)|storytree-delivery\.json|latest\.yml)$/.test(name) || /\.(exe|exe\.blockmap)$/.test(name),
   },
   mac: {
     required: (version) => [
@@ -21,9 +21,9 @@ export const PLATFORMS = {
       // delivery record, so it would never update itself, and the curl one-liner is the Mac's only install route.
       `storytree-0.3-${version}-mac-arm64.zip`, `storytree-0.3-${version}-mac-arm64.zip.blockmap`, "latest-mac.yml",
       // The Mac one-command delivery; its manifest entry is merged into storytree-delivery.json on publish.
-      "install-storytree.sh", "install-storytree-mac.txt", "install-storytree-mac-development.txt", "storytree-delivery-mac.json",
+      "install-storytree.sh", "install-storytree-mac.txt", "install-storytree-mac-alpha.txt", "storytree-delivery-mac.json",
     ],
-    uploads: (name) => /^(latest-mac\.yml|install-storytree\.sh|install-storytree-mac(-development)?\.txt|storytree-delivery-mac\.json)$/.test(name) || /\.zip(\.blockmap)?$/.test(name),
+    uploads: (name) => /^(latest-mac\.yml|install-storytree\.sh|install-storytree-mac(-alpha)?\.txt|storytree-delivery-mac\.json)$/.test(name) || /\.zip(\.blockmap)?$/.test(name),
   },
   linux: {
     // An AppImage carries its blockmap inside it, so its update feed and its delivery entry are its only companions.

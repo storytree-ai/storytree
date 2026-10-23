@@ -8,7 +8,7 @@ import { VerbRefusal } from "@storytree/library/verbs";
 
 import { withTempDir } from "../testing/folders.js";
 import { partsSaid, switchedSaid, switchPart } from "./parts.js";
-import { readStandIns, setFactory } from "./settings.js";
+import { factoryFolder, readStandIns, setFactory } from "./settings.js";
 
 /** A host's parts: the core, and forest with arc-surface standing on it. */
 const parts = ["arc-surface", "forest", "library", "project-and-caller"];
@@ -44,13 +44,12 @@ test("2.17 `settings set part <part> off` switches a part of the host off and `o
 test("2.20 `settings set factory <folder>` chooses this computer's factory folder, an existing folder, saved as its full path: an empty one is given the factory's shape, a factory is accepted, and any other folder is refused with why, left as it was and not saved; `settings set part <part> plugin <plugin>` switches the part off and names the factory plugin standing in for it, which readStandIns reads with the folder and `settings show` lists; `on` switches it back on and drops the stand-in, and a plugin with no name is refused, saving nothing", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
-    assert.deepEqual(readStandIns(home), { plugins: {} });
     assert.throws(() => setFactory(path.join(home, "no-such"), home), /no folder/);
     mkdirSync(path.join(home, "notes"));
     writeFileSync(path.join(home, "notes", "todo.md"), "mine");
     assert.throws(() => setFactory(path.join(home, "notes"), home), /notes holds other files and no plugins folder/);
     assert.equal(existsSync(path.join(home, "notes", "plugins")), false, "a refused folder is left as it was");
-    assert.deepEqual(readStandIns(home), { plugins: {} }, "a refused folder is not saved");
+    assert.equal(existsSync(file), false, "a refused folder is not saved");
     mkdirSync(path.join(home, "factory", ".git"), { recursive: true });
     assert.deepEqual(setFactory(path.join(home, "factory", "."), home), { status: "set up", folder: path.join(home, "factory") }, "an empty folder (a fresh repository counts) is set up");
     assert.ok(statSync(path.join(home, "factory", "plugins")).isDirectory(), "the factory's shape: a plugins folder");
@@ -67,5 +66,28 @@ test("2.20 `settings set factory <folder>` chooses this computer's factory folde
     assert.deepEqual(switchPart("forest", "on", parts, home), []);
     assert.deepEqual(readStandIns(home).plugins, {});
     assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { factory: path.join(home, "factory"), "parts-off": [], "stand-ins": {} });
+  });
+});
+
+test("2.21 With no factory setting, storytree makes and uses its own factory folder, your-factory, with the factory's shape and no setting saved: beside its versioned home (~/.storytree/your-factory), inside any other home", async () => {
+  await withTempDir((dir) => {
+    const home = path.join(dir, ".storytree", "0.3");
+    const made = path.join(dir, ".storytree", "your-factory");
+    assert.deepEqual(factoryFolder(home), { folder: made, chosen: false });
+    assert.ok(statSync(path.join(made, "plugins")).isDirectory(), "the factory's shape: a plugins folder");
+    assert.deepEqual(readStandIns(home), { folder: made, plugins: {} }, "the hosts load plugins from it");
+    assert.equal(existsSync(path.join(home, "settings.json")), false, "the default is not saved as a setting");
+
+    mkdirSync(path.join(made, "plugins", "my-forest"));
+    assert.deepEqual(factoryFolder(home), { folder: made, chosen: false });
+    assert.ok(existsSync(path.join(made, "plugins", "my-forest")), "a default folder already there is used as it is");
+
+    const lane = path.join(dir, "lane-home");
+    assert.equal(factoryFolder(lane).folder, path.join(lane, "your-factory"), "any other home keeps its factory inside it");
+
+    mkdirSync(path.join(dir, "mine"));
+    setFactory(path.join(dir, "mine"), home);
+    assert.deepEqual(factoryFolder(home), { folder: path.join(dir, "mine"), chosen: true });
+    assert.equal(readStandIns(home).folder, path.join(dir, "mine"));
   });
 });

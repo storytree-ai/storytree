@@ -26,12 +26,12 @@ const show = verb({
   inputs: {},
   callerless: true,
   async act(_input, { surfaces, parts }: SettingsPlace) {
-    const { partsSaid, readPartsOff, readSettings, readStandIns, readSystemSwitches, systemSaid } = await import("@storytree/project-and-caller");
+    const { factoryFolder, partsSaid, readPartsOff, readSettings, readStandIns, readSystemSwitches, systemSaid } = await import("@storytree/project-and-caller");
     const { readSurfaces } = await import("./switches.js");
     const read = readSettings();
     const graph = await parts();
     const settings = Object.values(read).map((reading) => reading.name === "library" ? librarySaid(reading) : settingSaid(reading)).join("\n\n");
-    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(readStandIns().folder)}\n\n${partsSaid(Object.keys(graph), switchedOff(graph, readPartsOff()), readStandIns().plugins)}\n\n${systemSaid(readSystemSwitches())}` };
+    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(factoryFolder())}\n\n${partsSaid(Object.keys(graph), switchedOff(graph, readPartsOff()), readStandIns().plugins)}\n\n${systemSaid(readSystemSwitches())}` };
   },
 });
 
@@ -52,7 +52,7 @@ const set = verb({
     if (words[0] === "factory" && words.length === 2) {
       const chosen = setFactory(words[1]!);
       const how = chosen.status === "set up" ? "Set up as your factory: its plugins folder is made." : "Already a factory: kept as it was.";
-      return { text: `${how}\n${factorySaid(chosen.folder)}`, next: NEXT };
+      return { text: `${how}\n${factorySaid({ folder: chosen.folder, chosen: true })}`, next: NEXT };
     }
     if (words[0] === "part" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
       const graph = await parts();
@@ -106,9 +106,9 @@ function librarySaid(reading: LibraryReading): string {
 }
 
 /** This computer's factory folder, whose plugins may stand in for a part switched off, or that none is chosen. */
-function factorySaid(folder: string | undefined): string {
-  const said = folder === undefined ? "none chosen" : folder;
-  return `factory: ${said}\n  The folder of your own factory, whose plugins (plugins/<plugin>/) may stand in for a part you switch off with \`storytree settings set part <part> plugin <plugin>\`. Choose it with \`storytree settings set factory <folder>\`.`;
+function factorySaid({ folder, chosen }: { folder: string; chosen: boolean }): string {
+  const said = chosen ? folder : `${folder} (default, made by storytree)`;
+  return `factory: ${said}\n  The folder of your own factory, whose plugins (plugins/<plugin>/) may stand in for a part you switch off with \`storytree settings set part <part> plugin <plugin>\`. Choose another with \`storytree settings set factory <folder>\`.`;
 }
 
 function surfacesSaid(surfaces: readonly SurfaceReading[]): string {

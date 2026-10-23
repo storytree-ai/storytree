@@ -18,7 +18,7 @@ test("1.3 · Quality assurance declares the `quality` verbs the command line mou
   assert.equal(family!.name, "quality");
   assert.equal(family!.order, 10);
   const verbs = new Map(family!.verbs.map((one) => [(one.command as { name: string }).name, one]));
-  assert.deepEqual([...verbs.keys()], ["checks", "ledger", "brief", "take", "answer", "standing", "graduate"]);
+  assert.deepEqual([...verbs.keys()], ["checks", "ledger", "brief", "take", "answer", "standing", "graduate", "risk", "story-risks"]);
 
   await withLibrary(async (library) => {
     const principle = await library.writeKnowledge("principle", { title: "Test creation principles", description: "How a test earns its place.", statement: "A test fails if its behaviour is removed.", why: "A test that cannot fail protects nothing.", howToApply: "Delete the behaviour and watch the test fail." });

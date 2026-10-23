@@ -2,7 +2,7 @@
 import { homedir } from "node:os";
 import path from "node:path";
 import { codexHookTrust } from "@storytree/session-management";
-import { readProjectChoice } from "@storytree/project-and-caller";
+import { makeFactoryFolder, readProjectChoice } from "@storytree/project-and-caller";
 
 import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Library, Storytree } from "@storytree/library";
@@ -40,6 +40,8 @@ export function setupHelpActions(options: {
   /** The app's open library, which Add project writes to and Remove reads. */
   library(): Storytree;
 }): SetupHelpBridge {
+  // First launch asks for no factory folder (ADR-1118): with none chosen, storytree's own is made as the app starts.
+  makeFactoryFolder(options.storytreeHome);
   return {
     readSetupLicense: () => readShippedLicense(options.licenseFile),
     async agentConnections() {

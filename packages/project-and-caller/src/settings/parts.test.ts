@@ -8,7 +8,7 @@ import { VerbRefusal } from "@storytree/library/verbs";
 
 import { withTempDir } from "../testing/folders.js";
 import { partsSaid, switchedSaid, switchPart } from "./parts.js";
-import { factoryFolder, readStandIns, setFactory } from "./settings.js";
+import { factoryFolder, makeFactoryFolder, readStandIns, setFactory } from "./settings.js";
 
 /** A host's parts: the core, and forest with arc-surface standing on it. */
 const parts = ["arc-surface", "forest", "library", "project-and-caller"];
@@ -74,12 +74,14 @@ test("2.21 With no factory setting, storytree makes and uses its own factory fol
     const home = path.join(dir, ".storytree", "0.3");
     const made = path.join(dir, ".storytree", "your-factory");
     assert.deepEqual(factoryFolder(home), { folder: made, chosen: false });
+    assert.equal(existsSync(made), false, "reading it writes nothing");
+    assert.deepEqual(makeFactoryFolder(home), { folder: made, chosen: false });
     assert.ok(statSync(path.join(made, "plugins")).isDirectory(), "the factory's shape: a plugins folder");
     assert.deepEqual(readStandIns(home), { folder: made, plugins: {} }, "the hosts load plugins from it");
     assert.equal(existsSync(path.join(home, "settings.json")), false, "the default is not saved as a setting");
 
     mkdirSync(path.join(made, "plugins", "my-forest"));
-    assert.deepEqual(factoryFolder(home), { folder: made, chosen: false });
+    assert.deepEqual(makeFactoryFolder(home), { folder: made, chosen: false });
     assert.ok(existsSync(path.join(made, "plugins", "my-forest")), "a default folder already there is used as it is");
 
     const lane = path.join(dir, "lane-home");
@@ -87,7 +89,7 @@ test("2.21 With no factory setting, storytree makes and uses its own factory fol
 
     mkdirSync(path.join(dir, "mine"));
     setFactory(path.join(dir, "mine"), home);
-    assert.deepEqual(factoryFolder(home), { folder: path.join(dir, "mine"), chosen: true });
+    assert.deepEqual(makeFactoryFolder(home), { folder: path.join(dir, "mine"), chosen: true });
     assert.equal(readStandIns(home).folder, path.join(dir, "mine"));
   });
 });

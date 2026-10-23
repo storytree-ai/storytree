@@ -301,17 +301,25 @@ const DEFAULT_FACTORY = "your-factory";
 
 /**
  * This computer's factory folder: the one `settings set factory` chose, or else storytree's own, `your-factory`
- * (ADR-1118 D2), made with the factory's shape the first time it is needed and used without saving a setting. It sits
- * beside a versioned home (`~/.storytree/0.3` keeps it at `~/.storytree/your-factory`, so it outlasts the version) and
- * inside any other home, so a lane's or a test's home keeps its own. A damaged value is reported naming the file.
+ * (ADR-1118 D2). It sits beside a versioned home (`~/.storytree/0.3` keeps it at `~/.storytree/your-factory`, so it
+ * outlasts the version) and inside any other home, so a lane's or a test's home keeps its own. Reading it writes
+ * nothing; `makeFactoryFolder` makes the default. A damaged value is reported naming the file.
  */
 export function factoryFolder(home: string = storytreeHome()): { readonly folder: string; readonly chosen: boolean } {
   const chosen = readStored(home).factory;
   if (chosen !== undefined) return { folder: chosen, chosen: true };
   const full = path.resolve(home);
-  const folder = path.join(path.basename(path.dirname(full)) === ".storytree" ? path.dirname(full) : full, DEFAULT_FACTORY);
-  mkdirSync(path.join(folder, "plugins"), { recursive: true });
-  return { folder, chosen: false };
+  return { folder: path.join(path.basename(path.dirname(full)) === ".storytree" ? path.dirname(full) : full, DEFAULT_FACTORY), chosen: false };
+}
+
+/**
+ * This computer's factory folder, storytree's own made with the factory's shape (a `plugins` folder) when no other is
+ * chosen and it is not there yet, without saving a setting: what the desktop app does as it starts (ADR-1118 D2).
+ */
+export function makeFactoryFolder(home: string = storytreeHome()): { readonly folder: string; readonly chosen: boolean } {
+  const factory = factoryFolder(home);
+  if (!factory.chosen) mkdirSync(path.join(factory.folder, "plugins"), { recursive: true });
+  return factory;
 }
 
 /**

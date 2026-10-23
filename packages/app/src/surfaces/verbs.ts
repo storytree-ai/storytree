@@ -107,7 +107,7 @@ function librarySaid(reading: LibraryReading): string {
 
 /** This computer's factory folder, whose plugins may stand in for a part switched off, or that none is chosen. */
 function factorySaid({ folder, chosen }: { folder: string; chosen: boolean }): string {
-  const said = chosen ? folder : `${folder} (default, made by storytree)`;
+  const said = chosen ? folder : `${folder} (storytree's own, the default)`;
   return `factory: ${said}\n  The folder of your own factory, whose plugins (plugins/<plugin>/) may stand in for a part you switch off with \`storytree settings set part <part> plugin <plugin>\`. Choose another with \`storytree settings set factory <folder>\`.`;
 }
 

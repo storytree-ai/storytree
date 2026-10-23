@@ -83,6 +83,7 @@ import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANN
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/app-setup/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
+import { restartLimit } from "@storytree/app/lifecycle/restart-limit";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
 import { sourceVersion } from "@storytree/app/version";
@@ -146,10 +147,10 @@ logMainErrors(process, {
   },
   restart: () => {
     const appImage = process.env.APPIMAGE;
-    void lifecycle.restart(
+    lifecycle.restart(
       thisBuild({ execPath: process.execPath, argv: process.argv, ...(appImage === undefined ? {} : { appImage }) }),
       BrowserWindow.getAllWindows().some(window => window.isVisible()),
-    );
+    ).catch((error: unknown) => console.error(messageOf(error)));
   },
 });
 
@@ -197,6 +198,10 @@ const lifecycle = background({
   stopDatabase: shutdown,
   exit: (code) => app.exit(code),
   relaunch,
+  // After five restarts in a row the app stops restarting itself, and the stop is an error the user is asked to report (lifecycle 1.32).
+  ...(args.smoke || args.startCheck || args.callbackCheck ? {} : {
+    limit: restartLimit({ file: path.join(home.dir, "restarts.json"), stopped: message => errorRecords.record("restarts-stopped", message) }),
+  }),
 });
 // The app that follows merged main runs with no terminal, so what it says goes to a log beside its data.
 if (slot !== undefined && !args.smoke && !args.startCheck && !args.callbackCheck) logTo(path.join(home.dir, "app.log"));

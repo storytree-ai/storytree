@@ -80,3 +80,12 @@ test("3.16 An agent switches this computer's factory folder with the declared sw
   const refused = await tool.act({ folder: path.join(dir, "notes") }, { folder: dir, surfaces: async () => declared, parts: async () => graph }, words).catch((error: unknown) => error);
   assert.ok(refused instanceof VerbRefusal && /not a factory/.test(refused.message), String(refused));
 });
+
+test("project-and-caller 2.23 `settings set part <part> plugin <plugin>` records the calling session from the command line, and `settings show` says who switched the stand-in and when; `on` switches it back with no record", async (t) => {
+  const dir = home(t);
+  const place: SettingsPlace = { folder: dir, session: "s-9", surfaces: async () => declared, parts: async () => graph };
+  await named("set").act({ words: ["part", "forest", "plugin", "my-forest"] }, place, words);
+  assert.match((await named("show").act({}, place, words)).text, /^  forest: off, my-forest stands in for it \(switched by session s-9 from the command line, \d{4}-\d\d-\d\dT/m);
+  await named("set").act({ words: ["part", "forest", "on"] }, place, words);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(dir, "settings.json"), "utf8"))["stand-ins-switched"], {});
+});

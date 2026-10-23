@@ -150,6 +150,37 @@ test("3.9 · `pool` starts each ready increment under the shared lock with the r
   assert.equal(await main(["pool"], b), 1, "one dispatcher at a time");
 });
 
+test("3.22 · an increment that closes or is claimed between the survey and its lane's start starts no lane, and one claimed meanwhile starts once that claim clears", async (t) => {
+  let closed = false, claims = [];
+  const work = () => {
+    const found = poolWork(["increment_closes", "increment_claimed"], { claims });
+    if (closed) found.increments[0].status = "closed";
+    return found;
+  };
+  const ran = [];
+  const b = await box(t, {
+    survey: async () => work(), count: async () => 0, maxLanes: async () => 2,
+    // Both are picked from one survey; then, while the checkout is prepared, one closes and the other is claimed.
+    prepare: async () => {
+      if (closed) return;
+      closed = true;
+      claims = [{ increment: "increment_claimed", session: "other", holder: "live", since: "2026-10-08T03:59:00Z" }];
+    },
+    runLane: async (options) => { ran.push(options.increment); return 0; },
+    sleep: async () => {
+      await new Promise((go) => setImmediate(go));
+      if (b.lines.some((line) => /not starting increment_claimed/.test(line))) claims = [];
+      if (ran.length) await writeFile(join(b.lanesDir, "pool-stop"), "");
+    },
+  });
+  assert.equal(await main(["pool"], b), 0);
+  assert.deepEqual(ran, ["increment_claimed"], "the closed one never starts; the claimed one starts once its claim clears, with no back-off");
+  const status = b.lines.join("\n");
+  assert.match(status, /not starting increment_closes: it is closed/);
+  assert.match(status, /not starting increment_claimed: held by live session other/);
+  assert.ok(!/start increment_closes/.test(status));
+});
+
 test("3.10 · the dispatcher restarts between sessions when its own code changes, and not otherwise", async () => {
   const lines = [], started = [], ends = new Map(), refreshed = [];
   let version = "tree-a", engines = 0;

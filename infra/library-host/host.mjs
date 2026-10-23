@@ -82,12 +82,12 @@ export function restorer(password) {
   return { host: '127.0.0.1', port: 5432, user: OWNER, password };
 }
 export function restoreCommand(server, name, file) {
-  return { command: path.join(PG_BIN, 'pg_restore'),
+  return { command: path.posix.join(PG_BIN, 'pg_restore'),
     args: ['--no-password', '--exit-on-error', '--single-transaction', '--no-owner', '--no-acl', '-d', name, file],
     env: pgEnv(server, name) };
 }
 export function dumpCommand(server, database, snapshot, owner, file) {
-  return { command: path.join(PG_BIN, 'pg_dump'),
+  return { command: path.posix.join(PG_BIN, 'pg_dump'),
     args: ['-Fc', '--no-password', `--snapshot=${snapshot}`, `--role=${owner}`, '-f', file], env: pgEnv(server, database) };
 }
 

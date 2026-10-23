@@ -5,6 +5,8 @@
  * is stopped once, after the pages stop polling, and the app exits only after it has stopped.
  * apps/desktop wires this to Electron's events.
  */
+import { RestartsStopped, type RestartLimit } from "./restart-limit.js";
+
 export interface TrayItem {
   /** What the item does: `show` brings the window back, `quit` stops the app. */
   readonly id: "show" | "quit";
@@ -40,7 +42,8 @@ export interface Background {
   quit(code?: number): Promise<void>;
   /**
    * Stop the database, then start `target` (a newer build) and exit. The new build shows its window
-   * if this one's was `showing`, or if the app was started again meanwhile.
+   * if this one's was `showing`, or if the app was started again meanwhile. Past `limit`, nothing stops and it rejects
+   * with RestartsStopped (contract 1.32).
    */
   restart(target: Launch, showing: boolean): Promise<void>;
   /**
@@ -64,9 +67,11 @@ export interface BackgroundOptions {
    * background (tray only) or with its window.
    */
   relaunch?: (target: Launch | undefined, inBackground: boolean) => void;
+  /** The restarts in a row, which a restart asks before it stops anything (contract 1.32). */
+  limit?: Pick<RestartLimit, "mayRestart">;
 }
 
-export function background({ stopPages, stopDatabase, exit, relaunch }: BackgroundOptions): Background {
+export function background({ stopPages, stopDatabase, exit, relaunch, limit }: BackgroundOptions): Background {
   let quitting: Promise<void> | undefined;
   /** What to start once stopped: a restart's target, or this build again ("self"). */
   let next: { target: Launch | undefined; shown: boolean } | undefined;
@@ -86,7 +91,10 @@ export function background({ stopPages, stopDatabase, exit, relaunch }: Backgrou
     windowClosed: () => "keep-running",
     quit: (code = 0) => stop(code),
     restart(target, showing) {
-      if (quitting === undefined) next = { target, shown: showing };
+      if (quitting === undefined) {
+        if (limit?.mayRestart() === false) return Promise.reject(new RestartsStopped());
+        next = { target, shown: showing };
+      }
       return stop(0);
     },
     secondStart(request) {

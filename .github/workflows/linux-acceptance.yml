@@ -10,9 +10,9 @@ on:
   workflow_call:
     inputs:
       channel:
-        description: Release channel to install (stable or development)
+        description: Release channel to install (stable or alpha)
         type: string
-        default: development
+        default: alpha
       version:
         description: The version the one-liner must install (the release just published)
         type: string
@@ -20,8 +20,8 @@ on:
   workflow_dispatch:
     inputs:
       channel:
-        description: Release channel to install (stable or development)
-        default: development
+        description: Release channel to install (stable or alpha)
+        default: alpha
       version:
         description: On stable, a 0.3.<n> build to install as a stable user would get it, before the pin moves to it; empty takes the pin
         default: ""
@@ -41,10 +41,10 @@ jobs:
         with:
           sparse-checkout: packages/app-setup/evidence/linux-acceptance/harness
       - name: Install with the one-liner and record what a first user sees
-        # On development the version is only judged (the release just published is latest); on stable it is installed.
+        # On alpha the version is only judged (the release just published is latest); on stable it is installed.
         env:
           VERSION: ${{ inputs.version }}
-        run: bash packages/app-setup/evidence/linux-acceptance/harness/run.sh "$RUNNER_TEMP/linux-acceptance" "${{ inputs.channel || 'development' }}" "$VERSION"
+        run: bash packages/app-setup/evidence/linux-acceptance/harness/run.sh "$RUNNER_TEMP/linux-acceptance" "${{ inputs.channel || 'alpha' }}" "$VERSION"
       - name: Fail unless the app, its database, the setup check and the hooks came up
         run: bash packages/app-setup/evidence/linux-acceptance/harness/judge.sh "$RUNNER_TEMP/linux-acceptance" "${{ inputs.version }}"
       - uses: actions/upload-artifact@v7

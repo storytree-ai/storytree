@@ -11,7 +11,8 @@ import { checkEmbeddingBinaries, checkTools } from "./check-tools.mjs";
 import { startsCleanly } from "./src/main/start-check.ts";
 
 const release = path.resolve("apps/desktop/release");
-const installer = readdirSync(release).find((file) => file.endsWith("-setup.exe"));
+// Each architecture has its own installer; this runner proves its own.
+const installer = readdirSync(release).find((file) => file.endsWith(`-windows-${process.arch}-setup.exe`));
 assert.ok(installer, "NSIS installer was not built");
 assert.equal(process.platform, "win32", "Run this proof on Windows");
 const version = process.env.STORYTREE_RELEASE_VERSION ?? JSON.parse(readFileSync("apps/desktop/package.json", "utf8")).version;

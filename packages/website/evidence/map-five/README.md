@@ -13,7 +13,7 @@
 | 4 · Pathways | [1920](1920-map-together.png) | [1440](1440-map-together.png) | [1280](1280-map-together.png) | [390](390-map-together.png) | [320](320-map-together.png) |
 | 5 · Health | [1920](1920-map-health.png) | [1440](1440-map-health.png) | [1280](1280-map-health.png) | [390](390-map-health.png) | [320](320-map-health.png) |
 
-Each step is pictured as it settles (the second also while its claims line is told, before the sessions list opens). `framing.json` records where the names of the islands each step frames stand against the screen's edges, the header, the card, the bar and the panels: no misses. [1440-steps-1-to-3.webm](1440-steps-1-to-3.webm) plays steps 1 to 3 at 1440 at the tour's 0.75×, with the camera's line-cued move on "Look inside a story".
+Each step is pictured as it settles (the second also while its claims line is told, before the sessions list opens). `framing.json` records where the names of the islands each step frames stand against the screen's edges, the header, the card, the bar and the panels: no misses. [1440-steps-1-to-3.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/map-five/1440-steps-1-to-3.webm) plays steps 1 to 3 at 1440 at the tour's 0.75×, with the camera's line-cued move on "Look inside a story".
 
 ## The first island, as its session stakes it and its code lands
 
@@ -45,3 +45,5 @@ WEBSITE_SHA=$(git rev-parse HEAD) pnpm --filter @storytree/website build
 node packages/website/evidence/arrival/capture.mjs --only mapSteps
 node --import tsx packages/website/evidence/recorded-claims.mjs
 ```
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [1440-steps-1-to-3.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/map-five/1440-steps-1-to-3.webm). Each link is its last copy, kept in git history.

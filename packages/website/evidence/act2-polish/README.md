@@ -18,3 +18,5 @@ See / feel / think:
 Checks: `tour.test.ts` 2.4 and 2.15 red then green; browser journeys `--verify-immersive` (pain centred, small print in the corner, 0.75× on arrival: red then green), `--verify-tour`, `--verify-camera`, `--verify-forest`, `--verify-recording`, `--verify-opening`, `--verify-opening-frames`, `--verify-enlarged` and `arrival/capture.mjs` pass.
 
 Reproduce: `pnpm --filter @storytree/website build && node packages/website/evidence/capture.mjs act2-polish --verify-immersive` and `node packages/website/evidence/arrival/capture.mjs --only closeFlight`.
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [close-flight.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/act2-polish/close-flight.webm). Each link is its last copy, kept in git history.

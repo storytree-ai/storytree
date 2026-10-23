@@ -85,6 +85,7 @@ import { FEEDBACK_IDENTITY_CHANNELS, FEEDBACK_IDENTITY_OFFERED, SETUP_HELP_CHANN
 import { createJourneyRuntime, type JourneyRuntime } from "@storytree/app-setup/journey-events/runtime";
 import { JOURNEY_CHANNELS } from "@storytree/app-setup/journey-events/bridge";
 import { LIFECYCLE_CHANNELS } from "@storytree/app/lifecycle/bridge";
+import { restartLimit } from "@storytree/app/lifecycle/restart-limit";
 import { PROJECTS_CHANNELS } from "@storytree/app/projects/bridge";
 import { UPDATES_CHANNELS } from "@storytree/app/updates/bridge";
 import { sourceVersion } from "@storytree/app/version";
@@ -114,7 +115,7 @@ import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
-import { mainErrorRecords } from "./main-error-records.js";
+import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
 import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
 import { stressWindow, windowSteps } from "./smoke-stress.js";
@@ -153,10 +154,10 @@ logMainErrors(process, {
   }),
   restart: () => {
     const appImage = process.env.APPIMAGE;
-    void lifecycle.restart(
+    lifecycle.restart(
       thisBuild({ execPath: process.execPath, argv: process.argv, ...(appImage === undefined ? {} : { appImage }) }),
       BrowserWindow.getAllWindows().some(window => window.isVisible()),
-    );
+    ).catch((error: unknown) => console.error(messageOf(error)));
   },
 });
 
@@ -203,6 +204,10 @@ const lifecycle = background({
   stopDatabase: () => verdict.stopping("the database", shutdown),
   exit: (code) => app.exit(verdict.exitCode(code)),
   relaunch,
+  // After five restarts in a row the app stops restarting itself, and the stop is an error the user is asked to report (lifecycle 1.32).
+  ...(args.smoke || args.startCheck || args.callbackCheck ? {} : {
+    limit: restartLimit({ file: path.join(home.dir, "restarts.json"), stopped: message => errorRecords.record("restarts-stopped", message) }),
+  }),
 });
 // The app that follows merged main runs with no terminal, so what it says goes to a log beside its data.
 if (slot !== undefined && !args.smoke && !args.startCheck && !args.callbackCheck) logTo(path.join(home.dir, "app.log"));
@@ -314,6 +319,7 @@ async function run(): Promise<void> {
 
   let problem: string | undefined;
   let project: string | undefined;
+  let errorsOpened: Promise<void> | undefined;
   try {
     // Where the library lives is the user's library setting: this app's own Postgres (the default),
     // or a Cloud SQL instance, when no Postgres is started here at all (ADR-0734, ADR-0735 D4).
@@ -323,7 +329,7 @@ async function run(): Promise<void> {
       connect,
     });
     ({ storytree, postgres } = opened);
-    void errorRecords.open(opened.storytree);
+    errorsOpened = errorRecords.open(opened.storytree);
     console.log(`library: ${opened.where}`);
     reads = pageReads({ storytree, transcriptCacheHome: path.join(home.dir, "transcripts") });
     const pages = reads;
@@ -406,6 +412,10 @@ async function run(): Promise<void> {
   else {
     if (!args.background) openWindow(windowQuery);
     showTray();
+    // An error the library holds that is not yet reported asks to be, until it is marked submitted (lifecycle 1.31, ADR-1122).
+    void errorsOpened?.then(() => errorRecords.settled())
+      .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
+      .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
     addStartMenuShortcut();
     try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
     if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });

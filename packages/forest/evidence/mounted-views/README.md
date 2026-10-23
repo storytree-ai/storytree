@@ -59,3 +59,5 @@ every branch ran. `index.ts` is executed through its export getters, read by the
 ![A session's held island lit, the rest dimmed](session-highlight.png)
 
 ![The capability tree's own space, fitted](tree-space.png)
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [browser-trace.json.gz](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/forest/evidence/mounted-views/browser-trace.json.gz). Each link is its last copy, kept in git history.

@@ -36,7 +36,7 @@ real command and product claims against the current repository.
 
 **Claims and copy.** Keep “Software you can watch grow.”, the honesty that this is a one-person
 project written by AI agents, and the old site's 404 line. State Windows with Claude Code or
-Codex, PolyForm Shield, and health as the agent reported it. Do not promise verified health,
+Codex, the Apache License 2.0, and health as the agent reported it. Do not promise verified health,
 microservices or invite-only access. The copy is reviewed, not pinned by wording tests.
 
 **What is left out.** ADR-0798 D2 records the inspected old-site revision, `9969133`: 338

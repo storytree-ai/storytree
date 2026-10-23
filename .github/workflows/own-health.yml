@@ -4,9 +4,9 @@ name: Own health
 # contract's VERIFIED health in the library (ADR-0744 D3-D4): `pnpm check:own-health`,
 # the same rules a hand run uses (packages/ci-health/src/test-run), written as "storytree test run on CI"
 # with the commit in each note. Windows-only and macOS-only contracts need the passing Windows or
-# macOS evidence from that exact commit and CI attempt: main's push run of it, or, since the next merge usually cancels
-# that, the merge queue's passing run of the same commit (packages/ci-health/src/test-run/main-commit.mjs). Never from a
-# pull request's run: only main's own commits are recorded.
+# macOS evidence from that exact commit and CI attempt: the merge queue's passing run of it, which is where it is
+# tested now that the push run stands on that run's verdict (ci.yml's `queue-verdict`), else main's push run of it
+# (packages/ci-health/src/test-run/main-commit.mjs). Never from a pull request's run: only main's own commits are recorded.
 #
 # The merge queue's merge (ADR-0796) is a push to main and starts CI, whose completion starts this.
 # A direct merge by CI is made
@@ -158,7 +158,10 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
-          name: windows-test-evidence-${{ steps.evidence.outputs.attempt }}
+          # One artifact per Windows test shard; each unit's evidence is its own `unit-*` folder,
+          # so both merge into one without colliding.
+          pattern: windows-test-evidence-${{ steps.evidence.outputs.attempt }}-shard-*
+          merge-multiple: true
           path: .pgtest/windows-evidence
           run-id: ${{ steps.evidence.outputs.run-id }}
           github-token: ${{ github.token }}

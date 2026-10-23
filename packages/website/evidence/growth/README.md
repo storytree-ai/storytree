@@ -27,7 +27,7 @@ storytree's saved reading, grown from one point: notes appearing inside, territo
 
 ![storytree's growth](storytree-strip.png)
 
-Clips of each playing in real time: [shop-growth.webm](shop-growth.webm), [storytree-growth.webm](storytree-growth.webm). Single frames are `shop-NN.png` and `storytree-NN.png`.
+Clips of each playing in real time: [shop-growth.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/growth/shop-growth.webm), [storytree-growth.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/growth/storytree-growth.webm). Single frames are `shop-NN.png` and `storytree-NN.png`.
 
 **Reduced motion** shows the end state at once, every island, note, territory and file circle, and draws nothing more. `shop-reduced-motion.png` and `storytree-reduced-motion.png` are byte-identical to each map's final frame (`-08.png`).
 
@@ -43,7 +43,7 @@ storytree's saved reading on the sheet (re-read since the globe's pictures: 25 i
 
 ![storytree's growth on the glass sheet](storytree-sheet-strip.png)
 
-Clips: [shop-sheet-growth.webm](shop-sheet-growth.webm), [storytree-sheet-growth.webm](storytree-sheet-growth.webm); single frames `shop-sheet-NN.png` and `storytree-sheet-NN.png`; `measurements-sheet.json` holds the run. Its frame rates, read as below (headless Chromium 148, SwiftShader, 1440×900, on the Mint box with other lanes running): the shop 27.21 fps growing (p95 107.6 ms) against 22.73 whole (136 ms); storytree 24.23 fps growing (92.4 ms) against 16.8 whole (115 ms).
+Clips: [shop-sheet-growth.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/growth/shop-sheet-growth.webm), [storytree-sheet-growth.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/growth/storytree-sheet-growth.webm); single frames `shop-sheet-NN.png` and `storytree-sheet-NN.png`; `measurements-sheet.json` holds the run. Its frame rates, read as below (headless Chromium 148, SwiftShader, 1440×900, on the Mint box with other lanes running): the shop 27.21 fps growing (p95 107.6 ms) against 22.73 whole (136 ms); storytree 24.23 fps growing (92.4 ms) against 16.8 whole (115 ms).
 
 ## Frame rate
 
@@ -73,3 +73,5 @@ It asserts the following:
 - a recorded session outlines a territory it held during the shop's growth, and none is held at its end;
 - under reduced motion every island, note, territory and file circle shows at once;
 - the browser reports no errors.
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [shop-growth.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/growth/shop-growth.webm), [shop-sheet-growth.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/growth/shop-sheet-growth.webm), [storytree-growth.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/growth/storytree-growth.webm), [storytree-sheet-growth.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/growth/storytree-sheet-growth.webm). Each link is its last copy, kept in git history.

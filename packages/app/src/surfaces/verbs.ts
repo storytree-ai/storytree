@@ -34,8 +34,9 @@ const show = verb({
     const { readSurfaces } = await import("./switches.js");
     const read = readSettings();
     const graph = await parts();
+    const standIns = readStandIns();
     const settings = Object.values(read).map((reading) => reading.name === "library" ? librarySaid(reading) : settingSaid(reading)).join("\n\n");
-    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(factoryFolder())}\n\n${partsSaid(Object.keys(graph), switchedOff(graph, readPartsOff()), readStandIns().plugins)}\n\n${systemSaid(readSystemSwitches())}` };
+    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(factoryFolder())}\n\n${partsSaid(Object.keys(graph), switchedOff(graph, readPartsOff()), standIns.plugins, standIns.switched)}\n\n${systemSaid(readSystemSwitches())}` };
   },
 });
 
@@ -59,7 +60,7 @@ const set = verb({
     }
     if (words[0] === "part" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
       const graph = await parts();
-      const off = switchPart(words[1]!, words[2]!, Object.keys(graph), undefined, words[3]);
+      const off = switchPart(words[1]!, words[2]!, Object.keys(graph), undefined, words[3], { through: "command line", ...(session === undefined ? {} : { session }) });
       return { text: switchedSaid(switchedOff(graph, off), readStandIns().plugins), next: NEXT };
     }
     if (words[0] === "system" && words.length === 3) return { text: systemSaid(switchSystem(words[1]!, words[2]!)), next: NEXT };

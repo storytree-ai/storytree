@@ -20,6 +20,7 @@
 // origin/main that cannot be read. Running a suite a change could not reach costs minutes; skipping
 // one it could reach merges untested code, so every doubt resolves to the full run. A root path is
 // narrowed only once its test-time readers have been measured, never by guessing (0.2's ADR-0394).
+// One doubt is settled narrow instead: a path into desktop's renderer reaches desktop's files only (ADR-1141).
 //
 // A folder under infra/ that holds tests (the library host's backup checks) is a unit too, though no
 // package: a change there runs everything, so the full run carries it (increment_e557d7df8a07).
@@ -67,8 +68,8 @@ export function readWorkspace(root) {
   }
   const names = new Set(packages.map((p) => p.name));
   for (const pkg of packages) pkg.deps = pkg.deps.filter((name) => names.has(name));
-  const { reaching, sources } = reachingPaths(root, packages);
-  const reached = reachedFiles(root, packages, sources);
+  const { reaching, sources, kept } = reachingPaths(root, packages);
+  const reached = reachedFiles(root, packages, sources, kept);
   for (const pkg of packages) Object.assign(pkg, reachesOf(pkg, packages, reaching, reached));
   packages.sort((a, b) => (a.dir < b.dir ? -1 : 1));
   packages.rootDeps = dependencyNames(readManifest(path.join(root, "package.json")) ?? {}).filter((n) => names.has(n));
@@ -86,6 +87,21 @@ function readManifest(file) {
 function dependencyNames(manifest) {
   return Object.keys({ ...manifest.dependencies, ...manifest.devDependencies, ...manifest.peerDependencies });
 }
+
+/**
+ * Desktop's files whose imports a path reaching them does not follow in full, each with why (ADR-1141,
+ * the first exception to ADR-0649 D4's "every doubt runs more"). The renderer mounts every story's surface, so a
+ * package bundling it (forest's browser build, the capture kit's) would be a dependent of every story; that the whole
+ * renderer bundles is desktop's own test to prove (3.17), so a path into it depends on desktop's files it reaches by
+ * relative path, and no further (`own`). The capture kit's build names the renderer by a repo path the reading cannot
+ * see, so it is written here (`targets`), and a path into the renderer's build output stands for the renderer
+ * (`builtAt`). Launch's computed import is Playwright's module, outside the workspace (`readable`). A file renamed away leaves its entry unread, and the real-workspace scope test goes red.
+ */
+const DESKTOP_ONLY = {
+  "apps/desktop/src/renderer/renderer.ts": { own: "apps/desktop", builtAt: ["apps/desktop/dist/renderer"] },
+  "apps/desktop/src/capture/build.ts": { targets: ["apps/desktop/src/renderer/renderer.ts"] },
+  "apps/desktop/src/capture/launch.ts": { readable: true },
+};
 
 /**
  * Every source file whose relative paths can reach another file when something runs: its repo-relative
@@ -107,6 +123,7 @@ function reachingPaths(root, packages) {
       const at = `${pkg.dir}/${file.split(path.sep).join("/")}`;
       const from = path.posix.dirname(at);
       const targets = [...text.matchAll(RELATIVE_PATH)].map(([, relative]) => path.posix.normalize(path.posix.join(from, relative)));
+      targets.push(...(DESKTOP_ONLY[at]?.targets ?? []));
       sources.push({ at, targets, evidence: at.split("/").includes("evidence"), text });
     }
   }
@@ -152,14 +169,15 @@ function reachingPaths(root, packages) {
       if (imported) keep(imported);
     }
   }
-  return { reaching: [...kept].map(({ at, targets }) => ({ at, targets })), sources };
+  return { reaching: [...kept].map(({ at, targets }) => ({ at, targets })), sources, kept };
 }
 
 /**
  * What a repo path written in code stands for: the source file it names (an import's `.js` finding
- * its `.ts`), another file in the checkout, or neither (a folder, a build output, a path not on disk).
+ * its `.ts`), another file in the checkout, or neither (a folder, a build output, a path not on disk). A folder
+ * depends on what is under it that something can run: an evidence script nothing runs stays out of it too.
  */
-function reachedFiles(root, packages, sources) {
+function reachedFiles(root, packages, sources, kept) {
   const bare = (file) => file.replace(SOURCE, "");
   const byPath = new Map(sources.map((s) => [bare(s.at), s]));
   const names = packages.map((p) => [p.name, p.dir]);
@@ -173,26 +191,36 @@ function reachedFiles(root, packages, sources) {
     } catch {}
     return {};
   };
-  /** Each file a reached source can run or read, by relative path or package name, and the packages it reaches whole. */
-  const walk = (source, into, seen) => {
-    if (seen.has(source)) return;
-    seen.add(source);
+  /**
+   * Each file a reached source can run or read, by relative path or package name, and the packages it reaches whole.
+   * Within an `own` dir (a source DESKTOP_ONLY bounds, and what it imports), only relative paths staying in that dir are followed.
+   */
+  const walk = (source, into, seen, own) => {
+    const bound = DESKTOP_ONLY[source.at];
+    own ??= bound?.own;
+    const key = `${own ?? ""}:${source.at}`; // read narrowly under the renderer, a file is still read in full when reached directly
+    if (seen.has(key)) return;
+    seen.add(key);
     into.files.add(source.at);
-    if (UNREADABLE_IMPORT.test(source.text)) into.dirs.add(packages.find((p) => source.at.startsWith(`${p.dir}/`)).dir);
-    for (const target of source.targets) reach(target, into, seen);
+    const ownerDir = packages.find((p) => source.at.startsWith(`${p.dir}/`)).dir;
+    if (own === undefined && !bound?.readable && UNREADABLE_IMPORT.test(source.text)) into.dirs.add(ownerDir);
+    for (const target of source.targets) if (own === undefined || target.startsWith(`${own}/`)) reach(target, into, seen, own);
+    if (own !== undefined) return;
     for (const [, specifier] of source.text.matchAll(SPECIFIER)) {
       const named = names.find(([name]) => specifier === name || specifier.startsWith(`${name}/`));
       if (named) into.dirs.add(named[1]);
     }
   };
   /** What a path depends on: a source and what it imports, a file, everything under a folder, or else its whole package. */
-  const reach = (target, into, seen) => {
+  const reach = (target, into, seen, own) => {
+    const built = Object.keys(DESKTOP_ONLY).find((at) => DESKTOP_ONLY[at].builtAt?.some((out) => target === out || target.startsWith(`${out}/`)));
+    if (built) target = built;
     const { source, file, folder } = resolve(target);
-    if (source) walk(source, into, seen);
+    if (source) walk(source, into, seen, own);
     else if (file) into.files.add(file);
     else if (folder) {
       into.folders.add(`${folder}/`);
-      for (const inside of sources) if (inside.at.startsWith(`${folder}/`)) walk(inside, into, seen);
+      for (const inside of kept) if (inside.at.startsWith(`${folder}/`)) walk(inside, into, seen, own);
     } else {
       const owner = packages.find((p) => target === p.dir || target.startsWith(`${p.dir}/`));
       if (owner) into.dirs.add(owner.dir);

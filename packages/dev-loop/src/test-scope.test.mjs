@@ -129,19 +129,19 @@ test("1.1 an evidence script no test runs reaches no package; one a test names, 
 test("1.1 a glob naming no script, such as a git pathspec over every evidence folder, keeps no evidence script", (t) => {
   const root = workspace(t, {
     packages: {
-      "packages/website": { name: "@x/website", files: { "src/site.ts": "" } },
+      "packages/site": { name: "@x/site", files: { "src/site.ts": "" } },
       "packages/world": {
         name: "@x/world",
         files: {
           "src/sweep.mjs": 'git("ls-files", "--", ".", ":(exclude,glob)**/evidence/**");\nconst all = "evidence/*";\n',
-          "evidence/tour/unrun-tour.mjs": 'const site = "../../../website/src/site.ts";\n',
-          "evidence/top.mjs": 'const site = "../../website/src/site.ts";\n',
+          "evidence/tour/unrun-tour.mjs": 'const site = "../../../site/src/site.ts";\n',
+          "evidence/top.mjs": 'const site = "../../site/src/site.ts";\n',
         },
       },
     },
   });
-  const decision = classify(["packages/website/src/site.ts"], readWorkspace(root));
-  assert.deepEqual(decision.dirs, ["packages/website"]);
+  const decision = classify(["packages/site/src/site.ts"], readWorkspace(root));
+  assert.deepEqual(decision.dirs, ["packages/site"]);
 });
 
 test("1.1 a path into another package's file depends only on that file and what it imports; a folder or a file not in the checkout, on the whole package", (t) => {
@@ -149,8 +149,8 @@ test("1.1 a path into another package's file depends only on that file and what 
     packages: {
       "packages/website": { name: "@x/website", files: { "src/site.ts": "" } },
       "packages/library": { name: "@x/library", files: { "src/l.ts": "" } },
-      "apps/desktop": {
-        name: "@x/desktop",
+      "apps/frame": {
+        name: "@x/frame",
         deps: ["@x/website"],
         files: {
           "src/main.ts": 'import "@x/website";\n',
@@ -158,16 +158,46 @@ test("1.1 a path into another package's file depends only on that file and what 
           "src/capture/output.ts": 'import { read } from "@x/library/read";\n',
         },
       },
-      "packages/forest": { name: "@x/forest", files: { "evidence/look/build.mjs": 'import "../../../../apps/desktop/src/capture/index.ts";\n', "src/f.test.ts": 'run("evidence/look/build.mjs");\n' } },
-      "packages/arc": { name: "@x/arc", files: { "src/a.test.ts": 'const dist = "../../../apps/desktop/dist/renderer";\n' } },
-      "packages/shop": { name: "@x/shop", files: { "src/s.test.ts": 'const folder = "../../../apps/desktop/src";\n' } },
+      "packages/forest": { name: "@x/forest", files: { "evidence/look/build.mjs": 'import "../../../../apps/frame/src/capture/index.ts";\n', "src/f.test.ts": 'run("evidence/look/build.mjs");\n' } },
+      "packages/arc": { name: "@x/arc", files: { "src/a.test.ts": 'const dist = "../../../apps/frame/dist/renderer";\n' } },
+      "packages/shop": { name: "@x/shop", files: { "src/s.test.ts": 'const folder = "../../../apps/frame/src";\n' } },
     },
   });
   const ws = readWorkspace(root);
-  assert.deepEqual(classify(["packages/website/src/site.ts"], ws).dirs, ["apps/desktop", "packages/arc", "packages/shop", "packages/website"]);
-  assert.deepEqual(classify(["apps/desktop/src/main.ts"], ws).dirs, ["apps/desktop", "packages/arc", "packages/shop"]);
-  assert.deepEqual(classify(["apps/desktop/src/capture/output.ts"], ws).dirs, ["apps/desktop", "packages/arc", "packages/forest", "packages/shop"]);
+  assert.deepEqual(classify(["packages/website/src/site.ts"], ws).dirs, ["apps/frame", "packages/arc", "packages/shop", "packages/website"]);
+  assert.deepEqual(classify(["apps/frame/src/main.ts"], ws).dirs, ["apps/frame", "packages/arc", "packages/shop"]);
+  assert.deepEqual(classify(["apps/frame/src/capture/output.ts"], ws).dirs, ["apps/frame", "packages/arc", "packages/forest", "packages/shop"]);
   assert.deepEqual(classify(["packages/library/src/l.ts"], ws).dirs, ["packages/forest", "packages/library", "packages/shop"], "a package the reached file imports by name is followed");
+});
+
+test("1.1 a path into desktop's renderer, or its build output, depends on desktop's files it imports by path, not on the stories it mounts; a folder, on what under it something runs", (t) => {
+  // Each test file sits a folder deep, so its paths climb out of this checkout when this file itself is scoped.
+  const root = workspace(t, {
+    packages: {
+      "packages/site": { name: "@x/site", files: { "src/site.ts": "" } },
+      "apps/desktop": {
+        name: "@x/desktop",
+        deps: ["@x/site"],
+        files: {
+          "src/renderer/renderer.ts": 'import "@x/site";\nimport "./views.js";\n',
+          "src/renderer/views.ts": "await import(url);\n",
+          "src/capture/build.ts": 'const entry = path.join(root, "apps/desktop/src/renderer/renderer.ts");\n',
+        },
+      },
+      "packages/forest": { name: "@x/forest", files: { "src/in/f.test.ts": 'const entry = "../../../../apps/desktop/src/renderer/renderer.ts";\n' } },
+      "packages/arc": { name: "@x/arc", files: { "src/in/a.test.ts": 'const dist = "../../../../apps/desktop/dist/renderer";\n' } },
+      "packages/kit": { name: "@x/kit", files: { "src/in/k.test.ts": 'import "../../../../apps/desktop/src/capture/build.ts";\n' } },
+      "packages/views": { name: "@x/views", files: { "src/in/v.test.ts": 'import "../../../../apps/desktop/src/renderer/views.ts";\n' } },
+      "packages/seeds": {
+        name: "@x/seeds",
+        files: { "src/s.test.ts": 'const data = "../../world/src/evidence";\n' },
+      },
+      "packages/world": { name: "@x/world", files: { "src/evidence/probe-site.mjs": 'const site = "../../../site/src/site.ts";\n' } },
+    },
+  });
+  const ws = readWorkspace(root);
+  assert.deepEqual(classify(["packages/site/src/site.ts"], ws).dirs, ["apps/desktop", "packages/site", "packages/views"], "views.ts reached directly is read in full: its computed import reaches all of desktop");
+  assert.deepEqual(classify(["apps/desktop/src/renderer/views.ts"], ws).dirs, ["apps/desktop", "packages/arc", "packages/forest", "packages/kit", "packages/views"]);
 });
 
 test("1.1 the real workspace: a website-only change runs website and desktop, not the packages whose captures and tests reach into desktop's files", () => {

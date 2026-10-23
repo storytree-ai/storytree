@@ -94,7 +94,7 @@ async function pinnedBranch(installer: Buffer, version: string): Promise<Map<str
     previous: async () => undefined,
     formerPin: async () => undefined,
     candidate: async () => ({ version, commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false,
-      installer: { url: at("setup.exe"), sha256: "a".repeat(64), ...digest }, bootstrap: { ps1: "bootstrap" },
+      installers: ["x64", "arm64"].map(arch => ({ url: at(`windows-${arch}-setup.exe`), sha256: "a".repeat(64), ...digest })), bootstrap: { ps1: "bootstrap" },
       // An arch-neutral name: MacUpdater drops arm64 files on an Intel host, which this test may run on.
       feeds: { mac: { version, files: [{ url: at("mac.zip"), ...digest }] }, linux: { version, files: [{ url: at("linux-x86_64.AppImage"), ...digest }] } } }),
     pullRequests: async () => new Set(), increments: async () => [], publish: async () => {}, now: () => "2026-10-16T00:00:00.000Z",
@@ -107,10 +107,18 @@ async function pinnedBranch(installer: Buffer, version: string): Promise<Map<str
   return branch;
 }
 
-test("4.15 a stable Mac install and a stable Linux install each take only the pinned build, from the feeds the pin wrote, while development moves on", async (t) => {
+test("4.15 a stable Windows, Mac and Linux install each take only the pinned build, Windows its own architecture's installer, from the feeds the pin wrote, while development moves on", async (t) => {
+  const windowsFeed = await fixture(t, "win32");
+  windowsFeed.version = "0.3.9";
+  windowsFeed.stableBranch = await pinnedBranch(windowsFeed.installer, "0.3.2");
+  const windows = windowsFeed.updater(async () => {}, async () => false, async () => false, "stable");
+  assert.equal(await windows.check(), "waiting");
+  assert.equal(windows.request("status").nextBuild, "0.3.2");
+  assert.deepEqual(windowsFeed.fetched, [`/release/storytree-ai/storytree/releases/download/v0.3.2/storytree-0.3-0.3.2-windows-${process.arch}-setup.exe`]);
+
   const feed = await fixture(t, "darwin");
   feed.version = "0.3.9";
-  feed.stableBranch = await pinnedBranch(feed.installer, "0.3.2");
+  feed.stableBranch = windowsFeed.stableBranch;
   const mac = feed.updater(async () => {}, async () => false, async () => false, "stable");
   assert.equal(await mac.check(), "waiting");
   assert.equal(mac.request("status").nextBuild, "0.3.2");

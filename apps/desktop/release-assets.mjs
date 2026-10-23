@@ -3,10 +3,13 @@
 // build's feed and delivery entry forward (packages/app/src/updates/release-carry.ts), so an installed app on any
 // platform never meets a release that lacks its own update feed, and one platform's failure holds only that platform.
 // A new platform is one more entry here.
+import { WINDOWS_ARCHITECTURES, windowsInstaller } from "./delivery-assets.mjs";
+
 export const PLATFORMS = {
   windows: {
     required: (version) => [
-      `storytree-0.3-${version}-setup.exe`, `storytree-0.3-${version}-setup.exe.blockmap`, "latest.yml",
+      // One NSIS installer per architecture; latest.yml names both, and each installed app's updater takes its own.
+      ...WINDOWS_ARCHITECTURES.flatMap((arch) => [windowsInstaller(version, arch), `${windowsInstaller(version, arch)}.blockmap`]), "latest.yml",
       // The one-command delivery: its bootstrap, one-liners and installer checksum manifest.
       "install-storytree.ps1", "install-storytree.txt", "install-storytree-development.txt", "storytree-delivery.json",
     ],

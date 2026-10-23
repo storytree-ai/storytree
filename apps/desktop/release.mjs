@@ -189,7 +189,7 @@ function notes(command, macCommand, sha) {
     "",
     "It installs the app and opens it; Help → First-run guide in the app connects your agent.",
     "",
-    `Windows x64 and arm64 installer, built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
+    `Windows installers, one per architecture (\`windows-x64-setup.exe\` for most PCs, \`windows-arm64-setup.exe\` for ARM PCs such as Snapdragon laptops; the one-liner picks for you), built from verified merged main ${sha}. First-user delivery follows only the owner's stable pin; it is unavailable until the first pin.`,
     "",
     // The draft is written before the Mac build, so the workflow says whether its certificate is set; the Mac upload
     // replaces this with Apple's answer.

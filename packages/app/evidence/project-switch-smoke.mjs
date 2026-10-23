@@ -20,7 +20,7 @@ import { pageReads, projectSelection } from '@storytree/app';
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 const out = process.env.STORYTREE_SMOKE_OUT ?? path.join(tmpdir(), 'app-own-projects-evidence');
 mkdirSync(out, { recursive: true });
-const build = spawnSync(process.execPath, ['apps/desktop/build.mjs'], { cwd: root, stdio: 'inherit' });
+const build = spawnSync(process.execPath, ['--import', 'tsx', 'apps/desktop/build.mjs'], { cwd: root, stdio: 'inherit' });
 assert.equal(build.status, 0);
 const home = mkdtempSync(path.join(tmpdir(), 'app-projects-smoke-'));
 let pg, library, reads, browser, server;

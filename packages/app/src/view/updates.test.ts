@@ -10,9 +10,9 @@ import { mountInstallChoice, updateText } from "./updates.js";
 
 const at = { runningBuild: "0.3.400 (abc1234)", nextBuild: "0.3.401 (def5678)" };
 
-test("4.8 the Updates section says when a new build is building, ready and restarting, naming that build", () => {
-  const said = (["building", "ready", "restarting"] as const).map((phase) => updateText({ ...at, phase }));
-  assert.equal(new Set(said.map(([title]) => title)).size, 3, "each state reads differently");
+test("4.8 the Updates section says when a new build is ready and restarting, naming that build", () => {
+  const said = (["ready", "restarting"] as const).map((phase) => updateText({ ...at, phase }));
+  assert.equal(new Set(said.map(([title]) => title)).size, 2, "each state reads differently");
   for (const [title, detail] of said) {
     assert.notEqual(title, "");
     assert.match(detail, /0\.3\.401/);
@@ -43,7 +43,7 @@ test("4.9 a failed update says its reason and that the running app is unchanged"
   assert.match(detail, /unchanged/);
 });
 
-test("4.10 an app not running from a runtime slot says it does not update itself", () => {
+test("4.10 a copy that does not install releases says it does not update itself", () => {
   const [, detail] = updateText({ ...at, phase: "unavailable" });
   assert.match(detail, /does not update itself/);
 });

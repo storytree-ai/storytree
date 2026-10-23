@@ -4,7 +4,7 @@ import path from "node:path";
 import { AppImageUpdater, MacUpdater, NsisUpdater, type Logger } from "electron-updater";
 
 import type { Launch } from "../lifecycle/background.js";
-import type { UpdateState } from "./main-updates.js";
+import type { UpdateState } from "./update-state.js";
 import { heldUpdateRuns } from "./update-holds.js";
 import { STABLE_FEED, type ReleaseChannel } from "./release-channel.js";
 

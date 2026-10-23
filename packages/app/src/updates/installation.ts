@@ -82,3 +82,18 @@ export function installation(app: RunningApp): Installation {
   if (app.platform === "linux" && linuxInstalled(app)) return { installed: true, followsReleases: true, markerFile: undefined };
   return none;
 }
+
+/**
+ * The folder of the app the installer put on this machine, if there is one, seen from any copy of the app: on Windows the
+ * per-user NSIS folder (%LOCALAPPDATA%\Programs\storytree-0.3) holding the installer's marker; on a Mac or Linux the folder
+ * the delivery record names, while it is still there (a Mac bundle with its Contents, a Linux folder with its AppImage).
+ */
+export function installedAppDir(home: string, localAppData = process.env.LOCALAPPDATA): string | undefined {
+  if (localAppData !== undefined && localAppData !== "") {
+    const dir = path.join(localAppData, "Programs", "storytree-0.3");
+    if (existsSync(path.join(dir, "resources", MARKER))) return dir;
+  }
+  const installDir = recordedInstallDir(home);
+  if (installDir === undefined) return undefined;
+  return existsSync(path.join(installDir, installDir.endsWith(".app") ? "Contents" : "storytree-0.3")) ? installDir : undefined;
+}

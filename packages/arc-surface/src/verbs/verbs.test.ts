@@ -52,3 +52,37 @@ test("3.11 · the arc surface declares the `arc` family, with `arc increment` wi
   await assert.rejects(verbOf(question!, "retire").act({ question: work.id, reason: "wrong" }, context, WORDS), (error: unknown) =>
     error instanceof VerbRefusal && error.message === `${work.id} is a increment, not a question` && error.next[0]?.command === `library retire ${work.id} --reason <why>`);
 });
+
+test("3.17 · `arc increment edit --escape-of <pr|increment> --escape-story <story>` records the escape an increment fixes, `--escape-of none` clears it, and one flag without the other is refused with nothing written", async (t) => {
+  const url = process.env.STORYTREE_TEST_PG_URL;
+  if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
+  const storytree = await connect({ url });
+  const project = `t-${randomBytes(4).toString("hex")}`;
+  const library = await storytree.openProject(project);
+  const log = await openActivityLog(storytree);
+  t.after(async () => {
+    try {
+      await log.close();
+      await storytree.dropProject(project);
+    } finally {
+      await storytree.close();
+    }
+  });
+  const increment = ARC_FAMILIES.find((family) => family.name === "arc")!.families!.find((family) => family.name === "increment")!;
+  const context: ArcVerbContext = { library, log, project, session: "person:test", folder: "/work", writer: { actor: "person:test" } };
+  const plan = await library.createArc({ title: "Launch", intent: "Ship it", endState: "It is live" });
+  const story = await library.addStory({ title: "Visitor can sign up" });
+  const fix = await library.addIncrement({ arc: plan.id, title: "Fix sign-up", objective: "Mend it", body: "…" });
+  const escapeOf = async () => ((await library.get(fix.id))?.fields as { escape?: unknown }).escape;
+
+  await verbOf(increment, "edit").act({ increment: fix.id, "escape-of": "#1234", "escape-story": story.id }, context, WORDS);
+  assert.deepEqual(await escapeOf(), { causedBy: "#1234", story: story.id });
+
+  for (const given of [{ "escape-of": "#99" }, { "escape-story": story.id }]) {
+    await assert.rejects(verbOf(increment, "edit").act({ increment: fix.id, ...given }, context, WORDS), VerbRefusal);
+  }
+  assert.deepEqual(await escapeOf(), { causedBy: "#1234", story: story.id }, "nothing written");
+
+  await verbOf(increment, "edit").act({ increment: fix.id, "escape-of": "none" }, context, WORDS);
+  assert.equal(await escapeOf(), undefined);
+});

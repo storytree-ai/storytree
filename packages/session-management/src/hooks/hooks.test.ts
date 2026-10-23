@@ -1283,7 +1283,7 @@ test("3.34 after Claude Code runs an edit to imported code that the gate had it 
   });
 });
 
-test("3.37 a user who replies with the allow command on its own line of their own message says yes in the conversation: the prompt hook records it on the increment for that session and tells the agent, so its next edit to imported code goes through; the command only mentioned in a sentence records nothing, and a harness that cannot ask names replying with it (ADR-1015, contract 5.42)", async () => {
+test("3.37 a user who replies with the allow command on its own line of their own message says yes in the conversation: the prompt hook records it on the increment for that session and tells the agent, so its next edit to imported code goes through; the command only mentioned in a sentence records nothing, and a harness that cannot ask names replying with it (ADR-1015, contract 5.42)", { timeout: 150_000 }, async () => {
   await withTempDir(async (dir) => {
     const project = uniqueProjectName();
     const home = storytreeHome(dir, true);
@@ -1302,8 +1302,9 @@ test("3.37 a user who replies with the allow command on its own line of their ow
       const increment = (await library.addIncrement({ arc: arc.id, title: "stats page", objective: "stats page", body: "stats page", capabilities: [stats] })).id;
       assert.equal((await claim({ log, library, project, session: "editor", harness: "codex" }, increment, "the stats page")).ok, true);
       const patch = JSON.stringify({ session_id: "editor", cwd: folder, hook_event_name: "PreToolUse", tool_name: "apply_patch", tool_input: { command: `*** Begin Patch\n*** Add File: ${path.join(viewer, "app", "stats", "more.tsx")}\n+export {};\n*** End Patch\n` } });
+      // The gate is given a slow runner's time: a loaded Windows runner took over its 3 s (PR #1723), and an edit it cannot judge in time goes ahead.
       const gate = async () => {
-        const ran = await runHook("codex", patch, home, [EDIT_GATE]);
+        const ran = await runHook("codex", patch, home, [EDIT_GATE], { STORYTREE_TEST_GUARD_MS: "60000" });
         return ran.stdout === "" ? undefined : (JSON.parse(ran.stdout) as { decision?: string; reason?: string });
       };
 

@@ -91,7 +91,7 @@ export interface HookInput {
   readonly locate?: LocateOptions;
   /** Which capability each edited file declares, for the gate before each edit (`--edit-gate`). Without it the gate refuses nothing. */
   readonly declaredCapabilities?: DeclaredCapabilities;
-  /** How long the hook after a shell command may wait to ask which changes a yes covers (`--shell-guard`). By default, GUARD_MS. */
+  /** How long the hook after a shell command may wait to ask which changes a yes covers (`--shell-guard`), and the gate before an edit to judge it (`--edit-gate`). By default, each one's own. */
   readonly guardMs?: number;
   /** The hook process's clock, which its parts are timed on (timing.ts, ADR-1056 D1). Without it, nothing is timed. */
   readonly clock?: HookClock;
@@ -201,7 +201,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
     if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed);
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
-    if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed);
+    if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed, guardMs);
     // The hook after each shell command that the harness waits for tells the agent of its changes to imported code (ADR-1015), and to capabilities its claims do not cover (ADR-0949 D3).
     if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs);
     const made = hookLines(harness, parsed);

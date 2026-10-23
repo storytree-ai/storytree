@@ -106,3 +106,41 @@ test("10.1 · a recording goes only when every arc it was made for has closed an
     "M  packages/web/evidence/done/README.md",
   ], "the sweep is staged, ready to commit");
 });
+
+test("10.2 · a closed arc's screenshot goes as its recordings do, an input a build or script reads stays, and --apply repoints every Markdown link to it at its last copy", (t) => {
+  const root = repository(t);
+  pullRequest(root, 21, "claude/increment-aaaaaaaaaaaa-1", {
+    "packages/web/evidence/done/after.png": "after",
+    "packages/web/evidence/done/README.md": "# Done\n\n![After](after.png)\n\nSee [the before](./sub/before.png).\n",
+    "packages/web/evidence/done/sub/before.png": "before",
+    "packages/web/evidence/short/short-poster.png": "poster",
+    "packages/web/src/claims.ts": "export const SHORTS = [{ poster: \"short-poster.png\" }];\n",
+    "packages/web/evidence/short/frames/walk-1.png": "frame",
+    "docs/notes.md": "![shot](../packages/web/evidence/done/after.png) and [kept](../packages/web/evidence/short/short-poster.png)\n",
+  });
+  pullRequest(root, 22, "claude/increment-bbbbbbbbbbbb-1", { "packages/web/evidence/live/shot.png": "live" });
+
+  const arcs = [
+    { arc: { id: "arc_closed" }, state: "closed", increments: [increment("increment_aaaaaaaaaaaa")] },
+    { arc: { id: "arc_live" }, state: "active", increments: [increment("increment_bbbbbbbbbbbb")] },
+  ];
+  const plan = sweepPlan(root, arcs, { inputs: ["packages/web/evidence/short/frames/"] });
+  assert.deepEqual(plan.go.map((one) => one.file), ["packages/web/evidence/done/after.png", "packages/web/evidence/done/sub/before.png"]);
+  const kept = Object.fromEntries(plan.keep.map((one) => [one.file, one.why]));
+  assert.match(kept["packages/web/evidence/short/short-poster.png"], /packages\/web\/src\/claims\.ts reads it/);
+  assert.match(kept["packages/web/evidence/short/frames/walk-1.png"], /input/);
+  assert.match(kept["packages/web/evidence/live/shot.png"], /arc_live is active/);
+
+  const commit = git(root, "rev-parse", "HEAD");
+  applySweep(root, plan, { commit, date: "2026-10-23", repository: "https://github.com/storytree-ai/storytree" });
+  const raw = (file) => `https://github.com/storytree-ai/storytree/raw/${commit}/${file}`;
+  const blob = (file) => `https://github.com/storytree-ai/storytree/blob/${commit}/${file}`;
+  const readme = readFileSync(path.join(root, "packages/web/evidence/done/README.md"), "utf8");
+  assert.ok(readme.includes(`![After](${raw("packages/web/evidence/done/after.png")})`), readme);
+  assert.ok(readme.includes(`[the before](${blob("packages/web/evidence/done/sub/before.png")})`), readme);
+  const notes = readFileSync(path.join(root, "docs/notes.md"), "utf8");
+  assert.equal(notes, `![shot](${raw("packages/web/evidence/done/after.png")}) and [kept](../packages/web/evidence/short/short-poster.png)\n`);
+  assert.equal(existsSync(path.join(root, "packages/web/evidence/done/after.png")), false);
+  assert.equal(existsSync(path.join(root, "packages/web/evidence/short/short-poster.png")), true);
+  assert.ok(git(root, "status", "--porcelain").split("\n").includes("M  docs/notes.md"), "a repointed Markdown file is staged with the deletions");
+});

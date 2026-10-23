@@ -5,7 +5,7 @@
  * after RETAIN_MS; before they go, what was worked out from them is kept, and read from then on.
  */
 import { createHash, randomBytes } from "node:crypto";
-import { appendFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { appendFile, chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { ActivityLog } from "../activity/index.js";
@@ -152,15 +152,20 @@ export class TranscriptCache {
     return now;
   }
 
-  /** Append one batch, or write `held` afresh through a file put in place whole. A failure only costs a later fetch. */
+  /**
+   * Append one batch, or write `held` afresh through a file put in place whole, the folder and file
+   * the user's alone on POSIX, narrowed if an earlier version left them wider (9.21). A failure only costs a later fetch.
+   */
   async #write(file: string, batch: Batch | Held, how: "append" | "rewrite"): Promise<void> {
     try {
-      await mkdir(path.dirname(file), { recursive: true });
+      await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
+      await chmod(path.dirname(file), 0o700);
       if (how === "append") {
-        await appendFile(file, `${JSON.stringify(batch)}\n`);
+        await appendFile(file, `${JSON.stringify(batch)}\n`, { mode: 0o600 });
+        await chmod(file, 0o600);
       } else {
         const temporary = `${file}.${process.pid}.${randomBytes(4).toString("hex")}`;
-        await writeFile(temporary, batch.records.length === 0 ? "" : `${JSON.stringify({ from: 0, finish: batch.finish, records: batch.records })}\n`);
+        await writeFile(temporary, batch.records.length === 0 ? "" : `${JSON.stringify({ from: 0, finish: batch.finish, records: batch.records })}\n`, { mode: 0o600 });
         await rename(temporary, file);
       }
     } catch {

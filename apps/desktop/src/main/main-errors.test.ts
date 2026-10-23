@@ -20,15 +20,15 @@ test("1.22 the main process's uncaught exceptions and unhandled rejections reach
   assert.equal(logged[2], "main process unhandled rejection: not an error");
 });
 
-test("1.23 after an uncaught main-process error is logged, the app says so and offers Keep going or Restart, one box at a time; only Restart restarts it", async () => {
+test("1.23 after an uncaught main-process error is logged, the app says so, asks the person to have their agent file a GitHub issue, and offers Keep going or Restart, one box at a time; only Restart restarts it", async () => {
   const heard = new Map<string, (reason: unknown) => void>();
   const main: MainProcess = { on: (event: string, listener: (reason: unknown) => void) => { heard.set(event, listener); } };
   const logged: string[] = [];
-  const asked: { buttons: readonly string[]; answer: (choice: "keep-going" | "restart") => void }[] = [];
+  const asked: { detail: string; buttons: readonly string[]; answer: (choice: "keep-going" | "restart") => void }[] = [];
   let restarts = 0;
   logMainErrors(main, {
     log: line => logged.push(line),
-    ask: message => new Promise(answer => asked.push({ buttons: message.buttons, answer })),
+    ask: message => new Promise(answer => asked.push({ detail: message.detail, buttons: message.buttons, answer })),
     restart: () => { restarts += 1; },
   });
   const settle = () => new Promise(resolve => setImmediate(resolve));
@@ -38,6 +38,8 @@ test("1.23 after an uncaught main-process error is logged, the app says so and o
   assert.equal(logged.length, 2);
   assert.equal(asked.length, 1);
   assert.deepEqual(asked[0]!.buttons, ["Keep going", "Restart"]);
+  assert.match(asked[0]!.detail, /ask your agent to submit a GitHub issue on github\.com\/storytree-ai\/storytree/);
+  assert.match(asked[0]!.detail, /we'll work on it/);
 
   asked[0]!.answer("keep-going");
   await settle();

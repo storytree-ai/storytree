@@ -96,6 +96,12 @@ steps:
   - run: storytree arc list
 ```
 
+## Reporting an error
+
+If storytree shows you an error, ask your agent to submit a GitHub issue on this repository,
+[`storytree-ai/storytree`](https://github.com/storytree-ai/storytree/issues), and it will be worked
+on. That is the current workflow; the desktop app's error box says the same (ADR-1119).
+
 ## Where this stands
 
 Each of 0.3's stories has its own package (see How changes land), and all of them are planned in

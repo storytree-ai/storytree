@@ -12,6 +12,7 @@ import type { AnnotatedTree, ChangedOnMain, HealthWorkItem, NamedOnMain } from "
 import { connect as connectServer, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
 import { InheritedRecords } from "../project/factory.js";
+import { DataQuestions } from "../data/data-questions.js";
 import { couldBeId } from "../references.js";
 import { randomUUID } from "node:crypto";
 
@@ -93,6 +94,7 @@ const FROM_KNOWLEDGE = [
   "relatedNotes", "related", "relatedEach", "definitions", "frontCovers", "decision", "decisions", "composeStatement", "refile",
 ] as const satisfies readonly (keyof Project["knowledge"])[];
 const FROM_LINEAGE = ["factory", "markFactory", "recordFactory"] as const satisfies readonly (keyof Project["lineage"])[];
+const FROM_DATA = ["counts", "latestChanges", "findByTitle", "decisionNumbered"] as const satisfies readonly (keyof DataQuestions)[];
 
 /**
  * One project's library, as everything outside the library reaches it. Every write accepts
@@ -101,7 +103,7 @@ const FROM_LINEAGE = ["factory", "markFactory", "recordFactory"] as const satisf
  * Most of its operations are its parts' own (FROM_RECORDS and the lists beside it name them), each
  * documented on its method: records in schema/records.ts, the plan in work/work-model.ts, work in
  * flight in work/work-in-flight.ts, health in health/health-record.ts, knowledge in
- * knowledge/knowledge.ts and the project's factory in project/factory.ts. An editor shows that doc comment on the Library's method too.
+ * knowledge/knowledge.ts, the project's factory in project/factory.ts and the fixed data questions in data/data-questions.ts. An editor shows that doc comment on the Library's method too.
  */
 export interface Library
   extends Pick<Project["records"], (typeof FROM_RECORDS)[number]>,
@@ -109,7 +111,8 @@ export interface Library
     Pick<Project["flight"], (typeof FROM_FLIGHT)[number]>,
     Pick<Project["health"], (typeof FROM_HEALTH)[number]>,
     Pick<Project["knowledge"], (typeof FROM_KNOWLEDGE)[number]>,
-    Pick<Project["lineage"], (typeof FROM_LINEAGE)[number]> {
+    Pick<Project["lineage"], (typeof FROM_LINEAGE)[number]>,
+    Pick<DataQuestions, (typeof FROM_DATA)[number]> {
   /** The project's name. */
   readonly name: string;
   /** The identity of the project's database, as Storytree.projectIdentities() gives it. */
@@ -254,6 +257,7 @@ function libraryOf(project: Project): Library {
     ...take(project.health, FROM_HEALTH),
     ...take(project.knowledge, FROM_KNOWLEDGE),
     ...take(project.lineage, FROM_LINEAGE),
+    ...take(new DataQuestions(project.pool), FROM_DATA),
     list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]> {
       return project.records.list(kind);
     },

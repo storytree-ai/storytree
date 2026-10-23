@@ -1,7 +1,7 @@
 /** Capability 4 · Updates. */
 import type { LifecycleBridge } from "../lifecycle/bridge.js";
 import type { UpdatesBridge } from "../updates/bridge.js";
-import type { UpdateAction, UpdateState } from "../updates/main-updates.js";
+import type { UpdateAction, UpdateState } from "../updates/update-state.js";
 import { nextInstallAt, type InstallChoice, type InstallChoiceState } from "../updates/install-choice.js";
 
 /**
@@ -16,7 +16,7 @@ export function mountUpdates(host: HTMLElement, request: (action: UpdateAction) 
   let stopped = false;
   let action: UpdateAction = "check";
   const show = (state: UpdateState) => {
-    const busy = ["checking", "building", "ready", "restarting"].includes(state.phase);
+    const busy = ["checking", "ready", "restarting"].includes(state.phase);
     button.disabled = busy;
     action = state.phase === "pending" ? "install" : "check";
     button.textContent = state.phase === "pending" ? "Restart to update" : "Check for updates";
@@ -55,16 +55,15 @@ export function updateText(state: UpdateState, choice?: InstallChoice): readonly
     case "idle": return ["", ""];
     case "checking": return ["Checking for updates…", "Looking for the latest build."];
     case "up-to-date": return ["Up to date", `Running ${state.runningBuild}.`];
-    case "building": return ["Building update…", `${state.nextBuild ?? "The new build"} will restart the app when ready.`];
     case "pending": return ["Update ready to install", `storytree ${state.nextBuild ?? "update"} is ready. ${state.reason ?? waitingFor(choice)} Restart now to install it: the app is back in a minute or two.`];
     case "ready": return ["Restart waiting", `${state.nextBuild ?? "The new build"} restarts the app by itself as soon as the library finishes writing a snapshot or a seed.`];
     case "restarting": return ["Restarting…", `Opening ${state.nextBuild ?? "the new build"}.`];
     case "failed": return ["Couldn’t update", `${state.reason ?? "The check failed."} The running app is unchanged. Try again.`];
-    case "unavailable": return ["Updates unavailable", "This app is not running from a runtime slot and does not update itself."];
+    case "unavailable": return ["Updates unavailable", "This copy of storytree does not install releases, so it does not update itself."];
   }
 }
 
-/** When a downloaded release or a built main commit waiting to install will install itself, by the user's choice (4.13). */
+/** When a downloaded release waiting to install will install itself, by the user's choice (4.13). */
 function waitingFor(choice: InstallChoice | undefined): string {
   if (choice?.mode === "manual") return "It installs when you click Restart to update.";
   if (choice?.mode === "hours") return `It installs during your quiet hours, ${choice.from} to ${choice.to}, once no one is using storytree.`;

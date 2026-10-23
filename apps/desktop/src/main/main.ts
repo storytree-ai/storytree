@@ -12,16 +12,15 @@
  * one way to stop it, and it stops Postgres before the app exits. Opening the app again, or the
  * tray's Open, brings the window back on the project it showed.
  *
- * Run from the runtime folder (~/.storytree/0.3/runtime, set up by `pnpm app:follow-main`), the app
- * follows merged main (ADR-0637 D2): every few minutes it fetches main, and when main has moved it
- * builds main's new commit beside itself and restarts into it (@storytree/app's follow-main).
+ * Installed, the app takes published releases on its channel (./releases.ts), installing them when the user's install
+ * choice allows; a development copy run from a checkout does not update itself.
  *
  * While it runs, it keeps a snapshot of every project, taken at start and once a day (ADR-0641 B1),
  * in ~/.storytree/0.3/backups: @storytree/app's keepBackups, which holds restarts while writing.
  *
- * Before it restarts into a new build, it starts that build with `--start-check`, which goes as far
- * as registering the main process's handlers and exits 0 without opening the library; a build that
- * cannot is never restarted into (./start-check.ts). A start that fails ends the app.
+ * `--start-check` goes as far as registering the main process's handlers and exits 0 without opening the library: the
+ * release's install checks start the installed build with it, so a release that cannot start never publishes
+ * (./start-check.ts). A start that fails ends the app.
  *
  * `--callback-check` holds the single-instance lock with no window and no library, and prints a line for each sign-in
  * callback a later start hands it, saying whether it reached the sign-in session (./callback-check.ts): CI's proof that a
@@ -32,8 +31,7 @@
  * surface on show says it drew every story of the project and every one of its capabilities.
  */
 import { smokeArcSurface } from "@storytree/arc-surface";
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { format } from "node:util";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 // The app's surfaces (ADR-0750), in the Surfaces menu's order: the plugin loader composes them into the bundle
@@ -49,31 +47,26 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, powe
 
 import {
   agentActiveAt,
-  appDirIn,
   background,
   thisBuild,
   keepBackups,
   buildLabel,
-  electronIn,
+  checkoutSha,
+  installedAppDir,
   launchToRecord,
   loginItemsFor,
+  noUpdates,
   openAppLibrary,
   pageReads,
   PAGE_READS_CHANNELS,
   projectSelection,
-  refreshOwnHealth,
   seedWriting,
   signIn,
-  slotOf,
-  slotSha,
   smokeProblems,
   surfaceOn,
   surfacesActions,
   SURFACES_CHANNELS,
   TRAY_MENU,
-  mainUpdates,
-  buildApp,
-  updateToMain,
   quietMoment,
   installChoice,
   type Launch,
@@ -111,7 +104,6 @@ import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { answerAppEvents, answerCallbackCheckEvents } from "./app-events.js";
 import { iconColourway } from "./app-icon.js";
 import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
-import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
@@ -123,12 +115,12 @@ import { keepTray } from "./tray.js";
 import { titleWindow } from "./window-title.js";
 import { bringWindowForward } from "./window-shown.js";
 import { PLUGIN_SCHEME, pluginResponse, windowStandIns } from "./stand-ins.js";
-import { checkedUpdate, finishStartCheck, runWhenReady, startsCleanly } from "./start-check.js";
+import { finishStartCheck, runWhenReady } from "./start-check.js";
 
 // A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
 declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 
-// The main process's own uncaught errors reach the log (app.log once logTo runs below, stderr in the checks), before startup work can throw.
+// The main process's own uncaught errors reach the log (stderr), before startup work can throw.
 // The box then offers Keep going or Restart; before the app is ready only the error box can show, so it keeps going.
 // Each is also kept in the user's own library on every install, held until it opens (lifecycle 1.25), naming the build
 // once it is known and the app's version before.
@@ -178,7 +170,6 @@ let reads: PageReads | undefined;
 const LOOK_EVERY_MS = 60_000;
 let projects: ReturnType<typeof projectSelection> | undefined;
 let shutDown: Promise<void> | undefined;
-let updates: ReturnType<typeof mainUpdates> | undefined;
 let backups: ReturnType<typeof keepBackups> | undefined;
 let journey: JourneyRuntime | undefined;
 /** The parts this computer switches off, read once as the app starts (ADR-1095). */
@@ -191,8 +182,6 @@ let releases: ReturnType<typeof followReleases>;
 let windowQuery: { project?: string; problem?: string } = {};
 /** Held here so it is not garbage-collected, which would remove the icon. */
 let tray: Tray | undefined;
-/** The runtime slot this app runs from, when it is the app that follows merged main. */
-const slot = slotOf(home.runtime, app.getAppPath());
 const lifecycle = background({
   // End every renderer (project polling and live reading) before closing what it reads.
   stopPages: () => { for (const window of BrowserWindow.getAllWindows()) window.destroy(); },
@@ -204,17 +193,8 @@ const lifecycle = background({
     limit: restartLimit({ file: path.join(home.dir, "restarts.json"), stopped: message => errorRecords.record("restarts-stopped", message) }),
   }),
 });
-// The app that follows merged main runs with no terminal, so what it says goes to a log beside its data.
-if (slot !== undefined && !args.smoke && !args.startCheck && !args.callbackCheck) logTo(path.join(home.dir, "app.log"));
 
-// One storytree app per machine (ADR-0940 D1): beside the other copy, say which and how to remove it, and start nothing.
-const refusal = args.smoke || args.startCheck ? undefined : startRefusal({ slot, installed: installedApp(), home: home.dir });
-
-if (refusal !== undefined) {
-  console.error(`storytree 0.3 cannot start: ${refusal}`);
-  if (!args.background) dialog.showErrorBox("storytree 0.3 cannot start", refusal);
-  app.exit(1);
-} else if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
+if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
   app.quit(); // the app is already open: that one is focused instead (or, with --quit, quits)
 } else if (args.quit) {
   app.exit(0); // asked to quit, and none is running: start nothing
@@ -353,13 +333,11 @@ async function run(): Promise<void> {
     console.error(problem);
   }
   build = await whichBuild();
-  const dir = slot === undefined ? undefined : path.join(home.runtime, slot);
-  const running = slot === undefined || dir === undefined ? undefined : { slot, dir, sha: await slotSha(dir) };
   const canRestart = async () => shutDown === undefined
     && (postgres === undefined || !(await seedWriting(postgres.url)))
     && shutDown === undefined && (backups?.canRestart() ?? true);
-  // When an update may install itself (updates 4.13): meaningful where releases install, and in an app that follows merged main.
-  const installing = installChoice({ available: !args.smoke && (releasesInstall() || running !== undefined), file: path.join(home.dir, "install-choice.json") });
+  // When an update may install itself (updates 4.13): offered only where releases install themselves.
+  const installing = installChoice({ available: !args.smoke && releasesInstall(), file: path.join(home.dir, "install-choice.json") });
   // Restarting into an update stops the app and its database for a minute or two: not under a user or an agent (4.4).
   const quiet = quietMoment({
     launchedAt: Date.now(),
@@ -368,30 +346,9 @@ async function run(): Promise<void> {
       ? Date.now() - powerMonitor.getSystemIdleTime() * 1000 : undefined,
     agentActiveAt: async () => storytree === undefined ? undefined : await agentActiveAt(storytree),
   });
-  updates = mainUpdates({
-    runtimeDir: home.runtime, runningBuild: build,
-    ...(running === undefined ? {} : { running }),
-    prepare: async () => {
-      if (running !== undefined && storytree !== undefined) {
-        await refreshOwnHealth({ running, home: home.dir, log: line => console.log(line) });
-      }
-    },
-    canRestart,
-    quiet,
-    restart: next => lifecycle.restart(
-      { execPath: electronIn(next.dir), args: [appDirIn(next.dir)] },
-      BrowserWindow.getAllWindows().some(window => window.isVisible()),
-    ),
-    update: checkedUpdate(updateToMain, {
-      build: buildApp,
-      shaOf: slotSha,
-      startCheck: next => startsCleanly({ execPath: electronIn(next), args: [appDirIn(next)] }),
-    }),
-    log: line => console.log(line),
-  });
   // The installed app opens at sign-in, in the tray, unless the user turned that off (lifecycle 1.12). An installed Mac app
-  // (updates 4.21) does too, through its LaunchAgent; its start refusal and the journey's desktopStarted use installedApp
-  // as Windows does. The install choice is offered only where releases install themselves, which an ad-hoc Mac build does not.
+  // (updates 4.21) does too, through its LaunchAgent; the journey's desktopStarted uses installedApp as Windows does.
+  // The install choice is offered only where releases install themselves, which an ad-hoc Mac build does not.
   // On Linux the autostart entry starts the AppImage itself (APPIMAGE), not the executable inside its mount, which is gone
   // once it quits, and keeps the menu entry's --no-sandbox where the kernel blocks the sandbox; appData there is
   // $XDG_CONFIG_HOME, or ~/.config.
@@ -404,7 +361,7 @@ async function run(): Promise<void> {
   }) });
   answerPage(ipcMain, LIFECYCLE_CHANNELS, { readSignIn: () => signingIn.read(), setSignIn: (on: unknown) => signingIn.set(on) });
   answerPage(ipcMain, UPDATES_CHANNELS, {
-    checkForUpdates: (action: unknown) => (releases ?? updates!).request(action),
+    checkForUpdates: (action: unknown) => (releases ?? noUpdates(() => build)).request(action),
     readInstallChoice: () => installing.read(),
     setInstallChoice: (choice: unknown) => installing.set(choice),
   });
@@ -418,12 +375,10 @@ async function run(): Promise<void> {
     void errorsOpened?.then(() => errorRecords.settled())
       .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
       .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
-    addStartMenuShortcut();
     try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
     if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });
     // The app looks at each project's branches itself, once a minute, so its sessions list never waits on a hook's look (Session management 4.21).
     setInterval(() => void reads?.lookAround(), LOOK_EVERY_MS).unref();
-    updates.start();
     releases = followReleases({ restart: lifecycle.restart, canRestart, quiet }, home.dir, () => installing.read().choice);
   }
 }
@@ -503,14 +458,13 @@ function recordLaunch(): void {
     ...(appImage === undefined ? {} : { appImage, sandboxOff: app.commandLine.hasSwitch("no-sandbox") }),
   };
   const record = launchToRecord({
-    runtimeDir: home.runtime,
     appPath: app.getAppPath(),
     execPath: process.execPath,
     ...(app.isPackaged ? { packaged } : {}),
-    followsMainSetUp: (["a", "b"] as const).some((name) => existsSync(path.join(appDirIn(path.join(home.runtime, name)), "node_modules", "electron", "path.txt"))),
+    installedHere: installedAppDir(home.dir) !== undefined,
   });
   if (record === undefined) {
-    console.log(`not recording how to open the app: ${home.launchRecord} stays with the app that follows merged main`);
+    console.log(`not recording how to open the app: ${home.launchRecord} stays with the installed app`);
     return;
   }
   try {
@@ -522,28 +476,11 @@ function recordLaunch(): void {
   }
 }
 
-/** Which build this is, for the title and the tray: main's commit, a version, or the checkout. */
+/** Which build this is, for the title and the tray: a version, or the checkout. */
 async function whichBuild(): Promise<string> {
-  if (app.isPackaged) return buildLabel({ runtimeDir: home.runtime, appPath: app.getAppPath(), packaged: { version: app.getVersion() } });
-  const sha = await slotSha(app.getAppPath()).catch(() => undefined);
-  return buildLabel({ runtimeDir: home.runtime, appPath: app.getAppPath(), ...(sha === undefined ? {} : { sha }) });
-}
-
-/**
- * On Windows, the app that follows merged main keeps a Start menu entry, "storytree 0.3", pointing
- * at the build now running, so opening it never means reading app.json by hand. Only for the real
- * home: an app pointed at a throwaway one (STORYTREE_HOME) leaves the Start menu alone.
- */
-function addStartMenuShortcut(): void {
-  if (process.platform !== "win32" || slot === undefined || (process.env.STORYTREE_HOME ?? "") !== "") return;
-  const link = path.join(app.getPath("appData"), "Microsoft", "Windows", "Start Menu", "Programs", "storytree 0.3.lnk");
-  const written = shell.writeShortcutLink(link, existsSync(link) ? "replace" : "create", {
-    target: process.execPath,
-    args: `"${app.getAppPath()}"`,
-    cwd: path.dirname(process.execPath),
-    description: `storytree 0.3 (${build})`,
-  });
-  if (!written) console.error(`could not write the Start menu entry ${link}`);
+  if (app.isPackaged) return buildLabel({ appPath: app.getAppPath(), packaged: { version: app.getVersion() } });
+  const sha = await checkoutSha(app.getAppPath()).catch(() => undefined);
+  return buildLabel({ appPath: app.getAppPath(), ...(sha === undefined ? {} : { sha }) });
 }
 
 /**
@@ -554,21 +491,6 @@ function relaunch(target: Launch | undefined, inBackground: boolean): void {
   const appImage = process.env.APPIMAGE;
   const launch = target ?? thisBuild({ execPath: process.execPath, argv: process.argv, ...(appImage === undefined ? {} : { appImage }) });
   app.relaunch({ execPath: launch.execPath, args: [...launch.args, ...(inBackground ? ["--background"] : [])] });
-}
-
-/** Also append everything the app says to `file`, stamped with the time. */
-function logTo(file: string): void {
-  for (const level of ["log", "error"] as const) {
-    const write = console[level].bind(console);
-    console[level] = (...parts: unknown[]) => {
-      write(...parts);
-      try {
-        appendFileSync(file, `${new Date().toISOString()} ${format(...parts)}\n`);
-      } catch {
-        // a log that cannot be written must never stop the app
-      }
-    };
-  }
 }
 
 /** The Postgres binaries: shipped in the packaged app's resources, or from node_modules in development. */
@@ -604,7 +526,7 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
   });
   // The page is the app: it never navigates away or opens other windows.
   keepPageInWindow(window, { headless: args.smoke });
-  // A failure inside the page (a surface's failed refresh, an uncaught throw) is kept in app.log with the rest.
+  // A failure inside the page (a surface's failed refresh, an uncaught throw) is logged with the rest.
   logPageErrors(window.webContents, line => console.error(line));
   // The page names the project; the title adds which build this is.
   titleWindow(window, build);
@@ -715,7 +637,6 @@ function drewText(tree: AnnotatedTree, drew: string | undefined): string {
 
 /** Close the library and stop Postgres. Safe to call more than once. */
 function shutdown(): Promise<void> {
-  updates?.stop();
   backups?.stop();
   shutDown ??= (async () => {
     await journey?.finish();

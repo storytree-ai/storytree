@@ -304,13 +304,15 @@ const PLAN_INPUTS = {
   remedies: { kind: "text", optional: true, describe: "the friction it remedies, comma-separated" },
   "held-on": { kind: "text", optional: true, blank: true, describe: "the owner's questions it is held on, comma-separated, or none to clear" },
   machine: { kind: "text", optional: true, describe: "the one machine that can take it, or none to clear" },
+  "escape-of": { kind: "text", optional: true, describe: "the pull request (#123) or increment that caused the escape it fixes, or none to clear" },
+  "escape-story": { kind: "text", optional: true, describe: "the story that escape hit, with --escape-of" },
   touches: { kind: "text", optional: true, describe: "retired: --capabilities and --links" },
 } as const;
 
 type PlanGiven = { readonly [K in keyof typeof PLAN_INPUTS]?: string | undefined };
 
 /** A new or edited increment's fields, as given. `--touches` is retired (ADR-0949 D2), and refused rather than ignored. */
-function incrementOf({ capabilities, links, remedies, "held-on": heldOn, machine: _machine, touches, ...rest }: PlanGiven): Record<string, unknown> {
+function incrementOf({ capabilities, links, remedies, "held-on": heldOn, machine: _machine, "escape-of": escapeOf, "escape-story": escapeStory, touches, ...rest }: PlanGiven): Record<string, unknown> {
   if (touches !== undefined) {
     throw new VerbRefusal("--touches is retired (ADR-0949 D2): name the capabilities it changes with --capabilities, and cite its stories or anything else with --links", { misuse: true });
   }
@@ -323,6 +325,12 @@ function incrementOf({ capabilities, links, remedies, "held-on": heldOn, machine
   // clears the hold, as settling or retiring its last question does.
   const held = fields.heldOn as string[] | undefined;
   if (held?.length === 0 || (held?.length === 1 && held[0] === "none")) fields.heldOn = undefined;
+  // The escape it fixes: what caused it and the story it hit, given together; `--escape-of none` clears it.
+  if (escapeOf === "none" && escapeStory === undefined) fields.escape = undefined;
+  else if (escapeOf !== undefined && escapeStory !== undefined) fields.escape = { causedBy: escapeOf, story: escapeStory };
+  else if (escapeOf !== undefined || escapeStory !== undefined) {
+    throw new VerbRefusal("--escape-of and --escape-story go together: the pull request or increment that caused the escape, and the story it hit (or --escape-of none alone to clear it)", { misuse: true });
+  }
   return fields;
 }
 
@@ -342,7 +350,7 @@ async function machineGiven(name: string | undefined, context: ArcVerbContext): 
   }
 }
 
-const INCREMENT_USAGE = "--arc <arc> --title <t> --objective <o> --body <text|@file> [--capabilities a,b] [--links a,b] [--remedies a,b] [--held-on q] [--machine <name>]";
+const INCREMENT_USAGE = "--arc <arc> --title <t> --objective <o> --body <text|@file> [--capabilities a,b] [--links a,b] [--remedies a,b] [--held-on q] [--machine <name>] [--escape-of <pr|increment> --escape-story <story>]";
 
 const CLOSE_INPUTS = {
   disposition: { kind: "text", optional: true, describe: "landed, failed or withdrawn" },
@@ -437,8 +445,8 @@ const incrementEdit = verb({
   command: {
     family: "arc increment",
     name: "edit",
-    summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies, --machine names the one machine that can take it",
-    usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q, or none to clear] [--machine <name>, or none to clear]",
+    summary: "change only the named fields; --capabilities and --links replace the lists, --remedies adds friction to those it already remedies, --machine names the one machine that can take it, --escape-of and --escape-story the escape it fixes",
+    usage: "arc increment edit <increment> [--title …] [--objective …] [--body …] [--capabilities a,b] [--links a,b] [--remedies f,g] [--held-on q, or none to clear] [--machine <name>, or none to clear] [--escape-of <pr|increment> --escape-story <story>, or --escape-of none to clear]",
   },
   tool: { absent: "the MCP server's own edit_plan edits an increment" },
   inputs: { increment: { kind: "text", word: 0, describe: "the increment's id" }, ...PLAN_INPUTS },

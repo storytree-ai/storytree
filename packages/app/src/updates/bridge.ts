@@ -1,6 +1,6 @@
 /** Capability 4 · Updates. The page's update operations and the channels they travel on (ADR-0649). Data only: safe for the page and preload. */
 import type { InstallChoice, InstallChoiceState } from "./install-choice.js";
-import type { UpdateAction, UpdateState } from "./main-updates.js";
+import type { UpdateAction, UpdateState } from "./update-state.js";
 
 export interface UpdatesBridge {
   checkForUpdates(action: UpdateAction): Promise<UpdateState>;

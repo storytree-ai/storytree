@@ -61,14 +61,14 @@ test("1.25 each uncaught main-process exception and unhandled rejection becomes 
       { kind: "unhandled-rejection", build: "0.3.41", stack: rejected, count: 3 },
     ]);
     assert.ok(rows[1]!.last_at > rows[1]!.first_at);
-    assert.equal(logged.length, 4, "app.log still has each error, and nothing else");
+    assert.equal(logged.length, 4, "the log still has each error, and nothing else");
   } finally {
     await storytree.close();
     await dropTestDatabases([database]);
   }
 });
 
-test("1.26 when the library cannot take the errors, app.log keeps writing them as before, says the library missed them, and nothing more is thrown or rejected", async () => {
+test("1.26 when the library cannot take the errors, the app's log keeps writing them as before, says the library missed them, and nothing more is thrown or rejected", async () => {
   const unhandled: unknown[] = [];
   const onUnhandled = (reason: unknown) => unhandled.push(reason);
   process.on("unhandledRejection", onUnhandled);

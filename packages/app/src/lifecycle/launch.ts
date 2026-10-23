@@ -2,15 +2,14 @@
  * Capability 1 · Lifecycle, contract 1.6: how the app is opened again, and what it says it is.
  *
  * While it runs, the app records how it was started (app.json), and an agent's session start opens
- * storytree from that record when it is closed. On a machine where the app follows merged main
- * (`pnpm app:follow-main`), that app is the one to open: a development copy (`pnpm desktop` in a
- * checkout) must never take the record from it, or every later open runs the checkout's old work
- * (seen 2026-09-27). The app also names its build, in its window's title and tray icon, so nobody
- * has to guess which one is on screen.
+ * storytree from that record when it is closed. On a machine with the installed app, that app is the
+ * one to open: a development copy (`pnpm desktop` in a checkout) must never take the record from it,
+ * or every later open runs the checkout's old work (seen 2026-09-27). The app also names its build, in
+ * its window's title and tray icon, so nobody has to guess which one is on screen.
  */
+import { execFile } from "node:child_process";
 import path from "node:path";
-
-import { slotOf } from "../updates/follow-main.js";
+import { promisify } from "node:util";
 
 /** How to start the app: a program and its arguments (app.json). */
 export interface LaunchRecord {
@@ -19,8 +18,6 @@ export interface LaunchRecord {
 }
 
 export interface LaunchOptions {
-  /** The app that follows merged main lives here: ~/.storytree/0.3/runtime */
-  readonly runtimeDir: string;
   /** The app's folder (Electron's app path). */
   readonly appPath: string;
   /** The program running it (Electron, or the packaged app). */
@@ -30,20 +27,19 @@ export interface LaunchOptions {
    * from a mount of `appImage` that vanishes when it exits, started with --no-sandbox where the kernel blocks the sandbox.
    */
   readonly packaged?: { readonly portableFile?: string; readonly appImage?: string; readonly sandboxOff?: boolean };
-  /** Whether this machine has the app that follows merged main set up (a built slot in the runtime). */
-  readonly followsMainSetUp: boolean;
+  /** Whether this machine has the installed app (installedAppDir). */
+  readonly installedHere: boolean;
 }
 
 /** The record this app should leave of how to open it, or undefined when it must leave the one there alone. */
-export function launchToRecord({ runtimeDir, appPath, execPath, packaged, followsMainSetUp }: LaunchOptions): LaunchRecord | undefined {
+export function launchToRecord({ appPath, execPath, packaged, installedHere }: LaunchOptions): LaunchRecord | undefined {
   if (packaged?.appImage !== undefined) return { command: packaged.appImage, args: packaged.sandboxOff === true ? ["--no-sandbox"] : [] };
   if (packaged !== undefined) return { command: packaged.portableFile ?? execPath, args: [] };
-  if (slotOf(runtimeDir, appPath) === undefined && followsMainSetUp) return undefined;
+  if (installedHere) return undefined;
   return { command: execPath, args: [appPath] };
 }
 
 export interface BuildOptions {
-  readonly runtimeDir: string;
   readonly appPath: string;
   /** The commit it was built from, when known. */
   readonly sha?: string;
@@ -51,10 +47,15 @@ export interface BuildOptions {
   readonly packaged?: { readonly version: string };
 }
 
-/** Which build this is, in a few words: `main 80bcc63`, `version 0.3.0`, or the development checkout it runs from. */
-export function buildLabel({ runtimeDir, appPath, sha, packaged }: BuildOptions): string {
+/** Which build this is, in a few words: `version 0.3.0`, or the development checkout it runs from. */
+export function buildLabel({ appPath, sha, packaged }: BuildOptions): string {
   if (packaged !== undefined) return `version ${packaged.version}`;
   const short = sha === undefined ? "" : ` ${sha.slice(0, 7)}`;
-  if (slotOf(runtimeDir, appPath) !== undefined) return `main${short}`;
   return `development build${short} from ${path.resolve(appPath, "..", "..")} (does not update itself)`;
+}
+
+/** The commit a development checkout has checked out, for its build label. */
+export async function checkoutSha(dir: string): Promise<string> {
+  const { stdout } = await promisify(execFile)("git", ["-C", dir, "rev-parse", "HEAD"], { encoding: "utf8", windowsHide: true });
+  return stdout.trim();
 }

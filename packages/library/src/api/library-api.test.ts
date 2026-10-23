@@ -124,6 +124,11 @@ const LIBRARY_API = [
   "changesSince",
   "sendFeedback",
   "feedbackScreenshot",
+  // Capability 27's fixed data questions.
+  "counts",
+  "latestChanges",
+  "findByTitle",
+  "decisionNumbered",
   "close",
 ];
 

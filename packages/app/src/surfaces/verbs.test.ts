@@ -81,7 +81,7 @@ test("3.16 An agent switches this computer's factory folder with the declared sw
   assert.ok(refused instanceof VerbRefusal && /not a factory/.test(refused.message), String(refused));
 });
 
-test("2.23 `settings set part <part> plugin <plugin>` records the calling session from the command line, and `settings show` says who switched the stand-in and when; `on` switches it back with no record", async (t) => {
+test("project-and-caller 2.23 `settings set part <part> plugin <plugin>` records the calling session from the command line, and `settings show` says who switched the stand-in and when; `on` switches it back with no record", async (t) => {
   const dir = home(t);
   const place: SettingsPlace = { folder: dir, session: "s-9", surfaces: async () => declared, parts: async () => graph };
   await named("set").act({ words: ["part", "forest", "plugin", "my-forest"] }, place, words);

@@ -12,7 +12,7 @@ test("4.19 releases.log keeps the update lines a person reads and never the upda
   const file = path.join(dir, "releases.log");
   const log = releasesLog(file, { echo: () => {} });
 
-  log.info("Following the development release channel");
+  log.info("Following the alpha release channel");
   log.info("Found version 0.3.912 (url: storytree-0.3.912.exe)");
   // electron-updater's differential downloader writes both of these at debug (measured: ~94 MB in a week).
   log.debug(JSON.stringify([{ kind: 0, start: 0, end: 10 }, { kind: 1, start: 10, end: 20 }], null, 2));
@@ -23,7 +23,7 @@ test("4.19 releases.log keeps the update lines a person reads and never the upda
   // An error keeps its stack, so entries are split at each one's timestamp.
   const lines = readFileSync(file, "utf8").split(/^\d{4}-\d\d-\d\dT\S+ /m).slice(1);
   assert.equal(lines.length, 4);
-  assert.match(lines[0]!, /^Following the development release channel\n$/);
+  assert.match(lines[0]!, /^Following the alpha release channel\n$/);
   assert.match(lines[1]!, /^Found version 0\.3\.912/);
   assert.match(lines[2]!, /fallback to full download/);
   assert.match(lines[3]!, /ERR_INTERNET_DISCONNECTED/);

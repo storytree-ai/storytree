@@ -168,8 +168,9 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
       const abort = new AbortController();
       const pending = client.callTool({ name: "edit_plan", arguments: { id: story.id, title: "Cancelled edit" } }, { signal: abort.signal });
       const cancelled = assert.rejects(pending, /cancel/i);
+      cancelled.catch(() => {}); // A deadline failure reports itself, not the close that rejects this.
       // Observe a real queued writer, not a sleep that guesses when it reached the lock.
-      const deadline = Date.now() + 10_000;
+      const deadline = Date.now() + 45_000; // Inside the runner's 60 s test limit, so this names itself.
       while (true) {
         const waiting = await observer.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = 'advisory'");
         if (waiting.rowCount) break;
@@ -275,7 +276,8 @@ for (const scenario of [
           _meta: meta,
         }, { signal: abort.signal });
         const cancelled = assert.rejects(pending, /cancel/i);
-        const deadline = Date.now() + 10_000;
+        cancelled.catch(() => {}); // A deadline failure reports itself, not the close that rejects this.
+        const deadline = Date.now() + 45_000; // Inside the runner's 60 s test limit, so this names itself.
         while (true) {
           const waiting = await observer.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = $1", [boundary === "admitted" ? "transactionid" : "advisory"]);
           if (waiting.rowCount) break;

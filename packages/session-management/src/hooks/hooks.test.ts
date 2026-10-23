@@ -218,7 +218,8 @@ test("3.2 recorded Codex hook inputs make the same four lines, with the edited f
   });
 });
 
-for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} shell writes survive offline hooks, without attributing existing dirt or read-only commands`, async () => {
+for (const harness of ["claude-code", "codex"] as const) test(`3.22 ${harness} shell writes survive offline hooks, without attributing existing dirt or read-only commands`, { timeout: 120_000 }, async () => {
+  // About thirty hooks run one after another; a slow Windows runner has taken past a minute (PR #1693, 2026-10-23).
   const project = uniqueProjectName();
   await withTempDir(async (dir) => {
     const folder = await projectFolder(dir, project);

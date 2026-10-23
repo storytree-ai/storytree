@@ -35,3 +35,5 @@ The green source `d8bdc26d` also removes the unused plain-list renderer and its 
 imports the current empty state directly, and moves the capture seeder under `testing/`.
 The existing App 2.7 mounted-menu test now uses the same typed fake bridge, giving the public
 capture barrel ordinary import reach while preserving its existing section-action assertions.
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [trace.json.gz](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/app/evidence/mounted-allocation/trace.json.gz). Each link is its last copy, kept in git history.

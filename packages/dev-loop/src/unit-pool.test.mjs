@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { DEFAULT_JOBS, runPool, slowestFirst, testJobs } from "./unit-pool.mjs";
+import { DEFAULT_JOBS, runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
 
 test("6.10 · a pool runs at most its jobs at once, starts the next as one ends, and starts none once stopped", async () => {
   let now = 0;
@@ -81,4 +81,30 @@ test("6.12 · a unit run alone starts only once every other unit has ended, and 
   }, { alone: (unit) => unit === "proof" });
   assert.deepEqual(log.map(([unit]) => unit), ["a", "b", "c", "proof"]);
   assert.equal(log.find(([unit]) => unit === "proof")[1], 1, "nothing else was running when it started");
+});
+
+test("6.23 · shards split the units longest-first onto the lightest shard, so their times are near equal; a unit with no pass weighs the known median", () => {
+  const times = { "packages/cli": 330_000, "packages/a": 200_000, "packages/b": 150_000, "packages/c": 120_000, "packages/d": 60_000 };
+  const units = ["packages/a", "packages/b", "packages/c", "packages/cli", "packages/d", "packages/new"];
+  const shards = shardUnits(units, 2, { history: (unit) => times[unit] });
+  assert.deepEqual(shards, [
+    ["packages/cli", "packages/new"],
+    ["packages/a", "packages/b", "packages/c", "packages/d"],
+  ]);
+  assert.deepEqual(shardUnits(units, 2, { history: (unit) => times[unit] }), shards, "every shard decides the same split");
+  assert.deepEqual(shards.flat().toSorted(), units.toSorted(), "every unit is in exactly one shard");
+  assert.deepEqual(shardUnits(["x", "y", "z"], 2), [["x", "z"], ["y"]], "with no history every unit weighs the same, in the order given");
+  assert.deepEqual(shardUnits(["x"], 2), [["x"], []]);
+});
+
+test("6.23 · a shard's plan names every shard's units, one line each, and a shard with none says so", () => {
+  assert.equal(shardPlan([["packages/cli", "packages/new"], []]), "shard 1/2: packages/cli, packages/new\nshard 2/2: none\n");
+});
+
+test("6.23 · --shard=<i>/<n> is taken from the arguments as shard i of n; one malformed or out of range is refused", () => {
+  assert.deepEqual(takeShard(["--full", "--shard=2/2", "a.test.mjs"]), { shard: { index: 2, count: 2 }, argv: ["--full", "a.test.mjs"], refusal: undefined });
+  assert.deepEqual(takeShard(["--full"]), { shard: undefined, argv: ["--full"], refusal: undefined });
+  for (const bad of ["--shard=3/2", "--shard=0/2", "--shard=1/1", "--shard=a/2", "--shard=1"]) {
+    assert.match(takeShard([bad]).refusal ?? "", /--shard=<i>\/<n>/, bad);
+  }
 });

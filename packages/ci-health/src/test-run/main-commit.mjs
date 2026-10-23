@@ -6,7 +6,9 @@
 // fast-forwarded to. Main's own push run of that commit is usually cancelled by the next merge, so a passing queue run of
 // the exact commit is that commit's CI evidence as much as a passing push run is: without it, own health recorded
 // nothing between quiet spells, and the health worklist offered contracts main already tests (friction_5db47b562400).
-// A pull request's run never counts: it tested the branch merged with an older main, not main's commit.
+// A pull request's run never counts: it tested the branch merged with an older main, not main's commit. A push run that
+// passed on the queue's verdict ran no tests and carries no evidence (ci.yml's `queue-verdict`), so a passing queue run of
+// the commit is credited before a push run.
 
 /** The prefix of the branch the merge queue tests main's next commit on. */
 const QUEUE = "gh-readonly-queue/main/";
@@ -27,12 +29,17 @@ function passedAsMain(run, sha) {
 export async function chooseRecording({ github, repo, own, mainHead, triggering }) {
   const passing = async (filter) => (await github.rest.actions.listWorkflowRuns({ ...repo, workflow_id: "ci.yml", status: "success", per_page: 20, ...filter })).data.workflow_runs;
   const notices = [];
-  let atOwn = passedAsMain(triggering, own) ? triggering : undefined;
-  try {
-    atOwn ??= (await passing({ head_sha: own })).find((run) => passedAsMain(run, own));
-  } catch (error) {
-    notices.push(`Could not look for CI evidence at ${own}: ${error.message}`);
-  }
+  /** The passing run to credit at `sha`: the queue's if one passed, else main's push run (`known`, or one found). */
+  const evidenceAt = async (sha, known) => {
+    try {
+      const runs = (await passing({ head_sha: sha })).filter((run) => passedAsMain(run, sha));
+      return runs.find((run) => run.event === "merge_group") ?? known ?? runs[0];
+    } catch (error) {
+      notices.push(`Could not look for CI evidence at ${sha}: ${error.message}`);
+      return known;
+    }
+  };
+  const atOwn = await evidenceAt(own, passedAsMain(triggering, own) ? triggering : undefined);
   if (atOwn !== undefined || mainHead === own) {
     if (atOwn === undefined) notices.push(`No passing CI evidence for ${own}; Windows-only and macOS-only contracts receive no credit.`);
     return { sha: own, run: atOwn, notices };
@@ -44,5 +51,5 @@ export async function chooseRecording({ github, repo, own, mainHead, triggering 
     return { notices: [...notices, `Main has moved beyond ${own}, which has no passing CI run, and no passing main commit is at or after it; this run records nothing.`] };
   }
   notices.push(`Main has moved beyond ${own}, which has no passing CI run; recording ${newest.head_sha}, main's newest commit whose CI passed.`);
-  return { sha: newest.head_sha, run: newest, notices };
+  return { sha: newest.head_sha, run: await evidenceAt(newest.head_sha, newest), notices };
 }

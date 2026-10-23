@@ -4,8 +4,12 @@
  * surfaces are the host's, composed from its story packages' manifests (ADR-0750, ADR-1021), so the door hands them on its
  * place. So are its parts (ADR-1095): `settings set part` switches one off or on for this computer, which every host reads
  * as it starts, or off with a plugin in this computer's factory folder (`settings set factory`) standing in for it, and `settings set system` switches roles, checks and notes off or on for what agents read (ADR-1092 D2).
- * The command line mounts them as its `settings` family (SETTINGS_FAMILIES); they have no tool.
+ * The command line mounts them as its `settings` family (SETTINGS_FAMILIES); they have no tool. `switch_factory` is the
+ * one tool among them: an agent switches the factory folder when asked, with no approval (question_0b0b82eb8fbc).
  */
+import path from "node:path";
+
+import type { FactorySwitched } from "@storytree/project-and-caller";
 import { verb, VerbRefusal, type VerbFamily, type VerbPlace } from "@storytree/library/verbs";
 import { switchedOff, type PartsGraph } from "@storytree/plugin-loader";
 
@@ -26,12 +30,12 @@ const show = verb({
   inputs: {},
   callerless: true,
   async act(_input, { surfaces, parts }: SettingsPlace) {
-    const { partsSaid, readPartsOff, readSettings, readStandIns, readSystemSwitches, systemSaid } = await import("@storytree/project-and-caller");
+    const { factoryFolder, partsSaid, readPartsOff, readSettings, readStandIns, readSystemSwitches, systemSaid } = await import("@storytree/project-and-caller");
     const { readSurfaces } = await import("./switches.js");
     const read = readSettings();
     const graph = await parts();
     const settings = Object.values(read).map((reading) => reading.name === "library" ? librarySaid(reading) : settingSaid(reading)).join("\n\n");
-    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(readStandIns().folder)}\n\n${partsSaid(Object.keys(graph), switchedOff(graph, readPartsOff()), readStandIns().plugins)}\n\n${systemSaid(readSystemSwitches())}` };
+    return { text: `${settings}\n\n${surfacesSaid(readSurfaces(await surfaces()))}\n\n${factorySaid(factoryFolder())}\n\n${partsSaid(Object.keys(graph), switchedOff(graph, readPartsOff()), readStandIns().plugins)}\n\n${systemSaid(readSystemSwitches())}` };
   },
 });
 
@@ -46,13 +50,12 @@ const set = verb({
   tool: { absent: "the user's settings are the person's own, set from a terminal" },
   inputs: { words: { kind: "text", word: 0, many: true, describe: "the setting's name and its value" } },
   callerless: true,
-  async act({ words }, { surfaces, parts }: SettingsPlace) {
+  async act({ words }, { surfaces, parts, session }: SettingsPlace) {
     const { readStandIns, setFactory, setLibrary, setSetting, switchedSaid, switchPart, switchSystem, systemSaid } = await import("@storytree/project-and-caller");
     if (words[0] === "library" && words.length >= 2) return { text: librarySaid(setLibrary(words.slice(1))), next: NEXT };
     if (words[0] === "factory" && words.length === 2) {
-      const chosen = setFactory(words[1]!);
-      const how = chosen.status === "set up" ? "Set up as your factory: its plugins folder is made." : "Already a factory: kept as it was.";
-      return { text: `${how}\n${factorySaid(chosen.folder)}`, next: NEXT };
+      const chosen = setFactory(words[1]!, undefined, { through: "command line", ...(session === undefined ? {} : { session }) });
+      return { text: chosenSaid(chosen), next: NEXT };
     }
     if (words[0] === "part" && (words.length === 3 || (words.length === 4 && words[2] === "plugin"))) {
       const graph = await parts();
@@ -70,9 +73,29 @@ const set = verb({
   },
 });
 
+const switchFactory = verb({
+  consumers: ["agent", "user"],
+  command: { absent: "the command line switches it with `storytree settings set factory <folder>`" },
+  tool: {
+    name: "switch_factory",
+    description:
+      "Switch this computer's factory folder, the folder of the user's own plugins, to another folder, or import the user's own factory: call it when the user asks. No approval is needed. An empty folder is set up with the factory's shape, a factory is used as it is, and any other folder is refused with why. storytree records that this session switched it, and when.",
+  },
+  inputs: { folder: { kind: "text", describe: "The folder to use as the factory: its full path, or one relative to where you work" } },
+  callerless: true,
+  async act({ folder }, { folder: where, session }: VerbPlace) {
+    const { setFactory } = await import("@storytree/project-and-caller");
+    try {
+      return { text: chosenSaid(setFactory(path.resolve(where, folder), undefined, { through: "agent tool", ...(session === undefined ? {} : { session }) })), next: NEXT };
+    } catch (error) {
+      throw new VerbRefusal(error instanceof Error ? error.message : String(error));
+    }
+  },
+});
+
 /** The command line's `settings` family, at its place among `storytree`'s families. */
 export const SETTINGS_FAMILIES: readonly VerbFamily<SettingsPlace>[] = [
-  { name: "settings", summary: "show or set your storytree settings", order: 25, verbs: [show, set] },
+  { name: "settings", summary: "show or set your storytree settings", order: 25, verbs: [show, set, switchFactory] },
 ];
 
 /** A setting as Project and caller reads it, other than where the library lives: this story's own copy of what it says (ADR-1017 D2). */
@@ -105,10 +128,23 @@ function librarySaid(reading: LibraryReading): string {
   return `library: ${where} (${reading.source})\n  Default: ${reading.default}.\n  ${reading.meaning}`;
 }
 
-/** This computer's factory folder, whose plugins may stand in for a part switched off, or that none is chosen. */
-function factorySaid(folder: string | undefined): string {
-  const said = folder === undefined ? "none chosen" : folder;
-  return `factory: ${said}\n  The folder of your own factory, whose plugins (plugins/<plugin>/) may stand in for a part you switch off with \`storytree settings set part <part> plugin <plugin>\`. Choose it with \`storytree settings set factory <folder>\`.`;
+/** A factory folder just switched to: set up, or a factory already, and who switched it. */
+function chosenSaid(chosen: { status: "set up" | "already a factory"; folder: string }): string {
+  const how = chosen.status === "set up" ? "Set up as your factory: its plugins folder is made." : "Already a factory: kept as it was.";
+  return `${how}\n${factorySaid({ folder: chosen.folder, chosen: true })}`;
+}
+
+const THROUGH: Record<FactorySwitched["through"], string> = { "desktop app": "in the desktop app", "command line": "from the command line", "agent tool": "through an agent's tool" };
+
+/** Who switched the factory folder, and when: the record no approval stands in for. */
+function switchedSaid({ through, session, at }: FactorySwitched): string {
+  return `switched ${session === undefined ? "" : `by session ${session} `}${THROUGH[through]}, ${at}`;
+}
+
+/** This computer's factory folder, whose plugins may stand in for a part switched off: storytree's own, or one switched to. */
+function factorySaid({ folder, chosen, switched }: { folder: string; chosen: boolean; switched?: FactorySwitched }): string {
+  const said = !chosen ? `${folder} (storytree's own, the default)` : switched === undefined ? folder : `${folder} (${switchedSaid(switched)})`;
+  return `factory: ${said}\n  The folder of your own factory, whose plugins (plugins/<plugin>/) may stand in for a part you switch off with \`storytree settings set part <part> plugin <plugin>\`. Choose another with \`storytree settings set factory <folder>\`.`;
 }
 
 function surfacesSaid(surfaces: readonly SurfaceReading[]): string {

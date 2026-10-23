@@ -14,7 +14,7 @@ const macFeed = (version: string) => [
   `path: storytree-0.3-${version}-mac-arm64.zip`, `sha512: ${sha("a")}`, "releaseDate: '2026-10-13T23:27:48.872Z'", "",
 ].join("\n");
 
-/** What the development updater reads: GitHub's latest release is `tag`, and its latest-mac.yml is `feed`. */
+/** What the alpha updater reads: GitHub's latest release is `tag`, and its latest-mac.yml is `feed`. */
 async function developmentCheck(tag: string, feed: string) {
   const read: string[] = [];
   const answer = (pathname: string) => {
@@ -49,8 +49,11 @@ test("4.6 a release without a new Mac build carries the last good one's feed: an
   assert.equal(carried.replaceAll("../v0.3.1356/", ""), macFeed("0.3.1356"));
 });
 
-const windows: DeliveryManifest = { schema: 1, channelSchema: 1, version: "0.3.700", architectures: ["x64", "arm64"],
-  installer: { name: "storytree-0.3-0.3.700-setup.exe", sha256: "a".repeat(64), sha512: "b", size: 3 } };
+const installers = (v: string) => ({
+  x64: { name: `storytree-0.3-${v}-windows-x64-setup.exe`, sha256: "a".repeat(64), sha512: "b", size: 3 },
+  arm64: { name: `storytree-0.3-${v}-windows-arm64-setup.exe`, sha256: "e".repeat(64), sha512: "f", size: 4 },
+});
+const windows: DeliveryManifest = { schema: 1, channelSchema: 1, version: "0.3.700", architectures: ["x64", "arm64"], installers: installers("0.3.700") };
 const arm64 = (v: string) => ({ name: `storytree-0.3-${v}-mac-arm64.zip`, sha256: "c".repeat(64), size: 5 });
 const x64 = (v: string) => ({ name: `storytree-0.3-${v}-linux-x86_64.AppImage`, sha256: "d".repeat(64), size: 7 });
 
@@ -65,13 +68,18 @@ test("4.6 publishing merges each platform's own entry into the release's deliver
 
 test("4.6 a platform whose build is not in the release keeps the earlier release's entry, naming its own build, so its one-liner installs the last build that has it", () => {
   const earlier = releaseDelivery("0.3.700", { windows, mac: { version: "0.3.700", macos: { arm64: arm64("0.3.700") } }, linux: { version: "0.3.700", linux: { x64: x64("0.3.700") } } });
-  const next = { ...windows, version: "0.3.701", installer: { ...windows.installer!, name: "storytree-0.3-0.3.701-setup.exe" } };
+  const next = { ...windows, version: "0.3.701", installers: installers("0.3.701") };
   const noMac = releaseDelivery("0.3.701", { windows: next, linux: { version: "0.3.701", linux: { x64: x64("0.3.701") } } }, earlier);
   assert.deepEqual(noMac, { ...next, macos: { arm64: { ...arm64("0.3.700"), version: "0.3.700" } }, linux: { x64: x64("0.3.701") } });
-  // Carried on again, the entry still names 0.3.700; Windows' absence carries its installer and architectures.
+  // Carried on again, the entry still names 0.3.700; Windows' absence carries each architecture's installer.
   const noWindowsOrMac = releaseDelivery("0.3.702", { linux: { version: "0.3.702", linux: { x64: x64("0.3.702") } } }, noMac);
   assert.deepEqual(noWindowsOrMac, { schema: 1, channelSchema: 1, version: "0.3.702", architectures: ["x64", "arm64"],
-    installer: { ...next.installer, version: "0.3.701" }, macos: { arm64: { ...arm64("0.3.700"), version: "0.3.700" } }, linux: { x64: x64("0.3.702") } });
+    installers: { x64: { ...installers("0.3.701").x64, version: "0.3.701" }, arm64: { ...installers("0.3.701").arm64, version: "0.3.701" } },
+    macos: { arm64: { ...arm64("0.3.700"), version: "0.3.700" } }, linux: { x64: x64("0.3.702") } });
+  // A build from before the split, carried, keeps its one installer for both architectures.
+  const combined = { name: "storytree-0.3-0.3.699-setup.exe", sha256: "a".repeat(64), sha512: "b", size: 3 };
+  const { installers: _split, ...before } = { ...earlier, version: "0.3.699", installer: combined };
+  assert.deepEqual(releaseDelivery("0.3.700", { mac: { version: "0.3.700", macos: {} }, linux: { version: "0.3.700", linux: {} } }, before).installer, { ...combined, version: "0.3.699" });
   // With nothing earlier to carry, an absent platform cannot publish.
   const { macos: _gone, ...withoutMac } = earlier;
   assert.throws(() => releaseDelivery("0.3.701", { windows: next }), /No earlier release carries a Mac build/);

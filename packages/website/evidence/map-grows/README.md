@@ -40,3 +40,5 @@ Checks:
 Residue:
 - In M1 the four stories rise over about two seconds, not at the same instant. That is the engine's arrival choreography (world 7.1 to 7.4) stretched over the beat, not something the website sets.
 - The memory chapter and the ending are untouched (ADR-0896 and ADR-0897 are still being shaped).
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [1440-m0-to-m3.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/map-grows/1440-m0-to-m3.webm). Each link is its last copy, kept in git history.

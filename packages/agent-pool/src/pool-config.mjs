@@ -6,7 +6,8 @@
 // - checkout: the shared checkout every lane's worktree is cut from and the watcher runs from; by default this one.
 // - lanes: the folder of briefs, logs, hand-offs and the pool's controls; by default ~/.storytree/agent-pool.
 // - addDirs: folders each engine may write besides its worktree (the lanes folder is always one).
-// - sessions: the cap on engines running at once (the lanes folder's night-max-lanes overrides it live); by default 2.
+// - sessions: pins the cap on engines running at once (the lanes folder's night-max-lanes overrides it live); by default
+//   none, and the cap is what the box's cores and memory allow (readCap, ADR-1142).
 // - engines: { codex: { model }, claude: { model }, switchAt }: the model each engine runs (none, the engine's own
 //   default) and the share of Codex's weekly allowance at which lanes switch to Claude (by default 100, when it is spent).
 // - watcher: { fixesPerRed, fixesPerPullRequest, intervalSeconds }: fix sessions per red, per pull request, and the
@@ -14,7 +15,8 @@
 // `~` is the home folder of the machine reading the file. The environment variables the pool read before
 // (LANES_DIR, CODEX_STOP_AT, WATCH_BOX_HOST, WATCH_FIX_LIMIT, WATCH_FIX_CAP, WATCH_INTERVAL_S) still override it.
 import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { readFile } from "node:fs/promises";
+import { availableParallelism, homedir, totalmem } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -51,7 +53,7 @@ export function poolConfig({ home = homedir(), env = process.env, file = env.AGE
     remoteCheckout: raw.checkout ?? HERE,
     lanesDir,
     addDirs: [...(raw.addDirs ?? []).map(local), lanesDir],
-    sessions: number(raw.sessions) ?? 2,
+    sessions: number(raw.sessions),
     models: { codex: raw.engines?.codex?.model, claude: raw.engines?.claude?.model },
     switchAt: number(env.CODEX_STOP_AT, raw.engines?.switchAt) ?? 100,
     watcher: {
@@ -60,4 +62,17 @@ export function poolConfig({ home = homedir(), env = process.env, file = env.AGE
       intervalMs: (number(env.WATCH_INTERVAL_S, watcher.intervalSeconds) ?? 60) * 1000,
     },
   };
+}
+
+/** What one lane takes at its peak (an engine, its tests' Postgres, at times a headless browser), until it is measured. */
+export const LANE = { cores: 2, memoryBytes: 3 * 1024 ** 3 };
+
+/**
+ * The cap on engines running at once (ADR-1142): night-max-lanes when it holds a number, else the configured `sessions`,
+ * else what the box's size allows, the smaller of its cores and its memory per lane, and never less than one.
+ */
+export async function readCap({ lanesDir, sessions, box = { cores: availableParallelism(), memoryBytes: totalmem() }, lane = LANE,
+  readText = (path) => readFile(path, "utf8") }) {
+  const pinned = Number((await readText(join(lanesDir, "night-max-lanes")).catch(() => "")).trim());
+  return pinned || sessions || Math.max(1, Math.min(Math.floor(box.cores / lane.cores), Math.floor(box.memoryBytes / lane.memoryBytes)));
 }

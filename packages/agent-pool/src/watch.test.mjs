@@ -22,7 +22,7 @@ async function box(t, { looks = {}, board = "" } = {}) {
     dir, limit: 2, say: (line) => lines.push(line), now: () => clock,
     look: async (pr) => looks[pr],
     storytree: async (args) => { calls.push(args); return args[0] === "noticeboard" ? board : ""; },
-    branchOf: async (pr) => `claude/pr-${pr}`,
+    viewOf: async (pr) => view(pr),
     alive: async (pid) => live.has(pid),
     room: async () => room,
     startFix: async (fix) => { fixes.push(fix); const pid = 1000 + fixes.length; live.add(pid); return { pid, log: `/lanes/fix-${fix.pr}-${fix.n}.log` }; },
@@ -30,11 +30,13 @@ async function box(t, { looks = {}, board = "" } = {}) {
   return { dir, calls, fixes, lines, live, looks, options, tick: (ms) => { clock += ms; }, noRoom: () => { room = false; } };
 }
 
-const pull = ({ state = "OPEN", head = "h1", checks = [], removed = [], queued = false, mergeable = "MERGEABLE", draft = false, labels = [] } = {}) => ({
-  id: "PR_41", state, headRefOid: head, mergeable, isDraft: draft, labels: { nodes: labels.map((name) => ({ name })) }, mergeQueueEntry: queued ? { state: "QUEUED" } : null,
+const pull = ({ state = "OPEN", head = "h1", checks = [], removed = [], queued = false, mergeable = "MERGEABLE", draft = false, labels = [], cross = false, from = "storytree-ai/storytree" } = {}) => ({
+  id: "PR_41", state, headRefOid: head, mergeable, ...(cross === null ? {} : { isCrossRepository: cross }), headRepository: from === null ? null : { nameWithOwner: from }, isDraft: draft, labels: { nodes: labels.map((name) => ({ name })) }, mergeQueueEntry: queued ? { state: "QUEUED" } : null,
   commits: { nodes: [{ commit: { statusCheckRollup: { contexts: { nodes: checks } } } }] },
   timelineItems: { nodes: removed },
 });
+/** Pull request `pr` as `gh pr view` describes its head: on this repository unless `cross` and `owner` say otherwise. */
+const view = (pr, { cross = false, owner = "storytree-ai" } = {}) => ({ headRefName: `claude/pr-${pr}`, isCrossRepository: cross, headRepository: { name: "storytree" }, headRepositoryOwner: { login: owner } });
 const failed = { __typename: "CheckRun", name: "verify on Windows", status: "COMPLETED", conclusion: "FAILURE", detailsUrl: "https://ci/run/9" };
 const passed = { __typename: "CheckRun", name: "verify", status: "COMPLETED", conclusion: "SUCCESS", detailsUrl: "https://ci/run/8" };
 const red = { state: "red", head: "h1", why: "verify on Windows failed", logs: ["https://ci/run/9"], checks: ["verify on Windows"] };
@@ -375,7 +377,7 @@ test("4.14 · a refused fix session is not started again while the session its r
   await watchOnce(b.options);
   assert.match(b.fixes[0].brief, /--refused --holder <session>/, "the brief says how to name the holder");
   await main(["hand", "42", "increment_two", "--refused", "--holder", "bbbb-other"], { dir: b.dir, now: b.options.now, out: () => {},
-    storytree: b.options.storytree, branchOf: b.options.branchOf, pidFile: join(b.dir, "pid"), argsOf: async () => "", startWatcher: async () => 1 });
+    storytree: b.options.storytree, viewOf: b.options.viewOf, pidFile: join(b.dir, "pid"), argsOf: async () => "", startWatcher: async () => 1 });
   assert.equal((await saved(b, 42)).fixes.at(-1).holder, "bbbb-other");
   b.live.clear();
   for (let round = 0; round < 3; round++) { b.tick(60 * 60_000); await watchOnce(b.options); }
@@ -613,7 +615,7 @@ test("4.24 · a hand-over from another machine runs on the configured machine, i
   await writeFile(join(home, "agent-pool.json"), JSON.stringify({ lanes: join(home, "lanes") }));
   const lines = [], written = [];
   assert.equal(await main(["handover", "41", "increment_one"], { home, env: { AGENT_POOL_CONFIG: join(home, "agent-pool.json") }, onBox: false, session: SESSION,
-    out: (line) => lines.push(line), ownBranchOf: async () => "claude/pr-41", here: async (args) => { written.push(args); return ""; } }), 0);
+    out: (line) => lines.push(line), ownViewOf: async () => view(41), here: async (args) => { written.push(args); return ""; } }), 0);
   assert.match(lines.join("\n"), /names no machine to hand over to; handed over through the library instead/);
   assert.deepEqual(written.map((args) => args.slice(0, 4)), [["arc", "increment", "wait", "increment_one"], ["workspace", "hold", "41", "--holder"]]);
 });
@@ -757,4 +759,52 @@ test("4.31 · the watcher enqueues a stranded pull request at its head once, ret
   b.looks[41] = { state: "pending", head: "h3", stranded: "PR_41" };
   await watchOnce(b.options);
   assert.deepEqual(enqueued.at(-1), ["PR_41", "h3"], "a new head is enqueued afresh");
+});
+
+test("4.32 · a pull request whose head is not on this repository, or whose head GitHub does not say, is never handed over, adopted, landed or fixed", async (t) => {
+  const options = { since: minutes(-60), now: at, graceMs: 0 };
+  assert.equal(readPull(pull({ state: "MERGED", cross: true, from: "mallory/storytree" }), options).state, "foreign", "a fork's merge closes nothing");
+  assert.equal(readPull(pull({ checks: [failed], cross: null }), options).state, "foreign", "no isCrossRepository: never this repository's");
+  assert.equal(readPull(pull({ checks: [failed], from: null }), options).state, "foreign", "no head repository");
+
+  const b = await box(t);
+  await handOff(b);
+  b.calls.length = 0;
+  b.looks[41] = readPull(pull({ state: "MERGED", cross: true, from: "mallory/storytree" }), options);
+  await watchOnce(b.options);
+  assert.ok(!b.calls.some(([, , verb]) => verb === "close"), "the increment is not closed");
+  assert.deepEqual(b.calls.map((args) => args.slice(0, 3)), [["arc", "increment", "unwait"], ["workspace", "let-go", "41"]]);
+  assert.deepEqual(await readdir(b.dir), [], "it is no longer watched");
+  assert.equal(b.fixes.length, 0);
+
+  const lines = [];
+  const handBox = (viewOf) => ({ dir: b.dir, now: b.options.now, out: (line) => lines.push(line), storytree: b.options.storytree, viewOf,
+    project: async () => undefined, pidFile: join(b.dir, "pid"), argsOf: async () => "", startWatcher: async () => 1 });
+  b.calls.length = 0;
+  assert.equal(await main(["hand", "43", "increment_three", "--session", SESSION], handBox(async (pr) => view(pr, { cross: true, owner: "mallory" }))), 1);
+  assert.equal(await main(["hand", "43", "increment_three", "--session", SESSION], handBox(async (pr) => ({ ...view(pr), isCrossRepository: undefined }))), 1);
+  assert.equal(await main(["hand", "43", "increment_three", "--session", SESSION], handBox(async () => { throw new Error("gh: not found"); })), 1, "GitHub not answering refuses too");
+  assert.match(lines.join("\n"), /not handed over: PR #43's head is not on storytree-ai\/storytree/);
+  assert.deepEqual(b.calls, [], "nothing waits on it and no claim is held for it");
+  assert.deepEqual(await readdir(b.dir), []);
+
+  const sshed = [], written = [];
+  const away = { onBox: false, session: SESSION, out: (line) => lines.push(line), remote: async (args) => { sshed.push(args); return ""; }, here: async (args) => { written.push(args); return ""; } };
+  assert.equal(await main(["handover", "43", "increment_three"], { ...away, ownViewOf: async (pr) => view(pr, { cross: true, owner: "mallory" }) }), 1);
+  assert.deepEqual([sshed, written], [[], []], "a fork's pull request is refused before the box or the library is asked");
+  const refusing = await handOver({ pr: 43, increment: "increment_three", session: SESSION, onBox: false, local: async () => {},
+    remote: async () => { throw Object.assign(new Error("Command failed: ssh"), { stdout: "not handed over: PR #43's head is not on storytree-ai/storytree\n" }); },
+    library: async (args) => { written.push(args); return []; } });
+  assert.equal(refusing.code, 1);
+  assert.deepEqual(written, [], "the box's refusal is not taken round through the library");
+
+  const waits = `  - event  PR #44 is open and green and handed to the Mint box's watcher through the library by session ${SESSION}, which closes this on its merge or starts a fix session on a red. — increment_four  The four, on arc_a  An arc; check back 2026-10-13\n`;
+  const adopt = await box(t);
+  adopt.options.storytree = async (args) => { adopt.calls.push(args); return args[1] === "waits" ? waits : ""; };
+  await adoptRequests({ ...adopt.options, viewOf: async () => { throw new Error("gh: timed out"); } });
+  assert.deepEqual(await readdir(adopt.dir), [], "a head GitHub cannot be asked about is not adopted");
+  await adoptRequests({ ...adopt.options, viewOf: async (pr) => view(pr, { cross: true, owner: "mallory" }) });
+  assert.deepEqual(await readdir(adopt.dir), [], "a fork's is refused");
+  assert.deepEqual(adopt.calls.filter(([, verb]) => verb !== "waits").map((args) => args.slice(0, 3)),
+    [["arc", "increment", "unwait"], ["workspace", "let-go", "44"]], "its wait and held claims are let go");
 });

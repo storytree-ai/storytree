@@ -1111,7 +1111,7 @@ test("4.10 a pull request's merge is recorded on its branch by the hooks though 
     // GitHub, as `gh` answers, but 6 s late: longer than a hook may run.
     const bin = path.join(dir, "bin");
     mkdirSync(bin);
-    const pulls = JSON.stringify([{ number: 7, mergedAt: "MERGED_AT", headRefName: "claude/fix" }]);
+    const pulls = JSON.stringify([{ number: 7, mergedAt: "MERGED_AT", headRefName: "claude/fix", isCrossRepository: false }]);
     writeFileSync(path.join(bin, "gh"), `#!${process.execPath}\nsetTimeout(() => console.log(${JSON.stringify(pulls)}.replace("MERGED_AT", new Date().toISOString())), 6_000);\n`, { mode: 0o755 });
 
     await runHook("claude-code", recorded("claude-code", "post-tool-use-write", folder), home, [], { PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` });

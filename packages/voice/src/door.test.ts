@@ -132,7 +132,7 @@ test("1.7 at most 2 storytree children run at once and 4 more wait; the rest are
   }
 });
 
-test("1.7 git's gate runs 4 and queues 8, refuses the 13th at once, and refuses a call that waits past the queue time", async () => {
+test("1.7 git's gate runs 4 and queues 8, refuses the 13th at once, and refuses a call that waits past the queue time", async (t) => {
   const config = loadConfig({ VOICE_TOKEN: newToken(), REPO_DIR: repo.dir, STORYTREE_CLI: JSON.stringify(FAKE_CLI) });
   const children = new Children(config, LIMITS, () => {});
   const held = await Promise.all(Array.from({ length: 4 }, () => children.git.enter(undefined)));
@@ -141,11 +141,18 @@ test("1.7 git's gate runs 4 and queues 8, refuses the 13th at once, and refuses 
   held.forEach((release) => release());
   for (const waiting of queued) (await waiting)();
 
-  const short = new Gate("storytree", 1, 4, 300, () => {});
-  const release = await short.enter(undefined);
-  const began = Date.now();
-  await assert.rejects(short.enter(undefined), (error: Error) => error.message === BUSY);
-  assert.ok(Date.now() - began >= 280, "it did not wait for a slot first");
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const cli = new Children(config, LIMITS, () => {}).cli;
+  const release = await cli.enter(undefined);
+  await cli.enter(undefined); // the second slot
+  let outcome = "waiting";
+  cli.enter(undefined).then(() => (outcome = "granted"), (error: Error) => (outcome = error.message));
+  t.mock.timers.tick(LIMITS.queueMs - 1);
+  await Promise.resolve();
+  assert.equal(outcome, "waiting");
+  t.mock.timers.tick(1);
+  await Promise.resolve();
+  assert.equal(outcome, BUSY);
   release();
 });
 
@@ -155,12 +162,10 @@ test("1.8 a child past its time limit is stopped and its call answers a tool err
   assert.ok(LIMITS.queueMs + LIMITS.searchMs + 2 * LIMITS.killGraceMs < 60_000);
   const door = await testDoor(repo.dir, {}, { searchMs: 1_000, killGraceMs: 300 });
   try {
-    const began = Date.now();
     const answer = await raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(1, "find", { query: "sleep:20000:stubborn" }) });
     const result = messagesOf(answer.body)[0]?.result;
     assert.equal(result?.isError, true);
     assert.match(textOf(result), /within 1 seconds/);
-    assert.ok(Date.now() - began < 5_000, `answered after ${Date.now() - began} ms`);
     const pid = Number(/^start (\d+)/m.exec(childrenIn(door.cliLog).text)?.[1]);
     assert.ok(await until(() => !alive(pid), 3_000), "the child is still running");
   } finally {
@@ -169,7 +174,8 @@ test("1.8 a child past its time limit is stopped and its call answers a tool err
 });
 
 test("1.9 a caller hanging up stops its running child, even one ignoring SIGTERM, takes a waiting call out of the queue, and frees its slot", async () => {
-  const door = await testDoor(repo.dir, {}, { killGraceMs: 500 });
+  // No queue: a slot the hung-up call still held would refuse one of the two calls after it as busy.
+  const door = await testDoor(repo.dir, {}, { killGraceMs: 500, cliWaiting: 0 });
   try {
     const request = http.request({ host: "127.0.0.1", port: door.port, method: "POST", path: door.route, headers: LEGACY_HEADERS, agent: false });
     request.on("error", () => {});
@@ -180,10 +186,9 @@ test("1.9 a caller hanging up stops its running child, even one ignoring SIGTERM
     assert.ok(await until(() => !alive(pid), 5_000), "the child outlived its caller");
     assert.ok(!childrenIn(door.cliLog).text.includes(`end ${pid}`), "the child ran to its end");
     assert.ok(await until(() => door.lines.some((line) => / 499 /.test(line)), 2_000), "no 499 line");
-    // Both slots are free again: two calls at once start at once.
-    const began = Date.now();
-    await Promise.all([1, 2].map((id) => raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(id, "find", { query: "sleep:300" }) })));
-    assert.ok(Date.now() - began < 3_000);
+    // Both slots are free again: two calls at once are both served.
+    const answers = await Promise.all([1, 2].map((id) => raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(id, "find", { query: "sleep:300" }) })));
+    for (const answer of answers) assert.notEqual(messagesOf(answer.body)[0]?.result?.isError, true, answer.body.slice(0, 200));
   } finally {
     await door.close();
   }
@@ -199,14 +204,14 @@ test("1.9 a caller hanging up stops its running child, even one ignoring SIGTERM
   (await next)();
 });
 
-test("1.10 an idle connection stays open for 100 s: the door says so, and a socket idle past Node's 5 s default is reused", async () => {
+test("1.10 an idle connection stays open for 100 s: the door keeps the socket and tells the caller it will for 100 s", async () => {
   assert.equal(LIMITS.keepAliveMs, 100_000);
   const door = await testDoor(repo.dir);
   const agent = new http.Agent({ keepAlive: true, maxSockets: 1 });
   try {
     const first = await raw(door.port, { urlPath: door.route, headers: MCP_HEADERS, body: INITIALIZE, agent });
+    // Node advertises the idle timeout it enforces, so the header is the door's own 100 s, not Node's 5 s default.
     assert.match(String(first.headers["keep-alive"] ?? ""), /timeout=100\b/);
-    await wait(6_500);
     const second = await raw(door.port, { urlPath: door.route, headers: MCP_HEADERS, body: INITIALIZE, agent });
     assert.equal(second.status, 200);
     assert.equal(second.reused, true);

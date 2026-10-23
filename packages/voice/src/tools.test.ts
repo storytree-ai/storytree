@@ -214,7 +214,7 @@ test("2.12 read_code returns up to 300 numbered lines, at most 15,000 characters
   assert.match(wide.split("\n").at(-1)!, new RegExp(`continue with start_line ${shown + 1}\\]$`));
 });
 
-test("2.13 read_code refuses what HEAD does not hold as a file, a binary or a file over 5 MB, and a range outside the file; a swapped-in link is never followed", async () => {
+test("2.13 read_code refuses what HEAD does not hold as a file, a binary or a file over 5 MB, and a range outside the file", async () => {
   const refusals: Array<[Record<string, unknown>, RegExp]> = [
     [{ path: "missing.txt" }, /not a file committed/],
     [{ path: "staged.txt" }, /not a file committed/],
@@ -230,10 +230,11 @@ test("2.13 read_code refuses what HEAD does not hold as a file, a binary or a fi
     assert.equal(result.isError, true, JSON.stringify(args));
     assert.match(textOf(result), why);
   }
-  if (swapped) {
-    const read = textOf(await call("read_code", { path: "swap.txt" }));
-    assert.equal(read, "swap.txt, lines 1-1 of 1:\n1: the committed swap file");
-  }
+});
+
+test("2.13 a symbolic link swapped in for a tracked file is never followed: read_code serves what HEAD holds", { skip: swapped ? false : "platform:win32: this account may not make symbolic links" }, async () => {
+  const read = textOf(await call("read_code", { path: "swap.txt" }));
+  assert.equal(read, "swap.txt, lines 1-1 of 1:\n1: the committed swap file");
 });
 
 test("2.14 a failed or refused read is a short plain tool error with no stack; a good one carries no next: commands or colour codes", async () => {

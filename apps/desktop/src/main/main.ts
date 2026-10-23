@@ -112,7 +112,7 @@ import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
 import { startRefusal } from "./one-app.js";
 import { followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
-import { mainErrorRecords } from "./main-error-records.js";
+import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
 import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
 import { lateReads, projectAnswers } from "./late-reads.js";
@@ -308,6 +308,7 @@ async function run(): Promise<void> {
 
   let problem: string | undefined;
   let project: string | undefined;
+  let errorsOpened: Promise<void> | undefined;
   try {
     // Where the library lives is the user's library setting: this app's own Postgres (the default),
     // or a Cloud SQL instance, when no Postgres is started here at all (ADR-0734, ADR-0735 D4).
@@ -317,7 +318,7 @@ async function run(): Promise<void> {
       connect,
     });
     ({ storytree, postgres } = opened);
-    void errorRecords.open(opened.storytree);
+    errorsOpened = errorRecords.open(opened.storytree);
     console.log(`library: ${opened.where}`);
     reads = pageReads({ storytree, transcriptCacheHome: path.join(home.dir, "transcripts") });
     const pages = reads;
@@ -400,6 +401,10 @@ async function run(): Promise<void> {
   else {
     if (!args.background) openWindow(windowQuery);
     showTray();
+    // An error the library holds that is not yet reported asks to be, until it is marked submitted (lifecycle 1.31, ADR-1122).
+    void errorsOpened?.then(() => errorRecords.settled())
+      .then(() => askToReportErrors(errorRecords, { ask: reportBox(options => dialog.showMessageBox(options)) }))
+      .catch((error: unknown) => console.error(`asking to report the app's errors: ${messageOf(error)}`));
     addStartMenuShortcut();
     try { signingIn.apply(); } catch (error) { console.error(`opening at sign-in: ${messageOf(error)}`); }
     if (storytree !== undefined) backups = keepBackups({ storytree, dir: home.backups, log: line => console.log(line) });

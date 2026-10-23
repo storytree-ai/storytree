@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
@@ -10,14 +13,16 @@ test("3.9 Settings → Projects reads the selected project's sentence (what it i
   const url = process.env.STORYTREE_TEST_PG_URL;
   if (url === undefined) throw new Error("run the tests via `pnpm test`, which starts a local Postgres");
   const shop = `shop-t-${randomBytes(4).toString("hex")}`;
+  const home = mkdtempSync(path.join(tmpdir(), "storytree-app-sentence-"));
   const library = await connect({ url });
   t.after(async () => {
     await library.close();
     await dropTestDatabases([`storytree_${shop}`]);
+    rmSync(home, { recursive: true, force: true });
   });
   await (await library.openProject(shop)).close();
   const actions = setupHelpActions({
-    licenseFile: "", storytreeHome: "", chooseFolder: async () => undefined,
+    licenseFile: "", storytreeHome: home, chooseFolder: async () => undefined,
     openExternal: async () => {}, copyText: async () => {}, library: () => library,
   });
 

@@ -10,11 +10,16 @@ function platformFeeds(version: string): { mac: PlatformFeed; linux: PlatformFee
   return { mac: { version, files: [file("mac-arm64.zip"), file("arm64.dmg")] }, linux: { version, files: [{ ...file("linux-x86_64.AppImage"), blockMapSize: 8 }] } };
 }
 
+/** A release's Windows installers: one per architecture, or, before they were split, one for both. */
+function installers(version: string, combined = false): PinCandidate["installers"] {
+  const installer = (name: string) => ({ url: `${RELEASES}/v${version}/storytree-0.3-${version}-${name}`, sha256: "a".repeat(64), sha512: Buffer.alloc(64, 1).toString("base64"), size: 128 });
+  return combined ? [installer("setup.exe")] : [installer("windows-x64-setup.exe"), installer("windows-arm64-setup.exe")];
+}
+
 function fixture() {
   let current: { ref: string; manifest: StableManifest } | undefined;
-  const installer = { url: "https://github.com/storytree-ai/storytree/releases/download/v0.3.2/storytree-0.3-0.3.2-setup.exe", sha256: "a".repeat(64), sha512: Buffer.alloc(64, 1).toString("base64"), size: 128 };
   const state = {
-    candidate: { version: "0.3.2", commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false, installer, bootstrap: { ps1: "published bootstrap" }, feeds: platformFeeds("0.3.2") as PinCandidateFeeds },
+    candidate: { version: "0.3.2", commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false, installers: installers("0.3.2"), bootstrap: { ps1: "published bootstrap" }, feeds: platformFeeds("0.3.2") as PinCandidateFeeds },
     increments: [
       { id: "one", fields: { title: "Choose update timing", status: "closed", outcome: { disposition: "landed", pr: "531", note: "Quiet hours and manual installs." } } },
       { id: "future", fields: { title: "Unreleased work", status: "closed", outcome: { disposition: "landed", pr: "600" } } },
@@ -47,10 +52,11 @@ test("4.16 a PR mentioned by another merge is not recorded as shipped", () => {
 test("4.16 a pin reuses the released installer and records only newly landed increments; late closure records survive the boundary", async () => {
   const { state, ports } = fixture();
   const first = await pinStable("0.3.2", ports);
-  assert.deepEqual(first.files, [{ url: state.candidate.installer.url, sha512: state.candidate.installer.sha512, size: 128 }]);
+  // The Windows feed names both architectures' installers; each installed app's updater takes its own.
+  assert.deepEqual(first.files, state.candidate.installers.map(({ url, sha512, size }) => ({ url, sha512, size })));
   assert.deepEqual(first.pin.increments.map(i => i.id), ["one"]);
   assert.match(first.releaseNotes, /Choose update timing.*#531/);
-  state.candidate = { ...state.candidate, feeds: {}, version: "0.3.3", commit: "b".repeat(40), installer: { ...state.candidate.installer, url: state.candidate.installer.url.replaceAll("0.3.2", "0.3.3") } };
+  state.candidate = { ...state.candidate, feeds: {}, version: "0.3.3", commit: "b".repeat(40), installers: installers("0.3.3") };
   state.increments.push({ id: "late", fields: { title: "A late close of shipped work", status: "closed", outcome: { disposition: "landed", pr: "531" } } });
   state.increments.push({ id: "two", fields: { title: "Stable updates", status: "closed", outcome: { disposition: "landed", pr: "532" } } });
   const next = await pinStable("0.3.3", ports);
@@ -58,22 +64,27 @@ test("4.16 a pin reuses the released installer and records only newly landed inc
   assert.deepEqual(next.pin.increments.map(i => i.id), ["late", "two"]);
   assert.deepEqual(next.pin.includedIncrements, ["one", "late", "two"]);
   assert.equal(state.published.length, 2);
+  // A release built before the installers were split still pins, its one installer serving both architectures.
+  state.candidate = { ...state.candidate, version: "0.3.4", commit: "c".repeat(40), installers: installers("0.3.4", true) };
+  assert.deepEqual((await pinStable("0.3.4", ports)).files.map(f => f.url), [`${RELEASES}/v0.3.4/storytree-0.3-0.3.4-setup.exe`]);
 });
 
 test("4.16 preview publishes nothing; invalid, old or channel-unaware builds and overlapping pins cannot change stable", async () => {
   const { state, ports } = fixture();
   await pinStable("0.3.2", ports, true);
   assert.equal(state.published.length, 0);
-  for (const change of [{ draft: true }, { prerelease: true }, { channelSchema: 0 }, { version: "0.3.99" }, { installer: { ...state.candidate.installer, sha512: "bad" } }]) {
+  for (const change of [{ draft: true }, { prerelease: true }, { channelSchema: 0 }, { version: "0.3.99" },
+    { installers: [{ ...installers("0.3.2")[0]!, sha512: "bad" }, installers("0.3.2")[1]!] }, { installers: installers("0.3.2").slice(0, 1) },
+    { installers: [installers("0.3.2")[0]!, ...installers("0.3.2", true)] }]) {
     const original = state.candidate;
     state.candidate = { ...original, ...change };
     await assert.rejects(pinStable("0.3.2", ports));
     state.candidate = original;
   }
   await pinStable("0.3.2", ports);
-  state.candidate = { ...state.candidate, feeds: {}, version: "0.3.1", installer: { ...state.candidate.installer, url: state.candidate.installer.url.replaceAll("0.3.2", "0.3.1") } };
+  state.candidate = { ...state.candidate, feeds: {}, version: "0.3.1", installers: installers("0.3.1") };
   await assert.rejects(pinStable("0.3.1", ports), /older/i);
-  state.candidate = { ...state.candidate, feeds: {}, version: "0.3.3", installer: { ...state.candidate.installer, url: state.candidate.installer.url.replaceAll("0.3.1", "0.3.3") } };
+  state.candidate = { ...state.candidate, feeds: {}, version: "0.3.3", installers: installers("0.3.3") };
   state.race = true;
   await assert.rejects(pinStable("0.3.3", ports), /pin moved/i);
   assert.equal(state.published.length, 1);
@@ -118,7 +129,7 @@ test("4.16 competing publishers expose one complete feed and bootstrap, with the
 
 function release(state: ReturnType<typeof fixture>["state"], version: string, feeds: PinCandidateFeeds) {
   state.candidate = { ...state.candidate, version, commit: version.slice(-1).repeat(40), feeds,
-    installer: { ...state.candidate.installer, url: `${RELEASES}/v${version}/storytree-0.3-${version}-setup.exe` } };
+    installers: installers(version) };
 }
 
 test("4.16 a pin writes a feed for each platform the release carries; a Windows-only release moves Windows and leaves Mac and Linux on their pinned build", async () => {
@@ -128,7 +139,7 @@ test("4.16 a pin writes a feed for each platform the release carries; a Windows-
   assert.deepEqual(first.feeds, platformFeeds("0.3.2"));
   release(state, "0.3.3", {});
   const next = await pinStable("0.3.3", ports);
-  assert.equal(next.files[0]!.url, `${RELEASES}/v0.3.3/storytree-0.3-0.3.3-setup.exe`);
+  assert.deepEqual(next.files.map(f => f.url), [`${RELEASES}/v0.3.3/storytree-0.3-0.3.3-windows-x64-setup.exe`, `${RELEASES}/v0.3.3/storytree-0.3-0.3.3-windows-arm64-setup.exe`]);
   assert.deepEqual(next.pin.covers, ["windows"]);
   assert.deepEqual(next.feeds, platformFeeds("0.3.2"));
   assert.match(pinCoverage(next), /Mac stays on 0\.3\.2/);

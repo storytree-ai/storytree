@@ -296,14 +296,38 @@ export function readPartsOff(home: string = storytreeHome()): readonly string[] 
   }
 }
 
+/** The default factory folder's name (ADR-1118 D2): storytree collects no account name to call it by. */
+const DEFAULT_FACTORY = "your-factory";
+
 /**
- * This computer's factory folder, when one is chosen, and the factory plugin standing in for each part it names
- * (question_5867f490cdd6): what a host hands the plugin loader as it starts. Choosing the folder is the approval for
- * its plugins. A damaged value is reported naming the file.
+ * This computer's factory folder: the one `settings set factory` chose, or else storytree's own, `your-factory`
+ * (ADR-1118 D2). It sits beside a versioned home (`~/.storytree/0.3` keeps it at `~/.storytree/your-factory`, so it
+ * outlasts the version) and inside any other home, so a lane's or a test's home keeps its own. Reading it writes
+ * nothing; `makeFactoryFolder` makes the default. A damaged value is reported naming the file.
  */
-export function readStandIns(home: string = storytreeHome()): { readonly folder?: string; readonly plugins: Readonly<Record<string, string>> } {
-  const stored = readStored(home);
-  return { ...(stored.factory === undefined ? {} : { folder: stored.factory }), plugins: stored[STAND_INS] ?? {} };
+export function factoryFolder(home: string = storytreeHome()): { readonly folder: string; readonly chosen: boolean } {
+  const chosen = readStored(home).factory;
+  if (chosen !== undefined) return { folder: chosen, chosen: true };
+  const full = path.resolve(home);
+  return { folder: path.join(path.basename(path.dirname(full)) === ".storytree" ? path.dirname(full) : full, DEFAULT_FACTORY), chosen: false };
+}
+
+/**
+ * This computer's factory folder, storytree's own made with the factory's shape (a `plugins` folder) when no other is
+ * chosen and it is not there yet, without saving a setting: what the desktop app does as it starts (ADR-1118 D2).
+ */
+export function makeFactoryFolder(home: string = storytreeHome()): { readonly folder: string; readonly chosen: boolean } {
+  const factory = factoryFolder(home);
+  if (!factory.chosen) mkdirSync(path.join(factory.folder, "plugins"), { recursive: true });
+  return factory;
+}
+
+/**
+ * This computer's factory folder and the factory plugin standing in for each part it names: what a host hands the
+ * plugin loader as it starts. A damaged value is reported naming the file.
+ */
+export function readStandIns(home: string = storytreeHome()): { readonly folder: string; readonly plugins: Readonly<Record<string, string>> } {
+  return { folder: factoryFolder(home).folder, plugins: readStored(home)[STAND_INS] ?? {} };
 }
 
 /** A factory folder chosen: given the factory's shape just now, or found with it already. */
@@ -313,8 +337,8 @@ export interface ChosenFactory {
 }
 
 /**
- * Choose `folder`, an existing folder, as this computer's factory folder, saved as its full path, from either door: the
- * desktop app's first launch or `settings set factory` (question_5867f490cdd6). An empty folder is given the factory's
+ * Choose `folder`, an existing folder, as this computer's factory folder in place of storytree's own, saved as its full
+ * path (`settings set factory`). An empty folder is given the factory's
  * shape, a `plugins` folder the plugin loader reads each plugin from, and one that has it is accepted; a folder holding
  * anything else is refused, left as it was and not saved. Hidden entries (a fresh repository's `.git`) do not count,
  * so a newly made private repo can be the factory.

@@ -104,25 +104,3 @@
 .setup-delete-project-status { margin: .5rem 0 0; color: var(--muted, #a9b0ba); overflow-wrap: anywhere; }
 .setup-delete-project-status:empty { display: none; }
 .setup-delete-project-status[role="alert"] { color: var(--fail-text, #e0a09a); }
-/* The first-launch factory step covers the app until a folder is chosen: nothing behind it is reachable. */
-.setup-factory-step {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  background: rgb(0 0 0 / .45);
-}
-.setup-factory-step[hidden] { display: none; }
-.setup-factory-panel {
-  width: min(32rem, calc(100vw - 2rem));
-  padding: 1.25rem 1.5rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 8px 30px rgb(0 0 0 / .25);
-  font-size: .9rem;
-  line-height: 1.5;
-}
-.setup-factory-panel h2 { margin: 0 0 .5rem; font-size: 1.2rem; }

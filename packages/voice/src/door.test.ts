@@ -187,9 +187,15 @@ test("1.9 a caller hanging up stops its running child, even one ignoring SIGTERM
     assert.ok(await until(() => !alive(pid), 5_000), "the child outlived its caller");
     assert.ok(!childrenIn(door.cliLog).text.includes(`end ${pid}`), "the child ran to its end");
     assert.ok(await until(() => door.lines.some((line) => / 499 /.test(line)), 2_000), "no 499 line");
-    // Both slots are free again: two calls at once are both served.
-    const answers = await Promise.all([1, 2].map((id) => raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(id, "find", { query: "sleep:300" }) })));
-    for (const answer of answers) assert.notEqual(messagesOf(answer.body)[0]?.result?.isError, true, answer.body.slice(0, 200));
+    // Both slots are free again: two calls at once are both served. The slot is released when the child's pipes close,
+    // a moment after its pid is gone (longer on Windows), so the pair is retried until then; a slot never freed fails it.
+    let refused: string | undefined;
+    for (const deadline = Date.now() + 5_000; ; await wait(100)) {
+      const answers = await Promise.all([1, 2].map((id) => raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(id, "find", { query: "sleep:300" }) })));
+      refused = answers.find((answer) => messagesOf(answer.body)[0]?.result?.isError === true)?.body.slice(0, 200);
+      if (refused === undefined || Date.now() > deadline) break;
+    }
+    assert.equal(refused, undefined, refused);
   } finally {
     await door.close();
   }

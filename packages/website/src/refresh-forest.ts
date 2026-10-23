@@ -1,4 +1,4 @@
-// Capability 3 · Saved snapshot. From the checkout root: node --import tsx packages/website/src/refresh-forest.ts --from <ISO> --to <ISO> [--output <file>]
+// Capability 3 · Saved snapshot. From the checkout root: node --import tsx packages/website/src/refresh-forest.ts --from <ISO> --to <ISO> [--output <file>] [--cloud-project <id or number>]...
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { openActivityLog } from "@storytree/session-management";
@@ -7,7 +7,7 @@ import { connect } from "@storytree/library";
 import { readCodeSurvey } from "@storytree/forest/code-survey";
 import { refreshTourSnapshot } from "./tour-snapshot.js";
 
-const { values } = parseArgs({ options: { from: { type: "string" }, to: { type: "string" }, output: { type: "string" } } });
+const { values } = parseArgs({ options: { from: { type: "string" }, to: { type: "string" }, output: { type: "string" }, "cloud-project": { type: "string", multiple: true } } });
 if (!values.from || !values.to || !Number.isFinite(Date.parse(values.from)) || !Number.isFinite(Date.parse(values.to)) || Date.parse(values.from) >= Date.parse(values.to)) {
   throw new Error("Give --from and --to ISO timestamps for the recording's half-open window (from inclusive, to exclusive).");
 }
@@ -25,9 +25,8 @@ try {
         library.projectTree(), library.changesSince(0), activity.since(routed.project, 0), library.arcViews(), library.holds(),
       ]);
       const survey = await readCodeSurvey(routed.folder, tree);
-      const cloudProject = routed.library.cloudSql?.instance.split(":")[0];
       return { project: routed.project, capturedAt: new Date().toISOString(), window: { from: values.from!, to: values.to! },
-        cloudProjectIds: cloudProject ? [cloudProject] : [], tree, changes: history.changes, lines: log.lines, survey, arcs, holds };
+        cloudProjectIds: values["cloud-project"] ?? [], tree, changes: history.changes, lines: log.lines, survey, arcs, holds };
     });
   } finally { await activity.close(); }
 } finally { await server.close(); }

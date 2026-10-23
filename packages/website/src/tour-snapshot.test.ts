@@ -3,7 +3,8 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
-import { refreshTourSnapshot, type TourReading } from "./tour-snapshot.js";
+import { createHash } from "node:crypto";
+import { publicArcs, refreshTourSnapshot, scrub, type TourReading } from "./tour-snapshot.js";
 
 const at = "2026-10-02T00:00:00.000Z";
 const until = "2026-10-02T01:00:00.000Z";
@@ -95,4 +96,34 @@ test("3.14 · the saved reading keeps of each arc only what the arcs drawer show
   assert.deepEqual(snapshot.arcs[0].increments[0].fields, { arc: "arc_open", title: "Build it", objective: "It works", status: "closed", parked: at, capabilities: ["capability_example"], heldOn: ["question_example"],
     outcome: { date: at, disposition: "landed", pr: "7", note: "Landed" } });
   assert.deepEqual(snapshot.arcs[0].questions[1].fields, { title: "Settled", arc: "arc_open", lifecycle: "settled", answer: "A" });
+});
+
+test("3.16 · the saved reading drops the unlisted arc and every record naming it, gives sessions opaque ids, and replaces who and where", async t => {
+  const file = await saved(t);
+  const input = reading();
+  const record = (id: string, type: string, fields: object) => ({ id, type, version: 1, fields, createdAt: at, updatedAt: at });
+  const unlisted = { arc: record("arc_bfbc3b617d69", "arc", { title: "Unlisted" }), state: "active",
+    increments: [record("increment_unlisted", "increment", { arc: "arc_bfbc3b617d69", title: "Unlisted work" })], questions: [] };
+  (input.arcs as unknown[]).push(unlisted);
+  (input.changes as unknown[]).push({ seq: 2, recordId: "principle_naming", type: "principle", action: "created", record: record("principle_naming", "principle", { title: "Names it", links: ["increment_unlisted"] }) });
+  (input.lines as unknown[]).push({ seq: 8, kind: "claimed", at, project: "example", session: "0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b", source: "tool", increment: "increment_unlisted" },
+    { seq: 9, kind: "merged", at, project: "example", session: "person:alice", holder: "0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b", source: "tool", pr: 7 });
+  input.tree.stories[0]!.description = "Ask ann@example.com or ssh pg_user@buildbox on MicksMSpro, mickh-a520i-ac, MicksOldLaptop, winlap, " +
+    "box.tail1234.ts.net or 100.101.102.103; written by person:alice in private-cloud-123 projects/123456789012; see https://claude.ai/code/session_x and https://docs.google.com/document/d/abc. " +
+    "Reported by 0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b.";
+  await refreshTourSnapshot(file, async () => input);
+  const text = await readFile(file, "utf8");
+  const snapshot = JSON.parse(text);
+  assert.doesNotMatch(text, /arc_bfbc3b617d69|increment_unlisted|principle_naming|ann@|pg_user|buildbox|MicksMSpro|mickh-a520i-ac|MicksOldLaptop|winlap|ts\.net|100\.101|alice|private-cloud|123456789012|claude\.ai|docs\.google|0190a1b2/i);
+  assert.match(snapshot.tree.stories[0].description, /\[email\].*\[user at host\].*\[machine\].*\[address\].*person:\[someone\].*\[private link\].*session-1/);
+  const merged = snapshot.recording.lines.find((line: { seq: number }) => line.seq === 9);
+  assert.match(merged.session, /^session-\d+$/);
+  assert.notEqual(merged.session, merged.holder);
+  assert.ok(snapshot.tree.stories[0].description.endsWith(`Reported by ${merged.holder}.`), "one id becomes the same opaque one wherever it appears");
+  assert.equal(new Set(snapshot.recording.lines.map((line: { session: string }) => line.session)).size, 2, "the sessions still tell apart");
+
+  assert.deepEqual(publicArcs([unlisted as never]), []);
+  const someone = new Set([createHash("sha256").update("Zelda").digest("hex")]);
+  assert.equal(scrub("Zelda's laptop, and Zelda tried it; Don't change Zeldas", [], someone), "a friend tester's laptop, and a friend tester tried it; Don't change Zeldas");
+  assert.equal(scrub(scrub("pg_user@buildbox person:alice", []), []), "[user at host] person:[someone]", "scrubbing twice changes nothing more");
 });

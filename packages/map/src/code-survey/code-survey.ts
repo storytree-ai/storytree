@@ -10,6 +10,7 @@
  *   subject stays its own, and a file reached only through others goes to the capability nearest it.
  * - A CommonJS `require("…")` of a relative file or the package's own exported subpath is an ordinary import (8.12).
  * - A `#name` its package.json's imports field maps literally to a file of the package is an ordinary import of it (8.28).
+ * - A test's esbuild entry point, a literal `new URL("./x", import.meta.url)` under an `entryPoints` key, is an ordinary import of it (8.34).
  * - A test file that runs an imported behaviour suite (a file it reaches by value that imports node:test
  *   itself) carries the numbered titles the suite registers, for its proofs and its reach (8.14).
  * - A package-prefixed title proves that package's numbered contracts (ADR-0845). A foreign prefix
@@ -291,6 +292,38 @@ function requiresOf(file: SourceFile): readonly string[] {
   return specifiers;
 }
 
+/** Parse each unchanged test file once for the esbuild entry points it names. */
+const entrySyntax = new WeakMap<SourceFile, readonly string[]>();
+
+/**
+ * The modules a test file bundles by path (8.34): each literal `new URL("./x", import.meta.url)` under an
+ * `entryPoints` key, read from syntax. A URL anywhere else (a script spawned, a fixture read) names none.
+ */
+function entryPointsOf(file: SourceFile): readonly string[] {
+  const cached = entrySyntax.get(file);
+  if (cached !== undefined) return cached;
+  const specifiers: string[] = [];
+  type Node = { type: string; key?: Node; name?: string; value?: unknown; callee?: Node; arguments?: Node[]; object?: Node; property?: Node; meta?: Node };
+  const urlOf = (node: Node): string | undefined => {
+    const [first, base] = node.arguments ?? [];
+    return node.type === "NewExpression" && node.callee?.type === "Identifier" && node.callee.name === "URL" && first?.type === "StringLiteral"
+      && typeof first.value === "string" && /^\.{1,2}\//.test(first.value) && base?.type === "MemberExpression" && base.object?.type === "MetaProperty"
+      && base.property?.name === "url" ? first.value : undefined;
+  };
+  const visit = (value: unknown, entry: boolean): void => {
+    if (Array.isArray(value)) { value.forEach((one) => visit(one, entry)); return; }
+    if (value === null || typeof value !== "object" || !("type" in value)) return;
+    const node = value as Node;
+    const url = entry ? urlOf(node) : undefined;
+    if (url !== undefined) specifiers.push(url);
+    const opens = node.type === "ObjectProperty" && (node.key?.name === "entryPoints" || node.key?.value === "entryPoints");
+    for (const [key, child] of Object.entries(value)) visit(child, entry || (opens && key === "value"));
+  };
+  if (TEST_FILE.test(file.path) && file.text.includes("entryPoints")) visit(syntaxOf(file)?.program, false);
+  entrySyntax.set(file, specifiers);
+  return specifiers;
+}
+
 /** Every specifier a file imports, re-exports or requires, read from syntax, so a comment or a string is none; unresolved. */
 export function specifiersOf(file: SourceFile): string[] {
   return [...importsOf(file).map((match) => match[4] ?? match[5]!), ...requiresOf(file)];
@@ -307,7 +340,12 @@ function edgesOf(file: SourceFile, paths: ReadonlySet<string>, packages: readonl
     const to = resolve(file.path, specifier, paths, packages);
     return to === undefined ? [] : [{ to, reexport: false, typeOnly: false, names: "all" }];
   });
-  return [...imports, ...requires];
+  // A test's esbuild entry point runs the whole file it names, bundled (8.34).
+  const entries = entryPointsOf(file).flatMap((specifier): Edge[] => {
+    const to = resolve(file.path, specifier, paths, packages);
+    return to === undefined ? [] : [{ to, reexport: false, typeOnly: false, names: "all" }];
+  });
+  return [...imports, ...requires, ...entries];
 }
 
 /** Dependencies to load from disk, using the same syntax and resolution as the survey's reach. */

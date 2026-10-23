@@ -4,7 +4,7 @@
  */
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -14,6 +14,7 @@ import { test } from "node:test";
 import { setUpProject } from "@storytree/app-setup/project";
 import { connect as connectLibrary } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { placeTestServer, testServerUrl } from "@storytree/project-and-caller/testing/pg";
 
 import { LIMITS } from "./children.js";
 import { loadConfig, voiceSession } from "./config.js";
@@ -24,26 +25,10 @@ const root = fileURLToPath(new URL("../../../", import.meta.url));
 /** The command line from this checkout's source, run directly as the door runs it on the box. */
 const CLI = [process.execPath, "--import", pathToFileURL(path.join(root, "node_modules", "tsx", "dist", "loader.mjs")).href, path.join(root, "packages", "cli", "src", "bins", "storytree.ts")];
 
-function required(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is not set: run the tests via \`pnpm test\`, which starts a local Postgres`);
-  return value;
-}
-
-/** A storytree home whose server is the test Postgres: a copy of its owner record and sign-in handoff (restated from the command line's test helper). */
-function placeTestServer(dataDir: string): void {
-  const served = required("STORYTREE_TEST_PG_DATA");
-  writeFileSync(`${dataDir}.owner.json`, readFileSync(`${served}.owner.json`));
-  const handoff = path.join(`${served}.auth`, "connection.json");
-  if (!existsSync(handoff)) return;
-  mkdirSync(`${dataDir}.auth`, { recursive: true, mode: 0o700 });
-  writeFileSync(path.join(`${dataDir}.auth`, "connection.json"), readFileSync(handoff), { mode: 0o600 });
-}
-
 test("2.2, 2.8, 2.9, 1.13 against the real command line: catch_up's order, what landed, a record's history, and the voice session its children record as", async () => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-voice-real-")));
   const project = `t-${randomBytes(4).toString("hex")}`;
-  const server = await connectLibrary({ url: required("STORYTREE_TEST_PG_URL") });
+  const server = await connectLibrary({ url: testServerUrl() });
   try {
     const folder = path.join(dir, "site");
     const home = path.join(dir, "home");

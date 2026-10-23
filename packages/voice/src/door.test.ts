@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -275,7 +275,7 @@ test("1.12 a child gets an argument array with no shell, runs in the door's repo
     const answer = await raw(door.port, { urlPath: door.route, headers: { ...LEGACY_HEADERS, "x-forwarded-for": "127.0.0.1" }, body: toolCall(1, "find", { query: hostile }) });
     const child = seen(messagesOf(answer.body)[0]!.result!);
     assert.deepEqual(child.argv, ["library", "search", "--limit", "5", "--", hostile]);
-    assert.equal(path.resolve(child.cwd).toLowerCase(), path.resolve(repo.dir).toLowerCase());
+    assert.equal(realpathSync.native(child.cwd).toLowerCase(), realpathSync.native(repo.dir).toLowerCase());
     const leaked = Object.keys(child.env).filter((name) => /^(VOICE_TOKEN|VOICE_SPIKE_TOKEN|PORT|REPO_DIR|ALLOWED_HOSTS|ALLOWED_CIDRS|STORYTREE_CLI)$/i.test(name));
     assert.deepEqual(leaked, []);
   } finally {

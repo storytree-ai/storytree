@@ -1027,7 +1027,7 @@ async function slowStore(delayMs: number): Promise<Server> {
   return slow;
 }
 
-test("3.19 a Claude Code session's end is recorded though Claude Code stops its end hook after 1.5 s and the store takes longer than that to answer: the hook, run as setup registers it, hands its line to one that outlives it", async () => {
+test("3.19 a Claude Code session's end is recorded though Claude Code stops its end hook after 1.5 s and the store takes longer than that to answer: the hook, run as setup registers it, hands its line to one that outlives it", { timeout: 150_000 }, async () => {
   const project = uniqueProjectName();
   // A store that answers only after 1.6 s.
   const slow = await slowStore(1_600);
@@ -1048,7 +1048,9 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
       });
       clearTimeout(cut);
 
-      const deadline = Date.now() + 8_000;
+      // The handed-on copy starts a fresh node and waits out the slow store; a loaded Windows runner
+      // took longer than 8 s (PR #1699), so the line gets the budget 3.22 gives its hooks.
+      const deadline = Date.now() + 120_000;
       while (!(await linesOf(project)).some((line) => line.kind === "session-ended") && Date.now() < deadline) await sleep(100);
       assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["session-ended"]);
     });

@@ -8,6 +8,8 @@
 // It fails only on edges between stories whose packages the branch changes; others it prints as notes.
 // check:type-imports (ADR-1017 D2) refuses a type-only import that ends at a story other than the library; it
 // reads only the code, so CI runs it too, and it runs here every time.
+// check:seed-records refuses a seed or snapshot file the branch adds or changes that holds what the forest's seed
+// sanitiser drops (a work record, a withheld arc, a redaction pattern); it reads only files, so CI runs it too.
 // check:capability-list (ADR-0949 D3) fails a branch that changes a capability its increment does not list; a
 // branch whose name carries no increment is NOT RUN with that reason.
 // The gate holds the machine's heavy-run lock (packages/dev-loop/src/heavy-lock.mjs) for its whole run, so
@@ -61,7 +63,7 @@ export async function runGate({ root = repoRoot, guidance = false, signal, force
   const decision = guidanceFor(root, guidance);
   // The gate runs in a checkout, whose branch Git knows; CI's own run of the check reads its pull request's.
   const listed = capabilityListFor(root, {});
-  const results = { typecheck: "not run", test: "not run", "check:guidance": "not run", "check:plan-edges": "not run", "check:type-imports": "not run", "check:capability-list": "not run" };
+  const results = { typecheck: "not run", test: "not run", "check:guidance": "not run", "check:plan-edges": "not run", "check:type-imports": "not run", "check:seed-records": "not run", "check:capability-list": "not run" };
   const reasons = { "check:guidance": decision.reason, "check:capability-list": listed.reason };
   for (const step of Object.keys(results)) {
     if (!installed) {
@@ -104,6 +106,7 @@ function runCheck(step, { root, signal, forceSignal }) {
   else if (step === "check:guidance") args = ["--import", "tsx", "packages/dev-loop/src/build-guidance.mjs", "--check"];
   else if (step === "check:plan-edges") args = ["--import", "tsx", "packages/dev-loop/src/plan-edges.mjs"];
   else if (step === "check:type-imports") args = ["--import", "tsx", "packages/dev-loop/src/type-imports.mjs"];
+  else if (step === "check:seed-records") args = ["--import", "tsx", "packages/dev-loop/src/seed-records.mjs"];
   else if (step === "check:capability-list") args = ["--import", "tsx", "packages/dev-loop/src/capability-list.mjs"];
   else if (process.env.npm_execpath) args = [process.env.npm_execpath, "run", "typecheck"];
   else {

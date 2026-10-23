@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { graduate, graduatedFindings } from "../graduation/graduation.js";
 import { ledgerText, openLedger } from "../ledger/ledger.js";
-import { branchBase, branchDiff, briefText, openReviews, standingText, takenText, type ReviewReturn } from "../review/review.js";
+import { briefText, openReviews, standingText, takenText, worktreeChange, type ReviewReturn } from "../review/review.js";
 import { checks, checksText } from "./checks.js";
 
 /** What a tool has to work with for one call, as far as the checks and ledger readings need it. */
@@ -68,7 +68,7 @@ export function qualityTools(): ToolExtension {
         worktree: z.string().optional().describe("The worktree whose branch is the change, to read the diff from"),
       }), async ({ increment, diff, worktree }, { library, storytree }) => {
         if (diff === undefined && worktree === undefined) throw new Error("Give the change's diff, or the worktree whose branch is the change: this server's folder is not the branch.");
-        const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? branchDiff(worktree!), diff === undefined ? branchBase(worktree!) : undefined);
+        const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? worktreeChange(worktree!));
         return { text: briefText(brief), data: { brief } };
       }, AGENT);
       define("quality_take", "Take the change-reviewer's return on an increment's brief into the QA ledger, or refuse it naming what it leaves out, recording nothing. Give the worktree whose branch is the change, and what Architecture checks' graduated checks find there is recorded with it.", z.object({

@@ -1,5 +1,5 @@
 /**
- * Capability 2 · Change review and capability 4 · Review loop bound: contracts 2.1 to 2.3 and 4.1 to 4.4 on the
+ * Capability 2 · Change review and capability 4 · Review loop bound: contracts 2.1 to 2.3 and 4.1 to 4.5 on the
  * real Postgres `pnpm test` provides, through the package's public entry, against a library holding an
  * increment, the contracts of the capabilities it names, and live checks. Contract 4.4 is also proved at the
  * two front doors, beside the command line's tests and the MCP server's, because this package cannot depend
@@ -15,7 +15,7 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { branchDiff, briefText, changeFolder, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, takenText, type ReviewReturn } from "../index.js";
+import { branchDiff, briefText, changeFolder, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, takenText, worktreeChange, type ReviewReturn } from "../index.js";
 
 const DIFF = [
   "diff --git a/packages/forest-world/src/camera.test.ts b/packages/forest-world/src/camera.test.ts",
@@ -438,7 +438,7 @@ test("4.2 · the second brief holds each earlier hit with its answer, and a retu
   });
 });
 
-test("4.3 · with a finding standing after the tenth review an eleventh brief is refused naming the arc and the findings; with none standing it is not", async () => {
+test("4.3 · with a finding standing after the third review a fourth brief is refused naming the arc and the findings; with none standing it is not", async () => {
   await withLibrary(async (library, storytree) => {
     const { arc, increment, contracts, checks } = await plan(library);
     const reviews = await openReviews(storytree);
@@ -450,12 +450,53 @@ test("4.3 · with a finding standing after the tenth review an eleventh brief is
       const { hits } = await reviews.take(library.name, increment, clean(checks, contracts, iteration === 1 ? { [checks[0]!]: [{ file, line: 2, found: "a" }] } : {}, iteration));
       open ??= hits[0]!.id;
     }
-    assert.equal(REVIEW_LIMIT, 10);
+    assert.equal(REVIEW_LIMIT, 3);
     await assert.rejects(reviews.brief(library, increment, DIFF), (error: Error) => error.message.includes(arc) && error.message.includes(`${open}`));
     assert.equal((await library.questions(arc)).length, 0);
 
     await (await openLedger(storytree)).answer(library.name, open!, { answer: "fixed" });
-    assert.equal((await reviews.brief(library, increment, DIFF)).iteration, 11);
+    assert.equal((await reviews.brief(library, increment, DIFF)).iteration, 4);
+  });
+});
+
+test("4.5 · from the second review on, a brief read from the worktree holds only what changed since the last review taken, naming it; after the branch takes in its default branch it holds the whole diff again", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const dir = branchCheckout();
+    try {
+      const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: dir, encoding: "utf8" });
+      const changed = (diff: string) => diff.split("\n").filter((line) => /^[+-](?![+-])/.test(line));
+      const first = await reviews.brief(library, increment, worktreeChange(dir));
+      assert.deepEqual(changed(first.diff), ["+export const b = 2;"]);
+      assert.equal(first.since, undefined);
+      await reviews.take(library.name, increment, clean(checks, contracts, {}, 1));
+
+      const reviewed = git("rev-parse", "HEAD").trim();
+      writeFileSync(join(dir, "packages/library/src/a.ts"), "export const a = 1;\nexport const b = 2;\nexport const c = 3;\n");
+      git("commit", "-qam", "answer the review");
+      writeFileSync(join(dir, "packages/library/src/new.ts"), "export const d = 4;\n");
+      const second = await reviews.brief(library, increment, worktreeChange(dir));
+      assert.deepEqual(changed(second.diff), ["+export const c = 3;", "+export const d = 4;"]);
+      assert.deepEqual(second.since, { review: 1, head: reviewed });
+      assert.deepEqual(second.packages, ["library"]);
+      assert.match(briefText(second), new RegExp(`^The diff of what changed since review 1 \\(commit ${reviewed.slice(0, 12)}\\)`, "m"));
+      await reviews.take(library.name, increment, clean(checks, contracts, {}, 2));
+
+      rmSync(join(dir, "packages/library/src/new.ts"));
+      git("checkout", "-q", "-b", "upstream", "origin/main");
+      writeFileSync(join(dir, "packages/library/src/z.ts"), "export const z = 26;\n");
+      git("add", ".");
+      git("commit", "-qm", "main moves on");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+      git("checkout", "-q", "-");
+      git("merge", "-q", "--no-edit", "origin/main");
+      const third = await reviews.brief(library, increment, worktreeChange(dir));
+      assert.equal(third.since, undefined);
+      assert.deepEqual(changed(third.diff), ["+export const b = 2;", "+export const c = 3;"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

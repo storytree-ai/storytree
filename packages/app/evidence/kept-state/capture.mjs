@@ -1,7 +1,7 @@
 // The app shows its last known state at once while it refreshes (increment_12f64f90f42f): the real
 // desktop renderer bundle, the app's real page reads over a throwaway Postgres, and a second launch
 // modelled as a fresh page with the first one's storage whose library is slow, then failing, then
-// back. Never opens the live library or the owner's home. Run after `node apps/desktop/build.mjs`:
+// back. Never opens the live library or the owner's home. Run after `node --import tsx apps/desktop/build.mjs`:
 //   STORYTREE_EMBEDDER=off node --import tsx packages/app/evidence/kept-state/capture.mjs
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';

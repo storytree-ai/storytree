@@ -25,6 +25,20 @@ export const RESTART = 3;
 /** Lanes push over SSH: the https origin's OAuth token lacks the workflow scope (increment_ecdbefcd7fa1). */
 export const PUSH_URL = "git@github.com:storytree-ai/storytree.git";
 const stamp = (now) => new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z");
+/** What laneOnce returns when the re-read before its start found the increment no longer ready: no lane ran. */
+export const NOT_STARTED = "not started";
+
+/**
+ * Why increment `id` should not start now, read from a fresh survey (undefined when it is still ready): closed, gone,
+ * off an active arc, or skipped by pickPool's own rules (a live claim, a wait, a held-on question, another machine).
+ * Ranking and the round's shared capabilities are not judged again: `max: 0` reads only each increment's own holds.
+ */
+export function whyNotStart(found, id) {
+  const one = found.increments.find((increment) => increment.id === id);
+  if (!one || one.status === "closed") return "it is closed";
+  if (one.arcState !== "active") return `its arc is ${one.arcState}`;
+  return pickPool(found, { max: 0 }).skipped.find((skip) => skip.id === id)?.why;
+}
 
 /** Bring the shared checkout to origin/main, point its pushes at SSH and install; every lane's worktree is cut from it. */
 export async function prepareCheckout({ repo, exec = (command, args, options) => run(command, args, options) }) {
@@ -49,15 +63,19 @@ export async function withFlock(path, fn) {
 /**
  * One lane: under the shared checkout lock, wait for a free engine slot and prepare the checkout; then write
  * the brief, and run it through the lane runner, which picks the engine. Status lines go to `say`. With `follow`,
- * the runner checks the lane left a report or a push for its increment, and resumes it once if not.
+ * the runner checks the lane left a report or a push for its increment, and resumes it once if not. With `recheck`,
+ * the increment is read again once the slot and checkout are ready, since that wait can outlast its survey by minutes:
+ * a reason back (or an unread library) starts nothing and returns NOT_STARTED.
  */
-export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, prepare, sleep, runLane, follow = false, now = Date.now, say }) {
+export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxLanes, lock, count, prepare, sleep, runLane, recheck, follow = false, now = Date.now, say }) {
   const dated = (message) => say(`${stamp(now)} ${message}`);
   await lock(async () => {
     await waitForSlot({ max: maxLanes, count, sleep, onWait: (running) => dated(`waiting for a slot (${running} engines running) before ${increment}`) });
     try { await prepare(); }
     catch (error) { dated(`checkout update failed before ${increment} (${error.message.split("\n")[0]}); the lane runs on the checkout as it is`); }
   });
+  const why = recheck && await Promise.resolve().then(recheck).catch((error) => `library unread before its start (${String(error.message).split("\n")[0]})`);
+  if (why) { dated(`not starting ${increment}: ${why}`); return NOT_STARTED; }
   await writeFile(brief.path, brief.text);
   dated(`start ${increment}`);
   let code;
@@ -110,6 +128,8 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
     running.set(one.id, (async () => {
       try {
         const code = await launch(one, { engineUp: () => starting.delete(one.id) });
+        // Never started: the next survey judges it afresh, with no back-off and no refusal on record.
+        if (code === NOT_STARTED) attempts.delete(one.id);
         if (code === 75) ending ??= { code: 75, message: `pool stopped: engine failing at once on ${one.id}` };
       } catch (error) { ending ??= { error }; }
       finally { if (planning === one.id) planning = undefined; starting.delete(one.id); running.delete(one.id); wake(); }
@@ -268,8 +288,9 @@ async function pool(b) {
   const runner = await holdRunner({ pidFile: join(L, "pool.pid"), pid: b.pid ?? process.pid, marks: [/launch\.mjs pool( |$)/], argsOf: b.argsOf });
   if (!runner.held) { dated(`dispatcher ${runner.by} is running: not starting`); return 1; }
   dated("dispatcher started");
+  const survey = async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch")));
   const code = await runPool({
-    survey: async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch"))), maxLanes: b.maxLanes, count: b.count, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
+    survey, maxLanes: b.maxLanes, count: b.count, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
     pace: b.pace ?? (() => readBoxPace()),
     codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo })),
     refresh: () => b.lock(b.prepare),
@@ -283,6 +304,7 @@ async function pool(b) {
       return laneOnce({
         increment: one.id, addDirs: b.addDirs, repo: b.repo, maxLanes: b.maxLanes, lock: b.lock, count: b.count, prepare: b.prepare,
         sleep: b.sleep, runLane: b.runLane, now: b.now, follow: !one.plan,
+        ...(one.plan ? {} : { recheck: async () => whyNotStart(await survey(), one.id) }),
         say: (line) => { if (/^\S+ engine \w+ /.test(line) && !/ exit -?\d+$/.test(line)) engineUp(); say(line); },
         log: join(L, `pool-${one.id}-${at}.log`), err: join(L, `pool-${one.id}-${at}.err`),
         brief: { path: join(L, `pool-${one.id}-brief.md`), text: composeBrief(brief) },

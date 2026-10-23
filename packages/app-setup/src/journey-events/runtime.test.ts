@@ -14,7 +14,9 @@ test("15.1 first-launch consent records current launch milestones only after an 
   let closed = false;
   const runtime = createJourneyRuntime({ home, appVersion: "0.3.42", configuration: {
     projectKey: "phc_test", retention: "30 days", deletionContact: "privacy@example.test",
-  }, transport: { send: async event => { events.push(event.event); }, close: async () => { closed = true; } } });
+  }, transport: { send: async event => { events.push(event.event); }, close: async () => { closed = true; } },
+  // The flush deadline's clock stands still, so a slow runner cannot cut delivery short.
+  now: () => 0 });
   try {
     runtime.desktopStarted(true);
     assert.equal((await runtime.readJourney()).queued, 0);

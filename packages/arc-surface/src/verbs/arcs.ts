@@ -601,7 +601,10 @@ const waits = verb({
     // Every hold in one ask and every arc in one more, never a read per increment (4.10).
     const [views, holds] = await Promise.all([library.arcViews(), library.holds()]);
     const found = views.flatMap(({ arc, increments }) =>
-      increments.flatMap((increment) => (holds.waitsFor?.[increment.id] ?? []).map((wait) => ({ wait, increment, arc }))));
+      increments.flatMap((increment) => (holds.waitsFor?.[increment.id] ?? [])
+        // A wait for you on work that still waits on open work is not yours yet: it is listed once that work lands.
+        .filter((wait) => wait.releaser !== "owner" || !(holds.waits[increment.id] ?? []).length)
+        .map((wait) => ({ wait, increment, arc }))));
     if (found.length === 0) return { text: "No waits for you or an outside event." };
     // An owner wait has no day, so it sorts before every event; the sort keeps arc order within a day.
     found.sort((one, other) => (one.wait.checkBack ?? "").localeCompare(other.wait.checkBack ?? ""));

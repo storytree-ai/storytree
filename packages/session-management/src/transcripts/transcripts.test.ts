@@ -153,7 +153,7 @@ test("9.17 a subagent's reading on another machine comes from its records stored
   }
 });
 
-test("9.21 transcript records a cache keeps on disk are readable only by the user who runs it", { skip: process.platform === "win32" && "POSIX file modes" }, async () => {
+test("9.21 transcript records a cache keeps on disk are readable only by the user who runs it", { skip: process.platform === "win32" && "platform:posix: Windows has no POSIX file modes" }, async () => {
   const project = uniqueProjectName();
   const log = await openActivityLog(testServerUrl());
   try {

@@ -2,7 +2,7 @@
 import { homedir } from "node:os";
 import path from "node:path";
 import { codexHookTrust } from "@storytree/session-management";
-import { readProjectChoice, readStandIns, setFactory } from "@storytree/project-and-caller";
+import { factoryFolder, makeFactoryFolder, readProjectChoice, setFactory } from "@storytree/project-and-caller";
 
 import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Library, Storytree } from "@storytree/library";
@@ -40,6 +40,8 @@ export function setupHelpActions(options: {
   /** The app's open library, which Add project writes to and Remove reads. */
   library(): Storytree;
 }): SetupHelpBridge {
+  // First launch asks for no factory folder (ADR-1118): with none chosen, storytree's own is made as the app starts.
+  makeFactoryFolder(options.storytreeHome);
   return {
     readSetupLicense: () => readShippedLicense(options.licenseFile),
     async agentConnections() {
@@ -59,13 +61,13 @@ export function setupHelpActions(options: {
       return (await runSetupCheck({ folder, storytreeHome: options.storytreeHome, openWaitMs: 2_000 })).lines;
     },
     async factoryFolder() {
-      return readStandIns(options.storytreeHome).folder ?? null;
+      return factoryFolder(options.storytreeHome);
     },
     async chooseFactory() {
       const folder = await options.chooseFolder();
       if (folder === undefined) return null;
-      // Shaped before it is saved, so a refused folder is never this computer's factory.
-      const chosen = setFactory(folder, options.storytreeHome);
+      // Set up or validated as first launch does, and switched with no approval: the desktop app is recorded instead.
+      const chosen = setFactory(folder, options.storytreeHome, { through: "desktop app" });
       return { status: chosen.status, folder: chosen.folder };
     },
     async addProject() {

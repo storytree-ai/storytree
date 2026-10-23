@@ -165,7 +165,9 @@ interface Stored {
   experiment?: ExperimentArm;
   "parts-off"?: readonly string[];
   factory?: string;
+  "factory-switched"?: FactorySwitched;
   "stand-ins"?: Readonly<Record<string, string>>;
+  "stand-ins-switched"?: Readonly<Record<string, FactorySwitched>>;
   "system-off"?: readonly string[];
   "system-on"?: readonly string[];
 }
@@ -296,15 +298,47 @@ export function readPartsOff(home: string = storytreeHome()): readonly string[] 
   }
 }
 
+/** The default factory folder's name (ADR-1118 D2): storytree collects no account name to call it by. */
+const DEFAULT_FACTORY = "your-factory";
+
 /**
- * This computer's factory folder, when one is chosen, and the factory plugin standing in for each part it names
- * (question_5867f490cdd6): what a host hands the plugin loader as it starts. Choosing the folder is the approval for
- * its plugins. A damaged value is reported naming the file.
+ * This computer's factory folder: the one `settings set factory` chose, or else storytree's own, `your-factory`
+ * (ADR-1118 D2). It sits beside a versioned home (`~/.storytree/0.3` keeps it at `~/.storytree/your-factory`, so it
+ * outlasts the version) and inside any other home, so a lane's or a test's home keeps its own. Reading it writes
+ * nothing; `makeFactoryFolder` makes the default. A damaged value is reported naming the file.
  */
-export function readStandIns(home: string = storytreeHome()): { readonly folder?: string; readonly plugins: Readonly<Record<string, string>> } {
+export function factoryFolder(home: string = storytreeHome()): { readonly folder: string; readonly chosen: boolean; readonly switched?: FactorySwitched } {
   const stored = readStored(home);
-  return { ...(stored.factory === undefined ? {} : { folder: stored.factory }), plugins: stored[STAND_INS] ?? {} };
+  const chosen = stored.factory;
+  if (chosen !== undefined) return { folder: chosen, chosen: true, ...(stored[FACTORY_SWITCHED] === undefined ? {} : { switched: stored[FACTORY_SWITCHED] }) };
+  const full = path.resolve(home);
+  return { folder: path.join(path.basename(path.dirname(full)) === ".storytree" ? path.dirname(full) : full, DEFAULT_FACTORY), chosen: false };
 }
+
+/**
+ * This computer's factory folder, storytree's own made with the factory's shape (a `plugins` folder) when no other is
+ * chosen and it is not there yet, without saving a setting: what the desktop app does as it starts (ADR-1118 D2).
+ */
+export function makeFactoryFolder(home: string = storytreeHome()): { readonly folder: string; readonly chosen: boolean } {
+  const factory = factoryFolder(home);
+  if (!factory.chosen) mkdirSync(path.join(factory.folder, "plugins"), { recursive: true });
+  return factory;
+}
+
+/**
+ * This computer's factory folder and the factory plugin standing in for each part it names: what a host hands the
+ * plugin loader as it starts. A damaged value is reported naming the file.
+ */
+export function readStandIns(home: string = storytreeHome()): { readonly folder: string; readonly plugins: Readonly<Record<string, string>>; readonly switched: Readonly<Record<string, FactorySwitched>> } {
+  const stored = readStored(home);
+  return { folder: factoryFolder(home).folder, plugins: stored[STAND_INS] ?? {}, switched: stored[STAND_INS_SWITCHED] ?? {} };
+}
+
+/** Where the factory folder, or a plugin standing in for a part, was switched from: no approval is asked (question_0b0b82eb8fbc), so this record is the safeguard. */
+export type FactorySwitcher = { readonly through: "desktop app" | "command line" | "agent tool"; readonly session?: string };
+
+/** Who switched this computer's factory folder, or a plugin standing in for a part, and when. */
+export type FactorySwitched = FactorySwitcher & { readonly at: string };
 
 /** A factory folder chosen: given the factory's shape just now, or found with it already. */
 export interface ChosenFactory {
@@ -313,13 +347,14 @@ export interface ChosenFactory {
 }
 
 /**
- * Choose `folder`, an existing folder, as this computer's factory folder, saved as its full path, from either door: the
- * desktop app's first launch or `settings set factory` (question_5867f490cdd6). An empty folder is given the factory's
+ * Choose `folder`, an existing folder, as this computer's factory folder in place of storytree's own, saved as its full
+ * path (`settings set factory`). An empty folder is given the factory's
  * shape, a `plugins` folder the plugin loader reads each plugin from, and one that has it is accepted; a folder holding
  * anything else is refused, left as it was and not saved. Hidden entries (a fresh repository's `.git`) do not count,
- * so a newly made private repo can be the factory.
+ * so a newly made private repo can be the factory. No approval is asked, from a person or an agent; who switched it
+ * (`by`) and when is kept beside it.
  */
-export function setFactory(folder: string, home: string = storytreeHome()): ChosenFactory {
+export function setFactory(folder: string, home: string = storytreeHome(), by: FactorySwitcher = { through: "command line" }, now: Date = new Date()): ChosenFactory {
   const full = path.resolve(folder);
   if (!statSync(full, { throwIfNoEntry: false })?.isDirectory()) refuse(`There is no folder at ${full}; make it first, or choose another.`);
   const plugins = path.join(full, "plugins");
@@ -331,7 +366,7 @@ export function setFactory(folder: string, home: string = storytreeHome()): Chos
     mkdirSync(plugins);
     status = "set up";
   }
-  write(home, { ...readStored(home), factory: full });
+  write(home, { ...readStored(home), factory: full, [FACTORY_SWITCHED]: { ...by, at: now.toISOString() } });
   return { status, folder: full };
 }
 
@@ -376,16 +411,23 @@ export function setSystemSwitch(name: string, off: boolean, home: string = story
  * Switch the story part `part` off or on for this computer, and return the parts now off. The core is refused: this
  * story's own copy of the plugin loader's (ADR-1017 D2), which never leaves it out. Whether `part` is one a host has is
  * the switch's to check, since only a host knows its parts. Switched off with `plugin`, that factory plugin is named to
- * stand in for it; any other switch drops its stand-in.
+ * stand in for it, with who switched it (`by`) and when (ADR-1126 D2); any other switch drops its stand-in and that record.
  */
-export function setPartOff(part: string, off: boolean, home: string = storytreeHome(), plugin?: string): readonly string[] {
+export function setPartOff(part: string, off: boolean, home: string = storytreeHome(), plugin?: string, by: FactorySwitcher = { through: "command line" }, now: Date = new Date()): readonly string[] {
   if (CORE.includes(part)) refuse(`${part} is the core, which every host stands on, so it is never switched off.`);
   const stored = readStored(home);
   const rest = (stored[PARTS_OFF] ?? []).filter((one) => one !== part);
   const parts = off ? [...rest, part].sort() : rest;
   const { [part]: _dropped, ...standIns } = stored[STAND_INS] ?? {};
   const named = off && plugin !== undefined ? { ...standIns, [part]: plugin } : standIns;
-  write(home, { ...stored, [PARTS_OFF]: parts, ...(stored[STAND_INS] === undefined && plugin === undefined ? {} : { [STAND_INS]: named }) });
+  const { [part]: _unrecorded, ...records } = stored[STAND_INS_SWITCHED] ?? {};
+  const recorded = off && plugin !== undefined ? { ...records, [part]: { ...by, at: now.toISOString() } } : records;
+  write(home, {
+    ...stored,
+    [PARTS_OFF]: parts,
+    ...(stored[STAND_INS] === undefined && plugin === undefined ? {} : { [STAND_INS]: named }),
+    ...(stored[STAND_INS_SWITCHED] === undefined && plugin === undefined ? {} : { [STAND_INS_SWITCHED]: recorded }),
+  });
   return parts;
 }
 
@@ -574,6 +616,26 @@ function checkedPartsOff(value: unknown): readonly string[] {
 }
 
 const STAND_INS = "stand-ins";
+const FACTORY_SWITCHED = "factory-switched";
+const STAND_INS_SWITCHED = "stand-ins-switched";
+const SWITCHERS: readonly string[] = ["desktop app", "command line", "agent tool"];
+
+function isSwitched(value: unknown): value is FactorySwitched {
+  const one = value as Record<string, unknown> | null;
+  return one !== null && typeof one === "object" && !Array.isArray(one) && SWITCHERS.includes(one.through as string) && typeof one.at === "string" && !Number.isNaN(Date.parse(one.at)) && (one.session === undefined || typeof one.session === "string");
+}
+
+function checkedSwitched(value: unknown): FactorySwitched {
+  if (!isSwitched(value)) refuse(`${FACTORY_SWITCHED} must say who switched the factory folder and when, such as {"through": "desktop app", "at": "2026-10-23T05:00:00.000Z"}.`);
+  return value;
+}
+
+function checkedStandInsSwitched(value: unknown): Readonly<Record<string, FactorySwitched>> {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || !Object.values(value).every(isSwitched)) {
+    refuse(`${STAND_INS_SWITCHED} must say, for each part a factory plugin stands in for, who switched it and when, such as {"ci-health": {"through": "command line", "at": "2026-10-23T05:00:00.000Z"}}.`);
+  }
+  return value as Readonly<Record<string, FactorySwitched>>;
+}
 
 function checkedStandIns(value: unknown): Readonly<Record<string, string>> {
   if (value === null || typeof value !== "object" || Array.isArray(value) || !Object.values(value).every((one) => typeof one === "string" && one !== "")) {
@@ -644,6 +706,14 @@ function readStored(home: string): Stored {
       if (name === "factory") {
         if (typeof value !== "string" || !path.isAbsolute(value)) refuse("factory must be the full path of this computer's factory folder.");
         settings.factory = value as string;
+        continue;
+      }
+      if (name === FACTORY_SWITCHED) {
+        settings[FACTORY_SWITCHED] = checkedSwitched(value);
+        continue;
+      }
+      if (name === STAND_INS_SWITCHED) {
+        settings[STAND_INS_SWITCHED] = checkedStandInsSwitched(value);
         continue;
       }
       if (name === STAND_INS) {

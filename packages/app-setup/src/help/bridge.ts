@@ -9,7 +9,14 @@ export interface AddedFolder {
   folder: string;
 }
 
-/** The factory folder picked on first launch (question_5867f490cdd6): an empty one set up, or one already a factory. */
+/** This computer's factory folder: storytree's own, or one switched to, with who switched it and when (2.22). */
+export interface FactoryFolder {
+  folder: string;
+  chosen: boolean;
+  switched?: { through: "desktop app" | "command line" | "agent tool"; session?: string; at: string };
+}
+
+/** A folder made this computer's factory from the app: an empty one set up, or one already a factory. */
 export interface ChosenFactory {
   status: "set up" | "already a factory";
   folder: string;
@@ -56,9 +63,9 @@ export interface SetupHelpBridge {
   /** Each connected agent that still needs a step from the user, or has taken it; read now. */
   agentConnections(): Promise<AgentConnection[]>;
   checkSetupFolder(): Promise<readonly SetupLine[] | null>;
-  /** This computer's factory folder, or null while none is chosen (the first-launch step shows until one is). */
-  factoryFolder(): Promise<string | null>;
-  /** Pick a folder and make it this computer's factory, the approval for its plugins; null when the picker was cancelled, a folder that cannot be one refused with why. */
+  /** This computer's factory folder, read now. */
+  factoryFolder(): Promise<FactoryFolder>;
+  /** Pick a folder and make it this computer's factory, with no approval (question_0b0b82eb8fbc); null when the picker was cancelled, a folder that cannot be one refused with why. */
   chooseFactory(): Promise<ChosenFactory | null>;
   /** Pick a folder and make it a project (ADR-0752 D2), or null when the picker was cancelled. */
   addProject(): Promise<AddedFolder | null>;

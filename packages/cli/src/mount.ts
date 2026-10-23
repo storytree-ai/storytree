@@ -118,13 +118,13 @@ function writing<C extends object>(caller: C, context: Pick<Context, "writer">):
   return Object.defineProperty({ ...caller }, "writer", { enumerable: true, get: () => (writer ??= context.writer()) }) as C & { readonly writer: ReturnType<Context["writer"]> };
 }
 
-/** The family for `declared`, with the families within it, each verb mounted as a command. */
+/** The family for `declared`, with the families within it, each verb mounted as a command but one whose command is declared absent (a tool alone). */
 export function family(declared: VerbFamilies<CommandCaller & CommandPlace>): Family {
   return {
     name: declared.name,
     ...(declared.aliases === undefined ? {} : { aliases: declared.aliases }),
     summary: declared.summary,
-    verbs: declared.verbs.map(command),
+    verbs: declared.verbs.filter((each) => mounted(each.command)).map(command),
     ...(declared.bare === undefined ? {} : { bare: command(declared.bare) }),
     ...(declared.families === undefined ? {} : { families: declared.families.map(family) }),
     ...(declared.guesses === undefined ? {} : { guesses: declared.guesses }),

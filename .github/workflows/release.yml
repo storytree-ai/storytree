@@ -1,10 +1,11 @@
 name: Release installed app
 
 # workflow_run fires after each whole CI run completes, and only for CI runs on main. Through the merge
-# queue (ADR-0796) every merge is a push to main, and CI's run on that push tests the merged commit in
-# full on Linux, macOS and Windows (ci.yml: on a push to main the scope is everything), so that run is
-# the release's verification: `source` takes its commit only if it succeeded, and nothing here runs
-# the tests again (contract 4.6). Pull request and merge-queue runs start no release run at all.
+# queue (ADR-0796) every merge is a push to main, and CI's run on that push passes only once the merged
+# commit passed in full on Linux, macOS and Windows: in the merge queue's run of that exact commit, on
+# whose verdict the push stands, or in the push run itself when there is none (ci.yml: on a push to
+# main the scope is everything). So that run is the release's verification: `source` takes its commit
+# only if it succeeded, and nothing here runs the tests again (contract 4.6). Pull request and merge-queue runs start no release run at all.
 on:
   workflow_run:
     workflows: [CI]
@@ -115,7 +116,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-  # Check (a) of decision_b0a98e971a05 D4: the published development one-liner, run on a fresh GitHub Mac, must
+  # Check (a) of decision_b0a98e971a05 D4: the published alpha one-liner, run on a fresh GitHub Mac, must
   # install this very version and bring up the app, its database and the setup check. The concurrency group keeps
   # the next release from publishing first, so "latest" is still this one. The evidence is an artifact of this run.
   # A release without a new Mac build has nothing new for it to install, so it runs only when the Mac's build is in.
@@ -124,10 +125,10 @@ jobs:
     if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.mac == 'true' }}
     uses: ./.github/workflows/mac-acceptance.yml
     with:
-      channel: development
+      channel: alpha
       version: ${{ needs.source.outputs.version }}
 
-  # The Linux twin (increment_46e44175295b): the published development one-liner on a fresh GitHub Ubuntu runner must
+  # The Linux twin (increment_46e44175295b): the published alpha one-liner on a fresh GitHub Ubuntu runner must
   # install this very version and bring up the app, its database, the setup check and the hooks. It runs only when
   # the release carries a new Linux build, for the same reason as the Mac's.
   linux-acceptance:
@@ -135,5 +136,5 @@ jobs:
     if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.linux == 'true' }}
     uses: ./.github/workflows/linux-acceptance.yml
     with:
-      channel: development
+      channel: alpha
       version: ${{ needs.source.outputs.version }}

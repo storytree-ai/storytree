@@ -14,13 +14,13 @@ try {
   Assert ($saved.schema -eq 1 -and $saved.channel -ceq 'stable') 'saving puts the channel on disk'
   Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'stable') 'rerun keeps stable'
   # A record with no installed app is what a failed download left behind: an explicit choice replaces it.
-  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'development') -eq 'development') 'retry on development after a failed stable download'
-  Save-StorytreeChannel $channelHome 'development'
-  Assert ((Get-Content -LiteralPath $channelFile -Raw | ConvertFrom-Json).channel -ceq 'development') 'the explicit retry replaces the leftover record'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'alpha') -eq 'alpha') 'retry on alpha after a failed stable download'
+  Save-StorytreeChannel $channelHome 'alpha'
+  Assert ((Get-Content -LiteralPath $channelFile -Raw | ConvertFrom-Json).channel -ceq 'alpha') 'the explicit retry replaces the leftover record'
   Save-StorytreeChannel $channelHome 'stable'
   New-Item -ItemType Directory -Path $channelInstall -Force | Out-Null
   [IO.File]::WriteAllText((Join-Path $channelInstall 'storytree-0.3.exe'), 'app')
-  try { Resolve-StorytreeChannel $channelHome $channelInstall 'development'; throw 'accepted conflict' }
+  try { Resolve-StorytreeChannel $channelHome $channelInstall 'alpha'; throw 'accepted conflict' }
   catch { Assert ($_.Exception.Message -match 'already.*stable') 'an explicit conflicting channel cannot silently migrate an install' }
   Remove-Item -LiteralPath (Join-Path $channelInstall 'storytree-0.3.exe')
   [IO.File]::WriteAllText($channelFile, '{broken')
@@ -33,17 +33,19 @@ try {
   New-Item -ItemType Directory -Path (Join-Path $channelInstall 'resources') -Force | Out-Null
   [IO.File]::WriteAllText((Join-Path $channelInstall 'resources/storytree-installed'), 'nsis')
   try { Resolve-StorytreeChannel $channelHome $channelInstall 'stable'; throw 'accepted legacy switch' }
-  catch { Assert ($_.Exception.Message -match 'already.*development') 'stable default cannot overwrite legacy development' }
-  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'development') 'legacy owner install remains development'
+  catch { Assert ($_.Exception.Message -match 'already.*alpha') 'stable default cannot overwrite legacy alpha' }
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'alpha') 'legacy owner install remains alpha'
+  # Alpha's old name, development, is what an owner install saved before ADR-1121: it reads as alpha.
   Save-StorytreeChannel $channelHome 'development'
   [IO.File]::WriteAllText((Join-Path $channelInstall 'resources/storytree-installed'), 'nsis-stable')
-  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'development') 'saved channel survives a newer marker'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'alpha') 'saved channel survives a newer marker'
   try { Resolve-StorytreeChannel $channelHome $channelInstall 'stable'; throw 'accepted conflict' }
-  catch { Assert ($_.Exception.Message -match 'already.*development') 'a marked installation keeps its saved channel' }
+  catch { Assert ($_.Exception.Message -match 'already.*alpha') 'a marked installation keeps its saved channel' }
   Remove-Item -LiteralPath $channelFile
   Assert ((Resolve-StorytreeChannel $channelHome $channelInstall '') -eq 'stable') 'new installer marker selects stable'
   Remove-Item -LiteralPath $channelInstall -Recurse -Force
-  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'development') -eq 'development') 'a fresh install accepts explicit development'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'alpha') -eq 'alpha') 'a fresh install accepts explicit alpha'
+  Assert ((Resolve-StorytreeChannel $channelHome $channelInstall 'development') -eq 'alpha') "the old one-liner's -Channel development asks for alpha"
 } finally { if (Test-Path -LiteralPath $channelRoot) { Remove-Item -LiteralPath $channelRoot -Recurse -Force } }
 $script:ReleaseUrls = [Collections.Generic.List[string]]::new()
 $script:StablePointer = @{ schema = 1; channel = 'stable'; version = '0.3.123' }
@@ -61,8 +63,8 @@ $selected = Get-StorytreeRelease 'stable' $fetchRelease
 Assert ($selected.tag_name -eq 'v0.3.123') 'stable selects the pinned release'
 Assert (($script:ReleaseUrls -join ',') -eq 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/latest.yml,https://api.github.com/repos/storytree-ai/storytree/releases/tags/v0.3.123') 'stable never consults latest'
 $script:ReleaseUrls.Clear()
-Get-StorytreeRelease 'development' $fetchRelease | Out-Null
-Assert (($script:ReleaseUrls -join ',') -eq 'https://api.github.com/repos/storytree-ai/storytree/releases/latest') 'explicit development follows releases'
+Get-StorytreeRelease 'alpha' $fetchRelease | Out-Null
+Assert (($script:ReleaseUrls -join ',') -eq 'https://api.github.com/repos/storytree-ai/storytree/releases/latest') 'explicit alpha follows releases'
 foreach ($bad in @(@{schema=2;channel='stable';version='0.3.123'}, @{schema=1;channel='development';version='0.3.123'}, @{schema=1;channel='stable';version='evil/path'})) {
   $script:StablePointer = $bad; $script:ReleaseUrls.Clear()
   try { Get-StorytreeRelease 'stable' $fetchRelease; throw 'accepted invalid pointer' }
@@ -78,8 +80,8 @@ $script:ReleaseUrls.Clear()
 $selected = Get-StorytreeRelease 'stable' $fetchRelease '0.3.123'
 Assert ($selected.tag_name -eq 'v0.3.123') 'an acceptance version selects that release'
 Assert (($script:ReleaseUrls -join ',') -eq 'https://api.github.com/repos/storytree-ai/storytree/releases/tags/v0.3.123') 'an acceptance version reads neither the pin nor latest'
-try { Get-StorytreeRelease 'development' $fetchRelease '0.3.123'; throw 'accepted development' }
-catch { Assert ($_.Exception.Message -match 'installs as stable') 'an acceptance version on development stops delivery' }
+try { Get-StorytreeRelease 'alpha' $fetchRelease '0.3.123'; throw 'accepted alpha' }
+catch { Assert ($_.Exception.Message -match 'installs as stable') 'an acceptance version on alpha stops delivery' }
 try { Get-StorytreeRelease 'stable' $fetchRelease 'latest'; throw 'accepted latest' }
 catch { Assert ($_.Exception.Message -match '0\.3\.<n>') 'an acceptance version that names no release stops delivery' }
 try { Get-StorytreeRelease 'stable' $fetchRelease '0.3.124'; throw 'accepted another build' }
@@ -146,33 +148,47 @@ foreach ($step in @('download', 'install', 'finish', 'path')) {
 }
 Assert ((Add-StorytreePath 'C:\Other;%USERPROFILE%\bin' 'C:\Storytree\bin') -eq 'C:\Other;%USERPROFILE%\bin;C:\Storytree\bin') 'preserve existing PATH text'
 Assert ((Add-StorytreePath 'C:\Other;C:\Storytree\bin\' 'c:\storytree\bin') -eq 'C:\Other;C:\Storytree\bin\') 'PATH rerun is idempotent'
-$release = @{ tag_name = 'v0.3.123'; draft = $false; prerelease = $false; assets = @(@{ name = 'storytree-0.3-0.3.123-setup.exe'; browser_download_url = 'https://github.com/storytree-ai/storytree/releases/download/v0.3.123/storytree-0.3-0.3.123-setup.exe' }) }
-$manifest = @{ schema = 1; version = '0.3.123'; architectures = @('x64', 'arm64'); installer = @{ name = 'storytree-0.3-0.3.123-setup.exe'; sha256 = ('a' * 64) } }
-Assert ((Select-StorytreeInstaller $release $manifest 'arm64').sha256 -eq ('a' * 64)) 'select the combined NSIS installer'
+$base = 'https://github.com/storytree-ai/storytree/releases/download'
+$asset = { param($Tag, $Name) @{ name = $Name; browser_download_url = "$base/$Tag/$Name" } }
+$release = @{ tag_name = 'v0.3.123'; draft = $false; prerelease = $false; assets = @((& $asset 'v0.3.123' 'storytree-0.3-0.3.123-windows-x64-setup.exe'), (& $asset 'v0.3.123' 'storytree-0.3-0.3.123-windows-arm64-setup.exe')) }
+$manifest = @{ schema = 1; version = '0.3.123'; architectures = @('x64', 'arm64'); installers = @{ x64 = @{ name = 'storytree-0.3-0.3.123-windows-x64-setup.exe'; sha256 = ('a' * 64) }; arm64 = @{ name = 'storytree-0.3-0.3.123-windows-arm64-setup.exe'; sha256 = ('c' * 64) } } }
+$arm = Select-StorytreeInstaller $release $manifest 'arm64'
+Assert ($arm.sha256 -eq ('c' * 64) -and $arm.name -ceq 'storytree-0.3-0.3.123-windows-arm64-setup.exe' -and $arm.url -ceq "$base/v0.3.123/storytree-0.3-0.3.123-windows-arm64-setup.exe") 'an arm64 machine downloads only the arm64 installer'
+Assert ((Select-StorytreeInstaller $release $manifest 'x64').url -ceq "$base/v0.3.123/storytree-0.3-0.3.123-windows-x64-setup.exe") 'an x64 machine downloads only the x64 installer'
 try { Select-StorytreeInstaller $release $manifest 'arm64' 'stable'; throw 'unexpected success' }
 catch { Assert ($_.Exception.Message -match 'channel') 'stable refuses a release whose app cannot honor the saved channel' }
 $manifest.channelSchema = 1
-Assert ((Select-StorytreeInstaller $release $manifest 'arm64' 'stable').sha256 -eq ('a' * 64)) 'stable accepts a channel-aware installer'
+Assert ((Select-StorytreeInstaller $release $manifest 'arm64' 'stable').sha256 -eq ('c' * 64)) 'stable accepts a channel-aware installer'
+$manifest.installers.Remove('arm64')
+try { Select-StorytreeInstaller $release $manifest 'arm64'; throw 'accepted a missing architecture' } catch { Assert ($_.Exception.Message -match 'installer checksum') 'refuse a release with no installer for this architecture' }
 $manifest.version = '0.3.122'
 try { Select-StorytreeInstaller $release $manifest 'x64'; throw 'accepted stale manifest' } catch { Assert ($_.Exception.Message -match 'does not match') 'reject mixed releases' }
-# A release whose Windows build failed names the last good installer, with its version; that build's release has it (4.6).
-$earlier = @{ tag_name = 'v0.3.122'; draft = $false; prerelease = $false; assets = @(@{ name = 'storytree-delivery.json'; browser_download_url = 'https://github.com/storytree-ai/storytree/releases/download/v0.3.122/storytree-delivery.json' }, @{ name = 'storytree-0.3-0.3.122-setup.exe'; browser_download_url = 'https://github.com/storytree-ai/storytree/releases/download/v0.3.122/storytree-0.3-0.3.122-setup.exe' }) }
-$earlierManifest = @{ schema = 1; version = '0.3.122'; architectures = @('x64', 'arm64'); installer = @{ name = 'storytree-0.3-0.3.122-setup.exe'; sha256 = ('b' * 64) } }
+# A release from before the split carries both architectures in one installer, which still installs.
+$combined = @{ tag_name = 'v0.3.121'; draft = $false; prerelease = $false; assets = @(& $asset 'v0.3.121' 'storytree-0.3-0.3.121-setup.exe') }
+$combinedManifest = @{ schema = 1; channelSchema = 1; version = '0.3.121'; architectures = @('x64', 'arm64'); installer = @{ name = 'storytree-0.3-0.3.121-setup.exe'; sha256 = ('d' * 64) } }
+Assert ((Select-StorytreeInstaller $combined $combinedManifest 'arm64' 'stable').url -ceq "$base/v0.3.121/storytree-0.3-0.3.121-setup.exe") 'an earlier combined installer is selected on either architecture'
+# A release whose Windows build failed names the last good installers, with their version; that build's release has them (4.6).
+$earlier = @{ tag_name = 'v0.3.122'; draft = $false; prerelease = $false; assets = @((& $asset 'v0.3.122' 'storytree-delivery.json'), (& $asset 'v0.3.122' 'storytree-0.3-0.3.122-windows-x64-setup.exe'), (& $asset 'v0.3.122' 'storytree-0.3-0.3.122-windows-arm64-setup.exe')) }
+$entry = { param($Arch, $Hash) @{ name = "storytree-0.3-0.3.122-windows-$Arch-setup.exe"; sha256 = ($Hash * 64) } }
+$earlierManifest = @{ schema = 1; version = '0.3.122'; architectures = @('x64', 'arm64'); installers = @{ x64 = (& $entry 'x64' 'b'); arm64 = (& $entry 'arm64' 'e') } }
 $script:Fetched = @()
 $fetch = { param($Url) $script:Fetched += $Url; if ($Url -ceq 'https://api.github.com/repos/storytree-ai/storytree/releases/tags/v0.3.122') { return $earlier }; throw "unexpected $Url" }
 $readManifest = { param($Url) $script:Fetched += $Url; return $earlierManifest }
-$carried = @{ schema = 1; version = '0.3.123'; architectures = @('x64', 'arm64'); installer = @{ name = 'storytree-0.3-0.3.122-setup.exe'; sha256 = ('b' * 64); version = '0.3.122' } }
-$build = Get-StorytreeWindowsBuild $release $carried $fetch $readManifest
+$carried = @{ schema = 1; version = '0.3.123'; architectures = @('x64', 'arm64'); installers = @{ x64 = (& $entry 'x64' 'b') + @{ version = '0.3.122' }; arm64 = (& $entry 'arm64' 'e') + @{ version = '0.3.122' } } }
+$build = Get-StorytreeWindowsBuild $release $carried 'arm64' $fetch $readManifest
 Assert ($build.release.tag_name -ceq 'v0.3.122' -and $build.manifest.version -ceq '0.3.122') 'a carried Windows build is read from its own release'
-Assert (($script:Fetched -join ' ') -ceq 'https://api.github.com/repos/storytree-ai/storytree/releases/tags/v0.3.122 https://github.com/storytree-ai/storytree/releases/download/v0.3.122/storytree-delivery.json') 'and its own manifest'
-Assert ((Select-StorytreeInstaller $build.release $build.manifest 'x64').sha256 -eq ('b' * 64)) 'its installer is selected as any release''s is'
-$own = Get-StorytreeWindowsBuild $release $earlierManifest $fetch $readManifest
+Assert (($script:Fetched -join ' ') -ceq "https://api.github.com/repos/storytree-ai/storytree/releases/tags/v0.3.122 $base/v0.3.122/storytree-delivery.json") 'and its own manifest'
+Assert ((Select-StorytreeInstaller $build.release $build.manifest 'arm64').sha256 -eq ('e' * 64)) 'its installer is selected as any release''s is'
+$own = Get-StorytreeWindowsBuild $release $earlierManifest 'x64' $fetch $readManifest
 Assert ($own.release.tag_name -ceq 'v0.3.123') 'a release with its own Windows build is used as it is'
-$carried.installer.version = 'latest'
-try { Get-StorytreeWindowsBuild $release $carried $fetch $readManifest; throw 'accepted a carried entry naming no build' } catch { Assert ($_.Exception.Message -match 'no valid Windows build') 'refuse a carried entry naming no build' }
-$carried.installer.version = '0.3.122'
-$earlierManifest.installer.version = '0.3.121'
-try { Get-StorytreeWindowsBuild $release $carried $fetch $readManifest; throw 'followed a second carry' } catch { Assert ($_.Exception.Message -match 'does not name its own Windows build') 'a carried build is followed once, to a release that built it' }
+# A build carried from before the split names its one installer's version.
+$carriedCombined = @{ schema = 1; version = '0.3.123'; architectures = @('x64', 'arm64'); installer = @{ name = 'storytree-0.3-0.3.122-setup.exe'; sha256 = ('b' * 64); version = '0.3.122' } }
+Assert ((Get-StorytreeWindowsBuild $release $carriedCombined 'x64' $fetch $readManifest).release.tag_name -ceq 'v0.3.122') 'a carried combined build is read from its own release'
+$carried.installers.arm64.version = 'latest'
+try { Get-StorytreeWindowsBuild $release $carried 'arm64' $fetch $readManifest; throw 'accepted a carried entry naming no build' } catch { Assert ($_.Exception.Message -match 'no valid Windows build') 'refuse a carried entry naming no build' }
+$carried.installers.arm64.version = '0.3.122'
+$earlierManifest.installers.arm64.version = '0.3.121'
+try { Get-StorytreeWindowsBuild $release $carried 'arm64' $fetch $readManifest; throw 'followed a second carry' } catch { Assert ($_.Exception.Message -match 'does not name its own Windows build') 'a carried build is followed once, to a release that built it' }
 $file = [IO.Path]::GetTempFileName()
 try {
   [IO.File]::WriteAllText($file, 'interrupted download')

@@ -530,6 +530,15 @@ export const RECORD_SCHEMAS = {
        * (`after`), null for a field absent. Optional, so no version bump.
        */
       pending: z.array(pendingChange).optional(),
+      /**
+       * The escape it fixes, a defect that reached main: the change that caused it (a pull request, as
+       * `#123` or `123`, or an increment) and the story it hit, the link risk cut-offs and a likelihood
+       * term are calibrated against (research_9860f6546277). Optional, so no version bump.
+       */
+      escape: z
+        .object({ causedBy: z.string().regex(/^#?\d+$|^increment_/, "a pull request (#123) or an increment"), story: z.string() })
+        .strict()
+        .optional(),
       /** How it closed: absent until it does. */
       outcome: z
         .object({

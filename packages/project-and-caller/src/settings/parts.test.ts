@@ -8,7 +8,7 @@ import { VerbRefusal } from "@storytree/library/verbs";
 
 import { withTempDir } from "../testing/folders.js";
 import { partsSaid, switchedSaid, switchPart } from "./parts.js";
-import { readStandIns, setFactory } from "./settings.js";
+import { factoryFolder, makeFactoryFolder, readStandIns, setFactory } from "./settings.js";
 
 /** A host's parts: the core, and forest with arc-surface standing on it. */
 const parts = ["arc-surface", "forest", "library", "project-and-caller"];
@@ -44,13 +44,12 @@ test("2.17 `settings set part <part> off` switches a part of the host off and `o
 test("2.20 `settings set factory <folder>` chooses this computer's factory folder, an existing folder, saved as its full path: an empty one is given the factory's shape, a factory is accepted, and any other folder is refused with why, left as it was and not saved; `settings set part <part> plugin <plugin>` switches the part off and names the factory plugin standing in for it, which readStandIns reads with the folder and `settings show` lists; `on` switches it back on and drops the stand-in, and a plugin with no name is refused, saving nothing", async () => {
   await withTempDir((home) => {
     const file = path.join(home, "settings.json");
-    assert.deepEqual(readStandIns(home), { plugins: {} });
     assert.throws(() => setFactory(path.join(home, "no-such"), home), /no folder/);
     mkdirSync(path.join(home, "notes"));
     writeFileSync(path.join(home, "notes", "todo.md"), "mine");
     assert.throws(() => setFactory(path.join(home, "notes"), home), /notes holds other files and no plugins folder/);
     assert.equal(existsSync(path.join(home, "notes", "plugins")), false, "a refused folder is left as it was");
-    assert.deepEqual(readStandIns(home), { plugins: {} }, "a refused folder is not saved");
+    assert.equal(existsSync(file), false, "a refused folder is not saved");
     mkdirSync(path.join(home, "factory", ".git"), { recursive: true });
     assert.deepEqual(setFactory(path.join(home, "factory", "."), home), { status: "set up", folder: path.join(home, "factory") }, "an empty folder (a fresh repository counts) is set up");
     assert.ok(statSync(path.join(home, "factory", "plugins")).isDirectory(), "the factory's shape: a plugins folder");
@@ -58,7 +57,7 @@ test("2.20 `settings set factory <folder>` chooses this computer's factory folde
     assert.deepEqual(setFactory(path.join(home, "factory"), home), { status: "already a factory", folder: path.join(home, "factory") }, "a folder with the factory's shape is accepted as it is");
 
     assert.deepEqual(switchPart("forest", "plugin", parts, home, "my-forest"), ["forest"]);
-    assert.deepEqual(readStandIns(home), { folder: path.join(home, "factory"), plugins: { forest: "my-forest" } });
+    assert.deepEqual({ ...readStandIns(home), switched: undefined }, { folder: path.join(home, "factory"), plugins: { forest: "my-forest" }, switched: undefined });
     const standIns = readStandIns(home).plugins;
     assert.match(switchedSaid(new Map([["forest", "forest"]]), standIns), /forest \(my-forest stands in for it\)/);
     assert.match(partsSaid(parts, new Map([["forest", "forest"]]), standIns), /^  forest: off, my-forest stands in for it$/m);
@@ -66,6 +65,66 @@ test("2.20 `settings set factory <folder>` chooses this computer's factory folde
     assert.throws(() => switchPart("forest", "plugin", parts, home), /names the plugin/);
     assert.deepEqual(switchPart("forest", "on", parts, home), []);
     assert.deepEqual(readStandIns(home).plugins, {});
-    assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), { factory: path.join(home, "factory"), "parts-off": [], "stand-ins": {} });
+    const { "factory-switched": _switched, ...saved } = JSON.parse(readFileSync(file, "utf8"));
+    assert.deepEqual(saved, { factory: path.join(home, "factory"), "parts-off": [], "stand-ins": {}, "stand-ins-switched": {} });
+  });
+});
+
+test("2.21 With no factory setting, storytree makes and uses its own factory folder, your-factory, with the factory's shape and no setting saved: beside its versioned home (~/.storytree/your-factory), inside any other home", async () => {
+  await withTempDir((dir) => {
+    const home = path.join(dir, ".storytree", "0.3");
+    const made = path.join(dir, ".storytree", "your-factory");
+    assert.deepEqual(factoryFolder(home), { folder: made, chosen: false });
+    assert.equal(existsSync(made), false, "reading it writes nothing");
+    assert.deepEqual(makeFactoryFolder(home), { folder: made, chosen: false });
+    assert.ok(statSync(path.join(made, "plugins")).isDirectory(), "the factory's shape: a plugins folder");
+    assert.deepEqual(readStandIns(home), { folder: made, plugins: {}, switched: {} }, "the hosts load plugins from it");
+    assert.equal(existsSync(path.join(home, "settings.json")), false, "the default is not saved as a setting");
+
+    mkdirSync(path.join(made, "plugins", "my-forest"));
+    assert.deepEqual(makeFactoryFolder(home), { folder: made, chosen: false });
+    assert.ok(existsSync(path.join(made, "plugins", "my-forest")), "a default folder already there is used as it is");
+
+    const lane = path.join(dir, "lane-home");
+    assert.equal(factoryFolder(lane).folder, path.join(lane, "your-factory"), "any other home keeps its factory inside it");
+
+    mkdirSync(path.join(dir, "mine"));
+    setFactory(path.join(dir, "mine"), home);
+    assert.deepEqual({ ...makeFactoryFolder(home), switched: undefined }, { folder: path.join(dir, "mine"), chosen: true, switched: undefined });
+    assert.equal(readStandIns(home).folder, path.join(dir, "mine"));
+  });
+});
+
+test("2.22 Switching or importing the factory folder asks for no approval and records who switched it and when: the desktop app, the command line or an agent's session, kept beside the folder and read back with it, and storytree's own folder has no record", async () => {
+  await withTempDir((home) => {
+    mkdirSync(path.join(home, "mine"));
+    assert.equal(factoryFolder(home).switched, undefined, "storytree's own folder was switched by no one");
+    setFactory(path.join(home, "mine"), home, { through: "agent tool", session: "s-1" }, new Date("2026-10-23T05:00:00.000Z"));
+    assert.deepEqual(factoryFolder(home), { folder: path.join(home, "mine"), chosen: true, switched: { through: "agent tool", session: "s-1", at: "2026-10-23T05:00:00.000Z" } });
+
+    mkdirSync(path.join(home, "theirs"));
+    setFactory(path.join(home, "theirs"), home, { through: "desktop app" }, new Date("2026-10-23T06:00:00.000Z"));
+    assert.deepEqual(factoryFolder(home).switched, { through: "desktop app", at: "2026-10-23T06:00:00.000Z" }, "the latest switch replaces the one before");
+
+    writeFileSync(path.join(home, "settings.json"), JSON.stringify({ factory: path.join(home, "theirs"), "factory-switched": { through: "a stranger" } }));
+    assert.throws(() => factoryFolder(home), /factory-switched/, "a damaged record is reported");
+  });
+});
+
+test("2.23 Switching a part off with a factory plugin standing in records who switched it and when, kept beside the stand-in and read back with it, and `settings show` says it; switching the part back drops the stand-in and its record, and a damaged record is reported", async () => {
+  await withTempDir((home) => {
+    assert.deepEqual(readStandIns(home).switched, {}, "no stand-in, no record");
+    switchPart("forest", "plugin", parts, home, "my-forest", { through: "command line", session: "s-1" }, new Date("2026-10-23T05:00:00.000Z"));
+    const { plugins, switched } = readStandIns(home);
+    assert.deepEqual(switched, { forest: { through: "command line", session: "s-1", at: "2026-10-23T05:00:00.000Z" } });
+    assert.match(partsSaid(parts, new Map([["forest", "forest"]]), plugins, switched), /^  forest: off, my-forest stands in for it \(switched by session s-1 from the command line, 2026-10-23T05:00:00\.000Z\)$/m);
+
+    switchPart("arc-surface", "plugin", parts, home, "my-arcs", { through: "command line" }, new Date("2026-10-23T06:00:00.000Z"));
+    assert.deepEqual(readStandIns(home).switched["arc-surface"], { through: "command line", at: "2026-10-23T06:00:00.000Z" }, "each stand-in keeps its own record");
+    switchPart("forest", "on", parts, home);
+    assert.deepEqual(readStandIns(home).switched, { "arc-surface": { through: "command line", at: "2026-10-23T06:00:00.000Z" } }, "switching back restores the built-in part, with no record");
+
+    writeFileSync(path.join(home, "settings.json"), JSON.stringify({ "stand-ins": { forest: "my-forest" }, "stand-ins-switched": { forest: { through: "a stranger" } } }));
+    assert.throws(() => readStandIns(home), /stand-ins-switched/, "a damaged record is reported");
   });
 });

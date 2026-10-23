@@ -46,12 +46,17 @@ export const RESTART = 3;
 /** How long a handed-over pull request holds its claims while open: then it is given up and its increment is back on its arc (ADR-1037 D3, 4.23). Its event wait checks back then too. */
 const HELD_DAYS = 3;
 const HELD_MS = HELD_DAYS * 86_400_000;
+/** How many refused enqueues of one head the watcher tries before it leaves a stranded pull request as it is (4.31). */
+const ENQUEUE_TRIES = 3;
 
 /**
  * A pull request, as GitHub's GraphQL returns it, read as merged, closed, red or pending. Red is a failed check on
  * its head, a conflict with main (no check fails on one, so it would otherwise wait out its check-back), or a removal
  * from the merge queue after `since` that the Requeue workflow has not undone in `graceMs`. A conflict is marked as
  * one whatever else failed: a conflict often fails the landing check too, and it still needs a merge (4.18).
+ * A pending one is `stranded` (its node id) when nothing will land it: open, not a draft, no `hold` label, out of the
+ * merge queue and not removed from it within `graceMs` (the Requeue workflow's), every check finished, `verify` passed;
+ * a re-run of failed jobs only ends that way with automerge skipped (4.31).
  */
 export function readPull(pull, { since, now, graceMs }) {
   const head = pull.headRefOid;
@@ -74,11 +79,17 @@ export function readPull(pull, { since, now, graceMs }) {
   if (!pull.mergeQueueEntry && EJECTED.has(removal?.reason?.toUpperCase()) && removedAt > Date.parse(since) && now - removedAt > graceMs) {
     return { state: "red", head, why: `the merge queue removed it (${removal.reason}) and did not take it back`, logs: [], checks: [] };
   }
+  const finished = checks.every((check) => check.__typename === "StatusContext" ? check.state !== "PENDING" && check.state !== "EXPECTED" : check.status === "COMPLETED");
+  const verified = checks.some((check) => check.name === "verify" && check.conclusion === "SUCCESS");
+  const held = pull.isDraft || pull.labels?.nodes?.some((label) => label.name === "hold");
+  if (!pull.mergeQueueEntry && !held && finished && verified && pull.mergeable !== "UNKNOWN" && !(now - removedAt <= graceMs) && pull.id) {
+    return { state: "pending", head, stranded: pull.id };
+  }
   return { state: "pending", head };
 }
 
 const QUERY = `query($owner: String!, $name: String!, $pr: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
-  state headRefOid headRefName mergeable mergeQueueEntry { state }
+  id state isDraft headRefOid headRefName mergeable mergeQueueEntry { state } labels(first: 100) { nodes { name } }
   commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
     __typename ... on CheckRun { name status conclusion detailsUrl } ... on StatusContext { context state targetUrl } } } } } } }
   timelineItems(itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT], last: 1) { nodes { ... on RemovedFromMergeQueueEvent { createdAt reason } } }
@@ -304,9 +315,11 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * Conflicts are merged one at a time, lowest pull request first: siblings that conflict on one file would refuse
  * each other's claims if their merge sessions ran together (4.15). A hand-off on an increment that had already
  * closed has no wait to clear and nothing to close, and past its limit is only said (4.13). A red only the runner
- * caused (`pull.runner`, from runnerReruns) is rerun instead of fixed, bounded by its runs' attempts (4.29).
+ * caused (`pull.runner`, from runnerReruns) is rerun instead of fixed, bounded by its runs' attempts (4.29). A stranded
+ * one (green and unheld, out of the merge queue) is enqueued at its head, as automerge would, once a head and a refusal
+ * tried at most ENQUEUE_TRIES times (4.31).
  */
-export async function watchOnce({ dir, look, storytree, startFix, rerun, alive, room, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue, alive, room, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -360,6 +373,21 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, alive, 
     if (now() - Date.parse(record.handedAt) > HELD_MS) {
       await backOnArc(record, pull, `has been open for ${HELD_DAYS} days since it was handed over`);
       dated(`PR #${pr} open past ${HELD_DAYS} days: its claims are released and ${increment} is back on its arc as ready work`);
+      continue;
+    }
+    if (pull.stranded && enqueue && record.enqueued?.head !== pull.head) {
+      try {
+        await enqueue(pull.stranded, pull.head);
+        record.enqueued = { head: pull.head };
+        dated(`PR #${pr} green and unheld but outside the merge queue: enqueued at ${pull.head}`);
+      } catch (error) {
+        const tries = record.enqueueRefused?.head === pull.head ? record.enqueueRefused.tries + 1 : 1;
+        record.enqueueRefused = { head: pull.head, tries };
+        if (tries >= ENQUEUE_TRIES) record.enqueued = { head: pull.head, refused: true };
+        dated(`PR #${pr} green and unheld but outside the merge queue: the enqueue was refused (${error.message.split("\n")[0]})`
+          + (tries >= ENQUEUE_TRIES ? `, ${tries} times on this head: left as it is` : "; trying again next time"));
+      }
+      await save(dir, record);
       continue;
     }
     if (pull.state !== "red") continue;
@@ -531,6 +559,9 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     sleep: (ms) => wait(ms),
     // Only the box's watcher reads releases; a watcher a test starts under another home never reruns or alarms.
     readReleases: onBox ? () => releasesOnGitHub({ repo }) : undefined,
+    // At the head it read as green, as land.yml enqueues, with the box's signed-in token, so the queue's own run starts (4.31).
+    enqueue: (id, head) => run("gh", ["api", "graphql", "-f", `id=${id}`, "-f", `sha=${head}`, "-f",
+      "query=mutation($id: ID!, $sha: GitObjectID!) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $sha}) { mergeQueueEntry { position } } }"], { cwd: repo }),
     // Its failed and cancelled jobs; a run with nothing left to rerun that way is rerun whole.
     rerun: (one) => run("gh", ["run", "rerun", String(one.id), "--failed"], { cwd: repo })
       .catch(() => run("gh", ["run", "rerun", String(one.id)], { cwd: repo })),

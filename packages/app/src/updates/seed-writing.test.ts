@@ -1,6 +1,5 @@
 /**
- * Capability 4 · Updates, contract 4.1: when merged main moves, the app restarts into the new build.
- * The restart stops the database, so it waits while a writing library script (`pnpm check:own-health`,
+ * Capability 4 · Updates, contract 4.8: a ready build restarts the app, and the restart stops the database, so it waits while a writing library script (`pnpm check:own-health`,
  * `pnpm library:restore`, which write into the running app's database) is connected: a restart mid-seed would cut it off (seen
  * 2026-09-27, when the updater restarted the app under a reseed). Against the Postgres `pnpm test`
  * provides.
@@ -13,7 +12,7 @@ import pg from "pg";
 import { SEED_CONNECTION } from "@storytree/library";
 import { seedWriting } from "./seed-writing.js";
 
-test("4.1 the restart into a new build waits while a seed is writing the app's library", async () => {
+test("4.8 the restart into a new build waits while a seed is writing the app's library", async () => {
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "STORYTREE_TEST_PG_URL is not set: run the tests via `pnpm test`");
   assert.equal(await seedWriting(url), false, "with no seed connected, the restart may go ahead");

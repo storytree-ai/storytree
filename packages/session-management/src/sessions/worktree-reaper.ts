@@ -10,7 +10,8 @@
  *   and it holds neither the folder the hook runs in nor a registered hook script. Its branch goes
  *   with it. A test Postgres still running on its `.pgtest/data`, left by a run whose harness was
  *   killed outright, is stopped first; one that has not stopped by the pass's deadline keeps the
- *   worktree for the next pass.
+ *   worktree for the next pass. Once one is stopped, the rename is tried again for up to two seconds,
+ *   because Windows releases a killed server's handles on the folder late.
  * - It is renamed into a trash folder in the git directory first: on Windows that fails while any
  *   process works inside it, which leaves a folder still in use unharmed. Then `git worktree prune`
  *   unregisters it, and the trash is emptied by a detached process with Node's recursive rmSync,
@@ -49,6 +50,8 @@ export interface ReapWatch {
 const EVERY_MS = 60_000;
 const BUDGET_MS = 3_000;
 const IDLE_MS = 24 * 60 * 60_000;
+/** How long a folder's rename is retried after its test Postgres is stopped: Windows releases a killed process's handles late. */
+const RELEASE_MS = 2_000;
 /** The trash folder's name, in the repository's git directory. */
 const TRASH = "storytree-reaped";
 
@@ -99,10 +102,11 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
     try {
       if (git(tree.folder, "status", "--porcelain") !== "") continue;
       git(tree.folder, "merge-base", "--is-ancestor", "HEAD", main);
-      if (!(await stopTestServer(tree.folder, deadline))) continue;
+      const server = await stopTestServer(tree.folder, deadline);
+      if (server === "running") continue;
       mkdirSync(trash, { recursive: true });
       // Fails while anything works inside it, which is what keeps a folder in use.
-      renameSync(tree.folder, path.join(trash, `${path.basename(tree.folder)}-${Date.now()}`));
+      await renameReleased(tree.folder, trash, server === "stopped" ? Date.now() + RELEASE_MS : 0);
       reaped.push(tree);
     } catch {
       // Dirty, not in main, or in use: it stays for the next pass.
@@ -168,19 +172,35 @@ async function sweepLeftovers(context: MergeContext, folders: readonly string[],
 }
 
 /**
- * Stop the test Postgres a run left running on `<folder>/.pgtest/data`, as its postmaster.pid names
- * it, and say whether none runs there by `deadline`. A pid that is gone, or names a process other
- * than Postgres, is a stale file: nothing is stopped. Signalled by pid, never through local-postgres,
- * which this package has only for its tests.
+ * Move `folder` into `trash`, trying again until `until` while the rename fails, then throwing its
+ * last failure. A server just stopped may still hold the folder open on Windows for a moment.
  */
-async function stopTestServer(folder: string, deadline: number): Promise<boolean> {
+async function renameReleased(folder: string, trash: string, until: number): Promise<void> {
+  for (;;) {
+    try {
+      renameSync(folder, path.join(trash, `${path.basename(folder)}-${Date.now()}`));
+      return;
+    } catch (error) {
+      if (Date.now() > until) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+}
+
+/**
+ * Stop the test Postgres a run left running on `<folder>/.pgtest/data`, as its postmaster.pid names
+ * it, and say whether there was none, it was stopped, or it still runs at `deadline`. A pid that is
+ * gone, or names a process other than Postgres, is a stale file: nothing is stopped. Signalled by
+ * pid, never through local-postgres, which this package has only for its tests.
+ */
+async function stopTestServer(folder: string, deadline: number): Promise<"none" | "stopped" | "running"> {
   let pid: number;
   try {
     pid = Number(readFileSync(path.join(folder, ".pgtest", "data", "postmaster.pid"), "utf8").split(/\r?\n/)[0]);
   } catch {
-    return true;
+    return "none";
   }
-  if (!isPostgres(pid)) return true;
+  if (!isPostgres(pid)) return "none";
   try {
     // An immediate shutdown: the cluster is about to be removed, so nothing in it needs saving.
     if (process.platform === "win32") execFileSync("taskkill", ["/pid", String(pid), "/t", "/f"], { stdio: "ignore", timeout: 3_000, windowsHide: true });
@@ -189,10 +209,10 @@ async function stopTestServer(folder: string, deadline: number): Promise<boolean
     // Not ours to stop, or already gone: whether it lives decides.
   }
   while (isAlive(pid)) {
-    if (Date.now() > deadline) return false;
+    if (Date.now() > deadline) return "running";
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  return true;
+  return "stopped";
 }
 
 /** Whether `pid` is a live Postgres process. */

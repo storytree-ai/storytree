@@ -1,4 +1,4 @@
-// Package the host's platform. On Windows: x64/arm64 in one NSIS installer, keeping win-arm64-unpacked/
+// Package the host's platform. On Windows: an NSIS installer for each of x64 and arm64, keeping win-arm64-unpacked/
 // and the arm64 portable exe for existing development uses. On macOS: an Apple Silicon .app as a zip
 // (the update feed's and install.sh's), ad-hoc signed until a Developer ID is configured (then signed as the
 // identity mac-signing.mjs prepare put in a keychain, and once signed submitted to Apple, whose answer is waited for

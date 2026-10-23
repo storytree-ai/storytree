@@ -21,4 +21,4 @@ for (const name of ['index.html', 'styles.css']) copyFileSync(path.join(root, 'a
 copyFileSync(require.resolve('@storytree/arc-surface/view/styles.css'), path.join(out, 'arc-surface.css'));
 copyFileSync(require.resolve('@storytree/app-setup/view/styles.css'), path.join(out, 'app-setup.css'));
 copyFileSync(require.resolve('@storytree/forest/view/styles.css'), path.join(out, 'forest.css'));
-console.log('Built the actual desktop page for the factory-step capture.');
+console.log('Built the actual desktop page for the factory capture.');

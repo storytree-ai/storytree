@@ -53,7 +53,7 @@ Phone (390 px): `390-4-fixes-beside.png`, `390-4-fixes-resolve.png`.
 
 ![The arrival, frame by frame](arrival-strip.png)
 
-A clip of it playing at 1×, pain to fixes, on SwiftShader: [arrival.webm](arrival.webm). Phone frames: `phone-strip.png`.
+A clip of it playing at 1×, pain to fixes, on SwiftShader: [arrival.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/arrival/arrival.webm). Phone frames: `phone-strip.png`.
 
 ## Paths that still work
 
@@ -75,3 +75,5 @@ pnpm --filter @storytree/website build && node packages/website/evidence/arrival
 ```
 
 It asserts: Act 2 opens on the pain with the shop's globe at its point and no name shown; the growth's moment rises as the step plays, holds while paused, and the shop is whole on the value step; the value statement stands alone; all three fixes show while the tour waits, in each look; the principles are the fixes' depth with no decision list; reduced motion and no WebGL keep the screen dark under the pain; Act 1's exit lands on the pain; and the browser reports no errors.
+
+Removed from `main` on 2026-10-23, its arc closed (the owner's answer to question_fd8ff8dfaf88): [arrival.webm](https://github.com/storytree-ai/storytree/blob/8e81c65e1fcbbad88f4753e814f2fe64cd32c8d2/packages/website/evidence/arrival/arrival.webm). Each link is its last copy, kept in git history.

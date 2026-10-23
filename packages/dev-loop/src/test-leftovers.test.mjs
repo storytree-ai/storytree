@@ -53,9 +53,12 @@ async function gone(pid, ms = 10_000) {
   return !alive(pid);
 }
 
-/** A pid no process has any more. */
+/**
+ * A pid no process can have: above Linux's and macOS's pid ranges, and on Windows, which hands out
+ * small pids, never reached. An exited child's pid would not do: Windows can reuse it at once.
+ */
 function deadPid() {
-  return spawnSync(process.execPath, ["-e", ""]).pid;
+  return 2 ** 31 - 1;
 }
 
 /** Start a server on `dataDir` from a process that then exits without stopping it, as a killed run does. */
@@ -68,6 +71,12 @@ process.exit(0);`);
   const run = spawnSync(process.execPath, ["--import", "tsx", script], { encoding: "utf8", cwd: fileURLToPath(new URL(".", import.meta.url)) });
   assert.equal(run.status, 0, run.stdout + run.stderr);
   return postmaster(dataDir);
+}
+
+/** Make a data folder's owner record name a gone process: the exited starter's own pid, Windows can reuse at once. */
+function goneOwner(dataDir) {
+  const owner = `${dataDir}.owner.json`;
+  writeFileSync(owner, JSON.stringify({ ...JSON.parse(readFileSync(owner, "utf8")), pid: deadPid() }));
 }
 
 /** A stopper for a server the test itself must stop if what it tests did not. */
@@ -122,6 +131,7 @@ test("6.21 · a run's start stops any Postgres server in Temp left by a run that
   const legacy = path.join(temp, "storytree-local-postgres-Xy9876");
   const stale = abandoned(path.join(legacy, "stale"));
   stopLater(steps, stale);
+  goneOwner(path.join(legacy, "stale"));
   const owned = await start({ dataDir: path.join(legacy, "owned") });
   steps.push(() => owned.stop());
   const liveRun = path.join(temp, `st-unit-${process.pid}-LiVe99`);

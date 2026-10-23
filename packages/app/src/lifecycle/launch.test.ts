@@ -51,13 +51,15 @@ test("1.6 a packaged build run from an AppImage records the AppImage file, not t
 test("1.6 the app says which build it is: its version when packaged, else the development checkout and commit it runs from", async (t) => {
   const checkout = mkdtempSync(path.join(tmpdir(), "storytree-checkout-"));
   t.after(() => rmSync(checkout, { recursive: true, force: true }));
-  const git = (...args: string[]) => execFileSync("git", ["-C", checkout, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
-  git("init", "--quiet");
+  // A commit with a fixed author, date and message is always the same commit, whatever machine makes it.
+  const env = { ...process.env, GIT_AUTHOR_DATE: "2026-01-01T00:00:00Z", GIT_COMMITTER_DATE: "2026-01-01T00:00:00Z" };
+  const git = (...args: string[]) => execFileSync("git", ["-C", checkout, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { encoding: "utf8", env });
+  git("init", "--quiet", "--object-format=sha1");
   git("commit", "--quiet", "--allow-empty", "-m", "a commit");
   assert.equal(
     buildLabel({ appPath: devApp, sha: "9fa208bdeadbeef" }),
     `development build 9fa208b from ${path.resolve("code", "storytree03-wt", "forest")} (does not update itself)`,
   );
   assert.equal(buildLabel({ appPath: "ignored", packaged: { version: "0.3.0" } }), "version 0.3.0");
-  assert.equal(await checkoutSha(checkout), git("rev-parse", "HEAD"));
+  assert.equal(await checkoutSha(checkout), "9a9002bdbb9230a758a26831033a5263447c4e24");
 });

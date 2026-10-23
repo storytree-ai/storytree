@@ -1,12 +1,12 @@
 /**
  * Capability 1 · Lifecycle. The main process's uncaught exceptions and unhandled rejections, kept in the user's own
- * library on every install (contract 1.25, the owner's answer to question_010c37c7a21c), beside app.log, which installed
- * releases do not write. An app error belongs to no project, so it is kept in a database of the app's own on the
+ * library on every install (contract 1.25, the owner's answer to question_010c37c7a21c), beside the app's log, which an
+ * installed release keeps nowhere. An app error belongs to no project, so it is kept in a database of the app's own on the
  * library's server, one row for each error: the same error again (its kind, build and stack) adds to its count, so a
  * loop cannot flood the library. Nothing here leaves the user's machine.
  *
  * Errors before the library opens are held, a bounded few, and written once it does. A write that fails is said in the
- * log and dropped: app.log keeps the error either way, and the failure raises nothing (contract 1.26).
+ * log and dropped: the log keeps the error either way, and the failure raises nothing (contract 1.26).
  *
  * Each record is written not yet submitted. While one is, opening the app asks the person to have their agent submit a
  * GitHub issue, until they mark it submitted from that box (contract 1.31, ADR-1122).
@@ -70,7 +70,7 @@ export interface UnsubmittedError {
 
 /**
  * Keep the main process's errors in the library `open` is given. `build` names the running build at each error; `log`
- * is app.log's; at most `hold` different errors wait for the library (later ones are left to app.log).
+ * is the log's; at most `hold` different errors wait for the library (later ones are left to the log).
  */
 export function mainErrorRecords({ build, log, now = () => new Date(), hold = 50, database = MAIN_ERRORS_DATABASE }: {
   build: () => string;

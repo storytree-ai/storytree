@@ -4,7 +4,7 @@
  * are written to the real activity log on the Postgres `pnpm test` provides.
  */
 import assert from "node:assert/strict";
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -147,6 +147,40 @@ test("9.17 a subagent's reading on another machine comes from its records stored
 
       const parentReading = await storedContextReading(log, project, lines, "P", { now: asked, cache });
       assert.equal("tokens" in parentReading && parentReading.tokens, 500, "the parent reads its own records only");
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("9.21 transcript records a cache keeps on disk are readable only by the user who runs it", { skip: process.platform === "win32" && "POSIX file modes" }, async () => {
+  const project = uniqueProjectName();
+  const log = await openActivityLog(testServerUrl());
+  try {
+    await withTempDir(async (dir) => {
+      const transcript = path.join(dir, "S.jsonl");
+      const record = (n: number) => JSON.stringify({ type: "user", message: { content: `ask ${n}` } });
+      writeFileSync(transcript, `${record(1)}\n`);
+      await shipTranscript(log, project, "S", transcript);
+      const folder = path.join(dir, "cache", "project");
+      const modes = () => [statSync(folder).mode & 0o777, ...readdirSync(folder).map((name) => statSync(path.join(folder, name)).mode & 0o777)];
+
+      await new TranscriptCache(folder).read(log, project, "S");
+      assert.deepEqual(modes(), [0o700, 0o600], "a new folder and checkpoint are the user's alone");
+
+      chmodSync(folder, 0o755);
+      for (const name of readdirSync(folder)) chmodSync(path.join(folder, name), 0o644);
+      appendFileSync(transcript, `${record(2)}\n`);
+      await shipTranscript(log, project, "S", transcript);
+      await new TranscriptCache(folder).read(log, project, "S");
+      assert.deepEqual(modes(), [0o700, 0o600], "an appended checkpoint left wider by an earlier version is narrowed");
+
+      for (const name of readdirSync(folder)) {
+        chmodSync(path.join(folder, name), 0o644);
+        appendFileSync(path.join(folder, name), "torn\n");
+      }
+      await new TranscriptCache(folder).read(log, project, "S");
+      assert.deepEqual(modes(), [0o700, 0o600], "a checkpoint written afresh is the user's alone");
     });
   } finally {
     await log.close();

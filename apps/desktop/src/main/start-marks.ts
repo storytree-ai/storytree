@@ -3,7 +3,7 @@
  * how long after launch it reached each point (app ready, library open, window shown, and the page's: the kept reading's
  * read-back and each surface's first fresh draw), so a cold start is timed by reading the log, with no debugger attach.
  */
-import { appendFileSync } from "node:fs";
+import type { AppLog } from "./app-log.js";
 
 export interface StartMarks {
   /** Write `name`'s mark, at `at` (milliseconds since the epoch, by default now), unless this start already wrote it. */
@@ -15,18 +15,14 @@ export function processLaunchedAt(): number {
   return Date.now() - process.uptime() * 1000;
 }
 
-/** Marks for a start launched at `launchedAt`, each written once to `file` as "start mark: <name> +<ms> ms". */
-export function startMarks({ launchedAt, file, now = Date.now }: { launchedAt: number; file: string; now?: () => number }): StartMarks {
+/** Marks for a start launched at `launchedAt`, each written once to `log` as "start mark: <name> +<ms> ms". */
+export function startMarks({ launchedAt, log, now = Date.now }: { launchedAt: number; log: AppLog; now?: () => number }): StartMarks {
   const written = new Set<string>();
   return {
     mark(name, at = now()) {
       if (written.has(name)) return;
       written.add(name);
-      try {
-        appendFileSync(file, `${new Date().toISOString()} start mark: ${name} +${Math.round(at - launchedAt)} ms\n`);
-      } catch {
-        // a log that cannot be written must never stop the app
-      }
+      log.write(`start mark: ${name} +${Math.round(at - launchedAt)} ms`);
     },
   };
 }

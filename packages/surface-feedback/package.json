@@ -6,6 +6,7 @@
     "./bridge": "./src/record/bridge.ts",
     "./naming": "./src/naming/resolve.ts",
     "./runtime": "./src/record/runtime.ts",
+    "./verbs": "./src/triage/verbs.ts",
     "./view": "./src/composer/view.ts"
   },
   "storytree": {
@@ -19,6 +20,12 @@
       {
         "from": "./runtime",
         "export": "feedbackPageAnswers"
+      }
+    ],
+    "verbs": [
+      {
+        "from": "./verbs",
+        "export": "FEEDBACK_FAMILIES"
       }
     ]
   },

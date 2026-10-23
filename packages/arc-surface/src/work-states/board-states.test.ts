@@ -49,13 +49,15 @@ const owner: NoteWait = { releaser: "owner", note: "approve the spend", holds: t
 const event: NoteWait = { releaser: "event", note: "vendor ships the part", checkBack: "2999-01-01", holds: true };
 const passed: NoteWait = { ...event, checkBack: "2020-01-01", holds: false };
 
-test("1.5 a holding owner wait reads waiting on you, like a held question; a holding event wait reads queued, like a wait on work (ADR-0938)", () => {
+test("1.5 a holding owner wait reads waiting on you, like a held question; a holding event wait reads queued, like a wait on work (ADR-0938); an owner wait on work that also waits on open work reads queued until that work lands", () => {
   assert.deepEqual(incrementState(open, { waitsFor: [owner] }), { state: "waiting-on-you", color: "yellow", progress: "planned" });
   assert.deepEqual(incrementState(open, { waitsFor: [event] }), { state: "queued", color: "yellow", progress: "planned" });
   assert.deepEqual(incrementState({ ...open, status: "active" }, { waitsFor: [event] }), { state: "queued", color: "yellow", progress: "in-progress" });
   assert.equal(incrementState(open, { waitsFor: [event, owner] }).state, "waiting-on-you", "an owner wait outranks an event wait");
   assert.equal(incrementState(open, { waitsFor: [event], heldOn: ["q"] }).state, "waiting-on-you", "a question still outranks queued");
-  assert.equal(incrementState(open, { waitsFor: [owner], waits }).state, "waiting-on-you");
+  assert.equal(incrementState(open, { waitsFor: [owner], waits }).state, "queued", "an owner step behind open work waits on that work first");
+  assert.equal(incrementState(open, { waitsFor: [owner], waits, heldOn: ["q"] }).state, "waiting-on-you", "a question still holds it on you");
+  assert.deepEqual(incrementState(open, { waitsFor: [owner], waits, behind: ["q"] }), { state: "waiting-on-you", color: "yellow", progress: "planned", behind: ["q"] }, "work behind your question still reads waiting on you");
   assert.equal(incrementState(open, { waitsFor: [event], claim: held }).state, "queued", "a note wait outranks held");
   assert.equal(incrementState(open, { waitsFor: [] }).state, "open");
 });

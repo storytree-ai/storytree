@@ -192,7 +192,7 @@ test("4.4 `arc show` names each wait for you or an outside event under its incre
   });
 });
 
-test("4.10 `arc waits` lists every open increment's waits for you or an outside event across arcs, yours first, then events by check-back day with the overdue flagged, from one read of the holds and one of the arcs", async () => {
+test("4.10 `arc waits` lists every open increment's waits for you or an outside event across arcs, yours first (leaving out a wait for you on an increment that still waits on open work), then events by check-back day with the overdue flagged, from one read of the holds and one of the arcs", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const verb = arcs.verbs.find((one) => one.name === "waits")!;
@@ -209,6 +209,10 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
     await library.addWaitFor(dns.id, { releaser: "event", note: "DNS has propagated", checkBack: today() });
     await library.addWaitFor(sign.id, { releaser: "owner", note: "Sign the Apple developer agreement" });
     await library.addWaitFor(gone.id, { releaser: "owner", note: "Never listed: its increment is closed" });
+    const build = await library.addIncrement({ arc: docs, title: "Build the pages", objective: "Pages", body: "…" });
+    const behind = await library.addIncrement({ arc: docs, title: "Approve the launch", objective: "Go", body: "…" });
+    await library.addWait(behind.id, build.id, "needs the pages");
+    await library.addWaitFor(behind.id, { releaser: "owner", note: "Approve the launch once the pages are built" });
     await library.closeIncrement(gone.id, { disposition: "withdrawn", note: "Folded in" });
     const asked = { arcView: 0, arcViews: 0, holds: 0, waitsFor: 0 };
     const counted = new Proxy(library, {
@@ -229,6 +233,10 @@ test("4.10 `arc waits` lists every open increment's waits for you or an outside 
     ]);
     assert.deepEqual(asked, { arcView: 0, arcViews: 1, holds: 1, waitsFor: 0 });
     assert.ok(answer.next?.some((step) => step.command.startsWith("storytree arc show")), JSON.stringify(answer.next));
+
+    await library.closeIncrement(build.id, { disposition: "landed", note: "Built" });
+    const landed = await verb.act(parseArgs([], [], world.folder), { cwd: world.folder, activityContext: async () => ({ library }) } as unknown as Context);
+    assert.ok(landed.text.includes(`  - you    Approve the launch once the pages are built — ${behind.id}`), `once the work it waits on lands, it is listed:\n${landed.text}`);
   });
 });
 

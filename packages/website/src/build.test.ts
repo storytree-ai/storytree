@@ -82,6 +82,29 @@ test("1.4 · the static not-found page provides a route home", async (t) => {
   assert.ok((await stat(path.join(output, "index.html"))).isFile());
 });
 
+test("1.16 · the built home links to the source on GitHub, and the site serves a security.txt naming the private report route", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-official-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const html = await readFile(path.join(output, "index.html"), "utf8");
+  assert.match(html, /<a[^>]*href="https:\/\/github\.com\/storytree-ai\/storytree"/);
+  const security = await readFile(path.join(output, ".well-known", "security.txt"), "utf8");
+  const field = (name: string) => security.match(new RegExp(`^${name}: (.+)$`, "m"))?.[1];
+  assert.equal(field("Contact"), "https://github.com/storytree-ai/storytree/security/advisories/new");
+  assert.ok(!Number.isNaN(Date.parse(field("Expires") ?? "")), "Expires is a date");
+  assert.equal(field("Canonical"), "https://storytree.dev/.well-known/security.txt");
+});
+
+test("5.4 · the waitlist says what a real invitation looks like, linking only to the GitHub repository", async (t) => {
+  const output = await mkdtemp(path.join(tmpdir(), "website-invitation-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  await buildWebsite(output);
+  const waitlist = await readFile(path.join(output, "waitlist.html"), "utf8");
+  const invitation = waitlist.match(/<p id="waitlist-invitation"[^>]*>([\s\S]*?)<\/p>/)?.[1];
+  assert.ok(invitation, "the waitlist describes a real invitation");
+  assert.deepEqual([...invitation.matchAll(/href="([^"]+)"/g)].map(([, href]) => href), ["https://github.com/storytree-ai/storytree"]);
+});
+
 test("1.10 · every page's tab shows the mark, in day colours on a light setting and night colours on a dark one, with fixed fallbacks", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-favicon-"));
   t.after(() => rm(output, { recursive: true, force: true }));

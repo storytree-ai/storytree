@@ -1,0 +1,101 @@
+// A stand-in for the storytree command line, for the voice door's tests only. By default it prints, as JSON, the argv
+// it received, its working folder and the environment names the door must strip or set, so a test sees exactly what
+// reached the child. A few command shapes answer as the real command line does (arc waits, question list, arc recent,
+// library history, library list decision, library read of several ids, library search for "seven hits"), so the tools'
+// shaping of real output is exercised.
+//
+// An argv naming question_000000000000 plays a refusal (exit 1); "unusable" plays exit 2; "crash" exits 3 with a stack;
+// "colour" answers with colour codes and a "next:" block. "sleep:<ms>" waits that long before answering, and
+// "sleep:<ms>:stubborn" also ignores SIGTERM. With FAKE_CLI_LOG set, it appends "start <pid> <epoch ms>" and
+// "end <pid> <epoch ms>" lines there, so a test can count the children running at once and see which were stopped.
+import { appendFileSync } from "node:fs";
+
+const argv = process.argv.slice(2);
+const note = (word) => {
+  if (process.env.FAKE_CLI_LOG) appendFileSync(process.env.FAKE_CLI_LOG, `${word} ${process.pid} ${Date.now()}\n`);
+};
+const NEXT = "\n\nnext:\n  - storytree library read <id>   (read one whole)\n";
+const STACK = "    at fakeRefusal (fake-cli.mjs:6:1)\n    at node:internal/main/run_main_module:28:49\n";
+
+note("start");
+const refusal = [
+  [argv.includes("question_000000000000"), 1, 'no question "question_000000000000" in this project'],
+  [argv.includes("unusable"), 2, "unknown flag --unusable"],
+  [argv.includes("crash"), 3, "TypeError: Cannot read properties of undefined (reading 'id')"],
+].find(([when]) => when);
+if (refusal) {
+  process.stderr.write(`${refusal[2]}\n${STACK}`);
+  note("end");
+  process.exit(refusal[1]);
+}
+
+const hex = (n) => n.toString(16).padStart(12, "0");
+
+function answer() {
+  if (argv.includes("colour")) return `\u001b[1mBold\u001b[0m and \u001b[32mgreen\u001b[0m answer${NEXT}`;
+  const [family, verb] = argv;
+  if (family === "arc" && verb === "waits") {
+    return (
+      "3 waits for you or an outside event:\n" +
+      "  - you    PR #1656 is still red after 2 fix sessions: verify on Windows failed. — increment_0000000000a1  Feedback corner, on arc_0000000000b1  The owner gives UI feedback\n" +
+      "  - you    Clear this wait when the owner wants it built. — increment_0000000000a2  Choose your own factory, on arc_0000000000b2  Bring your own factory\n" +
+      "  - event  PR #1720 is open and green and handed to the watcher. — increment_0000000000a3  Follow-main is retired, on arc_0000000000b3  Stability; check back 2026-10-26" +
+      NEXT
+    );
+  }
+  if (family === "question" && verb === "list") {
+    // In id order, as the real list is: question_…c1 is the newest, question_…c3 the oldest.
+    return (
+      "3 open across arcs:\n" +
+      "  - question_0000000000c1  [arc_0000000000b1]  Newest: keep the secret address alone?\n" +
+      "  - question_0000000000c2  [arc_0000000000b2]  Middle: count renderer builds as tests?\n" +
+      "  - question_0000000000c3  [arc_0000000000b3]  Oldest: a per-change mutation report?\n" +
+      "1 more waits on a parked arc until it is unparked: arc_0000000000b9 (storytree question list --arc <arc> names them)." +
+      NEXT
+    );
+  }
+  if (family === "library" && verb === "read" && argv.length > 3) {
+    const created = { question_0000000000c1: "2026-10-23T09:00:00.000Z", question_0000000000c2: "2026-10-20T09:00:00.000Z", question_0000000000c3: "2026-10-01T09:00:00.000Z" };
+    return argv.slice(2).map((id) => `${id}  [question]  schema 2\nCreated: ${created[id] ?? "2026-10-22T00:00:00.000Z"}\nUpdated: 2026-10-23T00:00:00.000Z\n\ntitle: ${id}\n`).join("\n") + NEXT;
+  }
+  if (family === "arc" && verb === "recent") {
+    const lines = [`25 landed since 2026-10-22 10:00 UTC, on 3 arcs:`];
+    for (let arc = 1; arc <= 3; arc++) {
+      lines.push(`  arc_${hex(0xd0 + arc)}  Arc number ${arc}`);
+      const count = arc === 1 ? 15 : 5;
+      for (let at = 1; at <= count; at++) lines.push(`    increment_${hex(arc * 100 + at)}  Work ${arc}.${at} landed (#${1000 + arc * 100 + at})`);
+    }
+    lines.push("2 arcs closed since then:", `  arc_${hex(0xe1)}  An arc that closed (closed 2026-10-23)`);
+    return `${lines.join("\n")}\n\nsince: ${argv[argv.indexOf("--since") + 1]}${NEXT}`;
+  }
+  if (family === "library" && verb === "history") {
+    const lines = [`History of ${argv[2]}:`];
+    for (let at = 1; at <= 25; at++) lines.push(`  ${700000 + at}  2026-10-${String(at).padStart(2, "0")}T09:00:00.000Z  ${at === 1 ? "created" : "updated"}  session:writer-${at}`);
+    return lines.join("\n") + NEXT;
+  }
+  if (family === "library" && verb === "list" && argv.includes("number=1103")) {
+    return `1 decision records:\n  decision_0000000011a3  The decision numbered 1103${NEXT}`;
+  }
+  if (family === "library" && verb === "list" && argv[2] === "decision") return `0 decision records:${NEXT}`;
+  if (family === "library" && verb === "search" && argv.at(-1) === "seven hits") {
+    const hits = Array.from({ length: 7 }, (_, at) => `  0.${90 - at}  note_${hex(at + 1)}  [principle]  Principle number ${at + 1}`);
+    return `closest in meaning to "seven hits":\n${hits.join("\n")}${NEXT}`;
+  }
+  const env = process.env;
+  const watched = /^(VOICE_TOKEN|VOICE_SPIKE_TOKEN|PORT|REPO_DIR|ALLOWED_HOSTS|ALLOWED_CIDRS|STORYTREE_CLI|CLAUDE_CODE_SESSION_ID|CODEX_THREAD_ID|CURSOR_CONVERSATION_ID|PI_SESSION_ID|STORYTREE_SESSION_ID)$/i;
+  return (
+    JSON.stringify({
+      argv,
+      cwd: process.cwd(),
+      pid: process.pid,
+      env: Object.fromEntries(Object.entries(env).filter(([name]) => watched.test(name))),
+    }) + NEXT
+  );
+}
+
+const sleep = argv.map((part) => /^sleep:(\d+)(:stubborn)?$/.exec(part)).find(Boolean);
+if (sleep?.[2]) process.on("SIGTERM", () => {});
+setTimeout(() => {
+  process.stdout.write(answer());
+  note("end");
+}, sleep ? Number(sleep[1]) : 0);

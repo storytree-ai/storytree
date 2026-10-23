@@ -27,6 +27,8 @@ export function mountAppMenu(host: HTMLElement, options: {
   mountAddProject?(host: HTMLElement, onAdded: (project: string) => Promise<void>): { stop(): void; add(): void };
   /** The app setup's project sentence for the project on show: what it is and who it is for, edited in place (ADR-1085 D1 as narrowed). */
   mountProjectSentence?(host: HTMLElement, current: () => string | undefined): { stop(): void; refresh(): void };
+  /** The app setup's Your factory: the factory folder in use, imported or switched with no approval (question_0b0b82eb8fbc). */
+  mountFactory?(host: HTMLElement): { stop(): void };
   /** The app setup's Remove project control: offers the project on show; once removed, the frame refreshes the list. */
   mountRemoveProject?(host: HTMLElement, current: () => string | undefined, onRemoved: (project: string) => Promise<void>): { stop(): void; refresh(): void };
   /** The app setup's Delete a project control: offers every project but the one on show; once deleted, the frame refreshes the list. */
@@ -82,6 +84,7 @@ export function mountAppMenu(host: HTMLElement, options: {
   const projectSentence = options.mountProjectSentence?.(menu.querySelector<HTMLElement>("[data-app-project-sentence]")!, () => shown);
   const removeProject = options.mountRemoveProject?.(menu.querySelector<HTMLElement>("[data-app-remove-project]")!, () => shown, async () => { await options.onChosen(); });
   const deleteProject = options.mountDeleteProject?.(menu.querySelector<HTMLElement>("[data-app-delete-project]")!, async () => { await options.onChosen(); });
+  const factory = options.mountFactory?.(menu.querySelector<HTMLElement>("[data-app-factory]")!);
   const installChoice = mountInstallChoice(menu, options.installChoice, undefined, () => updates.refresh());
   const updates = mountUpdates(menu, options.checkForUpdates, (waiting) => {
     gear.toggleAttribute("data-update-pending", waiting);
@@ -178,7 +181,7 @@ export function mountAppMenu(host: HTMLElement, options: {
     },
     stop(): void {
       stopped = true;
-      updates.stop(); journey?.stop(); installChoice.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); projectSentence?.stop(); removeProject?.stop(); deleteProject?.stop();
+      updates.stop(); journey?.stop(); installChoice.stop(); signIn.stop(); help.stop(); sessions.stop(); library.stop(); surfaces.stop(); addProject?.stop(); projectSentence?.stop(); removeProject?.stop(); deleteProject?.stop(); factory?.stop();
       options.background.inert = wasInert;
       document.removeEventListener("keydown", key, true);
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter((candidate) => candidate !== sheet);

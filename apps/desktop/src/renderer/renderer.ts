@@ -11,7 +11,7 @@
 import { followProjects, type ProjectSelection } from "@storytree/app/projects";
 import { surfaceOn, surfaceSetting } from "@storytree/app/surfaces";
 import { mountAppMenu, renderNoProjects } from "@storytree/app/view";
-import { mountAddProject, mountDeleteProject, mountProjectSentence, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
+import { mountAddProject, mountDeleteProject, mountFactory, mountProjectSentence, mountRemoveProject, mountSetupHelp } from "@storytree/app-setup/view";
 import { joinedReads, keptWorkStates, pageKeptReading, pageReading, type LiveReading, type PageReading } from "@storytree/arc-surface";
 import { mountArcSurface, type ArcSurface } from "@storytree/arc-surface/view";
 import { drawingOf, drillDown, forestDrawn, forestReading, forestScene, keptDrawing, keptTree, selectedCapability, storyNodes, type ForestDrawn } from "@storytree/forest";
@@ -65,6 +65,7 @@ const appMenu = mountAppMenu(element("app-menu-host"), {
   mountProjectSentence: (host, current) => mountProjectSentence(host, window.storytree, { current }),
   mountRemoveProject: (host, current, onRemoved) => mountRemoveProject(host, window.storytree, { current, onRemoved }),
   mountDeleteProject: (host, onDeleted) => mountDeleteProject(host, window.storytree, { onDeleted }),
+  mountFactory: (host) => mountFactory(host, window.storytree),
 });
 const consentHost = document.createElement("div");
 document.body.append(consentHost);

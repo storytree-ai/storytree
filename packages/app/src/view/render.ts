@@ -20,7 +20,7 @@ export function renderAppMenu(): string {
           <button type="button" class="app-menu-close" data-app-close aria-label="Close app menu">Close <span aria-hidden="true">×</span></button>
         </nav>
         <div class="app-menu-content">
-          <section id="app-projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Add, describe or remove projects. The project on show is chosen in the bar above.</p><div data-app-add-project></div><div data-app-project-sentence></div><div data-app-remove-project></div><div data-app-delete-project></div></section>
+          <section id="app-projects" aria-labelledby="app-projects-title"><h2 id="app-projects-title" tabindex="-1">Projects</h2><p class="app-section-description">Add, describe or remove projects, and choose your factory. The project on show is chosen in the bar above.</p><div data-app-add-project></div><div data-app-project-sentence></div><div data-app-remove-project></div><div data-app-delete-project></div><div data-app-factory></div></section>
           <section id="app-sessions" aria-label="Sessions" hidden><div data-app-settings="sessions"></div><div data-app-decision-rights></div></section>
           <section id="app-sharing" aria-label="Sharing" hidden><div data-app-journey></div></section>
           <section id="app-library" aria-label="Library" hidden><div data-app-settings="library"></div></section>

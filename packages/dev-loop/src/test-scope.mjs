@@ -117,8 +117,8 @@ function reachingPaths(root, packages) {
       if (!tail) continue;
       if (!tail.includes("*")) {
         if (at >= 0) folders.add(tail);
-      } else if (at >= 0 || SOURCE.test(tail.split("/").at(-1).replace(/\*/g, ""))) {
-        globs.add(tail); // a glob ending in a file's name, never a comment's bare **
+      } else if (SOURCE.test(tail.split("/").at(-1).replace(/\*/g, ""))) {
+        globs.add(tail); // a glob ending in a script's name; a bare ** or * (a comment, a git pathspec) runs nothing
       }
       named.add(tail);
     }

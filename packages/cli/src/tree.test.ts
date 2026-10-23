@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.9 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.10 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -220,5 +220,22 @@ test("10.9 `storytree plan` prints what the show_plan tool answers: each story, 
     const wrong = await world.run(["plan", "--closed", "week", "--from", "2026-10-01"]);
     assert.equal(wrong.code, 1, wrong.stdout);
     assert.match(wrong.stderr, /Give closed, or from and to, not both\./);
+  });
+});
+
+test("10.10 `storytree show`, the word agents reach for by the show_plan tool, prints the plan as `storytree plan` does; given a record's id it names `storytree library read <id>` and `storytree arc show <arc>`", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    await library.createArc({ title: "Sign-up works", intent: "Visitors can sign up", endState: "The form sends its email" });
+
+    const shown = await world.run(["show"]);
+    const planned = await world.run(["plan"]);
+    assert.equal(shown.code, 0, shown.stderr);
+    assert.equal(shown.stdout, planned.stdout);
+
+    const one = await world.run(["show", "contract_6cb815863354"]);
+    assert.equal(one.code, 2, one.stdout);
+    assert.match(one.stderr, /storytree library read contract_6cb815863354/);
+    assert.match(one.stderr, /storytree arc show <arc>/);
   });
 });

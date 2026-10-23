@@ -167,6 +167,7 @@ interface Stored {
   factory?: string;
   "factory-switched"?: FactorySwitched;
   "stand-ins"?: Readonly<Record<string, string>>;
+  "stand-ins-switched"?: Readonly<Record<string, FactorySwitched>>;
   "system-off"?: readonly string[];
   "system-on"?: readonly string[];
 }
@@ -328,14 +329,15 @@ export function makeFactoryFolder(home: string = storytreeHome()): { readonly fo
  * This computer's factory folder and the factory plugin standing in for each part it names: what a host hands the
  * plugin loader as it starts. A damaged value is reported naming the file.
  */
-export function readStandIns(home: string = storytreeHome()): { readonly folder: string; readonly plugins: Readonly<Record<string, string>> } {
-  return { folder: factoryFolder(home).folder, plugins: readStored(home)[STAND_INS] ?? {} };
+export function readStandIns(home: string = storytreeHome()): { readonly folder: string; readonly plugins: Readonly<Record<string, string>>; readonly switched: Readonly<Record<string, FactorySwitched>> } {
+  const stored = readStored(home);
+  return { folder: factoryFolder(home).folder, plugins: stored[STAND_INS] ?? {}, switched: stored[STAND_INS_SWITCHED] ?? {} };
 }
 
-/** Where the factory folder was switched from: no approval is asked (question_0b0b82eb8fbc), so this record is the safeguard. */
+/** Where the factory folder, or a plugin standing in for a part, was switched from: no approval is asked (question_0b0b82eb8fbc), so this record is the safeguard. */
 export type FactorySwitcher = { readonly through: "desktop app" | "command line" | "agent tool"; readonly session?: string };
 
-/** Who switched this computer's factory folder, and when. */
+/** Who switched this computer's factory folder, or a plugin standing in for a part, and when. */
 export type FactorySwitched = FactorySwitcher & { readonly at: string };
 
 /** A factory folder chosen: given the factory's shape just now, or found with it already. */
@@ -409,16 +411,23 @@ export function setSystemSwitch(name: string, off: boolean, home: string = story
  * Switch the story part `part` off or on for this computer, and return the parts now off. The core is refused: this
  * story's own copy of the plugin loader's (ADR-1017 D2), which never leaves it out. Whether `part` is one a host has is
  * the switch's to check, since only a host knows its parts. Switched off with `plugin`, that factory plugin is named to
- * stand in for it; any other switch drops its stand-in.
+ * stand in for it, with who switched it (`by`) and when (ADR-1126 D2); any other switch drops its stand-in and that record.
  */
-export function setPartOff(part: string, off: boolean, home: string = storytreeHome(), plugin?: string): readonly string[] {
+export function setPartOff(part: string, off: boolean, home: string = storytreeHome(), plugin?: string, by: FactorySwitcher = { through: "command line" }, now: Date = new Date()): readonly string[] {
   if (CORE.includes(part)) refuse(`${part} is the core, which every host stands on, so it is never switched off.`);
   const stored = readStored(home);
   const rest = (stored[PARTS_OFF] ?? []).filter((one) => one !== part);
   const parts = off ? [...rest, part].sort() : rest;
   const { [part]: _dropped, ...standIns } = stored[STAND_INS] ?? {};
   const named = off && plugin !== undefined ? { ...standIns, [part]: plugin } : standIns;
-  write(home, { ...stored, [PARTS_OFF]: parts, ...(stored[STAND_INS] === undefined && plugin === undefined ? {} : { [STAND_INS]: named }) });
+  const { [part]: _unrecorded, ...records } = stored[STAND_INS_SWITCHED] ?? {};
+  const recorded = off && plugin !== undefined ? { ...records, [part]: { ...by, at: now.toISOString() } } : records;
+  write(home, {
+    ...stored,
+    [PARTS_OFF]: parts,
+    ...(stored[STAND_INS] === undefined && plugin === undefined ? {} : { [STAND_INS]: named }),
+    ...(stored[STAND_INS_SWITCHED] === undefined && plugin === undefined ? {} : { [STAND_INS_SWITCHED]: recorded }),
+  });
   return parts;
 }
 
@@ -608,14 +617,24 @@ function checkedPartsOff(value: unknown): readonly string[] {
 
 const STAND_INS = "stand-ins";
 const FACTORY_SWITCHED = "factory-switched";
+const STAND_INS_SWITCHED = "stand-ins-switched";
 const SWITCHERS: readonly string[] = ["desktop app", "command line", "agent tool"];
 
-function checkedSwitched(value: unknown): FactorySwitched {
+function isSwitched(value: unknown): value is FactorySwitched {
   const one = value as Record<string, unknown> | null;
-  if (one === null || typeof one !== "object" || Array.isArray(one) || !SWITCHERS.includes(one.through as string) || typeof one.at !== "string" || Number.isNaN(Date.parse(one.at)) || (one.session !== undefined && typeof one.session !== "string")) {
-    refuse(`${FACTORY_SWITCHED} must say who switched the factory folder and when, such as {"through": "desktop app", "at": "2026-10-23T05:00:00.000Z"}.`);
+  return one !== null && typeof one === "object" && !Array.isArray(one) && SWITCHERS.includes(one.through as string) && typeof one.at === "string" && !Number.isNaN(Date.parse(one.at)) && (one.session === undefined || typeof one.session === "string");
+}
+
+function checkedSwitched(value: unknown): FactorySwitched {
+  if (!isSwitched(value)) refuse(`${FACTORY_SWITCHED} must say who switched the factory folder and when, such as {"through": "desktop app", "at": "2026-10-23T05:00:00.000Z"}.`);
+  return value;
+}
+
+function checkedStandInsSwitched(value: unknown): Readonly<Record<string, FactorySwitched>> {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || !Object.values(value).every(isSwitched)) {
+    refuse(`${STAND_INS_SWITCHED} must say, for each part a factory plugin stands in for, who switched it and when, such as {"ci-health": {"through": "command line", "at": "2026-10-23T05:00:00.000Z"}}.`);
   }
-  return value as FactorySwitched;
+  return value as Readonly<Record<string, FactorySwitched>>;
 }
 
 function checkedStandIns(value: unknown): Readonly<Record<string, string>> {
@@ -691,6 +710,10 @@ function readStored(home: string): Stored {
       }
       if (name === FACTORY_SWITCHED) {
         settings[FACTORY_SWITCHED] = checkedSwitched(value);
+        continue;
+      }
+      if (name === STAND_INS_SWITCHED) {
+        settings[STAND_INS_SWITCHED] = checkedStandInsSwitched(value);
         continue;
       }
       if (name === STAND_INS) {

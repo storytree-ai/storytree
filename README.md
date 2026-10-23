@@ -183,7 +183,6 @@ prompt to check that each test still protects something the product does. It is 
 
 ## License
 
-Storytree is **source-available**, not open source: it is licensed under the
-[PolyForm Shield License 1.0.0](LICENSE). Anyone, businesses included, may use, modify and embed it;
-the one thing the license does not allow is providing a product that competes with storytree.
-Competing use needs a separate grant from the owner.
+Storytree is **open source**, licensed under the [Apache License 2.0](LICENSE); see [NOTICE](NOTICE).
+Anyone, businesses included, may use, modify, embed and redistribute it, including in products of
+their own, under that license's terms.

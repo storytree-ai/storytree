@@ -53,9 +53,12 @@ async function gone(pid, ms = 10_000) {
   return !alive(pid);
 }
 
-/** A pid no process has any more. */
+/**
+ * A pid no process can have: above Linux's and macOS's pid ranges, and on Windows, which hands out
+ * small pids, never reached. An exited child's pid would not do: Windows can reuse it at once.
+ */
 function deadPid() {
-  return spawnSync(process.execPath, ["-e", ""]).pid;
+  return 2 ** 31 - 1;
 }
 
 /** Start a server on `dataDir` from a process that then exits without stopping it, as a killed run does. */

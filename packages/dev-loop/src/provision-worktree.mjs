@@ -61,6 +61,10 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+// On Windows a bare-named program (git, pnpm) is found on PATH only, never in the checkout it runs in; every
+// process it starts inherits that.
+if (process.platform === "win32") process.env.NoDefaultCurrentDirectoryInExePath ??= "1";
+
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const WORKSPACE_GROUPS = ["packages", "apps"];
 

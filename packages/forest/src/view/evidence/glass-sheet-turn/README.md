@@ -9,7 +9,7 @@ Depth still runs west to east; north and south change places. A selected story s
 lit while the rest go quieter, on both faces. Pan, zoom and the turn are the only controls.
 
 Drawn by the actual desktop page, 1440 × 960, dark theme, headless Chromium, from the same read-only snapshot of storytree's
-own library as the top face's evidence (27 stories, 142 capabilities; branch `spike/glass-sheet`, its `seed.json.gz` and
+own library as the top face's evidence (27 stories, 142 capabilities; its `seed.json.gz` and
 `survey.json`, kept out of the repository for its size). Every turn is a real button press and the selection a real click.
 
 | Top face | Edge-on, half way through the turn |

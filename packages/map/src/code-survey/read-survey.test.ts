@@ -593,7 +593,8 @@ test("8.11 a stalled origin is bounded, shared across worktrees and readers, and
   } finally {
     for (const socket of sockets) socket.destroy();
     await new Promise<void>(resolve => server.close(() => resolve()));
-    await rm(folder, { recursive: true, force: true });
+    // The stalled fetch's git exits only after its socket closes; until then Windows keeps its folder busy.
+    await rm(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   }
 });
 
@@ -741,7 +742,8 @@ test("8.27 a start's reader answers its first ask from the main already fetched 
   } finally {
     for (const socket of sockets) socket.destroy();
     await new Promise<void>(resolve => server.close(() => resolve()));
-    await rm(folder, { recursive: true, force: true });
+    // The stalled fetch's git exits only after its socket closes; until then Windows keeps its folder busy.
+    await rm(folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   }
 });
 

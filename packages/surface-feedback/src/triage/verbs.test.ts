@@ -85,7 +85,7 @@ test("4.2 · `feedback route <feedback> --to increment|question|closed --reason`
   assert.equal((await library.history({ id: sent.id })).at(-1)!.actor, "session:manager");
 
   await assert.rejects(route.act({ feedback: sent.id, to: "closed", reason: "again" }, context, WORDS), (error: Error) => error instanceof VerbRefusal && /already routed: increment/.test(error.message));
-  assert.equal((routed.fields as Record<string, unknown>).route, "increment");
+  assert.equal(((await library.get(sent.id))!.fields as Record<string, unknown>).route, "increment", "a second route writes nothing");
 });
 
 test("4.3 · `feedback show <feedback> [--screenshot <file>]` prints the note whole and, given a file, writes its screenshot JPEG there; a note sent without one says so", async (t) => {

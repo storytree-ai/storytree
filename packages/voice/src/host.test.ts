@@ -124,10 +124,11 @@ test("4.2 install --dry-run names the copy, its env file and the three units, an
   assert.match(plan, /roll back: systemctl --user disable --now storytree-voice && systemctl --user enable --now storytree-voice-spike/);
 });
 
-test("4.2 install keeps the secret in the spike's env file, points the door at its own copy, enables only the timer, and refuses the shared checkout", () => {
-  const source = gitRepo({ "README.md": "source\n" });
+test("4.2 install keeps the secret in the spike's env file, points the door at its own copy, enables only the timer, and refuses the pool's checkout", () => {
+  const source = gitRepo({ "README.md": "source\n", "agent-pool.json": JSON.stringify({ checkout: "~/pool-checkout" }) });
   scratch.push(source.dir);
   const home = boxHome();
+  mkdirSync(path.join(home, "pool-checkout"));
   const copy = path.join(home, "storytree-voice-door");
   mkdirSync(copy);
   const io = hostIo(home, source.dir);
@@ -143,7 +144,7 @@ test("4.2 install keeps the secret in the spike's env file, points the door at i
   assert.match(service, /^ExecStart=\/opt\/node\/bin\/node .*storytree-voice-door\/packages\/voice\/src\/bins\/voice\.ts$/m);
 
   const refused = hostIo(home, source.dir);
-  assert.equal(main(["install", "--repo-dir", source.dir], refused), 1);
-  assert.match(refused.lines.join("\n"), /needs its own copy/);
-  assert.equal(existsSync(path.join(source.dir, ".config")), false);
+  assert.equal(main(["install", "--repo-dir", path.join(home, "pool-checkout")], refused), 1);
+  assert.match(refused.lines.join("\n"), /needs its own copy, not the pool's checkout/);
+  assert.deepEqual(refused.runs, []);
 });

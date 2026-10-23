@@ -2,13 +2,14 @@
  * Capability 4 · The box service and its confinement: install the door on the Mint box from its own repository copy
  * (contract 4.2), and the refresh its timer runs (contract 4.1).
  *
- *   voice-host install [--dry-run] [--repo-dir <dir>]   the copy, its env file and the three user units; enables the timer
+ *   voice-host install [--dry-run] [--repo-dir <dir>]   the copy (never the pool's checkout), its env file and the three
+ *                                                        user units; enables the timer
  *   voice-host refresh                                   what the timer runs, in the copy it lives in
  *
  * install never starts the door: the cut-over from the spike is its own step, printed at the end with its rollback.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,8 +52,9 @@ export function main(argv: readonly string[], io: HostIo = boxIo): number {
   const dryRun = rest.includes("--dry-run");
   const at = rest.indexOf("--repo-dir");
   const repoDir = at >= 0 && rest[at + 1] ? path.resolve(rest[at + 1]!) : path.join(io.home, "storytree-voice-door");
-  if (path.resolve(repoDir) === path.resolve(io.sourceRepo)) {
-    io.say(`the door needs its own copy, not ${io.sourceRepo}: the pool fast-forwards and reinstalls that one under every lane`);
+  const pool = poolCheckout(io);
+  if (pool !== undefined && same(repoDir, pool)) {
+    io.say(`the door needs its own copy, not the pool's checkout ${pool}: the pool fast-forwards and reinstalls that one under every lane`);
     return 1;
   }
   const secret = secretEnv(io.home);
@@ -92,6 +94,21 @@ export function main(argv: readonly string[], io: HostIo = boxIo): number {
   io.say(`cut over from the spike: systemctl --user disable --now storytree-voice-spike && systemctl --user enable --now ${SERVICE}`);
   io.say(`roll back: systemctl --user disable --now ${SERVICE} && systemctl --user enable --now storytree-voice-spike`);
   return 0;
+}
+
+/** The pool's shared checkout, as the repository's agent-pool.json names it (~ is the home folder), if it names one. */
+function poolCheckout(io: HostIo): string | undefined {
+  try {
+    const checkout = (JSON.parse(readFileSync(path.join(io.sourceRepo, "agent-pool.json"), "utf8")) as { checkout?: unknown }).checkout;
+    return typeof checkout === "string" ? path.resolve(checkout.replace(/^~(?=$|[\\/])/, io.home)) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function same(a: string, b: string): boolean {
+  const real = (p: string) => (existsSync(p) ? realpathSync(p) : path.resolve(p));
+  return real(a) === real(b);
 }
 
 function isEntry(): boolean {

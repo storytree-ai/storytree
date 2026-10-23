@@ -1,10 +1,12 @@
 # Windows PowerShell 5.1 and PowerShell 7. No Node/npm or checkout prerequisite.
-param([switch]$LibraryOnly, [ValidateSet('stable', 'development')][string]$Channel)
+param([switch]$LibraryOnly, [ValidateSet('stable', 'alpha', 'development')][string]$Channel)
 $ErrorActionPreference = 'Stop'
 
 # Choose the channel without writing it: a record written before anything installed would refuse a retry.
+# Alpha's old name, development, is read as alpha wherever it appears (ADR-1121).
 function Resolve-StorytreeChannel([string]$HomeDir, [string]$InstallDir, [string]$Requested) {
-  if ($Requested -and $Requested -cnotin @('stable', 'development')) { throw 'Choose a valid release channel: stable or development.' }
+  if ($Requested -and $Requested -cnotin @('stable', 'alpha', 'development')) { throw 'Choose a valid release channel: stable or alpha.' }
+  if ($Requested -ceq 'development') { $Requested = 'alpha' }
   $file = Join-Path $HomeDir 'release-channel.json'
   $markerFile = Join-Path $InstallDir 'resources/storytree-installed'
   $installed = (Test-Path -LiteralPath $markerFile) -or (Test-Path -LiteralPath (Join-Path $InstallDir 'storytree-0.3.exe'))
@@ -12,14 +14,14 @@ function Resolve-StorytreeChannel([string]$HomeDir, [string]$InstallDir, [string
   if (Test-Path -LiteralPath $file) {
     try {
       $saved = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json
-      if ($saved.schema -ne 1 -or $saved.channel -cnotin @('stable', 'development')) { throw 'invalid schema or channel' }
-      $existing = [string]$saved.channel
+      if ($saved.schema -ne 1 -or $saved.channel -cnotin @('stable', 'alpha', 'development')) { throw 'invalid schema or channel' }
+      $existing = if ($saved.channel -ceq 'stable') { 'stable' } else { 'alpha' }
     } catch { throw "The saved release channel could not be read: $($_.Exception.Message). Keep $file for diagnosis; delivery will not replace it." }
     # With no app installed, the record is what a failed delivery left behind; an explicit choice replaces it.
     if (-not $installed -and $Requested) { $existing = $null }
   } elseif (Test-Path -LiteralPath $markerFile) {
     $marker = (Get-Content -LiteralPath $markerFile -Raw).Trim()
-    if ($marker -ceq 'nsis') { $existing = 'development' }
+    if ($marker -ceq 'nsis') { $existing = 'alpha' }
     elseif ($marker -ceq 'nsis-stable') { $existing = 'stable' }
     else { throw 'The installed app has an unknown release channel marker. Check it before retrying delivery.' }
   }
@@ -39,14 +41,14 @@ function Save-StorytreeChannel([string]$HomeDir, [string]$Selected) {
 function Get-StorytreeRelease([string]$SelectedChannel, [scriptblock]$Fetch, [string]$AcceptanceVersion) {
   $api = 'https://api.github.com/repos/storytree-ai/storytree/releases'
   if ($AcceptanceVersion) {
-    if ($SelectedChannel -cne 'stable') { throw 'An acceptance version installs as stable; this installation uses development.' }
+    if ($SelectedChannel -cne 'stable') { throw 'An acceptance version installs as stable; this installation uses alpha.' }
     if ($AcceptanceVersion -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'STORYTREE_ACCEPTANCE_VERSION must name a 0.3.<n> release.' }
     $version = $AcceptanceVersion
   } else {
-    if ($SelectedChannel -ceq 'development') { return (& $Fetch "$api/latest") }
+    if ($SelectedChannel -ceq 'alpha') { return (& $Fetch "$api/latest") }
     if ($SelectedChannel -cne 'stable') { throw 'Unknown release channel.' }
     $pin = & $Fetch 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/latest.yml'
-    if ($pin.schema -ne 1 -or $pin.channel -cne 'stable' -or $pin.version -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'The stable release pin is invalid. No development release was selected; retry after the stable pin is repaired.' }
+    if ($pin.schema -ne 1 -or $pin.channel -cne 'stable' -or $pin.version -cnotmatch '^0\.3\.(0|[1-9]\d*)$') { throw 'The stable release pin is invalid. No alpha release was selected; retry after the stable pin is repaired.' }
     $version = $pin.version
   }
   $release = & $Fetch "$api/tags/v$version"
@@ -164,7 +166,7 @@ function Get-StorytreeWindowsBuild($Release, $Manifest, [string]$Architecture, [
   return @{ release = $earlier; manifest = $earlierManifest }
 }
 
-function Select-StorytreeInstaller($Release, $Manifest, [string]$Architecture, [string]$SelectedChannel = 'development') {
+function Select-StorytreeInstaller($Release, $Manifest, [string]$Architecture, [string]$SelectedChannel = 'alpha') {
   if ($Release.draft -or $Release.prerelease -or $Release.tag_name -notmatch '^v\d+\.\d+\.\d+$') { throw 'release is not a stable storytree version' }
   $version = $Release.tag_name.Substring(1)
   if ($Manifest.schema -ne 1 -or $Manifest.version -cne $version -or $Architecture -notin $Manifest.architectures) { throw 'release manifest version or architecture does not match' }

@@ -36,7 +36,7 @@ running() { pgrep -f "^$APP/Contents/MacOS/storytree-0.3\$" > /dev/null; }
 limit() { perl -e 'alarm shift; exec @ARGV' "$@"; }
 
 step machine sh -c 'sw_vers; uname -m; sysctl -n machdep.cpu.brand_string; id -un; echo "HOME=$HOME"'
-# The release the app should update itself to: the newest published one, whose Mac feed the development channel reads.
+# The release the app should update itself to: the newest published one, whose Mac feed the alpha channel reads.
 step latest-mac sh -c 'curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/latest-mac.yml'
 
 mkdir -p "$PROJECT"
@@ -62,11 +62,11 @@ step install expect "$OUT/answer.exp" "$ONE_LINER"
 step version-before sh -c "defaults read '$APP/Contents/Info' CFBundleShortVersionString"
 
 # A named build installs as stable, and stable's pin is still older than any Developer ID build, so a stable app
-# would see nothing newer. Quit it and record the installation as development, whose feed is the newest release:
+# would see nothing newer. Quit it and record the installation as alpha, whose feed is the newest release:
 # the channel N and N+1 were both published on. Setup for this run only; no user does this.
 step quit limit 60 osascript -e 'quit app "storytree-0.3"'
 for _ in $(seq 1 30); do running || break; sleep 2; done
-step channel sh -c "cat '$HOMEDIR/release-channel.json'; echo; printf '{\"schema\":1,\"channel\":\"development\"}' > '$HOMEDIR/release-channel.json' && cat '$HOMEDIR/release-channel.json'"
+step channel sh -c "cat '$HOMEDIR/release-channel.json'; echo; printf '{\"schema\":1,\"channel\":\"alpha\"}' > '$HOMEDIR/release-channel.json' && cat '$HOMEDIR/release-channel.json'"
 
 # Gatekeeper's first open, as a browser download meets it: the release's zip in ~/Downloads with the quarantine
 # attribute a browser and Archive Utility put on every file, assessed, then opened the way Finder does. macOS runs

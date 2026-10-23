@@ -104,3 +104,11 @@
 .setup-delete-project-status { margin: .5rem 0 0; color: var(--muted, #a9b0ba); overflow-wrap: anywhere; }
 .setup-delete-project-status:empty { display: none; }
 .setup-delete-project-status[role="alert"] { color: var(--fail-text, #e0a09a); }
+/* Your factory sits under the projects, quiet: the folder in use and one button to import or switch it. */
+.setup-factory { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.setup-factory-title { margin: 0; font-weight: 600; }
+.setup-factory-about { margin: .25rem 0 .5rem; color: var(--muted, #a9b0ba); }
+.setup-factory-folder { margin: 0 0 .65rem; font-family: var(--mono, ui-monospace, monospace); overflow-wrap: anywhere; }
+.setup-factory-status { margin: .5rem 0 0; color: var(--muted, #a9b0ba); overflow-wrap: anywhere; }
+.setup-factory-status:empty { display: none; }
+.setup-factory-status[role="alert"] { color: var(--fail-text, #e0a09a); }

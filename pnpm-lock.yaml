@@ -101,13 +101,13 @@ importers:
         version: 10.14.0
       '@workos/authkit-electron':
         specifier: 0.1.2
-        version: 0.1.2(@workos-inc/node@10.14.0)(electron@44.4.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
+        version: 0.1.2(@workos-inc/node@10.14.0)(electron@44.9.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
       '@workos/authkit-session':
         specifier: 0.6.0
         version: 0.6.0(@workos-inc/node@10.14.0)(typescript@7.0.2)
       electron:
-        specifier: 44.4.5
-        version: 44.4.5
+        specifier: 44.9.3
+        version: 44.9.3
       electron-builder:
         specifier: 26.15.3
         version: 26.15.3(electron-builder-squirrel-windows@26.15.3)
@@ -664,8 +664,8 @@ importers:
         specifier: ^8.18.2
         version: 8.18.2
       electron:
-        specifier: 44.4.5
-        version: 44.4.5
+        specifier: 44.9.3
+        version: 44.9.3
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -860,6 +860,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/map':
+        specifier: workspace:*
+        version: link:../map
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
@@ -935,6 +938,43 @@ importers:
       playwright-core:
         specifier: 1.60.0
         version: 1.60.0
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ~7.0.2
+        version: 7.0.2
+
+  packages/voice:
+    dependencies:
+      '@modelcontextprotocol/server':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@storytree/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@storytree/project-and-caller':
+        specifier: workspace:*
+        version: link:../project-and-caller
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@modelcontextprotocol/client':
+        specifier: ^2.1.0
+        version: 2.1.0
+      '@storytree/app-setup':
+        specifier: workspace:*
+        version: link:../app-setup
+      '@storytree/library':
+        specifier: workspace:*
+        version: link:../library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -2815,8 +2855,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@44.4.5:
-    resolution: {integrity: sha512-SjgoaeYsSWZfJzubgQU7juvuXMTvn6/e1gAHdGFA/yuMbpF+I+skYqIJ6DdXBXHeWbkbpNpmwZCTpiivtlWZSw==}
+  electron@44.9.3:
+    resolution: {integrity: sha512-Cv9/yMnZxNWsMlIe8T4v//NKHdUvbeyoTJoXE3BIcRxus2meeFaO9h/P3zB5d4cBXum51IgAYrT2QjpIDWKpJA==}
     engines: {node: '>= 22.12.0'}
     hasBin: true
 
@@ -5621,11 +5661,11 @@ snapshots:
 
   '@workos-inc/node@10.14.0': {}
 
-  '@workos/authkit-electron@0.1.2(@workos-inc/node@10.14.0)(electron@44.4.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2)':
+  '@workos/authkit-electron@0.1.2(@workos-inc/node@10.14.0)(electron@44.9.3)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2)':
     dependencies:
       '@workos-inc/node': 10.14.0
       '@workos/authkit-session': 0.6.0(@workos-inc/node@10.14.0)(typescript@7.0.2)
-      electron: 44.4.5
+      electron: 44.9.3
       electron-store: 11.0.2
     optionalDependencies:
       react: 19.3.0
@@ -6122,7 +6162,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron@44.4.5:
+  electron@44.9.3:
     dependencies:
       '@electron-internal/extract-zip': 1.0.5
       '@electron/get': 5.1.0

@@ -25,6 +25,16 @@ export { buildLauncher, LAUNCHER_PROGRAM };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * The first line of every storytree entry: on Windows, a program started by bare name (`git`, `gh`) is looked for on
+ * PATH only, never first in the working folder, which is a user's project and may hold a program of that name. Child
+ * processes inherit it, so it is never taken out of their environments.
+ */
+export const PATH_ONLY = 'if (process.platform === "win32") process.env.NoDefaultCurrentDirectoryInExePath ??= "1";';
+
+/** What each ES module entry opens with: PATH_ONLY, then a `require` of its own for pg, which is CommonJS and requires Node's own modules. */
+export const ENTRY_BANNER = `${PATH_ONLY} import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);`;
+
 /** The commands, by the file each is built to. */
 const ENTRY_POINTS: Readonly<Record<string, string>> = {
   "storytree-hook": path.join(here, "storytree-hook.ts"),
@@ -58,8 +68,7 @@ export async function buildBins(outdir: string, { release, launcher = true }: { 
     // Under a coverage run (`pnpm survey:coverage`), the code survey traces the bundle back to its files.
     sourcemap: process.env.NODE_V8_COVERAGE !== undefined,
     ...(release === undefined ? {} : { define: { STORYTREE_RELEASE: JSON.stringify(JSON.stringify(release)), ...journeyDefine() } }),
-    // pg is CommonJS and requires Node's own modules; an ES module has no `require` of its own.
-    banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
+    banner: { js: ENTRY_BANNER },
     external: [
       // Native probes load physical libraries relative to Koffi’s package.
       "koffi",

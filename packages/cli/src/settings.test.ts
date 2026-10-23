@@ -208,7 +208,7 @@ test("1.40 · with a factory folder chosen and `settings set part ci-health plug
   const ran = await invoke(["health", "check"]);
   assert.equal(ran.code, 0, ran.stderr);
   assert.equal(ran.stdout.trim().split("\n")[0], `my health is fine in ${dir}`);
-  assert.match((await invoke(["settings", "show"])).stdout, /^  ci-health: off, my-health stands in for it$/m);
+  assert.match((await invoke(["settings", "show"])).stdout, /^  ci-health: off, my-health stands in for it \(switched (by session \S+ )?from the command line, \d{4}-\d\d-\d\dT[^)]*\)$/m);
 
   assert.equal((await invoke(["settings", "set", "part", "ci-health", "on"])).code, 0);
   const restored = (await invoke([])).stdout;

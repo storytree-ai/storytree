@@ -90,7 +90,7 @@ test("27.3 · library find lists live records whose title holds every word, at m
   assert.doesNotMatch(both, /Storytree speaks/, "a title missing a word is left out");
   assert.match(await run("find", { words: ["reach"] }), /Voice reaches storytree/, "a word is found by its start");
   assert.equal(await run("find", { words: ["each"] }), 'No titles holding "each".', "never inside a word");
-  assert.equal(await run("find", { words: ["(.*"] }), 'No titles holding "(.*".', "a word is matched as written, never as a pattern");
+  assert.equal(await run("find", { words: ["term.1"] }), 'No titles holding "term.1".', "a word is matched as written, never as a pattern");
 
   const many = (await run("find", { words: ["voice"] })).split("\n").filter((line) => /^\s+\w+_[0-9a-f]{12}\s/.test(line));
   assert.equal(many.length, 20, "at most 20 rows");

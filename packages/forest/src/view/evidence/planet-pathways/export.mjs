@@ -12,6 +12,7 @@ const { connect } = await import(pathToFileURL(require.resolve('@storytree/libra
 const { start } = await import(pathToFileURL(require.resolve('@storytree/local-postgres')));
 const { pageReads } = await import(pathToFileURL(require.resolve('@storytree/app')));
 const { appHome } = await import(pathToFileURL(path.join(root, 'apps/desktop/src/home.ts')));
+const { sanitiseSeed } = await import(pathToFileURL(path.join(here, '../../../snapshot/evidence-seed.ts')));
 if (!process.env.STORYTREE_HOME) throw new Error('Set STORYTREE_HOME to the isolated capture seed.');
 
 const server = await start({ dataDir: appHome().pgdata, owner: 'planet pathways capture export' });
@@ -33,7 +34,7 @@ try {
     if (parent.get(dependency) === story.id) within++; else cross++;
   }
   const stats = { stories: tree.stories.length, capabilities: parent.size, within, cross, links: within + cross };
-  writeFileSync(path.join(here, 'seed.json'), JSON.stringify({ projects, tree, changes, lines, stats }) + '\n');
+  writeFileSync(path.join(here, 'seed.json'), JSON.stringify(sanitiseSeed({ projects, tree, changes, lines, stats })) + '\n');
   console.log(JSON.stringify(stats));
 } finally {
   await reads?.close();

@@ -335,6 +335,9 @@ importers:
       '@storytree/session-management':
         specifier: workspace:*
         version: link:../session-management
+      '@storytree/surface-feedback':
+        specifier: workspace:*
+        version: link:../surface-feedback
     devDependencies:
       '@storytree/local-postgres':
         specifier: workspace:*

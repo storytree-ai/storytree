@@ -50,6 +50,7 @@ import { isDeepStrictEqual } from "node:util";
 import { AFTER_TOOL, ANTIGRAVITY_HOOKS, ASK_SETUP, BACKGROUND, CLOSE_OUT_REMINDER, CODEX_DELIVERS_FROM, codexDelivers, codexToolArguments, defaultHomes, EDIT_GATE, EVENT, MOD_TOOLS, PI_EXTENSION, piExtensionScript, registeredHookScripts, scriptsIn, SHELL_GUARD, STORYTREE_TOOLS, type Homes } from "@storytree/session-management";
 import { HARNESS_IDS } from "@storytree/project-and-caller/caller";
 
+import { read, save } from "../connect/harness.js";
 import { piExtension } from "./pi-extension.js";
 
 export { defaultHomes, registeredHookScripts, type Homes };
@@ -315,8 +316,7 @@ function registerPi(home: string | undefined, hook: HookCommand): { registration
   const wanted = piExtension(hook);
   if (current === wanted) return { registration: "already registered", replaced: [] };
   const before = current === undefined ? undefined : piExtensionScript(current);
-  mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, wanted);
+  save(file, current, wanted);
   return { registration: "registered", replaced: before === undefined || before === hook.script ? [] : [before] };
 }
 
@@ -362,7 +362,6 @@ function registerAntigravity(home: string | undefined, hook: HookCommand): { reg
   const wanted = antigravityEntries(hook);
   if (isDeepStrictEqual(named[ANTIGRAVITY_NAME], wanted)) return { registration: "already registered", replaced: [] };
   const before = scriptsIn(stringsIn(named[ANTIGRAVITY_NAME])).filter((found) => found !== hook.script);
-  mkdirSync(path.dirname(file), { recursive: true });
   writeSettings(file, { ...named, [ANTIGRAVITY_NAME]: wanted });
   return { registration: "registered", replaced: [...new Set(before)] };
 }
@@ -446,7 +445,7 @@ function readSettings(file: string): Settings {
 }
 
 function writeSettings(file: string, settings: Settings): void {
-  writeFileSync(file, `${JSON.stringify(settings, null, 2)}\n`);
+  save(file, read(file), `${JSON.stringify(settings, null, 2)}\n`);
 }
 
 function isFolder(folder: string): boolean {

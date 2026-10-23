@@ -47,4 +47,12 @@ export const PROJECT_SCHEMA: readonly string[] = [
     vector bytea NOT NULL,
     PRIMARY KEY (model, key)
   )`,
+
+  // Capability 7 · Library API (7.18). The picture of the window a feedback note was sent with, beside its record rather
+  // than in its fields, so the ~150 KB is not copied into `record` and `record_event` on every write. Not a record:
+  // a snapshot leaves it out.
+  `CREATE TABLE IF NOT EXISTS feedback_screenshot (
+    record_id text PRIMARY KEY,
+    jpeg      bytea NOT NULL
+  )`,
 ];

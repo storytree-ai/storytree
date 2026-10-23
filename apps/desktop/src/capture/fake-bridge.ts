@@ -107,6 +107,9 @@ const QUIET: StorytreeBridge = {
   standingDelegations: async () => undefined,
   codeSurvey: async () => ({}),
   recordLag: async () => {},
+  feedbackSetup: async () => ({ offered: false, surfaces: [] }),
+  captureForFeedback: async () => undefined,
+  sendFeedback: async () => { throw new Error("a capture's stand-in bridge writes no feedback"); },
   // Data, not a method: a capture mounts no factory plugin's views.
   pluginViews: [],
 };

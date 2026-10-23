@@ -296,10 +296,12 @@ export function parseTestArgs(argv) {
  * 15 s no-new-frame wait is not widened instead. The world's road-reveal proof likewise: on macOS it
  * took 12-15 s in most merge queue runs, but 76 s in one and past its 80 s bound in another (runs 38092380077 and
  * 38032277103; increment_58dcb2d5c9a5). Knowledge-core's traversal proof too: beside other units on macOS it took 72 s in one
- * run and was killed past 180 s in four others (run 39187115227 among them; increment_724389f3f21d).
+ * run and was killed past 180 s in four others (run 39187115227 among them; increment_724389f3f21d). The desktop's named-surfaces
+ * proof drives the whole renderer's globe too: about 14 s alone, it pushed its package's unit past 60 s beside the
+ * gate's other units on the Mint box (increment_2fd57d63cfae).
  */
 export const ALONE = ["packages/forest/src/view/desktop-renderer-smoke.test.ts", "packages/forest-world/src/planet/road-reveal.test.ts",
-  "packages/knowledge-core/src/traversal-smoke.test.ts"];
+  "packages/knowledge-core/src/traversal-smoke.test.ts", "apps/desktop/src/renderer/named-surfaces.test.ts"];
 
 /** The units with each file to run alone whose package is among them added after them as its own. */
 function withAlone(root, units, alone) {

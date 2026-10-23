@@ -14,7 +14,9 @@ import type { Pool } from "pg";
 import { InheritedRecords } from "../project/factory.js";
 import { DataQuestions } from "../data/data-questions.js";
 import { couldBeId } from "../references.js";
-import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
+import { randomUUID } from "node:crypto";
+
+import type { FieldsOf, RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
 
 /** A connection to one Postgres server and the storytree projects on it. */
@@ -155,9 +157,20 @@ export interface Library
    * back each cursor handed out and no change is ever missed or seen twice.
    */
   changesSince(cursor: number): Promise<Changes>;
+  /**
+   * Keep a note sent from the desktop app's feedback corner as a new `feedback` record, its status new, with
+   * `screenshot`, a JPEG of the window, kept beside it rather than in its fields (Surface feedback 3.2). Fields that do
+   * not fit the type are refused (SchemaError) and nothing is written, the picture included.
+   */
+  sendFeedback(note: FeedbackNote, options?: WriteOptions & { readonly screenshot?: Uint8Array | undefined }): Promise<SchemaRecord<"feedback">>;
+  /** The JPEG a feedback note was sent with, or null for a note sent without one or no note at all. */
+  feedbackScreenshot(id: string): Promise<Uint8Array | null>;
   /** Close this library's connections. */
   close(): Promise<void>;
 }
+
+/** A feedback note as the corner sends it: its record's fields but those the library sets. */
+export type FeedbackNote = Omit<FieldsOf<"feedback">, "status" | "screenshot">;
 
 /** One change to the project's records, as the history keeps it. */
 export interface Change {
@@ -287,6 +300,28 @@ function libraryOf(project: Project): Library {
         changes: entries.map(({ seq, recordId, type, action, record }) => ({ seq, recordId, type, action, record })),
         cursor: entries.at(-1)?.seq ?? cursor,
       };
+    },
+    /**
+     * The picture is stored first, under the id the record is then saved with, so a record saying it has one never
+     * lacks it; a record the schema refuses takes its picture away again.
+     */
+    async sendFeedback(note, options = {}) {
+      const { screenshot, ...write } = options;
+      const id = `feedback_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+      const fields: FieldsOf<"feedback"> = { ...note, status: "new", screenshot: screenshot !== undefined };
+      project.records.check("feedback", fields);
+      if (screenshot !== undefined) await project.pool.query("INSERT INTO feedback_screenshot (record_id, jpeg) VALUES ($1, $2)", [id, Buffer.from(screenshot)]);
+      try {
+        return await project.records.create("feedback", fields, { ...write, id, onlyIfNew: true });
+      } catch (error) {
+        if (screenshot !== undefined) await project.pool.query("DELETE FROM feedback_screenshot WHERE record_id = $1", [id]);
+        throw error;
+      }
+    },
+    async feedbackScreenshot(id) {
+      if (!couldBeId(id)) return null;
+      const { rows } = await project.pool.query<{ jpeg: Buffer }>("SELECT jpeg FROM feedback_screenshot WHERE record_id = $1", [id]);
+      return rows[0] === undefined ? null : new Uint8Array(rows[0].jpeg);
     },
     close: () => project.close(),
   };

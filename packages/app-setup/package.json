@@ -25,7 +25,8 @@
     "./journey-events/release": "./src/journey-events/release.ts",
     "./journey-events/verbs": "./src/journey-events/verbs.ts",
     "./journey-events/feedback": "./src/journey-events/feedback.ts",
-    "./tools": "./src/tools.ts"
+    "./tools": "./src/tools.ts",
+    "./journey-events/named": "./src/journey-events/named.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",
@@ -75,6 +76,12 @@
         "from": "./setup",
         "export": "setupGuidance",
         "order": 10
+      }
+    ],
+    "namedSurfaces": [
+      {
+        "from": "./journey-events/named",
+        "export": "journeyNamedSurfaces"
       }
     ]
   }

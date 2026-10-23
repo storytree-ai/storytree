@@ -1,0 +1,38 @@
+{
+  "name": "@storytree/surface-feedback",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./bridge": "./src/record/bridge.ts",
+    "./naming": "./src/naming/resolve.ts",
+    "./runtime": "./src/record/runtime.ts",
+    "./view": "./src/composer/view.ts"
+  },
+  "storytree": {
+    "pageChannels": [
+      {
+        "from": "./bridge",
+        "export": "feedbackPageChannels"
+      }
+    ],
+    "pageAnswers": [
+      {
+        "from": "./runtime",
+        "export": "feedbackPageAnswers"
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@storytree/library": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "esbuild": "^0.28.2",
+    "playwright-core": "1.60.0",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

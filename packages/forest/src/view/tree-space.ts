@@ -24,6 +24,7 @@ export function mountTreeSpace(host: HTMLElement, on: { choose(id: string): void
   space.className = "tree-space";
   space.hidden = true;
   space.setAttribute("aria-label", "Capability tree");
+  Object.assign(space.dataset, { surfaceId: "capability-tree", surfaceLayer: "overlay" });
   space.innerHTML = `
     <header class="tree-space-head">
       <h2></h2>

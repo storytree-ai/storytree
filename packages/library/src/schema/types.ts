@@ -30,7 +30,8 @@ export type RecordType =
   | "definition"
   | KnowledgeKind
   | "increment"
-  | "question";
+  | "question"
+  | "feedback";
 
 /**
  * Capability 6's kinds beyond decisions and definitions: ADR-0640's eight, each with 0.2's fields
@@ -672,6 +673,28 @@ export const RECORD_SCHEMAS = {
         }
       }
     }),
+  /**
+   * A note the owner sent from the desktop app's feedback corner (Surface feedback, capability 3): what he wrote, the
+   * named surface in front of him and the story that declares it, what he had selected and the project on show, the
+   * app's version, the window's size and theme, and when. `screenshot` says whether a picture of the window is kept
+   * beside it (Library API 7.18); the picture's bytes are never in the fields. `status` is new until the session
+   * manager routes it.
+   */
+  feedback: z
+    .object({
+      text: nonEmpty,
+      surface: nonEmpty,
+      story: nonEmpty.optional(),
+      selection: nonEmpty.optional(),
+      project: nonEmpty.optional(),
+      version: nonEmpty,
+      window: z.object({ width: z.number().int().nonnegative(), height: z.number().int().nonnegative() }).strict(),
+      theme: z.enum(["light", "dark"]),
+      at: nonEmpty,
+      status: z.enum(["new", "routed"]),
+      screenshot: z.boolean(),
+    })
+    .strict(),
 } as const satisfies Record<RecordType, z.ZodType>;
 
 /** The schema version of each type: every record of the type is written on it. */
@@ -698,6 +721,7 @@ export const SCHEMA_VERSIONS: Readonly<Record<RecordType, number>> = {
   experiment: 1,
   increment: 3,
   question: 1,
+  feedback: 1,
 };
 
 /** The fields of a record of type `T`, as its schema declares them. */

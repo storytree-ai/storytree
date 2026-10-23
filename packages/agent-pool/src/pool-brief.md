@@ -26,6 +26,7 @@ Rules for every pool lane on the Mint box (ADR-0955): one dispatcher starts each
   - If your pull request is only one of several the increment lands in, add `--keep-open`: on MERGED the watcher then releases your claims but leaves the increment open for its next step. Write on its body what is done and what is next.
   - Then close out (the `close_out` tool or `pnpm storytree session close-out --safe yes --why "PR #<n> open and green at the gate, handed to the watcher"`), write your report and end. Do not wait for CI, and do not close the increment yourself.
   - Never `gh pr merge`, never squash, never force-push.
+  - Lanes act as an admin who can bypass push protection through the API. Never bypass it. A blocked push means a secret: push nothing, and raise an owner question.
 - **If you are a fix session** (your brief names a pull request the watcher handed you): read the failing log, suspect a stale branch first (merge origin/main, then `pnpm install`), fix, run the gate in the foreground until its table prints, push, and end. The watcher keeps watching.
 - **You exit when you end a turn**, so never end a turn while something you started is still running in the background: a lane that ends its turn to wait exits at once, and its uncommitted work is stranded with no commit, pull request or report.
   - Run `pnpm gate` and `pnpm test` in the foreground and stay in the turn until the PASS / FAIL / NOT RUN table prints, however long the run queues behind another lane's. This overrides the general guidance to run them in the background.

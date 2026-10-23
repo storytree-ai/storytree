@@ -41,10 +41,10 @@ async function named(page: Page): Promise<string> {
   const marked = await page.evaluate("[...document.querySelectorAll('[data-surface-id]')].map(node => node.dataset.surfaceId)") as string[];
   assert.deepEqual(marked.filter((id) => !ids.has(id)), [], "every surface marked on the page is declared");
   await page.keyboard.press("Control+Shift+F");
-  await page.waitForFunction("!document.querySelector('[data-corner-composer]').hidden");
+  await page.waitForFunction(() => !document.querySelector<HTMLElement>("[data-corner-composer]")!.hidden);
   const surface = await page.inputValue("[data-corner-surface]");
   await page.keyboard.press("Escape");
-  await page.waitForFunction("document.querySelector('[data-corner-composer]').hidden");
+  await page.waitForFunction(() => document.querySelector<HTMLElement>("[data-corner-composer]")!.hidden);
   return surface;
 }
 

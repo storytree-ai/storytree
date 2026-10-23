@@ -145,10 +145,19 @@ test("1.13 closing waits for an opening project and concurrent closers, then rel
       assert.deepEqual(finishedWhileOpening, [false, false], "neither close finishes while the project is still opening");
       await assert.rejects(project.transactions.get("after-close"), /pool after calling end/);
       await withTestClient(async (observer) => {
-        const { rows } = await observer.query<{ n: number }>(
-          "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1", [databaseOf(name)],
-        );
-        assert.equal(rows[0]?.n, 0, "no project connection is left on Postgres");
+        // A backend leaves pg_stat_activity a moment after its client disconnects (the blocker's
+        // too), so wait for the count to reach zero rather than reading it once.
+        const deadline = Date.now() + 5_000;
+        for (;;) {
+          const { rows } = await observer.query<{ n: number }>(
+            "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1", [databaseOf(name)],
+          );
+          if (rows[0]?.n === 0 || Date.now() >= deadline) {
+            assert.equal(rows[0]?.n, 0, "no project connection is left on Postgres");
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
       });
     } finally {
       // Also cleans up the orphan when this regression is run against the broken implementation.

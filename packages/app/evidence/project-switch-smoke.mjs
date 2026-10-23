@@ -17,6 +17,7 @@ import { start } from '@storytree/local-postgres';
 import { connect } from '@storytree/library';
 import { setUpProject } from '@storytree/app-setup/project';
 import { pageReads, projectSelection } from '@storytree/app';
+import { fakeBridge } from '../../../apps/desktop/src/capture/index.ts';
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 const out = process.env.STORYTREE_SMOKE_OUT ?? path.join(tmpdir(), 'app-own-projects-evidence');
 mkdirSync(out, { recursive: true });
@@ -48,21 +49,28 @@ try {
   const errors = [];
   const calls = {};
   let failChoice = true;
-  await context.exposeBinding('bridge', async (_source, method, args) => {
-    calls[method] = (calls[method] ?? 0) + 1;
-    if (method === 'projectSelection') return selection.read();
-    if (method === 'chooseProject') {
+  // The capture kit's stand-in bridge: the real reads and project selection, and a quiet answer of
+  // the right shape for every bridge method this smoke does not exercise, so the page keeps reaching
+  // its states as the bridge grows.
+  const answers = {
+    ...Object.fromEntries(Object.entries(reads).filter(([, read]) => typeof read === 'function')),
+    projectSelection: () => selection.read(),
+    chooseProject: (...args) => {
       if (failChoice) { failChoice = false; throw new Error('temporary choice failure'); }
       return selection.choose(...args);
-    }
-    return reads[method](...args);
-  });
-  await context.addInitScript(() => {
-    try { localStorage.setItem('storytree:setup:guide-seen:v1', 'yes'); } catch { /* about:blank has no storage */ }
-    window.storytree = Object.fromEntries(['projectSelection', 'chooseProject', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'holds'].map(name => [name, (...args) => window.bridge(name, args)]));
-  });
-  context.on('page', page => page.on('pageerror', error => errors.push(error.stack ?? String(error))));
-  let page = await context.newPage();
+    },
+  };
+  const bridge = fakeBridge(Object.fromEntries(Object.entries(answers).map(([method, answer]) => [method, (...args) => {
+    calls[method] = (calls[method] ?? 0) + 1;
+    return answer(...args);
+  }])));
+  const newPage = async () => {
+    const opened = await context.newPage();
+    opened.on('pageerror', error => errors.push(error.stack ?? String(error)));
+    await bridge.install(opened);
+    return opened;
+  };
+  let page = await newPage();
   const url = `http://127.0.0.1:${server.address().port}/`;
   const chooseProject = async name => {
     if (!(await page.locator('#app-menu').isVisible())) await page.getByRole('button', { name: 'App menu', exact: true }).click();
@@ -71,8 +79,8 @@ try {
   await page.goto(url);
   await page.waitForFunction(() => document.body.dataset.state === 'empty');
   const emptyText = await page.locator('#content').innerText();
-  assert.match(emptyText, /Claude Code or Codex/);
-  assert.match(emptyText, /say yes/);
+  assert.match(emptyText, /New project…/);
+  assert.match(emptyText, /storytree doctor --set-up/);
   await page.screenshot({ path: path.join(out, 'empty.png') });
   const folder = path.join(home, 'site');
   mkdirSync(folder);
@@ -103,7 +111,7 @@ try {
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site');
   await page.close();
   selection = projectSelection(preferences);
-  page = await context.newPage();
+  page = await newPage();
   await page.goto(url);
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site');
   await page.screenshot({ path: path.join(out, 'remembered-choice.png') });
@@ -115,21 +123,21 @@ try {
   await setup('a-new-site');
   await setup('z-new-site');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'z-new-site');
-  assert.equal(await page.locator('#project option').count(), 5);
+  assert.equal(await page.locator('#project option:not([data-app-new-project])').count(), 5);
   await page.screenshot({ path: path.join(out, 'last-setup-choice.png') });
   await chooseProject('my-site');
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'my-site');
   await page.close();
   await setup('b-closed-site');
   await setup('y-closed-site');
-  page = await context.newPage();
+  page = await newPage();
   await page.goto(url);
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'y-closed-site');
   await page.screenshot({ path: path.join(out, 'closed-window-choice.png') });
   await page.close();
   selection = projectSelection(preferences);
   await selection.read('other-site');
-  page = await context.newPage();
+  page = await newPage();
   await page.goto(url);
   await page.waitForFunction(() => document.body.dataset.state === 'ready' && document.body.dataset.project === 'other-site');
   assert.deepEqual(errors, []);

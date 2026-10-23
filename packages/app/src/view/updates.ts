@@ -3,6 +3,7 @@ import type { LifecycleBridge } from "../lifecycle/bridge.js";
 import type { UpdatesBridge } from "../updates/bridge.js";
 import type { UpdateAction, UpdateState } from "../updates/update-state.js";
 import { nextInstallAt, type InstallChoice, type InstallChoiceState } from "../updates/install-choice.js";
+import type { ReleaseChannel, ReleaseChannelState } from "../updates/release-channel.js";
 
 /**
  * Plain, live status inside the gear; closing the menu never cancels an update. The status is read
@@ -156,4 +157,38 @@ export function mountInstallChoice(host: HTMLElement, bridge: InstallChoiceBridg
   // The next window's day moves with the clock.
   timer = setInterval(() => { if (kept !== undefined) next.textContent = nextInstallText(kept, now()); }, 60_000);
   return { stop() { stopped = true; clearInterval(timer); field.removeEventListener("change", change); }, choice: () => kept };
+}
+
+/** The gear's update channel (4.24); the bridge reads and keeps it in the installation's release-channel.json. */
+export interface ReleaseChannelBridge { read: UpdatesBridge["readReleaseChannel"]; set: UpdatesBridge["setReleaseChannel"] }
+
+/** The Updates section's Update channel choice; shown only where the app installs releases. */
+export function mountReleaseChannel(host: HTMLElement, bridge: ReleaseChannelBridge | undefined) {
+  const field = host.querySelector<HTMLElement>("[data-app-release-channel]")!;
+  const radios = [...field.querySelectorAll<HTMLInputElement>('input[name="app-release-channel"]')];
+  const error = field.querySelector<HTMLElement>("[data-app-release-channel-error]")!;
+  let kept: ReleaseChannel | undefined;
+  let stopped = false;
+  const show = (state: ReleaseChannelState) => {
+    if (stopped) return;
+    kept = state.channel;
+    field.hidden = !state.available;
+    for (const radio of radios) { radio.checked = radio.value === state.channel; radio.disabled = false; }
+  };
+  const change = () => {
+    if (bridge === undefined || kept === undefined) return;
+    const wanted = radios.find(radio => radio.checked)?.value as ReleaseChannel;
+    const previous = kept;
+    for (const radio of radios) radio.disabled = true;
+    error.hidden = true;
+    bridge.set(wanted).then(show, (reason: unknown) => {
+      if (stopped) return;
+      show({ available: true, channel: previous });
+      error.textContent = `Couldn’t change this: ${reason instanceof Error ? reason.message : String(reason)}`;
+      error.hidden = false;
+    });
+  };
+  field.addEventListener("change", change);
+  void bridge?.read().then(show, () => { field.hidden = true; });
+  return { stop() { stopped = true; field.removeEventListener("change", change); } };
 }

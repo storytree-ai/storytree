@@ -378,6 +378,27 @@ for (const platform of PLATFORMS) {
   });
 }
 
+test("4.24 a channel switch takes effect on the next check: the other channel's download is dropped and the running build is never downgraded", async (t) => {
+  const feed = await fixture(t);
+  feed.running = "0.3.5";
+  feed.version = "0.3.9";
+  feed.stable = "0.3.2";
+  let channel: "stable" | "alpha" = "alpha";
+  const updater = feed.updater(async () => assert.fail("no quiet moment, so no restart"), async () => true, async () => false, () => channel);
+  assert.equal(await updater.check(), "waiting");
+  assert.equal(updater.request("status").nextBuild, "0.3.9");
+  channel = "stable";
+  assert.equal(await updater.check(), "current", "stable's 0.3.2 is older than the running build, which stays");
+  assert.equal(updater.request("status").phase, "up-to-date");
+  assert.equal(updater.request("status").nextBuild, undefined, "alpha's download is not offered on stable");
+  feed.stable = "0.3.7";
+  assert.equal(await updater.check(), "waiting");
+  assert.equal(updater.request("status").nextBuild, "0.3.7");
+  channel = "alpha";
+  assert.equal(await updater.check(), "waiting");
+  assert.equal(updater.request("status").nextBuild, "0.3.9", "back on alpha, its own feed again");
+});
+
 /** A real local feed and electron-updater's real download/checksum path; no installer is executed. */
 async function fixture(t: test.TestContext, platform: Platform = "win32") {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-release-"));
@@ -434,9 +455,9 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   return Object.assign(state, {
     holds: path.join(dir, "update-holds"),
     appImage,
-    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "alpha") {
+    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "alpha" | (() => "stable" | "alpha")) {
       if (platform === "darwin") electron.autoUpdater = state.squirrel = new Squirrel();
-      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", sandboxOff: state.sandboxOff, ...(state.recheck === undefined ? {} : { recheck: state.recheck }), ...(channel ? { releaseChannel: () => channel } : {}) }, {
+      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", sandboxOff: state.sandboxOff, ...(state.recheck === undefined ? {} : { recheck: state.recheck }), ...(channel ? { releaseChannel: typeof channel === "function" ? channel : () => channel } : {}) }, {
         version: state.running, name: "storytree-test", isPackaged: true,
         appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),

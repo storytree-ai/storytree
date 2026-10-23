@@ -17,7 +17,7 @@ export interface ReleaseOptions {
   readonly quiet: () => Promise<boolean>;
   /** This installed app's storytree home, where a named acceptance run can hold automatic updates. */
   readonly home?: string;
-  /** Read on the first check so an unreadable channel fails the check, never app startup. */
+  /** Read on every check, never at startup, so an unreadable channel fails the check and a switch takes effect on the next one. */
   readonly releaseChannel?: () => ReleaseChannel;
   /** On macOS, the app bundle a restart opens once Squirrel has installed into it; by default the one holding this executable. */
   readonly bundle?: string;
@@ -205,9 +205,14 @@ export class ReleaseUpdater {
   private async checkOnce(): Promise<Check> {
     if (this.stopped) return "stopped";
     if (this.restarting !== undefined) return "restarting";
-    if (this.selectedChannel === undefined && this.options.releaseChannel !== undefined) {
-      const channel = this.options.releaseChannel();
+    // Read on every check, so the user's switch (4.24) takes effect on the next one.
+    const channel = this.options.releaseChannel?.();
+    if (channel !== undefined && channel !== this.selectedChannel) {
       if (channel === "stable") this.base.setFeedURL({ provider: "generic", url: STABLE_FEED });
+      // With no feed set, electron-updater reads the installed app-update.yml again: alpha's own feed.
+      else if (this.selectedChannel !== undefined) (this.base as unknown as { clientPromise: unknown }).clientPromise = null;
+      // A download taken from the other channel is not this one's to install.
+      if (this.selectedChannel !== undefined) { this.downloaded = false; this.next = undefined; }
       this.selectedChannel = channel;
       this.base.logger?.info(`Following the ${channel} release channel`);
     }

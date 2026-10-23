@@ -116,7 +116,7 @@ import { titleWindow } from "./window-title.js";
 import { bringWindowForward } from "./window-shown.js";
 import { PLUGIN_SCHEME, pluginResponse, windowStandIns } from "./stand-ins.js";
 import { finishStartCheck, runWhenReady } from "./start-check.js";
-import { processLaunchedAt, startMarks } from "./start-marks.js";
+import { answerStartMarks, processLaunchedAt, startMarks } from "./start-marks.js";
 import { START_MARK } from "../bridge.js";
 
 // A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
@@ -225,9 +225,7 @@ if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
 
 async function run(): Promise<void> {
   marks.mark("app ready");
-  ipcMain.handle(START_MARK, (_event, name: unknown, at: unknown) => {
-    if (typeof name === "string" && typeof at === "number") marks.mark(name, at);
-  });
+  answerStartMarks(ipcMain, START_MARK, marks);
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   const appVersion = app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0");
   // The journey stays in the frame, not in a manifest (ADR-1030 D4): the frame is its client too, telling it of the launch,

@@ -30,3 +30,10 @@ export function startMarks({ launchedAt, file, now = Date.now }: { launchedAt: n
     },
   };
 }
+
+/** Answer the page's marks (bridge.ts's startMark, a name and when it was reached) on `channel`; anything else is ignored. */
+export function answerStartMarks(ipc: { handle(channel: string, answer: (event: unknown, ...args: unknown[]) => void): void }, channel: string, marks: StartMarks): void {
+  ipc.handle(channel, (_event, name, at) => {
+    if (typeof name === "string" && typeof at === "number" && Number.isFinite(at)) marks.mark(name, at);
+  });
+}

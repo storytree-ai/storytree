@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { startMarks } from "./start-marks.js";
+import { answerStartMarks, startMarks } from "./start-marks.js";
 
 test("1.33 · a start writes each timing mark once to app.log, as milliseconds from launch", () => {
   const file = path.join(mkdtempSync(path.join(tmpdir(), "start-marks-")), "app.log");
@@ -21,4 +21,15 @@ test("1.33 · a start writes each timing mark once to app.log, as milliseconds f
 test("1.33 · a mark that cannot be written never stops the app", () => {
   const marks = startMarks({ launchedAt: 0, file: path.join(tmpdir(), "no-such-dir", "nested", "app.log") });
   assert.doesNotThrow(() => marks.mark("app ready"));
+});
+
+test("1.33 · the page's marks reach app.log through the main process; a malformed one is ignored", () => {
+  const file = path.join(mkdtempSync(path.join(tmpdir(), "start-marks-")), "app.log");
+  const answers = new Map<string, (event: unknown, ...args: unknown[]) => void>();
+  answerStartMarks({ handle: (channel, answer) => answers.set(channel, answer) }, "start-mark", startMarks({ launchedAt: 1_000, file }));
+  const answer = answers.get("start-mark")!;
+  answer({}, "kept reading read start", "soon");
+  answer({}, 42, 1_500);
+  answer({}, "kept reading read start", 1_120);
+  assert.deepEqual(readFileSync(file, "utf8").trim().split("\n").map((line) => line.replace(/^\S+ /, "")), ["start mark: kept reading read start +120 ms"]);
 });

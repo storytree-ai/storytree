@@ -126,6 +126,24 @@ test("1.1 an evidence script no test runs reaches no package; one a test names, 
   assert.deepEqual(decision.dirs, ["packages/forest", "packages/shop", "packages/website"]);
 });
 
+test("1.1 a glob naming no script, such as a git pathspec over every evidence folder, keeps no evidence script", (t) => {
+  const root = workspace(t, {
+    packages: {
+      "packages/website": { name: "@x/website", files: { "src/site.ts": "" } },
+      "packages/world": {
+        name: "@x/world",
+        files: {
+          "src/sweep.mjs": 'git("ls-files", "--", ".", ":(exclude,glob)**/evidence/**");\nconst all = "evidence/*";\n',
+          "evidence/tour/unrun-tour.mjs": 'const site = "../../../website/src/site.ts";\n',
+          "evidence/top.mjs": 'const site = "../../website/src/site.ts";\n',
+        },
+      },
+    },
+  });
+  const decision = classify(["packages/website/src/site.ts"], readWorkspace(root));
+  assert.deepEqual(decision.dirs, ["packages/website"]);
+});
+
 test("1.1 the real workspace: the capture scripts no test runs (forest-world's website-reveal, forest's probe-website) draw no edge into website", () => {
   const ws = readWorkspace(repoRoot);
   for (const dir of ["packages/forest", "packages/forest-world"]) assert.ok(!ws.find((p) => p.dir === dir).reaches.includes("packages/website"), dir);

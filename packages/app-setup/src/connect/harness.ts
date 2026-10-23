@@ -38,8 +38,8 @@ export function read(file: string): string | undefined {
   catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined; throw error; }
 }
 
-/** Refuse a concurrent settings edit; never replace a user's symlink or truncate their file. */
-function save(file: string, before: string | undefined, after: string): void {
+/** Refuse a concurrent settings edit; never replace a user's symlink or truncate their file. A new file is its owner's alone (0600). */
+export function save(file: string, before: string | undefined, after: string): void {
   if (before === after) return;
   mkdirSync(path.dirname(file), { recursive: true });
   try {

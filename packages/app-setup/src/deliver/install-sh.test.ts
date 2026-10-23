@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
@@ -30,3 +33,16 @@ for (const shell of ["sh", "bash", "zsh"]) {
     assert.match(result.stdout, /install\.sh PASS/);
   });
 }
+
+test("1.14 on Linux and macOS, the one-liner makes storytree's home readable by its owner alone (0700), and the release channel record it saves there 0600", {
+  skip: process.platform === "win32" && "platform:posix: the one-liner runs under a POSIX shell, which Windows CI does not provide",
+}, () => {
+  const root = mkdtempSync(path.join(tmpdir(), "storytree-home-"));
+  try {
+    const home = path.join(root, ".storytree", "0.3");
+    const result = spawnSync("sh", ["-c", 'umask 022; STORYTREE_INSTALL_LIBRARY=1; . "$1"; st_save_channel "$2" stable', "sh", script, home], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    for (const folder of [path.dirname(home), home]) assert.equal(statSync(folder).mode & 0o777, 0o700, folder);
+    assert.equal(statSync(path.join(home, "release-channel.json")).mode & 0o777, 0o600);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

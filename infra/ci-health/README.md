@@ -54,3 +54,7 @@ gcloud iam workload-identity-pools providers describe storytree-0-3-main \
   --format='value(attributeCondition)'
 # assertion.repository_id == '1388231144' && assertion.ref == 'refs/heads/main'
 ```
+
+Its mappings are limited to what bindings use: `attribute.job_workflow_ref`, which
+infra/website-publish's binding names, beside `google.subject` and `attribute.repository_id`
+(`--format='json(attributeMapping)'` on the same command lists them).

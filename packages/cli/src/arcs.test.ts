@@ -710,7 +710,7 @@ test("4.6 closing an increment ends its claim for any outcome, closed by its hol
         const another = await world.run([...close, ...outcome], { CODEX_THREAD_ID: "closer" });
         assert.equal(another.code, 1, another.stdout);
         assert.match(another.stderr, /held by .*holder/);
-        assert.notEqual((await library.get(increment.id))?.fields.status, "closed", "another live session's close leaves it open");
+        assert.notEqual((await library.arcView(arc))?.increments.find((one) => one.id === increment.id)?.fields.status, "closed", "another live session's close leaves it open");
         assert.deepEqual(await logged(log, world.project), before);
 
         const ran = await world.run([...close, ...outcome], env);

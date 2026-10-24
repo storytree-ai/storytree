@@ -19,7 +19,7 @@ afterEach(async () => {
   else Reflect.deleteProperty(globalThis, "document");
 });
 
-test("3.12 Your factory (app menu): shows the factory folder in use, storytree's own or one switched to, and \"Import or switch factory…\" switches it at once with no approval step, saying a refused folder's reason; nothing tells the user to ask their agent", async () => {
+test("3.12 Your factory (app menu): shows the factory folder in use by its path alone, the default or one switched to, and \"Import or switch factory…\" switches it at once with no approval step, saying a refused folder's reason; nothing tells the user to ask their agent", async () => {
   let factory: FactoryFolder = { folder: "/home/me/.storytree/your-factory", chosen: false };
   let answer: () => Promise<ChosenFactory | null> = async () => null;
   const host = document.createElement("div") as unknown as HTMLElement;
@@ -27,8 +27,7 @@ test("3.12 Your factory (app menu): shows the factory folder in use, storytree's
   mountFactory(host, { factoryFolder: async () => factory, chooseFactory: () => answer() });
   await setImmediate();
   const text = () => host.textContent ?? "";
-  assert.match(text(), /\/home\/me\/\.storytree\/your-factory/);
-  assert.match(text(), /storytree's own/);
+  assert.equal(host.querySelector("[data-factory-folder]")!.textContent, "/home/me/.storytree/your-factory", "the default folder's path alone");
 
   const button = host.querySelector<HTMLButtonElement>("[data-switch-factory]")!;
   assert.equal(button.textContent, "Import or switch factory…");
@@ -39,7 +38,7 @@ test("3.12 Your factory (app menu): shows the factory folder in use, storytree's
   answer = async () => { factory = { folder: "/work/my-factory", chosen: true, switched: { through: "desktop app", at: "2026-10-23T05:00:00.000Z" } }; return { status: "set up", folder: "/work/my-factory" }; };
   button.click();
   await setImmediate(); await setImmediate();
-  assert.match(host.querySelector("[data-factory-folder]")!.textContent!, /\/work\/my-factory/, "the folder in use is shown at once");
+  assert.equal(host.querySelector("[data-factory-folder]")!.textContent, "/work/my-factory", "the folder in use is shown at once");
   assert.match(host.querySelector("[data-factory-status]")!.textContent!, /now your factory, set up for your plugins/);
   assert.equal(host.querySelector("[role=dialog], [data-approve]"), null, "no approval step");
 

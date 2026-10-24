@@ -49,6 +49,9 @@ import { PackageGraph, readChange, readPackages, riskLineText, type ChangeReadin
 /** The reviews of one change that may run while a finding still stands (ADR-1120 D1, replacing ADR-0956 D7's ten). */
 export const REVIEW_LIMIT = 3;
 
+/** The check a hit is recorded under when a contract the change touches is answered met with no test covering the changed behaviour (contract 2.13, ADR-1153 D2). */
+export const COVERING_TEST = "covering-test";
+
 /** One review's brief: everything the change-reviewer reads. */
 export interface Brief {
   readonly project: string;

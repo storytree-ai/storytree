@@ -15,7 +15,7 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { branchDiff, briefText, changeFolder, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, takenText, worktreeChange, type ReviewReturn } from "../index.js";
+import { branchDiff, briefText, changeFolder, COVERING_TEST, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, takenText, worktreeChange, type ReviewReturn } from "../index.js";
 
 const DIFF = [
   "diff --git a/packages/forest-world/src/camera.test.ts b/packages/forest-world/src/camera.test.ts",
@@ -47,9 +47,12 @@ function clean(checks: readonly string[], contracts: readonly string[], tripped:
   return {
     review,
     checks: checks.map((check) => ({ check, tripped: (tripped[check] ?? []).length > 0, hits: tripped[check] ?? [] })),
-    contracts: contracts.map((contract) => ({ contract, met: true })),
+    contracts: contracts.map((contract) => ({ contract, met: true, touched: true, test: `${COVERING} › the contract's test` })),
   };
 }
+
+/** The test file a clean return names as each touched contract's covering test (contract 2.13). */
+const COVERING = "packages/forest-world/src/camera.test.ts";
 
 test("2.1 · the first brief holds the branch's diff, every contract of the capabilities the increment names and every live check with its question, and not the increment's body", async () => {
   await withLibrary(async (library, storytree) => {
@@ -615,5 +618,34 @@ test("2.12 · a later review that passes the guardrail clears it", async () => {
     const taken = await reviews.take(library.name, increment, { ...clean(checks, contracts, {}, 2), guardrails: [{ guardrail, passed: true, pictures: ["b.png"] }] });
     assert.deepEqual(taken.failed, []);
     assert.match(standingText(taken.standing, taken.unmet, await reviews.failed(library.name, increment)), /ready for the gate/);
+  });
+});
+
+test("2.13 · a return says of each contract whether the change touches it; a touched one answered met names its covering test, or is taken as a hit at the changed line asking for one, and one the change rewords cannot be answered untouched", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    await library.advanceIncrement(increment, "active");
+    await library.pendChange(increment, { record: contracts[0]!, fields: { title: "1.1 · A bad email is refused, saying why" } });
+    const reviews = await openReviews(storytree);
+    const ledger = await openLedger(storytree);
+    await reviews.brief(library, increment, DIFF);
+    const base = clean(checks, []);
+    const answer = (...given: ReviewReturn["contracts"]) => ({ ...base, contracts: given });
+
+    const before = await ledger.rows(library.name);
+    await assert.rejects(reviews.take(library.name, increment, answer({ contract: contracts[0]!, met: true, touched: true, test: "a › b" }, { contract: contracts[1]!, met: true })), new RegExp(`contract ${contracts[1]} does not say whether the change touches it`));
+    await assert.rejects(reviews.take(library.name, increment, answer({ contract: contracts[0]!, met: true, touched: true, test: "a › b" }, { contract: contracts[1]!, met: true, touched: true })), new RegExp(`contract ${contracts[1]} is touched by the change and met, and names no covering test`));
+    await assert.rejects(reviews.take(library.name, increment, answer({ contract: contracts[0]!, met: true, touched: false }, { contract: contracts[1]!, met: true, touched: false })), new RegExp(`contract ${contracts[0]} is reworded by this change, so the change touches it`));
+    await assert.rejects(reviews.take(library.name, increment, answer({ contract: contracts[0]!, met: true, touched: true, test: "a › b" }, { contract: contracts[1]!, met: true, touched: true, at: { file: "packages/website/src/x.ts", line: 3 } })), /package website, which the diff does not touch/);
+    assert.deepEqual(await ledger.rows(library.name), before);
+
+    const taken = await reviews.take(library.name, increment, answer(
+      { contract: contracts[0]!, met: true, touched: true, test: `${COVERING} › 1.1 · a bad email is refused` },
+      { contract: contracts[1]!, met: true, touched: true, at: { file: "packages/library/src/a.ts", line: 1 } },
+    ));
+    assert.deepEqual(taken.hits.map(({ check, package: pkg, file, line, found }) => ({ check, package: pkg, file, line, found })), [
+      { check: COVERING_TEST, package: "library", file: "packages/library/src/a.ts", line: 1, found: `contract ${contracts[1]} (1.2 · A good email is kept): the change touches it and no test covers the changed behaviour; add one` },
+    ]);
+    assert.deepEqual(taken.standing.map(({ check }) => check), [COVERING_TEST]);
   });
 });

@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 
 import { FUNCTION_HOOKS, PLUGIN_FOLDER, SESSION_FILE } from "./claude-code-mod/index.mjs";
 
+import { LANE_FAILURES, recordLaneFailure } from "./feed.mjs";
 import { assessAllowance, detectLimitHit, engineControls, iso, laneSettings, pickEngine, pickFresh, readLatestAllowance, readOptional } from "./engine.mjs";
 
 async function loginEnvironment(home, env) {
@@ -70,7 +71,7 @@ async function runEngine(command, args, { cwd, env, log, err }) {
       child.on("close", async (code, signal) => {
         process.off("SIGINT", interrupt); process.off("SIGTERM", terminate);
         if (failure) await errors.write(`${failure.message}\n`);
-        done({ code: failure ? 127 : code ?? 128 + (constants.signals[signal] ?? 1), interrupted });
+        done({ code: failure ? 127 : code ?? 128 + (constants.signals[signal] ?? 1), interrupted, signaled: signal !== null });
       });
     });
   } finally { await output.close(); await errors?.close(); }
@@ -159,9 +160,28 @@ async function leaveResidue({ increment, session, logs, storytree, day, dated })
   dated(`residue written on ${increment}${released.length ? `; released ${released.join(", ")}` : ""}`);
 }
 
+/**
+ * A lane that failed (1.17): recorded by `failed`, which gives back the increment's failures so far, or null for a lane refused a claim,
+ * which is no failure. At the LANE_FAILURES-th, residue on the increment names each, since the pool offers it no more (2.27).
+ */
+async function laneFailed({ increment, why, logs, lane, started, failed, storytree, day, dated }) {
+  const failures = await Promise.resolve().then(() => failed({ increment, why, logs, ...(lane ? { lane } : {}), started }))
+    .catch((error) => { dated(`failed lane on ${increment} not recorded: ${String(error.message).split("\n")[0]}`); return null; });
+  if (!failures) return;
+  dated(`lane on ${increment} failed (${why}): ${failures.length} of ${LANE_FAILURES}`);
+  if (failures.length !== LANE_FAILURES) return;
+  const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${String(error.message).split("\n")[0]}`); return ""; });
+  const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
+  const residue = `Residue (lane runner, ${day}): this increment's pool lanes failed ${failures.length} times, so the pool offers it no more (Agent runner 2.27); a session takes it from this arc by hand.`
+    + ` Each failure: ${failures.map((one, n) => `${n + 1}. ${one.at}: ${one.why}${one.logs?.length ? ` (${one.logs.join(", ")})` : ""}`).join("; ")}.`
+    + " Read those logs and any worktree they left before starting again.";
+  await tell(["arc", "increment", "edit", increment, "--body", body ? `${body}\n\n${residue}` : residue]);
+  dated(`residue written on ${increment}: the pool offers it no more`);
+}
+
 export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd(), home = homedir(), env = process.env,
   commands = { codex: ["codex"], claude: ["claude"] }, now = Date.now, say = console.log, increment,
-  heads = (id) => remoteHeads(id, cwd),
+  heads = (id) => remoteHeads(id, cwd), failed = (failure) => recordLaneFailure(failure),
   storytree = async (args) => (await run("pnpm", ["-s", "storytree", ...args], { cwd, env, maxBuffer: 16 * 1024 * 1024 })).stdout }) {
   const original = await readFile(brief, "utf8");
   if (!original.trim()) throw new Error(`brief ${brief} is empty`);
@@ -171,6 +191,8 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   const refresh = () => probeCodex(commands.codex, { cwd, env: engineEnvironment("codex", login, log), model: settings.models.codex, log: `${log.replace(/\.log$/, "")}.probe.log` });
   const picked = await pickFresh({ ...settings, now: now() / 1000, refresh });
   dated(`engine ${picked.engine} ${picked.reason}`);
+  const began = new Date(now()).toISOString();
+  const day = began.slice(0, 10);
   const before = increment ? await traces({ increment, lanesDir: settings.lanesDir, heads }) : null;
   let last = { engine: picked.engine, log, err };
   let started = now();
@@ -205,7 +227,10 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
       return 75;
     }
     if (!leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {
-      await leaveResidue({ increment, session, logs: [last.log, resumed.log], storytree, day: new Date(now()).toISOString().slice(0, 10), dated });
+      await leaveResidue({ increment, session, logs: [last.log, resumed.log], storytree, day, dated });
+      // A resume an operator stopped (a signal) is no failure of the lane's.
+      if (!result.signaled) await laneFailed({ increment, why: `exit 0 with no report and no push, twice (started, then resumed once; the resume exited ${result.code})`, logs: [last.log, resumed.log],
+        lane: session, started: began, failed, storytree, day, dated });
       return 1;
     }
     return result.code;
@@ -214,6 +239,10 @@ export async function runLane({ brief, log, err, addDirs = [], cwd = process.cwd
   if (result.code !== 0 && (now() - started) / 1000 < fastFail) {
     dated(`engine failed within ${fastFail}s: exit 75 so the runner keeps this lane queued`);
     return 75;
+  }
+  // A slow failing exit of the engine's own (not a signal: an operator's stop) that left nothing is a failed lane.
+  if (before && result.code !== 0 && !result.signaled && !leftSomething(before, await traces({ increment, lanesDir: settings.lanesDir, heads }))) {
+    await laneFailed({ increment, why: `exit ${result.code} with no report and no push`, logs: [last.log], lane: await sessionOf(last.log), started: began, failed, storytree, day, dated });
   }
   return result.code;
 }

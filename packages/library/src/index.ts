@@ -1,6 +1,7 @@
 // Capability 7 · Library API. @storytree/library: the project library every later storytree story reads and writes, and the
 // only way to reach it (capability 7 · Library API, the library story). At run time this entry
-// exports connect(), the errors a caller may need to catch by class, the name a seed's
+// exports connect(), the errors a caller may need to catch by class, the default connect limit and
+// the one wording of its refusal (CONNECT_TIMEOUT_MS, explainConnectTimeout, ADR-1163 D1), the name a seed's
 // connection carries while it writes (SEED_CONNECTION), and the schema an activity log line is
 // checked against (NEW_LINE, ADR-1017 D3), and the one reader of a process's schedule (parseSchedule, OWNER_TIME_ZONE,
 // ADR-1105 D1), so what works out what is due reads the words as they were validated. Everything else it exports
@@ -11,7 +12,7 @@ export { connect } from "./api/index.js";
 export type { Change, Changes, FeedbackNote, FeedbackRoute, Library, Storytree } from "./api/index.js";
 export type { CloudSqlConfig, ConnectionProblem, ConnectOptions, FactoryLink, OpenOptions, OwnDatabaseOptions, ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./project/index.js";
 
-export { ConnectionError, connectionString, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
+export { CONNECT_TIMEOUT_MS, ConnectionError, connectionString, explainConnectTimeout, ProjectGoneError, ProjectNameError, RestoreRefusedError, SEED_CONNECTION } from "./project/index.js";
 export { knowledgeGuidance, LinkLoopError, SupersessionLoopError } from "./knowledge/index.js";
 export { DependencyLoopError, MissingReferenceError } from "./references.js";
 export { NumberTakenError } from "./transactions/index.js";

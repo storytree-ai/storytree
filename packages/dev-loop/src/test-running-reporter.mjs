@@ -61,6 +61,8 @@ export default async function* running(source) {
       // what unit-run.mjs gives back for each test's limit to be learned from (ADR-1152).
       // The file's own entry is named by the path it was given, which its absolute one ends with.
       const isFile = nesting === 0 && testFile && `/${testFile.replaceAll("\\", "/")}`.endsWith(`/${name.replaceAll("\\", "/").replace(/^\.\//, "")}`);
+      // A file's own end says whether it passed, so a file that failed before any test in it ended (a red import) is kept (ADR-1153 D3).
+      if (isFile && event.type === "test:complete") entry.passed = event.data.details.passed;
       if (!isFile && testFile !== undefined) {
         const key = (id) => `${testFile}\0${id}`;
         if (event.type === "test:dequeue") names.set(key(testId), { name, parentId });

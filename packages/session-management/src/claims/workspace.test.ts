@@ -609,6 +609,7 @@ test("19.2 · a setup step that fails (a command exiting non-zero, a path with `
     const checkedIn = await makeWorkspace(as("A"), await park("profile"), "building the profile");
     assert.ok(checkedIn.ok && checkedIn.status === "ready", JSON.stringify(checkedIn));
     assert.match(checkedIn.setup?.steps[0]?.why ?? "", /git tracks it/);
+    assert.equal(checkedIn.setup?.steps[0]?.ok, false, "a tracked local file is a failed step");
     assert.ok(!existsSync(path.join(checkedIn.folder, "tracked-ran.txt")), "a checked-in file's commands are not run");
   });
 });

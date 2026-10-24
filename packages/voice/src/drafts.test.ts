@@ -133,7 +133,13 @@ function committerScratch(t: { after: (fn: () => void) => void }) {
       HOME: dir,
       REPO_DIR: repo.dir,
       STORYTREE_SESSION_ID: "the-timers-own-session",
-      STORYTREE_CLI: JSON.stringify(["sh", "-c", 'echo "$STORYTREE_SESSION_ID $*" >> "$0"; cat "${5#@}" >> "$0"; echo >> "$0"', cliLog]),
+      // Node, not sh: Git Bash on Windows expands an "@file" argument as a response file before the script sees it.
+      STORYTREE_CLI: JSON.stringify([
+        process.execPath,
+        "-e",
+        'const fs = require("fs"); const [log, ...args] = process.argv.slice(1); fs.appendFileSync(log, `${process.env.STORYTREE_SESSION_ID} ${args.join(" ")}\n${fs.readFileSync(args[4].slice(1), "utf8")}\n`);',
+        cliLog,
+      ]),
       // Writes a reply into the file the brief's last line names, as the run is told to.
       VOICE_RUN_LANE: JSON.stringify(["sh", "-c", 'echo "$1" >> "$0"; f=$(tail -n 1 "$1"); echo "I parked one increment and asked you one question." > "${f#Reply file: }"', laneLog]),
       VOICE_RUNS_DIR: path.join(dir, "runs"),

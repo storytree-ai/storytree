@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { VerbRefusal, type DoorWords } from "@storytree/library/verbs";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 
-import { ARM_FAMILY } from "./arm-verbs.js";
+import { ARM_FAMILY, localAdmin } from "./arm-verbs.js";
 import { EXPERIMENT_FAMILIES } from "./record/verbs.js";
 
 const WORDS: DoorWords = { door: "command", say: (step) => `storytree ${step.command}` };
@@ -31,4 +31,13 @@ test("2.4 · Experiments declares `experiment arm make`, `grant` and `drop`, whi
       else process.env.STORYTREE_HOME = before;
     }
   });
+});
+
+test("2.6 · The arm verbs sign in to the cluster as this machine's own user over its local socket, with no password, never as the library's role", () => {
+  const admin = localAdmin("postgres://storytree_library@127.0.0.1:5433/storytree", "storytree-activity");
+  assert.equal(admin.user, process.env.USER ?? process.env.USERNAME);
+  assert.equal(admin.password, undefined);
+  assert.equal(admin.host, "/var/run/postgresql");
+  assert.equal(admin.port, 5433);
+  assert.equal(admin.database, "storytree-activity");
 });

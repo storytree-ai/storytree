@@ -7,8 +7,8 @@
  *   first place on it a break fits; with more than the cap, they are spread evenly across the change (7.1).
  * - Arid lines get none (7.1): a logging or output call, the setting of an upper-case constant, and every line on the arid
  *   list, which a rejected survivor's line joins (7.4).
- * - The tests that reach a file are the test files whose imports lead to it, in its own package and those downstream of it,
- *   nearest first and at most {@link TEST_CAP}. Tests that fail with nothing broken are left out, and a break with none left is
+ * - The tests that reach a file are the test files whose imports lead to it in its own package, or, when none there does, in
+ *   the packages downstream of it, nearest first and at most {@link TEST_CAP}. Tests that fail with nothing broken are left out, and a break with none left is
  *   not run and says why; a file no test reaches at all survives untried (7.2).
  * - The report runs with the brief read from a change's worktree and is kept with that review; taking the review's return
  *   records each survivor as a hit found by the mutation report (7.3). It never blocks: a report that cannot run says why and
@@ -282,11 +282,11 @@ export function readReach(root: string, folders: readonly string[]): Reach {
     return order;
   };
   return {
-    // Its own package's tests come first, nearest first, then those downstream.
+    // Its own package's tests, nearest first; those downstream only when its own package has none that reach it.
     tests: (file, cap = TEST_CAP) => {
-      const own = folderOf(file);
       const reached = closure(file).filter((one) => TEST.test(one));
-      return [...reached.filter((one) => folderOf(one) === own), ...reached.filter((one) => folderOf(one) !== own)].slice(0, cap);
+      const own = reached.filter((one) => folderOf(one) === folderOf(file));
+      return (own.length > 0 ? own : reached).slice(0, cap);
     },
     damage: (file) => closure(file).filter((one) => !TEST.test(one) && !TEST_SUPPORT.test(one)).length,
   };
@@ -595,6 +595,8 @@ export async function recordSurvivors(server: Pick<Storytree, "ownDatabase">, pr
 export async function briefWithReport(server: Pick<Storytree, "ownDatabase">, brief: Brief, root: string | undefined, options: Parameters<typeof mutationReport>[3] = {}): Promise<{ text: string; mutation?: MutationReport }> {
   if (root === undefined) return { text: briefText(brief) };
   const mutation = await reportForBrief(server, brief.project, brief.change, brief.iteration, root, brief.diff, options);
+  // A change with no line a break fits, as a test-only or a docs change is, leaves the brief as it was.
+  if (mutation.ran && mutation.planted === 0) return { text: briefText(brief), mutation };
   return { text: `${briefText(brief)}\n\n${mutationText(mutation)}`, mutation };
 }
 

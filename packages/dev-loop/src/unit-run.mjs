@@ -24,7 +24,7 @@
 // A run that gives its own default never gives a learned deadline under it: CI carries its history
 // from main's runs, and a pull request's kills are never carried back to grow it (increment_d51b4f1d9fc8).
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -251,7 +251,7 @@ function endedNotExited(runningFile, since) {
  */
 function endedTests(runningFile, root, limitMs) {
   return readJsonLines(runningFile).flatMap((entry) => entry.event !== "end" || entry.fullName === undefined ? [] : [{
-    file: path.relative(root, entry.file).replaceAll("\\", "/"),
+    file: path.relative(root, realPath(entry.file)).replaceAll("\\", "/"),
     name: entry.fullName,
     result: entry.passed ? "pass" : "fail",
     ms: Math.round(entry.ms),
@@ -262,8 +262,17 @@ function endedTests(runningFile, root, limitMs) {
 /** The files, from root, whose own entry ended failed with no test in them ended: a file that failed to load. */
 function failedUnloaded(runningFile, root) {
   const lines = readJsonLines(runningFile).filter((entry) => entry.event === "end");
-  const ran = new Set(lines.filter((entry) => entry.fullName !== undefined).map((entry) => entry.file));
-  return lines.filter((entry) => isFileEntry(entry) && entry.passed === false && !ran.has(entry.file)).map((entry) => path.relative(root, entry.file).replaceAll("\\", "/"));
+  const ran = new Set(lines.filter((entry) => entry.fullName !== undefined).map((entry) => realPath(entry.file)));
+  return lines.filter((entry) => isFileEntry(entry) && entry.passed === false && !ran.has(realPath(entry.file))).map((entry) => path.relative(root, realPath(entry.file)).replaceAll("\\", "/"));
+}
+
+/** A file by its real path, as macOS names a temporary file one way for its tests and another (under /private) for itself. */
+function realPath(file) {
+  try {
+    return realpathSync(file);
+  } catch {
+    return file;
+  }
 }
 
 /** The tests started and not yet ended, the innermost of each file; a file stuck outside any test is named alone. */

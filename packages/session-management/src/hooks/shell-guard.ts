@@ -17,15 +17,15 @@
  * has it. That needs storytree; unreached in time, it says nothing of them, as the gate lets an edit go ahead.
  * Like every hook it never breaks the agent: on any failure it says nothing.
  */
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import type { NewLine, Storytree } from "@storytree/library";
 
 import { worktreeRoot } from "../activity/branch.js";
+import { runGit, type Git } from "../activity/git.js";
 import type { DeclaredCapabilities, ImportedFolderPlace } from "../claims/edit-gate.js";
-import { importsOf, machineOf, route, type LocateOptions } from "@storytree/project-and-caller";
+import { approvedHere, importsOf, machineOf, route, type LocateOptions } from "@storytree/project-and-caller";
 import { gated } from "./edit-gate.js";
 import type { HookFailure } from "./failures.js";
 import type { HookLines } from "./hooks.js";
@@ -56,7 +56,7 @@ export function rememberedImports(home: string, project: string): ImportedFolder
  * machine, and set their baselines for `line`'s session (at its start, before a command, after an edit tool, so an edit
  * the gate let through is not blamed on the next command). Never throws; `failed` keeps why.
  */
-export async function watchImports(storytree: Storytree, project: string, machineHome: string, home: string, line: NewLine, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<void> {
+export async function watchImports(storytree: Storytree, project: string, machineHome: string, home: string, line: NewLine, failed: (stage: HookFailure["stage"], error: unknown) => void, git: Git = runGit): Promise<void> {
   if (!["session-started", "command-started", "file-edited"].includes(line.kind)) return;
   try {
     const imports = (await importsOf(storytree, project, machineOf(machineHome).id)).map(({ folder, repository }) => ({ folder, ...(repository === undefined ? {} : { repository }) }));
@@ -64,7 +64,7 @@ export async function watchImports(storytree: Storytree, project: string, machin
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(`${file}.${process.pid}.part`, JSON.stringify(imports));
     renameSync(`${file}.${process.pid}.part`, file);
-    for (const { folder } of imports) shellEdits(baselines(home), folder, line, (error) => failed("observe", error));
+    for (const { folder } of imports) shellEdits(baselines(home), folder, line, (error) => failed("observe", error), git);
   } catch (error) {
     failed("observe", error);
   }
@@ -72,20 +72,21 @@ export async function watchImports(storytree: Storytree, project: string, machin
 
 /**
  * The guard's answer after a shell command, for the agent; undefined for nothing to say. Each imported folder's changes
- * are recorded (queued for the next hook to upload); those no yes covers are told. Never throws.
+ * are recorded (queued for the next hook to upload); those no yes covers are told. It runs no git, and says nothing, in a
+ * checkout this machine does not know as approved (contract 3.46). Never throws.
  */
-export async function shellGuard(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined, machineHome: string, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, declared?: DeclaredCapabilities, guardMs = GUARD_MS): Promise<string | undefined> {
+export async function shellGuard(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined, machineHome: string, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, declared?: DeclaredCapabilities, guardMs = GUARD_MS, git: Git = runGit): Promise<string | undefined> {
   try {
     const line = made?.lines[0];
     if (made === undefined || line?.kind !== "command-run") return undefined;
     const where = route(made.folder, locate);
-    if (where.status === "not-a-project") return undefined;
+    if (where.status === "not-a-project" || !approvedHere(where.project, made.folder, machineHome)) return undefined;
     const imports = rememberedImports(home, where.project);
-    const edits = imports.flatMap(({ folder }) => shellEdits(baselines(home), folder, line, (error) => failed("observe", error)));
+    const edits = imports.flatMap(({ folder }) => shellEdits(baselines(home), folder, line, (error) => failed("observe", error), git));
     // The session's own worktree, observed apart from the ordinary hooks' baseline, whose lines record the same edits.
     const root = declared === undefined ? undefined : worktreeRoot(made.folder);
-    const touched = root === undefined ? [] : shellEdits(worktreeBaselines(home), root, line, (error) => failed("observe", error)).flatMap((edit) => (edit.kind === "file-edited" ? edit.files : []));
-    const own = touched.length === 0 ? touched : offBase(root!, touched);
+    const touched = root === undefined ? [] : shellEdits(worktreeBaselines(home), root, line, (error) => failed("observe", error), git).flatMap((edit) => (edit.kind === "file-edited" ? edit.files : []));
+    const own = touched.length === 0 ? touched : offBase(root!, touched, git);
     if (edits.length === 0 && own.length === 0) return undefined;
     if (edits.length > 0) enqueue(home, where.project, edits);
     const changed = edits.flatMap((edit) => (edit.kind === "file-edited" ? edit.files.map((file) => ({ folder: edit.folder!, file })) : []));
@@ -129,8 +130,8 @@ function notice(changed: readonly { folder: string; file: string }[]): string {
  * After an ordinary hook in the worktree at `root`: set the guard's own baseline there for `line`'s session (at its start,
  * before a command, after an edit tool, so an edit the gate already judged is not told again after the next command).
  */
-export function watchWorktree(home: string, root: string, line: NewLine, failed: (stage: HookFailure["stage"], error: unknown) => void): void {
-  if (["session-started", "command-started", "file-edited"].includes(line.kind)) shellEdits(worktreeBaselines(home), root, line, (error) => failed("observe", error));
+export function watchWorktree(home: string, root: string, line: NewLine, failed: (stage: HookFailure["stage"], error: unknown) => void, git: Git = runGit): void {
+  if (["session-started", "command-started", "file-edited"].includes(line.kind)) shellEdits(worktreeBaselines(home), root, line, (error) => failed("observe", error), git);
 }
 
 /**
@@ -138,10 +139,8 @@ export function watchWorktree(home: string, root: string, line: NewLine, failed:
  * origin/main, else HEAD. A command that returns a file there, as a git checkout undoing a trespass does, changed
  * nothing the branch carries (friction_53b3f12c30aa). When Git cannot say, every file counts as changed.
  */
-function offBase(root: string, files: readonly string[]): string[] {
-  const git = (args: string[], input?: string) => execFileSync("git", ["--no-optional-locks", ...args], {
-    cwd: root, input, encoding: "utf8", timeout: GUARD_MS, maxBuffer: 8 * 1024 * 1024, stdio: ["pipe", "pipe", "ignore"], windowsHide: true,
-  });
+function offBase(root: string, files: readonly string[], run: Git): string[] {
+  const git = (args: string[], input?: string) => run(["--no-optional-locks", ...args], { cwd: root, ...(input === undefined ? {} : { input }), timeout: GUARD_MS, maxBuffer: 8 * 1024 * 1024 });
   try {
     let base: string;
     try { base = git(["merge-base", "HEAD", "origin/main"]).trim(); } catch { base = git(["rev-parse", "--verify", "HEAD^{commit}"]).trim(); }

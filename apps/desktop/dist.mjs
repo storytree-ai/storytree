@@ -11,13 +11,15 @@
 // executables with its ARM64 filter by default, and the 7z plugin in electron-builder's NSIS (which
 // both the installer and portable exe unpack with) predates that filter. Without this, the exe
 // unpacks every file but the .exe and .dll ones and fails to start. The x86 BCJ filter it decodes.
-import { build } from "electron-builder";
+//
+// electron-builder is imported only once the environment it builds in is set (builderEnv, unsignedEnv): an unsigned
+// build drops every certificate variable first, so nothing electron-builder loads ever sees a signing secret.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stageTools } from "./tools.mjs";
 import { deliveryAssets, linuxDeliveryAssets, macDeliveryAssets } from "./delivery-assets.mjs";
-import { builderEnv, macBuilderConfig, macNotarisation, macSigning } from "./mac-signing.mjs";
+import { builderEnv, macBuilderConfig, macNotarisation, macSigning, unsignedEnv } from "./mac-signing.mjs";
 
 process.env.ELECTRON_BUILDER_7Z_FILTER ??= "BCJ";
 const version = process.env.STORYTREE_RELEASE_VERSION;
@@ -31,11 +33,10 @@ const signing = mac ? macSigning(process.env) : undefined;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const release = path.join(here, "release");
 const identity = signing ? { mac: macBuilderConfig(signing), ...macNotarisation(signing, path.join(release, "mac-notarisation.json")) } : {};
-if (mac) {
-  const env = builderEnv(process.env);
-  for (const name of ["CSC_LINK", "CSC_KEY_PASSWORD"]) delete process.env[name];
-  Object.assign(process.env, env);
-}
+const env = mac ? builderEnv(process.env) : unsignedEnv(process.env);
+for (const name of Object.keys(process.env)) if (!(name in env)) delete process.env[name];
+Object.assign(process.env, env);
+const { build } = await import("electron-builder");
 // The packaged package.json records the Mac signing mode: only a Developer ID build follows releases (updates 4.21),
 // because Squirrel.Mac refuses an update to an app that is not Developer ID signed.
 const extraMetadata = { ...(version === undefined ? {} : { version }), ...(signing ? { storytree: { macSigning: signing.mode } } : {}) };

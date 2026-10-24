@@ -7,18 +7,23 @@
     "3.1 reopen guide; dismiss persists and Escape restores focus",
     "3.3 app-side only: two setup fixtures appear through normal refresh and both forests selectable",
     "5.1 feedback over both forests",
-    "Help leaves arc handle clickable at normal and minimum window sizes",
+    "Help fits the minimum window; closed, it leaves the arc handle clickable at normal and minimum window sizes",
     "Help remains available on database error; dark theme"
   ],
   "calls": {
+    "factoryFolder": 3,
     "projectSelection": 6,
+    "agentConnections": 10,
     "checkSetupFolder": 2,
     "copyHelpText": 3,
     "readSetupLicense": 4,
     "openFeedbackDraft": 4,
+    "projectSentence": 4,
+    "inherited": 8,
     "changesSince": 5,
     "linesSince": 5,
     "projectTree": 4,
+    "arcViews": 4,
     "chooseProject": 2
   },
   "opened": [

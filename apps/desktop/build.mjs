@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
+import { PATH_ONLY } from "@storytree/app-setup/bins";
 import { journeyDefine } from "@storytree/app-setup/journey-events/release";
 import { partsPlugin } from "@storytree/plugin-loader";
 
@@ -29,6 +30,9 @@ await build({
   platform: "node",
   format: "cjs",
   target: "node22",
+  // On Windows its bare-named programs (git, gh) are found on PATH only, never in the folder it was started in;
+  // after the bundle's own "use strict", which only the first statement can be.
+  banner: { js: `"use strict";\n${PATH_ONLY}` },
   // local-postgres finds its binaries from its own location (import.meta.url) only when not told
   // where they are; the app always tells it (main.ts: postgresBinaries), so that path is never taken.
   logOverride: { "empty-import-meta": "silent" },

@@ -38,7 +38,8 @@ export type { DeclaredCapabilities };
 export function hookCommand({ declaredCapabilities, guardMs }: { declaredCapabilities?: DeclaredCapabilities; guardMs?: number } = {}): void {
   const clock = new HookClock();
   if (process.argv[2] !== "statusline") process.on("exit", () => recordHookTime(storytreeHome(), clock.reading(process.argv[2] ?? "", process.argv.slice(3))));
-  setTimeout(() => process.exit(0), process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : hookDeadline(process.argv.slice(3))).unref();
+  // A guard given longer than the hook may run (only a test gives one) is not cut off by the hook's own deadline.
+  setTimeout(() => process.exit(0), Math.max(process.argv.includes(UPKEEP) ? UPKEEP_DEADLINE_MS : hookDeadline(process.argv.slice(3)), guardMs ?? 0)).unref();
   process.on("uncaughtException", () => process.exit(0));
   process.on("unhandledRejection", () => process.exit(0));
   const [harness = "", ...flags] = process.argv.slice(2);

@@ -10,6 +10,7 @@
     "@modelcontextprotocol/server": "^2.1.0",
     "@storytree/cli": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
+    "jose": "6.2.12",
     "zod": "^4.6.5"
   },
   "devDependencies": {

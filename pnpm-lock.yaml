@@ -956,6 +956,9 @@ importers:
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
       zod:
         specifier: ^4.6.5
         version: 4.6.5

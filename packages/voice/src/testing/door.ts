@@ -154,9 +154,9 @@ export function childrenIn(logFile: string): { started: number; ended: number; p
   return { started: events.filter((e) => e.kind === "start").length, ended: events.filter((e) => e.kind === "end").length, peak, text, commands };
 }
 
-export async function connect(port: number, token: string, options?: ConstructorParameters<typeof Client>[1]): Promise<Client> {
+export async function connect(port: number, token: string, options?: ConstructorParameters<typeof Client>[1], headers?: Record<string, string>): Promise<Client> {
   const client = new Client({ name: "voice-test", version: "0.0.1" }, options);
-  await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp/${token}`)));
+  await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp/${token}`), headers ? { requestInit: { headers } } : undefined));
   return client;
 }
 

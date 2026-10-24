@@ -1,7 +1,9 @@
 /**
  * Capability 1 · The address and its guards (contracts 1.1-1.6, 1.10, 1.14): one secret route on 127.0.0.1, a bare 404
  * everywhere else (never 401, or claude.ai starts an OAuth flow), the caller's range, the Host list, body and batch
- * limits, and a keep-alive longer than the tunnel's. Stateless Streamable HTTP through the MCP SDK.
+ * limits, and a keep-alive longer than the tunnel's. Stateless Streamable HTTP through the MCP SDK. With a sign-in service
+ * configured (contracts 1.15-1.19), the secret's well-known path publishes its metadata and a signed tool's call needs the
+ * owner's token, which is where a 401 is answered and nowhere else.
  */
 import http from "node:http";
 import crypto from "node:crypto";
@@ -11,6 +13,7 @@ import { createMcpHandler, hostHeaderValidationResponse } from "@modelcontextpro
 import { Children, LIMITS, type Limits } from "./children.js";
 import type { VoiceConfig } from "./config.js";
 import { makeServer } from "./tools.js";
+import { SIGNED_TOOL_NAMES, SignInRefusal, registerSignedTools, signIn, type SignedCaller } from "./signin.js";
 
 export interface DoorOptions {
   /** The door's limits; tests shorten the times. */
@@ -52,6 +55,16 @@ function rpcSummary(body: Buffer): string {
     return safe(method);
   });
   return `rpc=${names.join(",")}`;
+}
+
+/** The tool a single tools/call message names, if the body is one. */
+function calledTool(body: Buffer): string | undefined {
+  try {
+    const message = JSON.parse(body.toString("utf8")) as { method?: unknown; params?: { name?: unknown } } | null;
+    return message?.method === "tools/call" && typeof message.params?.name === "string" ? message.params.name : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function readBody(req: http.IncomingMessage, limit: number): Promise<Buffer> {
@@ -157,15 +170,23 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
   const limits = options.limits ?? LIMITS;
   const log = options.log ?? stamp;
   const children = new Children(config, limits, log);
-  // The current request's hang-up signal, carried through the SDK's async calls into the per-request server.
-  const hangups = new AsyncLocalStorage<AbortSignal>();
-  const handler = createMcpHandler(() => makeServer(children, hangups.getStore(), log), {
+  const gate = config.signIn ? signIn(config.signIn) : null;
+  // The current request's hang-up signal and signed caller, carried through the SDK's async calls into the per-request server.
+  const calls = new AsyncLocalStorage<{ readonly signal: AbortSignal; readonly caller?: SignedCaller }>();
+  const serverFor = () => {
+    const call = calls.getStore();
+    const server = makeServer(children, call?.signal, log);
+    if (gate) registerSignedTools(server, () => call?.caller);
+    return server;
+  };
+  const handler = createMcpHandler(serverFor, {
     // 2025-era clients: one fresh server per request, answered as a short SSE stream; 2026-07-28 clients: one JSON body.
     legacy: "stateless",
     maxRequestBodySize: limits.bodyBytes,
     onerror: (error: unknown) => log(`mcp: ${String((error as Error | undefined)?.message ?? error).slice(0, 200)}`),
   });
   const route = digest(`/mcp/${config.token}`);
+  const metadataRoute = gate ? digest(`/.well-known/oauth-protected-resource/mcp/${config.token}`) : null;
 
   const server = http.createServer(async (req, res) => {
     const began = Date.now();
@@ -187,6 +208,17 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
     try {
       // Constant-time comparison of the path (hashing first makes the lengths equal); the query string is ignored.
       const pathname = (req.url ?? "").split("?")[0]!;
+      if (gate && metadataRoute && crypto.timingSafeEqual(digest(pathname), metadataRoute)) {
+        // Read by claude.ai to find the sign-in service, before any token exists: no range check, nothing secret beyond the path.
+        summary = "route=metadata";
+        if (req.method !== "GET") {
+          bare(res, 405, { allow: "GET" });
+          return finish(405);
+        }
+        res.writeHead(200, { "content-type": "application/json", "content-length": String(Buffer.byteLength(gate.metadata)), "cache-control": "no-store" });
+        res.end(gate.metadata);
+        return finish(200);
+      }
       if (!crypto.timingSafeEqual(digest(pathname), route)) {
         bare(res, 404);
         return finish(404);
@@ -231,7 +263,20 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
         await sendWeb(res, badHost);
         return finish(badHost.status);
       }
-      const response = await hangups.run(hangup.signal, () => handler.fetch(request));
+      let caller: SignedCaller | undefined;
+      const tool = calledTool(body);
+      if (gate && tool !== undefined && SIGNED_TOOL_NAMES.includes(tool)) {
+        // Only a signed tool's call reads the token: a read never does, so a broken sign-in cannot take reads down.
+        try {
+          caller = await gate.verify(req.headers.authorization);
+        } catch (error) {
+          if (!(error instanceof SignInRefusal)) throw error;
+          summary += ` denied=signin:${error.reason}`;
+          bare(res, error.status, error.status === 401 ? { "www-authenticate": gate.challenge(error) } : {});
+          return finish(error.status);
+        }
+      }
+      const response = await calls.run({ signal: hangup.signal, ...(caller ? { caller } : {}) }, () => handler.fetch(request));
       await sendWeb(res, response);
       return finish(response.status);
     } catch (error) {
@@ -254,7 +299,8 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
       const port = (server.address() as net.AddressInfo).port;
       log(
         `voice door listening on http://127.0.0.1:${port} (route /mcp/<token>; allowed hosts: ${config.allowedHosts.join(",")}; ` +
-          `caller range check: ${config.cidrs ? config.cidrText : "off"}; repo: ${config.repoDir})`,
+          `caller range check: ${config.cidrs ? config.cidrText : "off"}; sign-in: ${config.signIn ? `${config.signIn.issuer}, owner ${config.signIn.owner}` : "off, no signed tools"}; ` +
+          `repo: ${config.repoDir})`,
       );
       resolve({
         port,

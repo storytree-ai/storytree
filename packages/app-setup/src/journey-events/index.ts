@@ -24,7 +24,11 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const FLUSH_LIMIT_MS = 5_000;
 
 /** One computer-wide consent record and bounded queue, shared atomically by app and CLI. */
-export function openJourney(options: { home: string; appVersion: string; configuration?: JourneyConfiguration }) {
+export function openJourney(options: {
+  home: string; appVersion: string; configuration?: JourneyConfiguration;
+  /** The flush deadline's clock; real time by default. */
+  now?: () => number;
+}) {
   if (!JOURNEY_VERSION.test(options.appVersion)) throw new Error("Journey events need a release version.");
   const configuration = options.configuration;
   const available = configuration !== undefined && /^phc_[A-Za-z0-9_]+$/.test(configuration.projectKey)
@@ -36,6 +40,7 @@ export function openJourney(options: { home: string; appVersion: string; configu
     CREATE TABLE IF NOT EXISTS events (uuid TEXT PRIMARY KEY, event TEXT NOT NULL, version TEXT NOT NULL, at INTEGER NOT NULL, epoch INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS milestones (name TEXT PRIMARY KEY);`);
   db.prepare("INSERT OR IGNORE INTO consent VALUES (1, 'pending', 0, ?)").run(randomUUID());
+  const now = options.now ?? Date.now;
   let closed = false;
   let flushing: Promise<number> | undefined;
   const consent = () => db.prepare("SELECT choice,epoch,install_id FROM consent WHERE singleton=1").get() as { choice: JourneyState["consent"]; epoch: number; install_id: string };
@@ -86,12 +91,12 @@ export function openJourney(options: { home: string; appVersion: string; configu
     const permitted = () => !closed && consent().choice === "on" && consent().epoch === current.epoch;
     const transport = injected ?? createPostHogTransport({ projectKey: configuration!.projectKey, permitted });
     let sent = 0;
-    const deadline = Date.now() + FLUSH_LIMIT_MS;
+    const deadline = now() + FLUSH_LIMIT_MS;
     try {
       prune();
       const pending = db.prepare("SELECT * FROM events WHERE epoch=? ORDER BY at,rowid").all(current.epoch) as { uuid: string; event: string; version: string; at: number; epoch: number }[];
       for (const row of pending) {
-        if (!permitted() || Date.now() >= deadline) break;
+        if (!permitted() || now() >= deadline) break;
         await transport.send({ uuid: row.uuid, event: row.event, distinctId: current.install_id,
           timestamp: new Date(row.at).toISOString(), properties: { app_version: row.version } });
         db.prepare("DELETE FROM events WHERE uuid=?").run(row.uuid);

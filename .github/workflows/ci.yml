@@ -278,6 +278,33 @@ jobs:
           path: ~/.storytree/0.3/test-timings.jsonl
           include-hidden-files: true
           if-no-files-found: warn
+      # The real app, started on Linux under a virtual display on a throwaway library, for a change that reaches it
+      # (the owner's option A on question_c34fd1a7f98b): `--smoke --stress 3` draws the project, closes and reopens its
+      # window at awkward moments and quits during a load, and goes red on any main-process error, one raised while it
+      # quits included (lifecycle 1.30). It adds the desktop build and well under a minute, on the leg CI already runs.
+      - name: Does this change reach the desktop app?
+        if: matrix.system == 'Linux'
+        id: desktop
+        shell: bash
+        run: |
+          if ! git diff --quiet origin/main...HEAD -- apps/desktop packages/app .github/workflows/ci.yml; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: matrix.system == 'Linux' && steps.desktop.outputs.changed == 'true'
+        run: pnpm --filter @storytree/desktop build
+      - name: Run the real app
+        if: matrix.system == 'Linux' && steps.desktop.outputs.changed == 'true'
+        run: xvfb-run -a node --import tsx apps/desktop/check-app-linux.mjs
+        env:
+          STORYTREE_SMOKE_SCREENSHOT: .pgtest/app-smoke/smoke.png
+      - name: Keep the real app's screenshot
+        if: failure() && matrix.system == 'Linux' && steps.desktop.outputs.changed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-smoke-${{ github.run_attempt }}
+          path: .pgtest/app-smoke
+          include-hidden-files: true
+          if-no-files-found: warn
       # Exercise the distributable before merging packaging/updater changes. A source build
       # passing tests alone does not prove that the signed Apple Silicon .app starts and runs its own
       # Postgres and Node. The Windows installer builds in its own job beside the tests (`installer`);

@@ -30,6 +30,8 @@ export function createJourneyRuntime(options: {
   appVersion: string;
   configuration?: JourneyConfiguration;
   transport?: JourneyTransport;
+  /** The flush deadline's clock; real time by default. */
+  now?: () => number;
 }) {
   let journey: ReturnType<typeof openJourney> | undefined;
   let desktop: { installed: boolean } | undefined;
@@ -40,6 +42,7 @@ export function createJourneyRuntime(options: {
     home: options.home ?? (process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3")),
     appVersion: options.appVersion,
     ...(configuration ? { configuration } : {}),
+    ...(options.now ? { now: options.now } : {}),
   });
   function record(event: unknown): void {
     if (finishing || configuration === undefined) return;

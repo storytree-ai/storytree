@@ -152,9 +152,11 @@ const LIBRARY_API = [
  * the routed library's connection string, signed in, that `storytree auth connection` hands psql.
  * ANCHOR_ID and anchorGaps joined it with ADR-1085 D1: where the project's anchor is kept, and the plan-health reading of it.
  * parseSchedule and OWNER_TIME_ZONE joined it with ADR-1105 D1: the one reader of a process's schedule, which `schedule due` reads it with.
+ * CONNECT_TIMEOUT_MS and explainConnectTimeout joined it with ADR-1163 D1: the default connect limit and the one wording of its refusal, which the MCP server gives too.
  */
 const RUNTIME_EXPORTS = [
   "ANCHOR_ID",
+  "CONNECT_TIMEOUT_MS",
   "CONTRACT_DEFINITION",
   "ConnectionError",
   "DependencyLoopError",
@@ -180,6 +182,7 @@ const RUNTIME_EXPORTS = [
   "anchorGaps",
   "connect",
   "connectionString",
+  "explainConnectTimeout",
   "heldBack",
   "knowledgeGuidance",
   "parseSchedule",

@@ -20,6 +20,7 @@ import { mock, test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { Client } from "@modelcontextprotocol/client";
+import { waitUntil } from "@storytree/test-waits";
 import { CONNECT_TIMEOUT_MS, connect, type Library, type Line } from "@storytree/library";
 import { worklist } from "@storytree/library/librarian";
 import pg from "pg";
@@ -262,12 +263,12 @@ test("6.4 show_plan waits the library's ten seconds for a stalled handshake, the
         try {
           let answer: Answer | undefined;
           const calling = agent.call("show_plan").then((answered) => (answer = answered));
-          await realWait(() => stalls > 0, "the handshake to reach the silent server");
+          await waitUntil(() => stalls > 0, 5_000, "the handshake to reach the silent server", { clock: networkClock });
           mock.timers.tick(CONNECT_TIMEOUT_MS - 1);
           await turns(20);
           assert.equal(answer, undefined, "still waiting just short of the library's limit");
           mock.timers.tick(1);
-          await realWait(() => answer !== undefined, "show_plan to answer at the library's limit");
+          await waitUntil(() => answer !== undefined, 5_000, "show_plan to answer at the library's limit", { clock: networkClock });
           const refused = await calling;
           assert.equal(CONNECT_TIMEOUT_MS, 10_000);
           assert.equal(
@@ -289,17 +290,9 @@ test("6.4 show_plan waits the library's ten seconds for a stalled handshake, the
   }
 });
 
-/** The real clock's setTimeout, kept for waiting on the network while a test runs on a mocked one. */
+/** The real clock, kept for waiting on the network while a test runs on a mocked one. */
 const realSetTimeout = setTimeout;
-
-/** Wait on the real clock until `condition` holds, failing the test after five seconds. */
-async function realWait(condition: () => boolean, what: string): Promise<void> {
-  const deadline = performance.now() + 5_000;
-  while (!condition()) {
-    if (performance.now() > deadline) assert.fail(`this never happened: ${what}`);
-    await new Promise((resolve) => realSetTimeout(resolve, 10));
-  }
-}
+const networkClock = { now: () => performance.now(), sleep: (ms: number) => new Promise<void>((resolve) => realSetTimeout(resolve, ms)) };
 
 /** Let the event loop turn `count` times. */
 async function turns(count: number): Promise<void> {

@@ -649,3 +649,55 @@ test("19.1 · the workspace command and the make_workspace tool each report the 
     assert.match(plain.text, /as this project does at session start/, "with no local file the agent is told to set it up itself, as before");
   });
 });
+
+test("19.5 · a Codex session attaching the worktree its app just made at the prepared commit has it set up from the local file, reported in the attach's answer, and set up once however often it attaches; a Claude Code session attaching its own worktree runs no setup", async () => {
+  await withWorld(async ({ dir, log, library, project, site, park, as }) => {
+    writeFileSync(path.join(site, ".env"), "SECRET=1\n");
+    localSetup(site, { copy: [".env"], setup: ["node -e \"require('fs').appendFileSync('installed.txt', 'once\\n')\""] }, [".env", "installed.txt"]);
+    const increment = await park("email form");
+    const prepared = await makeWorkspace(as("B"), increment, "build form");
+    assert.ok(prepared.ok && prepared.status === "prepared", JSON.stringify(prepared));
+    const folder = path.join(dir, "app made");
+    git(site, "worktree", "add", "--detach", folder, prepared.ref);
+
+    const attached = await workspace.attachWorkspace(as("B"), increment, "build form", { folder, ref: prepared.ref, name: prepared.name });
+
+    assert.ok(attached.ok, JSON.stringify(attached));
+    assert.equal(readFileSync(path.join(folder, ".env"), "utf8"), "SECRET=1\n", "the file is copied");
+    assert.deepEqual(attached.setup?.steps.map(({ kind, ok }) => ({ kind, ok })), [{ kind: "copy", ok: true }, { kind: "run", ok: true }]);
+    assert.equal((await release(as("B"), increment)).ok, true);
+    const again = await workspace.attachWorkspace(as("B"), increment, "build form", { folder: folder, ref: prepared.ref, name: prepared.name });
+    assert.ok(again.ok, JSON.stringify(again));
+    assert.equal("setup" in again, false, "a worktree already set up is not set up again");
+    assert.equal(readFileSync(path.join(folder, "installed.txt"), "utf8"), "once\n");
+
+    const tools = new Map<string, (args: Record<string, unknown>, call: ToolCall) => Promise<{ text: string; data?: Record<string, unknown> }>>();
+    sessionTools().registerTools?.((name, _description, _input, act) => { tools.set(name, act as never); });
+    const reset = await park("reset");
+    const ready = await makeWorkspace(as("B"), reset, "build reset");
+    assert.ok(ready.ok && ready.status === "prepared", JSON.stringify(ready));
+    const other = path.join(dir, "app made too");
+    git(site, "worktree", "add", "--detach", other, ready.ref);
+    const tool = await tools.get("attach_workspace")!({ increment: reset, reason: "build reset", folder: other, ref: ready.ref, name: ready.name }, { library, log, project, caller: { session: "B", harness: "codex" }, folder: site, quietMs: 0, writer: {} } as unknown as ToolCall);
+    assert.match(tool.text, /Set up from \.storytree\/worktree\.local\.json:\n {2}copied \.env/);
+    assert.doesNotMatch(tool.text, /as this project does at session start/);
+    assert.equal((tool.data?.setup as { steps: unknown[] } | undefined)?.steps.length, 2, "the tool's data carries the steps");
+
+    const verb = WORKSPACE_FAMILIES[0]!.verbs.find((one) => one.command !== undefined && "name" in one.command && one.command.name === "attach")!;
+    const profile = await park("profile");
+    const named = await makeWorkspace(as("B"), profile, "build profile");
+    assert.ok(named.ok && named.status === "prepared", JSON.stringify(named));
+    const third = path.join(dir, "app made third");
+    git(site, "worktree", "add", "--detach", third, named.ref);
+    const command = await verb.act({ work: profile, folder: third, ref: named.ref, name: named.name, reason: "build profile" }, as("B"), WORDS);
+    assert.match(command.text, /Set up from \.storytree\/worktree\.local\.json:\n {2}copied \.env/);
+    assert.doesNotMatch(command.text, /as this project does at session start/);
+
+    const own = path.join(dir, "claude app made");
+    git(site, "worktree", "add", "-b", "claude/app-made", own, "main");
+    const claude = await workspace.attachWorkspace(as("A", own), await park("settings"), "build settings", { folder: own });
+    assert.ok(claude.ok, JSON.stringify(claude));
+    assert.equal("setup" in claude, false);
+    assert.ok(!existsSync(path.join(own, ".env")), "nothing is copied into a Claude Code session's own worktree");
+  });
+});

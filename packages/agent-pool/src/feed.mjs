@@ -31,6 +31,9 @@ function liveCapabilities(claims, increments) {
   return held;
 }
 
+/** The failed lanes after which the pool offers an increment no more (2.27): its residue names them, and a session takes it from its arc by hand. */
+export const LANE_FAILURES = 3;
+
 /** An increment's place by its arc's priority (ADR-0963 D1): 1 first, an arc with none after every ranked one. */
 const rank = (one) => one.priority ?? Infinity;
 
@@ -48,6 +51,7 @@ const rank = (one) => one.priority ?? Infinity;
  * session that bounces every time starts at most once a back-off. Within one survey (ADR-1079 D1), a candidate whose known needs (its
  * capabilities list plus every capability refused under it, whoever holds that now) meet those of an earlier pick or of an increment
  * in `running` is not picked: it is skipped naming the shared capability and the increment that took it, and offered again on the next survey.
+ * Work whose lanes failed LANE_FAILURES times (`survey.failures`, its lane-failed lines, which outlast the dispatcher) is not offered at all (2.27).
  */
 export function pickPool(survey, { attempts = new Map(), running = [], max = 1, now = Date.now(), backoffMs = 30 * 60_000 }) {
   const skipped = [];
@@ -55,6 +59,7 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
   const held = liveCapabilities(survey.claims, survey.increments);
   // A lane refused a capability before it was on the list is held off by that refusal while any live session holds the capability.
   const refusedUnder = Map.groupBy((survey.refusals ?? []).filter((refusal) => held.has(refusal.capability)), (refusal) => refusal.under);
+  const failuresOf = Map.groupBy(survey.failures ?? [], (failure) => failure.increment);
   const arcOf = new Map(survey.increments.map((one) => [one.id, one.arc]));
   const busy = new Set([...live.keys(), ...running].map((id) => arcOf.get(id)).filter(Boolean));
   const ready = [];
@@ -63,6 +68,8 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
   for (const one of candidates) {
     const why = (() => {
       if (running.includes(one.id)) return "running now";
+      const failures = failuresOf.get(one.id) ?? [];
+      if (failures.length >= LANE_FAILURES) return `its lanes failed ${failures.length} times (${failures.map((failure) => failure.at).join(", ")}): the pool offers it no more; a session takes it from its arc by hand`;
       const attempt = attempts.get(one.id);
       const claim = live.get(one.id);
       if (claim) {
@@ -162,7 +169,8 @@ export function pickPlan(survey, { planned = new Map(), now = Date.now(), freshM
 /**
  * One survey of the library: every arc with its open questions counted, its increments with their holds and machine fields (one `arcViews` and one `holds` read),
  * this machine's short name (`here`, undefined while it has none), the standing claims,
- * and the refusals under every open increment on an active arc, whoever holds the capability now, each under the increment its refused session held (`refusals`, given those increments).
+ * the refusals under every open increment on an active arc, whoever holds the capability now, each under the increment its refused session held (`refusals`, given those increments),
+ * and the failed lanes on those increments (`failures`, given them).
  */
 /** A record's time as an ISO string: the library gives it as one, a Date is turned into one, and a missing or unreadable time is undefined. */
 const iso = (at) => {
@@ -170,7 +178,7 @@ const iso = (at) => {
   return Number.isNaN(time) ? undefined : new Date(time).toISOString();
 };
 
-export async function readSurvey({ library, claims, refusals = async () => [], here = async () => undefined }) {
+export async function readSurvey({ library, claims, refusals = async () => [], failures = async () => [], here = async () => undefined }) {
   const [views, holds, held, name] = await Promise.all([library.arcViews(), library.holds(), claims(), here()]);
   const increments = views.flatMap((view) => view.increments.map((record) => ({
     id: record.id, arc: view.arc.id, arcState: view.state, title: record.fields.title, body: record.fields.body ?? "",
@@ -181,7 +189,8 @@ export async function readSurvey({ library, claims, refusals = async () => [], h
     openQuestions: (view.questions ?? []).filter((question) => question.fields.lifecycle === "open").length,
   }));
   const open = increments.filter((one) => one.status !== "closed" && one.arcState === "active").map((one) => one.id);
-  return { arcs, increments, holds, claims: held, here: name, refusals: open.length ? await refusals(open) : [] };
+  const [refused, failed] = open.length ? await Promise.all([refusals(open), failures(open)]) : [[], []];
+  return { arcs, increments, holds, claims: held, here: name, refusals: refused, failures: failed };
 }
 
 export async function withLibrary(project, use) {
@@ -205,6 +214,28 @@ export async function surveyLibrary(project = "storytree") {
     const log = await openActivityLog(storytree);
     const refusals = async (under) => (await log.lines(project, { kinds: ["claim-refused"], where: { under }, omit: ["reason", "file"] }))
       .map((line) => ({ capability: line.capability, under: line.under, holder: line.holder }));
-    return readSurvey({ library, claims: () => readClaims(log, project), refusals, here: async () => (await thisComputer(storytree)).name });
+    const failures = async (increment) => (await log.lines(project, { kinds: ["lane-failed"], where: { increment }, omit: ["logs"] }))
+      .map((line) => ({ increment: line.increment, at: line.at, why: line.why }));
+    return readSurvey({ library, claims: () => readClaims(log, project), refusals, failures, here: async () => (await thisComputer(storytree)).name });
   });
+}
+
+/** The session a lane-failed line is written on: the pool's own, which reads as no session. */
+export const POOL_SESSION = "pool";
+
+/**
+ * Record a failed lane (2.27): a lane-failed line on the pool for `failure.increment`, and the increment's failures so far, oldest first.
+ * A lane whose session (`failure.lane`) was refused a claim since it `started` is no failure: nothing is written, and null comes back.
+ */
+export async function noteLaneFailure({ log, project, failure }) {
+  const { increment, why, logs, lane, started } = failure;
+  if (lane && (await log.lines(project, { kinds: ["claim-refused"], sessions: [lane], ...(started ? { since: started } : {}), newest: 1 })).length) return null;
+  await log.append(project, { session: POOL_SESSION, harness: "pool", source: "tool", kind: "lane-failed", increment, why, logs, ...(lane ? { lane } : {}) });
+  return (await log.lines(project, { kinds: ["lane-failed"], where: { increment } })).map((line) => ({ increment: line.increment, at: line.at, why: line.why, logs: line.logs }));
+}
+
+/** Record a failed lane in the shared library, where this computer's `library` setting says it is (noteLaneFailure). */
+export async function recordLaneFailure(failure, project = "storytree") {
+  const { openActivityLog } = await import("@storytree/session-management");
+  return withLibrary(project, async (_library, storytree) => noteLaneFailure({ log: await openActivityLog(storytree), project, failure }));
 }

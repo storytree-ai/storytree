@@ -27,7 +27,7 @@ async function lane(t) {
   const { CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: _hooks, STORYTREE_SESSION_FILE: _file, ...inherited } = process.env;
   return { home, lanesDir, cwd, brief, log, err, addDirs: [join(home, "directory with spaces"), "another"],
     env: { ...inherited, LANES_DIR: lanesDir, CODEX_STOP_AT: "95", FAST_FAIL_S: "120", CLAUDE_CODE_OAUTH_TOKEN: "", OPENAI_API_KEY: "test-api", CODEX_API_KEY: "test-api", CODEX_ACCESS_TOKEN: "test-api", ANTHROPIC_API_KEY: "test-api" },
-    commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines };
+    commands: { codex: command(receipt), claude: command(receipt) }, now: () => start, say: (line) => lines.push(line), lines, failed: async () => [] };
 }
 
 test("1.6 · foreground engines receive the exact brief, model, directories and login environment in the current folder", async (t) => {
@@ -303,4 +303,67 @@ test("1.12 · each engine runs the model the pool's configuration names, and its
       assert.deepEqual(at < 0 ? [] : args.slice(at, at + 2), models[engine], `${engine}: ${args.join(" ")}`);
     }
   }
+});
+
+test("1.17 · a lane that ends by its engine's own exit with no report or push is recorded failed; at the third, residue names each failure; a report, a push, a signal, a fast failure or a refused claim is no failure", async (t) => {
+  const options = await lane(t);
+  const session = "5b0c3c1e-0000-4000-8000-00000000abcd";
+  options.commands.claude = command(`console.log(JSON.stringify({type:'system',subtype:'init',session_id:${JSON.stringify(session)}})); process.exitCode=Number(process.env.EXIT ?? 0);`);
+  await writeFile(join(options.lanesDir, "engine-override"), "claude");
+  options.increment = "increment_abc";
+  let heads = {};
+  options.heads = async () => heads;
+  const told = [];
+  options.storytree = async (args) => { told.push(args); return args[0] === "library" ? "The breakdown." : ""; };
+  const recorded = [];
+  let earlier = [];
+  options.failed = async (failure) => { recorded.push(failure); return [...earlier, { ...failure, at: "2026-10-06T00:00:00.000Z" }]; };
+  let clock = start;
+  options.now = () => clock;
+  options.say = (line) => { if (line.includes(" exit ")) clock += 600_000; };
+
+  assert.equal(await runLane(options), 1);
+  assert.equal(recorded.length, 1, "left nothing twice: recorded failed");
+  assert.equal(recorded[0].increment, "increment_abc");
+  assert.equal(recorded[0].lane, session);
+  assert.equal(recorded[0].started, new Date(start).toISOString());
+  assert.match(recorded[0].why, /exit 0.*no report.*no push.*twice/);
+  assert.deepEqual(recorded[0].logs, [options.log, join(options.lanesDir, "lane.resume.log")]);
+  assert.ok(!told.some((args) => args[0] === "arc" && /offers it no more/.test(args[5])), "one failure writes only the runner's own residue");
+
+  recorded.length = 0; told.length = 0;
+  options.env.EXIT = "3";
+  assert.equal(await runLane(options), 3, "a slow non-zero exit keeps its code");
+  assert.equal(recorded.length, 1, "and leaving nothing, is recorded failed");
+  assert.match(recorded[0].why, /exit 3.*no report.*no push/);
+
+  recorded.length = 0; told.length = 0;
+  earlier = [{ at: "2026-10-04T00:00:00.000Z", why: "exit 0 with no report and no push, twice", logs: ["/lanes/one.log"] },
+    { at: "2026-10-05T00:00:00.000Z", why: "exit 2 with no report and no push", logs: ["/lanes/two.log"] }];
+  assert.equal(await runLane(options), 3);
+  const edit = told.find((args) => args[0] === "arc" && args[2] === "edit");
+  assert.ok(edit, "the third failure writes residue on the increment");
+  assert.match(edit[5], /^The breakdown\.\n\nResidue \(lane runner, \d{4}-\d\d-\d\d\): this increment's pool lanes failed 3 times, so the pool offers it no more/);
+  assert.match(edit[5], /a session takes it from this arc by hand\. Each failure: 1\. 2026-10-04T00:00:00.000Z: exit 0 with no report and no push, twice \(\/lanes\/one\.log\); 2\. /);
+  assert.match(edit[5], /2026-10-05T00:00:00.000Z: exit 2/);
+  assert.match(edit[5], /exit 3/);
+  earlier = [];
+
+  for (const [what, set] of [["a report", () => { options.commands.claude = command(`require('node:fs').writeFileSync(${JSON.stringify(join(options.lanesDir, "pool-increment_abc.report.md"))}, 'r'); process.exitCode=3;`); }],
+    ["a push", () => { options.commands.claude = command("process.exitCode=3;"); let n = 0; options.heads = async () => (n++ ? { "claude/increment-abc-x": "9" } : {}); }],
+    // Windows ends a process that signals itself with exit 1 and no signal, so the signal case runs where signals exist.
+    ...(process.platform === "win32" ? [] : [["a signal", () => { options.commands.claude = command("process.kill(process.pid, 'SIGTERM');"); options.heads = async () => ({}); }]]),
+    ["a fast failure", () => { options.commands.claude = command("process.exitCode=3;"); options.heads = async () => ({}); options.say = () => {}; }]]) {
+    recorded.length = 0;
+    set();
+    await runLane(options);
+    assert.equal(recorded.length, 0, `${what} is no failure`);
+  }
+
+  options.commands.claude = command("process.exitCode=3;");
+  options.say = (line) => { if (line.includes(" exit ")) clock += 600_000; };
+  options.failed = async (failure) => (recorded.push(failure), null);
+  told.length = 0;
+  assert.equal(await runLane(options), 3, "a lane refused a claim (the recorder writes nothing) keeps its code");
+  assert.ok(!told.some((args) => args[0] === "arc"), "and leaves no residue");
 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { blind, pickPlan, pickPool, planState, readOnly, readSurvey } from "./feed.mjs";
+import { blind, LANE_FAILURES, noteLaneFailure, pickPlan, pickPool, planState, readOnly, readSurvey } from "./feed.mjs";
 
 const now = Date.parse("2026-10-07T03:00:00Z");
 
@@ -349,4 +349,50 @@ test("2.25 · a candidate whose known needs meet a still-running lane's is skipp
   const { picks, skipped } = pickPool(work, { running: ["starting"], max: 2, now });
   assert.deepEqual(picks.map((one) => one.id), ["free"]);
   assert.deepEqual(skipped, [{ id: "starting", why: "running now" }, { id: "waiting", why: "shares capability_tools with starting, running now" }]);
+});
+
+test("2.27 · work whose lanes failed three times is no longer offered, whatever restarted in between; two failures leave it ready, and the survey reads the failures under every open increment", async () => {
+  assert.equal(LANE_FAILURES, 3);
+  const failed = (increment, n) => Array.from({ length: n }, (_, i) => ({ increment, at: `2026-10-0${i + 1}T00:00:00Z`, why: "exit 0, no report or push" }));
+  const work = survey([increment("tripped", "x", { arc: "arc_a" }), increment("twice", "x", { arc: "arc_b" }), increment("clean", "x", { arc: "arc_c" })],
+    { failures: [...failed("tripped", 3), ...failed("twice", 2)] });
+  const { picks, skipped } = pickPool(work, { max: 3, now });
+  assert.deepEqual(picks.map((one) => one.id), ["twice", "clean"]);
+  assert.deepEqual(skipped.map((skip) => skip.id), ["tripped"]);
+  assert.match(skipped[0].why, /^its lanes failed 3 times \(2026-10-01T00:00:00Z, 2026-10-02T00:00:00Z, 2026-10-03T00:00:00Z\): the pool offers it no more/);
+
+  const library = {
+    arcViews: async () => [{ arc: { id: "arc_a" }, state: "active", increments: [
+      { id: "i1", fields: { arc: "arc_a", title: "i1", status: "proposal", parked: "2026-10-06T00:00:00Z" } },
+      { id: "i2", fields: { arc: "arc_a", title: "i2", status: "closed", parked: "2026-10-06T00:00:00Z" } }] }],
+    holds: async () => ({ waits: {}, heldOn: {} }),
+  };
+  const asked = [];
+  const read = await readSurvey({ library, claims: async () => [], failures: async (under) => (asked.push(under), failed("i1", 3)) });
+  assert.deepEqual(asked, [["i1"]], "read once, under the open increments only");
+  assert.deepEqual(pickPool(read, { max: 1, now }).picks, [], "a fresh survey, as a restarted dispatcher reads it, still holds it off");
+});
+
+test("2.27 · a failed lane is one lane-failed line on the pool, and the failures so far come back; a lane refused a claim since it started is no failure", async () => {
+  const lines = [];
+  const log = {
+    append: async (project, line) => { const kept = { ...line, project, seq: lines.length + 1, at: `2026-10-07T0${lines.length + 1}:00:00.000Z` }; lines.push(kept); return kept; },
+    lines: async (project, filter) => lines.filter((line) => filter.kinds.includes(line.kind)
+      && (!filter.sessions || filter.sessions.includes(line.session)) && (!filter.since || line.at >= filter.since)
+      && Object.entries(filter.where ?? {}).every(([key, value]) => line[key] === value)),
+  };
+  const failure = { increment: "increment_abc", why: "exit 0, no report or push, twice", logs: ["/lanes/a.log"], lane: "s1", started: "2026-10-07T00:00:00.000Z" };
+  const first = await noteLaneFailure({ log, project: "storytree", failure });
+  assert.deepEqual(lines.map((line) => [line.session, line.harness, line.source, line.kind, line.increment, line.why, line.logs, line.lane]),
+    [["pool", "pool", "tool", "lane-failed", "increment_abc", "exit 0, no report or push, twice", ["/lanes/a.log"], "s1"]]);
+  assert.deepEqual(first.map((one) => one.why), ["exit 0, no report or push, twice"]);
+  const { lane: _lane, ...unnamed } = failure;
+  assert.equal((await noteLaneFailure({ log, project: "storytree", failure: unnamed })).length, 2, "a lane whose log named no session is still a failure");
+  assert.equal(lines.at(-1).lane, undefined);
+
+  lines.push({ kind: "claim-refused", session: "s2", capability: "capability_x", at: "2026-10-07T05:00:00.000Z" });
+  assert.equal(await noteLaneFailure({ log, project: "storytree", failure: { ...failure, lane: "s2" } }), null, "refused a claim: not a failure");
+  assert.equal(lines.filter((line) => line.kind === "lane-failed").length, 2);
+  assert.equal((await noteLaneFailure({ log, project: "storytree", failure: { ...failure, lane: "s2", started: "2026-10-07T06:00:00.000Z" } })).length, 3,
+    "a refusal before this lane started was another lane's");
 });

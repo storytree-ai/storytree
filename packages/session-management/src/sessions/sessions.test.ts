@@ -425,3 +425,11 @@ test("4.29 a session last seen on a machine before that machine's recorded start
     assert.deepEqual(holders(await readClaims(log, project, options)), free, "the noticeboard's bounded read");
   });
 });
+
+test("4.38 a failed pool lane's lane-failed line, written on the pool, makes no session read live, from the fold or from the bounded read", async () => {
+  await withProject(async (log, project) => {
+    const failed = await log.append(project, { session: "pool", harness: "pool", source: "tool", kind: "lane-failed", increment: "increment_abc", why: "exit 2 with no report and no push", logs: ["/lanes/a.log"] });
+    assert.deepEqual(sessionsFrom([failed], { now: after(failed, 1_000) }), []);
+    assert.deepEqual(await readSessions(log, project, { now: after(failed, 1_000) }), []);
+  });
+});

@@ -8,6 +8,7 @@ import { realpathSync, statSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { localhostAllowedHostnames } from "@modelcontextprotocol/server";
 import { SESSION_ENV, WATCHED_HARNESSES, type WatchedHarness } from "@storytree/project-and-caller/caller";
+import { draftsUrlFrom } from "./drafts.js";
 
 export interface VoiceConfig {
   readonly token: string;
@@ -24,6 +25,8 @@ export interface VoiceConfig {
   readonly childEnv: Readonly<Record<string, string>>;
   /** The owner's sign-in for signed tools, or null when no sign-in service is configured (then none is registered). */
   readonly signIn: SignInConfig | null;
+  /** The door's own database, where voice writes are drafted, or null while writes are off (then none is registered). */
+  readonly drafts: string | null;
 }
 
 export interface SignInConfig {
@@ -45,7 +48,7 @@ export class ConfigError extends Error {}
 /** The door's own settings and its secret: none of them reaches a child. */
 const DOOR_SETTINGS = [
   "VOICE_TOKEN", "VOICE_SPIKE_TOKEN", "PORT", "REPO_DIR", "ALLOWED_HOSTS", "ALLOWED_CIDRS", "STORYTREE_CLI",
-  "VOICE_SIGNIN_ISSUER", "VOICE_PUBLIC_URL", "VOICE_OWNER_ID", "VOICE_SIGNIN_JWKS",
+  "VOICE_SIGNIN_ISSUER", "VOICE_PUBLIC_URL", "VOICE_OWNER_ID", "VOICE_SIGNIN_JWKS", "VOICE_WRITES", "VOICE_DRAFTS_URL",
 ];
 
 /** Every harness's session variable, and storytree's own: a child names the voice session and no other (1.13). */
@@ -110,7 +113,22 @@ export function loadConfig(env: NodeJS.ProcessEnv): VoiceConfig {
     }
   }
 
-  return { token, repoDir, port, cli, allowedHosts, cidrs, cidrText: cidrList.join(","), childEnv: inheritable(env), signIn: signInFrom(env, token) };
+  const signIn = signInFrom(env, token);
+  return { token, repoDir, port, cli, allowedHosts, cidrs, cidrText: cidrList.join(","), childEnv: inheritable(env), signIn, drafts: draftsFrom(env, signIn) };
+}
+
+/**
+ * Voice writes are on only with VOICE_WRITES=on and the owner's sign-in (contract 5.1). Their drafts go to VOICE_DRAFTS_URL,
+ * or else to the storytree-voice database at the library address and password in the door's storytree home.
+ */
+function draftsFrom(env: NodeJS.ProcessEnv, signIn: SignInConfig | null): string | null {
+  const writes = (env.VOICE_WRITES ?? "").trim().toLowerCase();
+  if (writes === "" || writes === "off") return null;
+  if (writes !== "on") throw new ConfigError("VOICE_WRITES is on or off");
+  if (signIn === null) throw new ConfigError("VOICE_WRITES=on needs the owner's sign-in: set VOICE_SIGNIN_ISSUER, VOICE_PUBLIC_URL and VOICE_OWNER_ID");
+  const url = env.VOICE_DRAFTS_URL || draftsUrlFrom(env.STORYTREE_HOME);
+  if (!url) throw new ConfigError("VOICE_WRITES=on needs the door's database: no library address and password in its STORYTREE_HOME, and no VOICE_DRAFTS_URL");
+  return url;
 }
 
 /** The sign-in settings, all three or none (contract 1.15); VOICE_SIGNIN_JWKS replaces the keys' address in tests. */

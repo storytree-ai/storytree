@@ -152,7 +152,7 @@ test("8.6 on a shared server, each of a library's connections names the machine 
     await (await storytree.openProject(project)).addStory({ title: "Held open", description: "Its connection is named." });
 
     const names = await withTestClient(async (client) =>
-      (await client.query<{ name: string }>("SELECT application_name AS name FROM pg_stat_activity WHERE datname = $1", [`storytree_${project}`])).rows.map((row) => row.name),
+      (await client.query<{ name: string }>("SELECT application_name AS name FROM pg_stat_activity WHERE datname = $1 AND state IS NOT NULL", [`storytree_${project}`])).rows.map((row) => row.name),
     );
 
     assert.ok(names.length > 0, "the project's pool holds a connection");

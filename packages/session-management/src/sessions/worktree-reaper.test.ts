@@ -11,6 +11,7 @@ import { test } from "node:test";
 
 import { connect } from "@storytree/library";
 import { start } from "@storytree/local-postgres";
+import { waitUntil } from "@storytree/test-waits";
 
 import { openActivityLog } from "../activity/index.js";
 import { claim, release } from "../claims/index.js";
@@ -324,11 +325,7 @@ test("19.4 · a worktree set up from the local file that names teardown commands
       const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
       assert.deepEqual(await reapWorktrees(observer, watch), [plain], "one never set up goes at once");
       assert.equal(existsSync(setUp), true, "one set up stays while its teardown runs");
-      const reaped: string[] = [];
-      for (const until = Date.now() + 20_000; reaped.length === 0 && Date.now() < until;) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        reaped.push(...(await reapWorktrees(observer, watch)));
-      }
+      const reaped = await waitUntil(async () => { const gone = await reapWorktrees(observer, watch); return gone.length > 0 ? gone : undefined; }, 20_000, "the set-up worktree to be reaped after its teardown");
       assert.deepEqual(reaped, [setUp], "it goes once its teardown has finished");
       assert.equal(existsSync(setUp), false);
       assert.equal(readFileSync(said, "utf8"), "first set-up\nthen set-up\n", "each command ran in the worktree, in order, past a failed one, and only there");

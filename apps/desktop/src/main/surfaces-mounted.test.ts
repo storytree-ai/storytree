@@ -10,7 +10,6 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
@@ -22,14 +21,9 @@ import { arcSurfaces } from "@storytree/arc-surface/surfaces";
 import { forestSurfaces } from "@storytree/forest/surfaces";
 import { connect, type DayWindow } from "@storytree/library";
 import { partsPlugin } from "@storytree/plugin-loader";
+import { waitUntil } from "@storytree/test-waits";
 
 import unbundled from "./parts/surfaces.js";
-
-async function until(check: () => boolean): Promise<void> {
-  const end = Date.now() + 10_000;
-  while (!check() && Date.now() < end) await delay(10);
-  assert.ok(check(), "the board answered within ten seconds");
-}
 
 test("3.8 the app's Surfaces menu lists the arc surface as Arcs, with no settings, on until the user switches it off; switched off, it is saved and reads off at the next launch", (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "storytree-arc-surfaces-"));
@@ -74,16 +68,16 @@ test("3.1, 3.4–3.6 the open overlay reads the app's database, retries a failed
       timers: { now: () => now, every: (ms, tick) => { ticks.set(ms, tick); return () => { ticks.delete(ms); }; } }, onState: (next) => { state = next; } });
     stop = watcher.stop;
     assert.equal(state?.status, "loading");
-    await until(() => state?.status === "error");
+    await waitUntil(() => state?.status === "error", 10_000, "the board to show the failed read");
     assert.match(state?.error ?? "", /read unavailable/);
     fail = false;
     ticks.get(2_000)!();
-    await until(() => state?.status === "ready");
+    await waitUntil(() => state?.status === "ready", 10_000, "the board to be ready");
     const history = await library.history();
     await log.append(project, { kind: "session-started", source: "hook", harness: "codex", session: "s" });
     await log.append(project, { kind: "claimed", source: "tool", harness: "codex", session: "s", increment: increment.id, reason: "draw the lanes" });
     ticks.get(2_000)!();
-    await until(() => state?.board?.lanes[0]?.agents.length === 1);
+    await waitUntil(() => state?.board?.lanes[0]?.agents.length === 1, 10_000, "the board to show the agent");
     now += 42 * 60_000;
     ticks.get(60_000)!();
     assert.equal(state?.board?.lanes[0]?.state, "idle");

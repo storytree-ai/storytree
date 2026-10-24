@@ -7,10 +7,10 @@
 import assert from "node:assert/strict";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
 
 import { connect, type Library, type NewLine } from "@storytree/library";
+import { waitUntil } from "@storytree/test-waits";
 
 import { ACTIVITY_DATABASE, openActivityLog, type ActivityLog, type LockedLog } from "../activity/index.js";
 import { lineText, readClaim, readClaims } from "../index.js";
@@ -103,7 +103,7 @@ test("5.2 B's claim on it is refused, naming A, and a claim-refused line records
     assert.deepEqual(refusals.map((line) => ({ session: line.session, capability: line.capability, holder: line.holder, reason: line.reason })),
       [{ session: "B", capability: emailForm, holder: "A", reason: "I want it too" }], "the refusal is recorded as it happens, naming the holder");
 
-    await sleep(quietMs + 300); // A says nothing for longer than the quiet time
+    await clockPastLastLine(log, project, quietMs + 300, "A to say nothing for longer than the quiet time");
     const takenOver = await claim(as("B", { quietMs }), emailForm, "A went quiet; taking over");
     assert.ok(takenOver.ok);
     assert.equal(takenOver.takenOverFrom?.session, "A");
@@ -212,7 +212,7 @@ test("5.34 a takeover's claimed line names the holder, when it was last seen and
     const quietMs = 1_000;
     assert.ok((await claim(as("A"), emailForm, "building the email form")).ok);
     const lastSeen = await log.append(project, { session: "A", harness: "claude-code", source: "hook", machine: "mint", kind: "prompt-submitted" });
-    await sleep(quietMs + 300);
+    await clockPastLastLine(log, project, quietMs + 300, "A to say nothing for longer than the quiet time");
     assert.ok((await claim(as("B", { quietMs }), emailForm, "A went quiet; taking over")).ok);
     const idle = (await log.since(project, 0)).lines.findLast((line) => line.kind === "claimed");
     assert.ok(idle?.kind === "claimed");
@@ -305,7 +305,7 @@ test("5.26 the session manager ends a quiet session's claim with a release namin
     assert.ok(!notHeld.ok && notHeld.refused === "not-held", JSON.stringify(notHeld));
     assert.deepEqual((await log.since(project, 0)).lines.filter((line) => line.kind === "released"), [], "a refusal writes nothing");
 
-    await sleep(quietMs + 300); // A says nothing for longer than the quiet time
+    await clockPastLastLine(log, project, quietMs + 300, "A to say nothing for longer than the quiet time");
     assert.deepEqual(await releaseFor(as("B", { quietMs }), emailForm, "A", "quiet 24 hours after the manager's message"), { ok: true });
     const [line] = (await log.since(project, 0)).lines.filter((one) => one.kind === "released");
     assert.ok(line?.kind === "released");
@@ -373,7 +373,7 @@ test("5.6 while a command A started is still running, past the quiet time, B's c
     assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
     await log.append(project, { session: "A", harness: "claude-code", source: "hook", kind: "command-started", command: "npm run build", call: "call-1" });
 
-    await sleep(quietMs + 300); // the build runs on, longer than the quiet time, and A writes nothing
+    await clockPastLastLine(log, project, quietMs + 300, "the build to run on, longer than the quiet time, with A writing nothing");
     let historyReads = 0;
     const locked = <T>(of: string, work: (locked: LockedLog) => Promise<T>) => log.locked(of, (inside) => work({
       ...inside,
@@ -454,7 +454,7 @@ test("5.10 a claim taken on branch feature/signup ends with a merged line once G
       pulls.set("feature/signup", [{ number: 6, mergedAt: new Date(Date.now() - 3_600_000).toISOString() }]); // an earlier pull request from the same branch
       assert.equal((await claim(as("A", { branch: "feature/signup" }), emailForm, "building the email form")).ok, true);
       assert.equal((await claim(as("B", { branch: "feature/reset" }), passwordReset, "building the reset")).ok, true); // B's pull request is still open
-      await sleep(20);
+      await clockPastLastLine(log, project, 20, "the clock to pass the claims, so a merge now comes after them");
 
       // What the MCP server's wrapper calls before every tool call (ADR-0969 D1).
       const toolCall = () => endMergedClaims({ log, project, folder, session: "C", harness: "claude-code", source: "tool" }, merges);
@@ -521,7 +521,7 @@ test("5.10 the board asks GitHub itself before it shows claims, even in a minute
     const unmerged = await boardClaims(context, { mergedPulls: async () => [] });
     assert.deepEqual(unmerged.map((claim) => claim.session), ["A"]);
     assert.equal(locks, 0, "with no merge to reconcile, displaying claims does not queue behind writers (concurrent scan waits, 2026-10-02)");
-    await sleep(20);
+    await clockPastLastLine(log, project, 20, "the clock to pass A's claim, so a merge now comes after it");
     const merges: MergeWatch = { mergedPulls: async (_folder, branch) => (branch === "feature/signup" ? [{ number: 7, mergedAt: new Date().toISOString() }] : []) };
     due(project, 60_000); // a hook asked moments ago, and saw no merge then
     const shown = await boardClaims(context, merges);
@@ -711,7 +711,7 @@ test("5.7 session A claims a proposed increment, which the claim shows while the
 });
 
 test("5.29 releasing an active increment without closing it, by release, the session manager's release or close-out, returns it to proposal; a capability or a closed increment is untouched", async () => {
-  await withWorld(async ({ library, emailForm, as }) => {
+  await withWorld(async ({ log, project, library, emailForm, as }) => {
     const { arc, park } = await arcOf(library);
     const released = await park("email form");
     assert.equal((await claim(as("A"), emailForm, "building the email form")).ok, true);
@@ -723,7 +723,7 @@ test("5.29 releasing an active increment without closing it, by release, the ses
 
     const quiet = await park("welcome email");
     assert.equal((await claim(as("A"), quiet, "driving the welcome email")).ok, true);
-    await sleep(5);
+    await clockPastLastLine(log, project, 5, "A to be quiet for longer than 1 ms");
     assert.deepEqual(await releaseFor(as("B", { quietMs: 1 }), quiet, "A", "quiet, messaged"), { ok: true, returned: true });
     assert.equal(await statusOf(library, arc, quiet), "proposal", "the session manager's release returns it too");
 
@@ -969,7 +969,7 @@ test("5.33 the session manager's worklist lists claimed increments whose holder 
     } finally {
       await store.close();
     }
-    await sleep(quietMs + 300); // A and D are quiet, waiting
+    await clockPastLastLine(log, project, quietMs + 300, "A and D to be quiet, waiting");
     assert.equal((await claim(as("B"), busy, "driving it")).ok, true);
     await log.append(project, { session: "B", harness: "codex", source: "hook", kind: "command-started", command: "pnpm test", call: "c1" });
 
@@ -1234,3 +1234,9 @@ test("5.58 only the increment's live holder closes it: another session is refuse
     assert.equal(await closeRefusal({ ...as("C"), session: "person:mick" }, handed), undefined, "the watcher closes it from the owner's shell");
   });
 });
+
+/** Let the clock pass the project's last line by `ms`: the scenario's passage of time, as a quiet session or a later merge needs it. */
+async function clockPastLastLine(log: ActivityLog, project: string, ms: number, what: string): Promise<void> {
+  const last = Date.parse((await log.since(project, 0)).lines.at(-1)!.at);
+  await waitUntil(() => Date.now() > last + ms, ms + 1_000, what);
+}

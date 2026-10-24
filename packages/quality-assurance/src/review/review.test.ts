@@ -651,7 +651,7 @@ test("2.13 · a return says of each contract whether the change touches it; a to
   });
 });
 
-test("2.14 · a test the change adds that no saved red run names failing is taken as a hit at its line asking for the red; one whose run failed, by name or its file failing to load, is not", async () => {
+test("2.14 · a test the change adds that no saved red run names failing is taken as a hit at its line asking for the red; one whose run failed, by name or its file failing to load, is not, nor is a test written inside a fixture's text", async () => {
   await withLibrary(async (library, storytree) => {
     const { increment, contracts, checks } = await plan(library);
     const reviews = await openReviews(storytree);
@@ -665,6 +665,7 @@ test("2.14 · a test the change adds that no saved red run names failing is take
         '  test("1.2 · never red", () => {});',
         '  test.todo("1.3 · not yet");',
         "});",
+        "const fixture = `test(\"1.5 · inside a fixture's text\", () => {});`;",
         "",
       ].join("\n"));
       writeFileSync(join(dir, "packages/library/src/b.test.ts"), 'import { test } from "node:test";\ntest("1.4 · its file failed to load", () => {});\n');

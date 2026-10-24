@@ -471,16 +471,19 @@ function redRuns(brief: Brief): { check: string; hits: { package: string; file: 
 
 /** A test file, by the name node:test and the dev loop give one. */
 const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
-/** A test or `it` call opening on a line, with its literal title; `.skip` and `.todo` ones run nothing, so are not read. */
-const TEST_CALL = /\b(?:test|it)(?:\.only)?\(\s*(["'`])((?:\\.|(?!\1).)*)\1/;
+/** A string literal or a comment: the scan of a test file blanks them, so a test written inside a fixture's text is no call. */
+const INERT = /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|(["'`])(?:\\.|(?!\1)[^\\])*\1/g;
+/** Code ending in a test or `it` call about to take its title; `.skip` and `.todo` ones run nothing, so are not read. */
+const CALLED = /\b(?:test|it)(?:\.only)?\s*\(\s*$/;
 
 /**
- * Each test `diff` adds, in a test file, at its new line, and whether the red runs saved in the worktree at `root` name it failing:
- * by its full name ending in its title, or by its file failing to load. A title the diff also removes from the same file is a moved
- * or reworded line, not a new test, and is left out.
+ * Each test `diff` adds, in a test file, at its line, and whether the red runs saved in the worktree at `root` name it failing:
+ * by its full name ending in its title, or by its file failing to load. A test is a test or `it` call in the file's code, read from
+ * the worktree, whose literal title opens on a line the diff adds; one written inside a string (a fixture's file) is not. A title the
+ * diff also removes from the same file is a moved or reworded test, not a new one, and is left out.
  */
 export function redsOf(diff: string, root: string): BriefRed[] {
-  const added: { file: string; line: number; test: string }[] = [];
+  const added = new Map<string, Set<number>>();
   const removed = new Set<string>();
   let file: string | undefined;
   let line = 0;
@@ -497,19 +500,38 @@ export function redsOf(diff: string, root: string): BriefRed[] {
       continue;
     }
     if (text.startsWith("+++") || text.startsWith("---")) continue;
-    const title = TEST_CALL.exec(text.slice(1))?.[2];
     if (text.startsWith("+")) {
-      if (title !== undefined) added.push({ file, line, test: title });
+      added.set(file, (added.get(file) ?? new Set()).add(line));
       line += 1;
     } else if (text.startsWith("-")) {
-      if (title !== undefined) removed.add(`${file}\0${title}`);
+      for (const title of titlesIn(text.slice(1))) removed.add(`${file}\0${title.test}`);
     } else if (text.startsWith(" ")) line += 1;
   }
   const saved = savedReds(root);
-  return added.filter(({ file, test }) => !removed.has(`${file}\0${test}`)).map((entry) => ({
-    ...entry,
-    red: saved.some((row) => row.file === entry.file && (row.test === null || row.test === entry.test || row.test.endsWith(` › ${entry.test}`))),
-  }));
+  return [...added].flatMap(([file, lines]) => {
+    let text: string;
+    try {
+      text = readFileSync(join(root, file), "utf8");
+    } catch {
+      return []; // deleted by the change
+    }
+    return titlesIn(text).filter(({ line, test }) => lines.has(line) && !removed.has(`${file}\0${test}`)).map(({ line, test }) => ({
+      file, line, test,
+      red: saved.some((row) => row.file === file && (row.test === null || row.test === test || row.test.endsWith(` › ${test}`))),
+    }));
+  });
+}
+
+/** Each test or `it` call in `text`'s code with a literal title, by the line its title opens on. */
+function titlesIn(text: string): { line: number; test: string }[] {
+  const strings: { at: number; value: string; template: boolean }[] = [];
+  const code = text.replace(INERT, (token: string, quote: string | undefined, at: number) => {
+    if (quote !== undefined) strings.push({ at, value: token.slice(1, -1), template: quote === "`" });
+    return token.replace(/[^\r\n]/g, " ");
+  });
+  return strings
+    .filter(({ at, value, template }) => CALLED.test(code.slice(Math.max(0, at - 40), at)) && !(template && value.includes("${")))
+    .map(({ at, value }) => ({ line: text.slice(0, at).split("\n").length, test: value }));
 }
 
 /** The red runs `pnpm test` saved in the worktree at `root` (packages/dev-loop/src/red-runs.mjs), or none. */

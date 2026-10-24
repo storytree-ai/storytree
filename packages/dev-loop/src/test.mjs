@@ -41,7 +41,8 @@
 // `pnpm test -- --flag` fails there with "Unknown option"; a literal `--` is still ignored here.
 //
 // The last result of each unit is kept in .pgtest/last-run.json for --rerun-failed; a run updates
-// the units it ran and leaves the others' results as they were.
+// the units it ran and leaves the others' results as they were. Every run, of named files too, adds each
+// test it saw fail to .pgtest/red-runs.jsonl, which only grows: the red the change-reviewer's brief shows (red-runs.mjs).
 //
 // With STORYTREE_TEST_PG_URL set, the tests use that server and nothing is started or stopped.
 // Otherwise this runs a throwaway local server through @storytree/local-postgres, and hands the
@@ -105,6 +106,7 @@ import { DataDirInUseError, start } from "@storytree/local-postgres";
 
 import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { runtimeRefusal } from "./node-runtime.mjs";
+import { recordReds } from "./red-runs.mjs";
 import { keepPreviousServerLog } from "./server-log.mjs";
 import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs, ALONE } from "./test-scope.mjs";
 import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
@@ -282,6 +284,7 @@ function patient(url) {
 async function runTests(env, units) {
   if (units === undefined) {
     const run = await runNodeTest(env, []);
+    keepReds([run]);
     if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: the named files ${unitReason(run, root)}`);
     return run.code;
   }
@@ -289,6 +292,7 @@ async function runTests(env, units) {
   const reasons = {};
   const timings = {};
   const tests = [];
+  const unitRuns = [];
   const running = new Set();
   const passTimes = jobs > 1 ? recentPassTimes() : new Map();
   const order = jobs > 1 ? slowestFirst(units, { root, history: (unit) => passTimes.get(unit) }) : units;
@@ -308,9 +312,11 @@ async function runTests(env, units) {
     reasons[unit] = unitReason(run, root);
     timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut && !run.cut }; // a cut is the run's deadline, not the unit's
     tests.push(...run.tests);
+    unitRuns.push(run);
     if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
   }, { stopped: () => interrupted, alone: (unit) => ALONE.includes(unit) });
   writeRecord(results);
+  keepReds(unitRuns);
   try {
     recordTimings(timings, { jobs, tests });
   } catch (error) {
@@ -319,6 +325,15 @@ async function runTests(env, units) {
   console.log(`\n${resultsTable(results, { reasons })}`);
   if (plannedShards !== undefined) process.stdout.write(`this was shard ${shard.index}/${shard.count}; every shard's units:\n${shardPlan(plannedShards)}`);
   return Object.values(results).every((result) => result === "pass") ? 0 : 1;
+}
+
+/** Keep the runs' failing tests in the checkout's red runs, for the change-reviewer's brief (red-runs.mjs). */
+function keepReds(runs) {
+  try {
+    recordReds(root, { tests: runs.flatMap((run) => run.tests ?? []), unloaded: runs.flatMap((run) => run.unloaded ?? []) });
+  } catch (error) {
+    console.log(`test harness: could not keep this run's failing tests in .pgtest/red-runs.jsonl: ${error.message}`);
+  }
 }
 
 /** One unit's run; with other units running beside it, its output is held and returned as `output`. */

@@ -24,7 +24,7 @@
 // A run that gives its own default never gives a learned deadline under it: CI carries its history
 // from main's runs, and a pull request's kills are never carried back to grow it (increment_d51b4f1d9fc8).
 import { execFileSync, spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -62,8 +62,9 @@ process.on("exit", () => {
 });
 
 /**
- * Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs, tests },
- * `tests` being each test that ended: { file (from root), name (its full name), result, ms, timedOut (at testLimitMs) }.
+ * Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs, tests, unloaded },
+ * `tests` being each test that ended: { file (from root), name (its full name), result, ms, timedOut (at testLimitMs) },
+ * and `unloaded` each file (from root) that failed with no test in it ended, as one whose import is not built yet does.
  * With `hold`, as when other units run beside it, nothing is printed: its stdout and stderr, in the
  * order they came, are resolved as `output` once the process has ended.
  */
@@ -156,9 +157,10 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     child.on("exit", (code) => {
       stop();
       const tests = endedTests(runningFile, root, testLimitMs);
+      const unloaded = failedUnloaded(runningFile, root);
       rmSync(runningFile, { force: true });
       removeTemp();
-      const result = { code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs, tests };
+      const result = { code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs, tests, unloaded };
       if (report !== undefined) {
         try {
           let xml = "";
@@ -249,12 +251,28 @@ function endedNotExited(runningFile, since) {
  */
 function endedTests(runningFile, root, limitMs) {
   return readJsonLines(runningFile).flatMap((entry) => entry.event !== "end" || entry.fullName === undefined ? [] : [{
-    file: path.relative(root, entry.file).replaceAll("\\", "/"),
+    file: path.relative(root, realPath(entry.file)).replaceAll("\\", "/"),
     name: entry.fullName,
     result: entry.passed ? "pass" : "fail",
     ms: Math.round(entry.ms),
     timedOut: entry.timeout === true && entry.ms >= 0.99 * limitMs,
   }]);
+}
+
+/** The files, from root, whose own entry ended failed with no test in them ended: a file that failed to load. */
+function failedUnloaded(runningFile, root) {
+  const lines = readJsonLines(runningFile).filter((entry) => entry.event === "end");
+  const ran = new Set(lines.filter((entry) => entry.fullName !== undefined).map((entry) => realPath(entry.file)));
+  return lines.filter((entry) => isFileEntry(entry) && entry.passed === false && !ran.has(realPath(entry.file))).map((entry) => path.relative(root, realPath(entry.file)).replaceAll("\\", "/"));
+}
+
+/** A file by its real path, as macOS names a temporary file one way for its tests and another (under /private) for itself. */
+function realPath(file) {
+  try {
+    return realpathSync(file);
+  } catch {
+    return file;
+  }
 }
 
 /** The tests started and not yet ended, the innermost of each file; a file stuck outside any test is named alone. */

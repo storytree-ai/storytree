@@ -62,8 +62,47 @@ sudo bash infra/library-host/setup.sh
 The service must be active and `psql -X -d postgres -c 'select 1'` must work as
 `mickh` over the local socket. The Mint ADC service account must have Object
 Creator and Object Viewer on `gs://storytree-498613-library-backups`, without
-Object Admin or delete permission. The owner configures the bucket's 30-day
-expiry on **backups/** only and seven-day soft delete; archive/ never expires.
+Object Admin or delete permission, and only on objects under **backups/**: the
+condition in `backups-only.yaml` (a list counts when its prefix is under
+backups/). The owner configures the bucket's 30-day expiry on **backups/** only
+and seven-day soft delete; archive/ never expires.
+
+The owner sets that condition from the repository root on the laptop, with his
+own login. Conditions need the bucket's uniform access, so the first command must
+print `True`; the conditional grants go on before the plain ones come off, so a
+backup in between still uploads:
+
+```sh
+gcloud storage buckets describe gs://storytree-498613-library-backups --format="value(uniform_bucket_level_access)"
+gcloud storage buckets add-iam-policy-binding gs://storytree-498613-library-backups --member=serviceAccount:storytree-mint@storytree-498613.iam.gserviceaccount.com --role=roles/storage.objectCreator --condition-from-file=infra/library-host/backups-only.yaml
+gcloud storage buckets add-iam-policy-binding gs://storytree-498613-library-backups --member=serviceAccount:storytree-mint@storytree-498613.iam.gserviceaccount.com --role=roles/storage.objectViewer --condition-from-file=infra/library-host/backups-only.yaml
+gcloud storage buckets remove-iam-policy-binding gs://storytree-498613-library-backups --member=serviceAccount:storytree-mint@storytree-498613.iam.gserviceaccount.com --role=roles/storage.objectCreator --condition=None
+gcloud storage buckets remove-iam-policy-binding gs://storytree-498613-library-backups --member=serviceAccount:storytree-mint@storytree-498613.iam.gserviceaccount.com --role=roles/storage.objectViewer --condition=None
+gcloud storage buckets get-iam-policy gs://storytree-498613-library-backups --format=json
+```
+
+The last prints the policy: `storytree-mint` appears only in the two bindings
+titled `backups-only`. The next six-hourly run's line in
+`~/storytree-lanes/library-backups/timer.log` confirms the box still uploads.
+
+## An offline copy
+
+The owner keeps a copy off every cloud: on the laptop, with his own gcloud login,
+`gpg` (Gpg4win on Windows) and `tar`, from the repository root:
+
+```sh
+node infra/library-host/pull-offline.mjs --out E:\ --recipient <his gpg key>
+```
+
+It takes the newest backup whose manifest checks out and whose every dump is in
+the bucket at the manifest's size, newest by when its manifest was written (a
+manifest is uploaded last), not by its name. It checks each dump's size and
+SHA-256, adds every object under archive/, and writes one gpg-encrypted tar,
+`storytree-library-<backup>.tar.gpg`, into the `--out` folder, printing its path,
+size and SHA-256. Without `--recipient`, gpg asks for a passphrase instead. The
+unencrypted download is deleted however the run ends, and an existing file is
+never overwritten. `gpg --decrypt <file> | tar -xf -` opens it; each dump is
+`pg_dump -Fc` and restores with `pg_restore`, as the restore proof below does.
 
 ```sh
 node infra/library-host/host.mjs provision --dry-run

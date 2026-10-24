@@ -7,13 +7,15 @@
  * worktree the same way, on the branch it is on, rather than making a second one it never uses.
  * An increment asked for from inside a linked worktree is refused with the claim that takes it
  * there, so no old or queued branch is adopted silently and no second worktree is made (5.19).
+ * A workspace for an increment claims every capability on its list with it, all or nothing, so a
+ * lane backs off in seconds, not after its worktree is installed and its plan read (5.59, ADR-1079 D2).
  */
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import path from "node:path";
 
-import { claim, claimRefusal, reasonRefusal, readClaim, readClaims, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
+import { claim, claimAll, claimRefusal, reasonRefusal, readClaim, readClaims, release, type Claim, type ClaimAllAnswer, type ClaimAnswer, type ClaimContext, type Held } from "./claims.js";
 import { endIfMerged, ghAllOpenPulls, inMergeQueue, type MergeWatch } from "./merges.js";
 import { setUpWorktree, wasSetUp, type SetupLimits, type WorktreeSetup } from "./worktree-setup.js";
 
@@ -30,8 +32,12 @@ export interface WorkspaceAttachment {
 
 export type WorkspaceRefusal =
   | Exclude<ClaimAnswer, { ok: true }>
+  | ListedHeld
   | { ok: false; refused: "yours"; claim: Claim }
   | { ok: false; refused: "no-workspace"; why: string; openPulls?: readonly OpenPullForWork[] };
+
+/** A capability on the increment's list another live session holds: `listed` names it (5.59). */
+export type ListedHeld = Held & { listed: string };
 
 /** An open pull request already made for the work, as a no-workspace refusal carries it (5.25). */
 export interface OpenPullForWork {
@@ -75,6 +81,8 @@ const NAME_PART_MAX = 32;
 export async function makeWorkspace(context: WorkspaceContext, id: string, reason: string, watch: MergeWatch = {}, options: WorkspaceOptions = {}): Promise<WorkspaceAnswer> {
   const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
+  const listed = await listedCapabilities(context, id, reason);
+  if (!Array.isArray(listed)) return listed;
   const linked = linkedWorktree(context.folder);
   const capability = linked !== undefined && (await context.library.get(id))?.type === "capability";
   if (linked !== undefined && !capability) {
@@ -111,15 +119,24 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
   const before = await readClaim(context.log, context.project, id);
   const claimed = await claim({ ...context, folder: where.folder, branch: where.branch }, id, reason, { moveBranch: true });
   if (!claimed.ok) return claimed;
+  // A claim the session held before goes back to its branch; one taken here is let go.
+  const giveBack = async () => {
+    if (before?.session === context.session && before.branch !== undefined) await claim({ ...context, branch: before.branch }, id, before.reason, { moveBranch: true });
+    else await release(context, id);
+  };
+  const capabilities = await claimAll({ ...context, folder: where.folder, branch: where.branch }, listed, reason);
+  if (!capabilities.ok) {
+    await giveBack();
+    return listedRefusal(capabilities);
+  }
   try {
     mkdirSync(path.dirname(where.folder), { recursive: true });
     run(repository, ["worktree", "add", "-b", where.branch, where.folder, `refs/remotes/${base}`], WORKTREE_ADD_TIMEOUT_MS);
   } catch (error) {
     // Only git's exit says it failed: what it printed on stderr before then is progress (5.47). What it made part-way goes.
     unmake(repository, where);
-    // A claim the session held before goes back to its branch; one taken here is let go.
-    if (before?.session === context.session && before.branch !== undefined) await claim({ ...context, branch: before.branch }, id, before.reason, { moveBranch: true });
-    else await release(context, id);
+    await releaseTaken(context, capabilities);
+    await giveBack();
     return { ok: false, refused: "no-workspace", why: `git could not make the worktree: ${failureOf(error)}` };
   }
   // The project's own local file sets it up; whatever fails there is reported, and the claim and the worktree stay (19.2).
@@ -135,6 +152,8 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
 export async function attachWorkspace(context: WorkspaceContext, id: string, reason: string, attachment: WorkspaceAttachment, watch: MergeWatch = {}): Promise<ClaimedWorkspace | WorkspaceRefusal> {
   const refused = reasonRefusal(reason) ?? await workspaceRefusal(context, id, reason, watch);
   if (refused !== undefined) return refused;
+  const listed = await listedCapabilities(context, id, reason);
+  if (!Array.isArray(listed)) return listed;
   const codex = context.harness === "codex";
 
   let folder: string;
@@ -165,12 +184,19 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
   if (!claimed.ok) return claimed; // Another session may have claimed since preparation.
   // A claim this session took elsewhere while checking must not be retargeted or released.
   if (claimed.alreadyHeld) return { ok: false, refused: "yours", claim: claimed.claim };
+  const capabilities = await claimAll({ ...context, folder, branch }, listed, reason);
+  if (!capabilities.ok) {
+    if (moving && before.branch !== undefined) await claim({ ...context, branch: before.branch }, id, before.reason, { moveBranch: true });
+    else await release(context, id);
+    return listedRefusal(capabilities);
+  }
   try {
     if (run(folder, ["rev-parse", "HEAD"]).trim() !== base || run(folder, ["branch", "--show-current"]).trim() !== existingBranch) {
       throw new Error("the app worktree changed while its claim was being taken");
     }
     if (!existingBranch) run(folder, ["switch", "-c", branch]);
   } catch (error) {
+    await releaseTaken(context, capabilities);
     // A claim the session held before goes back to its branch; one taken here is let go.
     if (moving && before.branch !== undefined) {
       await claim({ ...context, branch: before.branch }, id, before.reason, { moveBranch: true });
@@ -203,6 +229,34 @@ async function workspaceRefusal(context: WorkspaceContext, id: string, reason: s
     return { ok: false, refused: "yours", claim: mine };
   }
   return claimRefusal(context, id, reason);
+}
+
+/**
+ * The capabilities on increment `id`'s list a workspace claims with it, in ascending id order, or the refusal of the first one
+ * another live session holds, its claim-refused line written under the increment (5.59). Checked before anything slow, as the
+ * increment is; one that cannot be claimed for another reason (a retired one) is left off.
+ */
+async function listedCapabilities(context: WorkspaceContext, id: string, reason: string): Promise<string[] | ListedHeld> {
+  const work = await context.library.get(id);
+  if (work?.type !== "increment") return [];
+  const listed = [...new Set((work.fields as { capabilities?: string[] }).capabilities ?? [])].sort();
+  const free: string[] = [];
+  for (const capability of listed) {
+    const refused = await claimRefusal(context, capability, reason, id);
+    if (refused?.refused === "held") return { ...refused, listed: capability };
+    if (refused === undefined) free.push(capability);
+  }
+  return free;
+}
+
+/** A listed capability's refusal, as the workspace answers it. */
+function listedRefusal(answer: Extract<ClaimAllAnswer, { ok: false }>): WorkspaceRefusal {
+  return answer.refusal.refused === "held" ? { ...answer.refusal, listed: answer.id } : answer.refusal;
+}
+
+/** Let go of the listed capabilities a workspace claimed, when it is not made after all; one the session held before is kept. */
+async function releaseTaken(context: ClaimContext, answer: Extract<ClaimAllAnswer, { ok: true }>): Promise<void> {
+  for (const taken of answer.claims) if (taken.alreadyHeld !== true) await release(context, taken.claim.capability!);
 }
 
 /**

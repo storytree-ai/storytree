@@ -240,8 +240,9 @@ function inLinkedWorktree(folder: string | undefined): boolean {
  * Why a claim on `id` would be refused right now, or undefined when it would not: the refusals
  * `claim` gives, read without taking the lock or writing a line, for a caller that must know before
  * it does something slow (makeWorkspace fetches). `claim` itself checks again under the lock.
+ * `under` names the increment a refused capability's line is under, for a caller that has not claimed it yet.
  */
-export async function claimRefusal(context: ClaimContext, id: string, reason?: string): Promise<Exclude<ClaimAnswer, { ok: true }> | undefined> {
+export async function claimRefusal(context: ClaimContext, id: string, reason?: string, under?: string): Promise<Exclude<ClaimAnswer, { ok: true }> | undefined> {
   const found = await claimable(context, id);
   if (!("part" in found)) return found;
   const standing = await readClaims(context.log, context.project, {
@@ -255,8 +256,8 @@ export async function claimRefusal(context: ClaimContext, id: string, reason?: s
   if (holder === undefined) return undefined;
   // A caller giving the reason it would claim with is turned away now, so the refusal is recorded.
   if (reason !== undefined) {
-    const under = underOf(new Map(standing.map((claim) => [claim.increment ?? claim.capability!, claim])), context.session, found.part);
-    await context.log.append(context.project, { ...who(context), kind: "claim-refused", ...found.part, holder: holder.session, reason, ...under });
+    const named = under !== undefined && found.part.capability !== undefined ? { under } : underOf(new Map(standing.map((claim) => [claim.increment ?? claim.capability!, claim])), context.session, found.part);
+    await context.log.append(context.project, { ...who(context), kind: "claim-refused", ...found.part, holder: holder.session, reason, ...named });
   }
   return held(standing, holder, listing?.increment);
 }

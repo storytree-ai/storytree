@@ -342,6 +342,67 @@ test("5.14 Codex refuses invalid returned directories and releases a claim if na
   });
 });
 
+test("5.59 a workspace for an increment claims every capability on its list with it, all or nothing; a listed capability another live session holds, before main is fetched or in the moment before the claim, refuses it naming that capability and its holder, leaving no worktree, branch or claim, and a claim-refused line under the increment", async () => {
+  await withWorld(async ({ dir, log, library, project, site, park, as }) => {
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = async (title: string) => (await library.addCapability({ title, story: story.id })).id;
+    const [form, mail, page, button, banner] = [await capability("Form"), await capability("Mail"), await capability("Page"), await capability("Button"), await capability("Banner")];
+    const arc = (await library.createArc({ title: "Wide", intent: "Many parts", endState: "All built" })).id;
+    const wide = async (title: string, capabilities: string[]) => (await library.addIncrement({ arc, title, objective: title, body: title, capabilities })).id;
+    const refusedUnder = async (from: number) => (await log.since(project, 0)).lines.slice(from)
+      .filter((line) => line.kind === "claim-refused").map((line) => [line.session, line.capability, line.under, line.holder]);
+    const mine = async (session: string) => (await readClaims(log, project)).filter((one) => one.session === session);
+
+    // Free: the increment and both listed capabilities, on the new branch.
+    const both = await wide("form and mail", [mail, form]);
+    const made = await makeWorkspace(as("A"), both, "form and mail");
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+    assert.deepEqual((await mine("A")).map((one) => [one.increment ?? one.capability, one.branch]).sort(),
+      [[both, made.branch], [form, made.branch], [mail, made.branch]].sort());
+    const trees = worktrees(site);
+    const branchesNow = branches(site);
+
+    // Held before the call: refused before anything is fetched, claimed or made.
+    assert.equal((await claim({ ...as("B"), branch: "codex/page" }, page, "the page")).ok, true);
+    const standing = await wide("page and button", [button, page]);
+    let from = (await log.since(project, 0)).lines.length;
+    const held = await makeWorkspace(as("A"), standing, "page and button");
+    assert.ok(!held.ok && held.refused === "held" && held.holder.session === "B" && "listed" in held && held.listed === page, JSON.stringify(held));
+    assert.deepEqual(await refusedUnder(from), [["A", page, standing, "B"]]);
+    assert.equal(await statusOf(library, standing), "proposal", "not started");
+
+    // Taken in the moment between the check and the claim: the increment claim is let go again.
+    const raced = await wide("banner", [banner]);
+    const locked = log.locked.bind(log);
+    log.locked = async (project, work) => {
+      log.locked = locked;
+      await claim({ ...as("B"), branch: "codex/banner" }, banner, "the banner");
+      return locked(project, work);
+    };
+    from = (await log.since(project, 0)).lines.length;
+    const lost = await makeWorkspace(as("A"), raced, "banner");
+    assert.ok(!lost.ok && lost.refused === "held" && "listed" in lost && lost.listed === banner, JSON.stringify(lost));
+    assert.deepEqual(await refusedUnder(from), [["A", banner, raced, "B"]]);
+    assert.deepEqual(worktrees(site), trees, "no worktree was made");
+    assert.deepEqual(branches(site), branchesNow, "no branch was made");
+    assert.deepEqual((await mine("A")).map((one) => one.increment ?? one.capability).sort(), [both, form, mail].sort(), "nothing else is held");
+    assert.equal(await statusOf(library, raced), "proposal", "the released claim leaves it a proposal");
+
+    // Codex: a listed capability taken after preparation refuses the attachment, and the app's worktree is left as it was.
+    const codex = await wide("button", [button]);
+    const prepared = await makeWorkspace(as("B"), codex, "button");
+    assert.ok(prepared.ok && prepared.status === "prepared", JSON.stringify(prepared));
+    const folder = path.join(dir, "app-worktree");
+    git(site, "worktree", "add", "--detach", folder, prepared.ref);
+    await release(as("A"), both);
+    assert.equal((await claim({ ...as("A"), branch: "claude/button" }, button, "the button")).ok, true);
+    const attached = await workspace.attachWorkspace(as("B"), codex, "button", { folder, ref: prepared.ref, name: prepared.name });
+    assert.ok(!attached.ok && attached.refused === "held" && "listed" in attached && attached.listed === button, JSON.stringify(attached));
+    assert.equal(git(folder, "rev-parse", "--abbrev-ref", "HEAD").trim(), "HEAD");
+    assert.deepEqual((await mine("B")).map((one) => one.increment ?? one.capability).sort(), [banner, page].sort());
+  });
+});
+
 test("5.13 a claim taken by this session during attachment is refused as already yours and never released or retargeted", async () => {
   await withWorld(async ({ dir, log, project, site, park, as }) => {
     const increment = await park("email form");

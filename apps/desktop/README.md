@@ -3,7 +3,7 @@
 From Windows PowerShell (5.1+) or PowerShell 7:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-RestMethod 'https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.ps1')))
+& ([scriptblock]::Create((Invoke-RestMethod 'https://raw.githubusercontent.com/storytree-ai/storytree/release-channel-stable/install-storytree.ps1')))
 ```
 
 The command detects the machine's architecture and downloads only that architecture's NSIS

@@ -114,8 +114,9 @@ st_channel() {
   ST_CHANNEL=${st_existing:-${st_wanted:-stable}}
 }
 
+# st_save_channel HOME CHANNEL: storytree's home and the record in it are the user's alone.
 st_save_channel() {
-  mkdir -p "$1" && printf '{"schema":1,"channel":"%s"}' "$2" > "$1/release-channel.json"
+  (umask 077 && mkdir -p -m 700 "$1" && printf '{"schema":1,"channel":"%s"}' "$2" > "$1/release-channel.json")
 }
 
 st_fetch() {

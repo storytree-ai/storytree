@@ -62,10 +62,12 @@ jobs:
           elif [ "$queued" = true ]; then held=true; echo "Already in the merge queue: nothing more to do."
           fi
           echo "held=$held" >> "$GITHUB_OUTPUT"
-      # The enqueue's retry rule (packages/dev-loop/src/land-enqueue.mjs), and nothing else.
+      # The enqueue's retry rule (packages/dev-loop/src/land-enqueue.mjs), and nothing else, read from the default
+      # branch: the pull request's own copy never runs here.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         if: steps.held.outputs.held == 'false'
         with:
+          ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: packages/dev-loop/src/land-enqueue.mjs
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -112,7 +114,7 @@ jobs:
                 exit 0
               fi
               echo "$out"
-              if ! node packages/dev-loop/src/land-enqueue.mjs "$((SECONDS - start))" <<< "$out"; then exit 1; fi
+              if ! env -u QUEUE_TOKEN node packages/dev-loop/src/land-enqueue.mjs "$((SECONDS - start))" <<< "$out"; then exit 1; fi
               head=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)
               if [ "$head" != "$SHA" ]; then
                 echo "::error::The pull request's head moved to $head after verify passed $SHA, so this run does not enqueue it: the newer push's run does."

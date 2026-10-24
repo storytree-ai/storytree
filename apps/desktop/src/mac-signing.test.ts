@@ -4,7 +4,7 @@ import { test } from "node:test";
 // The release's macOS signing mode, chosen from the repository's signing secrets (apps/desktop's
 // mac-signing.mjs): the release workflow and dist.mjs both follow it.
 // @ts-expect-error: a plain .mjs packaging script, outside the typed source
-import { builderEnv, gatekeeperSkip, historyLines, identityFrom, macBuilderConfig, macNotarisation, macReleaseNote, macSigning, notarise, pendingLine, staplerSkip, withMacNote } from "../mac-signing.mjs";
+import { builderEnv, gatekeeperSkip, historyLines, identityFrom, macBuilderConfig, macNotarisation, macReleaseNote, macSigning, notarise, pendingLine, staplerSkip, unsignedEnv, withMacNote } from "../mac-signing.mjs";
 
 const apple = { APPLE_API_KEY: "-----BEGIN PRIVATE KEY-----", APPLE_API_KEY_ID: "KEY123", APPLE_API_ISSUER: "issuer-uuid" };
 const listed = [
@@ -25,6 +25,12 @@ test("4.20 an ad-hoc Mac build hands electron-builder no CSC_LINK or CSC_KEY_PAS
   assert.equal("CSC_LINK" in adHoc, false);
   assert.equal("CSC_KEY_PASSWORD" in adHoc, false);
   assert.equal(adHoc.PATH, "/usr/bin");
+});
+
+test("4.20 an unsigned build hands electron-builder no certificate variable at all, on any platform", () => {
+  const given = { CSC_LINK: "", CSC_KEY_PASSWORD: "pw", CSC_NAME: "someone", WIN_CSC_LINK: "cert", PATH: "/usr/bin" };
+  assert.deepEqual(unsignedEnv(given), { PATH: "/usr/bin" });
+  assert.deepEqual(builderEnv(given), { PATH: "/usr/bin", CSC_FOR_PULL_REQUEST: "true" });
 });
 
 test("4.20 a Developer ID Mac build hands electron-builder the identity prepare put in the keychain, not the certificate to import again", () => {

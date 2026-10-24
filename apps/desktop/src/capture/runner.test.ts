@@ -17,11 +17,11 @@ test("2.9 · capture settling awaits each requested frame after invalidating the
   await page.evaluate(`(() => {
     globalThis.events = [];
     globalThis.__globe = { invalidate() { events.push("invalidate"); } };
-    const nextFrame = requestAnimationFrame.bind(globalThis);
-    globalThis.requestAnimationFrame = callback => nextFrame(time => {
+    // A stand-in frame clock: Windows CI's headless Chrome can take seconds per real frame.
+    globalThis.requestAnimationFrame = callback => setTimeout(() => {
       events.push("frame");
-      callback(time);
-    });
+      callback(performance.now());
+    }, 0);
   })()`);
 
   for (const frames of [3, undefined, 0]) {

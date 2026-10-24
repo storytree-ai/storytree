@@ -39,6 +39,9 @@ jobs:
     if: needs.source.outputs.sha != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Its own environment, so its token names it; the sign-in route checks the repository and the
+    # ref, never the token's subject, so this changes nothing about who may sign in.
+    environment: website
     permissions:
       contents: read
       id-token: write # GitHub's OIDC token, for the keyless sign-in that fetches the here.now key

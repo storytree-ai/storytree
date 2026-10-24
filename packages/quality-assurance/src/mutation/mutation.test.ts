@@ -207,6 +207,7 @@ test("7.7 · a report run from inside an agent's session gives its tests the env
     write(dir, ENVIRONED);
     const lane: TestRun = (root, tests, limitMs, env = process.env) => runTests(root, tests, limitMs, { ...env, STORYTREE_SESSION_ID: "a-lane", CODEX_THREAD_ID: "a-thread", CLAUDE_CODE_SESSION_ID: "a-claude" });
     const report = await mutationReport(dir, adding({ "packages/environed/src/same.mjs": ENVIRONED["packages/environed/src/same.mjs"]! }), [], { run: lane });
+    assert.ok(report.ran);
     assert.deepEqual({ planted: report.planted, caught: report.caught, notRun: report.notRun }, { planted: 1, caught: 1, notRun: [] });
   } finally {
     await removeTemp(dir);

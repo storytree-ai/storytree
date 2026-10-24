@@ -343,7 +343,7 @@ const PASS_REPORTER = `export default async function* (source) {
 `;
 
 /** The variables naming an agent's session, which `pnpm test` keeps from its units (packages/dev-loop/src/unit-run.mjs). */
-const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => (harness.shellSession === undefined ? [] : [harness.shellSession])), SESSION_ENV];
+const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => ("shellSession" in harness ? [harness.shellSession] : [])), SESSION_ENV];
 
 /** The real test run: one node process for the files, in a temp folder of its own, killed with its children at `limitMs`. */
 export const runTests: TestRun = (root, tests, limitMs, given = process.env) => new Promise((resolve) => {

@@ -21,7 +21,7 @@ import { countingStore } from "@storytree/project-and-caller/testing/egress";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, testServerDataDir, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions } from "../sessions/index.js";
-import { claim, claimAll, claimClearingOwnerWait, claimRefusal, closed, holdForPull, land, letGo, readAttribution, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
+import { claim, claimAll, claimClearingOwnerWait, claimRefusal, closed, closeRefusal, holdForPull, land, letGo, readAttribution, recordRed, recordRerun, release, releaseFor, type ClaimContext, type MergedPull, type MergeWatch } from "./index.js";
 import { allMergedPullsThrough, allOpenPullsThrough, boardClaims, queuedPullsThrough, due, endMergedClaims, mergedPullsThrough, projectTempFile, type OpenPull } from "./merges.js";
 import { staleClaims } from "./stale-claims.js";
 
@@ -1210,5 +1210,27 @@ test("5.57 a session clearing an owner wait to finish the increment itself claim
     assert.deepEqual(refused.waits.map(({ on }) => on), [blocker], "only what else holds it is named");
     assert.equal((await library.waitsFor(held)).length, 1, "the owner wait stands");
     assert.equal(await readClaim(log, project, held), undefined);
+  });
+});
+
+test("5.58 only the increment's live holder closes it: another session is refused naming the holder, and so is a lane that handed it to its pull request; the holder, the owner's shell (the watcher's too), anyone once the holder reads idle, and anyone when nobody holds it close it", async () => {
+  await withWorld(async ({ library, as }) => {
+    const { park } = await arcOf(library);
+    const work = await park("email form");
+    assert.equal(await closeRefusal(as("B"), work), undefined, "nobody holds it: anyone closes it");
+    assert.equal((await claim(as("A"), work, "driving the email form")).ok, true);
+    const refused = await closeRefusal(as("B"), work);
+    assert.equal(refused?.holder.session, "A", "a session that does not hold it is refused, naming its holder");
+    assert.equal(await closeRefusal(as("A"), work), undefined, "its holder closes it");
+    assert.equal(await closeRefusal({ ...as("B"), session: "person:mick" }, work), undefined, "the owner's shell closes it");
+    assert.equal(await closeRefusal(as("B", { quietMs: 1 }), work), undefined, "once the holder reads idle, the session manager closes it");
+
+    const handed = await park("handed over");
+    const a = as("A", { branch: "feature/signup" });
+    assert.equal((await claim(a, handed, "driving the sign-up")).ok, true);
+    await holdForPull(as("C"), "A", 12, "feature/signup");
+    assert.equal((await closeRefusal(a, handed))?.holder.session, "pull-request-12", "the lane that handed it over is refused");
+    assert.notEqual(await closeRefusal(as("B", { quietMs: 1 }), handed), undefined, "a pull request's holder never reads idle");
+    assert.equal(await closeRefusal({ ...as("C"), session: "person:mick" }, handed), undefined, "the watcher closes it from the owner's shell");
   });
 });

@@ -517,6 +517,12 @@ test("6.9 it parks an increment, starts it by claiming it, and closes it landed 
       const claimed = await agent.call("claim", { increment, reason: "driving the email form" });
       assert.equal(claimed.isError, false, claimed.text);
       assert.equal((await incrementOf(increment))?.status, "active", "claiming it started it");
+      await withAgent(folder, claudeCode("claude-2"), async (other) => {
+        const refused = await other.call("close_increment", { increment, disposition: "landed", pr: "#12" });
+        assert.equal(refused.isError, true, "another session cannot close the increment claude-1 holds");
+        assert.match(refused.text, /held by .*claude-1/);
+        assert.equal((await incrementOf(increment))?.status, "active");
+      });
 
       const closed = await agent.call("close_increment", { increment, disposition: "landed", pr: "#12" });
       assert.equal(closed.isError, false, closed.text);

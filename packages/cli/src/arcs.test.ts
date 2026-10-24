@@ -683,7 +683,7 @@ test("4.24 `arc increment edit --capabilities` lets the session holding a capabi
   });
 });
 
-test("4.6 closing an increment ends its claim for any holder and outcome; a refused close leaves it held", async () => {
+test("4.6 closing an increment ends its claim for any outcome, closed by its holder or the owner; a refused close, or one by another live session, leaves it held", async () => {
   await inWorld(command, async (world) => {
     const library = await world.library();
     const arc = await anArc(world);
@@ -691,7 +691,7 @@ test("4.6 closing an increment ends its claim for any holder and outcome; a refu
     try {
       for (const [disposition, env, session] of [
         ["landed", { CLAUDE_CODE_SESSION_ID: "holder" }, "holder"],
-        ["failed", { CODEX_THREAD_ID: "closer" }, "closer"],
+        ["failed", { CODEX_THREAD_ID: "holder" }, "holder"],
         ["withdrawn", {}, `person:${userInfo().username}`],
       ] as const) {
         const increment = await library.addIncrement({ arc, title: "Email form", objective: "Build it", body: "…" });
@@ -707,6 +707,12 @@ test("4.6 closing an increment ends its claim for any holder and outcome; a refu
 
         // A bare pull request number, as the guidance's `--pr <n>` gives it, is kept as the text it is.
         const outcome = disposition === "landed" ? ["--pr", "132"] : ["--note", "Folded into the sign-up page"];
+        const another = await world.run([...close, ...outcome], { CODEX_THREAD_ID: "closer" });
+        assert.equal(another.code, 1, another.stdout);
+        assert.match(another.stderr, /held by .*holder/);
+        assert.notEqual((await library.get(increment.id))?.fields.status, "closed", "another live session's close leaves it open");
+        assert.deepEqual(await logged(log, world.project), before);
+
         const ran = await world.run([...close, ...outcome], env);
         assert.equal(ran.code, 0, ran.stderr);
         const closed = (await library.arcView(arc))?.increments.find((one) => one.id === increment.id)?.fields.outcome;

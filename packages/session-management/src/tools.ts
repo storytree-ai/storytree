@@ -16,7 +16,7 @@ import { lineOf, type Caller } from "@storytree/project-and-caller/caller";
 import { z } from "zod";
 
 import type { ActivityLog } from "./activity/index.js";
-import { claim, claimAll, CLAIM_REASON_LIMIT, increments, land, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims/claims.js";
+import { claim, claimAll, CLAIM_REASON_LIMIT, closeRefusal, increments, land, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims/claims.js";
 import { currentBranch, type MergeWatch } from "./claims/merges.js";
 import { presentQuestion, stopPresenting } from "./claims/presenting.js";
 import { staleClaims } from "./claims/stale-claims.js";
@@ -403,6 +403,13 @@ export async function refusalText(library: Library, id: string, answer: Exclude<
     case "reason-too-long":
       return `Your reason is ${answer.length} characters; a claim's reason is the session's name in the sessions list, so keep it to ${answer.limit} or fewer and claim again.`;
   }
+}
+
+/** Why the context's session may not close `increment`, as the agent is told it, or undefined when it may (closeRefusal). */
+export async function closeRefusalText(context: ClaimContext, increment: string): Promise<string | undefined> {
+  const refused = await closeRefusal(context, increment);
+  if (refused === undefined) return undefined;
+  return `${await titleOf(context.library, increment)} is held by ${holderOf(refused.holder, refused.heldFor)}, and only its holder closes it. Release what you still hold and end: its holder, the watcher or the owner closes it.`;
 }
 
 async function workspaceRefusalText(library: Library, id: string, answer: WorkspaceRefusal): Promise<string> {

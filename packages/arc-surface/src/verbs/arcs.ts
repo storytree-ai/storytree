@@ -8,7 +8,7 @@
  * owner or an outside event with a note (ADR-0938 D1), or clear the wait (the library clears one itself when its
  * blocker lands or closes, 11.8). Return active work nobody holds to proposal (`increment unstart`), and settle the
  * pending plan changes closed increments left behind (`increment settle-pending`). Closing an increment ends its claims
- * through Session management's `closed`. None is a tool: the MCP server's own show_plan, park_increment, edit_plan,
+ * through Session management's `closed`, and is refused while another session holds it live (its `closeRefusal`). None is a tool: the MCP server's own show_plan, park_increment, edit_plan,
  * move_increment, close_increment, set_wait and clear_wait do these jobs.
  *
  * Every rule is the library's (its capabilities 10, 11 and 12): an arc's intent and end state, a close's note, the loop
@@ -431,6 +431,9 @@ const incrementClose = verb({
   writes: true,
   async act({ increment: id, ...given }, context: ArcVerbContext) {
     const outcome = closeOf(given);
+    const { closeRefusalText } = await import("@storytree/session-management/tools");
+    const refused = await closeRefusalText(context, id);
+    if (refused !== undefined) throw new VerbRefusal(refused);
     const done = await context.library.closeIncrement(id, outcome, context.writer);
     if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
     const { closed } = await import("@storytree/session-management");

@@ -1,17 +1,18 @@
 /**
- * Capability 5 · Drafted writes with read-back and undo (contracts 5.1-5.4, 5.6): the voice writes, each a signed tool that
- * only drafts. answer_question settles a clear answer (ADR-1103 D3) and start_manager_run starts one session manager run
- * on the box (ADR-1150); confirm sets a draft to take effect ten minutes later, cancel stops it until then, and lock_voice
- * turns every write off until the box clears it. Each write checks the lock first. None runs anything itself: the box's
- * committer (commit.ts) carries a draft out.
+ * Capability 5 · Drafted writes with read-back and undo (contracts 5.1-5.4, 5.6-5.8): the voice writes, each a signed tool.
+ * save_note keeps what the owner said at once, an answer to a question included (ADR-1155 D1, D2), and start_manager_run
+ * drafts one session manager run on the box that carries every unswept note (ADR-1150); confirm sets a draft to take
+ * effect ten minutes later, cancel stops it until then, and lock_voice turns every write off until the box clears it.
+ * Each write checks the lock first. None runs anything itself: the box's committer (commit.ts) starts a run, and the run
+ * sweeps the notes.
  */
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { voiceSession } from "./config.js";
-import { DraftRefusal, Drafts, WORDS_CHARS, managerBrief, spokenAnswer, type Draft } from "./drafts.js";
+import { DraftRefusal, Drafts, NOTE_KINDS, WORDS_CHARS, managerBrief, spokenAnswer, type Draft } from "./drafts.js";
 
 /** The write tools, each of which needs the owner's sign-in. */
-export const WRITE_TOOL_NAMES = ["answer_question", "start_manager_run", "confirm", "cancel", "lock_voice"] as const;
+export const WRITE_TOOL_NAMES = ["save_note", "start_manager_run", "confirm", "cancel", "lock_voice"] as const;
 
 /** An open question's id and title, or null when it is not open; read through the storytree command line. */
 export type OpenQuestion = (id: string) => Promise<{ id: string; title: string } | null>;
@@ -61,31 +62,35 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
   };
 
   server.registerTool(
-    "answer_question",
+    "save_note",
     {
-      title: "Answer an open question (a draft)",
+      title: "Save a note",
       description:
-        "Draft settling one of the owner's open questions with his clear answer, in his words as he said them (a question id from catch_up). " +
-        "Only an answer that picks a path: anything else is a note, not a settle. Nothing is settled until he confirms; read the draft back to him. Needs the owner's sign-in.",
+        "Keep one thing the owner said, in his words as he said them, at once: no read-back and nothing to confirm. Its kind is what it is: " +
+        "a decision, a change he wants, an idea, a question he asks, an instruction, or an answer to one of his open questions (give its id " +
+        "from catch_up). A session manager run sweeps the notes when he says to send them, and acts on each. Needs the owner's sign-in.",
       inputSchema: z.object({
-        question: z.string().max(80).describe("the question's id, for example question_403f67807848"),
-        answer: z.string().max(WORDS_CHARS * 2).describe("his answer, word for word as transcribed"),
+        text: z.string().max(WORDS_CHARS * 2).describe("what he said, word for word as transcribed"),
+        kind: z.enum(NOTE_KINDS).describe("what the note is"),
+        question: z.string().max(80).optional().describe("for an answer only: the question's id, for example question_403f67807848"),
       }),
       annotations: WRITE,
     },
-    async ({ question, answer }) =>
+    async ({ text, kind, question }) =>
       guarded(async () => {
-        const id = String(question ?? "").trim().toLowerCase();
-        if (!QUESTION_ID.test(id)) throw new DraftRefusal("give the question's id from catch_up, such as question_403f67807848");
-        const open = await openQuestion(id);
-        if (open === null) throw new DraftRefusal(`${id} is not an open question, so there is nothing to settle`);
         const session = voiceSession(new Date());
-        const spoken = words(answer);
-        const draft = await drafts.add({ kind: "answer", question: id, words: spoken, body: spokenAnswer(spoken, session), session });
-        return said(
-          `Draft ${draft.id}: settle "${open.title}" with his answer, written as: ${draft.body}\n` +
-            `Settling cannot be undone, and frees the work held on it. ${UNDO} — ${id}`,
-        );
+        const spoken = words(text);
+        const named = String(question ?? "").trim().toLowerCase();
+        if (kind !== "answer") {
+          if (named !== "") throw new DraftRefusal("only an answer names a question; save this without one");
+          const note = await drafts.add({ kind: "note", noteKind: kind, words: spoken, body: spoken, session });
+          return said(`Noted, number ${note.id}.`);
+        }
+        if (!QUESTION_ID.test(named)) throw new DraftRefusal("which question does he answer? give its id from catch_up, such as question_403f67807848");
+        const open = await openQuestion(named);
+        if (open === null) throw new DraftRefusal(`${named} is not an open question; save what he said as another kind of note`);
+        const note = await drafts.add({ kind: "note", noteKind: "answer", question: named, words: spoken, body: spokenAnswer(spoken, session), session });
+        return said(`Noted, number ${note.id}: his answer to "${open.title}". The manager settles it when he sends his notes. — ${named}`);
       }),
   );
 
@@ -96,7 +101,8 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
       description:
         "Draft starting one session manager run on the Mint box for the owner's request, in his words as he said them: research, parking work, " +
         "raising questions, steering sessions in progress. The run's brief is written by the door, quoting his words; add nothing of your own. " +
-        "One voice-started run at a time; its reply comes back under Replies ready in catch_up. Nothing starts until he confirms. Needs the owner's sign-in.",
+        "It carries every note not yet swept. One voice-started run at a time; its reply comes back under Replies ready in catch_up. " +
+        "Nothing starts until he confirms. Needs the owner's sign-in.",
       inputSchema: z.object({
         request: z.string().max(WORDS_CHARS * 2).describe("his request, word for word as transcribed"),
       }),
@@ -111,8 +117,10 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
           throw new DraftRefusal(`one voice-started run at a time: draft ${active.id} is ${state}; cancel it first, or wait for its reply`);
         }
         const session = voiceSession(new Date());
-        const draft = await drafts.add({ kind: "manager_run", words: spoken, body: managerBrief(spoken, session), session });
-        return said(`Draft ${draft.id}: start a session manager run on the Mint box for his words: "${spoken}"\n${UNDO}`);
+        const notes = await drafts.unswept();
+        const draft = await drafts.add({ kind: "manager_run", words: spoken, body: managerBrief(spoken, session, notes), session });
+        const carried = notes.length === 0 ? "with no notes waiting" : `with the ${notes.length === 1 ? "note" : `${notes.length} notes`} waiting`;
+        return said(`Draft ${draft.id}: start a session manager run on the Mint box for his words, ${carried}: "${spoken}"\n${UNDO}`);
       }),
   );
 
@@ -170,11 +178,7 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
   );
 }
 
-/** catch_up's replies: what each carried-out draft of the last day came to, newest first. */
+/** catch_up's replies: what each run of the last day came to, newest first. */
 export async function repliesSaid(drafts: Drafts): Promise<string[]> {
-  return (await drafts.replies()).map((draft) =>
-    draft.kind === "answer"
-      ? `Draft ${draft.id}, your answer to ${draft.question}: ${draft.outcome}`
-      : `Draft ${draft.id}, the run you asked for: ${draft.reply ?? draft.outcome ?? "it ended without a reply"}`,
-  );
+  return (await drafts.replies()).map((draft) => `Draft ${draft.id}, the run you asked for: ${draft.reply ?? draft.outcome ?? "it ended without a reply"}`);
 }

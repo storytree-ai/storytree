@@ -16,7 +16,7 @@ The script is the owner's to run, because sudo and database roles are his (ADR-0
 |---|---|
 | `role.sql` | Makes the role and the door's database. The role has a password and signs in over 127.0.0.1 only. |
 | `library-grants.sql`, `activity-grants.sql`, `trunks-grants.sql` | The role's reads, measured by running every command the door runs as a role granted exactly these (`src/role.test.ts`). |
-| `door-database.sql` | Makes the lock: the role may add a row and never remove one. |
+| `door-database.sql` | Makes the lock: the role may add a row and never remove one. Also the drafts and notes of voice writes (capability 5); safe to run again, and it brings a table an earlier copy made up to date. |
 | `trunk-approval.sql` | Approves the door's copy as a checkout. It is the trunk of its own machine id, so the owner's checkout stays the trunk on his. |
 
 Why a password and not the local socket: the storytree command line reaches a library only by a
@@ -51,10 +51,12 @@ through tsx, never through that link.
 Voice writes are drafts in `voice_draft` (`door-database.sql`): the door's role may add one and set only
 its confirmed and cancelled times, and the database sets every time itself. A draft lapses 15 minutes
 after it is read back unless confirmed, and takes effect ten minutes after confirming unless cancelled.
-The confined door never writes the library: `voice-commit.service`, run every minute by
-`voice-commit.timer` as the owner's account, settles each due answer through the storytree command line
-as that day's voice session, and starts each due session manager run through
-`~/storytree-lanes/run-lane.sh`, its files in `~/storytree-lanes/voice-runs/`. It holds a run while the
+A note (`save_note`) is a row of kind `note`, kept at once with no read-back and no window; an answer to
+an open question is a note too. The confined door never writes the library: `voice-commit.service`, run
+every minute by `voice-commit.timer` as the owner's account, starts each due session manager run through
+`~/storytree-lanes/run-lane.sh`, its files in `~/storytree-lanes/voice-runs/`. The run's brief carries every
+note not yet swept, and the committer marks those notes swept by that run (`swept_by_run`, which only the
+owner's account may set) as it starts it; the run acts on each, answers included. It holds a run while the
 laptop's scheduled session manager run may be running (from ten past each odd hour, Sydney time, until
 `overnight-log.md` is written). While `voice_lock` holds a row it drops what is waiting.
 

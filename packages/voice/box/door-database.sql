@@ -1,5 +1,5 @@
 -- The voice door's own database, storytree-voice: the switch that turns voice writes off (contract
--- 4.5) and the drafts of its writes (contracts 5.1-5.6). Safe to run again.
+-- 4.5) and the drafts of its writes and the owner's notes (contracts 5.1-5.8). Safe to run again.
 --
 -- RUN IT connected to storytree-voice as an account that may act as the role owning it (on the box:
 -- the local superuser; confine.sh runs it).
@@ -35,9 +35,16 @@ CREATE TABLE IF NOT EXISTS voice_lock (
 -- times; every time is the database's own (the trigger below), so a misled door cannot shorten the
 -- fifteen minutes a draft lasts unconfirmed or the ten-minute window after confirm, and it may not mark
 -- a draft done or write its outcome or reply.
+--
+-- THE NOTES (contracts 5.7, 5.8). A note is a row of kind 'note': what the owner said, kept at once,
+-- born confirmed with no read-back and no window, never carried out by the committer and never
+-- cancelled. A manager run sweeps it: the committer sets swept_by_run (and the database swept_at) when
+-- it launches the run whose brief carries the note. The door's role may never set either. At most 50
+-- notes from one day's voice session wait unswept.
 CREATE TABLE IF NOT EXISTS voice_draft (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  kind text NOT NULL CHECK (kind IN ('answer', 'manager_run')),
+  kind text NOT NULL,
+  note_kind text,
   question text CHECK (question ~ '^question_[0-9a-f]{12}$'),
   words text NOT NULL CHECK (char_length(words) BETWEEN 1 AND 2000),
   body text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 20000),
@@ -51,7 +58,23 @@ CREATE TABLE IF NOT EXISTS voice_draft (
   outcome text CHECK (char_length(outcome) <= 500),
   run_ended_at timestamptz,
   reply text CHECK (char_length(reply) <= 4000),
-  CHECK ((kind = 'answer') = (question IS NOT NULL))
+  swept_at timestamptz,
+  swept_by_run integer REFERENCES voice_draft (id)
+);
+
+-- A table made by this script before notes: their columns, and the kinds' rules in place of its own.
+ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS note_kind text;
+ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS swept_at timestamptz;
+ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS swept_by_run integer REFERENCES voice_draft (id);
+ALTER TABLE voice_draft DROP CONSTRAINT IF EXISTS voice_draft_kind_check;
+ALTER TABLE voice_draft DROP CONSTRAINT IF EXISTS voice_draft_check;
+ALTER TABLE voice_draft DROP CONSTRAINT IF EXISTS voice_draft_kinds;
+ALTER TABLE voice_draft ADD CONSTRAINT voice_draft_kinds CHECK (
+  kind IN ('manager_run', 'note')
+  AND (kind = 'note') = (note_kind IS NOT NULL)
+  AND note_kind IN ('decision', 'change', 'idea', 'question', 'instruction', 'answer')
+  AND (question IS NOT NULL) = (note_kind IS NOT DISTINCT FROM 'answer')
+  AND (kind = 'note' OR swept_by_run IS NULL)
 );
 
 CREATE OR REPLACE FUNCTION voice_draft_guard() RETURNS trigger LANGUAGE plpgsql AS $guard$
@@ -61,12 +84,33 @@ BEGIN
     NEW.drafted_at := now();
     NEW.expires_at := now() + interval '15 minutes';
     NEW.confirmed_at := NULL; NEW.commit_at := NULL; NEW.cancelled_at := NULL; NEW.committed_at := NULL;
-    NEW.outcome := NULL; NEW.run_ended_at := NULL; NEW.reply := NULL;
+    NEW.outcome := NULL; NEW.run_ended_at := NULL; NEW.reply := NULL; NEW.swept_at := NULL; NEW.swept_by_run := NULL;
+    IF NEW.kind = 'note' THEN
+      IF (SELECT count(*) FROM voice_draft WHERE kind = 'note' AND session = NEW.session AND swept_by_run IS NULL) >= 50 THEN
+        RAISE EXCEPTION '50 notes from today are waiting unswept: send them to the manager first';
+      END IF;
+      NEW.expires_at := now();
+      NEW.confirmed_at := now();
+    END IF;
     RETURN NEW;
   END IF;
-  IF NEW.kind <> OLD.kind OR NEW.question IS DISTINCT FROM OLD.question OR NEW.words <> OLD.words OR NEW.body <> OLD.body
+  IF NEW.kind <> OLD.kind OR NEW.note_kind IS DISTINCT FROM OLD.note_kind OR NEW.question IS DISTINCT FROM OLD.question
+     OR NEW.words <> OLD.words OR NEW.body <> OLD.body
      OR NEW.session <> OLD.session OR NEW.drafted_at <> OLD.drafted_at OR NEW.expires_at <> OLD.expires_at THEN
     RAISE EXCEPTION 'draft % cannot be changed, only confirmed or cancelled', OLD.id;
+  END IF;
+  IF OLD.kind = 'note' AND (NEW.confirmed_at IS DISTINCT FROM OLD.confirmed_at OR NEW.cancelled_at IS DISTINCT FROM OLD.cancelled_at
+     OR NEW.commit_at IS DISTINCT FROM OLD.commit_at OR NEW.committed_at IS DISTINCT FROM OLD.committed_at) THEN
+    RAISE EXCEPTION 'note % is kept as it was said: say what changed in another note', OLD.id;
+  END IF;
+  IF NEW.swept_by_run IS DISTINCT FROM OLD.swept_by_run THEN
+    IF OLD.swept_by_run IS NOT NULL THEN RAISE EXCEPTION 'note % was already swept by run %', OLD.id, OLD.swept_by_run; END IF;
+    IF NOT EXISTS (SELECT 1 FROM voice_draft WHERE id = NEW.swept_by_run AND kind = 'manager_run' AND committed_at IS NOT NULL) THEN
+      RAISE EXCEPTION 'note % can be swept only by a manager run that started', OLD.id;
+    END IF;
+    NEW.swept_at := now();
+  ELSIF NEW.swept_at IS DISTINCT FROM OLD.swept_at THEN
+    RAISE EXCEPTION 'note %''s sweep time is set by sweeping it', OLD.id;
   END IF;
   IF NEW.confirmed_at IS DISTINCT FROM OLD.confirmed_at THEN
     IF OLD.cancelled_at IS NOT NULL THEN RAISE EXCEPTION 'draft % was cancelled', OLD.id; END IF;
@@ -102,7 +146,7 @@ GRANT CONNECT ON DATABASE "storytree-voice" TO storytree_voice;
 GRANT USAGE ON SCHEMA public TO storytree_voice;
 GRANT SELECT, INSERT ON voice_lock TO storytree_voice;
 GRANT SELECT ON voice_draft TO storytree_voice;
-GRANT INSERT (kind, question, words, body, session) ON voice_draft TO storytree_voice;
+GRANT INSERT (kind, note_kind, question, words, body, session) ON voice_draft TO storytree_voice;
 GRANT UPDATE (confirmed_at, cancelled_at) ON voice_draft TO storytree_voice;
 
 RESET ROLE;

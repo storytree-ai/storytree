@@ -434,7 +434,7 @@ async function tellMe(read: Reads, said: string, page: number, since: string): P
   return success(`${cut[page - 1]}\n${footer} — ${id}`);
 }
 
-/** An open question's id and title, or null when `question list` does not hold it; for answer_question's draft. */
+/** An open question's id and title, or null when `question list` does not hold it; for save_note's answers. */
 export async function openQuestion(children: Children, signal: AbortSignal | undefined, id: string): Promise<{ id: string; title: string } | null> {
   const said = await new Reads(children, signal).storytree(["question", "list"]);
   if (!said.ok) throw new Refusal(said.text);

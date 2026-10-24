@@ -49,7 +49,9 @@ test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: ca
     await library.closeIncrement(done.id, { disposition: "landed", pr: "#1721" });
 
     const config = loadConfig({ ...process.env, STORYTREE_HOME: home, VOICE_TOKEN: newToken(), REPO_DIR: folder, STORYTREE_CLI: JSON.stringify(CLI), PORT: "0", CLAUDE_CODE_SESSION_ID: "the-owners-session" });
-    const door = await startDoor(config, { limits: LIMITS, log: () => {} });
+    // catch_up starts three children through two slots; a Windows child can take past queueMs to start, so the third
+    // waits as long as a child may run rather than being told the box is busy (CI run 40065853698).
+    const door = await startDoor(config, { limits: { ...LIMITS, queueMs: LIMITS.cliMs + LIMITS.killGraceMs }, log: () => {} });
     const client = await connect(door.port, config.token);
     try {
       const caught = textOf((await client.callTool({ name: "catch_up", arguments: {} })) as never);

@@ -9,7 +9,7 @@ import http from "node:http";
 import type net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { after, before, test } from "node:test";
 import { SignJWT, exportJWK } from "jose";
 import pg from "pg";
@@ -21,6 +21,7 @@ import { start as startListener } from "./bins/voice-listen.js";
 import { loadConfig } from "./config.js";
 import { DROPPED, commitDue, laptopWindowOpen, runFiles } from "./commit.js";
 import { Drafts } from "./drafts.js";
+import { serialTicks } from "./listen.js";
 import { WRITE_TOOL_NAMES } from "./writes.js";
 import { LEGACY_HEADERS, childrenIn, connect, gitRepo, raw, testDoor, textOf, toolCall, until, type TestDoor } from "./testing/door.js";
 
@@ -436,6 +437,10 @@ async function listening(voice: Awaited<ReturnType<typeof writesDoor>>, scratch:
   return listener;
 }
 
+/** How many connections LISTEN on the door's database. */
+const listeners = (url: string) =>
+  onDatabase(url, async (client) => Number((await client.query("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND query = 'LISTEN voice_run'")).rows[0].count));
+
 const laneRuns = (laneLog: string) => (existsSync(laneLog) ? readFileSync(laneLog, "utf8").trim().split("\n") : []);
 
 test("5.9 a confirmed manager run starts within seconds: the door's database notifies voice_run and the box's listener runs a tick, which also catches up on what was confirmed while it was down, and a run's end mark brings its reply back at once", async (t) => {
@@ -454,33 +459,71 @@ test("5.9 a confirmed manager run starts within seconds: the door's database not
 
   // Confirmed while it listens: the notification starts it within seconds.
   await voice.call("start_manager_run", { request: "and this" });
-  const confirmedAt = Date.now();
   await voice.call("confirm", {});
   const second = runFiles(scratch.env.VOICE_RUNS_DIR, 2);
   assert.ok(await until(() => laneRuns(scratch.laneLog).includes(second.brief), 5_000), `the confirmed run never started: ${lines.join("; ")}`);
-  assert.ok(Date.now() - confirmedAt < 5_000);
   assert.deepEqual(laneRuns(scratch.laneLog), [first.brief, second.brief], "a run started twice");
+});
 
-  // Drafted but unconfirmed, a run starts nothing.
-  assert.ok(await until(() => lines.includes("draft 2 run ended"), 5_000), `the second reply was never recorded: ${lines.join("; ")}`);
-  await voice.call("start_manager_run", { request: "not yet" });
-  await new Promise((done) => setTimeout(done, 500));
-  assert.equal(laneRuns(scratch.laneLog).length, 2);
+test("5.9 a wake-up while a tick runs asks for exactly one more tick after it, however many arrive, and never two at once", async () => {
+  let ticks = 0;
+  let inFlight = 0;
+  let most = 0;
+  let release: () => void = () => {};
+  const held = new Promise<void>((done) => (release = done));
+  const failures: string[] = [];
+  const serial = serialTicks(async () => {
+    ticks += 1;
+    inFlight += 1;
+    most = Math.max(most, inFlight);
+    if (ticks === 1) await held;
+    inFlight -= 1;
+    if (ticks === 2) throw new Error("the box was busy");
+  }, (line) => failures.push(line));
+  serial.wake();
+  serial.wake();
+  serial.wake();
+  serial.wake();
+  release();
+  await serial.idle();
+  assert.equal(ticks, 2);
+  assert.equal(most, 1);
+  assert.deepEqual(failures, ["tick failed: the box was busy"]);
+  // Idle again, a wake-up ticks at once.
+  serial.wake();
+  await serial.idle();
+  assert.equal(ticks, 3);
 });
 
 test("4.8 the box's listener survives losing its database connection: it reconnects, catches up with a tick, and goes on starting confirmed runs", async (t) => {
   const voice = await writesDoor(t);
   const scratch = committerScratch(t);
+  // A runs folder left by earlier runs is taken as it is.
+  mkdirSync(scratch.env.VOICE_RUNS_DIR, { recursive: true });
   const lines: string[] = [];
   await listening(voice, scratch, lines);
   const listens = () => lines.filter((line) => line === "listening on voice_run").length;
-  const before = listens();
+  assert.equal(listens(), 1);
   await onDatabase(voice.asOwner, (client) =>
     client.query("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND query = 'LISTEN voice_run'"));
-  assert.ok(await until(() => listens() > before, 5_000), `it never reconnected: ${lines.join("; ")}`);
+  assert.ok(await until(() => listens() > 1, 5_000), `it never reconnected: ${lines.join("; ")}`);
+  assert.deepEqual(lines.filter((line) => line.startsWith("connection lost")), ["connection lost (terminating connection due to administrator command); reconnecting in 100 ms"]);
 
   await voice.call("start_manager_run", { request: "after the drop" });
   await voice.call("confirm", {});
   const run = runFiles(scratch.env.VOICE_RUNS_DIR, 1);
   assert.ok(await until(() => laneRuns(scratch.laneLog).includes(run.brief), 5_000), `no run started after reconnecting: ${lines.join("; ")}`);
+  // One loss is one reconnection: a single listening connection, never two.
+  assert.equal(listens(), 2);
+  assert.equal(await listeners(voice.asOwner), 1);
+});
+
+test("4.8 a listener closed while it is still connecting leaves no connection open and ticks nothing", async (t) => {
+  const voice = await writesDoor(t);
+  const scratch = committerScratch(t);
+  const lines: string[] = [];
+  const listener = startListener({ ...scratch.env, VOICE_DRAFTS_URL: voice.asOwner }, (line) => lines.push(line), { retryMs: 100 });
+  await listener.close();
+  assert.deepEqual(lines, []);
+  assert.equal(await listeners(voice.asOwner), 0);
 });

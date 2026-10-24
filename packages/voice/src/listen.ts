@@ -31,34 +31,46 @@ export interface Listener {
 
 const message = (error: unknown) => (error as Error | undefined)?.message ?? String(error);
 
+/**
+ * `tick` behind a wake-up: never two at once, and a wake-up while one runs asks for exactly one more after it, however
+ * many arrive. `idle` settles when none runs.
+ */
+export function serialTicks(tick: () => Promise<void>, log: (line: string) => void) {
+  let running: Promise<void> | null = null;
+  let again = false;
+  return {
+    wake() {
+      if (running) {
+        again = true;
+        return;
+      }
+      running = (async () => {
+        do {
+          again = false;
+          try {
+            await tick();
+          } catch (error) {
+            log(`tick failed: ${message(error)}`);
+          }
+        } while (again);
+        running = null;
+      })();
+    },
+    idle: () => running ?? Promise.resolve(),
+  };
+}
+
 export function listen(options: ListenerOptions): Listener {
   const { connectionString, tick, runsDir, log, retryMs = 5_000 } = options;
   let closed = false;
   let client: pg.Client | null = null;
   let retry: NodeJS.Timeout | undefined;
-  let running: Promise<void> | null = null;
-  let again = false;
+  let connecting: Promise<void> = Promise.resolve();
   let listened: () => void = () => {};
   const ready = new Promise<void>((done) => (listened = done));
-
-  // A wake-up while a tick runs asks for one more after it, never a second at once.
+  const ticks = serialTicks(tick, log);
   const wake = () => {
-    if (closed) return;
-    if (running) {
-      again = true;
-      return;
-    }
-    running = (async () => {
-      do {
-        again = false;
-        try {
-          await tick();
-        } catch (error) {
-          log(`tick failed: ${message(error)}`);
-        }
-      } while (again && !closed);
-      running = null;
-    })();
+    if (!closed) ticks.wake();
   };
 
   const connect = async () => {
@@ -68,13 +80,12 @@ export function listen(options: ListenerOptions): Listener {
     const lost = (why: string) => {
       if (gone) return;
       gone = true;
-      if (client === next) client = null;
       next.end().catch(() => {});
       if (closed) return;
       log(`connection lost (${why}); reconnecting in ${retryMs} ms`);
       retry = setTimeout(() => {
         retry = undefined;
-        void connect();
+        connecting = connect();
       }, retryMs);
     };
     next.on("notification", () => wake());
@@ -98,7 +109,7 @@ export function listen(options: ListenerOptions): Listener {
   const watcher: FSWatcher = watch(runsDir, (_event, name) => {
     if (name?.toString().endsWith(".ended")) wake();
   });
-  void connect();
+  connecting = connect();
 
   return {
     ready,
@@ -106,10 +117,9 @@ export function listen(options: ListenerOptions): Listener {
       closed = true;
       if (retry) clearTimeout(retry);
       watcher.close();
-      const open = client;
-      client = null;
-      await open?.end().catch(() => {});
-      await running;
+      await connecting;
+      await client?.end().catch(() => {});
+      await ticks.idle();
     },
   };
 }

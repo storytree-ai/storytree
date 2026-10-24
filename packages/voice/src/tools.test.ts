@@ -50,7 +50,7 @@ before(async () => {
 after(async () => {
   await client.close();
   await door.close();
-  repo.remove();
+  await repo.remove();
 });
 
 const call = async (name: string, args: Record<string, unknown> = {}) => (await client.callTool({ name, arguments: args })) as { content?: unknown; isError?: boolean };

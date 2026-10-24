@@ -1,18 +1,19 @@
 /** Capability 4 · The box service and its confinement, contracts 4.1-4.2 and 4.6: the door's copy refreshed from main, its install, and its confined units. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
+import { removeTemp } from "@storytree/test-waits";
 
 import { main, type HostIo } from "./bins/voice-host.js";
 import { RESTART_REQUEST_ENV, SYSTEM_PATHS, VOICE_USER, boxSteps, refresh, systemUnits, type RefreshSteps } from "./host.js";
 import { gitRepo } from "./testing/door.js";
 
 const scratch: string[] = [];
-after(() => {
-  for (const dir of scratch) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+after(async () => {
+  for (const dir of scratch) await removeTemp(dir);
 });
 
 function tempDir(): string {

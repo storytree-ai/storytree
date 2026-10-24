@@ -5,11 +5,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { test } from "node:test";
+import { removeTemp } from "@storytree/test-waits";
 
 import { setUpProject } from "@storytree/app-setup/project";
 import { connect as connectLibrary } from "@storytree/library";
@@ -69,7 +70,7 @@ async function confinedDoor(t: { after: (fn: () => Promise<void>) => void }) {
       }
       await onDatabase(admin(), "postgres", (client) => client.query(`DROP ROLE IF EXISTS ${role}`));
     }
-    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await removeTemp(dir);
   });
 
   const folder = path.join(dir, "site");

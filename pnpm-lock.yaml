@@ -1039,6 +1039,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

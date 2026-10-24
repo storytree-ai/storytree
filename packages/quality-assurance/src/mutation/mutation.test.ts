@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Mutation report: contracts 7.1 to 7.4. 7.1 reads breaks from source text; 7.2 runs a real report on a
+ * Capability 7 · Mutation report: contracts 7.1 to 7.6. 7.1 reads breaks from source text; 7.2 runs a real report on a
  * small package of node tests in a temp folder; 7.3 and 7.4 run it through the brief and take tools on the real Postgres
  * `pnpm test` provides, against a git checkout whose branch adds an untested branch.
  */
@@ -155,6 +155,32 @@ test("7.5 · a break its own package's tests miss is run against the tests downs
     assert.ok(timed.ran);
     assert.deepEqual({ caught: timed.caught, survivors: timed.survivors }, { caught: 0, survivors: [] });
     assert.deepEqual(timed.notRun.map(({ line, why }) => ({ line, why })), [{ line: 1, why: "the report's time ran out first" }, { line: 2, why: "the report's time ran out first" }]);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
+/** A file whose break one test kills, held with another test that fails with nothing broken. */
+const MIXED: Record<string, string> = {
+  "packages/mixed/package.json": JSON.stringify({ name: "@t/mixed", type: "module" }),
+  "packages/mixed/src/same.mjs": "export const same = (a, b) => a === b;\n",
+  "packages/mixed/src/same.test.mjs": [
+    "import assert from \"node:assert/strict\";",
+    "import { test } from \"node:test\";",
+    "import { same } from \"./same.mjs\";",
+    "test(\"always red\", () => { assert.fail(\"needs what this run lacks\"); });",
+    "test(\"same\", () => { assert.equal(same(1, 1), true); });",
+  ].join("\n") + "\n",
+};
+
+test("7.6 · a break is caught when a test that passed with nothing broken no longer passes with it planted, so a test failing unbroken leaves out only itself, not the other tests in its file", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-mixed-"));
+  try {
+    write(dir, MIXED);
+    const report = await mutationReport(dir, adding({ "packages/mixed/src/same.mjs": MIXED["packages/mixed/src/same.mjs"]! }));
+    assert.ok(report.ran);
+    assert.deepEqual({ planted: report.planted, caught: report.caught, survivors: report.survivors, notRun: report.notRun }, { planted: 1, caught: 1, survivors: [], notRun: [] });
+    assert.equal(readFileSync(join(dir, "packages/mixed/src/same.mjs"), "utf8"), MIXED["packages/mixed/src/same.mjs"]);
   } finally {
     await removeTemp(dir);
   }

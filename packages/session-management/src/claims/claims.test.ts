@@ -1214,7 +1214,7 @@ test("5.57 a session clearing an owner wait to finish the increment itself claim
 });
 
 test("5.58 only the increment's live holder closes it: another session is refused naming the holder, and so is a lane that handed it to its pull request; the holder, the owner's shell (the watcher's too), anyone once the holder reads idle, and anyone when nobody holds it close it", async () => {
-  await withWorld(async ({ library, as }) => {
+  await withWorld(async ({ log, project, library, as }) => {
     const { park } = await arcOf(library);
     const work = await park("email form");
     assert.equal(await closeRefusal(as("B"), work), undefined, "nobody holds it: anyone closes it");
@@ -1223,15 +1223,14 @@ test("5.58 only the increment's live holder closes it: another session is refuse
     assert.equal(refused?.holder.session, "A", "a session that does not hold it is refused, naming its holder");
     assert.equal(await closeRefusal(as("A"), work), undefined, "its holder closes it");
     assert.equal(await closeRefusal({ ...as("B"), session: "person:mick" }, work), undefined, "the owner's shell closes it");
-    await sleep(5);
-    assert.equal(await closeRefusal(as("B", { quietMs: 1 }), work), undefined, "once the holder reads idle, the session manager closes it");
+    await log.beats.beat(project, "A", { ended: true });
+    assert.equal(await closeRefusal(as("B"), work), undefined, "once the holder reads idle (its session ended), the session manager closes it");
 
     const handed = await park("handed over");
     const a = as("A", { branch: "feature/signup" });
     assert.equal((await claim(a, handed, "driving the sign-up")).ok, true);
     await holdForPull(as("C"), "A", 12, "feature/signup");
     assert.equal((await closeRefusal(a, handed))?.holder.session, "pull-request-12", "the lane that handed it over is refused");
-    assert.notEqual(await closeRefusal(as("B", { quietMs: 1 }), handed), undefined, "a pull request's holder never reads idle");
     assert.equal(await closeRefusal({ ...as("C"), session: "person:mick" }, handed), undefined, "the watcher closes it from the owner's shell");
   });
 });

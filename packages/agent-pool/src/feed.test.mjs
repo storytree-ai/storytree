@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { blind, LANE_FAILURES, noteLaneFailure, pickPlan, pickPool, planState, readOnly, readSurvey } from "./feed.mjs";
+import { blind, LANE_FAILURES, laneFailures, main, noteLaneFailure, pickPlan, pickPool, planState, readOnly, readSurvey, reoffer } from "./feed.mjs";
 
 const now = Date.parse("2026-10-07T03:00:00Z");
 
@@ -395,4 +395,47 @@ test("2.27 · a failed lane is one lane-failed line on the pool, and the failure
   assert.equal(lines.filter((line) => line.kind === "lane-failed").length, 2);
   assert.equal((await noteLaneFailure({ log, project: "storytree", failure: { ...failure, lane: "s2", started: "2026-10-07T06:00:00.000Z" } })).length, 3,
     "a refusal before this lane started was another lane's");
+});
+
+test("2.28 · one lane-reoffered line offers a tripped increment to the pool again with a fresh count of three; with no failure counted it is refused and writes nothing", async () => {
+  const lines = [];
+  const log = {
+    append: async (project, line) => { const kept = { ...line, project, seq: lines.length + 1, at: `2026-10-07T0${lines.length + 1}:00:00.000Z` }; lines.push(kept); return kept; },
+    lines: async (project, filter) => lines.filter((line) => filter.kinds.includes(line.kind)
+      && Object.entries(filter.where ?? {}).every(([key, value]) => (Array.isArray(value) ? value.includes(line[key]) : line[key] === value))),
+  };
+  const project = "storytree";
+  const fail = (increment) => noteLaneFailure({ log, project, failure: { increment, why: "exit 2 with no report and no push", logs: ["/lanes/a.log"] } });
+  for (let n = 0; n < LANE_FAILURES; n += 1) await fail("increment_abc");
+  await fail("increment_other");
+  const work = async () => pickPool(await readSurvey({ library: {
+    arcViews: async () => [{ arc: { id: "arc_a" }, state: "active", increments: ["increment_abc", "increment_other"].map((id) => ({ id, fields: { arc: "arc_a", title: id, status: "proposal", parked: "2026-10-06T00:00:00Z" } })) }],
+    holds: async () => ({ waits: {}, heldOn: {} }) }, claims: async () => [], failures: laneFailures(log, project) }), { max: 2, now });
+  assert.deepEqual((await work()).picks.map((one) => one.id), ["increment_other"], "tripped, it is not offered");
+  assert.match((await work()).skipped[0].why, /feed\.mjs reoffer increment_abc --reason/, "the skip names the verb");
+
+  assert.equal(await reoffer({ log, project, increment: "increment_abc", why: "the brief is fixed", by: "s1" }), LANE_FAILURES);
+  assert.deepEqual(lines.filter((line) => line.kind === "lane-reoffered").map((line) => [line.session, line.harness, line.source, line.increment, line.why, line.by]),
+    [["pool", "pool", "tool", "increment_abc", "the brief is fixed", "s1"]]);
+  assert.deepEqual((await work()).picks.map((one) => one.id), ["increment_abc", "increment_other"], "offered again");
+  assert.equal((await fail("increment_abc")).length, 1, "the count starts again from none");
+  assert.equal((await fail("increment_other")).length, 2, "another increment's count is its own");
+  assert.equal((await fail("increment_abc")).length, 2);
+  assert.equal((await fail("increment_abc")).length, LANE_FAILURES, "the third fresh failure trips it again");
+  assert.deepEqual((await work()).picks.map((one) => one.id), ["increment_other"]);
+
+  const written = lines.length;
+  await assert.rejects(reoffer({ log, project, increment: "increment_clean", why: "nothing", by: "s1" }), /no failed lane counted/);
+  await assert.rejects(reoffer({ log, project, increment: "increment_abc", why: " " }), /--reason/);
+  assert.equal(lines.length, written, "a refused reoffer writes nothing");
+
+  const said = [];
+  const asked = [];
+  const options = { env: { CODEX_THREAD_ID: "t1" }, say: (text) => said.push(text), complain: (text) => said.push(text), offer: async (request) => (asked.push(request), 3) };
+  assert.equal(await main(["reoffer", "increment_abc", "--reason", "the brief is fixed"], options), 0);
+  assert.deepEqual(asked, [{ increment: "increment_abc", why: "the brief is fixed", by: "t1" }]);
+  assert.match(said.at(-1), /cleared 3 failed lanes/);
+  assert.equal(await main(["reoffer", "increment_abc"], options), 2, "a reoffer must say what was fixed");
+  assert.equal(await main(["reoffer", "increment_abc", "--reason", "x"], { ...options, offer: async () => { throw new Error("nothing to clear"); } }), 1);
+  assert.match(said.at(-1), /^reoffer refused: nothing to clear/);
 });

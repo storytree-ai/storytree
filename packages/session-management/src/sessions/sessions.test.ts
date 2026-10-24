@@ -426,10 +426,11 @@ test("4.29 a session last seen on a machine before that machine's recorded start
   });
 });
 
-test("4.38 a failed pool lane's lane-failed line, written on the pool, makes no session read live, from the fold or from the bounded read", async () => {
+test("4.38 a failed pool lane's lane-failed line, and the lane-reoffered line that offers its increment again, written on the pool, make no session read live, from the fold or from the bounded read", async () => {
   await withProject(async (log, project) => {
     const failed = await log.append(project, { session: "pool", harness: "pool", source: "tool", kind: "lane-failed", increment: "increment_abc", why: "exit 2 with no report and no push", logs: ["/lanes/a.log"] });
-    assert.deepEqual(sessionsFrom([failed], { now: after(failed, 1_000) }), []);
-    assert.deepEqual(await readSessions(log, project, { now: after(failed, 1_000) }), []);
+    const reoffered = await log.append(project, { session: "pool", harness: "pool", source: "tool", kind: "lane-reoffered", increment: "increment_abc", why: "the brief is fixed", by: "s1" });
+    assert.deepEqual(sessionsFrom([failed, reoffered], { now: after(reoffered, 1_000) }), []);
+    assert.deepEqual(await readSessions(log, project, { now: after(reoffered, 1_000) }), []);
   });
 });

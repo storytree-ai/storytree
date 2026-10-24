@@ -346,7 +346,7 @@ test("1.17 · a lane that ends by its engine's own exit with no report or push i
   const edit = told.find((args) => args[0] === "arc" && args[2] === "edit");
   assert.ok(edit, "the third failure writes residue on the increment");
   assert.match(edit[5], /^The breakdown\.\n\nResidue \(lane runner, \d{4}-\d\d-\d\d\): this increment's pool lanes failed 3 times, so the pool offers it no more/);
-  assert.match(edit[5], /a session takes it from this arc by hand\. Each failure: 1\. 2026-10-04T00:00:00.000Z: exit 0 with no report and no push, twice \(\/lanes\/one\.log\); 2\. /);
+  assert.match(edit[5], /reoffer increment_\w+ --reason "what was fixed" \(2\.28\)\. Each failure: 1\. 2026-10-04T00:00:00.000Z: exit 0 with no report and no push, twice \(\/lanes\/one\.log\); 2\. /);
   assert.match(edit[5], /2026-10-05T00:00:00.000Z: exit 2/);
   assert.match(edit[5], /exit 3/);
   earlier = [];

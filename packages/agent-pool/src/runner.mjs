@@ -172,7 +172,7 @@ async function laneFailed({ increment, why, logs, lane, started, failed, storytr
   if (failures.length !== LANE_FAILURES) return;
   const tell = (args) => storytree(args).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${String(error.message).split("\n")[0]}`); return ""; });
   const body = (await tell(["library", "read", increment, "--field", "body"])).trimEnd();
-  const residue = `Residue (lane runner, ${day}): this increment's pool lanes failed ${failures.length} times, so the pool offers it no more (Agent runner 2.27); a session takes it from this arc by hand.`
+  const residue = `Residue (lane runner, ${day}): this increment's pool lanes failed ${failures.length} times, so the pool offers it no more (Agent runner 2.27) until a session that fixed the cause offers it again: node packages/agent-pool/src/feed.mjs reoffer ${increment} --reason "what was fixed" (2.28).`
     + ` Each failure: ${failures.map((one, n) => `${n + 1}. ${one.at}: ${one.why}${one.logs?.length ? ` (${one.logs.join(", ")})` : ""}`).join("; ")}.`
     + " Read those logs and any worktree they left before starting again.";
   await tell(["arc", "increment", "edit", increment, "--body", body ? `${body}\n\n${residue}` : residue]);

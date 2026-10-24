@@ -27,10 +27,14 @@ export interface StoryPageBridge {
   recordLag(readings: readonly object[]): Promise<void>;
   /** Surface feedback's: whether the corner is offered here, and the surfaces a note may name. */
   feedbackSetup(): Promise<{ offered: boolean; surfaces: readonly { id: string; name: string; story: string }[] }>;
-  /** Surface feedback's: a picture of the window, kept in the main process, named by the token returned. */
-  captureForFeedback(): Promise<string | undefined>;
-  /** Surface feedback's: the note written, with the picture its token names. */
-  sendFeedback(note: { text: string; surface: string; selection?: string; project?: string; window: { width: number; height: number }; theme: "light" | "dark" }, screenshot?: string): Promise<{ id: string }>;
+  /** Surface feedback's: a picture of the window, or of the part `box` names, kept in the main process, named by the token returned. */
+  captureForFeedback(box?: { x: number; y: number; width: number; height: number }): Promise<string | undefined>;
+  /** Surface feedback's: the note written, with the element it points at and the pictures its tokens name. */
+  sendFeedback(
+    note: { text: string; surface: string; anchor: object; selection?: string | undefined; project?: string | undefined; window: { width: number; height: number }; theme: "light" | "dark" },
+    screenshot?: string,
+    crop?: string,
+  ): Promise<{ id: string }>;
 }
 
 /** The channel a start-timing mark from the page reaches the main process on (contract 1.33). */

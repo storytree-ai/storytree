@@ -676,8 +676,10 @@ export const RECORD_SCHEMAS = {
   /**
    * A note the owner sent from the desktop app's feedback corner (Surface feedback, capability 3): what he wrote, the
    * named surface in front of him and the story that declares it, what he had selected and the project on show, the
-   * app's version, the window's size and theme, and when. `screenshot` says whether a picture of the window is kept
-   * beside it (Library API 7.18); the picture's bytes are never in the fields. `status` is new until the session
+   * app's version, the window's size and theme, and when. `anchor` is the element he pointed at (Surface feedback 2.2),
+   * read from the page as he clicked it; notes sent before the picker have none. `screenshot` says whether a picture of
+   * the window is kept beside it, and `crop` whether one cut to the element is too (Library API 7.18); the pictures'
+   * bytes are never in the fields. `status` is new until the session
    * manager routes it (Surface feedback 4.2): then `route` says where it went, `routedTo` the increment or question it
    * went to, and `routeReason` why.
    */
@@ -692,8 +694,24 @@ export const RECORD_SCHEMAS = {
       window: z.object({ width: z.number().int().nonnegative(), height: z.number().int().nonnegative() }).strict(),
       theme: z.enum(["light", "dark"]),
       at: nonEmpty,
+      anchor: z
+        .object({
+          selector: nonEmpty,
+          tag: nonEmpty,
+          role: nonEmpty.optional(),
+          name: nonEmpty.optional(),
+          text: nonEmpty.optional(),
+          marks: z.array(nonEmpty),
+          components: z.array(nonEmpty).max(6),
+          box: z.object({ x: z.number(), y: z.number(), width: z.number().nonnegative(), height: z.number().nonnegative() }).strict(),
+          styles: z.record(z.string(), z.string()),
+          html: z.string().max(2048),
+        })
+        .strict()
+        .optional(),
       status: z.enum(["new", "routed"]),
       screenshot: z.boolean(),
+      crop: z.boolean().optional(),
       route: z.enum(["increment", "question", "closed"]).optional(),
       routedTo: nonEmpty.optional(),
       routeReason: nonEmpty.optional(),

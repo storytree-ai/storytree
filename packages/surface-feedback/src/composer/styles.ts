@@ -21,4 +21,14 @@ export const cornerStyles = `
 .feedback-actions button:disabled { color: #a9b0ba; opacity: .6; cursor: default; background: transparent; }
 .feedback-actions [data-corner-send], .feedback-actions [data-corner-retry] { background: #2c6b41; border-color: #2c6b41; }
 .feedback-actions [hidden] { display: none; }
+.feedback-anchor { margin: 0; display: flex; align-items: baseline; gap: 6px; color: #eceae3; font-family: ui-monospace, Consolas, monospace; font-size: 12px; overflow-wrap: anywhere; }
+.feedback-anchor button { margin-left: auto; font: 12px/1.45 "Segoe UI", system-ui, sans-serif; border: 1px solid #485159; border-radius: 6px; padding: 1px 8px; background: transparent; color: #a9b0ba; cursor: pointer; white-space: nowrap; }
+.feedback-anchor button:hover { background: #262a2f; color: #eceae3; }
+.feedback-picker { position: fixed; inset: 0; cursor: crosshair; }
+.feedback-picker[hidden], .feedback-outline[hidden] { display: none; }
+.feedback-outline { position: fixed; pointer-events: none; outline: 2px solid #6fb7ff; outline-offset: 1px; background: rgb(111 183 255 / .12); }
+.feedback-outline span { position: absolute; left: -2px; bottom: 100%; margin-bottom: 4px; padding: 1px 6px; border-radius: 4px; background: #101418; color: #eceae3; font: 11px/1.45 ui-monospace, Consolas, monospace; white-space: nowrap; }
+.feedback-outline[data-below] span { bottom: auto; top: 100%; margin: 4px 0 0; }
+.feedback-outline[data-right] span { left: auto; right: -2px; }
+.feedback-hint { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); margin: 0; padding: 4px 10px; border: 1px solid #485159; border-radius: 6px; background: #101418; color: #a9b0ba; pointer-events: none; }
 `;

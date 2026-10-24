@@ -57,8 +57,8 @@ export interface PageFrame {
   readonly declaredSurfaces: readonly DeclaredSurface[];
   /** The open library's server, asked at call time: none before the library opens. */
   server(): { listProjects: Storytree["listProjects"]; openProject(name: string, options?: { create?: boolean }): Promise<Pick<Library, "sendFeedback">> } | undefined;
-  /** A JPEG of the app's window as it is now (its own page only), or none when there is no window. */
-  captureWindow(): Promise<Uint8Array | undefined>;
+  /** A JPEG of the app's window as it is now (its own page only), or of the part `rect` names; none when there is no window. */
+  captureWindow(rect?: { x: number; y: number; width: number; height: number }): Promise<Uint8Array | undefined>;
 }
 
 /** A surface a story declares, by the story (its part's name) that declares it. */

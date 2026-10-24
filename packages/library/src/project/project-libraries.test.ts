@@ -63,7 +63,7 @@ async function connectedDatabase(project: Project): Promise<string | undefined> 
   return rows[0]?.db;
 }
 
-test("1.1 openProject creates the project's database and its tables", async () => {
+test("1.1 openProject creates the project's database and its tables, and gives a project set up before a table changed what was added since", async () => {
   const name = uniqueProjectName();
   await withStorytree([databaseOf(name)], async (storytree) => {
     assert.deepEqual(await databasesContaining(name), [], "precondition: the project has no database yet");
@@ -74,6 +74,21 @@ test("1.1 openProject creates the project's database and its tables", async () =
     assert.deepEqual(await databasesContaining(name), [databaseOf(name)], "its database is storytree_<name>");
     // Its tables exist, seen from outside the library: library_meta, holding the project's name.
     assert.equal((await metaOf(databaseOf(name))).project, name);
+
+    // A project set up before a table gained a column gains it at its next open: feedback_screenshot's element_jpeg,
+    // where a feedback note's crop is kept (Library API 7.18).
+    const cropColumn = () => withTestClient(async (client) => (await client.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'feedback_screenshot' AND column_name = 'element_jpeg'")).rowCount, databaseOf(name));
+    assert.equal(await cropColumn(), 1);
+    await withTestClient((client) => client.query("ALTER TABLE feedback_screenshot DROP COLUMN element_jpeg; DELETE FROM library_meta WHERE key = 'schema'"), databaseOf(name));
+    assert.equal(await cropColumn(), 0, "precondition: a project set up before the crop");
+    const later = await connect({ url: testServerUrl() });
+    try {
+      const reopened = await later.openProject(name);
+      assert.equal(await cropColumn(), 1, "the column is added at the next open");
+      await reopened.pool.query("INSERT INTO feedback_screenshot (record_id, jpeg, element_jpeg) VALUES ('feedback_000000000001', '\\xffd8', '\\xffd9')");
+    } finally {
+      await later.close();
+    }
   });
 });
 

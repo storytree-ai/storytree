@@ -16,7 +16,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * The command's entry, with no file of its own: what it runs is Session management's, and only its tests run it so.
- * A test may set how long the shell guard waits (STORYTREE_TEST_GUARD_MS), so a slow runner's answer is not its clock's.
+ * A test may set how long the shell guard and the edit gate wait (STORYTREE_TEST_GUARD_MS), so a slow runner's answer is not its clock's.
  * Like the release entry, it goes deaf to SIGTERM before it loads the rest.
  */
 const ENTRY = 'import { deafIfHandingOffAtOnce } from "../hooks/at-once.ts";\n\ndeafIfHandingOffAtOnce();\nconst { hookCommand } = await import("../bins/storytree-hook.ts");\nconst { declaredInTests } = await import("./declared.ts");\nconst guardMs = Number(process.env.STORYTREE_TEST_GUARD_MS) || undefined;\nhookCommand({ declaredCapabilities: declaredInTests, guardMs });\n';

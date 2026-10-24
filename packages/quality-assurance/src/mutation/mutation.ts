@@ -359,13 +359,14 @@ export const runTests: TestRun = (root, tests, limitMs, given = process.env) => 
 /**
  * The mutation report on the change whose diff is `diff`, in the checkout at `root` (7.1, 7.2): each break planted in place,
  * run against the tests that reach its file, and its file written back. Undefined `reach` reads the import graph of the
- * changed files' packages and those downstream.
+ * changed files' packages and those downstream; undefined `now` reads the real clock.
  */
-export async function mutationReport(root: string, diff: string, arid: readonly AridLine[] = [], options: { run?: TestRun; reach?: Reach; cap?: number; budgetMs?: number } = {}): Promise<MutationReport> {
-  const started = Date.now();
+export async function mutationReport(root: string, diff: string, arid: readonly AridLine[] = [], options: { run?: TestRun; reach?: Reach; cap?: number; budgetMs?: number; now?: () => number } = {}): Promise<MutationReport> {
+  const now = options.now ?? Date.now;
+  const started = now();
   const run = options.run ?? runTests;
   const { breaks, candidates } = changeBreaks(root, diff, arid, options.cap);
-  if (breaks.length === 0) return { ran: true, planted: 0, caught: 0, survivors: [], notRun: [], candidates, ms: Date.now() - started };
+  if (breaks.length === 0) return { ran: true, planted: 0, caught: 0, survivors: [], notRun: [], candidates, ms: now() - started };
   const reach = options.reach ?? (() => {
     const graph = new PackageGraph(readPackages(root));
     const own = [...new Set(breaks.map((one) => folderOf(one.file)).filter((folder): folder is string => folder !== undefined))];
@@ -377,7 +378,7 @@ export async function mutationReport(root: string, diff: string, arid: readonly 
   const byFile = new Map<string, Break[]>();
   for (const one of breaks) byFile.set(one.file, [...(byFile.get(one.file) ?? []), one]);
   const budget = options.budgetMs ?? REPORT_BUDGET_MS;
-  const left = (): number => budget - (Date.now() - started);
+  const left = (): number => budget - (now() - started);
   const OUT_OF_TIME = "the report's time ran out first";
   // How each test file ran with nothing broken, kept across the changed files that share it.
   const unbroken = new Map<string, { passed: boolean; ms: number }>();
@@ -451,7 +452,7 @@ export async function mutationReport(root: string, diff: string, arid: readonly 
     await postgres.stop();
   }
   survivors.sort((a, b) => b.damage - a.damage || a.file.localeCompare(b.file) || a.line - b.line);
-  return { ran: true, planted: breaks.length, caught, survivors, notRun, candidates, ms: Date.now() - started };
+  return { ran: true, planted: breaks.length, caught, survivors, notRun, candidates, ms: now() - started };
 }
 
 /**

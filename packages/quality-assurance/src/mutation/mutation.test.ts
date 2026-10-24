@@ -145,12 +145,13 @@ test("7.5 · a break its own package's tests miss is run against the tests downs
     assert.equal(readFileSync(join(dir, "packages/pick/src/pick.mjs"), "utf8"), DOWNSTREAM["packages/pick/src/pick.mjs"]);
 
     // Its own package's tests pass with the break, and the time runs out on the tests downstream.
+    let clock = 0;
     const run: TestRun = async (_root, tests, limitMs) => {
       if (!tests.includes("packages/use/src/use.test.mjs")) return { passed: true, ms: 1 };
-      await new Promise((resolve) => setTimeout(resolve, limitMs));
+      clock += limitMs;
       return { passed: false, ms: limitMs, timedOut: true };
     };
-    const timed = await mutationReport(dir, diff, [], { run, budgetMs: 300 });
+    const timed = await mutationReport(dir, diff, [], { run, budgetMs: 300, now: () => clock });
     assert.ok(timed.ran);
     assert.deepEqual({ caught: timed.caught, survivors: timed.survivors }, { caught: 0, survivors: [] });
     assert.deepEqual(timed.notRun.map(({ line, why }) => ({ line, why })), [{ line: 1, why: "the report's time ran out first" }, { line: 2, why: "the report's time ran out first" }]);

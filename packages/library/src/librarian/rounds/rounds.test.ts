@@ -9,8 +9,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { quietFor } from "@storytree/test-waits";
+import { quietFor, waitUntil } from "@storytree/test-waits";
 
+import { withTestClient } from "../../testing/pg.js";
 import { healthHistory, withCountedLibrary, withLibrary } from "../testing/pg.js";
 import { roundDue, worklist } from "../index.js";
 import type { ToolAnswer, ToolCall } from "./host.js";
@@ -113,7 +114,7 @@ test("26.7 the worklist reads the live notes about once however many notes the s
       // The start just after the last older edit by the library's own clock, which a runner's may not match.
       const [last] = await library.history({ newest: 1 });
       const started = new Date(Date.parse(last!.at) + 1);
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await libraryClockPast(started);
       let before = received();
       await library.search("");
       const once = received() - before;
@@ -160,7 +161,7 @@ test("26.8 a worklist call names each phase through the call's progress before i
     await withCountedLibrary(async ({ library, project, received }) => {
       const [last] = await library.history({ newest: 1 });
       const started = new Date((last === undefined ? Date.now() : Date.parse(last.at)) + 1);
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await libraryClockPast(started);
       await library.writeKnowledge("principle", { title: "Edit first", description: "Edit before writing new.", statement: "Edit first.", why: "No near-copies.", howToApply: "Search first." });
       const tools = librarianTools();
       const acts = new Map<string, (args: unknown, call: ToolCall) => Promise<ToolAnswer>>();
@@ -241,3 +242,12 @@ test("26.5 the librarian's subagent definition names every tool the librarian se
   const named = new Set(tools.match(/[\w-]+/g));
   assert.deepEqual(served.filter((name) => !named.has(name)), [], "tools the definition does not name");
 });
+
+/** Wait until the library's clock (the server's, which stamps its history) has passed `at`, so what is written next is stamped later. */
+async function libraryClockPast(at: Date): Promise<void> {
+  await waitUntil(
+    () => withTestClient(async (client) => (await client.query<{ past: boolean }>("SELECT now() > $1 AS past", [at])).rows[0]?.past),
+    5_000,
+    `the library's clock to pass ${at.toISOString()}`,
+  );
+}

@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { waitUntil } from "@storytree/test-waits";
+import { quietFor, waitUntil } from "@storytree/test-waits";
 
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 import { ConnectionError, ProjectGoneError, connect, type Project, type Storytree } from "./index.js";
@@ -293,8 +293,9 @@ test("1.12 dropProject waits out a connection to the project it may not end, and
     // A superuser's connection, as an autovacuum worker's would be: the client's ordinary role may
     // not end it (42501), and it ends by itself moments later.
     await withTestClient(async () => {
-      dropped = storytree.dropProject(site).then(() => undefined, (error: unknown) => error);
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      let settled = false;
+      dropped = storytree.dropProject(site).then(() => undefined, (error: unknown) => error).finally(() => (settled = true));
+      await quietFor(() => settled, 600, "the drop finishing while a connection it may not end is still open");
     }, databaseOf(site));
 
     assert.equal(await dropped, undefined);

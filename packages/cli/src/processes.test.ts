@@ -8,6 +8,7 @@ import { verifyPayload, writePayloadManifest } from '@storytree/app-setup/delive
 import { buildBins } from '@storytree/app-setup/bins';
 import { launchOwned, type RunRecord } from '@storytree/session-management/processes';
 import { stopTestChild, testChildArgs } from '@storytree/session-management/processes/testing';
+import { removeTemp } from '@storytree/test-waits';
 import { BuiltCommand, storytree } from './testing/cli.js';
 
 for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/16.1: ${installed ? 'installed' : 'standalone'} CLI inventories, stops and clears offline`, async t => {
@@ -18,7 +19,7 @@ for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/1
     // A child that will not die must not also strand the folders: remove them either way.
     try { await Promise.all(children.map(stopTestChild)); } finally {
       command.remove();
-      await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      await removeTemp(home);
     }
   });
   await command.build(installed ? async dir => {

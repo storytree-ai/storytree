@@ -21,6 +21,7 @@ import path from "node:path";
 import { setUpProject } from "@storytree/app-setup/project";
 import { connect, type Library } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { removeTemp } from "@storytree/test-waits";
 
 import { buildCommand } from "../bins/build.js";
 
@@ -219,7 +220,7 @@ export async function inWorld(command: BuiltCommand, body: (world: World) => Pro
   } finally {
     await storytreeServer.close();
     await dropTestProjects([project]);
-    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await removeTemp(dir);
   }
 }
 

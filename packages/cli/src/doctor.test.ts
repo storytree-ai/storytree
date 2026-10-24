@@ -14,14 +14,14 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { setTimeout as pause } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { probeProcess, readProcess, type ProcessIdentity } from "@storytree/session-management/processes";
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 import { BuiltCommand, dropTestProjects, inWorld, placeHandoff, placeTestServer, storytree, testServerDataDir, uniqueProjectName, type World } from "./testing/cli.js";
 
 const STUB_APP = fileURLToPath(new URL("./testing/stub-app.mjs", import.meta.url));
@@ -58,10 +58,10 @@ before(async () => {
   }
 });
 
-after(() => {
+after(async () => {
   command.remove();
-  rmSync(ghFolder, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-  rmSync(developerFolder, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  await removeTemp(ghFolder);
+  await removeTemp(developerFolder);
 });
 
 /** A throwaway user: their home, the harnesses' settings folders, and a folder of their own on the PATH. */
@@ -177,12 +177,7 @@ for (const interrupted of [false, true]) test(`8.1 with storytree closed, it ope
 });
 
 async function appEnded(app: ProcessIdentity): Promise<void> {
-  const deadline = Date.now() + 5_000;
-  while (Date.now() < deadline) {
-    if ((await probeProcess(app)).state === "gone") return;
-    await pause(50);
-  }
-  assert.fail("the Doctor app stand-in outlived its test owner by five seconds");
+  await waitUntil(async () => (await probeProcess(app)).state === "gone", 5_000, "the Doctor app stand-in to end with its test owner");
 }
 
 test("8.2 with `gh` signed out, it notes what gh is for and names no fix for it", async () => {

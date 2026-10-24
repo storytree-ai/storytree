@@ -15,6 +15,7 @@ import path from "node:path";
 
 import { claim, claimRefusal, reasonRefusal, readClaim, readClaims, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
 import { endIfMerged, ghAllOpenPulls, inMergeQueue, type MergeWatch } from "./merges.js";
+import { setUpWorktree, type SetupLimits, type WorktreeSetup } from "./worktree-setup.js";
 
 type WorkspaceContext = ClaimContext & { readonly folder: string };
 
@@ -49,6 +50,8 @@ export interface ClaimedWorkspace {
   takenOverFrom?: Claim;
   /** Claimed in the worktree the session called from, which already held its work: nothing was made (5.19). */
   existing?: true;
+  /** What the project's local setup file did in the new worktree; absent when the project has none (19.1-19.3). */
+  setup?: WorktreeSetup;
 }
 
 export type WorkspaceAnswer =
@@ -59,6 +62,8 @@ export type WorkspaceAnswer =
 export interface WorkspaceOptions {
   /** Make the workspace even though open pull requests are already for this work (5.25). */
   readonly despiteOpenPulls?: boolean;
+  /** The caps a new worktree's setup copies within. */
+  readonly setupLimits?: SetupLimits;
 }
 
 const FETCH_TIMEOUT_MS = 120_000;
@@ -117,7 +122,13 @@ export async function makeWorkspace(context: WorkspaceContext, id: string, reaso
     else await release(context, id);
     return { ok: false, refused: "no-workspace", why: `git could not make the worktree: ${failureOf(error)}` };
   }
-  return { ok: true, status: "ready", claim: claimed.claim, ...where, base, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
+  // The project's own local file sets it up; whatever fails there is reported, and the claim and the worktree stay (19.2).
+  const setup = setUpWorktree(repository, where.folder, options.setupLimits);
+  return {
+    ok: true, status: "ready", claim: claimed.claim, ...where, base,
+    ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }),
+    ...(setup === undefined ? {} : { setup }),
+  };
 }
 
 /** Attach an app-created worktree (Codex's, or the one a Claude Code session is already in) to this session's work, leaving its lifetime to the app. */

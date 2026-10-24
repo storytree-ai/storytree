@@ -1,12 +1,12 @@
-/** Capability 2 · The read tools, contracts 2.1-2.18: the door run in-process against a stand-in command line and a throwaway git repository. */
+/** Capability 2 · The read tools, contracts 2.1-2.19: the door run in-process against a stand-in command line and a throwaway git repository. */
 import assert from "node:assert/strict";
 import { rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Client } from "@modelcontextprotocol/client";
 
-import { DRIVE_NOTICE, OLD_NAMES, TOOL_NAMES } from "./tools.js";
-import { childrenIn, connect, gitRepo, seen, testDoor, textOf, type TestDoor } from "./testing/door.js";
+import { OLD_NAMES, TOOL_NAMES } from "./tools.js";
+import { childrenIn, connect, gitRepo, namesOnlyListedTools, seen, testDoor, textOf, type TestDoor } from "./testing/door.js";
 
 const lines = (count: number, make: (n: number) => string) => Array.from({ length: count }, (_, at) => make(at + 1)).join("\n") + "\n";
 
@@ -131,8 +131,9 @@ test("2.2 catch_up refuses a since it cannot pass on, before any child runs", as
   await refusedWithoutChild("catch_up", [{ since: "--all" }, { since: "yesterday; rm" }, { since: "2 weeks" }]);
 });
 
-test("2.3 catch_up says the session manager's owner items are only in Drive's open-questions index", async () => {
-  assert.ok(textOf(await call("catch_up")).includes(DRIVE_NOTICE));
+test("2.19 · the instructions a client gets on connect lead with catch_up and name no tool tools/list does not offer", async () => {
+  await namesOnlyListedTools(client);
+  assert.match(client.getInstructions() ?? "", /Nothing here changes/);
 });
 
 test("2.6 find returns at most 5 records closest in meaning, one line each with kind, title and record id", async () => {

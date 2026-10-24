@@ -21,6 +21,7 @@ import { currentBranch, type MergeWatch } from "./claims/merges.js";
 import { presentQuestion, stopPresenting } from "./claims/presenting.js";
 import { staleClaims } from "./claims/stale-claims.js";
 import { attachWorkspace, makeWorkspace, type WorkspaceRefusal } from "./claims/workspace.js";
+import { setupText } from "./claims/worktree-setup.js";
 import { readContext } from "./context/context.js";
 import { guidanceSentence } from "./context/guidance.js";
 import { clearOwned, readClosing, renderClosing } from "./processes/closing/index.js";
@@ -187,8 +188,8 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
         };
       }
       return {
-        text: `Made a workspace at ${made.folder}, on branch ${made.branch} from ${made.base} as just fetched, and you hold ${await titleOf(call.library, id)} there. Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it, and set it up as this project does at session start (install its packages).`,
-        data: { made: true, status: made.status, folder: made.folder, branch: made.branch, base: made.base },
+        text: `Made a workspace at ${made.folder}, on branch ${made.branch} from ${made.base} as just fetched, and you hold ${await titleOf(call.library, id)} there. Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it${made.setup === undefined ? ", and set it up as this project does at session start (install its packages)." : `.\n${setupText(made.setup)}`}`,
+        data: { made: true, status: made.status, folder: made.folder, branch: made.branch, base: made.base, ...(made.setup === undefined ? {} : { setup: made.setup }) },
       };
     },
     AGENT,

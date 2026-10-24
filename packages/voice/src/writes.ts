@@ -3,16 +3,17 @@
  * save_note keeps what the owner said at once, an answer to a question included (ADR-1155 D1, D2), and start_manager_run
  * drafts one session manager run on the box that carries every unswept note (ADR-1150), read back in one line; confirm
  * hands it to the box at once (ADR-1155 D3), cancel stops it until the run starts, and lock_voice turns every write off
- * until the box clears it. Each write checks the lock first. None runs anything itself: the box's committer (commit.ts),
+ * until the box clears it; mark_heard stops catch_up offering a reply he has heard. Each write but cancel, mark_heard and
+ * lock_voice checks the lock first. None runs anything itself: the box's committer (commit.ts),
  * woken by the database's notification, starts a run, and the run sweeps the notes.
  */
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { voiceSession } from "./config.js";
-import { DraftRefusal, Drafts, NOTE_KINDS, WORDS_CHARS, managerBrief, spokenAnswer, type Draft } from "./drafts.js";
+import { DraftRefusal, Drafts, NOTE_KINDS, REPLIES, WORDS_CHARS, managerBrief, spokenAnswer, type Draft } from "./drafts.js";
 
 /** The write tools, each of which needs the owner's sign-in. */
-export const WRITE_TOOL_NAMES = ["save_note", "start_manager_run", "confirm", "cancel", "lock_voice"] as const;
+export const WRITE_TOOL_NAMES = ["save_note", "start_manager_run", "confirm", "cancel", "mark_heard", "lock_voice"] as const;
 
 /** An open question's id and title, or null when it is not open; read through the storytree command line. */
 export type OpenQuestion = (id: string) => Promise<{ id: string; title: string } | null>;
@@ -160,6 +161,25 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
   );
 
   server.registerTool(
+    "mark_heard",
+    {
+      title: "Mark replies heard",
+      description:
+        "Mark replies catch_up read under Replies ready as heard, once the owner says they are fine or has nothing more to ask about them, so catch_up " +
+        "offers them no more. Without drafts it marks every reply catch_up offers now. Works while writes are locked. Needs the owner's sign-in.",
+      inputSchema: z.object({ drafts: z.array(z.number().int().min(1)).min(1).max(REPLIES).optional().describe("the replies' draft numbers, as catch_up read them") }),
+      annotations: WRITE,
+    },
+    async ({ drafts: named }) =>
+      guarded(async () => {
+        const ids = named ? [...new Set(named)] : (await drafts.replies()).map((draft) => draft.id);
+        if (ids.length === 0) throw new DraftRefusal("there is no reply waiting to be heard");
+        const heard = await drafts.hear(ids);
+        return said(`Heard: ${heard.length === 1 ? `draft ${heard[0]}'s reply` : `the replies of drafts ${heard.join(", ")}`}; catch_up will not offer ${heard.length === 1 ? "it" : "them"} again.`);
+      }, { lockFirst: false }),
+  );
+
+  server.registerTool(
     "lock_voice",
     {
       title: "Turn voice writes off",
@@ -178,7 +198,7 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
   );
 }
 
-/** catch_up's replies: what each run of the last day came to, newest first. */
+/** catch_up's replies: what each ended run came to that he has not heard, newest first, each by its draft number. */
 export async function repliesSaid(drafts: Drafts): Promise<string[]> {
   return (await drafts.replies()).map((draft) => `Draft ${draft.id}, the run you asked for: ${draft.reply ?? draft.outcome ?? "it ended without a reply"}`);
 }

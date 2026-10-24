@@ -180,7 +180,7 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
   const calls = new AsyncLocalStorage<{ readonly signal: AbortSignal; readonly caller?: SignedCaller }>();
   const serverFor = () => {
     const call = calls.getStore();
-    const server = makeServer(children, call?.signal, log, drafts ? () => repliesSaid(drafts) : undefined);
+    const server = makeServer(children, call?.signal, log, drafts ? () => repliesSaid(drafts) : undefined, gate ? signedTools : []);
     if (gate) registerSignedTools(server, () => call?.caller);
     if (drafts) registerWriteTools(server, drafts, (id) => openQuestion(children, call?.signal, id), log);
     return server;

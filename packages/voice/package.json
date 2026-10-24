@@ -11,6 +11,7 @@
     "@storytree/cli": "workspace:*",
     "@storytree/project-and-caller": "workspace:*",
     "jose": "6.2.12",
+    "pg": "^8.23.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -20,7 +21,6 @@
     "@storytree/local-postgres": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
-    "pg": "^8.23.0",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"
   }

@@ -12,7 +12,9 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createMcpHandler, hostHeaderValidationResponse } from "@modelcontextprotocol/server";
 import { Children, LIMITS, type Limits } from "./children.js";
 import type { VoiceConfig } from "./config.js";
-import { makeServer } from "./tools.js";
+import { makeServer, openQuestion } from "./tools.js";
+import { Drafts } from "./drafts.js";
+import { WRITE_TOOL_NAMES, registerWriteTools, repliesSaid } from "./writes.js";
 import { SIGNED_TOOL_NAMES, SignInRefusal, registerSignedTools, signIn, type SignedCaller } from "./signin.js";
 
 export interface DoorOptions {
@@ -171,12 +173,16 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
   const log = options.log ?? stamp;
   const children = new Children(config, limits, log);
   const gate = config.signIn ? signIn(config.signIn) : null;
+  // Writes are drafts in the door's own database, and only with sign-in (config.ts refuses writes without it).
+  const drafts = gate && config.drafts ? Drafts.open(config.drafts) : null;
+  const signedTools: readonly string[] = [...SIGNED_TOOL_NAMES, ...(drafts ? WRITE_TOOL_NAMES : [])];
   // The current request's hang-up signal and signed caller, carried through the SDK's async calls into the per-request server.
   const calls = new AsyncLocalStorage<{ readonly signal: AbortSignal; readonly caller?: SignedCaller }>();
   const serverFor = () => {
     const call = calls.getStore();
-    const server = makeServer(children, call?.signal, log);
+    const server = makeServer(children, call?.signal, log, drafts ? () => repliesSaid(drafts) : undefined);
     if (gate) registerSignedTools(server, () => call?.caller);
+    if (drafts) registerWriteTools(server, drafts, (id) => openQuestion(children, call?.signal, id), log);
     return server;
   };
   const handler = createMcpHandler(serverFor, {
@@ -265,7 +271,7 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
       }
       let caller: SignedCaller | undefined;
       const tool = calledTool(body);
-      if (gate && (config.signIn!.everyCall || (tool !== undefined && SIGNED_TOOL_NAMES.includes(tool)))) {
+      if (gate && (config.signIn!.everyCall || (tool !== undefined && signedTools.includes(tool)))) {
         // By default only a signed tool's call reads the token, so a broken sign-in cannot take reads down. With every call
         // signed (1.20), initialize and reads need it too: claude.ai only signs in when its first calls are refused.
         try {
@@ -301,6 +307,7 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
       log(
         `voice door listening on http://127.0.0.1:${port} (route /mcp/<token>; allowed hosts: ${config.allowedHosts.join(",")}; ` +
           `caller range check: ${config.cidrs ? config.cidrText : "off"}; sign-in: ${config.signIn ? `${config.signIn.issuer}, owner ${config.signIn.owner}` : "off, no signed tools"}; ` +
+          `voice writes: ${drafts ? "on, drafted in the door's database" : "off"}; ` +
           `repo: ${config.repoDir})`,
       );
       resolve({
@@ -309,6 +316,7 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
           server.closeAllConnections();
           await new Promise<void>((done) => server.close(() => done()));
           await handler.close();
+          await drafts?.close();
         },
       });
     });

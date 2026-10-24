@@ -1,0 +1,10 @@
+# The voice door's committer (capability 5): one tick carries out each due voice draft once, as the owner's account,
+# which may write the library and start runs from ~/storytree-lanes; the confined door may do neither.
+# Install as the owner (README.md, "Voice writes").
+[Unit]
+Description=storytree voice: carry out due voice drafts
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/code/storytree03
+ExecStart=/bin/bash -c 'command -v node >/dev/null || PATH="$$(ls -d "$$HOME"/.nvm/versions/node/*/bin | sort -V | tail -n1):$$PATH"; exec node --import ./node_modules/tsx/dist/loader.mjs packages/voice/src/bins/voice-commit.ts'

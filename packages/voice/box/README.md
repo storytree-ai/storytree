@@ -45,3 +45,25 @@ it and turns the owner's user units back on, so the connector is never left down
 Step 3's install warns `Failed to create bin ... @storytree/cli/dist/storytree.mjs`. It does not
 matter: that file exists only after a build, and the door runs the command line from its source
 through tsx, never through that link.
+
+## Voice writes (capability 5)
+
+Voice writes are drafts in `voice_draft` (`door-database.sql`): the door's role may add one and set only
+its confirmed and cancelled times, and the database sets every time itself. A draft lapses 15 minutes
+after it is read back unless confirmed, and takes effect ten minutes after confirming unless cancelled.
+The confined door never writes the library: `voice-commit.service`, run every minute by
+`voice-commit.timer` as the owner's account, settles each due answer through the storytree command line
+as that day's voice session, and starts each due session manager run through
+`~/storytree-lanes/run-lane.sh`, its files in `~/storytree-lanes/voice-runs/`. It holds a run while the
+laptop's scheduled session manager run may be running (from ten past each odd hour, Sydney time, until
+`overnight-log.md` is written). While `voice_lock` holds a row it drops what is waiting.
+
+Turning them on, after the change lands and the door's refresh has taken it (within 15 minutes), as the owner on the box:
+
+```bash
+cd ~/code/storytree03 && git pull && pnpm install
+sudo runuser -u postgres -- psql -X -q -v ON_ERROR_STOP=1 -d storytree-voice < packages/voice/box/door-database.sql
+mkdir -p ~/.config/systemd/user && cp packages/voice/box/voice-commit.{service,timer} ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now voice-commit.timer
+echo VOICE_WRITES=on | sudo tee -a /etc/storytree-voice/env && sudo systemctl restart storytree-voice
+```

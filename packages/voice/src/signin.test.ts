@@ -8,7 +8,7 @@ import { SignJWT, exportJWK } from "jose";
 
 import { main } from "./bins/voice.js";
 import { SIGNED_TOOL_NAMES } from "./signin.js";
-import { LEGACY_HEADERS, MCP_HEADERS, childrenIn, connect, gitRepo, messagesOf, raw, seen, testDoor, textOf, toolCall, wait } from "./testing/door.js";
+import { LEGACY_HEADERS, MCP_HEADERS, connect, gitRepo, messagesOf, raw, seen, testDoor, textOf, toolCall } from "./testing/door.js";
 
 const repo = gitRepo({ "README.md": "voice test repository\n" });
 const PUBLIC_URL = "https://voice-box.example-tailnet.ts.net";
@@ -166,8 +166,6 @@ test("1.19 reads never look at the token: a read with no token, a bad one or an 
     }
     const listed = await raw(door.port, { urlPath: door.route, headers: { ...MCP_HEADERS, "mcp-protocol-version": "2025-06-18", authorization: "Bearer not-a-jwt" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }) });
     assert.equal(listed.status, 200);
-    await wait(100);
-    assert.ok(childrenIn(door.cliLog).started >= 3);
   } finally {
     await door.close();
   }

@@ -35,10 +35,14 @@ export interface Draft {
   readonly swept_by_run: number | null;
   /** The scheduled session manager's mark on a note it took ("scheduled YYYY-MM-DD"), set only by the box's account. */
   readonly swept_by: string | null;
+  /** When the owner said its reply was fine (a manager run only); catch_up offers it no more. */
+  readonly heard_at: Date | null;
 }
 
 /** How long a voice-started run may hold the box before it counts as ended without a reply. */
 export const RUN_HOURS = 3;
+/** Replies catch_up offers at once, at most. */
+export const REPLIES = 5;
 /** The owner's words in a draft, at most. */
 export const WORDS_CHARS = 2000;
 
@@ -150,9 +154,18 @@ export class Drafts {
     return rows[0]!;
   }
 
-  /** What the runs of the last day came to, newest first. */
+  /** What the ended runs came to that the owner has not heard yet, newest first. */
   async replies(): Promise<Draft[]> {
-    return this.#query<Draft>("SELECT * FROM voice_draft WHERE kind = 'manager_run' AND run_ended_at > now() - interval '1 day' ORDER BY id DESC LIMIT 5");
+    return this.#query<Draft>(`SELECT * FROM voice_draft WHERE kind = 'manager_run' AND run_ended_at IS NOT NULL AND heard_at IS NULL ORDER BY id DESC LIMIT ${REPLIES}`);
+  }
+
+  /** Mark these runs' replies heard, so catch_up offers them no more; the database refuses one with no reply or already heard. */
+  async hear(ids: readonly number[]): Promise<number[]> {
+    const known = (await this.#query<{ id: number }>("SELECT id FROM voice_draft WHERE id = ANY($1::int[])", [ids])).map((row) => row.id);
+    const missing = ids.filter((id) => !known.includes(id));
+    if (missing.length > 0) throw new DraftRefusal(`there is no draft ${missing.join(", ")}`);
+    const rows = await this.#query<{ id: number }>("UPDATE voice_draft SET heard_at = now() WHERE id = ANY($1::int[]) RETURNING id", [ids]);
+    return rows.map((row) => row.id).sort((a, b) => a - b);
   }
 }
 

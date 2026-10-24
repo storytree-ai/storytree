@@ -1,4 +1,4 @@
-/** Capability 2 · The read tools, contracts 2.1-2.14: the door run in-process against a stand-in command line and a throwaway git repository. */
+/** Capability 2 · The read tools, contracts 2.1-2.18: the door run in-process against a stand-in command line and a throwaway git repository. */
 import assert from "node:assert/strict";
 import { rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -96,13 +96,17 @@ test("2.18 · each of the spike's old tool names answers what its new tool answe
     ["search_library", "find", { query: "voice door" }],
     ["search_library", "find", { query: "seven hits" }],
     ["read_code_file", "read_code", { path: "big.txt", start_line: 3, end_line: 9 }],
+    ["show_question", "tell_me", { id: "Question_0000 0000 00C1" }],
+    ["read_note", "tell_me", { id: "ADR-3" }],
   ];
   assert.deepEqual(Object.fromEntries(pairs.map(([old, now]) => [old, now])), OLD_NAMES);
   for (const [old, now, args] of pairs) {
     const answer = await call(old, args);
     assert.notEqual(answer.isError, true, `${old}: ${textOf(answer)}`);
     assert.ok(textOf(answer).length > 0, old);
-    assert.deepEqual(answer.content, (await call(now, args)).content, `${old} ${JSON.stringify(args)}`);
+    // show_question and read_note took an id, which tell_me takes as its handle.
+    const asNew = now === "tell_me" ? { handle: args.id } : args;
+    assert.deepEqual(answer.content, (await call(now, asNew)).content, `${old} ${JSON.stringify(args)}`);
   }
   const { tools } = await client.listTools();
   for (const [old, now] of Object.entries(OLD_NAMES)) assert.match(tools.find((tool) => tool.name === old)?.description ?? "", new RegExp(`old name for ${now}`), old);
@@ -129,24 +133,6 @@ test("2.2 catch_up refuses a since it cannot pass on, before any child runs", as
 
 test("2.3 catch_up says the session manager's owner items are only in Drive's open-questions index", async () => {
   assert.ok(textOf(await call("catch_up")).includes(DRIVE_NOTICE));
-});
-
-test("2.4 show_question reads a question by its id, spoken spacing and case forgiven, and refuses anything else with an example and no child", async () => {
-  assert.deepEqual(seen(await call("show_question", { id: "Question_0123 4567 89AB" })).argv, ["question", "show", "question_0123456789ab"]);
-  await refusedWithoutChild("show_question", [{ id: "question_xyz; rm -rf /" }, { id: "../question_0123456789ab" }, { id: "arc_0123456789ab" }, { id: "" }]);
-  assert.match(textOf(await call("show_question", { id: "arc_0123456789ab" })), /for example question_[0-9a-f]{12}/);
-});
-
-test("2.5 read_note reads a record by id, or a decision by its number, and refuses input that is neither with no child", async () => {
-  assert.deepEqual(seen(await call("read_note", { id: "principle_0ca2b77785e9" })).argv, ["library", "read", "principle_0ca2b77785e9"]);
-  assert.deepEqual(seen(await call("read_note", { id: "project-anchor" })).argv, ["library", "read", "project-anchor"]);
-  for (const spoken of ["1103", "ADR-1103", "adr 1103"]) {
-    assert.deepEqual(seen(await call("read_note", { id: spoken })).argv, ["library", "read", "decision_0000000011a3"], spoken);
-  }
-  const missing = await call("read_note", { id: "ADR-9999" });
-  assert.equal(missing.isError, true);
-  assert.match(textOf(missing), /no decision is numbered 9999/);
-  await refusedWithoutChild("read_note", [{ id: "--linked" }, { id: "principle_0ca2b77785e9 --linked" }, { id: "the voice decision" }, { id: "" }]);
 });
 
 test("2.6 find returns at most 5 records closest in meaning, one line each with kind, title and record id", async () => {
@@ -294,10 +280,10 @@ test("2.13 a symbolic link swapped in for a tracked file is never followed: read
 
 test("2.14 a failed or refused read is a short plain tool error with no stack; a good one carries no next: commands or colour codes", async () => {
   const cases: Array<[Record<string, unknown>, RegExp]> = [
-    [{ id: "question_000000000000" }, /^storytree refused: no question "question_000000000000" in this project$/],
+    [{ handle: "question_000000000000" }, /^storytree refused: no question "question_000000000000" in this project$/],
   ];
   for (const [args, said] of cases) {
-    const result = await call("show_question", args);
+    const result = await call("tell_me", args);
     assert.equal(result.isError, true);
     assert.match(textOf(result), said);
   }

@@ -86,3 +86,19 @@ test("2.3 · asked to, a source file whose opening comment declares no capabilit
   assert.deepEqual(rest, [], "a file nothing reaches is named once, as unallocated");
   assert.match(only, /refund\.ts \(2 lines\) belongs to no capability/);
 });
+
+test("2.4 · a refused file whose package's coverage map has no entry for it is also told to re-measure that map with pnpm survey:coverage <package>; a package with no map, or a map holding the file, is not", async (t: TestContext) => {
+  const stale = plant(t, { ...SHOP, "packages/shop/survey-coverage.json": JSON.stringify({ "src/cart.ts": { 1: 1 } }) });
+  const [unreached = "", ...rest] = await allocationProblems(stale, ["shop"]);
+  assert.deepEqual(rest, []);
+  assert.match(unreached, /refund\.ts \(2 lines\) belongs to no capability/);
+  assert.match(unreached, /pnpm survey:coverage shop/);
+  const [unmapped = ""] = await allocationProblems(plant(t, SHOP), ["shop"]);
+  assert.doesNotMatch(unmapped, /survey:coverage/, "a package with no coverage map is not told to re-measure one");
+
+  const declaring = { ...SHOP, "packages/shop/src/cart.ts": `/** Capability 2 · Refunds */\n${SHOP["packages/shop/src/cart.ts"]}` };
+  const misdeclared = (map: Record<string, unknown>) => async () =>
+    (await allocationProblems(plant(t, { ...declaring, "packages/shop/survey-coverage.json": JSON.stringify(map) }), ["shop"])).find((said) => said.includes("cart.ts declares capability 2")) ?? "";
+  assert.match(await misdeclared({ "src/other.ts": { 2: 1 } })(), /pnpm survey:coverage shop/);
+  assert.doesNotMatch(await misdeclared({ "src/cart.ts": { 1: 1 } })(), /survey:coverage/, "a map holding the file has been measured since it was written");
+});

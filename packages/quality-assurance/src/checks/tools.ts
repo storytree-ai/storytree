@@ -1,6 +1,6 @@
 /**
  * Capability 1 · Quality control checks, capability 2 · Change review, capability 3 · QA ledger and capability 4 · Review loop
- * bound, and capability 5 · Graduation: the checks and ledger readings, the change-reviewer's loop and a check's graduation as tools on the MCP server's one server, through
+ * bound, capability 5 · Graduation and capability 7 · Mutation report: the checks and ledger readings, the change-reviewer's loop and a check's graduation as tools on the MCP server's one server, through
  * its extension point (its ToolExtension, ADR-0643 D6, ADR-0969 D1). The extension's shape is restated rather
  * than imported, as the librarian's is: no story may depend on the MCP server, which depends on this
  * package to serve the tool, and checks the two still fit where it mounts its tool parts (its test 6.75).
@@ -10,7 +10,8 @@ import { z } from "zod";
 
 import { graduate, graduatedFindings } from "../graduation/graduation.js";
 import { ledgerText, openLedger } from "../ledger/ledger.js";
-import { briefText, openReviews, standingText, takenText, worktreeChange, type ReviewReturn } from "../review/review.js";
+import { briefWithReport, takenWithSurvivors } from "../mutation/mutation.js";
+import { openReviews, standingText, takenText, worktreeChange, type ReviewReturn } from "../review/review.js";
 import { checks, checksText } from "./checks.js";
 
 /** What a tool has to work with for one call, as far as the checks and ledger readings need it. */
@@ -74,7 +75,8 @@ export function qualityTools(): ToolExtension {
       }), async ({ increment, diff, worktree }, { library, storytree }) => {
         if (diff === undefined && worktree === undefined) throw new Error("Give the change's diff, or the worktree whose branch is the change: this server's folder is not the branch.");
         const brief = await (await openReviews(storytree)).brief(library, increment, diff ?? worktreeChange(worktree!));
-        return { text: briefText(brief), data: { brief } };
+        const { text, mutation } = await briefWithReport(storytree, brief, diff === undefined ? worktree : undefined);
+        return { text, data: { brief, ...(mutation === undefined ? {} : { mutation }) } };
       }, AGENT);
       define("quality_take", "Take the change-reviewer's return on an increment's brief into the QA ledger, or refuse it naming what it leaves out, recording nothing. Give the worktree whose branch is the change, and what Architecture checks' graduated checks find there is recorded with it.", z.object({
         increment: z.string().min(1).describe("The increment whose change was reviewed"),
@@ -84,7 +86,8 @@ export function qualityTools(): ToolExtension {
         const graduated = worktree === undefined
           ? { ran: false as const, reason: "no worktree was given, and this server's folder is not the branch." }
           : await graduatedFindings(library, worktree);
-        const taken = await (await openReviews(storytree)).take(project, increment, review as ReviewReturn, graduated);
+        const reviews = await openReviews(storytree);
+        const taken = await takenWithSurvivors(storytree, reviews, project, increment, await reviews.take(project, increment, review as ReviewReturn, graduated));
         return { text: takenText(taken), data: { taken } };
       }, AGENT);
       define("quality_answer", "The implementer's answer to a review's hit: fixed, or rejected with a reason.", z.object({

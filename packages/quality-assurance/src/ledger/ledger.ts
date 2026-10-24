@@ -69,10 +69,35 @@ const SCHEMA: readonly string[] = [
   `ALTER TABLE quality_hits ADD COLUMN IF NOT EXISTS found_by text NOT NULL DEFAULT 'reviewer' CHECK (found_by IN ('reviewer', 'graduated'))`,
   `ALTER TABLE quality_runs DROP CONSTRAINT IF EXISTS quality_runs_pkey`,
   `CREATE UNIQUE INDEX IF NOT EXISTS quality_runs_key ON quality_runs (project, review, check_id, package, found_by)`,
+  // Capability 7 (ADR-1153 D1): a run or hit may be the mutation report's, a survivor's hit keeps its line's text, a rejected
+  // survivor's line joins the arid list, and each review's report is kept with it until its survivors are recorded.
+  `ALTER TABLE quality_runs DROP CONSTRAINT IF EXISTS quality_runs_found_by_check`,
+  `ALTER TABLE quality_runs ADD CONSTRAINT quality_runs_found_by_check CHECK (found_by IN ('reviewer', 'graduated', 'mutation'))`,
+  `ALTER TABLE quality_hits DROP CONSTRAINT IF EXISTS quality_hits_found_by_check`,
+  `ALTER TABLE quality_hits ADD CONSTRAINT quality_hits_found_by_check CHECK (found_by IN ('reviewer', 'graduated', 'mutation'))`,
+  `ALTER TABLE quality_hits ADD COLUMN IF NOT EXISTS source text`,
+  `CREATE TABLE IF NOT EXISTS quality_arid (
+    project text NOT NULL,
+    file    text NOT NULL,
+    source  text NOT NULL,
+    hit     bigint NOT NULL,
+    reason  text NOT NULL,
+    at      timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (project, file, source)
+  )`,
+  `CREATE TABLE IF NOT EXISTS quality_mutations (
+    project   text NOT NULL,
+    change    text NOT NULL,
+    iteration integer NOT NULL,
+    report    jsonb NOT NULL,
+    recorded  boolean NOT NULL DEFAULT false,
+    at        timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (project, change, iteration)
+  )`,
 ];
 
-/** Who found a hit, or ran a check: the change-reviewer, or a Guardrails check graduated from it (capability 5). */
-export type FoundBy = "reviewer" | "graduated";
+/** Who found a hit, or ran a check: the change-reviewer, a Guardrails check graduated from it (capability 5), or the mutation report (capability 7). */
+export type FoundBy = "reviewer" | "graduated" | "mutation";
 
 /** Where a check found something: a line of a file in one package. */
 export interface Hit {
@@ -81,6 +106,8 @@ export interface Hit {
   readonly line: number;
   /** What the reviewer found there, in its words. */
   readonly found?: string;
+  /** The line's text, trimmed, for a mutation survivor: what the arid list keeps when it is rejected (capability 7). */
+  readonly source?: string;
 }
 
 /** One review, as it is recorded: the packages the change touches, and each check it ran with its hits. */
@@ -183,12 +210,12 @@ export async function inTransaction<T>(pool: Pool, body: (client: LedgerClient) 
 /**
  * Delete `project`'s runs and hits from the ledger on `server` (ADR-0831): deleting a project deletes its
  * records, and these are its records in the shared ledger, so a later project of the same name starts
- * with an empty ledger. Both tables go together, or neither.
+ * with an empty ledger. Its tables go together, or none of them.
  */
 export async function forgetProjectQuality(server: Storytree, project: string): Promise<void> {
   assertName("project", project);
   await inTransaction(await ledgerDatabase(server), async (client) => {
-    for (const table of ["quality_runs", "quality_hits"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
+    for (const table of ["quality_runs", "quality_hits", "quality_arid", "quality_mutations"]) await client.query(`DELETE FROM ${table} WHERE project = $1`, [project]);
   });
 }
 
@@ -213,8 +240,8 @@ export async function writeReview(client: LedgerClient, review: Review): Promise
     }
     for (const hit of found) {
       const { rows } = await client.query<HitRecord>(
-        `INSERT INTO quality_hits (project, review, check_id, package, file, line, change, found, found_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING ${HIT_COLUMNS}`,
-        [review.project, review.review, check, hit.package, hit.file, hit.line, review.change ?? null, hit.found ?? null, foundBy],
+        `INSERT INTO quality_hits (project, review, check_id, package, file, line, change, found, found_by, source) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING ${HIT_COLUMNS}`,
+        [review.project, review.review, check, hit.package, hit.file, hit.line, review.change ?? null, hit.found ?? null, foundBy, hit.source ?? null],
       );
       hits.push(hitRow(rows[0]!));
     }
@@ -236,10 +263,11 @@ export interface HitRecord {
   found: string | null;
   accepted: boolean;
   found_by: FoundBy;
+  source: string | null;
 }
 
 /** The columns a hit is read with, for this package's own modules. */
-export const HIT_COLUMNS = "id, project, review, check_id, package, file, line, at, answer, reason, found, accepted, found_by";
+export const HIT_COLUMNS = "id, project, review, check_id, package, file, line, at, answer, reason, found, accepted, found_by, source";
 
 /** A hit as read from the database, as the ledger hands it over. */
 export function hitRow(row: HitRecord): HitRow {
@@ -248,6 +276,7 @@ export function hitRow(row: HitRecord): HitRow {
     file: row.file, line: row.line, at: row.at.toISOString(), answer: row.answer ?? "unanswered",
     ...(row.reason === null ? {} : { reason: row.reason }),
     ...(row.found === null ? {} : { found: row.found }),
+    ...(row.source === null ? {} : { source: row.source }),
     accepted: row.accepted,
     foundBy: row.found_by,
   };
@@ -267,11 +296,24 @@ class PgLedger implements Ledger {
   async answer(project: string, id: number, answer: Answer): Promise<void> {
     const reason = answer.answer === "rejected" ? answer.reason.trim() : null;
     if (answer.answer === "rejected" && reason === "") throw new Error("A rejected hit needs its reason.");
-    const { rowCount } = await this.#pool.query(
-      "UPDATE quality_hits SET answer = $3, reason = $4, answered_at = now(), accepted = false WHERE project = $1 AND id = $2",
-      [project, id, answer.answer, reason],
-    );
-    if (rowCount === 0) throw new Error(`The ledger holds no hit ${id} in project "${project}".`);
+    // A rejected mutation survivor needs no review to accept it, so the report never holds a change back, and its line joins
+    // the arid list, so it is not offered again (capability 7, ADR-1153 D1).
+    await inTransaction(this.#pool, async (client) => {
+      const { rows } = await client.query<{ file: string; source: string | null; found_by: FoundBy }>(
+        `UPDATE quality_hits SET answer = $3, reason = $4, answered_at = now(), accepted = ($3 = 'rejected' AND found_by = 'mutation')
+          WHERE project = $1 AND id = $2 RETURNING file, source, found_by`,
+        [project, id, answer.answer, reason],
+      );
+      const hit = rows[0];
+      if (hit === undefined) throw new Error(`The ledger holds no hit ${id} in project "${project}".`);
+      if (answer.answer === "rejected" && hit.found_by === "mutation" && hit.source !== null) {
+        await client.query(
+          `INSERT INTO quality_arid (project, file, source, hit, reason) VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (project, file, source) DO UPDATE SET hit = EXCLUDED.hit, reason = EXCLUDED.reason, at = now()`,
+          [project, hit.file, hit.source, id, reason],
+        );
+      }
+    });
   }
 
   async rows(project: string): Promise<{ runs: RunRow[]; hits: HitRow[] }> {

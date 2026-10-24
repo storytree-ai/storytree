@@ -1003,3 +1003,33 @@ test("4.36 · a pull request whose session cap is spent on flakes goes to the ow
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
   assert.match(b.lines.at(-1), /PR #41.*waits on the owner/);
 });
+
+test("4.38 · a fix session on a branch behind main is told how many commits it lacks and their subjects; a branch up to date, or one the watcher cannot read, is told nothing and still fixed", async (t) => {
+  const b = await box(t);
+  await handOff(b);
+  b.looks[41] = red;
+  const subjects = Array.from({ length: 14 }, (_, i) => `main commit ${i + 1}`);
+  const asked = [];
+  b.options.behind = async (head) => { asked.push(head); return { count: 14, subjects }; };
+  await watchOnce(b.options);
+  assert.deepEqual(asked, ["h1"], "read at the head it judged red");
+  const [fix] = b.fixes;
+  assert.match(fix.brief, /14 commits behind main/);
+  assert.match(fix.brief, /main commit 14/);
+  assert.doesNotMatch(fix.brief, /main commit 4\b/, "the subjects are capped at the newest ten");
+  assert.match(fix.brief, /and 4 more/);
+
+  b.live.clear();
+  b.looks[41] = { ...red, head: "h2" };
+  b.options.behind = async () => ({ count: 0, subjects: [] });
+  await watchOnce(b.options);
+  assert.doesNotMatch(b.fixes[1].brief, /behind main/, "up to date: nothing said");
+
+  b.live.clear();
+  b.looks[41] = { ...red, head: "h3" };
+  b.options.behind = async () => { throw new Error("gh: not found"); };
+  b.options.limit = 5;
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 3, "a reading that fails never stops the fix session");
+  assert.doesNotMatch(b.fixes[2].brief, /commits behind main/);
+});

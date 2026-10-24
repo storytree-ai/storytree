@@ -370,12 +370,20 @@ export async function adoptRequests({ dir, storytree, viewOf, now = Date.now, sa
   }
 }
 
-function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed, review }) {
+/** How far a branch is behind main, said as a warning in its fix brief (4.38): the count and the newest ten subjects it lacks. */
+function lagLine(lag) {
+  if (!(lag?.count > 0)) return "";
+  const newest = lag.subjects.slice(-10).reverse();
+  const rest = lag.count - newest.length;
+  return `\nIts branch is ${lag.count} commit${lag.count === 1 ? "" : "s"} behind main, lacking (newest first): ${newest.map((one) => `"${one}"`).join(", ")}${rest > 0 ? `, and ${rest} more` : ""}.`;
+}
+
+function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed, review, lag }) {
   const handBack = `${pr} ${increment}${keepOpen ? " --keep-open" : ""}`;
   return `# Fix session ${review ? `${n}, after an independent review` : `${n} of ${limit}`}: pull request #${pr} (${increment}) is red
 
 The Mint box's watcher started you: a session opened PR #${pr} for ${increment}, saw its gate green and handed it over,
-and it has since gone red: ${why}.${logs.length ? `\nThe failing runs: ${logs.join(", ")}.` : ""}${review
+and it has since gone red: ${why}.${logs.length ? `\nThe failing runs: ${logs.join(", ")}.` : ""}${lagLine(lag)}${review
     ? `\nAfter ${limit} fix sessions an independent review session read it and judged it a bug in the pull request that a session can fix: ${review}`
     : ""}
 
@@ -479,7 +487,7 @@ reviewed again (4.37). At the cap the increment waits on the owner with the last
  * tried at most ENQUEUE_TRIES times (4.31). A look that saw any merge reads every story's risk reading again, once, from
  * main (`readRisks`), and says the readings that changed since the last (4.33).
  */
-export async function watchOnce({ dir, look, storytree, startFix, startReview, rerun, refresh, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, startFix, startReview, rerun, refresh, behind, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -686,10 +694,12 @@ export async function watchOnce({ dir, look, storytree, startFix, startReview, r
     if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
     const n = record.fixes.length + 1;
     const fixLogs = record.fixes.filter((one) => one.log && !one.review).map((one) => one.log);
+    // How far its branch is behind main, read at the head judged red; a reading that fails says nothing and stops nothing (4.38).
+    const lag = !reviewing && behind ? await behind(pull.head).catch(() => undefined) : undefined;
     const session = reviewing
       ? await startReview({ pr, increment, n, brief: reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed }) })
       : await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
-        review: verdict?.summary }) });
+        review: verdict?.summary, lag }) });
     record.fixing = { pid: session.pid };
     record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: session.pid, log: session.log, ...(reviewing ? { review: true } : {}),
       ...(pull.conflict ? { conflict: true } : {}), ...(failures && !reviewing ? { units: failures.units, tests: failures.tests } : {}) });
@@ -847,6 +857,8 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
       if (!(behind > 0)) throw new Error("its branch is up to date with main");
       await run("gh", ["api", "-X", "PUT", `${REPO}/pulls/${pr}/update-branch`, "-f", `expected_head_sha=${head}`], { cwd: repo });
     },
+    // The commits main has that the head lacks, oldest first as GitHub lists them (4.38).
+    behind: async (head) => JSON.parse((await run("gh", ["api", `${REPO}/compare/${head}...main`, "--jq", "{count: .ahead_by, subjects: [.commits[].commit.message | split(\"\\n\")[0]]}"], { cwd: repo })).stdout),
     // Its failed and cancelled jobs; a run with nothing left to rerun that way is rerun whole.
     rerun: (one) => run("gh", ["run", "rerun", String(one.id), "--failed"], { cwd: repo })
       .catch(() => run("gh", ["run", "rerun", String(one.id)], { cwd: repo })),

@@ -190,6 +190,10 @@ test("1.20 with VOICE_SIGNIN_EVERY_CALL on, every call without the owner's token
   } finally {
     await door.close();
   }
+  const exits: number[] = [];
+  const refused = await main({ PORT: "0", REPO_DIR: repo.dir, VOICE_TOKEN: "t".repeat(40), ...signInEnv(), VOICE_SIGNIN_EVERY_CALL: "yes" }, { stderr: () => {}, exit: (code) => exits.push(code) });
+  assert.equal(refused, undefined, "a door started with VOICE_SIGNIN_EVERY_CALL=yes");
+  assert.deepEqual(exits, [1]);
   for (const value of ["0", ""]) {
     const open = await testDoor(repo.dir, { ...signInEnv(), VOICE_SIGNIN_EVERY_CALL: value });
     try {

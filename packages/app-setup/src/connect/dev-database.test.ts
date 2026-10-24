@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
 import { ensureCluster, findBinaries } from "@storytree/local-postgres";
+import { removeTemp } from "@storytree/test-waits";
 import pg from "pg";
 
 const home = mkdtempSync(path.join(tmpdir(), "storytree dev database "));
@@ -20,7 +21,7 @@ const pgCtl = (...args: string[]) => spawnSync(
 // loaded Windows runner initdb alone took 6-24 s, and one stall held every server ~18 s at once
 // (run 38933803186), so two fresh clusters inside two 60 s cases timed one out (run 38929066683).
 before(() => ensureCluster(dataDir), { timeout: 180_000 });
-after(() => rmSync(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }));
+after(() => removeTemp(home));
 
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   test(`2.2 a dev home's database answers queries and releases its server on ${signal}`, { timeout: 60_000 }, async (t) => {

@@ -22,6 +22,7 @@ import { AFTER_TOOL, BACKGROUND, noteCodexHookRan, registeredHookScripts, SHELL_
 import { locateStorytree, MARKER_FILE } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, placeTestServer, testServerRecordedUrl, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
+import { waitUntil } from "@storytree/test-waits";
 
 import { buildBins } from "../bins/build.js";
 import { makeRepository, setUpProject } from "../project/making.js";
@@ -510,14 +511,14 @@ async function stop(pid: number): Promise<void> {
   } catch {
     return; // already gone
   }
-  for (let waited = 0; waited < 5_000; waited += 100) {
+  await waitUntil(() => {
     try {
       process.kill(pid, 0);
+      return false;
     } catch {
-      return;
+      return true;
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
+  }, 5_000, `process ${pid} to exit once killed`);
 }
 
 test("8.7 a status line of the user's own is kept: storytree's is installed only where there is none, and removing storytree leaves theirs", async () => {
@@ -634,7 +635,7 @@ test("8.9 setup remove exits cleanly through the Windows launcher it removes: th
     const removed = spawnSync("storytree setup remove", { shell: true, env, cwd: profile, encoding: "utf8" });
     assert.equal(removed.status, 0, `${removed.stdout}${removed.stderr}`);
     assert.equal(existsSync(launcher), false, "the launcher is off the path when the command returns");
-    for (let waited = 0; waited < 10_000 && readdirSync(bin).length > 0; waited += 100) await new Promise((resolve) => setTimeout(resolve, 100));
+    await waitUntil(() => readdirSync(bin).length === 0, 10_000, "the launcher to be deleted once it has exited");
     assert.deepEqual(readdirSync(bin), [], "and deleted once it has exited");
     assert.deepEqual(readJson(home.claudeSettings), CLAUDE_SETTINGS);
     assert.equal(existsSync(home.codexHooks), false);

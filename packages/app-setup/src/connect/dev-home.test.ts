@@ -5,9 +5,8 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { setTimeout as sleep } from "node:timers/promises";
-
 import { findBinaries } from "@storytree/local-postgres";
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 import pg from "pg";
 
 import { makeDevHome, removeDevHome } from "./dev-home.js";
@@ -152,33 +151,29 @@ for (const crashed of [false, true]) {
         if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(postgresPid), "/T", "/F"], { stdio: "ignore" });
         else process.kill(postgresPid, "SIGQUIT");
       }
-      rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+      await removeTemp(root);
     });
     // A loaded Windows runner can take well over 30 s to make and start the home's Postgres
-    // (release run 38758914357), so wait by time, not by a count of polls. Across 55 green
-    // Windows CI runs on 2026-10-22 this whole case took 7 to 21 s with a tail at 44 s and 78 s,
-    // and run 39799689426 waited the full 90 s; 180 s is twice that window.
-    const readyBy = Date.now() + 180_000;
-    while (Date.now() < readyBy) {
+    // (release run 38758914357). Across 55 green Windows CI runs on 2026-10-22 this whole case
+    // took 7 to 21 s with a tail at 44 s and 78 s, and run 39799689426 waited the full 90 s. The
+    // budget is stated in Linux terms: Windows's factor of 4 makes it 180 s there, twice that window.
+    client = await waitUntil(async () => {
       assert.equal(child.exitCode, null, stderr);
-      if (existsSync(ownerFile) && existsSync(handoffFile)) {
-        const owner = JSON.parse(readFileSync(ownerFile, "utf8")) as { pid: number; port: number };
-        assert.equal(owner.pid, child.pid);
-        // The home's database asks for its password, which it hands over privately while it runs.
-        const handoff = JSON.parse(readFileSync(handoffFile, "utf8")) as { user: string; password: string };
-        const candidate = new pg.Client({ host: "127.0.0.1", port: owner.port, user: handoff.user, password: handoff.password, database: "postgres", connectionTimeoutMillis: 500 });
-        try {
-          await candidate.connect();
-          assert.deepEqual((await candidate.query("SELECT 1 AS ready")).rows, [{ ready: 1 }]);
-          client = candidate;
-          break;
-        } catch {
-          await candidate.end();
-        }
+      if (!existsSync(ownerFile) || !existsSync(handoffFile)) return undefined;
+      const owner = JSON.parse(readFileSync(ownerFile, "utf8")) as { pid: number; port: number };
+      assert.equal(owner.pid, child.pid);
+      // The home's database asks for its password, which it hands over privately while it runs.
+      const handoff = JSON.parse(readFileSync(handoffFile, "utf8")) as { user: string; password: string };
+      const candidate = new pg.Client({ host: "127.0.0.1", port: owner.port, user: handoff.user, password: handoff.password, database: "postgres", connectionTimeoutMillis: 500 });
+      try {
+        await candidate.connect();
+        assert.deepEqual((await candidate.query("SELECT 1 AS ready")).rows, [{ ready: 1 }]);
+        return candidate;
+      } catch {
+        await candidate.end();
+        return undefined;
       }
-      await sleep(100);
-    }
-    assert.ok(client, `database became ready within 180 s: ${stderr}`);
+    }, 45_000, "the home's database to answer a query").catch((error: Error) => { throw new Error(`${error.message}: ${stderr}`); });
     postgresPid = Number(readFileSync(path.join(dataDir, "postmaster.pid"), "utf8").split("\n")[0]);
     postgresStart = started(postgresPid);
     assert.ok(postgresStart);

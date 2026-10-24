@@ -36,6 +36,9 @@
  * - The brief lists each guardrail a change sets off (trigger `change`, question_4cec0ba23052) of the capabilities the increment
  *   names and of their stories, each story's once, as the increment's pending plan changes leave them; the return answers each
  *   passed or failed, with its pictures, and a failed one stands until a later review passes it (2.12, ADR-1148).
+ * - The return says of each contract it finds met whether the change touches it, and one the change adds or rewords pending its merge is
+ *   touched; a touched contract answered met names the test covering the changed behaviour, or the changed line no test
+ *   covers, which is taken as a hit asking for one (2.13, ADR-1153 D2).
  */
 import { execFileSync } from "node:child_process";
 
@@ -139,7 +142,11 @@ export interface ReviewReturn {
   /** The review it answers: its brief's number, so a return left from an earlier review is never taken for this one (contract 2.9). */
   readonly review: number;
   readonly checks: readonly { readonly check: string; readonly tripped: boolean; readonly hits?: readonly { readonly file: string; readonly line: number; readonly found: string }[] }[];
-  readonly contracts: readonly { readonly contract: string; readonly met: boolean; readonly why?: string }[];
+  /**
+   * Each contract: met or not, why not, and whether the change touches it; a touched one answered met names its covering test
+   * (`<file> › <title>`), or `at`, the changed line no test covers, which is taken as a hit asking for one (contract 2.13).
+   */
+  readonly contracts: readonly { readonly contract: string; readonly met: boolean; readonly why?: string; readonly touched?: boolean; readonly test?: string; readonly at?: { readonly file: string; readonly line: number } }[];
   readonly rejections?: readonly { readonly hit: number; readonly accepted: boolean; readonly why?: string }[];
   /** Each guardrail in the brief, run: passed or failed, with why when failed, and the pictures it took (contract 2.12). */
   readonly guardrails?: readonly { readonly guardrail: string; readonly passed: boolean; readonly why?: string; readonly pictures: readonly string[] }[];
@@ -331,6 +338,7 @@ class PgReviews implements Reviews {
         project, review: name, change, packages: brief.packages,
         ran: [
           ...review.checks.map(({ check, hits }) => ({ check, hits: (hits ?? []).map(({ file, line, found }) => ({ package: hitPackage(brief, file), file, line, found })) })),
+          ...coverage(brief, review),
           // A graduated check's trip outside the packages the brief's diff touches is not part of the change reviewed.
           ...(graduated?.ran ? graduated.checks : []).map(({ check, hits }) => ({
             check, foundBy: "graduated" as const,
@@ -407,6 +415,28 @@ async function changeRisk(library: Library, increment: { readonly fields: unknow
   return readChange(diff, new PackageGraph(readPackages(root)), stories, new Date().toISOString().slice(0, 10));
 }
 
+/**
+ * The covering-test check as a review ran it (contract 2.13): when the return says the change touches any contract, a hit at the
+ * changed line of each touched one answered met with no covering test named, asking for one; else not run.
+ */
+function coverage(brief: Brief, review: ReviewReturn): { check: string; hits: { package: string; file: string; line: number; found: string }[] }[] {
+  const touched = (review.contracts ?? []).filter(({ touched }) => touched === true);
+  if (touched.length === 0) return [];
+  const titles = new Map(brief.contracts.map(({ id, title }) => [id, title]));
+  return [{
+    check: COVERING_TEST,
+    hits: touched.filter(({ met, test }) => met && !named(test)).map(({ contract, at }) => ({
+      package: hitPackage(brief, at!.file), file: at!.file, line: at!.line,
+      found: `contract ${contract} (${titles.get(contract) ?? contract}): the change touches it and no test covers the changed behaviour; add one`,
+    })),
+  }];
+}
+
+/** Whether a return names a covering test. */
+function named(test: string | undefined): boolean {
+  return typeof test === "string" && test.trim() !== "";
+}
+
 /** The contracts a return found not met, with why. */
 function unmetIn(review: ReviewReturn): Unmet[] {
   return (review.contracts ?? []).filter(({ met }) => !met).map(({ contract, why }) => ({ contract, why: why ?? "" }));
@@ -449,8 +479,17 @@ function refusals(brief: Brief, review: ReviewReturn): string[] {
       if (typeof file === "string" && !brief.packages.includes(hitPackage(brief, file))) problems.push(`check ${check}'s hit at ${file}:${line} is in package ${hitPackage(brief, file)}, which the diff does not touch`);
     }
   }
-  for (const { contract, met, why } of review.contracts ?? []) {
+  const pending = new Set(brief.contracts.filter(({ pending }) => pending).map(({ id }) => id));
+  for (const { contract, met, why, touched, test, at } of review.contracts ?? []) {
     if (!met && (why ?? "").trim() === "") problems.push(`contract ${contract} is not met and the return does not say why`);
+    // Contract 2.13: "met" alone is no answer for a contract the change touches.
+    if (met && typeof touched !== "boolean") problems.push(`contract ${contract} is met and does not say whether the change touches it: give "touched": true or false`);
+    if (touched === false && pending.has(contract)) problems.push(`contract ${contract} is reworded by this change, so the change touches it: answer "touched": true`);
+    if (touched === true && met && !named(test)) {
+      if (at === undefined) problems.push(`contract ${contract} is touched by the change and met, and names no covering test: give "test" (<file> › <title>), or "at" (the changed line's file and line) where no test covers it`);
+      else if (typeof at.file !== "string" || at.file.trim() === "" || !Number.isInteger(at.line) || at.line < 1) problems.push(`contract ${contract}'s "at" needs a file and a line, a whole number from 1`);
+      else if (!brief.packages.includes(hitPackage(brief, at.file))) problems.push(`contract ${contract}'s changed line ${at.file}:${at.line} is in package ${hitPackage(brief, at.file)}, which the diff does not touch`);
+    }
   }
   return problems;
 }
@@ -602,7 +641,7 @@ export function briefText(brief: Brief): string {
       ...(check.graduated ?? []).map((part) => `    Not yours to judge: Architecture checks' ${part.enforcedBy} checks ${part.part}.`),
     ].join("\n")),
     "",
-    `Contracts (${brief.contracts.length}): for each, say whether the change does what it says, and why not.`,
+    `Contracts (${brief.contracts.length}): for each, say whether the change does what it says, and why not, and whether the change touches it ("touched"): it adds or rewords the contract, or changes code under it. For each one it touches, find the contract's existing tests (its number in its story's package's test titles) and name, as "test", the one that covers the changed behaviour (<file> › <title>); where none does, give "at", the changed line's file and line, and it is taken as a hit asking for one. "Met" alone is no answer for a touched contract.`,
     ...(brief.capabilities === undefined
       ? brief.contracts.map((contract) => contractLine(contract, "  "))
       : brief.capabilities.map((capability) => {

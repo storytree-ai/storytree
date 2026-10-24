@@ -182,7 +182,7 @@ test("2.2 · a return answering every check and contract is taken and its hits r
       { check: checks[0], package: "forest-world", file: "packages/forest-world/src/camera.test.ts", line: 2, found: "2 * BASE is the code's own formula" },
     ]);
     const rows = await ledger.rows(library.name);
-    assert.equal(rows.runs.length, 4);
+    assert.equal(rows.runs.length, 6, "two checks and the covering-test check, in each of the two packages");
     assert.equal(rows.hits.length, 1);
     await assert.rejects(reviews.take(library.name, increment, clean(checks, contracts)), /no brief/);
   });
@@ -195,7 +195,7 @@ test("2.9 · a return names the review it answers, and take refuses one naming a
     const ledger = await openLedger(storytree);
     const file = "packages/forest-world/src/camera.test.ts";
     assert.match(briefText(await reviews.brief(library, increment, DIFF)), /"review": 1/);
-    const first = { ...clean(checks, contracts, {}, 1), contracts: [{ contract: contracts[0]!, met: false, why: "a bad email is kept" }, { contract: contracts[1]!, met: true }] };
+    const first = { ...clean(checks, contracts, {}, 1), contracts: [{ contract: contracts[0]!, met: false, why: "a bad email is kept" }, { contract: contracts[1]!, met: true, touched: false }] };
     await reviews.take(library.name, increment, first);
 
     const second = await reviews.brief(library, increment, DIFF);
@@ -426,7 +426,7 @@ test("4.1 · a contract the latest review found not met stands, and take and sta
     const { increment, contracts, checks } = await plan(library);
     const reviews = await openReviews(storytree);
     await reviews.brief(library, increment, DIFF);
-    const taken = await reviews.take(library.name, increment, { ...clean(checks, contracts), contracts: [{ contract: contracts[0]!, met: false, why: "a bad email is kept" }, { contract: contracts[1]!, met: true }] });
+    const taken = await reviews.take(library.name, increment, { ...clean(checks, contracts), contracts: [{ contract: contracts[0]!, met: false, why: "a bad email is kept" }, { contract: contracts[1]!, met: true, touched: false }] });
 
     assert.deepEqual(taken.standing, []);
     assert.doesNotMatch(takenText(taken), /ready for the gate/);
@@ -633,7 +633,7 @@ test("2.13 · a return says of each contract whether the change touches it; a to
     const answer = (...given: ReviewReturn["contracts"]) => ({ ...base, contracts: given });
 
     const before = await ledger.rows(library.name);
-    await assert.rejects(reviews.take(library.name, increment, answer({ contract: contracts[0]!, met: true, touched: true, test: "a › b" }, { contract: contracts[1]!, met: true })), new RegExp(`contract ${contracts[1]} does not say whether the change touches it`));
+    await assert.rejects(reviews.take(library.name, increment, answer({ contract: contracts[0]!, met: true, touched: true, test: "a › b" }, { contract: contracts[1]!, met: true })), new RegExp(`contract ${contracts[1]} is met and does not say whether the change touches it`));
     await assert.rejects(reviews.take(library.name, increment, answer({ contract: contracts[0]!, met: true, touched: true, test: "a › b" }, { contract: contracts[1]!, met: true, touched: true })), new RegExp(`contract ${contracts[1]} is touched by the change and met, and names no covering test`));
     await assert.rejects(reviews.take(library.name, increment, answer({ contract: contracts[0]!, met: true, touched: false }, { contract: contracts[1]!, met: true, touched: false })), new RegExp(`contract ${contracts[0]} is reworded by this change, so the change touches it`));
     await assert.rejects(reviews.take(library.name, increment, answer({ contract: contracts[0]!, met: true, touched: true, test: "a › b" }, { contract: contracts[1]!, met: true, touched: true, at: { file: "packages/website/src/x.ts", line: 3 } })), /package website, which the diff does not touch/);

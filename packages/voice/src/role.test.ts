@@ -109,7 +109,8 @@ async function confinedDoor(t: { after: (fn: () => Promise<void>) => void }) {
   return { home, folder, project, doorDatabase, asRole: asRole.href, arc, question, done };
 }
 
-test("4.3 the door's role, granted exactly its files, answers every read the door's tools make through the real command line, and is refused every write", async (t) => {
+// Fourteen cold command-line children: 18.6-56.4 s on Windows CI over 46 runs (2026-10-23/24), past half of the 60 s default.
+test("4.3 the door's role, granted exactly its files, answers every read the door's tools make through the real command line, and is refused every write", { timeout: 120_000 }, async (t) => {
   const door = await confinedDoor(t);
   const asDoor = (args: readonly string[]) =>
     spawnSync(CLI[0]!, [...CLI.slice(1), ...args], { cwd: door.folder, env: { ...process.env, STORYTREE_HOME: door.home, STORYTREE_SESSION_ID: "voice-2026-10-24", CLAUDE_CODE_SESSION_ID: "", CODEX_THREAD_ID: "" }, encoding: "utf8" });

@@ -312,7 +312,8 @@ so the session-start hook (`packages/dev-loop/src/provision-worktree.mjs`, contr
 `ONNXRUNTIME_NODE_INSTALL=skip` (the agent proxy cuts off onnxruntime's download, and the failed
 install also timed out the MCP server's start), then runs
 `storytree settings set library postgres wss://storytree_library@library.storytree.dev/postgres`
-(or the environment's `STORYTREE_LIBRARY_ADDRESS`, when set) and `storytree doctor --join storytree`.
+(with the environment's `PGUSER` as the user in place of `storytree_library` when it is set, or the
+environment's `STORYTREE_LIBRARY_ADDRESS` in place of the whole address, when set) and `storytree doctor --join storytree`.
 Each container is a new machine to the library, so each joins as its own. To do it by hand:
 
 ```sh

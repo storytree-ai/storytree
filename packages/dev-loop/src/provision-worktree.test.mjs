@@ -11,7 +11,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { CLOUD_LIBRARY_ADDRESS, check, connectCloud, hookOutput, installEnvironment, provision, serve } from "./provision-worktree.mjs";
+import { check, connectCloud, hookOutput, installEnvironment, provision, serve } from "./provision-worktree.mjs";
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
 
@@ -369,19 +369,26 @@ test("2.6 in a cloud container pnpm install skips onnxruntime's download; elsewh
   assert.equal("ONNXRUNTIME_NODE_INSTALL" in installEnvironment({ PATH: "/bin" }), false);
 });
 
+const DEFAULT_ADDRESS = "wss://storytree_library@library.storytree.dev/postgres";
+
 test("2.6 a fresh cloud container is given the library's HTTPS address and approves its checkout, once", (t) => {
   const { root, home, calls, run } = cloud(t);
   connectCloud({ root, home, env: { ...CLOUD }, run });
   assert.deepEqual(calls, [
-    ["settings", "set", "library", "postgres", CLOUD_LIBRARY_ADDRESS],
+    ["settings", "set", "library", "postgres", DEFAULT_ADDRESS],
     ["doctor", "--join", "storytree"],
-  ]);
-  assert.match(CLOUD_LIBRARY_ADDRESS, /^wss:\/\/[^:@]+@library\.storytree\.dev\/postgres$/);
+  ], "with PGUSER unset, the address names the storytree_library user");
 
-  writeFileSync(path.join(home, "settings.json"), JSON.stringify({ library: { location: "postgres", address: CLOUD_LIBRARY_ADDRESS } }));
+  writeFileSync(path.join(home, "settings.json"), JSON.stringify({ library: { location: "postgres", address: DEFAULT_ADDRESS } }));
   calls.length = 0;
   connectCloud({ root, home, env: { ...CLOUD }, run });
   assert.deepEqual(calls, [], "a container whose library is already set is left alone");
+});
+
+test("2.6 the cloud environment's PGUSER, when set, is the user the library's address names", (t) => {
+  const { root, home, calls, run } = cloud(t);
+  connectCloud({ root, home, env: { ...CLOUD, PGUSER: "storytree_cloud" }, run });
+  assert.deepEqual(calls[0], ["settings", "set", "library", "postgres", "wss://storytree_cloud@library.storytree.dev/postgres"]);
 });
 
 test("2.6 the cloud environment's STORYTREE_LIBRARY_ADDRESS, when set, is the address given", (t) => {

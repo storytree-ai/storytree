@@ -415,6 +415,7 @@ export async function closeRefusalText(context: ClaimContext, increment: string)
 async function workspaceRefusalText(library: Library, id: string, answer: WorkspaceRefusal): Promise<string> {
   if (answer.refused === "yours") return `You already hold ${await titleOf(library, id)}${answer.claim.branch === undefined ? "" : `, on branch ${answer.claim.branch}`}: work there, or release it first.`;
   if (answer.refused === "no-workspace") return `Workspace setup refused: ${answer.why}.`;
+  if ("listed" in answer) return `On ${await titleOf(library, id)}'s capabilities list, ${await refusalText(library, answer.listed, answer)}`;
   return refusalText(library, id, answer);
 }
 

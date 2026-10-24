@@ -13,7 +13,7 @@ import { test } from "node:test";
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 import { connect } from "@storytree/library";
-import { briefText, checks, checksText, ledgerText, openLedger, openReviews, standingText } from "@storytree/quality-assurance";
+import { briefText, checks, checksText, ledgerText, openLedger, openReviews, standingText, worktreeChange } from "@storytree/quality-assurance";
 
 import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { createAgentTools } from "./index.js";
@@ -148,10 +148,11 @@ test("quality-assurance 2.3 and 4.4 · the shared server's quality_brief, qualit
     await withClient(folder, async (client) => {
       const fromWorktree = await client.callTool({ name: "quality_brief", arguments: { increment, worktree } });
       const fromText = await client.callTool({ name: "quality_brief", arguments: { increment, diff } });
+      // Read from the worktree, the brief takes the change's own risk tier; given as text, the increment's written line (2.11).
+      assert.equal(textOf(fromWorktree), briefText(await reviews.brief(library, increment, worktreeChange(worktree))));
       const brief = await reviews.brief(library, increment, diff);
       assert.equal(brief.iteration, 1);
       assert.match(brief.diff, /2 \* BASE/);
-      assert.equal(textOf(fromWorktree), briefText(brief));
       assert.deepEqual(fromText.structuredContent, { message: briefText(brief), brief });
       assert.equal((await client.callTool({ name: "quality_brief", arguments: { increment } })).isError, true);
 

@@ -21,7 +21,7 @@ Quality control on one green change before the gate: a fresh-context reviewer th
 
 
 **Workflow.** 1. Your brief from the implementer names the increment (the change) and the folder its branch is checked out in, and nothing about how it was built. If it carries the implementer's reasoning anyway, ignore it and say so in your answer.
-2. In that folder run `pnpm -s storytree quality brief <increment>`. It records that a review has begun and prints the review's brief: its number, the checks, the contracts, any earlier hits with their answers and the rejections to judge, and the diff. Read only that, plus the lines around a hunk in the files the diff touches when a hunk alone is not enough to judge.
+2. In that folder run `pnpm -s storytree quality brief <increment>`. It records that a review has begun and prints the review's brief: its number, the checks, the contracts, any earlier hits with their answers and the rejections to judge, and the diff. Read only that, plus the lines around a hunk in the files the diff touches when a hunk alone is not enough to judge. When the brief opens a light pass (a low-tier change, ADR-1146), judge from the diff alone: read no file around a hunk and run nothing.
 3. For each check, answer its question about this change: tripped or not. Where tripped, give each place as the repository-relative file, the line, and one sentence of what you found. A check is a judgement, not a pattern match: trip it only where the change does what the check asks about.
 4. For each contract, judge whether the change does what it says, from the diff and the tests in it; not met needs a one-line why.
 5. From the second review on, judge each rejection the brief lists: accept its reason when it answers the check (the expected value really is a worked number, the case really is out of the check's reach), otherwise do not, saying why. A reasoned rejection is a legitimate answer ("A compliance gate turns a judgment ceremony into theatre"); do not hold out for a fix you merely prefer.
@@ -29,7 +29,6 @@ Quality control on one green change before the gate: a fresh-context reviewer th
    `{"review":<the brief's review number>,"checks":[{"check":"<id>","tripped":true,"hits":[{"file":"packages/x/src/a.test.ts","line":12,"found":"…"}]},{"check":"<id>","tripped":false}],"contracts":[{"contract":"<id>","met":true},{"contract":"<id>","met":false,"why":"…"}],"rejections":[{"hit":7,"accepted":false,"why":"…"}]}`
    `review` is the number the brief opens with ("Review <n> of change …"): a return naming another review, such as an earlier one's file left under another `/tmp`, is refused. Leave `rejections` out when the brief lists none. A refused return names what it gets wrong and records nothing: correct it and take it again.
 7. Answer the implementer with the take's output whole, and end.
-
 
 **Escalation.** `quality brief` refuses because three reviews of the change have run with findings still standing (ADR-1120 D1): run no review; hand the refusal back to the implementer whole, whose session raises the open question on the arc it names. A brief that cannot be issued for another reason (no diff, not an increment), or a take refused for a reason you cannot correct: hand back the message whole, and end. Never judge a change from anything but its brief, and never record a review you did not run.
 

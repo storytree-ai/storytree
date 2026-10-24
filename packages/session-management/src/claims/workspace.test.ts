@@ -591,7 +591,7 @@ test("19.2 · a setup step that fails (a command exiting non-zero, a path with `
     assert.equal(why["node -e \"require('fs').writeFileSync('after.txt', 'ran')\""], "ok", "the next command still ran");
     assert.ok(existsSync(path.join(made.folder, "after.txt")));
     for (const name of ["outside.txt", "escape", "plain.txt", "huge.bin"]) assert.ok(!existsSync(path.join(made.folder, name)), `${name} is not copied`);
-    assert.equal(readFileSync(path.join(made.folder, "README.md"), "utf8"), "site\n", "the worktree is kept");
+    assert.equal(readFileSync(path.join(made.folder, "README.md"), "utf8").replace(/\r\n/g, "\n"), "site\n", "the worktree is kept");
     assert.deepEqual((await readClaims(log, project)).map(({ increment, branch }) => ({ increment, branch })), [{ increment, branch: made.branch }], "the claim is kept");
 
     localSetup(site, "{ not json");

@@ -8,7 +8,6 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { setTimeout } from "node:timers/promises";
 
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
@@ -18,6 +17,7 @@ import { connect, type Library } from "@storytree/library";
 import { openActivityLog, type ActivityLog } from "@storytree/session-management";
 import { approveCheckout, dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { CARD_WORD_BUDGET, cardWords } from "../instructions/habits.js";
+import { waitUntil } from "@storytree/test-waits";
 import { createAgentTools } from "./index.js";
 
 const VERBS = ["worklist", "link", "supersede", "correct", "annotate", "retire", "park", "graduate"];
@@ -142,7 +142,7 @@ test("library 26.3 land and worklist use the calling session's start, including 
     const story = await library.addStory({ title: "Library" });
     const capability = await library.addCapability({ story: story.id, title: "Rounds" });
     await library.recordDecision({ title: "Earlier", text: "An earlier decision", status: "accepted" });
-    await setTimeout(5); // Order the two databases' millisecond timestamps without an ambiguous boundary.
+    await clockMovesOn(); // Order the two databases' millisecond timestamps without an ambiguous boundary.
     await log.append(library.name, { session: "curator", harness: "codex", source: "hook", kind: "session-started" });
     const quiet = await call(client, "land", { capability: capability.id });
     assert.notEqual(quiet.isError, true);
@@ -150,7 +150,7 @@ test("library 26.3 land and worklist use the calling session's start, including 
     const quietWork = await call(client, "worklist", { memoryFolders: [] });
     assert.deepEqual(quietWork.structuredContent!.worklist, { graduation: [] });
     await library.defineTerm({ term: "Round", meaning: "A librarian's pass" });
-    await setTimeout(5);
+    await clockMovesOn();
     await log.append(library.name, { session: "curator", harness: "codex", source: "hook", kind: "session-started", how: "resume" });
     const due = await call(client, "land", { capability: capability.id });
     assert.deepEqual(due.structuredContent!.next, ["run the librarian's pass"]);
@@ -184,3 +184,9 @@ test("library 26.4 the installed server enables the librarian for storytree's ow
     rmSync(folder, { recursive: true, force: true });
   }
 });
+
+/** Wait until the clock has moved past now, so what is written next has a later millisecond timestamp. */
+async function clockMovesOn(): Promise<void> {
+  const now = Date.now();
+  await waitUntil(() => Date.now() > now, 5_000, "the clock to move on");
+}

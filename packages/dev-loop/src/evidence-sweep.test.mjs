@@ -145,3 +145,23 @@ test("10.2 · a closed arc's screenshot goes as its recordings do, an input a bu
   assert.equal(existsSync(path.join(root, "packages/web/evidence/short/short-poster.png")), true);
   assert.ok(git(root, "status", "--porcelain").split("\n").includes("M  docs/notes.md"), "a repointed Markdown file is staged with the deletions");
 });
+
+test("10.3 · a closed increment that names a closed arc's evidence does not keep it; an open one on an active arc still does", (t) => {
+  const root = repository(t);
+  pullRequest(root, 31, "claude/increment-aaaaaaaaaaaa-1", {
+    "packages/web/evidence/told/still-01.png": "told",
+    "packages/web/evidence/wanted/still-02.png": "wanted",
+  });
+
+  const arcs = [
+    { arc: { id: "arc_closed" }, state: "closed", increments: [increment("increment_aaaaaaaaaaaa", { status: "closed" })] },
+    { arc: { id: "arc_live" }, state: "active", increments: [
+      increment("increment_cccccccccccc", { status: "closed", body: "The sweep would take packages/web/evidence/told/ once it runs." }),
+      increment("increment_dddddddddddd", { status: "proposal", body: "Compare against packages/web/evidence/wanted/still-02.png." }),
+    ] },
+  ];
+  const plan = sweepPlan(root, arcs);
+  assert.deepEqual(plan.go.map((one) => one.file), ["packages/web/evidence/told/still-01.png"]);
+  const kept = Object.fromEntries(plan.keep.map((one) => [one.file, one.why]));
+  assert.match(kept["packages/web/evidence/wanted/still-02.png"], /increment_dddddddddddd names it/);
+});

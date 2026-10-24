@@ -62,7 +62,9 @@ recorded at once. It ticks on every (re)connection, catching up on what it misse
 losing the database; `voice-commit.timer` runs the same tick every 15 minutes as a fallback. The run's
 brief carries every note not yet swept, and the committer marks those notes swept by that run
 (`swept_by_run`, which only the owner's account may set) as it starts it; the run acts on each, answers
-included. It holds a run while the laptop's scheduled session manager run may be running (from ten past
+included. The scheduled session manager sweeps the leftovers between voice runs, marking each note it
+takes `swept_by = 'scheduled YYYY-MM-DD'` (again the owner's account only); a note with either mark, or an
+outcome, is never carried by a run again. It holds a run while the laptop's scheduled session manager run may be running (from ten past
 each odd hour, Sydney time, until `overnight-log.md` is written), and one voice-started run at a time.
 While `voice_lock` holds a row it drops what is waiting.
 

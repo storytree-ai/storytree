@@ -9,6 +9,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { removeTemp } from "@storytree/test-waits";
+
 import type { AnnotatedTree } from "@storytree/library";
 
 import { codeSurveyReader } from "./read-survey.js";
@@ -78,8 +80,8 @@ test("8.20 a mapped story is surveyed from the folder this machine imports it fr
     const byFolder = await codeSurveyReader({ checkout: "current" }).read(trunk, { ...tree, stories: tree.stories.map((story) => story.mapped === undefined ? story : { ...story, mapped: { ...story.mapped, from: shop } }) }, [{ folder: shop, repository: REPOSITORY }]);
     assert.equal(byFolder["story-pay"]?.files.length, 1, "an import is found by its folder too, as a local import is keyed");
   } finally {
-    await rm(shop, { recursive: true, force: true });
-    await rm(trunk, { recursive: true, force: true });
+    await removeTemp(shop);
+    await removeTemp(trunk);
   }
 });
 
@@ -97,8 +99,8 @@ test("8.21 a mapped story's package dependency on another mapped story's package
     assert.equal(survey["story-root"]?.mapped?.loop, undefined);
     assert.equal(survey["story-cart"]?.files.length, 3, "a folder that is no checkout is read whole, but for the skip list");
   } finally {
-    await rm(shop, { recursive: true, force: true });
-    await rm(trunk, { recursive: true, force: true });
+    await removeTemp(shop);
+    await removeTemp(trunk);
   }
 });
 
@@ -122,8 +124,8 @@ test("8.22 surveying again at the same commit keeps each mapped story's survey; 
     assert.equal(third["story-cart"]?.files.find((file) => file.path === "packages/cart/src/util.js")?.lines, 2);
     assert.equal(third["story-pay"], first["story-pay"], "an island whose files did not change keeps its survey");
   } finally {
-    await rm(shop, { recursive: true, force: true });
-    await rm(trunk, { recursive: true, force: true });
+    await removeTemp(shop);
+    await removeTemp(trunk);
   }
 });
 
@@ -148,8 +150,8 @@ test("8.22 an imported folder that is no checkout is read again only where a fil
     assert.equal(third["story-pay"]?.files[0]?.lines, 2);
     assert.equal(third["story-cart"], first["story-cart"]);
   } finally {
-    await rm(shop, { recursive: true, force: true });
-    await rm(trunk, { recursive: true, force: true });
+    await removeTemp(shop);
+    await removeTemp(trunk);
   }
 });
 
@@ -187,8 +189,8 @@ test("8.24 work done at source in an imported checkout counts before it is commi
     assert.deepEqual(read, [], "local work unchanged since the last survey is not read again");
     assert.equal(third["story-cart"], second["story-cart"]);
   } finally {
-    await rm(shop, { recursive: true, force: true });
-    await rm(trunk, { recursive: true, force: true });
+    await removeTemp(shop);
+    await removeTemp(trunk);
   }
 });
 
@@ -206,8 +208,8 @@ test("8.23 a built story's package dependency on a mapped story's package is a r
     assert.deepEqual(survey["story-built"]?.dependsOn, ["story-cart"]);
     assert.deepEqual(survey["story-pay"]?.dependsOn, []);
   } finally {
-    await rm(shop, { recursive: true, force: true });
-    await rm(trunk, { recursive: true, force: true });
+    await removeTemp(shop);
+    await removeTemp(trunk);
   }
 });
 
@@ -231,7 +233,7 @@ test("8.26 a mapped story's file under the folders or files an explored capabili
     ], "a covered folder's files, uncommitted work among them, and a covered file");
     assert.deepEqual((await owned(["packages/cart/src/index.ts"]))?.filter((file) => file.capability !== undefined).map((file) => file.path), ["packages/cart/src/index.ts"], "covers changed, the commit not");
   } finally {
-    await rm(shop, { recursive: true, force: true });
-    await rm(trunk, { recursive: true, force: true });
+    await removeTemp(shop);
+    await removeTemp(trunk);
   }
 });

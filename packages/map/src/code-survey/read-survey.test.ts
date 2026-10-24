@@ -10,6 +10,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { quietFor, removeTemp, waitUntil } from "@storytree/test-waits";
+
 import type { AnnotatedTree, StorySurvey } from "@storytree/library";
 
 import { capabilitiesOfFiles, codeSurveyReader, offThreadSurveyReader, readCodeSurvey, testedNumbers, untestedContracts } from "./read-survey.js";
@@ -54,7 +56,7 @@ test("8.1, 8.5 Constructor stories survey alongside ordinary stories and storytr
     assert.equal(after["story-constructor"], undefined);
     assert.equal(after["story_f9fb5136c28f"], before["story_f9fb5136c28f"]);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -98,7 +100,7 @@ test("8.10 disk, fetched-main and focus surveys skip oversized titles and retain
       assert.equal(focus.rows?.some(row => row.id === "test:packages/shop/src/oversized.test.ts"), false);
     }
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -123,7 +125,7 @@ test("8.1 a numbered test reaches its own package's public subpath through packa
     assert.deepEqual(survey["story-shop"]?.files, [{ path: "src/claim.ts", lines: 1, capability: "cap-claims" }]);
     assert.deepEqual(survey["story-shop"]?.tests?.[0]?.imports, [{ from: "src/claim.test.ts", to: "src/claim.ts" }]);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -143,7 +145,7 @@ test("8.13 a numbered test outside src reaches source through its helpers withou
     assert.deepEqual(survey["story-shop"]?.tests?.map(file => file.path), ["test/claim.test.js", "test/fake-dom.ts"]);
     assert.equal(read.includes(path.join(root, "release.js")), false);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -179,7 +181,7 @@ test("8.13 8.5 CommonJS helper chains stay within the package and refresh when a
     const removed = await reader.read(folder, tree);
     assert.deepEqual(removed["story-shop"]?.tests?.map(file => file.path), ["test/claim.test.cjs", "test/page-helpers.cjs"]);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -212,7 +214,7 @@ test("8.5 changes to a package's exports refresh self reach without rereading it
       assert.deepEqual(read, []);
     }
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -239,7 +241,7 @@ test("8.5 a second survey with no file changed reads no file again, and a change
     assert.deepEqual(read, [path.join(src, "claim.ts")]);
     assert.equal(third["story-shop"]?.files.find((file) => file.path === "src/claim.ts")?.lines, 2);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -262,10 +264,9 @@ test("8.8 each surveyed story names the stories whose packages its package depen
     assert.deepEqual(survey["story-till"]?.dependsOn, ["story-bank"]);
     assert.deepEqual(survey["story-bank"]?.dependsOn, []);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
-
 
 test("8.8 the app unions its package and desktop dependencies and refreshes only changed manifests", async () => {
   const folder = await mkdtemp(path.join(tmpdir(), "code-survey-desktop-deps-"));
@@ -305,7 +306,7 @@ test("8.8 the app unions its package and desktop dependencies and refreshes only
     assert.deepEqual(removed["story-app"]?.dependsOn, ["story-till"]);
     assert.deepEqual(removed["story-bank"]?.dependsOn, [], "a removed manifest no longer identifies a package");
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -370,7 +371,7 @@ test("8.18 an import of another story's name is an edge from its file's capabili
     assert.deepEqual(survey["story-shop"]?.edges?.find((edge) => edge.from === "cap-pay" && edge.to === "cap-prices")?.files, [{ from: "src/pay.ts", to: "src/prices.ts", typeOnly: true }]);
     assert.deepEqual(edgeLines(survey["story-till"]), []);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -393,7 +394,7 @@ test("8.19 a derived edge with no capability at an end is kept as a story edge n
       { story: "story-till", to: "cap-prices", typeOnly: false, files: [{ from: "src/loose.ts", to: "src/prices.ts", typeOnly: false, forwarder: true }] },
     ]);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -416,7 +417,7 @@ test("8.31 an edge file whose source declares nothing of its own, imports nothin
     const forwarders = (survey["story-shop"]?.edges ?? []).flatMap((edge) => edge.files).filter((file) => file.forwarder === true).map((file) => file.from);
     assert.deepEqual([...new Set(forwarders)], ["src/forward.ts"]);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -442,7 +443,7 @@ test("8.33 an edge file the checkout's storytree.check.json declares as a build 
     const marks = (survey["story-shop"]?.edges ?? []).flatMap((edge) => edge.files.map((file) => `${file.from} > ${edge.story} ${file.plumbing ?? "-"}`));
     assert.deepEqual([...new Set(marks)].sort(), ["src/build.ts > story-bank -", "src/build.ts > story-till build step", "src/remove.ts > story-bank cleanup", "src/sell.ts > story-till -"]);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -463,7 +464,7 @@ test("8.9 the app survey includes desktop source and resolves its imports as the
     ]);
     assert.deepEqual(survey["app"]?.imports, [{ from: "../../apps/desktop/src/view/view.ts", to: "src/projects.ts" }]);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -487,7 +488,7 @@ test("8.11 a caller may survey its current worktree while the forest default sti
     const nested = await codeSurveyReader({ checkout: "current" }).read(path.join(worktree, "packages/shop/src"), tree);
     assert.equal(nested["story-shop"]?.files[0]?.lines, 2);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -555,7 +556,7 @@ test("8.11 8.5 merged surveys follow two workspace landings without touching loc
     git(main, "remote", "set-url", "origin", path.join(folder, "missing.git"));
     assert.equal((await reader.read(main, stories))["story-shop"], last["story-shop"], "offline retains fetched main");
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -581,8 +582,7 @@ test("8.11 a stalled origin is bounded, shared across worktrees and readers, and
     const started = Date.now();
     let finished = false;
     const readings = Promise.allSettled([codeSurveyReader().read(folder, tree), codeSurveyReader().read(workspace, tree)]).then(result => { finished = true; return result; });
-    await new Promise(resolve => setTimeout(resolve, 50));
-    assert.equal(finished, false, "a timer runs while Git is still waiting");
+    await quietFor(() => finished, 50, "the readings finishing while Git is still waiting");
     const results = await readings;
     assert.ok(results.every(result => result.status === "rejected"));
     assert.equal(connections, 1, "the two readers share the same pending fetch");
@@ -592,7 +592,7 @@ test("8.11 a stalled origin is bounded, shared across worktrees and readers, and
   } finally {
     for (const socket of sockets) socket.destroy();
     await new Promise<void>(resolve => server.close(() => resolve()));
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -604,7 +604,7 @@ test("8.11 an unreachable origin with no fetched main fails instead of presentin
     git("remote", "add", "origin", path.join(folder, "missing.git"));
     await assert.rejects(codeSurveyReader().read(folder, tree), /merged.*origin\/main/i);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -662,7 +662,7 @@ test("8.27 a start's reader answers its first ask from the main already fetched 
   } finally {
     for (const socket of sockets) socket.destroy();
     await new Promise<void>(resolve => server.close(() => resolve()));
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -694,7 +694,7 @@ test("8.16 a survey read on a worker thread answers what one read in place does,
       `the asking thread's loop was busy ${(offThread.utilization * 100).toFixed(0)}% of an off-thread read, ${(inPlace.utilization * 100).toFixed(0)}% of one in place`);
   } finally {
     await reader.close();
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -709,16 +709,19 @@ test("8.16 a process holding an open off-thread reader that answered once exits 
 const reader = offThreadSurveyReader(new URL(${JSON.stringify(new URL("./survey-worker.ts", import.meta.url).href)}), { execArgv: ["--import", "tsx"] });
 const survey = await reader.read(${JSON.stringify(folder)}, ${JSON.stringify(tree)});
 console.log(survey["story-shop"].files.length);`;
-    const exited = await new Promise<{ code: number | null; out: string }>((resolve, reject) => {
-      const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { stdio: ["ignore", "pipe", "inherit"], windowsHide: true });
-      let out = "";
-      child.stdout.on("data", chunk => { out += chunk; });
-      const stuck = setTimeout(() => { child.kill(); reject(new Error(`the process answered ${JSON.stringify(out.trim())} and was still running after 30s`)); }, 30_000);
-      child.on("exit", code => { clearTimeout(stuck); resolve({ code, out }); });
-    });
+    const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], { stdio: ["ignore", "pipe", "inherit"], windowsHide: true });
+    let out = "";
+    let exited: { code: number | null; out: string } | undefined;
+    child.stdout.on("data", chunk => { out += chunk; });
+    child.on("exit", code => { exited = { code, out }; });
+    try {
+      await waitUntil(() => exited, 30_000, "the process that answered once to exit by itself");
+    } finally {
+      if (exited === undefined) child.kill();
+    }
     assert.deepEqual(exited, { code: 0, out: "1\n" });
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -777,7 +780,7 @@ test("8.25 a start whose fetched main is the commit last surveyed, with the same
     await forgetContents();
     assert.deepEqual(await surveyed(tree), moved, "and kept in its turn");
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -806,7 +809,7 @@ test("8.17 a changed file is placed by its own declaration, else by the survey's
     assert.deepEqual(read, ["packages/shop/src/claim.ts"]);
     assert.deepEqual([...surveyed], [["packages/shop/src/claim.ts", { capability: "cap-cart", inferred: true }]]);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -849,7 +852,7 @@ test("8.30 a story that owns several packages has each package's files surveyed 
     ]);
     assert.deepEqual(await testedNumbers(folder, plan, "cap-store", { alsoOwned }), ["2.1", "2.2"]);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -867,6 +870,6 @@ test("8.32 a numbered test carries its contract's number whatever its test file'
     assert.deepEqual([...tested].sort(), ["1.1", "1.2", "1.3", "1.4"]);
     assert.deepEqual(untestedContracts(plan, "cap-run", tested), ["1.5 · none"]);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });

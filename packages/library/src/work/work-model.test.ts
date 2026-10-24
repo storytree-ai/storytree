@@ -13,8 +13,9 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { setTimeout as sleep } from "node:timers/promises";
 import { isDeepStrictEqual } from "node:util";
+
+import { waitUntil } from "@storytree/test-waits";
 
 import { connect } from "../project/index.js";
 import { DependencyLoopError, MissingReferenceError } from "../references.js";
@@ -711,7 +712,7 @@ async function assertCreated(
 
 /** Wait until the clock has passed `record`'s creation, so the next record is created strictly later. */
 async function laterThan(record: { readonly createdAt: string }): Promise<void> {
-  while (Date.now() <= Date.parse(record.createdAt)) await sleep(1);
+  await waitUntil(() => Date.now() > Date.parse(record.createdAt), 5_000, `the clock to pass ${record.createdAt}`);
 }
 
 /**

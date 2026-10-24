@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { countEngines } from "./queue.mjs";
 import { adoptRequests, ensureWatcher, hand, handOver, handThroughLibrary, isFixSession, main, projectOf, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
@@ -15,7 +17,7 @@ const SESSION = "aaaa-session";
 
 async function box(t, { looks = {}, board = "" } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "lane-watch-"));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const calls = [], fixes = [], reviews = [], lines = [], live = new Set();
   let clock = at, room = true;
   const options = {
@@ -359,7 +361,7 @@ test("4.10 · a watcher whose code changes between two looks ends with the resta
 
   // Its version is its own code's: a merge touching only other dev loop code leaves it looking, its own file restarts it.
   const home = await mkdtemp(join(tmpdir(), "lane-watch-home-"));
-  t.after(() => rm(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   const repo = join(home, "code", "storytree03");
   const git = (...args) => promisify(execFile)("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd: repo });
   const commit = async (path, text) => {
@@ -671,7 +673,7 @@ test("4.17 · a watch loop on a folder other than the box's own reads no release
   const b = await box(t);
   // A home with the lane runner is the box's; the loop is given another folder, as a test on the box gives it.
   const home = await mkdtemp(join(tmpdir(), "lane-watch-box-"));
-  t.after(() => rm(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   await mkdir(join(home, "storytree-lanes"), { recursive: true });
   await writeFile(join(home, "storytree-lanes", "run-lane.sh"), "");
   let version = "tree-a";
@@ -685,7 +687,7 @@ test("4.24 · a hand-over from another machine runs on the configured machine, i
     ["ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "box", `cd ~/src/shop && node packages/agent-pool/src/watch.mjs hand 41 increment_one --session ${SESSION}`]]);
 
   const home = await mkdtemp(join(tmpdir(), "lane-watch-nobox-"));
-  t.after(() => rm(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   await writeFile(join(home, "agent-pool.json"), JSON.stringify({ lanes: join(home, "lanes") }));
   const lines = [], written = [];
   assert.equal(await main(["handover", "41", "increment_one"], { home, env: { AGENT_POOL_CONFIG: join(home, "agent-pool.json") }, onBox: false, session: SESSION,
@@ -720,7 +722,7 @@ test("4.25 · each red the watcher handles writes one pr-red line as its fix ses
   assert.equal(b.fixes.length, 2);
 
   const top = await mkdtemp(join(tmpdir(), "lane-watch-project-"));
-  t.after(() => rm(top, { recursive: true, force: true }));
+  t.after(() => removeTemp(top));
   for (const [folder, name] of [["repo", "storytree"], ["arm", "arm-a"]]) {
     await mkdir(join(top, folder, "deep"), { recursive: true });
     await writeFile(join(top, folder, ".storytree.json"), JSON.stringify({ project: name }));
@@ -732,7 +734,7 @@ test("4.25 · each red the watcher handles writes one pr-red line as its fix ses
 test("4.28 · every start of the watcher writes the one log its status names, the lanes folder's watch.runner.log", async (t) => {
   const b = await box(t);
   const lanes = await mkdtemp(join(tmpdir(), "lane-log-"));
-  t.after(() => rm(lanes, { recursive: true, force: true }));
+  t.after(() => removeTemp(lanes));
   const started = [], outs = [];
   const options = { ...b.options, env: { ...process.env, LANES_DIR: lanes }, out: (line) => outs.push(line), pidFile: join(b.dir, "watch.pid"),
     loopPidFile: join(b.dir, "watch-loop.pid"), argsOf: async () => "", startWatcher: async (log) => { started.push(log); return 1; } };

@@ -12,6 +12,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { removeTemp } from "@storytree/test-waits";
+
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
@@ -74,13 +76,13 @@ test("2.1 · the first brief holds the branch's diff, every contract of the capa
   });
 });
 
-test("2.1 · the branch's diff is read against the default branch origin names, as in a user's project whose origin calls it master", () => {
+test("2.1 · the branch's diff is read against the default branch origin names, as in a user's project whose origin calls it master", async () => {
   const dir = branchCheckout("master");
   try {
     const changed = branchDiff(dir).split("\n").filter((line) => /^[+-](?![+-])/.test(line));
     assert.deepEqual(changed, ["+export const b = 2;"]);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -238,7 +240,7 @@ function branchCheckout(trunk?: string): string {
   return dir;
 }
 
-test("2.6 · the diff read from a worktree holds its uncommitted work too, edits and new files Git does not ignore; a folder with no default branch is read against its commit", () => {
+test("2.6 · the diff read from a worktree holds its uncommitted work too, edits and new files Git does not ignore; a folder with no default branch is read against its commit", async () => {
   for (const origin of [true, false]) {
     const dir = mkdtempSync(join(tmpdir(), "qa-uncommitted-"));
     try {
@@ -259,7 +261,7 @@ test("2.6 · the diff read from a worktree holds its uncommitted work too, edits
       assert.deepEqual(changed, ["+export const app = 2;", "+export const page = 1;", "-export const app = 1;"], origin ? "against origin/main" : "against the folder's commit");
       assert.match(diff, /^diff --git a\/src\/pages\/new\.ts b\/src\/pages\/new\.ts$/m, "a new file is named as the brief's packages read it");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      await removeTemp(dir);
     }
   }
 });
@@ -294,13 +296,13 @@ test("2.7 · in a repository with no origin/main the brief's diff is read agains
         assert.deepEqual((read.data!.brief as { base?: unknown }).base, { ref: trunk, local: true });
         assert.match(read.text, new RegExp(`^The diff against ${trunk}, this repository's own default branch: it has no origin/main\\.$`, "m"));
       } finally {
-        rmSync(dir, { recursive: true, force: true });
+        await removeTemp(dir);
       }
     }
   });
 });
 
-test("2.8 · the change is read from the worktree on the increment's claimed branch wherever the brief runs, and a brief is refused naming the branch when no worktree is on it", () => {
+test("2.8 · the change is read from the worktree on the increment's claimed branch wherever the brief runs, and a brief is refused naming the branch when no worktree is on it", async () => {
   const dir = branchCheckout();
   const worktree = join(mkdtempSync(join(tmpdir(), "qa-claimed-")), "wt");
   try {
@@ -319,12 +321,12 @@ test("2.8 · the change is read from the worktree on the increment's claimed bra
     assert.equal(changeFolder(dir, undefined), dir, "with no claimed branch the folder it runs in is read");
     assert.throws(() => changeFolder(dir, "gone"), /branch gone/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
-    rmSync(join(worktree, ".."), { recursive: true, force: true });
+    await removeTemp(dir);
+    await removeTemp(join(worktree, ".."));
   }
 });
 
-test("2.8 · a brief run from a worktree on another of the increment's branches reads that worktree, and one on another increment's branch is still refused", () => {
+test("2.8 · a brief run from a worktree on another of the increment's branches reads that worktree, and one on another increment's branch is still refused", async () => {
   const dir = branchCheckout();
   const worktree = join(mkdtempSync(join(tmpdir(), "qa-second-")), "wt");
   try {
@@ -334,8 +336,8 @@ test("2.8 · a brief run from a worktree on another of the increment's branches 
     assert.equal(realpathSync.native(changeFolder(worktree, "claude/increment-6fe6450f6609-23254a")), realpathSync.native(worktree));
     assert.throws(() => changeFolder(worktree, "claude/increment-0123456789ab-23254a"), /branch claude\/increment-0123456789ab-23254a/);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
-    rmSync(join(worktree, ".."), { recursive: true, force: true });
+    await removeTemp(dir);
+    await removeTemp(join(worktree, ".."));
   }
 });
 
@@ -362,7 +364,7 @@ test("2.3 · the brief's tool issues the brief given the diff, or reads it from 
       assert.doesNotMatch(fromWorktree.diff, /forest-world/);
       assert.deepEqual(fromWorktree.packages, ["library"]);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      await removeTemp(dir);
     }
 
     const taken = await tools.quality_take!({ increment, return: clean(checks, contracts, { [checks[0]!]: [{ file: "packages/library/src/a.ts", line: 2, found: "b is new" }] }) }, call);
@@ -390,7 +392,7 @@ test("2.11 · a change read from its worktree takes its own risk tier: a low-tie
       assert.match(briefText(medium), /^Full review: this change reads medium 5\b/m);
       assert.doesNotMatch(briefText(medium), /Light pass/);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      await removeTemp(dir);
     }
 
     const unread = await reviews.brief(library, increment, DIFF);
@@ -528,7 +530,7 @@ test("4.5 · from the second review on, a brief read from the worktree holds onl
       assert.equal(third.since, undefined);
       assert.deepEqual(changed(third.diff), ["+export const b = 2;", "+export const c = 3;"]);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      await removeTemp(dir);
     }
   });
 });
@@ -689,7 +691,7 @@ test("2.14 · a test the change adds that no saved red run names failing is take
         { check: RED_RUN, package: "library", file: "packages/library/src/a.test.ts", line: 4, found: "new test 1.2 · never red: no saved red run names it failing; run it red against the code without the change, or say why it could not fail first" },
       ]);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      await removeTemp(dir);
     }
   });
 });

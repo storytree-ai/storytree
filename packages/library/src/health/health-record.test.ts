@@ -16,6 +16,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { waitUntil } from "@storytree/test-waits";
+
 import { connect } from "../project/index.js";
 import { MissingReferenceError } from "../references.js";
 import { NewerSchemaError, SchemaError, SchemaRecords, type RecordType, type SchemaRecord } from "../schema/index.js";
@@ -727,8 +729,9 @@ for (const backend of [memory, postgres]) {
 }
 
 /** Past the current millisecond, so the next write's time sorts after the last one's. */
-function later(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 5));
+async function later(): Promise<void> {
+  const now = Date.now();
+  await waitUntil(() => Date.now() > now, 5_000, "the clock to move on");
 }
 
 /** One story › one capability › two contracts: the plan most of these tests write health on. */

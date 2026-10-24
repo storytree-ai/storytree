@@ -4,11 +4,13 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { check, checkoutOf } from "../index.js";
 
@@ -19,7 +21,7 @@ const RUN = fileURLToPath(new URL("./run.ts", import.meta.url));
 /** A checkout holding `files` (repo-relative path to text), removed after the test. */
 function plant(t: TestContext, files: Record<string, string>): string {
   const at = mkdtempSync(path.join(tmpdir(), "check-"));
-  t.after(() => rmSync(at, { recursive: true, force: true }));
+  t.after(() => removeTemp(at));
   for (const [file, text] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(at, file)), { recursive: true });
     writeFileSync(path.join(at, file), text);

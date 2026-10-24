@@ -13,6 +13,7 @@
     "pg": "^8.23.0"
   },
   "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
     "tsx": "^4.23.15",

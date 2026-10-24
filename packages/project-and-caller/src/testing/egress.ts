@@ -5,8 +5,8 @@
  */
 import { readFileSync } from "node:fs";
 import { connect, createServer, type AddressInfo, type Socket } from "node:net";
-import { setTimeout as sleep } from "node:timers/promises";
 
+import { waitUntil } from "@storytree/test-waits";
 import pg from "pg";
 
 import { testServerDataDir, testServerUrl } from "./pg.js";
@@ -58,8 +58,7 @@ export async function countingStore(): Promise<CountingStore> {
     port: (server.address() as AddressInfo).port,
     received: () => received,
     async settled(quietMs = 1_000, timeoutMs = 30_000) {
-      const deadline = Date.now() + timeoutMs;
-      while (Date.now() < deadline && (open > 0 || Date.now() - lastActivity < quietMs)) await sleep(50);
+      await waitUntil(() => open === 0 && Date.now() - lastActivity >= quietMs, timeoutMs, `the library's connections to close and stay quiet for ${quietMs} ms`);
     },
     close: () => {
       for (const socket of sockets) socket.destroy();

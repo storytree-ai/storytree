@@ -7,6 +7,8 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+import { removeTemp, waitUntil } from "@storytree/test-waits";
+
 import { main, runLane } from "./runner.mjs";
 
 const exec = promisify(execFile);
@@ -16,7 +18,7 @@ const receipt = `console.log(JSON.stringify({args:process.argv.slice(1),cwd:proc
 
 async function lane(t) {
   const home = await mkdtemp(join(tmpdir(), "lane-runner-"));
-  t.after(() => rm(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   const lanesDir = join(home, "lanes"), cwd = join(home, "worktree");
   await mkdir(lanesDir); await mkdir(cwd); await mkdir(join(home, ".storytree"));
   await writeFile(join(home, ".storytree", "secrets.json"), JSON.stringify({ CLAUDE_CODE_OAUTH_TOKEN: "test-login" }));
@@ -115,7 +117,7 @@ test("1.8 · a lane stopped by a signal to its runner exits 75, so its queue kee
   await writeFile(join(options.lanesDir, "engine-override"), "codex");
   options.commands.codex = command("console.log('started'); setTimeout(() => {}, 60_000);");
   const running = runLane(options);
-  while (!(await readFile(options.log, "utf8").catch(() => "")).includes("started")) await new Promise((wake) => setTimeout(wake, 50));
+  await waitUntil(async () => (await readFile(options.log, "utf8").catch(() => "")).includes("started"), 10_000, "the engine to say it started");
   process.emit("SIGTERM", "SIGTERM");
   assert.equal(await running, 75);
   assert.match(options.lines.at(-1), /stopped by a signal: exit 75 so the runner keeps this lane queued$/);

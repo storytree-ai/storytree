@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import type { AnnotatedTree } from "@storytree/library";
 import { incrementOfBranch, mapCommand } from "./read.js";
 
@@ -32,7 +35,7 @@ test("3.4 the map command reads the current plan and survey and exposes counts, 
     assert.equal(refused.rows, undefined);
     assert.match(await mapCommand(library, folder, options), /Show refused/);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -59,6 +62,6 @@ test("3.6 in a branch's checkout the map reads the plan with that branch's incre
     assert.equal(await promises(), 0, "the increment's branch reads its pending retirement");
     assert.equal(incrementOfBranch("claude/dazzling-jones-f96c61"), undefined);
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });

@@ -33,6 +33,7 @@
     "@storytree/session-management": "workspace:*"
   },
   "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",
     "happy-dom": "catalog:",
     "tsx": "^4.23.15",

@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import { Window as HappyWindow } from "happy-dom";
 
 import { readIco, readPng } from "@storytree/mark";
@@ -15,7 +18,7 @@ const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
 test("2.3 · the initial page downloads less than 20 KiB of JavaScript before activating the forest", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-lazy-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   const { outputs } = await buildWebsite(output);
   const initial = new Set<string>();
   function visit(name: string) {
@@ -38,7 +41,7 @@ test("2.3 · the initial page downloads less than 20 KiB of JavaScript before ac
 
 test("1.1 · a static build serves its home page and every local asset without an app server", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-build-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const html = await readFile(path.join(output, "index.html"), "utf8");
   assert.match(html, /<main\b/);
@@ -54,7 +57,7 @@ test("1.1 · a static build serves its home page and every local asset without a
 
 test("1.3 · the built home links to a separate waitlist with a no-JavaScript route and source links", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-home-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const html = await readFile(path.join(output, "index.html"), "utf8");
   assert.match(html, /href="\/waitlist.html"/);
@@ -75,7 +78,7 @@ test("1.3 · the built home links to a separate waitlist with a no-JavaScript ro
 
 test("1.4 · the static not-found page provides a route home", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-404-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const html = await readFile(path.join(output, "404.html"), "utf8");
   assert.match(html, /<a[^>]*href="\/"/);
@@ -84,7 +87,7 @@ test("1.4 · the static not-found page provides a route home", async (t) => {
 
 test("1.16 · the built home links to the source on GitHub, and the site serves a security.txt naming the private report route", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-official-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const html = await readFile(path.join(output, "index.html"), "utf8");
   assert.match(html, /<a[^>]*href="https:\/\/github\.com\/storytree-ai\/storytree"/);
@@ -97,7 +100,7 @@ test("1.16 · the built home links to the source on GitHub, and the site serves 
 
 test("5.4 · the waitlist says what a real invitation looks like, linking only to the GitHub repository", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-invitation-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const waitlist = await readFile(path.join(output, "waitlist.html"), "utf8");
   const invitation = waitlist.match(/<p id="waitlist-invitation"[^>]*>([\s\S]*?)<\/p>/)?.[1];
@@ -107,7 +110,7 @@ test("5.4 · the waitlist says what a real invitation looks like, linking only t
 
 test("1.10 · every page's tab shows the mark, in day colours on a light setting and night colours on a dark one, with fixed fallbacks", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-favicon-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   for (const page of ["index.html", "waitlist.html", "404.html"]) {
     const html = await readFile(path.join(output, page), "utf8");
@@ -134,7 +137,7 @@ test("1.10 · every page's tab shows the mark, in day colours on a light setting
 
 test("1.11 · the site wears the mark beside its name, drawn in the page's own colours", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-mark-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   // Where each page names itself: the home heading; the waitlist's header and footer; the not-found header.
   for (const [page, count] of [["index.html", 1], ["waitlist.html", 2], ["404.html", 1]] as const) {
@@ -159,7 +162,7 @@ test("1.11 · the site wears the mark beside its name, drawn in the page's own c
 
 test("1.12 · the home and waitlist pages share as a 1200 x 630 picture of the mark and the name", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-share-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   for (const page of ["index.html", "waitlist.html"]) {
     const html = await readFile(path.join(output, page), "utf8");
@@ -175,7 +178,7 @@ test("1.12 · the home and waitlist pages share as a 1200 x 630 picture of the m
 test("4.4 · the built site names the merge it was built from in its home page and /version.txt", async (t) => {
   const commit = "89127d67".padEnd(40, "0");
   const output = await mkdtemp(path.join(tmpdir(), "website-commit-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output, { commit });
   assert.match(await readFile(path.join(output, "index.html"), "utf8"), new RegExp(`<meta name="storytree-commit" content="${commit}">`));
   assert.equal(await readFile(path.join(output, "version.txt"), "utf8"), `${commit}\n`);
@@ -186,7 +189,7 @@ test("4.4 · the built site names the merge it was built from in its home page a
 
 test("5.3 · the built storage manifest permits public insertion and explicitly reserves all other actions for the owner", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-data-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const manifest = JSON.parse(await readFile(path.join(output, ".herenow/data.json"), "utf8"));
   assert.deepEqual(manifest, { collections: { waitlist: {
@@ -202,7 +205,7 @@ test("5.3 · the built storage manifest permits public insertion and explicitly 
 
 test("1.13 · below the map the built home shows the three promises in order, each a single line, each carrying its own short served by the site", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-claims-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const html = await readFile(path.join(output, "index.html"), "utf8");
   const page = new HappyWindow().document;
@@ -232,7 +235,7 @@ test("1.13 · below the map the built home shows the three promises in order, ea
 
 test("1.14 · after the claims the built home says it works with your harness, with its marks, and ends on the waitlist", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-harness-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const page = new HappyWindow().document;
   page.write(await readFile(path.join(output, "index.html"), "utf8"));
@@ -287,7 +290,7 @@ function declarationsAt(css: string, selector: string, width: number) {
 
 test("1.15 · at desktop width the hook line and its paragraph sit left of the framed map, level with it; at phone width they stack with no sideways scroll", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-hero-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const page = new HappyWindow().document;
   page.write(await readFile(path.join(output, "index.html"), "utf8"));
@@ -323,7 +326,7 @@ test("1.15 · at desktop width the hook line and its paragraph sit left of the f
 
 test("2.33 · the framed map's panels draw on the forest's own dark palette: the frame they open in wears it, and the built stylesheet defines it", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-panels-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const page = new HappyWindow().document;
   page.write(await readFile(path.join(output, "index.html"), "utf8"));
@@ -341,7 +344,7 @@ test("2.33 · the framed map's panels draw on the forest's own dark palette: the
 
 test("2.34 · with a story or note panel open in the framed map, the compass, the zoom buttons and Done exploring stay off it, at desktop and phone width", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-panel-clear-"));
-  t.after(() => rm(output, { recursive: true, force: true }));
+  t.after(() => removeTemp(output));
   await buildWebsite(output);
   const html = await readFile(path.join(output, "index.html"), "utf8");
   const sheet = /<link rel="stylesheet" href="([^"]+)"[^>]*>/.exec(html)!;

@@ -5,11 +5,13 @@
  * scram-sha-256 line for members of a password group at the top of its pg_hba.conf.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { saveKey } from "@storytree/keys";
 import pg from "pg";
@@ -38,31 +40,29 @@ async function createPasswordRole(name: string, password: string): Promise<void>
     await withTestClient((client) => client.query("SELECT pg_reload_conf()"));
   }
   // The reload is a signal: wait until the server asks the role for its password.
-  for (const until = Date.now() + 10_000; ;) {
+  await waitUntil(async () => {
     // A wrong password, so a server that asks refuses it outright, leaving no backend waiting on us.
     const wrong = new URL(address(name));
     wrong.password = "not-the-password";
     const probe = new pg.Client({ connectionString: wrong.href });
     const asked = await probe.connect().then(() => false, (error: unknown) => (error as { code?: unknown }).code === "28P01");
     await probe.end().catch(() => {});
-    if (asked) return;
-    if (Date.now() > until) throw new Error(`the test server did not take up ${PASSWORD_LINE}`);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
+    return asked;
+  }, 10_000, `the test server to take up ${PASSWORD_LINE}`);
 }
 
 /** Rename `from` over `to`, retrying while Windows refuses because a backend has `to` open. */
 async function replace(from: string, to: string): Promise<void> {
-  for (const until = Date.now() + 10_000; ;) {
+  await waitUntil(() => {
     try {
       renameSync(from, to);
-      return;
+      return true;
     } catch (error) {
       const code = (error as { code?: unknown }).code;
-      if ((code !== "EPERM" && code !== "EBUSY" && code !== "EACCES") || Date.now() > until) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      if (code !== "EPERM" && code !== "EBUSY" && code !== "EACCES") throw error;
+      return false;
     }
-  }
+  }, 10_000, `${to} to be free to replace`);
 }
 
 function address(user: string, port?: number): string {
@@ -108,7 +108,7 @@ test("15.1 a library at a Postgres address, its password the postgres key, opens
     await storytree?.close();
     await dropTestDatabases([`storytree_${project}`]);
     await dropTestRoles([role]);
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 });
 
@@ -146,7 +146,7 @@ test("15.2 with no password saved for the library, connecting is refused saying 
       },
     );
   } finally {
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 });
 
@@ -178,7 +178,7 @@ test("15.3 a refused password and an unreachable host are each their own refusal
   } finally {
     await Promise.allSettled(opened.map((storytree) => storytree.close()));
     await dropTestRoles([role]);
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 });
 
@@ -201,6 +201,6 @@ test("15.5 the library's connection string, signed in with its password, reaches
     assert.throws(() => connectionString({ cloudSql: { instance: "p:r:i", user: "me@example.com" } }), (error: unknown) => error instanceof ConnectionError && /Cloud SQL/.test(error.message));
   } finally {
     await dropTestRoles([role]);
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 });

@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import { connect } from "@storytree/library";
 
 const at = (minute: number) => `2026-10-03T16:${String(minute).padStart(2, "0")}:00.000Z`;
@@ -16,7 +19,7 @@ const change = (seq: number, type: string, id: string, fields: object) =>
 
 test("3.5, 3.7, 3.9 · the shop's refresh command saves its growth and public reading from a saved record, its code and its archived CI runs on main", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "website-shop-"));
-  t.after(() => rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+  t.after(() => removeTemp(directory));
   const repository = path.join(directory, "repo");
   const src = path.join(repository, "packages", "have-an-account", "src");
   await mkdir(src, { recursive: true });
@@ -77,7 +80,7 @@ test("3.10 · the shop's saved library record keeps its arcs and holds, and its 
   const url = process.env.STORYTREE_TEST_PG_URL;
   assert.ok(url, "Run through pnpm test for an isolated test Postgres");
   const directory = await mkdtemp(path.join(tmpdir(), "website-shop-record-"));
-  t.after(() => rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+  t.after(() => removeTemp(directory));
   const project = `t-${randomBytes(4).toString("hex")}`;
   const server = await connect({ url });
   t.after(async () => { try { await server.dropProject(project); } finally { await server.close(); } });

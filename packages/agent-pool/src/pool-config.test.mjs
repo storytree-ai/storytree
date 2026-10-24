@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { poolConfig, readCap } from "./pool-config.mjs";
 
@@ -12,7 +14,7 @@ const CHECKOUT = resolve(execFileSync("git", ["rev-parse", "--show-toplevel"], {
 
 async function configFile(t, fields) {
   const dir = await mkdtemp(join(tmpdir(), "pool-config-"));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const file = join(dir, "agent-pool.json");
   if (fields !== undefined) await writeFile(file, JSON.stringify(fields));
   return file;

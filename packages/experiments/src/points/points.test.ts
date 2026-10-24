@@ -5,10 +5,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import type { Library, Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
@@ -321,7 +323,7 @@ test("5.7 · each point carries the imports crossing capability lines in the arm
     } finally {
       await arm.close();
       await dropTestDatabases([`storytree_${armProject}`]);
-      await rm(repository, { recursive: true, force: true });
+      await removeTemp(repository);
     }
   });
 });
@@ -448,7 +450,7 @@ test("5.12 · an arm whose tree keeps its code outside its stories' packages, as
     } finally {
       await arm.close();
       await dropTestDatabases([`storytree_${armProject}`]);
-      await rm(repository, { recursive: true, force: true });
+      await removeTemp(repository);
     }
   });
 });

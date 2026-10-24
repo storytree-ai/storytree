@@ -7,6 +7,7 @@
   },
   "scripts": { "typecheck": "tsc -p ." },
   "devDependencies": {
+    "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2"

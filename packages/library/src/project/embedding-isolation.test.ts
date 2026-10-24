@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { connect as openSocket } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import pg from "pg";
 
 import { Knowledge } from "../knowledge/knowledge.js";
@@ -84,7 +87,7 @@ for (const method of ["rank", "rankAll"] as const) {
       await search([alpha], remote(poison), file, domain, "test/old-model")[method]("question");
       assert.deepEqual(await search([alpha, beta], remote(good), file)[method]("question"), baseline);
     } finally {
-      await rm(folder, { recursive: true, force: true });
+      await removeTemp(folder);
     }
   });
 }
@@ -108,7 +111,7 @@ test("14.10 · legacy unscoped entries are ignored, and a store without an ident
       assert.equal(unscoped.requests.length, 1, "no explicit identity means no shared-cache read");
     }
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -203,7 +206,7 @@ test("1.4, 14.10 · opened projects isolate identical restored chunks and a recr
   } finally {
     await dropTestDatabases([`storytree_${name}`, `storytree_${other}`]);
     await dropTestRoles([role]);
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -249,6 +252,6 @@ test("14.10 · Cloud SQL project openings scope the cache to the authenticated i
     await Promise.all(opened.map(server => server.close()));
     await dropTestDatabases([`storytree_${name}`]);
     await dropTestRoles([user]);
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });

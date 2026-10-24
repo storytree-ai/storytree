@@ -37,6 +37,7 @@
     "@remotion/bundler": "4.0.535",
     "@remotion/renderer": "4.0.535",
     "remotion": "4.0.535",
-    "happy-dom": "catalog:"
+    "happy-dom": "catalog:",
+    "@storytree/test-waits": "workspace:*"
   }
 }

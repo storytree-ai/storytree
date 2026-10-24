@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { Knowledge, type Embedder } from "../knowledge/index.js";
 import { withCountedProject } from "../testing/pg.js";
@@ -64,7 +66,7 @@ for (const method of ["rank", "rankAll"] as const) {
         t.diagnostic(`${method}: cold ${first} B; warm ${second} B; one new note ${added} B; warm again ${again} B`);
       });
     } finally {
-      await rm(folder, { recursive: true, force: true });
+      await removeTemp(folder);
     }
   });
 }
@@ -92,7 +94,7 @@ test("14.10 · vector writes reach both stores, keys are model-scoped, and a mis
       assert.deepEqual(await vectors.get("first", ["later"]), new Map([["later", second]]));
     });
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -112,7 +114,7 @@ test("14.10 · no local place, an inaccessible path or a corrupt cache still rea
       }
     });
   } finally {
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -232,7 +234,7 @@ test("14.10 · independent processes write one cache concurrently and a fresh pr
     });
   } finally {
     phase("remove temporary cache");
-    await rm(folder, { recursive: true, force: true });
+    await removeTemp(folder);
     phase("cleanup complete");
   }
 });

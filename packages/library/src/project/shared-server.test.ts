@@ -11,6 +11,8 @@ import { createServer, connect as openSocket, type Server } from "node:net";
 import { hostname } from "node:os";
 import { test } from "node:test";
 
+import { waitUntil } from "@storytree/test-waits";
+
 import { connect, type Storytree } from "@storytree/library";
 import pg from "pg";
 
@@ -80,13 +82,14 @@ test("8.5 a library read refused for want of a connection slot waits for one and
     // refuses a new connection there (SQLSTATE 53300) as a full server does.
     await withTestClient((client) => client.query(`ALTER DATABASE "storytree_${project}" CONNECTION LIMIT 1`));
 
-    const second = await connect({ url: as(lane) });
+    const said: string[] = [];
+    const second = await connect({ url: as(lane), onWait: (what) => said.push(what) });
     opened.push(second);
     let reading: Promise<string[]> | undefined;
     await withTestClient(async () => {
       reading = second.openProject(project).then(async (library) => (await library.projectTree()).stories.map((story) => story.title));
       reading.catch(() => {});
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await waitUntil(() => said.length > 0, 5_000, "the read to say it waits for a connection slot");
     }, `storytree_${project}`);
 
     assert.deepEqual(await reading, ["Written before the rush"]);
@@ -222,7 +225,7 @@ test("8.8 a library call kept waiting for a connection slot says once what it wa
       await withTestClient(async () => {
         reading = storytree.openProject(project).then(async (library) => (await library.projectTree()).stories.map((story) => story.title));
         reading.catch(() => {});
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        await waitUntil(() => said.length > 0, 5_000, "the read to say it waits for a connection slot");
       }, `storytree_${project}`);
 
       assert.deepEqual(await reading, ["Written before the rush"]);
@@ -275,7 +278,7 @@ test("8.8 a write kept waiting for another session's write says what it waits fo
     await withWriteLockHeld(project, async () => {
       writing = library.addStory({ title: "Written after its turn", description: "Waited for another write." });
       writing.catch(() => {});
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await waitUntil(() => said.length > 0, 5_000, "the write to say it waits for its turn");
     });
     await writing;
 

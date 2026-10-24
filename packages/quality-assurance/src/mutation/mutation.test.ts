@@ -5,10 +5,12 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import type { Library } from "@storytree/library";
 
@@ -80,7 +82,7 @@ test("7.1 · a change's breaks are at most one per changed source line, none on 
   assert.deepEqual(fileBreaks("packages/x/src/f.ts", SOURCE, [5]).map(({ line }) => line), [5]);
 });
 
-test("7.1 · a change with more room than about 15 breaks gets 15, spread evenly across it, and its tests get none", () => {
+test("7.1 · a change with more room than about 15 breaks gets 15, spread evenly across it, and its tests get none", async () => {
   const dir = mkdtempSync(join(tmpdir(), "qa-spread-"));
   try {
     const many = Array.from({ length: 30 }, (_, index) => `export const v${index} = (n) => n === ${index};`).join("\n") + "\n";
@@ -93,7 +95,7 @@ test("7.1 · a change with more room than about 15 breaks gets 15, spread evenly
     assert.ok(breaks.every(({ file }) => file === "packages/demo/src/many.mjs"));
     assert.deepEqual(spread([1, 2, 3]), [1, 2, 3]);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -115,7 +117,7 @@ test("7.2 · each break runs against the tests that reach its file: an untested 
     // Every break is written back.
     for (const file of ["packages/demo/src/grade.mjs", "packages/demo/src/broken.mjs"]) assert.equal(readFileSync(join(dir, file), "utf8"), PACKAGE[file]);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -174,7 +176,7 @@ test("7.3 · the brief read from a change's worktree carries its mutation report
       assert.match(taken.text, /2 findings stand/);
     });
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });
 
@@ -205,6 +207,6 @@ test("7.4 · a rejected survivor's line joins the arid list and is not offered a
       assert.match(text, /Mutation report: not run \(no node to run tests with\)/);
     });
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    await removeTemp(dir);
   }
 });

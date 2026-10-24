@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import { connect } from "@storytree/library";
 import type { DoorWords } from "@storytree/library/verbs";
 
@@ -26,7 +29,7 @@ test("3.14 CI health declares the `health` verbs the command line mounts: `healt
     }
   });
   const folder = mkdtempSync(path.join(tmpdir(), "ci-health-verbs-"));
-  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  t.after(() => removeTemp(folder));
   execFileSync("git", ["-C", folder, "init", "-q"]);
 
   const [health] = HEALTH_FAMILIES;

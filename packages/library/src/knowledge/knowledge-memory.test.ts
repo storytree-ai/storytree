@@ -16,7 +16,8 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { setTimeout as sleep } from "node:timers/promises";
+
+import { waitUntil } from "@storytree/test-waits";
 
 import { connect } from "../project/index.js";
 import { MissingReferenceError } from "../references.js";
@@ -377,7 +378,7 @@ async function laterThan(record: { readonly createdAt: string }): Promise<void> 
 
 /** Wait until the clock has passed `timestamp`, so whatever is written next is stamped strictly later. */
 async function clockPast(timestamp: string): Promise<void> {
-  while (Date.now() <= Date.parse(timestamp)) await sleep(1);
+  await waitUntil(() => Date.now() > Date.parse(timestamp), 5_000, `the clock to pass ${timestamp}`);
 }
 
 /**

@@ -8,7 +8,7 @@
  * certificate for that name in ../testing/tls, trusted here through addressServer's test-only `ca`.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { createServer as createHttpServer, type IncomingHttpHeaders } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import { connect as dial, createServer, type Server, type Socket } from "node:net";
@@ -16,6 +16,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { saveKey } from "@storytree/keys";
 import { WebSocketServer } from "ws";
@@ -152,7 +154,7 @@ test("15.6 a wss:// address is reached through HTTPS_PROXY and the gate with the
     await Promise.all([front.close(), agent.close()]);
     await dropTestDatabases([project]);
     await dropTestRoles([role]);
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 });
 
@@ -171,11 +173,11 @@ test("15.6 a wss:// address with no Access token is refused before anything is d
     });
   } finally {
     delete process.env.CF_ACCESS_CLIENT_SECRET;
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 });
 
-test("15.6 a wss:// address that sets sslmode or sslrootcert is refused, and has no connection string for psql", () => {
+test("15.6 a wss:// address that sets sslmode or sslrootcert is refused, and has no connection string for psql", async () => {
   const keys = home();
   try {
     saveKey("postgres", "synthetic-password", { home: keys });
@@ -187,7 +189,7 @@ test("15.6 a wss:// address that sets sslmode or sslrootcert is refused, and has
     assert.throws(() => connectionString({ address: "wss://someone@library.test/postgres" }), (error: unknown) =>
       error instanceof ConnectionError && error.problem === "config" && /WebSocket/.test(error.message));
   } finally {
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 });
 
@@ -229,7 +231,7 @@ test("15.6 an upgrade the agent proxy refuses and one the gate refuses each say 
   } finally {
     await Promise.allSettled(opened.map((server) => server.admin.end()));
     await Promise.all([front.close(), ...agents.map((agent) => agent.close())]);
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 });
 
@@ -269,6 +271,6 @@ test("15.6 a wss:// library that asks for the password in plain text is refused 
     await server?.admin.end().catch(() => {});
     for (const socket of sockets) socket.destroy();
     await Promise.all([front.close(), agent.close(), new Promise((resolve) => asker.close(resolve))]);
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 });

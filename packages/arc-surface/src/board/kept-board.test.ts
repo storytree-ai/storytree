@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
+
+import { waitUntil } from "@storytree/test-waits";
+
 import type { Kept } from "../live-reading/kept.js";
 import { record } from "../testing/records.js";
 import type { BoardSnapshot } from "./board.js";
@@ -24,10 +26,8 @@ function kept(start?: BoardSnapshot): Kept<BoardSnapshot> & { written: BoardSnap
   return { written, read: () => start, write: (value) => { written.push(value); } };
 }
 const timers = { now: () => Date.parse("2026-09-29T10:00:00Z"), every: () => () => {} };
-async function until(check: () => boolean): Promise<void> {
-  const end = Date.now() + 5_000;
-  while (!check() && Date.now() < end) await delay(5);
-  assert.ok(check());
+function until(check: () => boolean): Promise<boolean> {
+  return waitUntil(check, 5_000, `the kept board to reach ${check}`);
 }
 
 test("the board draws its kept last state at once, marked refreshing, and keeps the fresh one when the read lands", async () => {

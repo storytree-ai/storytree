@@ -26,6 +26,7 @@ import { createRequire } from "node:module";
 import { connect as connectSocket, createServer, type AddressInfo, type Socket } from "node:net";
 
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
+import { waitUntil } from "@storytree/test-waits";
 
 import { connect, type Project } from "../project/index.js";
 
@@ -178,7 +179,7 @@ async function requireTestRolePasswords(): Promise<void> {
     const probe = new URL(testServerUrl());
     probe.username = `${uniqueProjectName()}-probe`;
     probe.password = "not-the-password";
-    for (const until = Date.now() + 10_000; ;) {
+    await waitUntil(async () => {
       const rules = readFileSync(file, "utf8");
       if (!rules.split(/\r?\n/).includes(TEST_ROLE_PASSWORD_LINE)) {
         // Written beside it and renamed over it: on Windows every new backend reads pg_hba.conf afresh,
@@ -192,26 +193,24 @@ async function requireTestRolePasswords(): Promise<void> {
       const client = new pg.Client({ connectionString: probe.href });
       const asked = await client.connect().then(() => false, (error: unknown) => (error as { code?: unknown }).code === "28P01");
       await client.end().catch(() => {});
-      if (asked) return;
-      if (Date.now() > until) throw new Error(`the test server did not take up ${TEST_ROLE_PASSWORD_LINE}`);
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+      return asked;
+    }, 10_000, `the test server to take up ${TEST_ROLE_PASSWORD_LINE}`);
   })().finally(() => { passwordsRequired = undefined; });
   return passwordsRequired;
 }
 
 /** Rename `from` over `to`, retrying while Windows refuses because a backend has `to` open. */
 async function replace(from: string, to: string): Promise<void> {
-  for (const until = Date.now() + 10_000; ;) {
+  await waitUntil(() => {
     try {
       renameSync(from, to);
-      return;
+      return true;
     } catch (error) {
       const code = (error as { code?: unknown }).code;
-      if ((code !== "EPERM" && code !== "EBUSY" && code !== "EACCES") || Date.now() > until) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      if (code !== "EPERM" && code !== "EBUSY" && code !== "EACCES") throw error;
+      return false;
     }
-  }
+  }, 10_000, `${to} to be free to replace`);
 }
 
 /**

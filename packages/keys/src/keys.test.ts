@@ -1,18 +1,20 @@
 /** Keys 1.1–1.4: the owner-only file, its lock, the resolution order and `!command` entries (ADR-0843). */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { closeSync, mkdtempSync, openSync, readFileSync, rmSync, statSync } from "node:fs";
+import { closeSync, mkdtempSync, openSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { authFile, removeKey, resolveKey, saveKey } from "./index.js";
 import { withLock } from "./keys.js";
 
 function scratch(t: { after(fn: () => void): void }): string {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree-keys-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   return path.join(dir, "home");
 }
 

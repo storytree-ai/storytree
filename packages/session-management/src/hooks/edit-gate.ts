@@ -33,14 +33,18 @@ import { cursorSession } from "./cursor.js";
 import { piEdit, piSession } from "./pi.js";
 import { antigravityEdit, antigravitySession } from "./antigravity.js";
 import { withDeadline } from "./deadlines.js";
+import { limitOf, withinLimit, type Step } from "./learned-limits.js";
 import { isSelfNamed, selfNamedEdit } from "./self-named.js";
 import type { HookFailure } from "./failures.js";
 
 /** The flag of the hook before each file-edit tool. */
 export const EDIT_GATE = "--edit-gate";
 
-/** How long the gate may take before the edit goes ahead unasked: the harness waits on it. */
-const GATE_MS = 3_000;
+/**
+ * How long the gate may take before the edit goes ahead unasked: the harness waits on it. Learned on each machine
+ * (ADR-1163 D2), never under the 3 s it was fixed at, nor over 8 s, inside the hook's 9 s (GUARDED_DEADLINE_MS).
+ */
+export const EDIT_GATE_STEP: Step = { name: "edit-gate", floorMs: 3_000, ceilingMs: 8_000 };
 
 /** The edit a pre-tool hook's input from `harness` is about to make, or undefined when it is not a file edit. */
 export function editIn(harness: string, input: unknown): { session: string; folder: string; files: { path: string; text?: string }[] } | undefined {
@@ -119,30 +123,32 @@ export function refusalAnswer(harness: string, reason: string, ask = false): str
   return JSON.stringify({ decision: "block", reason, hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
 }
 
-/** The gate's answer for the harness: a refusal when the edit may not happen, else undefined, also once `gateMs` passes. Never throws; `failed` keeps why it gave up. */
-export async function editGate(harness: string, input: unknown, declared: DeclaredCapabilities | undefined, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, gateMs = GATE_MS): Promise<string | undefined> {
+/**
+ * The gate's answer for the harness: a refusal when the edit may not happen, else undefined, also once its limit passes:
+ * `gateMs` when given, else the one this machine learned in `home`, which learns how long this answer took. Never
+ * throws; `failed` keeps why it gave up.
+ */
+export async function editGate(harness: string, input: unknown, declared: DeclaredCapabilities | undefined, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, gateMs?: number): Promise<string | undefined> {
   const edit = editIn(harness, input);
   if (edit === undefined || declared === undefined) return undefined;
-  let timer: NodeJS.Timeout | undefined;
-  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), gateMs)));
+  const limit = gateMs ?? limitOf(home, EDIT_GATE_STEP);
   try {
-    const refusal = await Promise.race([refusalFor(harness, edit, declared, locate, home), late]);
+    const result = await withinLimit(EDIT_GATE_STEP, limit, gateMs === undefined ? home : undefined, (limitMs) => refusalFor(harness, edit, declared, locate, home, limitMs));
+    const refusal = result.late ? undefined : result.answer;
     if (refusal === undefined) return undefined;
     return refusalAnswer(harness, refusal.reason, refusal.ask);
   } catch (error) {
     failed("hook", error);
     return undefined;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
-async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string): Promise<{ reason: string; ask: boolean } | undefined> {
+async function refusalFor(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, declared: DeclaredCapabilities, locate: LocateOptions | undefined, home: string, limitMs: number): Promise<{ reason: string; ask: boolean } | undefined> {
   const { editRefusal, refusalMessage } = await import("../claims/edit-gate.js");
   return gated(harness, edit, locate, home, async (context, checkout, imports) => {
     const refusal = await editRefusal(context, checkout, edit.files, declared, imports);
     return refusal === undefined ? undefined : { reason: refusalMessage(refusal), ask: refusal.refused === "ask" };
-  });
+  }, limitMs);
 }
 
 /**
@@ -153,11 +159,12 @@ export async function recordYesAfterEdit(harness: string, input: unknown, locate
   if (harness !== "claude-code" || typeof input !== "object" || input === null || (input as Record<string, unknown>).hook_event_name !== "PostToolUse") return;
   const edit = editIn(harness, { ...input, hook_event_name: "PreToolUse" });
   if (edit === undefined) return;
+  const limit = limitOf(home, EDIT_GATE_STEP);
   let timer: NodeJS.Timeout | undefined;
-  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), GATE_MS)));
+  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), limit)));
   try {
     const { recordPromptYes } = await import("../claims/edit-gate.js");
-    await Promise.race([gated(harness, edit, locate, home, (context, checkout, imports) => recordPromptYes(context, checkout, edit.files, imports)), late]);
+    await Promise.race([gated(harness, edit, locate, home, (context, checkout, imports) => recordPromptYes(context, checkout, edit.files, imports), limit), late]);
   } catch (error) {
     failed("hook", error);
   } finally {
@@ -180,8 +187,9 @@ export function allowsSaidIn(prompt: string): string[] {
 export async function yesSaid(harness: string, prompted: { session: string; folder: string; prompt: string }, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<string[] | undefined> {
   const increments = allowsSaidIn(prompted.prompt);
   if (increments.length === 0) return undefined;
+  const limit = limitOf(home, EDIT_GATE_STEP);
   let timer: NodeJS.Timeout | undefined;
-  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), GATE_MS)));
+  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), limit)));
   try {
     const { allowSaid } = await import("../claims/edit-gate.js");
     const told = await Promise.race([gated(harness, { session: prompted.session, folder: prompted.folder, files: [] }, locate, home, async (context) => {
@@ -193,7 +201,7 @@ export async function yesSaid(harness: string, prompted: { session: string; fold
           : `[storytree] The user said yes for ${increment}, but nothing was recorded: ${allowed.reason}`);
       }
       return answers;
-    }), late]);
+    }, limit), late]);
     return told === undefined || told.length === 0 ? undefined : told;
   } catch (error) {
     failed("hook", error);
@@ -203,8 +211,11 @@ export async function yesSaid(harness: string, prompted: { session: string; fold
   }
 }
 
-/** Run `work` with the gate's view of the session's project, when its folder is an approved project on a reachable storytree (also the shell guard's, shell-guard.ts). */
-export async function gated<T>(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, locate: LocateOptions | undefined, home: string, work: (context: GateContext, checkout: string, imports: readonly ImportedFolderPlace[]) => Promise<T>): Promise<T | undefined> {
+/**
+ * Run `work` with the gate's view of the session's project, when its folder is an approved project on a reachable
+ * storytree (also the shell guard's, shell-guard.ts), reaching it within `limitMs`.
+ */
+export async function gated<T>(harness: string, edit: NonNullable<ReturnType<typeof editIn>>, locate: LocateOptions | undefined, home: string, work: (context: GateContext, checkout: string, imports: readonly ImportedFolderPlace[]) => Promise<T>, limitMs = EDIT_GATE_STEP.floorMs): Promise<T | undefined> {
   const { route, requireApproval, openNamedProject, ProjectFolderError, importsOf, machineOf } = await import("@storytree/project-and-caller");
   const where = route(edit.folder, locate);
   if (where.status !== "routed") return undefined;
@@ -212,7 +223,7 @@ export async function gated<T>(harness: string, edit: NonNullable<ReturnType<typ
     import("../activity/index.js"), import("../activity/branch.js"), import("@storytree/library"),
   ]);
   const checkout = worktreeRoot(edit.folder) ?? path.resolve(edit.folder);
-  const storytree = await connect(withDeadline(where.library, GATE_MS, GATE_MS));
+  const storytree = await connect(withDeadline(where.library, limitMs, limitMs));
   try {
     try {
       await requireApproval(storytree, where.project, where.folder, home);
@@ -221,7 +232,7 @@ export async function gated<T>(harness: string, edit: NonNullable<ReturnType<typ
       throw error;
     }
     const machine = thisMachine();
-    const log = await openActivityLog(storytree, { connectTimeoutMs: GATE_MS, ...(machine === undefined ? {} : { machine }) });
+    const log = await openActivityLog(storytree, { connectTimeoutMs: limitMs, ...(machine === undefined ? {} : { machine }) });
     try {
       const library = await openNamedProject(storytree, where.project, where.identity);
       const imports = await importsOf(storytree, where.project, machineOf(home).id);

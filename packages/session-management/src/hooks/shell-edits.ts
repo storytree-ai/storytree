@@ -27,9 +27,14 @@ import path from "node:path";
 import type { NewLine } from "@storytree/library";
 
 import { runGit, type Git as RunGit } from "../activity/git.js";
+import { learn, limitOf, type Step } from "./learned-limits.js";
 
-/** How long one observation's Git reads may take, together. */
-const OBSERVE_MS = 5_000;
+/**
+ * How long one observation's Git reads may take, together. Learned on each machine in the home the baselines are kept
+ * in (ADR-1163 D2), never under the 5 s it was fixed at, nor over 8 s: an ordinary hook's deadline widens with it
+ * (hookDeadline), and stays inside the 10 s Codex gives a hook it waits on.
+ */
+export const OBSERVE_STEP: Step = { name: "shell-edits", floorMs: 5_000, ceilingMs: 8_000 };
 
 /** Extra edits made visible by this hook; errors leave its ordinary lines untouched and go to `failed`. */
 export function shellEdits(home: string, root: string, line: NewLine, failed: (error: unknown) => void = () => undefined, run: RunGit = runGit): NewLine[] {
@@ -39,6 +44,8 @@ export function shellEdits(home: string, root: string, line: NewLine, failed: (e
   const lock = `${file}.lock`;
   let held = false;
   let temporary: string | undefined;
+  const limit = limitOf(home, OBSERVE_STEP);
+  let from: number | undefined;
   try {
     // A before-hook only seeds a worktree this session has not observed. In particular a delayed
     // asynchronous before-hook must not swallow the command's write by refreshing its baseline.
@@ -51,7 +58,8 @@ export function shellEdits(home: string, root: string, line: NewLine, failed: (e
       throw error;
     }
     held = true;
-    const git = reader(root, Date.now() + OBSERVE_MS, run);
+    from = Date.now();
+    const git = reader(root, from + limit, limit, run);
     const previous = readSnapshot(file);
     const reflog = headLog(root, git);
     const current = { head: head(git), ...snapshot(root, git), reflog: reflog?.length };
@@ -66,10 +74,13 @@ export function shellEdits(home: string, root: string, line: NewLine, failed: (e
     temporary = `${file}.${randomUUID()}.part`;
     writeFileSync(temporary, JSON.stringify({ head: current.head, files: [...current.files], untracked: [...current.untracked], reflog: current.reflog }));
     renameSync(temporary, file);
+    learn(home, OBSERVE_STEP, Date.now() - from);
     if (files.length === 0 || line.kind !== "command-run") return [];
     const { command: _command, call: _call, kind: _kind, ...common } = line;
     return [{ ...common, kind: "file-edited", folder: root, files }];
   } catch (error) {
+    // Reads that ran out of time gave up at the limit: kept as having taken it, so a machine that always gives up widens it.
+    if (from !== undefined && Date.now() - from >= limit) learn(home, OBSERVE_STEP, limit);
     failed(error);
     return [];
   } finally {
@@ -196,10 +207,10 @@ function blobs(git: Git, commit: string, names: string[]): Map<string, string> {
 type Git = (args: string[], input?: string | Buffer) => string;
 
 /** Local reads in `root`, with no shell, all done by `deadline`. A failed or oversized reading never replaces the baseline. */
-function reader(root: string, deadline: number, run: RunGit): Git {
+function reader(root: string, deadline: number, limit: number, run: RunGit): Git {
   return (args, input) => {
     const timeout = deadline - Date.now();
-    if (timeout <= 0) throw new Error(`the Git reads took longer than ${OBSERVE_MS} ms`);
+    if (timeout <= 0) throw new Error(`the Git reads took longer than ${limit} ms`);
     // Never takes the index lock, whose leftover would block the user's own Git in an imported folder.
     return run(["--no-optional-locks", ...args], { cwd: root, ...(input === undefined ? {} : { input }), timeout, maxBuffer: 8 * 1024 * 1024 });
   };

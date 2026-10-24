@@ -9,7 +9,9 @@
  *   list, which a rejected survivor's line joins (7.4).
  * - The tests that reach a file are the test files whose imports lead to it in its own package, or, when none there does, in
  *   the packages downstream of it, nearest first and at most {@link TEST_CAP}. Tests that fail with nothing broken are left out, and a break with none left is
- *   not run and says why; a file no test reaches at all survives untried (7.2).
+ *   not run and says why; a file no test reaches at all survives untried (7.2). A break its own package's tests miss is run
+ *   against the tests downstream that reach its file before it survives, and one the report's time runs out on there is not
+ *   run, never a survivor (7.5).
  * - The report runs with the brief read from a change's worktree and is kept with that review; taking the review's return
  *   records each survivor as a hit found by the mutation report (7.3). It never blocks: a report that cannot run says why and
  *   the brief goes on, and a rejected survivor needs no reviewer to accept it (7.4).
@@ -233,6 +235,8 @@ export function changeBreaks(root: string, diff: string, arid: readonly AridLine
 export interface Reach {
   /** The test files that reach `file`, nearest first, at most `cap`. */
   tests(file: string, cap?: number): string[];
+  /** The test files in other packages than `file`'s that reach it, nearest first, at most `cap`. */
+  downstream(file: string, cap?: number): string[];
   /** How many source files depend on `file` through any number of imports. */
   damage(file: string): number;
 }
@@ -288,6 +292,7 @@ export function readReach(root: string, folders: readonly string[]): Reach {
       const own = reached.filter((one) => folderOf(one) === folderOf(file));
       return (own.length > 0 ? own : reached).slice(0, cap);
     },
+    downstream: (file, cap = TEST_CAP) => closure(file).filter((one) => TEST.test(one) && folderOf(one) !== folderOf(file)).slice(0, cap),
     damage: (file) => closure(file).filter((one) => !TEST.test(one) && !TEST_SUPPORT.test(one)).length,
   };
 }
@@ -385,47 +390,61 @@ export async function mutationReport(root: string, diff: string, arid: readonly 
         survivors.push(...planted.map(({ line, source, what }) => ({ file, line, source, what, damage, untried: true as const })));
         continue;
       }
-      // Tests that fail with nothing broken cannot tell a break apart: they are left out (7.2).
       const env = await postgres.env();
-      const unknown = tests.filter((test) => !unbroken.has(test));
-      if (unknown.length > 0 && left() > 0) {
-        const whole = await run(root, unknown, left(), env);
-        // One the report's own time cut short is not known to fail.
-        if (whole.passed) for (const test of unknown) unbroken.set(test, { passed: true, ms: whole.ms / unknown.length });
-        else for (const test of unknown) {
-          if (left() <= 0) break;
-          const alone = await run(root, [test], left(), env);
-          if (!alone.timedOut || left() > 0) unbroken.set(test, alone);
+      // Tests that fail with nothing broken cannot tell a break apart: they are left out (7.2).
+      const passingOf = async (some: readonly string[]): Promise<string[] | undefined> => {
+        const unknown = some.filter((test) => !unbroken.has(test));
+        if (unknown.length > 0 && left() > 0) {
+          const whole = await run(root, unknown, left(), env);
+          // One the report's own time cut short is not known to fail.
+          if (whole.passed) for (const test of unknown) unbroken.set(test, { passed: true, ms: whole.ms / unknown.length });
+          else for (const test of unknown) {
+            if (left() <= 0) break;
+            const alone = await run(root, [test], left(), env);
+            if (!alone.timedOut || left() > 0) unbroken.set(test, alone);
+          }
         }
-      }
-      if (!tests.every((test) => unbroken.has(test))) {
-        notRun.push(...planted.map(({ line }) => ({ file, line, why: OUT_OF_TIME })));
-        continue;
-      }
-      const passing = tests.filter((test) => unbroken.get(test)!.passed);
-      const slowest = passing.reduce((sum, test) => sum + unbroken.get(test)!.ms, 0);
-      if (passing.length === 0) {
-        notRun.push(...planted.map(({ line }) => ({ file, line, why: `the ${tests.length} test file${tests.length === 1 ? "" : "s"} reaching ${file} fail with nothing broken (${tests.join(", ")})` })));
-        continue;
-      }
+        return some.every((test) => unbroken.has(test)) ? some.filter((test) => unbroken.get(test)!.passed) : undefined;
+      };
       const original = readFileSync(path.join(root, file), "utf8");
-      for (const one of planted) {
-        if (left() <= 0) {
-          notRun.push({ file, line: one.line, why: OUT_OF_TIME });
-          continue;
-        }
+      // Whether `one`, planted, is caught by `passing`, survives them, or is not run for lack of time.
+      const tried = async (one: Break, passing: readonly string[]): Promise<"caught" | "survived" | "out"> => {
+        if (left() <= 0) return "out";
         const restore = guard(path.join(root, file), original);
         try {
           writeFileSync(path.join(root, file), original.slice(0, one.at) + one.replacement + original.slice(one.at + one.length));
           // A break that makes the tests hang is caught, as one that makes them fail is.
-          const patience = Math.max(20_000, 3 * slowest + 5_000);
-          const result = await run(root, passing, Math.min(left(), patience), env);
-          if (result.timedOut && left() <= 0) notRun.push({ file, line: one.line, why: OUT_OF_TIME });
-          else if (result.passed) survivors.push({ file, line: one.line, source: one.source, what: one.what, damage });
-          else caught++;
+          const slowest = passing.reduce((sum, test) => sum + unbroken.get(test)!.ms, 0);
+          const result = await run(root, passing, Math.min(left(), Math.max(20_000, 3 * slowest + 5_000)), env);
+          return result.timedOut && left() <= 0 ? "out" : result.passed ? "survived" : "caught";
         } finally {
           restore();
         }
+      };
+      const passing = await passingOf(tests);
+      if (passing === undefined) {
+        notRun.push(...planted.map(({ line }) => ({ file, line, why: OUT_OF_TIME })));
+        continue;
+      }
+      if (passing.length === 0) {
+        notRun.push(...planted.map(({ line }) => ({ file, line, why: `the ${tests.length} test file${tests.length === 1 ? "" : "s"} reaching ${file} fail with nothing broken (${tests.join(", ")})` })));
+        continue;
+      }
+      const missed: Break[] = [];
+      for (const one of planted) {
+        const outcome = await tried(one, passing);
+        if (outcome === "out") notRun.push({ file, line: one.line, why: OUT_OF_TIME });
+        else if (outcome === "survived") missed.push(one);
+        else caught++;
+      }
+      // A break its own package's tests miss is run against the tests downstream that reach its file before it survives (7.5).
+      const further = missed.length === 0 ? [] : reach.downstream(file).filter((test) => !tests.includes(test));
+      const downstream = further.length === 0 ? [] : await passingOf(further);
+      for (const one of missed) {
+        const outcome = downstream === undefined ? "out" : downstream.length === 0 ? "survived" : await tried(one, downstream);
+        if (outcome === "out") notRun.push({ file, line: one.line, why: OUT_OF_TIME });
+        else if (outcome === "survived") survivors.push({ file, line: one.line, source: one.source, what: one.what, damage });
+        else caught++;
       }
     }
   } finally {

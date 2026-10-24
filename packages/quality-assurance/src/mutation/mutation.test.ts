@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -15,7 +15,7 @@ import { removeTemp } from "@storytree/test-waits";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { aridList, briefWithReport, changeBreaks, fileBreaks, MUTATION_SURVIVOR, mutationReport, openLedger, openReviews, qualityTools, spread, type ReviewReturn } from "../index.js";
+import { aridList, briefWithReport, changeBreaks, fileBreaks, MUTATION_SURVIVOR, mutationReport, openLedger, openReviews, qualityTools, spread, type ReviewReturn, type TestRun } from "../index.js";
 
 /** A diff adding every line of each file. */
 function adding(files: Record<string, string>): string {
@@ -116,6 +116,44 @@ test("7.2 · each break runs against the tests that reach its file: an untested 
     assert.match(report.notRun[0]!.why, /fail with nothing broken/);
     // Every break is written back.
     for (const file of ["packages/demo/src/grade.mjs", "packages/demo/src/broken.mjs"]) assert.equal(readFileSync(join(dir, file), "utf8"), PACKAGE[file]);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
+/** A package whose own test misses a branch that the test of a package downstream of it, importing it by name, takes. */
+const DOWNSTREAM: Record<string, string> = {
+  "packages/pick/package.json": JSON.stringify({ name: "@t/pick", type: "module", exports: { ".": "./src/pick.mjs" } }),
+  "packages/pick/src/pick.mjs": "export const pick = (n) => (n > 0 ? \"up\" : \"down\");\nexport const flag = (n) => n === 3;\n",
+  "packages/pick/src/pick.test.mjs": "import assert from \"node:assert/strict\";\nimport { test } from \"node:test\";\nimport { flag } from \"./pick.mjs\";\ntest(\"flags\", () => { assert.equal(flag(3), true); });\n",
+  "packages/use/package.json": JSON.stringify({ name: "@t/use", type: "module", dependencies: { "@t/pick": "workspace:*" } }),
+  "packages/use/src/use.test.mjs": "import assert from \"node:assert/strict\";\nimport { test } from \"node:test\";\nimport { pick } from \"@t/pick\";\ntest(\"picks\", () => { assert.equal(pick(1), \"up\"); assert.equal(pick(-1), \"down\"); });\n",
+};
+
+test("7.5 · a break its own package's tests miss is run against the tests downstream that reach its file before it is called a survivor, and one the report's time runs out on there is not run, never a survivor", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-downstream-"));
+  try {
+    write(dir, DOWNSTREAM);
+    // The downstream package's tests resolve @t/pick as pnpm links it.
+    mkdirSync(join(dir, "packages/use/node_modules/@t"), { recursive: true });
+    symlinkSync(join(dir, "packages/pick"), join(dir, "packages/use/node_modules/@t/pick"), "dir");
+    const diff = adding({ "packages/pick/src/pick.mjs": DOWNSTREAM["packages/pick/src/pick.mjs"]! });
+    const report = await mutationReport(dir, diff);
+    assert.equal(report.ran, true);
+    if (!report.ran) return;
+    assert.deepEqual({ planted: report.planted, caught: report.caught, survivors: report.survivors, notRun: report.notRun }, { planted: 2, caught: 2, survivors: [], notRun: [] });
+    assert.equal(readFileSync(join(dir, "packages/pick/src/pick.mjs"), "utf8"), DOWNSTREAM["packages/pick/src/pick.mjs"]);
+
+    // Its own package's tests pass with the break, and the time runs out on the tests downstream.
+    const run: TestRun = async (_root, tests, limitMs) => {
+      if (!tests.includes("packages/use/src/use.test.mjs")) return { passed: true, ms: 1 };
+      await new Promise((resolve) => setTimeout(resolve, limitMs));
+      return { passed: false, ms: limitMs, timedOut: true };
+    };
+    const timed = await mutationReport(dir, diff, [], { run, budgetMs: 300 });
+    assert.ok(timed.ran);
+    assert.deepEqual({ caught: timed.caught, survivors: timed.survivors }, { caught: 0, survivors: [] });
+    assert.deepEqual(timed.notRun.map(({ line, why }) => ({ line, why })), [{ line: 1, why: "the report's time ran out first" }, { line: 2, why: "the report's time ran out first" }]);
   } finally {
     await removeTemp(dir);
   }

@@ -53,6 +53,7 @@ import {
   type Project,
   type Storytree,
 } from "./index.js";
+import { localServer } from "./server.js";
 
 /** A connection name in the right form that names no real instance. The fake connectors never look it up. */
 const INSTANCE = "storytree-offline:nowhere1:no-such-instance";
@@ -459,21 +460,43 @@ test("8.2 a Cloud SQL instance that does not answer is refused after a bounded w
   }
 });
 
-test("1.9 a stalled local handshake is refused within three seconds, on both admin and project pools, and the next call recovers", async (t) => {
-  await refusedAtDeadline(t, undefined, 3_000);
+test("1.9 a local handshake is given ten seconds by default; a stalled one is refused at its deadline, on both admin and project pools, saying the computer may be busy, and the next call recovers", async (t) => {
+  // The default is pinned without waiting ten seconds: the pool's own deadline, and what a timeout says.
+  const url = new URL(testServerUrl());
+  url.searchParams.delete("connect_timeout");
+  const server = localServer(url);
+  try {
+    assert.equal((server.admin as unknown as { options: { connectionTimeoutMillis: number } }).options.connectionTimeoutMillis, 10_000);
+    const explained = server.explain(new Error("timeout expired"));
+    assert.ok(explained instanceof ConnectionError);
+    assert.equal(
+      explained.message,
+      "storytree isn't reachable: its database took longer than 10 seconds to answer, and this computer may be busy. " +
+        "Check that the storytree app is responding, then try again.",
+    );
+  } finally {
+    await server.admin.end();
+  }
+  // A stall is refused at the deadline, here a shorter one the caller gives.
+  await refusedAtDeadline(t, { connectTimeoutMs: 1_000 }, 1_000);
 });
 
-test("1.20 a local url naming its own connect_timeout is given that longer deadline, as a test run's throwaway server is; one with none keeps three seconds", async (t) => {
-  await refusedAtDeadline(t, "5", 5_000);
-  await refusedAtDeadline(t, "1", 3_000);
+test("1.20 a local url naming its own connect_timeout is given that deadline when it is longer than the given one; a shorter one keeps the given deadline", async (t) => {
+  await refusedAtDeadline(t, { connectTimeout: "2", connectTimeoutMs: 1_000 }, 2_000);
+  await refusedAtDeadline(t, { connectTimeout: "1", connectTimeoutMs: 1_500 }, 1_500);
 });
 
 /**
  * Open a project through a server that stalls each fresh handshake, on the admin pool and then the
- * project's, with the test server's url carrying `connectTimeout` as its connect_timeout (none when
- * undefined): each is refused at `deadlineMs`, saying so, and the next call recovers.
+ * project's, connecting with the given `connectTimeoutMs` and the test server's url carrying
+ * `connectTimeout` as its connect_timeout (none when undefined): each is refused at `deadlineMs`,
+ * saying so, and the next call recovers.
  */
-async function refusedAtDeadline(t: TestContext, connectTimeout: string | undefined, deadlineMs: number): Promise<void> {
+async function refusedAtDeadline(
+  t: TestContext,
+  { connectTimeout, connectTimeoutMs }: { readonly connectTimeout?: string; readonly connectTimeoutMs: number },
+  deadlineMs: number,
+): Promise<void> {
   const upstream = new URL(testServerUrl());
   upstream.searchParams.delete("connect_timeout");
   const held = new Set<Socket>();
@@ -496,7 +519,7 @@ async function refusedAtDeadline(t: TestContext, connectTimeout: string | undefi
   const url = new URL(upstream);
   url.port = String((silent.address() as AddressInfo).port);
   if (connectTimeout !== undefined) url.searchParams.set("connect_timeout", connectTimeout);
-  const storytree = await connect({ url: url.href });
+  const storytree = await connect({ url: url.href, connectTimeoutMs });
   const name = uniqueProjectName();
   try {
     // The first attempt stalls on the admin pool. Once that pool is connected, opening
@@ -509,7 +532,7 @@ async function refusedAtDeadline(t: TestContext, connectTimeout: string | undefi
       t.diagnostic(`${pool} handshake refused after ${waited.toFixed(0)} ms`);
       assert.ok(waited >= deadlineMs - 500 && waited < deadlineMs + 1_000, `${pool}: the ${deadlineMs / 1000} s deadline plus scheduling allowance, got ${waited.toFixed(0)} ms`);
       const refused = refusal(error, "timeout");
-      assert.match(refused.message, new RegExp(`storytree isn't reachable: its database did not answer within ${deadlineMs / 1000} seconds`, "i"));
+      assert.match(refused.message, new RegExp(`storytree isn't reachable: its database took longer than ${deadlineMs / 1000} seconds to answer, and this computer may be busy`, "i"));
       assert.match(refused.message, /check.*app.*try again/i);
       stalled = false;
       const recovered = await storytree.openProject(name);

@@ -818,6 +818,9 @@ importers:
       '@modelcontextprotocol/client':
         specifier: ^2.1.0
         version: 2.1.0
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

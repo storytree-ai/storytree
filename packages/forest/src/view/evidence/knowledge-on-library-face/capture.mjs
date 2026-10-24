@@ -1,7 +1,7 @@
 // The forest page's glass sheet with its knowledge only on the Library face (increment_6d39e6e22ce1, ADR-1061): nothing under
 // the glass from the Stories face, the islands hollow outlines on the Library face, and links only for the selected story.
 // Drawn by the actual desktop page from the same read-only snapshot of storytree's own library as ../glass-sheet-tilt/
-// (branch spike/glass-sheet's seed.json.gz and survey.json, kept out of this repository for its size). Every turn is a real
+// (its seed.json.gz and survey.json, kept out of this repository for its size). Every turn is a real
 // press of the Library or Stories button, the selection a real click on an island. Run from the checkout root, in the foreground:
 //   node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/knowledge-on-library-face/capture.mjs <seed folder> --retake
 import assert from 'node:assert/strict';

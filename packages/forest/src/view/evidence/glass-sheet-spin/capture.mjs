@@ -1,6 +1,6 @@
 // The glass sheet moved by the keys and spun about its upright axis, with its compass (increment_f9d799c44ac5, ADR-1060),
 // drawn by the actual desktop page from the same read-only snapshot of storytree's own library as glass-sheet-tilt/ used
-// (branch spike/glass-sheet, its seed.json.gz and survey.json, kept out of this repository for its size). Every move is a
+// (its seed.json.gz and survey.json, kept out of this repository for its size). Every move is a
 // real key press or a real right-drag of the mouse; the frame sequences hold the page's clock and step it. Run from the
 // checkout root, in the foreground:
 //   node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/glass-sheet-spin/capture.mjs <seed folder> --retake

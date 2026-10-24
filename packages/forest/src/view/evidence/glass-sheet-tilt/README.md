@@ -17,7 +17,7 @@ down, the land was flat to 0.02 units and the graph's depth ran along the line o
   the pool along the south edge.
 
 Drawn by the actual desktop page, 1440 × 960, dark theme, headless Chromium, from the same read-only snapshot of storytree's
-own library as `../glass-sheet-turn/` (27 stories; branch `spike/glass-sheet`'s `seed.json.gz` and `survey.json`, kept out of
+own library as `../glass-sheet-turn/` (27 stories; its `seed.json.gz` and `survey.json`, kept out of
 the repository for its size). Every turn is a real button press and the selection a real click. The app's teaching cards
 are hidden by the capture: they sit over the sheet and are not the subject.
 

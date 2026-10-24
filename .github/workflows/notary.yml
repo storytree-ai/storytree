@@ -18,6 +18,8 @@ permissions:
 jobs:
   read:
     runs-on: macos-latest
+    # Apple's key is read only by a job in the `release` environment, which runs only from main.
+    environment: release
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6

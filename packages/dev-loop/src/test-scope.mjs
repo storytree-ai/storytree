@@ -37,6 +37,8 @@ const PATH_TOKEN = /[\w.*-]+(?:\/[\w.*-]+)*\/?/g;
 /** A dynamic import or require of a computed path, or a relative path built from a template: imports that cannot be read. */
 const UNREADABLE_IMPORT = /\b(?:import|require)\s*\(\s*(?!["'][^"'`]*["']\s*[,)])[^)\s]|`\.{1,2}\/[^`]*\$\{/;
 const SPECIFIER = /["'`](@?[\w.-]+(?:\/[\w.-]+)*)["'`]/g;
+/** An `import type` or `export type … from`: erased before any test runs, so it reaches nothing a test can fail on (typecheck runs in full). */
+const TYPE_ONLY = /\b(?:import|export)\s+type\s+(?:\{[^}]*\}|\*(?:\s+as\s+\w+)?|\w+)\s+from\s*(["'])[^"'\r\n]*\1/g;
 
 /**
  * Checks that a change inside any one package can fail, so every scoped run carries them as units
@@ -122,9 +124,10 @@ function reachingPaths(root, packages) {
       }
       const at = `${pkg.dir}/${file.split(path.sep).join("/")}`;
       const from = path.posix.dirname(at);
-      const targets = [...text.matchAll(RELATIVE_PATH)].map(([, relative]) => path.posix.normalize(path.posix.join(from, relative)));
+      const runs = text.replace(TYPE_ONLY, "");
+      const targets = [...runs.matchAll(RELATIVE_PATH)].map(([, relative]) => path.posix.normalize(path.posix.join(from, relative)));
       targets.push(...(DESKTOP_ONLY[at]?.targets ?? []));
-      sources.push({ at, targets, evidence: at.split("/").includes("evidence"), text });
+      sources.push({ at, targets, evidence: at.split("/").includes("evidence"), text, runs });
     }
   }
   const named = new Set();
@@ -169,7 +172,7 @@ function reachingPaths(root, packages) {
       if (imported) keep(imported);
     }
   }
-  return { reaching: [...kept].map(({ at, targets }) => ({ at, targets })), sources, kept };
+  return { reaching: [...kept].map(({ at, targets, text }) => ({ at, targets, text })), sources, kept };
 }
 
 /**
@@ -203,16 +206,19 @@ function reachedFiles(root, packages, sources, kept) {
     seen.add(key);
     into.files.add(source.at);
     const ownerDir = packages.find((p) => source.at.startsWith(`${p.dir}/`)).dir;
-    if (own === undefined && !bound?.readable && UNREADABLE_IMPORT.test(source.text)) into.dirs.add(ownerDir);
-    for (const target of source.targets) if (own === undefined || target.startsWith(`${own}/`)) reach(target, into, seen, own);
+    if (own === undefined && !bound?.readable && UNREADABLE_IMPORT.test(source.runs)) into.dirs.add(ownerDir);
+    for (const target of source.targets) if (own === undefined || target.startsWith(`${own}/`)) reach(target, into, seen, own, source.text);
     if (own !== undefined) return;
-    for (const [, specifier] of source.text.matchAll(SPECIFIER)) {
+    for (const [, specifier] of source.runs.matchAll(SPECIFIER)) {
       const named = names.find(([name]) => specifier === name || specifier.startsWith(`${name}/`));
       if (named) into.dirs.add(named[1]);
     }
   };
-  /** What a path depends on: a source and what it imports, a file, everything under a folder, or else its whole package. */
-  const reach = (target, into, seen, own) => {
+  /**
+   * What a path depends on: a source and what it imports, a file, everything under a folder, or else its whole package.
+   * Under a folder, a script is not followed when the code naming the folder (`from`) shows it reads the folder's data: see readsOnly.
+   */
+  const reach = (target, into, seen, own, from) => {
     const built = Object.keys(DESKTOP_ONLY).find((at) => DESKTOP_ONLY[at].builtAt?.some((out) => target === out || target.startsWith(`${out}/`)));
     if (built) target = built;
     const { source, file, folder } = resolve(target);
@@ -220,7 +226,7 @@ function reachedFiles(root, packages, sources, kept) {
     else if (file) into.files.add(file);
     else if (folder) {
       into.folders.add(`${folder}/`);
-      for (const inside of kept) if (inside.at.startsWith(`${folder}/`)) walk(inside, into, seen, own);
+      for (const inside of kept) if (inside.at.startsWith(`${folder}/`) && !readsOnly(root, from, folder, inside.at)) walk(inside, into, seen, own);
     } else {
       const owner = packages.find((p) => target === p.dir || target.startsWith(`${p.dir}/`));
       if (owner) into.dirs.add(owner.dir);
@@ -229,25 +235,47 @@ function reachedFiles(root, packages, sources, kept) {
   return { reach };
 }
 
+const QUOTED = /["'`]([^"'`\r\n]+)["'`]/g;
+const dataFiles = new Map();
+
+/**
+ * Whether code naming a folder only reads its data, so a script under it is not what the code depends on: it names a file there
+ * that is no script (the capture kit's seeds name seed.json.gz and survey.json), and names neither this script's file nor its
+ * extension (a glob, a filter), and imports nothing by a computed path. Code that names no file under the folder may run
+ * anything there, so it still depends on every script under it.
+ */
+function readsOnly(root, text, folder, script) {
+  const name = path.posix.basename(script);
+  const extension = name.slice(name.lastIndexOf("."));
+  if (text.includes(name) || new RegExp(`["'\`*]\\${extension}["'\`]`).test(text) || UNREADABLE_IMPORT.test(text)) return false;
+  const at = path.join(root, folder);
+  if (!dataFiles.has(at)) {
+    const files = globSync("**/*", { cwd: at, withFileTypes: true, exclude: (entry) => entry.name === "node_modules" });
+    dataFiles.set(at, new Set(files.filter((entry) => entry.isFile() && !SOURCE.test(entry.name)).map((entry) => entry.name)));
+  }
+  return [...text.matchAll(QUOTED)].some(([, quoted]) => dataFiles.get(at).has(path.posix.basename(quoted)));
+}
+
 /**
  * The other packages' dirs that a relative path written in this package's code resolves into
  * (`reaches`), and what this package depends on through those paths (`through`): a path to another
  * package's file depends on that file and whatever it imports, by path or package name, and no more,
  * so a capture reaching desktop's capture kit is not a dependent of all desktop is built from
- * (increment_e6a2a86d876b). A path to a folder, a build output or anything not on disk depends on
- * the whole package it is in, since what it reads cannot be followed.
+ * (increment_e6a2a86d876b). A path to a folder depends on what under it something can run (unless the code naming it only
+ * reads its data, readsOnly); a build output or anything not on disk depends on the whole package it is in, since what it
+ * reads cannot be followed. A type-only import is erased before a test runs, so no path or name in it is followed.
  */
 function reachesOf(pkg, packages, reaching, { reach }) {
   const reaches = new Set();
   const through = { files: new Set(), folders: new Set(), dirs: new Set() };
   const seen = new Set();
-  for (const { at, targets } of reaching) {
+  for (const { at, targets, text } of reaching) {
     if (!at.startsWith(`${pkg.dir}/`)) continue;
     for (const target of targets) {
       const owner = packages.find((p) => p !== pkg && (target === p.dir || target.startsWith(`${p.dir}/`)));
       if (!owner) continue;
       reaches.add(owner.dir);
-      reach(target, through, seen);
+      reach(target, through, seen, undefined, text);
     }
   }
   through.dirs.delete(pkg.dir);

@@ -16,6 +16,7 @@
  *   branch is moved to it, and the next merge usually cancels the push run of that commit. So the queue's finished run
  *   of a commit the default branch's push runs name, by the push run's own workflow, is read in that push run's place,
  *   the push run first when it ran to its end; another workflow's queue run, which may upload no test results, never is. A queue run of a commit the branch never reached is not: its merge failed or was taken out.
+ *   A push run that ran no tests and names no scope (one that skips its tests and stands on the queue's run) is passed over.
  * - Each run's tests are scoped to the packages its merge can reach, as the `scope:` line its log opens with says, so a
  *   contract whose package the newest run left out is judged from the newest run that scoped it in, back through the
  *   runs looked at; a run that scoped every package in, or whose log names no scope, ends the looking.
@@ -160,6 +161,9 @@ export async function readProjectCi({ library, git, github }: { library: Library
     const results = jobs.flatMap(({ results }) => results);
     // The folders the run scoped in, from every job whose log names them; undefined when it ran everything or named none.
     const named = jobs.flatMap(({ scope }) => (scope === undefined ? [] : [scope]));
+    // A run that ran no tests and names no scope (a push run that skips its tests and stands on the queue's run of its
+    // commit) says nothing of any contract: the queue's run behind it is read, rather than this one ending the looking.
+    if (results.length === 0 && named.length === 0) continue;
     const scoped = named.length === 0 || named.includes("everything") ? undefined : new Set(named.flat());
     const files = await filesOf(git, run.head_sha);
     if (files === undefined) {

@@ -36,6 +36,8 @@ async function mounted(browser: Browser): Promise<Page> {
         const picker = document.querySelector("[data-corner-picker]");
         const shown = (composer === null || composer.hidden) && (picker === null || picker.hidden) ? "corner not on show" : "corner on show";
         calls.push(box === undefined ? { capture: shown } : { crop: box, shown });
+        // A test holding the crop sets holdCrop, then lets it go with releaseCrop().
+        if (box !== undefined && window.holdCrop) return new Promise((resolve) => { window.releaseCrop = () => resolve("crop-1"); });
         return box === undefined ? "picture-1" : "crop-1";
       },
       sendFeedback: (note, screenshot, crop) => new Promise((resolve, reject) => { calls.push({ note, screenshot, crop }); sends.push({ resolve, reject }); }),
@@ -208,4 +210,19 @@ test("1.4 · while picking, the element under the pointer is outlined with its t
   await page.click("[data-corner-repick]");
   await pickAt(page, "main");
   assert.equal(await page.locator("[data-corner-anchor]").textContent(), "main", "the new pick replaces the old");
+
+  // While the element's picture is being taken, a second press of the button or Ctrl+Shift+F starts nothing.
+  await page.keyboard.press("Escape");
+  await page.evaluate("window.holdCrop = true");
+  await page.click("[data-corner-button]");
+  const held = (await page.locator("#press").boundingBox())!;
+  await page.mouse.click(held.x + 4, held.y + 4);
+  await page.waitForFunction("typeof window.releaseCrop === 'function'");
+  await page.click("[data-corner-button]");
+  await page.keyboard.press("Control+Shift+F");
+  assert.deepEqual([await pickerOnShow(page), await composerOnShow(page)], [false, false], "no second pick starts");
+  await page.evaluate("window.releaseCrop()");
+  await page.waitForFunction("!document.querySelector('[data-corner-composer]').hidden");
+  assert.equal(await pickerOnShow(page), false);
+  assert.equal(await page.locator("[data-corner-anchor]").textContent(), "button “Press”", "the pick in flight is the note's");
 });

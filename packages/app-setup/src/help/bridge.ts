@@ -33,6 +33,20 @@ export interface AgentConnection {
   step?: string;
 }
 
+/** An agent this computer runs, as the guide offers to connect it (ADR-1162 D3): connected already, or not yet. */
+export interface AgentOnOffer {
+  harness: string;
+  agent: string;
+  connected: boolean;
+}
+
+/** One agent connected from the guide: whether its tools are now registered, and what to do next. */
+export interface AgentConnected {
+  agent: string;
+  connected: boolean;
+  next: string;
+}
+
 /** A project's sentence as Settings → Projects shows it: what the project is, and who it is for. */
 export interface ProjectSentence {
   what?: string;
@@ -62,6 +76,10 @@ export interface SetupHelpBridge {
   readSetupLicense(): Promise<string>;
   /** Each connected agent that still needs a step from the user, or has taken it; read now. */
   agentConnections(): Promise<AgentConnection[]>;
+  /** The agents this computer runs, each connected to this installation or not, read now. */
+  agentsToConnect(): Promise<AgentOnOffer[]>;
+  /** Connect one of them, chosen in the guide; nothing is connected without that choice (ADR-0626 D5). */
+  connectAgent(harness: unknown): Promise<AgentConnected>;
   checkSetupFolder(): Promise<readonly SetupLine[] | null>;
   /** This computer's factory folder, read now. */
   factoryFolder(): Promise<FactoryFolder>;
@@ -87,6 +105,8 @@ export interface SetupHelpBridge {
 export const SETUP_HELP_CHANNELS = {
   readSetupLicense: "storytree:read-setup-license",
   agentConnections: "storytree:agent-connections",
+  agentsToConnect: "storytree:agents-to-connect",
+  connectAgent: "storytree:connect-agent",
   checkSetupFolder: "storytree:check-setup-folder",
   factoryFolder: "storytree:factory-folder",
   chooseFactory: "storytree:choose-factory",

@@ -7,7 +7,6 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { installCommand } from "./command.js";
 import { runInstalledConnection } from "../connect/installed.js";
-import { addProject, projectFolder } from "../project/index.js";
 import { verifyPayload, type Architecture } from "./payload.js";
 import { openUninstaller, uninstall, uninstallAsks } from "./uninstall.js";
 
@@ -89,15 +88,6 @@ export function runtimeProblem(arch: Architecture, runtime = { platform: process
 export async function runDeliveryCommand(args = process.argv.slice(2)): Promise<void> {
   if (args[0] === "connect" || args[0] === "disconnect") {
     process.stdout.write(await runInstalledConnection(args[0], args.slice(1)) + "\n");
-    return;
-  }
-  // The installer's project folder step (ADR-0752 D1): what the folder is, then setting it up on the user's choice.
-  if (args[0] === "project" && args.length === 2) {
-    process.stdout.write(JSON.stringify(await projectFolder(args[1]!)) + "\n");
-    return;
-  }
-  if (args[0] === "add-project" && args.length === 3) {
-    process.stdout.write(JSON.stringify(await addProject(args[1]!, args[2]!)) + "\n");
     return;
   }
   // Leaving storytree: the NSIS uninstaller asks, then removes, from this installation's own Node.

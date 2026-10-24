@@ -274,6 +274,8 @@ async function run(): Promise<void> {
   const help = setupHelpActions({
     licenseFile: path.join(app.isPackaged ? process.resourcesPath : __dirname, "LICENSE"),
     storytreeHome: home.dir,
+    // The guide connects agents to the tools the app carries, when the installer recorded none (ADR-1162 D3).
+    agentTools: path.join(app.isPackaged ? process.resourcesPath : __dirname, "agent-tools"),
     chooseFolder: async () => {
       const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
       return result.canceled ? undefined : result.filePaths[0];

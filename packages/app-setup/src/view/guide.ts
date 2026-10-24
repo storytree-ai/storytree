@@ -1,8 +1,16 @@
-/** Capability 3 · First-run guide. One offline guide; the README and installation point here. Projects are added from Projects, not here. */
+/** Capability 3 · First-run guide. One offline guide; the README and installation point here. */
 export const guide = `
+  <h3>Set up storytree on this computer</h3>
+  <p>Both steps are optional, and you can come back to them here from Help.</p>
+  <h4>Connect your coding agents</h4>
+  <div class="setup-help-connect" data-connect role="status"><p>Looking for the coding agents on this computer…</p></div>
+  <h4>Add a project</h4>
+  <p>Choose the folder of something you want to build. Storytree sets it up as a project and shows it.</p>
+  <div class="setup-help-actions"><button type="button" data-guide-add-project>Add a project…</button></div>
+  <p data-guide-add-status role="status"></p>
   <h3>Start your first project</h3>
   <ol>
-    <li><strong>Open your chosen agent in your project folder.</strong> The installer set up the folder you chose as your first project. Start a new Claude Code or Codex session there. Storytree does not run the agent for you.</li>
+    <li><strong>Open your chosen agent in your project folder.</strong> Start a new session of the agent you connected, in the folder you added. Storytree does not run the agent for you.</li>
     <li><strong>Let the connection check finish.</strong> Review any approval prompt from your agent for storytree tools, a small check-file edit or a command. Approve the check if you want to continue. Ask the agent to run <code>check_setup</code> again until it reports hooks verified: session start, tool call, file edit and command have reached storytree. Registered hooks alone are not verification. <strong>Using Codex?</strong> Codex runs storytree's hooks only once you trust them: the first time it starts it asks you to review them (“Hooks need review”), or type <code>/hooks</code> in Codex. Until then storytree cannot see Codex's work.</li>
     <li><strong>Give the agent a small piece of work.</strong> Your project is on show in the app. Its forest can start empty; a story and its capabilities appear as the agent plans them, with activity and health as work proceeds.</li>
   </ol>

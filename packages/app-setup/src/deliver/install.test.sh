@@ -177,31 +177,30 @@ refused "failed at install: the app could not be moved into place" "a failed ins
 case "$ST_ERROR" in *"run the same command again"*) ;; *) check "$ST_ERROR" "a retry action" "a failure says how to retry" ;; esac
 check "$steps" " probe release download persist" "nothing after the failed step runs"
 
-# Connection: 1, 2, 3 or S, read from the terminal, since the script itself arrives on standard input.
-answers=
-st_ask() { ST_ANSWER=${answers%%|*}; answers=${answers#*|}; }
-st_op_connect() { connected="$*"; }
-for pair in "1|--claude" "2|--codex" "3|--claude --codex"; do
-  answers="${pair%%|*}|"; connected=; st_connection >/dev/null; check "$connected" "${pair#*|}" "choice ${pair%%|*}"
-done
-answers="S|"; connected=none; st_connection >/dev/null; check "$connected" none "S skips"
-answers="x|"; refused "Choose 1, 2, 3 or S" "an unknown choice" st_connection
-ST_NO_TTY=1; connected=none; check "$(st_connection | tail -n 1)" "No terminal to answer from, so no agent was connected. Later run storytree setup connect --claude or --codex (or both)." "no terminal skips with a way back"
-ST_NO_TTY=
+# Once installed it asks nothing (1.15, ADR-1162): its first words after the install say how to open the app.
+ST_REPORT='{"command":{"status":"installed"},"tools":{"node":"/n","cli":"/c"}}'
+said=$(st_opened "$root/Applications/it's storytree.app" < /dev/null)
+check "$said" "storytree is installed, and its app is open. To open it again, use Applications, or run: open '$root/Applications/it'\\''s storytree.app'
+In the app, connect your coding agents and, when you want one, add a project.
+The storytree command is available in a new terminal window." "a Mac's last lines open the app first and ask nothing"
+ST_SYSTEM=linux; ST_USERNS="$root/userns"; echo 1 > "$ST_USERNS"
+check "$(st_opened "$root/share/storytree-0.3" | head -n 1)" "storytree is installed, and its app is open. To open it again, use your app menu, or run: '$root/share/storytree-0.3/storytree-0.3' --no-sandbox" "Linux opens the AppImage, without the sandbox where the kernel blocks it"
+echo 0 > "$ST_USERNS"
+check "$(st_opened "$root/share/storytree-0.3" | head -n 1)" "storytree is installed, and its app is open. To open it again, use your app menu, or run: '$root/share/storytree-0.3/storytree-0.3'" "and with it where the kernel allows it"
+ST_SYSTEM=darwin; ST_USERNS=
+ST_REPORT='{"command":{"status":"conflict","conflict":"/usr/local/bin/storytree"},"tools":{"node":"/n","cli":"/c"}}'
+check "$(st_opened /a.app | tail -n 2)" "An existing storytree command was preserved: /usr/local/bin/storytree
+Run this installation explicitly: '/n' '/c'" "a conflicting command is named after the app"
 
-# Project folder: Enter takes the folder it ran from, a typed path is resolved against it, a refused name is asked again.
-st_op_inspect() { printf '{"suggestion":"my-app"}'; }
-st_op_setup() {
-  printf ' %s=%s' "$1" "$2" >> "$root/setup"
-  if [ "$2" = Bad ]; then printf '{"status":"name refused","message":"Use lower-case letters.","suggestion":"bad"}'; else printf '{"status":"created","project":"%s"}' "$2"; fi
-}
-rm -f "$root/setup"; answers="||"; st_project_folder "$root/work" "$root" >/dev/null; check "$(cat "$root/setup" 2>/dev/null)" " $root/work=my-app" "Enter takes the folder and its suggested name"
-rm -f "$root/setup"; answers="sub|Bad||"; st_project_folder "$root/work" "$root" >/dev/null; check "$(cat "$root/setup" 2>/dev/null)" " $root/work/sub=Bad $root/work/sub=bad" "a typed path and a re-asked name"
-rm -f "$root/setup"; answers="|"; st_project_folder "$root" "$root" >/dev/null; check "$(cat "$root/setup" 2>/dev/null)" "" "from the home folder Enter skips"
-rm -f "$root/setup"; answers="|"; st_project_folder / "$root" >/dev/null; check "$(cat "$root/setup" 2>/dev/null)" "" "from the root folder Enter skips"
-rm -f "$root/setup"; answers="s|"; st_project_folder "$root/work" "$root" >/dev/null; check "$(cat "$root/setup" 2>/dev/null)" "" "S skips"
-st_op_inspect() { printf '{"project":"already"}'; }
-rm -f "$root/setup"; answers="|"; check "$(st_project_folder "$root/work" "$root")" "Choose your project folder: press Enter for $root/work, type another folder (created if missing), or S to skip.
-$root/work is already storytree project 'already'. Nothing new was set up." "a folder already in a project is said"
+# The whole run, its install stubbed: what it says after installing is st_opened's, and nothing it reads.
+st_delivery() { ST_REPORT='{"command":{"status":"installed"},"tools":{"node":"/n","cli":"/c"}}'; }
+st_op_fuse() { :; }
+said=$( (HOME="$root/user"; STORYTREE_HOME="$root/user/home"; st_main) < /dev/null 2>&1)
+case "$said" in
+  "storytree is installed, and its app is open. To open it again, use "*"
+In the app, connect your coding agents and, when you want one, add a project.
+The storytree command is available in a new terminal window.") ;;
+  *) check "$said" "st_opened's three lines" "the run ends saying how to open the app, asking nothing" ;;
+esac
 
 if [ "$fails" -eq 0 ]; then echo "install.sh PASS"; else exit 1; fi

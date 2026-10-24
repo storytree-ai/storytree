@@ -320,3 +320,21 @@ test("2.19 · a machine's health limits read as 6 GB of memory available, a load
     assert.throws(() => read(), /health-disk/);
   });
 });
+
+test("2.24 · a checked-in worktree setup's approval is kept in settings.json per repository, as its commands' fingerprint and when it was given, a later approval replacing the earlier one, and a damaged record is refused naming the file", async () => {
+  await withTempDir((home) => {
+    assert.equal(agentLink.readSetupApproval("/work/site", home), undefined, "none is given until the user gives one");
+    agentLink.setSetupApproval("/work/site", "0123456789abcdef", home, new Date("2026-10-25T09:00:00.000Z"));
+    agentLink.setSetupApproval("/work/other", "fedcba9876543210", home, new Date("2026-10-25T09:30:00.000Z"));
+    agentLink.setSetupApproval("/work/site", "1111222233334444", home, new Date("2026-10-25T10:00:00.000Z"));
+    assert.deepEqual(agentLink.readSetupApproval("/work/site", home), { fingerprint: "1111222233334444", at: "2026-10-25T10:00:00.000Z" });
+    assert.deepEqual(agentLink.readSetupApproval("/work/other", home), { fingerprint: "fedcba9876543210", at: "2026-10-25T09:30:00.000Z" });
+    assert.equal(agentLink.readSettings(home)["context-guidance"].source, "default", "the other settings read as before");
+
+    const file = path.join(home, "settings.json");
+    writeFileSync(file, JSON.stringify({ "setup-approvals": { "/work/site": { fingerprint: 7 } } }));
+    assert.throws(() => agentLink.readSetupApproval("/work/site", home), (error: unknown) => error instanceof Error && error.message.includes(file) && /setup-approvals/.test(error.message));
+    assert.throws(() => agentLink.setSetupApproval("/work/site", "1111222233334444", home), /setup-approvals/);
+    assert.equal(readFileSync(file, "utf8"), JSON.stringify({ "setup-approvals": { "/work/site": { fingerprint: 7 } } }), "a damaged file is never replaced");
+  });
+});

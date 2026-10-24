@@ -170,6 +170,7 @@ interface Stored {
   "stand-ins-switched"?: Readonly<Record<string, FactorySwitched>>;
   "system-off"?: readonly string[];
   "system-on"?: readonly string[];
+  "setup-approvals"?: Readonly<Record<string, SetupApproval>>;
 }
 
 /**
@@ -431,6 +432,25 @@ export function setPartOff(part: string, off: boolean, home: string = storytreeH
   return parts;
 }
 
+/** The user's approval of a project's checked-in worktree setup: its commands' fingerprint, and when it was given (capability 19, 19.6). */
+export interface SetupApproval {
+  readonly fingerprint: string;
+  readonly at: string;
+}
+
+/** The approval the user gave the checked-in worktree setup of the repository whose main checkout is `repository`, if any. */
+export function readSetupApproval(repository: string, home: string = storytreeHome()): SetupApproval | undefined {
+  return readStored(home)[SETUP_APPROVALS]?.[repository];
+}
+
+/** Record the user's approval of `repository`'s checked-in setup commands with `fingerprint`, replacing any earlier one. */
+export function setSetupApproval(repository: string, fingerprint: string, home: string = storytreeHome(), now: Date = new Date()): SetupApproval {
+  const stored = readStored(home);
+  const approval = { fingerprint, at: now.toISOString() };
+  write(home, { ...stored, [SETUP_APPROVALS]: { ...stored[SETUP_APPROVALS], [repository]: approval } });
+  return approval;
+}
+
 /** Persist a user's choice in the same home as project-choice.json, after checking its type. */
 export function setSetting(name: string, value: string, home: string = storytreeHome()): SettingReading {
   checkName(name);
@@ -644,6 +664,20 @@ function checkedStandIns(value: unknown): Readonly<Record<string, string>> {
   return value as Record<string, string>;
 }
 
+const SETUP_APPROVALS = "setup-approvals";
+
+function checkedSetupApprovals(value: unknown): Readonly<Record<string, SetupApproval>> {
+  const approval = (one: unknown) => {
+    const given = one as Record<string, unknown> | null;
+    return given !== null && typeof given === "object" && !Array.isArray(given) && typeof given.fingerprint === "string" && given.fingerprint !== ""
+      && typeof given.at === "string" && !Number.isNaN(Date.parse(given.at)) && Object.keys(given).length === 2;
+  };
+  if (value === null || typeof value !== "object" || Array.isArray(value) || !Object.values(value).every(approval)) {
+    refuse(`${SETUP_APPROVALS} must map each repository's main checkout to the fingerprint of the checked-in setup commands its user approved and when, such as {"/work/site": {"fingerprint": "0123456789abcdef", "at": "2026-10-25T09:00:00.000Z"}}.`);
+  }
+  return value as Readonly<Record<string, SetupApproval>>;
+}
+
 const SYSTEM_OFF = "system-off";
 const SYSTEM_ON = "system-on";
 
@@ -718,6 +752,10 @@ function readStored(home: string): Stored {
       }
       if (name === STAND_INS) {
         settings[STAND_INS] = checkedStandIns(value);
+        continue;
+      }
+      if (name === SETUP_APPROVALS) {
+        settings[SETUP_APPROVALS] = checkedSetupApprovals(value);
         continue;
       }
       if (name === SYSTEM_OFF || name === SYSTEM_ON) {

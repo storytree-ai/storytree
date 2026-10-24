@@ -3,7 +3,12 @@
  * project's own local file, `.storytree/worktree.local.json` in its main checkout, right after git
  * makes it (founding decision_4fa20493e9a7; behaviour borrowed from Orca's orca.yaml and
  * .worktreeinclude, rebuilt). The file is the user's, so it runs without asking, but only while git
- * does not track it: one that came with a clone waits for the user's approval (the next increment).
+ * does not track it. A team's checked-in `.storytree/worktree.json`, with the same keys, is read
+ * beside it, the local file winning key by key; a clone must not make storytree run a command the
+ * user never saw, so the checked-in file's commands run only once the user has approved that exact
+ * set (`storytree workspace approve-setup <fingerprint>`, kept in their settings), and are asked
+ * again when they change (Orca's trust gate, 19.6-19.8). Until then the rest of its setup runs, and
+ * its answer says how to approve, or, when an agent runs alone, that no one is here to.
  *
  *   { "copy": [".env"], "share": [".cache/models"], "setup": ["pnpm install"], "teardown": ["docker compose down"] }
  *
@@ -26,15 +31,20 @@
  * nothing here ever undoes the claim or the worktree.
  */
 import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+import { readSetupApproval, setSetupApproval } from "@storytree/project-and-caller";
+
 /** Where the local file sits, from the repository's root. */
 export const LOCAL_SETUP_FILE = ".storytree/worktree.local.json";
+/** Where a team's checked-in file sits, from the repository's root: its commands wait for the user's approval. */
+export const CHECKED_IN_SETUP_FILE = ".storytree/worktree.json";
 
 /** One step of a worktree's setup, and how it went. */
 export interface SetupStep {
-  readonly kind: "file" | "copy" | "share" | "run";
+  readonly kind: "file" | "copy" | "share" | "run" | "approve";
   /** The path or command the file named, or the local file itself. */
   readonly what: string;
   readonly ok: boolean;
@@ -42,7 +52,7 @@ export interface SetupStep {
   readonly why?: string;
 }
 
-/** What setting a worktree up did: the local file it read and each step it took. */
+/** What setting a worktree up did: the files it read and each step it took. */
 export interface WorktreeSetup {
   readonly file: string;
   readonly steps: readonly SetupStep[];
@@ -55,6 +65,10 @@ export interface SetupLimits {
   readonly copyEntries?: number;
   /** How long one setup command may run. By default, 20 minutes. */
   readonly commandMs?: number;
+  /** Whether a person attends the session, who could approve a checked-in setup. By default, unless the harness says no one does (CLAUDE_CODE_SESSION_ATTENDED=0). */
+  readonly attended?: boolean;
+  /** The storytree home whose settings hold the user's approvals. By default, this computer's. */
+  readonly home?: string;
 }
 
 const COPY_BYTES = 100 * 1024 * 1024;
@@ -67,21 +81,40 @@ const MARK = "storytree-setup.json";
 const STARTING_MS = 60_000;
 
 /**
- * Set the new worktree `worktree` up from the local file in the main checkout `repository`.
- * Undefined when the project has no local file: nothing is run, copied or shared. Never throws.
+ * Set the new worktree `worktree` up from the local file in the main checkout `repository`, and the
+ * checked-in one beside it. Undefined when the project has neither: nothing is run, copied or shared. Never throws.
  */
 export function setUpWorktree(repository: string, worktree: string, limits: SetupLimits = {}): WorktreeSetup | undefined {
-  const file = path.join(repository, ...LOCAL_SETUP_FILE.split("/"));
-  if (!existsSync(file)) return undefined;
-  const failed = (why: string): WorktreeSetup => ({ file: LOCAL_SETUP_FILE, steps: [{ kind: "file", what: LOCAL_SETUP_FILE, ok: false, why }] });
-  if (tracked(repository, LOCAL_SETUP_FILE)) return failed("git tracks it, so it is not this computer's own; a checked-in setup runs only once you approve it, so nothing was run");
-  let named: Record<(typeof KEYS)[number], string[]>;
-  try {
-    named = parse(readFileSync(file, "utf8"));
-  } catch (error) {
-    return failed(`it cannot be read as the setup file: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  const local = path.join(repository, ...LOCAL_SETUP_FILE.split("/"));
+  const checkedIn = path.join(repository, ...CHECKED_IN_SETUP_FILE.split("/"));
+  const files = [existsSync(local) ? LOCAL_SETUP_FILE : undefined, existsSync(checkedIn) ? CHECKED_IN_SETUP_FILE : undefined].filter((file) => file !== undefined);
+  if (files.length === 0) return undefined;
+  const failed = (file: string, why: string): WorktreeSetup => ({ file, steps: [{ kind: "file", what: file, ok: false, why }] });
+  if (files.includes(LOCAL_SETUP_FILE) && tracked(repository, LOCAL_SETUP_FILE)) return failed(LOCAL_SETUP_FILE, `git tracks it, so it is not this computer's own; name a team's setup in ${CHECKED_IN_SETUP_FILE} instead, whose commands run once you approve them, so nothing was run`);
+  const read = (file: string, where: string) => {
+    try {
+      return parse(readFileSync(where, "utf8"));
+    } catch (error) {
+      return `it cannot be read as the setup file: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  };
+  const mine = files.includes(LOCAL_SETUP_FILE) ? read(LOCAL_SETUP_FILE, local) : {};
+  if (typeof mine === "string") return failed(LOCAL_SETUP_FILE, mine);
+  const theirs = files.includes(CHECKED_IN_SETUP_FILE) ? read(CHECKED_IN_SETUP_FILE, checkedIn) : {};
+  if (typeof theirs === "string") return failed(CHECKED_IN_SETUP_FILE, theirs);
+  const file = files.join(" and ");
   const steps: SetupStep[] = [];
+  // The local file wins key by key; commands left to the checked-in file wait for the user's approval of that exact set.
+  const named = Object.fromEntries(KEYS.map((key) => [key, mine[key] ?? theirs[key] ?? []])) as Record<(typeof KEYS)[number], string[]>;
+  const gated = { setup: mine.setup === undefined ? theirs.setup ?? [] : [], teardown: mine.teardown === undefined ? theirs.teardown ?? [] : [] };
+  if (gated.setup.length + gated.teardown.length > 0) {
+    const asked = approvalNeeded(repository, gated, limits);
+    if (asked !== undefined) {
+      steps.push(asked);
+      if (mine.setup === undefined) named.setup = [];
+      if (mine.teardown === undefined) named.teardown = [];
+    }
+  }
   const budget = { bytes: limits.copyBytes ?? COPY_BYTES, entries: limits.copyEntries ?? COPY_ENTRIES };
   for (const what of named.copy) steps.push(attempt("copy", what, () => copyInto(repository, worktree, what, budget)));
   for (const what of named.share) steps.push(attempt("share", what, () => share(repository, worktree, what)));
@@ -94,7 +127,66 @@ export function setUpWorktree(repository: string, worktree: string, limits: Setu
       // Unmarked, it may be set up again on a later attach, and its teardown does not run.
     }
   }
-  return { file: LOCAL_SETUP_FILE, steps };
+  return { file, steps };
+}
+
+/** The fingerprint of a checked-in setup's commands: what the user approves, and what changes when they do. */
+export function setupFingerprint(commands: { readonly setup: readonly string[]; readonly teardown: readonly string[] }): string {
+  return createHash("sha256").update(JSON.stringify({ setup: commands.setup, teardown: commands.teardown })).digest("hex").slice(0, 16);
+}
+
+/** The step saying the checked-in commands wait for the user's approval, or undefined when they have approved exactly these. */
+function approvalNeeded(repository: string, gated: { setup: readonly string[]; teardown: readonly string[] }, limits: SetupLimits): SetupStep | undefined {
+  const fingerprint = setupFingerprint(gated);
+  const what = `the commands of ${CHECKED_IN_SETUP_FILE}`;
+  let approved: string | undefined;
+  try {
+    approved = readSetupApproval(realpathSync(repository), limits.home)?.fingerprint;
+  } catch (error) {
+    return { kind: "approve", what, ok: false, why: `your settings cannot be read, so whether you approved them is unknown: ${error instanceof Error ? error.message : String(error)}` };
+  }
+  if (approved === fingerprint) return undefined;
+  const commands = [...gated.setup.map((one) => `setup: ${one}`), ...gated.teardown.map((one) => `teardown: ${one}`)].join("; ");
+  const approve = `storytree workspace approve-setup ${fingerprint}`;
+  const changed = approved === undefined ? "" : "they changed since you approved them, so ";
+  const attended = limits.attended ?? process.env.CLAUDE_CODE_SESSION_ATTENDED !== "0";
+  return {
+    kind: "approve", what, ok: false,
+    why: attended
+      ? `${changed}setup needs approval: run \`${approve}\` at your own terminal to approve them (${commands}); workspaces made after that run them`
+      : `${changed}they need the user's approval and no one is here to approve them, so they were not run (${commands}); the user may run \`${approve}\` at their own terminal`,
+  };
+}
+
+/**
+ * Record the user's approval of the checked-in setup commands of the repository `folder` is in, when
+ * `fingerprint` is theirs now; otherwise the reason it is refused, and nothing is recorded.
+ */
+export function approveCheckedInSetup(folder: string, fingerprint: string, home?: string): { ok: true; commands: readonly string[] } | { ok: false; reason: string } {
+  let repository: string;
+  try {
+    const common = path.resolve(folder, execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: folder, encoding: "utf8", windowsHide: true }).trim());
+    repository = realpathSync(path.basename(common) === ".git" ? path.dirname(common) : common);
+  } catch {
+    return { ok: false, reason: `${folder} is not in a git repository.` };
+  }
+  const read = (file: string) => {
+    const where = path.join(repository, ...file.split("/"));
+    return existsSync(where) ? parse(readFileSync(where, "utf8")) : {};
+  };
+  let gated: { setup: string[]; teardown: string[] };
+  try {
+    const mine = tracked(repository, LOCAL_SETUP_FILE) ? {} : read(LOCAL_SETUP_FILE);
+    const theirs = read(CHECKED_IN_SETUP_FILE);
+    gated = { setup: mine.setup === undefined ? theirs.setup ?? [] : [], teardown: mine.teardown === undefined ? theirs.teardown ?? [] : [] };
+  } catch (error) {
+    return { ok: false, reason: `The setup files cannot be read: ${error instanceof Error ? error.message : String(error)}` };
+  }
+  const commands = [...gated.setup, ...gated.teardown];
+  if (commands.length === 0) return { ok: false, reason: `${CHECKED_IN_SETUP_FILE} names no commands that wait for your approval, so there is nothing to approve.` };
+  if (setupFingerprint(gated) !== fingerprint) return { ok: false, reason: `${fingerprint} is not the fingerprint of ${CHECKED_IN_SETUP_FILE}'s commands as they are now: they may have changed since you were asked. Make a workspace again to see them and their fingerprint.` };
+  setSetupApproval(repository, fingerprint, home);
+  return { ok: true, commands };
 }
 
 /** Whether storytree has already set `worktree` up. */
@@ -190,9 +282,11 @@ function isAlive(pid: number): boolean {
 
 /** What a setup did, a line for each step, for an agent to read. */
 export function setupText(setup: WorktreeSetup): string {
-  const verb = { file: "read", copy: "copied", share: "shared", run: "ran" } as const;
-  const lines = setup.steps.map((step) => step.ok ? `  ${verb[step.kind]} ${step.what}` : `  FAILED ${step.kind === "file" ? "to read" : step.kind} ${step.what}: ${step.why}`);
-  const failures = setup.steps.filter((step) => !step.ok).length;
+  const verb = { file: "read", copy: "copied", share: "shared", run: "ran", approve: "approved" } as const;
+  const lines = setup.steps.map((step) => step.ok ? `  ${verb[step.kind]} ${step.what}`
+    : step.kind === "approve" ? `  SKIPPED ${step.what}: ${step.why}`
+    : `  FAILED ${step.kind === "file" ? "to read" : step.kind} ${step.what}: ${step.why}`);
+  const failures = setup.steps.filter((step) => !step.ok && step.kind !== "approve").length;
   const head = failures === 0 ? `Set up from ${setup.file}:` : `Set up from ${setup.file}, with ${failures} step${failures === 1 ? "" : "s"} failed (the claim and the worktree are kept; finish those by hand):`;
   return [head, ...lines].join("\n");
 }
@@ -206,17 +300,20 @@ function attempt(kind: SetupStep["kind"], what: string, step: () => void): Setup
   }
 }
 
-function parse(text: string): Record<(typeof KEYS)[number], string[]> {
+/** The keys a setup file names, each a list of non-empty strings; a key it leaves out is left out here too. */
+function parse(text: string): Partial<Record<(typeof KEYS)[number], string[]>> {
   const value: unknown = JSON.parse(text);
   if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error("it must be a JSON object");
   const unknown = Object.keys(value).filter((key) => !(KEYS as readonly string[]).includes(key));
   if (unknown.length > 0) throw new Error(`it names ${unknown.join(", ")}, which is not one of ${KEYS.join(", ")}`);
-  const list = (key: (typeof KEYS)[number]): string[] => {
-    const entries = (value as Record<string, unknown>)[key] ?? [];
+  const named: Partial<Record<(typeof KEYS)[number], string[]>> = {};
+  for (const key of KEYS) {
+    const entries = (value as Record<string, unknown>)[key];
+    if (entries === undefined) continue;
     if (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string" || entry.trim() === "")) throw new Error(`${key} must be a list of non-empty strings`);
-    return entries as string[];
-  };
-  return { copy: list("copy"), share: list("share"), setup: list("setup"), teardown: list("teardown") };
+    named[key] = entries as string[];
+  }
+  return named;
 }
 
 /** The relative path `what` names, refused when it is absolute or climbs out with `..`. */

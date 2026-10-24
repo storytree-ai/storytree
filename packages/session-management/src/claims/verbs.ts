@@ -199,6 +199,27 @@ const allow = verb({
   },
 });
 
+const approveSetup = verb({
+  consumers: ["user"],
+  command: {
+    family: "workspace",
+    name: "approve-setup",
+    summary: "approve, at your own terminal, the commands a project's checked-in .storytree/worktree.json runs in each new worktree, by the fingerprint a workspace's answer named",
+    usage: "workspace approve-setup <fingerprint>",
+  },
+  tool: { absent: "the approval is the user's own, given at their own terminal, never by an agent" },
+  inputs: { fingerprint: { kind: "text", word: 0, describe: "the fingerprint of the commands, as the workspace's answer named it" } },
+  async act({ fingerprint }, context: SessionVerbContext, words) {
+    // A checked-in command runs only once the user has seen and approved it: never on an agent's say (19.7).
+    if (!context.session.startsWith("person:")) throw new VerbRefusal(`An agent cannot approve the project's setup commands: ask the user, and if they agree, they run \`${words.say({ command: "workspace approve-setup <fingerprint>" })}\` at their own terminal.`);
+    if (process.stdin.isTTY !== true) throw new VerbRefusal("This needs you at your own terminal: run it there, not through a pipe or a script.");
+    const { approveCheckedInSetup } = await import("./worktree-setup.js");
+    const approved = approveCheckedInSetup(context.folder, fingerprint);
+    if (!approved.ok) throw new VerbRefusal(approved.reason);
+    return { text: `Approved: each workspace made from now on runs these commands from the project's checked-in setup:\n${approved.commands.map((one) => `  ${one}`).join("\n")}\nIf they change, you are asked again.` };
+  },
+});
+
 const pr = { kind: "text", word: 0, describe: "the pull request's number" } as const;
 
 /** A pull request's number, as typed. */
@@ -297,9 +318,9 @@ const rerunCi = verb({
 /** The command line's `workspace` family, which the package's manifest names under `verbs` (ADR-1033): its bare name makes a workspace. */
 export const WORKSPACE_FAMILIES: readonly VerbFamily<SessionVerbContext>[] = [{
   name: "workspace",
-  summary: "prepare or attach a workspace, claim or release work for this agent session, list stale claims, or allow an increment's changes to imported code",
+  summary: "prepare or attach a workspace, claim or release work for this agent session, list stale claims, allow an increment's changes to imported code, or approve a project's checked-in worktree setup",
   order: 23,
-  verbs: [attach, claimOnly, releaseClaim, stale, allow, holdForPr, letGoOfPr, redPr, rerunCi],
+  verbs: [attach, claimOnly, releaseClaim, stale, allow, approveSetup, holdForPr, letGoOfPr, redPr, rerunCi],
   bare: make,
 }];
 

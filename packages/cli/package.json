@@ -42,6 +42,7 @@
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
     "electron-builder": "26.15.3",
-    "@storytree/plugin-loader": "workspace:*"
+    "@storytree/plugin-loader": "workspace:*",
+    "@storytree/test-waits": "workspace:*"
   }
 }

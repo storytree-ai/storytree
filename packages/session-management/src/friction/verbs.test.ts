@@ -5,10 +5,11 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import type { Library } from "@storytree/library";
 import { consumersOf, mounted, VerbRefusal, type DoorWords, type VerbContext } from "@storytree/library/verbs";
@@ -47,7 +48,7 @@ test("17.17 · Session management declares the `friction` and `resteer` families
       execFileSync("git", ["-C", folder, "checkout", "-q", "-b", "main"]);
       assert.match((await verbOf("drain").act({}, context, WORDS)).text, new RegExp(`^1 friction report due for routing:\\n  ${note!.id}  \\(0 recurrences\\)  Slow mail$`));
     } finally {
-      rmSync(folder, { recursive: true, force: true });
+      await removeTemp(folder);
     }
   });
 });
@@ -61,7 +62,7 @@ async function onBranch(library: Library, branch: string, body: (context: VerbCo
     execFileSync("git", ["-C", folder, "init", "-q", "-b", branch]);
     await body({ library, project: "p", session: "s", folder, writer: { actor: "session:s" } });
   } finally {
-    rmSync(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 }
 
@@ -94,7 +95,8 @@ test("17.16 · `friction drain` lists the unrouted reports other branches filed 
     const later: { id: string }[] = [];
     // Creation time is to the millisecond and ties fall to the random id, so each report is written in a later millisecond.
     for (const title of ["Third", "Fourth"]) {
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      const from = Date.now();
+      await waitUntil(() => Date.now() > from, 1_000, "the next millisecond");
       later.push(await library.writeKnowledge("friction", { ...fields, title, provenance: provenance("another/branch") }));
     }
 

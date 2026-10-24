@@ -8,8 +8,9 @@
  * - Arid lines get none (7.1): a logging or output call, the setting of an upper-case constant, and every line on the arid
  *   list, which a rejected survivor's line joins (7.4).
  * - The tests that reach a file are the test files whose imports lead to it in its own package, or, when none there does, in
- *   the packages downstream of it, nearest first and at most {@link TEST_CAP}. Tests that fail with nothing broken are left out, and a break with none left is
- *   not run and says why; a file no test reaches at all survives untried (7.2). A break its own package's tests miss is run
+ *   the packages downstream of it, nearest first and at most {@link TEST_CAP}. A break is caught when a test that passed with nothing broken
+ *   no longer passes with it planted, so a test that fails unbroken is left out and its file's other tests still count (7.6); a break with
+ *   no test left that passes unbroken is not run and says why; a file no test reaches at all survives untried (7.2). A break its own package's tests miss is run
  *   against the tests downstream that reach its file before it survives, and one the report's time runs out on there is not
  *   run, never a survivor (7.5).
  * - The report runs with the brief read from a change's worktree and is kept with that review; taking the review's return
@@ -22,6 +23,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parse } from "@babel/parser";
 import { dependenciesOf, specifiersOf, type SourceFile, type SurveyPackage } from "@storytree/map";
@@ -322,8 +324,22 @@ function codeUnder(root: string, folder: string): string[] {
   return found;
 }
 
-/** Run test files from `root` with node's test runner under tsx, with `env`: whether all passed, how long it took, and whether `limitMs` cut it short. */
-export type TestRun = (root: string, tests: readonly string[], limitMs: number, env?: NodeJS.ProcessEnv) => Promise<{ passed: boolean; ms: number; timedOut?: boolean }>;
+/**
+ * Run test files from `root` with node's test runner under tsx, with `env`: whether all passed, how long it took, whether `limitMs`
+ * cut it short, and, when the run can tell, each test that passed, named by {@link testName}.
+ */
+export type TestRun = (root: string, tests: readonly string[], limitMs: number, env?: NodeJS.ProcessEnv) => Promise<{ passed: boolean; ms: number; timedOut?: boolean; passing?: string[] }>;
+
+/** A test's name across runs: its file from the checkout's root, where in the file it is declared, and its title. */
+export function testName(file: string, line: number | undefined, column: number | undefined, title: string): string {
+  return `${file.split(path.sep).join("/")}:${line ?? 0}:${column ?? 0} ${title}`;
+}
+
+/** A node test reporter writing each test that passes as one JSON line: its file, line, column and title. */
+const PASS_REPORTER = `export default async function* (source) {
+  for await (const { type, data } of source) if (type === "test:pass") yield JSON.stringify([data.file ?? "", data.line, data.column, data.name]) + "\\n";
+}
+`;
 
 /** The real test run: one node process for the files, in a temp folder of its own, killed with its children at `limitMs`. */
 export const runTests: TestRun = (root, tests, limitMs, given = process.env) => new Promise((resolve) => {
@@ -332,7 +348,10 @@ export const runTests: TestRun = (root, tests, limitMs, given = process.env) => 
   const started = Date.now();
   // A report run from inside a test run must not hand its tests' results to that run's parent instead of exiting with them.
   const { NODE_TEST_CONTEXT: _parent, ...env } = given;
-  const child = spawn(process.execPath, ["--import", tsx, "--test", "--test-reporter=dot", ...tests], {
+  const reporter = path.join(temp, "st-mutation-reporter.mjs");
+  const results = path.join(temp, "st-mutation-passing.jsonl");
+  writeFileSync(reporter, PASS_REPORTER);
+  const child = spawn(process.execPath, ["--import", tsx, "--test", `--test-reporter=${pathToFileURL(reporter).href}`, `--test-reporter-destination=${results}`, ...tests], {
     cwd: root, env: { ...env, TMPDIR: temp, TMP: temp, TEMP: temp }, stdio: "ignore", detached: process.platform !== "win32", windowsHide: true,
   });
   const kill = (): void => {
@@ -351,8 +370,12 @@ export const runTests: TestRun = (root, tests, limitMs, given = process.env) => 
   child.once("close", (code) => {
     clearTimeout(deadline);
     kill();
+    const passing = existsSync(results) ? readFileSync(results, "utf8").split("\n").filter(Boolean).map((one) => {
+      const [file, line, column, title] = JSON.parse(one) as [string, number | undefined, number | undefined, string];
+      return testName(file === "" ? "" : path.relative(root, file.startsWith("file:") ? fileURLToPath(file) : file), line, column, title);
+    }) : [];
     rmSync(temp, { recursive: true, force: true });
-    resolve({ passed: code === 0 && !timedOut, ms: Date.now() - started, ...(timedOut ? { timedOut } : {}) });
+    resolve({ passed: code === 0 && !timedOut, ms: Date.now() - started, ...(timedOut ? { timedOut } : {}), passing });
   });
 });
 
@@ -380,8 +403,14 @@ export async function mutationReport(root: string, diff: string, arid: readonly 
   const budget = options.budgetMs ?? REPORT_BUDGET_MS;
   const left = (): number => budget - (now() - started);
   const OUT_OF_TIME = "the report's time ran out first";
-  // How each test file ran with nothing broken, kept across the changed files that share it.
-  const unbroken = new Map<string, { passed: boolean; ms: number }>();
+  // How each test file ran with nothing broken, and which of its tests passed when the run can tell, kept across the changed files that share it.
+  const unbroken = new Map<string, { passed: boolean; ms: number; passing: string[] | undefined }>();
+  const passingIn = (test: string, passing: readonly string[] | undefined): string[] | undefined => passing?.filter((name) => name.startsWith(`${test}:`));
+  // A test file counts when it passed unbroken, or when some of its tests did: only those are looked at with a break planted (7.6).
+  const counts = (test: string): boolean => {
+    const known = unbroken.get(test)!;
+    return known.passed || (known.passing?.length ?? 0) > 0;
+  };
   const postgres = new TestPostgres(options.run === undefined);
   try {
     for (const [file, planted] of byFile) {
@@ -392,20 +421,20 @@ export async function mutationReport(root: string, diff: string, arid: readonly 
         continue;
       }
       const env = await postgres.env();
-      // Tests that fail with nothing broken cannot tell a break apart: they are left out (7.2).
+      // Tests that fail with nothing broken cannot tell a break apart: they are left out (7.2, 7.6).
       const passingOf = async (some: readonly string[]): Promise<string[] | undefined> => {
         const unknown = some.filter((test) => !unbroken.has(test));
         if (unknown.length > 0 && left() > 0) {
           const whole = await run(root, unknown, left(), env);
           // One the report's own time cut short is not known to fail.
-          if (whole.passed) for (const test of unknown) unbroken.set(test, { passed: true, ms: whole.ms / unknown.length });
+          if (whole.passed) for (const test of unknown) unbroken.set(test, { passed: true, ms: whole.ms / unknown.length, passing: passingIn(test, whole.passing) });
           else for (const test of unknown) {
             if (left() <= 0) break;
             const alone = await run(root, [test], left(), env);
-            if (!alone.timedOut || left() > 0) unbroken.set(test, alone);
+            if (!alone.timedOut || left() > 0) unbroken.set(test, { passed: alone.passed, ms: alone.ms, passing: passingIn(test, alone.passing) });
           }
         }
-        return some.every((test) => unbroken.has(test)) ? some.filter((test) => unbroken.get(test)!.passed) : undefined;
+        return some.every((test) => unbroken.has(test)) ? some.filter(counts) : undefined;
       };
       const original = readFileSync(path.join(root, file), "utf8");
       // Whether `one`, planted, is caught by `passing`, survives them, or is not run for lack of time.
@@ -417,7 +446,12 @@ export async function mutationReport(root: string, diff: string, arid: readonly 
           // A break that makes the tests hang is caught, as one that makes them fail is.
           const slowest = passing.reduce((sum, test) => sum + unbroken.get(test)!.ms, 0);
           const result = await run(root, passing, Math.min(left(), Math.max(20_000, 3 * slowest + 5_000)), env);
-          return result.timedOut && left() <= 0 ? "out" : result.passed ? "survived" : "caught";
+          if (result.timedOut) return left() <= 0 ? "out" : "caught";
+          // Caught when a test that passed unbroken no longer passes; a run that cannot name its tests is judged by the whole (7.6).
+          const before = passing.map((test) => unbroken.get(test)!.passing);
+          if (result.passing === undefined || before.some((names) => names === undefined)) return result.passed ? "survived" : "caught";
+          const now = new Set(result.passing);
+          return before.flat().some((name) => !now.has(name!)) ? "caught" : "survived";
         } finally {
           restore();
         }

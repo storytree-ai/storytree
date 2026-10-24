@@ -1,6 +1,7 @@
 /**
- * Capability 5 · Drafted writes with read-back and undo (contracts 5.5, 5.6, 5.8): the box's committer. Run every minute
- * by a user timer of the owner's account (box/voice-commit.timer), it carries out each due draft once: a session manager
+ * Capability 5 · Drafted writes with read-back and undo (contracts 5.5, 5.6, 5.8): the box's committer. Ticked by the
+ * owner's account's listener on every confirm (listen.ts), and by a slow fallback timer (box/voice-commit.timer), it
+ * carries out each due draft once: a session manager
  * run is started through run-lane.sh, its brief carrying every note not yet swept, which it marks swept by that run. The
  * confined door can do neither (it may not mark a note swept or reach ~/storytree-lanes), which is why this is separate.
  */

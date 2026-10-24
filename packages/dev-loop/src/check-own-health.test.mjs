@@ -2,11 +2,13 @@
 // the configuration's own part, that a story's tests run through this repo's harness and come back as their junit
 // report's results, which CI health's rules then judge.
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { runStoryTests } from "./check-own-health.mjs";
 
@@ -14,7 +16,7 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 test("5.13 · `pnpm check:own-health` runs a story's tests through this repo's harness and reads back each one's result from their junit report", async (t) => {
   const folder = mkdtempSync(path.join(tmpdir(), "own-health-run-"));
-  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  t.after(() => removeTemp(folder));
   const file = path.join(folder, "kettle.test.mjs");
   writeFileSync(file, [
     'import assert from "node:assert/strict";',
@@ -34,9 +36,9 @@ test("5.13 · `pnpm check:own-health` runs the stories' tests without the librar
   const given = { PGPASSWORD: "not-for-tests", PGUSER: "storytree-ci-health", HEALTH_PG_ADDRESS: "postgres://library.example:5432/postgres" };
   const before = Object.fromEntries(Object.keys(given).map((name) => [name, process.env[name]]));
   Object.assign(process.env, given);
-  t.after(() => {
+  t.after(async () => {
     for (const [name, value] of Object.entries(before)) if (value === undefined) delete process.env[name]; else process.env[name] = value;
-    rmSync(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   });
   const file = path.join(folder, "sealed.test.mjs");
   writeFileSync(file, [

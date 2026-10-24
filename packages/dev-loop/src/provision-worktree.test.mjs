@@ -5,11 +5,13 @@
 // UNLINKED (an install reported success but linked no workspace package).
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { quietFor, removeTemp } from "@storytree/test-waits";
 
 import { check, connectCloud, hookOutput, installEnvironment, provision, serve } from "./provision-worktree.mjs";
 
@@ -31,7 +33,7 @@ function run(command, args, options = {}) {
 /** A worktree on disk: one workspace package, and node_modules as the named condition leaves it. */
 function worktree(t, condition) {
   const root = mkdtempSync(path.join(tmpdir(), "provision-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   writeFileSync(path.join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
   mkdirSync(path.join(root, "packages", "library"), { recursive: true });
   writeFileSync(path.join(root, "packages", "library", "package.json"), "{}");
@@ -255,8 +257,7 @@ test("the tool server starts in a fresh worktree once the session-start install 
   const root = worktree(t, "fresh");
   let started = 0;
   const serving = serve({ root, start: () => (started++, Promise.resolve(0)), pollMs: 5 });
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  assert.equal(started, 0, "not before the install");
+  await quietFor(() => started > 0, 50, "the tool server starting before the install");
   // The session-start hook's install completes.
   mkdirSync(path.join(root, "node_modules", ".pnpm"), { recursive: true });
   writeFileSync(path.join(root, "node_modules", ".pnpm", "lock.yaml"), "lockfileVersion: '9.0'\n");
@@ -348,9 +349,9 @@ test("2.4 a feature branch or linked worktree can serve while the primary is beh
 function cloud(t) {
   const root = mkdtempSync(path.join(tmpdir(), "cloud-root-"));
   const home = mkdtempSync(path.join(tmpdir(), "cloud-home-"));
-  t.after(() => {
-    rmSync(root, { recursive: true, force: true });
-    rmSync(home, { recursive: true, force: true });
+  t.after(async () => {
+    await removeTemp(root);
+    await removeTemp(home);
   });
   writeFileSync(path.join(root, ".storytree.json"), JSON.stringify({ project: "storytree" }));
   const calls = [];

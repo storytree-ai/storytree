@@ -1,16 +1,18 @@
 // increment_5297d1d7c3e7: a run's start keeps the previous run's server log, so the rerun that
 // follows a red run leaves the red run's log readable.
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { keepPreviousServerLog } from "./server-log.mjs";
 
 function workDir(t) {
   const dir = mkdtempSync(path.join(tmpdir(), "server-log-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   return dir;
 }
 

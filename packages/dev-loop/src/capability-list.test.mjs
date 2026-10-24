@@ -3,11 +3,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { removeTemp } from "@storytree/test-waits";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import pg from "pg";
@@ -18,7 +19,7 @@ import { runGate } from "./gate.mjs";
 /** A checkout holding the till's package: a declared source file, its test, and a file only the survey places. */
 function checkout(t) {
   const root = mkdtempSync(path.join(tmpdir(), "capability-list-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   const files = {
     "packages/till/src/drawer.ts": "// Capability 1 · The drawer. Holds the cash.\nexport const drawer = 1;\n",
     "packages/till/src/receipt.ts": "/**\n * Capability 2 · Receipts.\n */\nexport const receipt = 2;\n",
@@ -54,7 +55,7 @@ test("7.4 a branch that changes a capability its increment does not list fails, 
 
 test("7.4 a file whose only change rewrites an import of a package the branch renames changes no capability", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "capability-list-rename-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   const git = (...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: root, stdio: "pipe" });
   const write = (files) => {
     for (const [file, text] of Object.entries(files)) {
@@ -91,7 +92,7 @@ test("7.4 a branch naming no increment leaves the check NOT RUN with its reason;
   assert.equal(incrementOfBranch("claude/increment-ca8ba53211b7-f8f424"), "increment_ca8ba53211b7");
   assert.equal(incrementOfBranch("claude/dazzling-jones-f96c61"), undefined);
   const root = mkdtempSync(path.join(tmpdir(), "capability-list-gate-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   const git = (...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: root, stdio: "pipe" });
   git("init", "-q", "-b", "claude/dazzling-jones-f96c61");
   writeFileSync(path.join(root, "README.md"), "readme\n");

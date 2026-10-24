@@ -1,15 +1,17 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { gzipSync } from "node:zlib";
 
+import { removeTemp } from "@storytree/test-waits";
+
 import { seedFilesFor, seedRecordProblems } from "./seed-records.mjs";
 
 function folder(t, files) {
   const root = mkdtempSync(path.join(tmpdir(), "seed-records-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   for (const [file, body] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     writeFileSync(path.join(root, file), body);

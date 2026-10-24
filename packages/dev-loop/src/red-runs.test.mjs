@@ -1,11 +1,13 @@
 // Capability 6 · Running the tests: the red runs a checkout keeps, which the change-reviewer's brief reads (ADR-1153 D3).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { removeTemp } from "@storytree/test-waits";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const record = path.join(root, ".pgtest", "red-runs.jsonl");
@@ -27,7 +29,7 @@ function rows() {
 
 test("6.25 · a run keeps each test that failed by its full name, and a file that failed to load, in the checkout's red runs, which a later green run does not erase", (t) => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "red-runs-"))); // macOS: /var is /private/var
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const failing = path.join(dir, "failing.test.mjs");
   const unloadable = path.join(dir, "unloadable.test.mjs");
   writeFileSync(failing, `import { describe, test } from "node:test";

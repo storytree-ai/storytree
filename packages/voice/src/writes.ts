@@ -1,10 +1,10 @@
 /**
  * Capability 5 · Drafted writes with read-back and undo (contracts 5.1-5.4, 5.6-5.8): the voice writes, each a signed tool.
  * save_note keeps what the owner said at once, an answer to a question included (ADR-1155 D1, D2), and start_manager_run
- * drafts one session manager run on the box that carries every unswept note (ADR-1150); confirm sets a draft to take
- * effect ten minutes later, cancel stops it until then, and lock_voice turns every write off until the box clears it.
- * Each write checks the lock first. None runs anything itself: the box's committer (commit.ts) starts a run, and the run
- * sweeps the notes.
+ * drafts one session manager run on the box that carries every unswept note (ADR-1150), read back in one line; confirm
+ * hands it to the box at once (ADR-1155 D3), cancel stops it until the run starts, and lock_voice turns every write off
+ * until the box clears it. Each write checks the lock first. None runs anything itself: the box's committer (commit.ts),
+ * woken by the database's notification, starts a run, and the run sweeps the notes.
  */
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
@@ -23,7 +23,6 @@ const refused = (text: string): Result => ({ content: [{ type: "text", text }], 
 
 const QUESTION_ID = /^question_[0-9a-f]{12}$/;
 const WRITE = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
-const UNDO = "Say confirm to go ahead: it takes effect ten minutes after you confirm, and cancel stops it until then. Unconfirmed, it lapses in 15 minutes.";
 
 function words(text: unknown): string {
   const flat = String(text ?? "").replace(/\s+/g, " ").trim();
@@ -32,8 +31,10 @@ function words(text: unknown): string {
   return flat;
 }
 
-function when(at: Date): string {
-  return `${at.toISOString().slice(11, 16)} UTC`;
+/** The one-line read-back of a manager run: what is being sent, then the ask (ADR-1155 D3). */
+function readBack(spoken: string, notes: number): string {
+  const sending = notes === 0 ? "your request" : `${notes === 1 ? "1 note" : `${notes} notes`} and your request`;
+  return `Sending ${sending} about "${spoken}": say yes to send.`;
 }
 
 /** The one pending draft a confirm or cancel without a number means, or a refusal asking which. */
@@ -102,7 +103,7 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
         "Draft starting one session manager run on the Mint box for the owner's request, in his words as he said them: research, parking work, " +
         "raising questions, steering sessions in progress. The run's brief is written by the door, quoting his words; add nothing of your own. " +
         "It carries every note not yet swept. One voice-started run at a time; its reply comes back under Replies ready in catch_up. " +
-        "Nothing starts until he confirms. Needs the owner's sign-in.",
+        "Read its answer back to him as it is, one line; nothing starts until he says yes and you confirm. Needs the owner's sign-in.",
       inputSchema: z.object({
         request: z.string().max(WORDS_CHARS * 2).describe("his request, word for word as transcribed"),
       }),
@@ -118,9 +119,8 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
         }
         const session = voiceSession(new Date());
         const notes = await drafts.unswept();
-        const draft = await drafts.add({ kind: "manager_run", words: spoken, body: managerBrief(spoken, session, notes), session });
-        const carried = notes.length === 0 ? "with no notes waiting" : `with the ${notes.length === 1 ? "note" : `${notes.length} notes`} waiting`;
-        return said(`Draft ${draft.id}: start a session manager run on the Mint box for his words, ${carried}: "${spoken}"\n${UNDO}`);
+        await drafts.add({ kind: "manager_run", words: spoken, body: managerBrief(spoken, session, notes), session });
+        return said(readBack(spoken, notes.length));
       }),
   );
 
@@ -129,16 +129,16 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
     {
       title: "Confirm a draft",
       description:
-        "Confirm a draft the owner has heard read back and said yes to. It takes effect ten minutes later unless he cancels. " +
+        "Confirm a draft the owner has heard read back and said yes to. Its run starts at once. " +
         "Without draft it confirms the one unconfirmed draft, or asks which. Needs the owner's sign-in.",
-      inputSchema: z.object({ draft: z.number().int().min(1).optional().describe("the draft's number, as read back") }),
+      inputSchema: z.object({ draft: z.number().int().min(1).optional().describe("the draft's number, only when more than one waits") }),
       annotations: WRITE,
     },
     async ({ draft }) =>
       guarded(async () => {
         const id = await meant(drafts, draft, (pending) => pending.filter((each) => each.confirmed_at === null));
-        const confirmed = await drafts.confirm(id);
-        return said(`Draft ${id} confirmed: it takes effect at ${when(confirmed.commit_at!)}, unless he says cancel before then.`);
+        await drafts.confirm(id);
+        return said(`Draft ${id} confirmed: the run starts now.`);
       }),
   );
 
@@ -147,7 +147,7 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
     {
       title: "Cancel a draft",
       description:
-        "Cancel a draft before it takes effect (\"cancel that\"). Without draft it cancels the newest waiting draft. Works while writes are locked. Needs the owner's sign-in.",
+        "Cancel a draft before its run starts (\"cancel that\"). Without draft it cancels the newest waiting draft. Works while writes are locked. Needs the owner's sign-in.",
       inputSchema: z.object({ draft: z.number().int().min(1).optional().describe("the draft's number, as read back") }),
       annotations: { ...WRITE, destructiveHint: true },
     },

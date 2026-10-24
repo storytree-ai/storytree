@@ -27,6 +27,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parse } from "@babel/parser";
 import { dependenciesOf, specifiersOf, type SourceFile, type SurveyPackage } from "@storytree/map";
+import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
 import type { Storytree } from "@storytree/library";
 
 import { inTransaction, ledgerDatabase, writeReview, type HitRow } from "../ledger/ledger.js";
@@ -341,6 +342,9 @@ const PASS_REPORTER = `export default async function* (source) {
 }
 `;
 
+/** The variables naming an agent's session, which `pnpm test` keeps from its units (packages/dev-loop/src/unit-run.mjs). */
+const SESSION_VARIABLES = [...WATCHED_HARNESSES.flatMap((harness) => (harness.shellSession === undefined ? [] : [harness.shellSession])), SESSION_ENV];
+
 /** The real test run: one node process for the files, in a temp folder of its own, killed with its children at `limitMs`. */
 export const runTests: TestRun = (root, tests, limitMs, given = process.env) => new Promise((resolve) => {
   const tsx = import.meta.resolve("tsx");
@@ -348,6 +352,9 @@ export const runTests: TestRun = (root, tests, limitMs, given = process.env) => 
   const started = Date.now();
   // A report run from inside a test run must not hand its tests' results to that run's parent instead of exiting with them.
   const { NODE_TEST_CONTEXT: _parent, ...env } = given;
+  // Its tests get what `pnpm test` gives a unit: no agent's session for a command they run to record on, and no embedding model.
+  for (const name of SESSION_VARIABLES) delete env[name];
+  env["STORYTREE_EMBEDDER"] = "off";
   const reporter = path.join(temp, "st-mutation-reporter.mjs");
   const results = path.join(temp, "st-mutation-passing.jsonl");
   writeFileSync(reporter, PASS_REPORTER);

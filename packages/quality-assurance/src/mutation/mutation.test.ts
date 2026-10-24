@@ -1,5 +1,5 @@
 /**
- * Capability 7 · Mutation report: contracts 7.1 to 7.6. 7.1 reads breaks from source text; 7.2 runs a real report on a
+ * Capability 7 · Mutation report: contracts 7.1 to 7.7. 7.1 reads breaks from source text; 7.2 runs a real report on a
  * small package of node tests in a temp folder; 7.3 and 7.4 run it through the brief and take tools on the real Postgres
  * `pnpm test` provides, against a git checkout whose branch adds an untested branch.
  */
@@ -15,7 +15,7 @@ import { removeTemp } from "@storytree/test-waits";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
-import { aridList, briefWithReport, changeBreaks, fileBreaks, MUTATION_SURVIVOR, mutationReport, openLedger, openReviews, qualityTools, spread, type ReviewReturn, type TestRun } from "../index.js";
+import { aridList, briefWithReport, changeBreaks, fileBreaks, MUTATION_SURVIVOR, mutationReport, openLedger, openReviews, qualityTools, runTests, spread, type ReviewReturn, type TestRun } from "../index.js";
 
 /** A diff adding every line of each file. */
 function adding(files: Record<string, string>): string {
@@ -181,6 +181,33 @@ test("7.6 · a break is caught when a test that passed with nothing broken no lo
     assert.ok(report.ran);
     assert.deepEqual({ planted: report.planted, caught: report.caught, survivors: report.survivors, notRun: report.notRun }, { planted: 1, caught: 1, survivors: [], notRun: [] });
     assert.equal(readFileSync(join(dir, "packages/mixed/src/same.mjs"), "utf8"), MIXED["packages/mixed/src/same.mjs"]);
+  } finally {
+    await removeTemp(dir);
+  }
+});
+
+/** A package whose test needs the environment `pnpm test` gives a unit: no agent's session, and the embedder off. */
+const ENVIRONED: Record<string, string> = {
+  "packages/environed/package.json": JSON.stringify({ name: "@t/environed", type: "module" }),
+  "packages/environed/src/same.mjs": "export const same = (a, b) => a === b;\n",
+  "packages/environed/src/same.test.mjs": [
+    "import assert from \"node:assert/strict\";",
+    "import { test } from \"node:test\";",
+    "import { same } from \"./same.mjs\";",
+    "test(\"same, as no session\", () => {",
+    "  assert.deepEqual([process.env.STORYTREE_SESSION_ID, process.env.CODEX_THREAD_ID, process.env.CLAUDE_CODE_SESSION_ID, process.env.STORYTREE_EMBEDDER], [undefined, undefined, undefined, \"off\"]);",
+    "  assert.equal(same(1, 1), true);",
+    "});",
+  ].join("\n") + "\n",
+};
+
+test("7.7 · a report run from inside an agent's session gives its tests the environment `pnpm test` gives them, so a test reading it passes unbroken and catches its break", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "qa-environed-"));
+  try {
+    write(dir, ENVIRONED);
+    const lane: TestRun = (root, tests, limitMs, env = process.env) => runTests(root, tests, limitMs, { ...env, STORYTREE_SESSION_ID: "a-lane", CODEX_THREAD_ID: "a-thread", CLAUDE_CODE_SESSION_ID: "a-claude" });
+    const report = await mutationReport(dir, adding({ "packages/environed/src/same.mjs": ENVIRONED["packages/environed/src/same.mjs"]! }), [], { run: lane });
+    assert.deepEqual({ planted: report.planted, caught: report.caught, notRun: report.notRun }, { planted: 1, caught: 1, notRun: [] });
   } finally {
     await removeTemp(dir);
   }

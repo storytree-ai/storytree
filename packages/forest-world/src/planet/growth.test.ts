@@ -33,6 +33,11 @@ test('5.1 a growth replays only what the recording holds, in its stages\' order,
   const road = plan.roads.get('c1->b1')!;
   assert.ok(road.start >= end(plan.islands.get('b')!));
   assert.ok(Math.abs(plan.islands.get('c')!.start - end(road)) < 1e-9, 'c rises as its road arrives');
+  // Parts joining a standing island fill in one after another from their stage's start, never before it.
+  const joined = growthPlan([{ id: 'one', scene: { islands: [island('a', ['a1'])], links: [] } },
+    { id: 'two', scene: { islands: [island('a', ['a1', 'a2', 'a3'])], links: [] } }]);
+  const [a2, a3] = ['a2', 'a3'].map(c => joined.capabilities.get(c)!.start);
+  assert.ok(a2! >= joined.stages[1]!.start && a3! > a2!, 'a3 follows a2, both inside their stage');
   // A link whose ends are not both recorded is never drawn.
   const orphan = growthPlan([{ id: 'x', scene: { islands: [island('a', ['a1'])], links: [{ from: 'z9', to: 'a1' }] } }]);
   assert.deepEqual([...orphan.roads.keys()], []);
@@ -49,6 +54,25 @@ test('5.1 within one saved reading, islands nothing reaches start spread over a 
   const cycle = growthPlan([{ id: 'c', scene: { islands: [island('a', ['a1']), island('p', ['p1']), island('q', ['q1'])],
     links: [{ from: 'p1', to: 'q1' }, { from: 'q1', to: 'p1' }] } }]);
   assert.deepEqual([...cycle.islands.keys()].sort(), ['a', 'p', 'q']);
+});
+
+test('5.1 a part that moves to another island takes its roads with it: drawn where it now stands, a road waits for that island to rise', () => {
+  // Recorded: a2 builds on a1 inside a; later a2 is moved to a new story m, still building on a1.
+  const plan = growthPlan([
+    { id: 'one', scene: { islands: [island('a', ['a1', 'a2'])], links: [{ from: 'a2', to: 'a1' }] } },
+    { id: 'moved', scene: { islands: [island('a', ['a1']), island('m', ['a2'])], links: [{ from: 'a2', to: 'a1' }] } },
+  ]);
+  const road = plan.roads.get('a2->a1')!, m = plan.islands.get('m')!;
+  assert.ok(road.start >= plan.stages[1]!.start, 'the road draws in the stage that put a2 on m, not in the one that had it on a');
+  assert.ok(Math.abs(m.start - end(road)) < 1e-9, 'm rises as the road arrives');
+  assert.ok(plan.capabilities.get('a2')!.start >= m.start, 'a2 fills in behind m rising');
+  // Recorded as the plan was edited: the stage that moves a2 carries none of its links yet, and the next carries them again.
+  const later = growthPlan([
+    { id: 'one', scene: { islands: [island('a', ['a1', 'a2'])], links: [{ from: 'a2', to: 'a1' }] } },
+    { id: 'moved', scene: { islands: [island('a', ['a1']), island('m', ['a2'])], links: [] } },
+    { id: 'relinked', scene: { islands: [island('a', ['a1']), island('m', ['a2'])], links: [{ from: 'a2', to: 'a1' }] } },
+  ]);
+  assert.ok(later.roads.get('a2->a1')!.start >= end(later.islands.get('m')!), 'the road leaves only once m has risen');
 });
 
 test('5.2 a whole globe grows from a point of light to its full form in the length asked for, keeping order and pacing', () => {

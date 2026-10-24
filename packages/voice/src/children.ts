@@ -15,7 +15,7 @@ export interface Limits {
   /** A library search computes an embedding (4-7 s measured on the box). */
   readonly searchMs: number;
   readonly gitMs: number;
-  /** Longest wait for a free child slot before the call is refused as busy. */
+  /** Longest wait for a free child slot before the call is refused as busy: one full command and its kill grace (ADR-1163 D3). */
   readonly queueMs: number;
   /** SIGTERM, then SIGKILL this long after, then stop waiting for the child's pipes this long after that. */
   readonly killGraceMs: number;
@@ -28,17 +28,26 @@ export interface Limits {
 }
 
 /**
- * Child timeouts stay under a client's 60 s request timeout (the MCP SDK's default) even after the longest queue
- * wait and the kill grace, so the caller hears the door's own message, not a generic timeout.
+ * The limits with `overrides` over the defaults. Unless set itself, the wait for a free slot is the command limit plus
+ * the kill grace, so a call queued behind a command that runs its full time is served, not refused as busy.
  */
-export const LIMITS: Limits = {
+export function limitsWith(overrides: Partial<Limits> = {}): Limits {
+  const limits = { ...DEFAULTS, ...overrides };
+  return { ...limits, queueMs: overrides.queueMs ?? limits.cliMs + limits.killGraceMs };
+}
+
+/**
+ * Child timeouts stay under a client's 60 s request timeout (the MCP SDK's default) even after the longest queue
+ * wait and the kill grace, so the caller hears the door's own message, not a generic timeout. A search runs to a
+ * deadline that its queue waits count against, so it fits too.
+ */
+const DEFAULTS: Omit<Limits, "queueMs"> = {
   bodyBytes: 1_000_000,
   outputChars: 12_000,
   childBytes: 256_000,
   cliMs: 25_000,
   searchMs: 30_000,
   gitMs: 15_000,
-  queueMs: 10_000,
   killGraceMs: 2_000,
   // One library search child peaks near 600 MB while it embeds.
   cliRunning: 2,
@@ -48,6 +57,8 @@ export const LIMITS: Limits = {
   keepAliveMs: 100_000,
 };
 
+export const LIMITS: Limits = limitsWith();
+
 export const BUSY = "the box is busy answering other requests; try again in a few seconds";
 export const CANCELLED = "the request was cancelled";
 
@@ -56,7 +67,7 @@ export class Refusal extends Error {}
 
 /**
  * At most `running` children of one kind at once. Up to `waiting` more calls wait for a slot (for at most
- * queueMs); the rest are refused at once. A waiting call whose caller hangs up leaves the queue.
+ * queueMs, or less when the caller says); the rest are refused at once. A waiting call whose caller hangs up leaves the queue.
  */
 export class Gate {
   #active = 0;
@@ -71,7 +82,7 @@ export class Gate {
   ) {}
 
   /** Resolves to a release function once a slot is free; rejects with a Refusal when busy or cancelled. */
-  enter(signal: AbortSignal | undefined): Promise<() => void> {
+  enter(signal: AbortSignal | undefined, waitMs = this.queueMs): Promise<() => void> {
     if (signal?.aborted) return Promise.reject(new Refusal(CANCELLED));
     if (this.#active < this.running) {
       this.#active++;
@@ -91,9 +102,9 @@ export class Gate {
       };
       const onAbort = () => leave(new Refusal(CANCELLED));
       const timer = setTimeout(() => {
-        this.log(`busy: a ${this.kind} call waited ${this.queueMs / 1000} s for a slot and was refused`);
+        this.log(`busy: a ${this.kind} call waited ${waitMs / 1000} s for a slot and was refused`);
         leave(new Refusal(BUSY));
-      }, this.queueMs);
+      }, waitMs);
       const grant = () => {
         clearTimeout(timer);
         signal?.removeEventListener("abort", onAbort);
@@ -131,6 +142,8 @@ export interface RunOptions {
   readonly gate: Gate;
   readonly signal: AbortSignal | undefined;
   readonly timeoutMs: number;
+  /** Epoch ms by which the call ends, its wait for a slot included: neither the wait nor the child runs past it. */
+  readonly deadline?: number;
   readonly maxBytes?: number;
   /** Keep only each output line's first clipLine bytes, so one huge line cannot use up maxBytes. */
   readonly clipLine?: number;
@@ -152,9 +165,12 @@ export class Children {
 
   /** Run argv once a slot in its gate is free. Throws a Refusal when the gate is full or the call is cancelled. */
   async run(argv: readonly string[], options: RunOptions): Promise<Ran> {
-    const release = await options.gate.enter(options.signal);
+    const left = () => (options.deadline === undefined ? Infinity : options.deadline - Date.now());
+    const release = await options.gate.enter(options.signal, Math.max(0, Math.min(this.limits.queueMs, left())));
     try {
-      return await this.#spawn(argv, options);
+      const timeoutMs = Math.min(options.timeoutMs, left());
+      if (timeoutMs <= 0) return { code: null, bytes: Buffer.alloc(0), stdout: "", stderr: "", truncated: false, timedOut: true, aborted: false };
+      return await this.#spawn(argv, { ...options, timeoutMs });
     } finally {
       release();
     }

@@ -1,5 +1,5 @@
 /**
- * Capability 10 · Plan view: one test per contract 10.1-10.10 in the command line story, each running the
+ * Capability 10 · Plan view: one test per contract 10.1-10.11 in the command line story, each running the
  * real, built `storytree` command.
  */
 import assert from "node:assert/strict";
@@ -237,5 +237,46 @@ test("10.10 `storytree show`, the word agents reach for by the show_plan tool, p
     assert.equal(one.code, 2, one.stdout);
     assert.match(one.stderr, /storytree library read contract_6cb815863354/);
     assert.match(one.stderr, /storytree arc show <arc>/);
+  });
+});
+
+test("10.11 `storytree contract show <contract>` prints one contract with its reported and verified health, each with who wrote it, when and its note; `contract health` and `contract new` run the commands for those jobs; an id naming no contract says so", async () => {
+  await inWorld(command, async (world) => {
+    const library = await world.library();
+    const story = await library.addStory({ title: "Visitor can sign up" });
+    const capability = await library.addCapability({ title: "4 · Email form", story: story.id });
+    const contract = await library.addContract({ title: "4.1 · Rejects an email with no @", capability: capability.id, description: "A typed address with no @ is refused before it is sent." });
+    await library.reportHealth(contract.id, "passing", { by: "agent", note: "ran it here" });
+    await library.recordVerified(contract.id, "failing", { by: "storytree", note: "CI run 12" });
+
+    const shown = await world.run(["contract", "show", contract.id]);
+    assert.equal(shown.code, 0, shown.stderr);
+    const lines = shown.stdout.split(/\r?\n/);
+    assert.match(lines[0]!, new RegExp(`^4\\.1 · Rejects an email with no @  \\[${contract.id}\\]`), shown.stdout);
+    assert.ok(lines.some((line) => line.includes(`4 · Email form  [${capability.id}]`)), shown.stdout);
+    assert.ok(lines.some((line) => line.includes("A typed address with no @ is refused before it is sent.")), shown.stdout);
+    assert.match(shown.stdout, /reported: passing, by agent, \d{4}-\d\d-\d\dT[^ ]+: ran it here/);
+    assert.match(shown.stdout, /verified: failing, by storytree, \d{4}-\d\d-\d\dT[^ ]+: CI run 12/);
+
+    const health = await world.run(["contract", "health", contract.id]);
+    assert.equal(health.code, 0, health.stderr);
+    assert.match(health.stdout, /^storytree contract health is storytree contract show\n/);
+    assert.match(health.stdout, /verified: failing/);
+
+    const planned = await world.run(["contract", "new", "--capability", capability.id, "--title", "4.2 · Accepts a plus address"]);
+    assert.equal(planned.code, 0, planned.stderr);
+    assert.match(planned.stdout, /^storytree contract new is storytree library new contract\n/);
+    const made = (await library.list("contract")).find((each) => each.fields.title === "4.2 · Accepts a plus address");
+    assert.equal(made?.fields.capability, capability.id);
+
+    const unchecked = await world.run(["contract", "show", made!.id]);
+    assert.match(unchecked.stdout, /reported: not checked/);
+    assert.match(unchecked.stdout, /verified: not checked/);
+
+    for (const id of ["contract_000000000000", capability.id]) {
+      const unknown = await world.run(["contract", "show", id]);
+      assert.equal(unknown.code, 1);
+      assert.match(unknown.stderr, new RegExp(`no contract "${id}" in this project`));
+    }
   });
 });

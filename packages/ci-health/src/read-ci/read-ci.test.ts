@@ -318,6 +318,31 @@ test("3.11 of the merge queue's runs of a commit, only the one of the push run's
   for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
 });
 
+test("3.15 a push run that ran no tests, because it stands on the merge queue's run of its commit, is passed over: the queue's run is read and judges every story, rather than the empty push run ending the looking", async (t) => {
+  const { library, contracts } = await shopLibrary(t);
+  const { folder, commit } = projectFolder(t);
+  // storytree's own CI (push run 40058943919, 2026-10-24): main's push run skips its test jobs and stands on queue run 40057942541.
+  const run = (id: number, extra: object = {}) => ({ id, workflow_id: 1, conclusion: "success", head_sha: commit, html_url: `https://github.com/acme/shop/actions/runs/${id}`, ...extra });
+  const logs: Record<number, string> = { 80: "The merge queue's run passed verify on this commit; this push stands on it.", 70: tap("ok") };
+  const asked = github((query) => {
+    if (query.get("status") !== "completed") return [];
+    if (query.get("event") === "push" && query.get("branch") === "trunk") return [run(8)];
+    if (query.get("event") === "merge_group") return [run(7, { head_branch: `gh-readonly-queue/trunk/pr-7-${"0".repeat(40)}` })];
+    return [];
+  }, "");
+  const json = asked.json;
+  asked.json = async (route) => {
+    const id = /actions\/runs\/(\d+)\/jobs$/.exec(route)?.[1];
+    return id === undefined ? json(route) : { jobs: [{ id: Number(id) * 10, conclusion: "success", name: "verify on Linux" }, { id: Number(id) * 10 + 1, conclusion: "skipped" }] };
+  };
+  asked.text = async (route) => logs[Number(/jobs\/(\d+)\/logs$/.exec(route)?.[1])] ?? "";
+  const read = await readProjectCi({ library, git: gitIn(folder), github: asked });
+  assert.equal(read.written, true, read.written ? "" : read.why);
+  assert.equal(read.written && read.run, "https://github.com/acme/shop/actions/runs/7", "the queue's run, which ran the tests, is the reading's");
+  assert.equal(read.written && read.tests, 2);
+  for (const id of contracts) assert.equal((await library.health(id)).verified.state, "passing");
+});
+
 test("3.13 each run is scoped by the 'scope:' line its log opens with: a contract whose package the newest run left out is verified from the newest run that scoped it in, and a run that scoped every package in ends the looking", async (t) => {
   const { library, contracts } = await shopLibrary(t);
   const { folder, commit } = projectFolder(t);

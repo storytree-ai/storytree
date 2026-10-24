@@ -28,6 +28,8 @@ export interface StableManifest {
     movedBackFrom?: string;
     /** The owner's reason for pinning this build without the 24-hour soak, as an urgent fix. */
     expedited?: string;
+    /** What says this build passed its fresh-install sweep before the pin (4.25); absent on an expedited pin. */
+    swept?: string;
     /** The platforms this pin moved to its version. */
     covers?: ("windows" | FeedPlatform)[];
     increments: { id: string; title: string; pr: string; note?: string }[];
@@ -57,6 +59,8 @@ export interface PinPorts {
   candidate(version: string): Promise<PinCandidate>;
   pullRequests(commit: string): Promise<ReadonlySet<string>>;
   increments(): Promise<readonly LandedIncrement[]>;
+  /** What says this build passed its fresh-install sweep (4.25), or undefined while none has. */
+  swept(version: string): Promise<string | undefined>;
   /** Publish atomically only while the channel still has the expected ref. */
   publish(manifest: StableManifest, bootstrap: Bootstraps, expectedRef?: string): Promise<void>;
   now(): string;
@@ -147,7 +151,11 @@ export async function moveStableBack(version: string, ports: PinPorts, preview =
   return manifest;
 }
 
-/** `expedited` is the owner's reason for pinning an urgent fix without the 24-hour soak; the notes say it first. */
+/**
+ * `expedited` is the owner's reason for pinning an urgent fix without the 24-hour soak; the notes say it first. Any
+ * other pin waits on the build's fresh-install sweep (4.25, the owner's answer on question_0e1c032af8b9): a preview
+ * only reads, and an expedited fix waives the sweep as it waives the soak (ADR-1032 D7).
+ */
 export async function pinStable(version: string, ports: PinPorts, preview = false, expedited?: string): Promise<StableManifest> {
   const build = buildNumber(version);
   const previous = await ports.previous();
@@ -172,6 +180,10 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
     if (previous.manifest.pin.commit !== candidate.commit) throw new Error("The pinned release identity changed");
     return previous.manifest;
   }
+  const swept = expedited ? undefined : await ports.swept(version);
+  if (!preview && !expedited && !swept) {
+    throw new Error(`storytree ${version} has not passed its fresh-install sweep, so it cannot be pinned yet. On the Mint box, packages/app-setup/evidence/stable-acceptance/harness/fortnight.sh --now runs it on the stable candidate; an urgent fix is pinned with --expedited instead`);
+  }
   const reachable = await ports.pullRequests(candidate.commit);
   const included = new Set(previous?.manifest.pin.includedIncrements ?? []);
   const increments = (await ports.increments()).flatMap(({ id, fields }) => {
@@ -193,7 +205,8 @@ export async function pinStable(version: string, ports: PinPorts, preview = fals
   const manifest: StableManifest = {
     schema: 1, channel: "stable", version,
     files: installers.map(({ url, sha512, size }) => ({ url, sha512, size })), releaseNotes, feeds,
-    pin: { commit: candidate.commit, at: ports.now(), ...(previous ? { previous: previous.manifest.version } : {}), ...(expedited ? { expedited } : {}), covers: ["windows", ...platforms],
+    pin: { commit: candidate.commit, at: ports.now(), ...(previous ? { previous: previous.manifest.version } : {}), ...(expedited ? { expedited } : {}), ...(swept ? { swept } : {}),
+      covers: ["windows", ...platforms],
       increments, includedIncrements: [...included] },
   };
   if (!preview) await ports.publish(manifest, candidate.bootstrap, previous?.ref);

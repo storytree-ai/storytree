@@ -97,7 +97,8 @@ export function qualityTools(): ToolExtension {
         const reviews = await openReviews(storytree);
         const standing = await reviews.standing(project, increment);
         const unmet = await reviews.unmet(project, increment);
-        return { text: standingText(standing, unmet), data: { standing, unmet } };
+        const failed = await reviews.failed(project, increment);
+        return { text: standingText(standing, unmet, failed), data: { standing, unmet, failed } };
       }, AGENT);
       // "graduate" is the librarian's tool, so this one names what graduates.
       define("graduate_check", "Record that a part of a quality control check, or with whole all of it, is now enforced by a deterministic check in Architecture checks; the reviewer judges only the rest, and a check graduated whole leaves the review brief.", z.object({

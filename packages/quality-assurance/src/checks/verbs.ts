@@ -127,7 +127,8 @@ const standingVerb = verb({
   async act({ increment }, context: QualityVerbContext) {
     const { openReviews, standingText } = await import("../index.js");
     const reviews = await openReviews(server(context));
-    return { text: standingText(await reviews.standing(context.library.name, increment), await reviews.unmet(context.library.name, increment)) };
+    const project = context.library.name;
+    return { text: standingText(await reviews.standing(project, increment), await reviews.unmet(project, increment), await reviews.failed(project, increment)) };
   },
 });
 

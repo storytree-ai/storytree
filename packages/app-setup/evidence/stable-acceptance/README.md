@@ -70,6 +70,9 @@ is installed on the Mint box (`stable-acceptance.timer`), counting the fortnight
 no pin question waits on the owner, it takes `storytree release candidate` and runs the acceptance run on it. A pass
 raises "Pin 0.3.N as stable?" on arc_312aa103bfca with the evidence folder, the verdict, the cost and the release
 notes since the last pin; a yes is settled with the owner's words and that session runs `storytree release pin`.
+That question is the pin's evidence: this run is the fresh-install sweep the owner asked for before each formal
+release (question_0e1c032af8b9), so `storytree release pin` refuses a build without it, unless `--expedited`, and
+records it in the pin (contract 4.25).
 A failure raises nothing to the owner: it files a friction naming a regression in that build, which `release
 candidate` then passes over (with every later build, until the friction is closed), and tries the next candidate,
 up to three. `cost.mjs` gives the minutes, tokens and list-price dollars of the user's turns and the judge.

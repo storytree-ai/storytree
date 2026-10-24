@@ -12,6 +12,7 @@ export default async function* running(source) {
   const fd = file ? openSync(file, "a") : undefined;
   const stderr = new Map();
   const failures = [];
+  const names = new Map(); // each test's name and parent, by file and id, for its full name
   try {
     for await (const event of source) {
       const { data } = event;
@@ -54,8 +55,22 @@ export default async function* running(source) {
         yield `${lines.join("\n")}\n`;
       }
       if (fd === undefined || (event.type !== "test:dequeue" && event.type !== "test:complete")) continue;
-      const { file: testFile, name, nesting } = event.data;
-      writeSync(fd, `${JSON.stringify({ event: event.type === "test:dequeue" ? "start" : "end", file: testFile, name, nesting, at: Date.now() })}\n`);
+      const { file: testFile, name, nesting, testId, parentId } = event.data;
+      const entry = { event: event.type === "test:dequeue" ? "start" : "end", file: testFile, name, nesting, at: Date.now() };
+      // A test inside a file that ran (not skipped or todo) ends with its full name, time and result:
+      // what unit-run.mjs gives back for each test's limit to be learned from (ADR-1152).
+      // The file's own entry is named by the path it was given, which its absolute one ends with.
+      const isFile = nesting === 0 && testFile && `/${testFile.replaceAll("\\", "/")}`.endsWith(`/${name.replaceAll("\\", "/").replace(/^\.\//, "")}`);
+      if (!isFile && testFile !== undefined) {
+        const key = (id) => `${testFile}\0${id}`;
+        if (event.type === "test:dequeue") names.set(key(testId), { name, parentId });
+        else if (!event.data.skip && !event.data.todo) {
+          const chain = [name];
+          for (let parent = names.get(key(testId))?.parentId; names.has(key(parent)); parent = names.get(key(parent)).parentId) chain.unshift(names.get(key(parent)).name);
+          Object.assign(entry, { fullName: chain.join(" › "), ms: event.data.details.duration_ms, passed: event.data.details.passed, timeout: event.data.details.error?.failureType === "testTimeoutFailure" });
+        }
+      }
+      writeSync(fd, `${JSON.stringify(entry)}\n`);
     }
   } finally {
     if (fd !== undefined) closeSync(fd);

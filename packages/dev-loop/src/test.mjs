@@ -65,7 +65,9 @@
 // starts, with the release to install instead (node-runtime.mjs): under it, a test file now
 // and then dies at its first connection to Postgres, which reads as a flaky test.
 //
-// No unit can hang the run (unit-run.mjs): a test fails at 60 s, a unit's process tree is
+// No unit can hang the run (unit-run.mjs): a test fails at its limit (60 s, or learned from the
+// unit's slowest tests' passes here: three times the slowest recent, doubled after each timeout since
+// it last passed; ADR-1152), a unit's process tree is
 // killed at its deadline and its row names the tests still running (or within 20 s, naming the
 // file, when a file's tests have all ended but its process does not exit), and the run goes on to the next
 // unit. Each unit's time is added to the machine's history (test-timings.jsonl in STORYTREE_HOME,
@@ -107,7 +109,7 @@ import { keepPreviousServerLog } from "./server-log.mjs";
 import { parseTestArgs, planRun, readWorkspace, resultsTable, scopeFor, scopeLine, TEST_USAGE, unitGlobs, ALONE } from "./test-scope.mjs";
 import { stopServersUnder, sweepLeftovers } from "./test-leftovers.mjs";
 import { runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
-import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, unitLimit, unitReason, withinDeadline } from "./unit-run.mjs";
+import { clearUnitLimit, DEADLINE_GRACE_MS, defaultUnitLimit, killTree, recentPassTimes, recordTimings, runDeadline, runUnit, setUnitLimit, TEST_LIMIT_MS, unitLimit, unitReason, unitTestLimit, withinDeadline } from "./unit-run.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const work = path.join(root, ".pgtest");
@@ -286,6 +288,7 @@ async function runTests(env, units) {
   const results = Object.fromEntries(units.map((unit) => [unit, "not run"]));
   const reasons = {};
   const timings = {};
+  const tests = [];
   const running = new Set();
   const passTimes = jobs > 1 ? recentPassTimes() : new Map();
   const order = jobs > 1 ? slowestFirst(units, { root, history: (unit) => passTimes.get(unit) }) : units;
@@ -304,11 +307,12 @@ async function runTests(env, units) {
     results[unit] = run.code === 0 ? "pass" : "fail";
     reasons[unit] = unitReason(run, root);
     timings[unit] = { result: results[unit], ms: run.ms, timedOut: run.timedOut && !run.cut }; // a cut is the run's deadline, not the unit's
+    tests.push(...run.tests);
     if (run.timedOut || run.exitHung.length > 0) console.log(`\ntest harness: ${unit} ${reasons[unit]}`);
   }, { stopped: () => interrupted, alone: (unit) => ALONE.includes(unit) });
   writeRecord(results);
   try {
-    recordTimings(timings, { jobs });
+    recordTimings(timings, { jobs, tests });
   } catch (error) {
     console.log(`test harness: could not add this run's times to the timing history: ${error.message}`);
   }
@@ -320,14 +324,15 @@ async function runTests(env, units) {
 /** One unit's run; with other units running beside it, its output is held and returned as `output`. */
 async function runNodeTest(env, files, unit) {
   const limit = withinDeadline(unit === undefined ? defaultUnitLimit() : unitLimit(unit, { jobs }), deadline);
+  const testLimit = unit === undefined ? { ms: TEST_LIMIT_MS, source: "default" } : unitTestLimit(unit);
   let spawned;
   try {
     // No test loads the embedding model, so no run, CI included, downloads it (ADR-0733 D6):
     // ranked search is tested with a fake embedder, and everything else ranks by words.
     const evidence = env.STORYTREE_TEST_EVIDENCE ? { directory: path.resolve(root, env.STORYTREE_TEST_EVIDENCE), unit: unit ?? "files" } : undefined;
     const hold = unit !== undefined && jobs > 1;
-    const run = await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, evidence, unitLimitMs: limit.ms, hold, onSpawn: (child) => children.add((spawned = child)) });
-    return { ...run, limitSource: limit.source, cut: limit.cut === true };
+    const run = await runUnit({ root, env: { ...env, STORYTREE_EMBEDDER: "off" }, args: testArgs, files, evidence, testLimitMs: testLimit.ms, unitLimitMs: limit.ms, hold, onSpawn: (child) => children.add((spawned = child)) });
+    return { ...run, limitSource: limit.source, cut: limit.cut === true, testLimitMs: testLimit.ms, testLimitSource: testLimit.source };
   } finally {
     children.delete(spawned);
   }

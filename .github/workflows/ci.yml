@@ -210,6 +210,7 @@ jobs:
       # that never touched them: friction_21e0e923a222, friction_9a48639c761e), so each runner now
       # carries the timing history of main's latest run on its system, and a unit with five passes
       # there gets twice its slowest, never under 6 min: a pull request's kills are never carried back.
+      # The same file holds each slow test's passes and timeouts, which learn its per-test limit (ADR-1152).
       - name: Restore main's test timing history
         if: ${{ !matrix.shard }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

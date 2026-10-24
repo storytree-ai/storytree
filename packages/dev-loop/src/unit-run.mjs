@@ -11,7 +11,11 @@
 //   the unit deadline   past UNIT_LIMIT_MS the unit's whole process tree is killed, and the tests
 //                       still running are named (test-running-reporter.mjs records them).
 // TEST_LIMIT_MS is about three times the slowest test seen anywhere on 2026-09-28 (117 CI jobs on
-// Linux, macOS and Windows x64: 22.4 s); a test that needs longer passes its own `timeout` option.
+// Linux, macOS and Windows x64: 22.4 s), and the least any test gets. Each test's own limit is learned
+// too (testLimit, ADR-1152): three times its slowest recent pass here, doubled after each timeout since
+// it last passed; a unit's tests run under the largest of its tests' (unitTestLimit), since
+// --test-timeout is one value per process, so a hanging test still fails at a bounded limit, named.
+// A test's own `timeout` option overrides it, so it is never lowered.
 // Each unit's deadline is learned from this machine's history (unitLimit, ADR-0785):
 // twice its slowest recent pass, doubled after each kill since it last passed, or what an agent set
 // for it here with a reason. Until a unit has enough history its deadline is the run's default:
@@ -42,7 +46,8 @@ export const UNIT_LIMIT_CEILING_MS = 900_000;
 export const DEADLINE_GRACE_MS = 30_000; // past the run's deadline, longer than a cut unit takes to be killed and tabled
 const LEARN_FROM_PASSES = 5; // fewer passes than this on this machine: the fixed deadline
 const RECENT_PASSES = 20;
-export const TIMING_ROWS_KEPT = 2 * RECENT_PASSES; // per unit, machine and concurrency, once the history is trimmed
+export const TIMING_ROWS_KEPT = 2 * RECENT_PASSES; // per unit, machine and concurrency (per test and machine), once the history is trimmed
+const TEST_LIMIT_FACTOR = 3; // a test's learned limit, times its slowest recent pass: the rule TEST_LIMIT_MS came from
 const TRIM_TIMINGS_AT = 5_000; // rows; past this a recorded run trims the history
 const defaultHome = () => process.env.STORYTREE_HOME || path.join(homedir(), ".storytree", "0.3");
 const limitsFile = (home) => path.join(home, "test-limits.json");
@@ -57,7 +62,8 @@ process.on("exit", () => {
 });
 
 /**
- * Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs }.
+ * Run one unit's files under node:test, resolving { code, ms, timedOut, running, exitHung, unitLimitMs, tests },
+ * `tests` being each test that ended: { file (from root), name (its full name), result, ms, timedOut (at testLimitMs) }.
  * With `hold`, as when other units run beside it, nothing is printed: its stdout and stderr, in the
  * order they came, are resolved as `output` once the process has ended.
  */
@@ -65,7 +71,9 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
   const runningFile = path.join(tmpdir(), `storytree-running-${process.pid}-${++runs}.jsonl`);
   rmSync(runningFile, { force: true });
   const guard = ["--test-force-exit"];
-  if (!args.some((arg) => arg.startsWith("--test-timeout"))) guard.push(`--test-timeout=${testLimitMs}`);
+  const givenLimit = args.find((arg) => arg.startsWith("--test-timeout="));
+  if (givenLimit !== undefined) testLimitMs = Number(givenLimit.slice("--test-timeout=".length));
+  else guard.push(`--test-timeout=${testLimitMs}`);
   if (!args.some((arg) => arg.startsWith("--test-reporter"))) {
     // Separate destinations: spec ending stdout can discard another reporter's final output.
     guard.push("--test-reporter=spec", "--test-reporter-destination=stdout", `--test-reporter=${pathToFileURL(reporter).href}`, "--test-reporter-destination=stderr");
@@ -147,9 +155,10 @@ export function runUnit({ root, files, env, args = [], evidence, testLimitMs = T
     });
     child.on("exit", (code) => {
       stop();
+      const tests = endedTests(runningFile, root, testLimitMs);
       rmSync(runningFile, { force: true });
       removeTemp();
-      const result = { code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs };
+      const result = { code: timedOut || exitHung.length > 0 ? 1 : (code ?? 1), ms: Date.now() - started, timedOut, running, exitHung, unitLimitMs, tests };
       if (report !== undefined) {
         try {
           let xml = "";
@@ -234,6 +243,20 @@ function endedNotExited(runningFile, since) {
     .map((entry) => entry.file);
 }
 
+/**
+ * Each test that ended in a unit's running file (test-running-reporter.mjs writes its time and result), by
+ * its full name; one that failed for its time at `limitMs` or later timed out at the limit, not its own shorter one.
+ */
+function endedTests(runningFile, root, limitMs) {
+  return readJsonLines(runningFile).flatMap((entry) => entry.event !== "end" || entry.fullName === undefined ? [] : [{
+    file: path.relative(root, entry.file).replaceAll("\\", "/"),
+    name: entry.fullName,
+    result: entry.passed ? "pass" : "fail",
+    ms: Math.round(entry.ms),
+    timedOut: entry.timeout === true && entry.ms >= 0.99 * limitMs,
+  }]);
+}
+
 /** The tests started and not yet ended, the innermost of each file; a file stuck outside any test is named alone. */
 function stillRunning(runningFile) {
   const byFile = new Map();
@@ -297,6 +320,38 @@ export function unitLimit(unit, { home = defaultHome(), platform = process.platf
   return { ms: Math.min(UNIT_LIMIT_CEILING_MS, ms * 2 ** kills), source: `${source}, grown after ${kills} kill${kills === 1 ? "" : "s"}` };
 }
 
+/**
+ * A test's limit on this machine and where it came from (ADR-1152): three times its slowest recent pass once
+ * it has enough, never under TEST_LIMIT_MS, else TEST_LIMIT_MS; then doubled for each timeout since it last
+ * passed, never over UNIT_LIMIT_CEILING_MS. On CI the history is main's, so a pull request's timeouts never grow it.
+ */
+export function testLimit(file, name, { home = defaultHome(), platform = process.platform, arch = process.arch } = {}) {
+  return limitFrom(testRows(home, platform, arch).filter((row) => row.file === file && row.test === name));
+}
+
+/** The limit a unit's tests run under: the largest of its tests' (a unit's files, or the one file run alone), naming whose. */
+export function unitTestLimit(unit, { home = defaultHome(), platform = process.platform, arch = process.arch } = {}) {
+  const tests = Map.groupBy(testRows(home, platform, arch).filter((row) => row.file === unit || row.file.startsWith(`${unit}/`)), (row) => JSON.stringify([row.file, row.test]));
+  let largest = { ms: TEST_LIMIT_MS, source: "default" };
+  for (const [key, rows] of tests) {
+    const limit = limitFrom(rows);
+    const [file, name] = JSON.parse(key);
+    if (limit.ms > largest.ms) largest = { ms: limit.ms, source: `${limit.source} for ${file} › ${name}` };
+  }
+  return largest;
+}
+
+const testRows = (home, platform, arch) => readJsonLines(path.join(home, "test-timings.jsonl")).filter((row) => row.test !== undefined && row.platform === platform && row.arch === arch);
+
+function limitFrom(rows) {
+  const passes = rows.filter((row) => row.result === "pass").slice(-RECENT_PASSES);
+  let [ms, source] = [TEST_LIMIT_MS, "default"];
+  if (passes.length >= LEARN_FROM_PASSES) [ms, source] = [Math.max(TEST_LIMIT_MS, Math.ceil((TEST_LIMIT_FACTOR * Math.max(...passes.map((row) => row.ms))) / 1000) * 1000), "learned"];
+  const timeouts = rows.slice(rows.findLastIndex((row) => row.result === "pass") + 1).filter((row) => row.timedOut).length;
+  if (timeouts === 0) return { ms, source };
+  return { ms: Math.min(UNIT_LIMIT_CEILING_MS, ms * 2 ** timeouts), source: `${source}, grown after ${timeouts} timeout${timeouts === 1 ? "" : "s"}` };
+}
+
 /** The run's deadline, from STORYTREE_TEST_DEADLINE (Unix seconds) when set: CI's job limit less room to report. */
 export function runDeadline(env) {
   const seconds = Number(env.STORYTREE_TEST_DEADLINE);
@@ -352,7 +407,14 @@ function readJsonLines(file) {
 }
 
 /** A unit's row note in the results table: its time and deadline, and on a timeout what was still running. */
-export function unitReason({ ms, timedOut, running = [], exitHung = [], unitLimitMs, limitSource }, root) {
+export function unitReason(run, root) {
+  const timeouts = (run.tests ?? []).filter((test) => test.timedOut);
+  const reason = unitRowReason(run, root);
+  if (timeouts.length === 0) return reason;
+  return `${reason}; timed out at the per-test limit of ${run.testLimitMs / 1000} s (${run.testLimitSource}): ${timeouts.map(({ file, name }) => `${file} › ${name}`).join("; ")}`;
+}
+
+function unitRowReason({ ms, timedOut, running = [], exitHung = [], unitLimitMs, limitSource }, root) {
   const took = `${(ms / 1000).toFixed(1)} s`;
   const limit = `limit ${unitLimitMs / 1000} s${limitSource ? `, ${limitSource}` : ""}`;
   const shown = (file) => path.relative(root, file).replaceAll("\\", "/");
@@ -371,23 +433,31 @@ export function unitReason({ ms, timedOut, running = [], exitHung = [], unitLimi
 
 /**
  * Add this run's unit times, and how many units it tested at once, to the machine's history, which
- * unitLimit learns each deadline from. Past `trimAt` rows the history keeps only each unit's last
- * TIMING_ROWS_KEPT on each machine at each concurrency, so one carried from run to run stays small.
+ * unitLimit learns each deadline from; and its tests' times (runUnit's `tests`), which testLimit learns
+ * each test's from: only a test that could need more than TEST_LIMIT_MS (a pass a third of it or
+ * longer, or a timeout at its limit), and then every pass or timeout of it, so the history holds only
+ * slow tests. Past `trimAt` rows the history keeps only each unit's last TIMING_ROWS_KEPT on each
+ * machine at each concurrency, and each test's on each machine, so one carried from run to run stays small.
  */
-export function recordTimings(units, { home = defaultHome(), jobs = 1, trimAt = TRIM_TIMINGS_AT } = {}) {
+export function recordTimings(units, { home = defaultHome(), jobs = 1, trimAt = TRIM_TIMINGS_AT, tests = [] } = {}) {
   const at = new Date().toISOString();
-  const lines = Object.entries(units).map(([unit, { result, ms, timedOut = false }]) =>
-    JSON.stringify({ at, platform: process.platform, arch: process.arch, unit, result, ms, timedOut, jobs }),
-  );
+  const file = path.join(home, "test-timings.jsonl");
+  const { platform, arch } = process;
+  const held = new Set(tests.length === 0 ? [] : testRows(home, platform, arch).map((row) => JSON.stringify([row.file, row.test])));
+  const lines = [
+    ...Object.entries(units).map(([unit, { result, ms, timedOut = false }]) => JSON.stringify({ at, platform, arch, unit, result, ms, timedOut, jobs })),
+    ...tests
+      .filter((test) => test.timedOut || (test.result === "pass" && (test.ms >= TEST_LIMIT_MS / TEST_LIMIT_FACTOR || held.has(JSON.stringify([test.file, test.name])))))
+      .map(({ file: testFile, name, result, ms, timedOut }) => JSON.stringify({ at, platform, arch, file: testFile, test: name, result, ms, timedOut })),
+  ];
   if (lines.length === 0) return;
   mkdirSync(home, { recursive: true });
-  const file = path.join(home, "test-timings.jsonl");
   appendFileSync(file, `${lines.join("\n")}\n`);
   const rows = readJsonLines(file);
   if (rows.length <= trimAt) return;
   const seen = new Map();
   const kept = rows.toReversed().filter((row) => {
-    const key = JSON.stringify([row.unit, row.platform, row.arch, row.jobs ?? 1]);
+    const key = JSON.stringify(row.test === undefined ? [row.unit, row.platform, row.arch, row.jobs ?? 1] : [row.file, row.test, row.platform, row.arch]);
     seen.set(key, (seen.get(key) ?? 0) + 1);
     return seen.get(key) <= TIMING_ROWS_KEPT;
   });
@@ -398,7 +468,7 @@ export function recordTimings(units, { home = defaultHome(), jobs = 1, trimAt = 
 export function recentPassTimes({ home = defaultHome(), platform = process.platform, arch = process.arch } = {}) {
   const passes = new Map();
   for (const row of readJsonLines(path.join(home, "test-timings.jsonl"))) {
-    if (row.result !== "pass" || row.platform !== platform || row.arch !== arch) continue;
+    if (row.unit === undefined || row.result !== "pass" || row.platform !== platform || row.arch !== arch) continue;
     passes.set(row.unit, [...(passes.get(row.unit) ?? []), row.ms].slice(-LEARN_FROM_PASSES));
   }
   return new Map([...passes].map(([unit, times]) => [unit, Math.max(...times)]));

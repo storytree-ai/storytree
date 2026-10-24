@@ -50,22 +50,28 @@ through tsx, never through that link.
 
 Voice writes are drafts in `voice_draft` (`door-database.sql`): the door's role may add one and set only
 its confirmed and cancelled times, and the database sets every time itself. A draft lapses 15 minutes
-after it is read back unless confirmed, and takes effect ten minutes after confirming unless cancelled.
-A note (`save_note`) is a row of kind `note`, kept at once with no read-back and no window; an answer to
-an open question is a note too. The confined door never writes the library: `voice-commit.service`, run
-every minute by `voice-commit.timer` as the owner's account, starts each due session manager run through
-`~/storytree-lanes/run-lane.sh`, its files in `~/storytree-lanes/voice-runs/`. The run's brief carries every
-note not yet swept, and the committer marks those notes swept by that run (`swept_by_run`, which only the
-owner's account may set) as it starts it; the run acts on each, answers included. It holds a run while the
-laptop's scheduled session manager run may be running (from ten past each odd hour, Sydney time, until
-`overnight-log.md` is written). While `voice_lock` holds a row it drops what is waiting.
+after it is read back unless confirmed. A session manager run is read back in one line ("Sending 2 notes
+and your request about …: say yes to send.") and takes effect the moment it is confirmed, with no window
+(ADR-1155 D3); cancel stops it only until the run starts. A note (`save_note`) is a row of kind `note`,
+kept at once with no read-back; an answer to an open question is a note too. The confined door never
+writes the library: confirming a run makes the database notify `voice_run`, and `voice-listen.service`,
+the owner's account listening on the door's database over the local socket, runs one tick of the
+committer each time, so the run starts within seconds through `~/storytree-lanes/run-lane.sh`, its files
+in `~/storytree-lanes/voice-runs/`. A run's end mark appearing there wakes it too, so the reply is
+recorded at once. It ticks on every (re)connection, catching up on what it missed, and reconnects after
+losing the database; `voice-commit.timer` runs the same tick every 15 minutes as a fallback. The run's
+brief carries every note not yet swept, and the committer marks those notes swept by that run
+(`swept_by_run`, which only the owner's account may set) as it starts it; the run acts on each, answers
+included. It holds a run while the laptop's scheduled session manager run may be running (from ten past
+each odd hour, Sydney time, until `overnight-log.md` is written), and one voice-started run at a time.
+While `voice_lock` holds a row it drops what is waiting.
 
 Turning them on, after the change lands and the door's refresh has taken it (within 15 minutes), as the owner on the box:
 
 ```bash
 cd ~/code/storytree03 && git pull && pnpm install
 sudo runuser -u postgres -- psql -X -q -v ON_ERROR_STOP=1 -d storytree-voice < packages/voice/box/door-database.sql
-mkdir -p ~/.config/systemd/user && cp packages/voice/box/voice-commit.{service,timer} ~/.config/systemd/user/
-systemctl --user daemon-reload && systemctl --user enable --now voice-commit.timer
+mkdir -p ~/.config/systemd/user && cp packages/voice/box/voice-{commit.service,commit.timer,listen.service} ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now voice-listen.service voice-commit.timer
 echo VOICE_WRITES=on | sudo tee -a /etc/storytree-voice/env && sudo systemctl restart storytree-voice
 ```

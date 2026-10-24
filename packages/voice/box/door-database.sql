@@ -32,9 +32,10 @@ CREATE TABLE IF NOT EXISTS voice_lock (
 
 -- THE DRAFTS. A voice write is a row here until the box's committer (voice-commit, run by the owner's
 -- account) carries it out. The door's role may add a draft and set only its confirmed and cancelled
--- times; every time is the database's own (the trigger below), so a misled door cannot shorten the
--- fifteen minutes a draft lasts unconfirmed or the ten-minute window after confirm, and it may not mark
--- a draft done or write its outcome or reply.
+-- times; every time is the database's own (the trigger below), so a misled door cannot stretch the
+-- fifteen minutes a draft lasts unconfirmed, and it may not mark a draft done or write its outcome or
+-- reply. A confirmed draft is due at once, with no window (ADR-1155 D3): confirming a manager run
+-- notifies voice_run, and the box's listener (voice-listen.service) starts it within seconds.
 --
 -- THE NOTES (contracts 5.7, 5.8). A note is a row of kind 'note': what the owner said, kept at once,
 -- born confirmed with no read-back and no window, never carried out by the committer and never
@@ -118,7 +119,7 @@ BEGIN
     IF now() >= OLD.expires_at THEN RAISE EXCEPTION 'draft % lapsed unconfirmed after 15 minutes', OLD.id; END IF;
     IF EXISTS (SELECT 1 FROM voice_lock) THEN RAISE EXCEPTION 'voice writes are locked'; END IF;
     NEW.confirmed_at := now();
-    NEW.commit_at := now() + interval '10 minutes';
+    NEW.commit_at := now();
   ELSIF NEW.commit_at IS DISTINCT FROM OLD.commit_at THEN
     RAISE EXCEPTION 'draft %''s time to take effect is set by confirming it', OLD.id;
   END IF;
@@ -140,6 +141,19 @@ $guard$;
 
 DROP TRIGGER IF EXISTS voice_draft_guard ON voice_draft;
 CREATE TRIGGER voice_draft_guard BEFORE INSERT OR UPDATE ON voice_draft FOR EACH ROW EXECUTE FUNCTION voice_draft_guard();
+
+-- THE HAND-OFF (contract 5.9): a manager run confirmed notifies voice_run once its update commits.
+CREATE OR REPLACE FUNCTION voice_run_notify() RETURNS trigger LANGUAGE plpgsql AS $notify$
+BEGIN
+  PERFORM pg_notify('voice_run', NEW.id::text);
+  RETURN NULL;
+END
+$notify$;
+
+DROP TRIGGER IF EXISTS voice_run_notify ON voice_draft;
+CREATE TRIGGER voice_run_notify AFTER UPDATE OF confirmed_at ON voice_draft FOR EACH ROW
+  WHEN (NEW.kind = 'manager_run' AND OLD.confirmed_at IS NULL AND NEW.confirmed_at IS NOT NULL)
+  EXECUTE FUNCTION voice_run_notify();
 
 REVOKE ALL ON DATABASE "storytree-voice" FROM PUBLIC;
 GRANT CONNECT ON DATABASE "storytree-voice" TO storytree_voice;

@@ -114,7 +114,7 @@ export async function runStoryTests(globs, root) {
       const child = spawn(
         process.execPath,
         ["--import", "tsx", path.join(root, "packages", "dev-loop", "src", "test.mjs"), "--test-reporter=junit", `--test-reporter-destination=${report}`, ...globs],
-        { cwd: root, stdio: "inherit", env: withoutGoogleSignIn(process.env) },
+        { cwd: root, stdio: "inherit", env: withoutLibrarySignIn(process.env) },
       );
       child.on("error", reject);
       child.on("exit", (exitCode) => resolve(exitCode ?? 1));
@@ -127,10 +127,11 @@ export async function runStoryTests(globs, root) {
 }
 
 /**
- * The environment without CI's Google sign-in (what google-github-actions/auth exports): the
- * stories' tests run against their own throwaway Postgres, and none of them may reach the real
- * library as CI's identity.
+ * The environment without CI's sign-ins to the library: its Google one (what
+ * google-github-actions/auth exports) and its Postgres one (PGPASSWORD and every other libpq
+ * variable, and HEALTH_PG_ADDRESS). The stories' tests run against their own throwaway Postgres,
+ * and none of them may reach the real library as CI's identity.
  */
-function withoutGoogleSignIn(env) {
-  return Object.fromEntries(Object.entries(env).filter(([name]) => !/^(GOOGLE_|CLOUDSDK_|GCLOUD_|GCP_)/.test(name)));
+function withoutLibrarySignIn(env) {
+  return Object.fromEntries(Object.entries(env).filter(([name]) => !/^(GOOGLE_|CLOUDSDK_|GCLOUD_|GCP_|PG|HEALTH_PG_)/.test(name)));
 }

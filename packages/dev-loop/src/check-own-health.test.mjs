@@ -28,3 +28,22 @@ test("5.13 · `pnpm check:own-health` runs a story's tests through this repo's h
   assert.deepEqual(run.results?.map(({ name, status }) => [name, status]), [["1.1 boils", "passed"], ["1.2 pours", "failed"], ["1.3 whistles", "skipped"]]);
   assert.equal(run.results?.find(({ name }) => name === "1.3 whistles")?.message, "owner: needs a kettle");
 });
+
+test("5.13 · `pnpm check:own-health` runs the stories' tests without the library's sign-in: no PG* or HEALTH_PG_* variable reaches them", async (t) => {
+  const folder = mkdtempSync(path.join(tmpdir(), "own-health-env-"));
+  const given = { PGPASSWORD: "not-for-tests", PGUSER: "storytree-ci-health", HEALTH_PG_ADDRESS: "postgres://library.example:5432/postgres" };
+  const before = Object.fromEntries(Object.keys(given).map((name) => [name, process.env[name]]));
+  Object.assign(process.env, given);
+  t.after(() => {
+    for (const [name, value] of Object.entries(before)) if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    rmSync(folder, { recursive: true, force: true });
+  });
+  const file = path.join(folder, "sealed.test.mjs");
+  writeFileSync(file, [
+    'import assert from "node:assert/strict";',
+    'import { test } from "node:test";',
+    'test("1.1 sees no sign-in", () => assert.deepEqual(Object.keys(process.env).filter((name) => /^(PG|HEALTH_PG_)/.test(name)), []));',
+  ].join("\n"));
+  const run = await runStoryTests([file], root);
+  assert.deepEqual(run.results?.map(({ name, status, message }) => [name, status, message]), [["1.1 sees no sign-in", "passed", undefined]]);
+});

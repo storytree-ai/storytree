@@ -7,12 +7,12 @@
 // An argv naming question_000000000000 plays a refusal (exit 1); "unusable" plays exit 2; "crash" exits 3 with a stack;
 // "colour" answers with colour codes and a "next:" block. "sleep:<ms>" waits that long before answering, and
 // "sleep:<ms>:stubborn" also ignores SIGTERM. With FAKE_CLI_LOG set, it appends "start <pid> <epoch ms>" and
-// "end <pid> <epoch ms>" lines there, so a test can count the children running at once and see which were stopped.
+// "end <pid> <epoch ms>" lines there, each with its argv as JSON, so a test can count the children running at once and see which were stopped.
 import { appendFileSync } from "node:fs";
 
 const argv = process.argv.slice(2);
 const note = (word) => {
-  if (process.env.FAKE_CLI_LOG) appendFileSync(process.env.FAKE_CLI_LOG, `${word} ${process.pid} ${Date.now()}\n`);
+  if (process.env.FAKE_CLI_LOG) appendFileSync(process.env.FAKE_CLI_LOG, `${word} ${process.pid} ${Date.now()} ${JSON.stringify(argv)}\n`);
 };
 const NEXT = "\n\nnext:\n  - storytree library read <id>   (read one whole)\n";
 const STACK = "    at fakeRefusal (fake-cli.mjs:6:1)\n    at node:internal/main/run_main_module:28:49\n";
@@ -76,7 +76,51 @@ function answer() {
   if (family === "library" && verb === "list" && argv.includes("number=1103")) {
     return `1 decision records:\n  decision_0000000011a3  The decision numbered 1103${NEXT}`;
   }
+  if (family === "library" && verb === "list" && argv.includes("number=3")) {
+    return `1 decision records:\n  decision_000000000003  The decision numbered 3${NEXT}`;
+  }
   if (family === "library" && verb === "list" && argv[2] === "decision") return `0 decision records:${NEXT}`;
+  if (family === "library" && verb === "list" && argv[2] === "definition") {
+    return `2 definition records:\n  definition_0000000000f1  Owner question\n  definition_0000000000f2  Watcher${NEXT}`;
+  }
+  if (family === "arc" && verb === "list") {
+    return (
+      "3 arcs:\n" +
+      "  arc_0000000000b1  [active]  priority 1  The owner gives UI feedback\n" +
+      "  arc_0000000000b2  [parked]  Bring your own factory\n" +
+      "  arc_0000000000b3  [active]  Stability and testing rigour" +
+      NEXT
+    );
+  }
+  if (family === "library" && verb === "count") {
+    return (
+      "Live records by kind:\n  decision           503: accepted 491, proposed 12\n  question           216: settled 206, open 10\n\n" +
+      "Open increments by arc:\n  86 open  arc_bfbc3b617d69  Hardening before the public launch\n  8 open  arc_7c7b7f22a027  Voice sessions reach storytree live" +
+      NEXT
+    );
+  }
+  if (family === "library" && verb === "find") {
+    const words = argv.at(-1);
+    if (words === "voice door") {
+      const hits = Array.from({ length: 7 }, (_, at) => `  increment_${hex(0xf00 + at)}  [increment]  Voice door step ${at + 1}`);
+      return `titles holding "voice door":\n${hits.join("\n")}${NEXT}`;
+    }
+    // A slow call (the gate tests') is answered by its title lookup alone: one child per find.
+    if (/^sleep:/.test(words)) return `titles holding "${words}":\n  note_${hex(0x51)}  [principle]  A slow answer${NEXT}`;
+    return `No titles holding "${words}".${NEXT}`;
+  }
+  if (family === "question" && verb === "show" && argv[2] === "question_0000000000c1") {
+    const filler = Array.from({ length: 30 }, (_, at) => `Sentence ${at + 1} of the stakes, naming arc_0000000000b1 and the cost.`).join(" ");
+    return `Newest: keep the secret address alone?  [question_0000000000c1]\nOn arc_0000000000b1, open.\n\nStakes:\n${filler}\n\nOptions:\n(a) Keep it. Good: nothing to do. Bad: anyone with the address.\n(b) Sign in. Good: tied to you. Bad: setup.${NEXT}`;
+  }
+  if (family === "library" && verb === "read" && argv[2] === "decision_000000000003") {
+    return (
+      "decision_000000000003  [decision]  schema 2\nCreated: 2026-10-01T00:00:00.000Z\nUpdated: 2026-10-02T00:00:00.000Z\n\n" +
+      'number: 3\nstatus: accepted\ntext: Open questions are mirrored to Drive (see research_0000000000aa).\nlinks: [\n  "research_0000000000aa"\n]\noutcome: {\n  "pr": "1723",\n  "disposition": "landed"\n}\n' +
+      "title: The decision numbered 3" +
+      NEXT
+    );
+  }
   if (family === "library" && verb === "search" && argv.at(-1) === "seven hits") {
     const hits = Array.from({ length: 7 }, (_, at) => `  0.${90 - at}  note_${hex(at + 1)}  [principle]  Principle number ${at + 1}`);
     return `closest in meaning to "seven hits":\n${hits.join("\n")}${NEXT}`;

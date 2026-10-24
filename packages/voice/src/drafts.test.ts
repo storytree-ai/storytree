@@ -428,6 +428,61 @@ test("5.8 a manager run's brief carries his command and every unswept note, numb
     assert.rejects(client.query("UPDATE voice_draft SET swept_by_run = 5 WHERE id = 1"), /already swept/));
 });
 
+test("5.10 a note the scheduled sweep marked, or gave an outcome, is never carried by a voice-started run or counted in its read-back; only the box's account sets the mark, once, and the database sets its time", async (t) => {
+  const voice = await writesDoor(t);
+  for (const text of ["Routed by the scheduled run.", "Also routed by it.", "Routed before the mark existed.", "Still waiting."]) {
+    await voice.call("save_note", { text, kind: "idea" });
+  }
+  const mark = `scheduled ${today().slice(6)}`;
+  // The door's role can never set the mark, on a note or a new row.
+  await onDatabase(voice.asRole, async (client) => {
+    await assert.rejects(client.query("UPDATE voice_draft SET swept_by = $1 WHERE id = 1", [mark]), /permission denied/);
+    await assert.rejects(client.query("INSERT INTO voice_draft (kind, note_kind, words, body, session, swept_by) VALUES ('note', 'idea', 'w', 'w', $1, $2)", [today(), mark]), /permission denied/);
+  });
+  // The box's account marks two (the database sets their time), and gives one an outcome alone.
+  await onDatabase(voice.asOwner, async (client) => {
+    await client.query("UPDATE voice_draft SET swept_by = $1, swept_at = NULL WHERE id IN (1, 2)", [mark]);
+    await client.query("UPDATE voice_draft SET outcome = 'scheduled session manager: no action, a duplicate' WHERE id = 3");
+    await assert.rejects(client.query("UPDATE voice_draft SET swept_by = $1 WHERE id = 1", [`scheduled 2000-01-01`]), /already swept/);
+    await assert.rejects(client.query("UPDATE voice_draft SET swept_by = 'tomorrow' WHERE id = 4"), /voice_draft_kinds/);
+    await assert.rejects(client.query("UPDATE voice_draft SET swept_at = now() WHERE id = 4"), /set by sweeping it/);
+  });
+  const marked = await rows(voice.asOwner);
+  assert.deepEqual(marked.map((row) => [row.id, row.swept_by, row.swept_at !== null]), [[1, mark, true], [2, mark, true], [3, null, false], [4, null, false]]);
+
+  // Only the note no one routed rides along: in the read-back's count and in the run's brief.
+  const started = await voice.call("start_manager_run", { request: "Send it to the manager." });
+  assert.equal(started.text, 'Sending 1 note and your request about "Send it to the manager.": say yes to send.');
+  await voice.call("confirm", { draft: 5 });
+  await backdate(voice.asOwner, 5, "commit_at = now() - interval '1 second'");
+  const scratch = committerScratch(t);
+  await commitTick({ ...scratch.env, ...laptopRunEnded(scratch.dir), VOICE_DRAFTS_URL: voice.asOwner }, () => {});
+  const files = runFiles(scratch.env.VOICE_RUNS_DIR, 5);
+  assert.ok(await until(() => existsSync(files.ended), 10_000), "the run's end was never marked");
+  const brief = readFileSync(files.brief, "utf8");
+  assert.deepEqual(brief.match(/^Note \d+/gm), ["Note 4"], brief);
+  const notes = (await rows(voice.asOwner)).filter((row) => row.kind === "note");
+  assert.deepEqual(notes.map((row) => [row.id, row.swept_by_run, row.swept_by]), [[1, null, mark], [2, null, mark], [3, null, null], [4, 5, null]]);
+
+  // Swept one way, never the other.
+  await onDatabase(voice.asOwner, async (client) => {
+    await assert.rejects(client.query("UPDATE voice_draft SET swept_by_run = 5 WHERE id = 1"), /already swept/);
+    await assert.rejects(client.query("UPDATE voice_draft SET swept_by = $1 WHERE id = 4", [mark]), /already swept/);
+  });
+
+  // The day's cap of 50 waiting notes counts neither a marked note nor one with an outcome.
+  for (const text of ["marked", "routed", "waiting"]) await voice.call("save_note", { text, kind: "idea" });
+  await onDatabase(voice.asOwner, async (client) => {
+    await client.query("UPDATE voice_draft SET swept_by = $1 WHERE id = 6", [mark]);
+    await client.query("UPDATE voice_draft SET outcome = 'scheduled session manager: no action' WHERE id = 7");
+  });
+  await onDatabase(voice.asRole, (client) =>
+    client.query("INSERT INTO voice_draft (kind, note_kind, words, body, session) SELECT 'note', 'idea', 'n', 'n', $1 FROM generate_series(1, 48)", [today()]));
+  const last = await voice.call("save_note", { text: "the fiftieth", kind: "idea" });
+  assert.equal(last.refused, false, last.text);
+  assert.match((await voice.call("save_note", { text: "one more", kind: "idea" })).text, /50 notes from today are waiting/);
+});
+
 /** The box's listener on a throwaway door database, ticking the committer with the scratch folder's stand-in run-lane.sh. */
 async function listening(voice: Awaited<ReturnType<typeof writesDoor>>, scratch: ReturnType<typeof committerScratch>, lines: string[]) {
   const env = { ...scratch.env, ...laptopRunEnded(scratch.dir), VOICE_DRAFTS_URL: voice.asOwner };

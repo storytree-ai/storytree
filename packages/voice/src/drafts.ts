@@ -33,6 +33,8 @@ export interface Draft {
   readonly reply: string | null;
   readonly swept_at: Date | null;
   readonly swept_by_run: number | null;
+  /** The scheduled session manager's mark on a note it took ("scheduled YYYY-MM-DD"), set only by the box's account. */
+  readonly swept_by: string | null;
 }
 
 /** How long a voice-started run may hold the box before it counts as ended without a reply. */
@@ -61,6 +63,9 @@ export function draftsUrlFrom(storytreeHome: string | undefined): string | null 
     return null;
   }
 }
+
+/** A note no run carried and the scheduled session manager neither marked nor routed (ADR-1155 D4). */
+const UNSWEPT = "kind = 'note' AND swept_by_run IS NULL AND swept_by IS NULL AND outcome IS NULL";
 
 const ACTIVE_RUN = `kind = 'manager_run' AND cancelled_at IS NULL AND run_ended_at IS NULL
   AND (confirmed_at IS NOT NULL OR expires_at > now())
@@ -117,14 +122,14 @@ export class Drafts {
     );
   }
 
-  /** Notes no manager run has swept yet, oldest first. */
+  /** Notes no manager run has swept yet, scheduled or voice-started, oldest first. */
   async unswept(): Promise<Draft[]> {
-    return this.#query<Draft>("SELECT * FROM voice_draft WHERE kind = 'note' AND swept_by_run IS NULL ORDER BY id");
+    return this.#query<Draft>(`SELECT * FROM voice_draft WHERE ${UNSWEPT} ORDER BY id`);
   }
 
   /** Mark every unswept note swept by the run that is starting (the box's account only), and give them back oldest first. */
   async sweep(run: number): Promise<Draft[]> {
-    const rows = await this.#query<Draft>("UPDATE voice_draft SET swept_by_run = $1 WHERE kind = 'note' AND swept_by_run IS NULL RETURNING *", [run]);
+    const rows = await this.#query<Draft>(`UPDATE voice_draft SET swept_by_run = $1 WHERE ${UNSWEPT} RETURNING *`, [run]);
     return rows.sort((a, b) => a.id - b.id);
   }
 

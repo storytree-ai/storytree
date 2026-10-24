@@ -40,8 +40,10 @@ CREATE TABLE IF NOT EXISTS voice_lock (
 -- THE NOTES (contracts 5.7, 5.8). A note is a row of kind 'note': what the owner said, kept at once,
 -- born confirmed with no read-back and no window, never carried out by the committer and never
 -- cancelled. A manager run sweeps it: the committer sets swept_by_run (and the database swept_at) when
--- it launches the run whose brief carries the note. The door's role may never set either. At most 50
--- notes from one day's voice session wait unswept.
+-- it launches the run whose brief carries the note, or the scheduled session manager sets swept_by
+-- ('scheduled YYYY-MM-DD', ADR-1155 D4) on a note it takes, once, and never one a run swept. A note
+-- with either mark, or an outcome, is swept: no run carries it again. The door's role may never set
+-- any of them. At most 50 notes from one day's voice session wait unswept.
 CREATE TABLE IF NOT EXISTS voice_draft (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   kind text NOT NULL,
@@ -60,13 +62,15 @@ CREATE TABLE IF NOT EXISTS voice_draft (
   run_ended_at timestamptz,
   reply text CHECK (char_length(reply) <= 4000),
   swept_at timestamptz,
-  swept_by_run integer REFERENCES voice_draft (id)
+  swept_by_run integer REFERENCES voice_draft (id),
+  swept_by text
 );
 
 -- A table made by this script before notes: their columns, and the kinds' rules in place of its own.
 ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS note_kind text;
 ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS swept_at timestamptz;
 ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS swept_by_run integer REFERENCES voice_draft (id);
+ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS swept_by text;
 ALTER TABLE voice_draft DROP CONSTRAINT IF EXISTS voice_draft_kind_check;
 ALTER TABLE voice_draft DROP CONSTRAINT IF EXISTS voice_draft_check;
 ALTER TABLE voice_draft DROP CONSTRAINT IF EXISTS voice_draft_kinds;
@@ -75,7 +79,8 @@ ALTER TABLE voice_draft ADD CONSTRAINT voice_draft_kinds CHECK (
   AND (kind = 'note') = (note_kind IS NOT NULL)
   AND note_kind IN ('decision', 'change', 'idea', 'question', 'instruction', 'answer')
   AND (question IS NOT NULL) = (note_kind IS NOT DISTINCT FROM 'answer')
-  AND (kind = 'note' OR swept_by_run IS NULL)
+  AND (kind = 'note' OR (swept_by_run IS NULL AND swept_by IS NULL))
+  AND swept_by ~ '^scheduled [0-9]{4}-[0-9]{2}-[0-9]{2}$'
 );
 
 CREATE OR REPLACE FUNCTION voice_draft_guard() RETURNS trigger LANGUAGE plpgsql AS $guard$
@@ -85,9 +90,10 @@ BEGIN
     NEW.drafted_at := now();
     NEW.expires_at := now() + interval '15 minutes';
     NEW.confirmed_at := NULL; NEW.commit_at := NULL; NEW.cancelled_at := NULL; NEW.committed_at := NULL;
-    NEW.outcome := NULL; NEW.run_ended_at := NULL; NEW.reply := NULL; NEW.swept_at := NULL; NEW.swept_by_run := NULL;
+    NEW.outcome := NULL; NEW.run_ended_at := NULL; NEW.reply := NULL; NEW.swept_at := NULL; NEW.swept_by_run := NULL; NEW.swept_by := NULL;
     IF NEW.kind = 'note' THEN
-      IF (SELECT count(*) FROM voice_draft WHERE kind = 'note' AND session = NEW.session AND swept_by_run IS NULL) >= 50 THEN
+      IF (SELECT count(*) FROM voice_draft WHERE kind = 'note' AND session = NEW.session
+          AND swept_by_run IS NULL AND swept_by IS NULL AND outcome IS NULL) >= 50 THEN
         RAISE EXCEPTION '50 notes from today are waiting unswept: send them to the manager first';
       END IF;
       NEW.expires_at := now();
@@ -104,9 +110,13 @@ BEGIN
      OR NEW.commit_at IS DISTINCT FROM OLD.commit_at OR NEW.committed_at IS DISTINCT FROM OLD.committed_at) THEN
     RAISE EXCEPTION 'note % is kept as it was said: say what changed in another note', OLD.id;
   END IF;
-  IF NEW.swept_by_run IS DISTINCT FROM OLD.swept_by_run THEN
+  IF NEW.swept_by_run IS DISTINCT FROM OLD.swept_by_run OR NEW.swept_by IS DISTINCT FROM OLD.swept_by THEN
     IF OLD.swept_by_run IS NOT NULL THEN RAISE EXCEPTION 'note % was already swept by run %', OLD.id, OLD.swept_by_run; END IF;
-    IF NOT EXISTS (SELECT 1 FROM voice_draft WHERE id = NEW.swept_by_run AND kind = 'manager_run' AND committed_at IS NOT NULL) THEN
+    IF OLD.swept_by IS NOT NULL THEN RAISE EXCEPTION 'note % was already swept, %', OLD.id, OLD.swept_by; END IF;
+    IF NEW.swept_by_run IS NOT NULL AND NEW.swept_by IS NOT NULL THEN
+      RAISE EXCEPTION 'note % is swept by a run or by the scheduled session manager, not both', OLD.id;
+    END IF;
+    IF NEW.swept_by_run IS NOT NULL AND NOT EXISTS (SELECT 1 FROM voice_draft WHERE id = NEW.swept_by_run AND kind = 'manager_run' AND committed_at IS NOT NULL) THEN
       RAISE EXCEPTION 'note % can be swept only by a manager run that started', OLD.id;
     END IF;
     NEW.swept_at := now();

@@ -462,12 +462,12 @@ test("6.24 · a unit gives back each test it ran, by its full name, with its tim
     "src/limits.test.mjs": `import { describe, it, test } from "node:test";
 describe("outer", () => { it("inner", () => {}); });
 test("parent", async (t) => { await t.test("child", () => {}); });
-test("too slow", () => new Promise((resolve) => setTimeout(resolve, 5_000)));
-test("its own limit", { timeout: 10_000 }, () => new Promise((resolve) => setTimeout(resolve, 2_000)));
+test("too slow", () => new Promise(() => { setInterval(() => {}, 1000); }));
+test("its own limit", { timeout: 10_000 }, () => new Promise((resolve) => setTimeout(resolve, 600)));
 test.skip("skipped", () => {});`,
   });
   const { closed, options } = captured();
-  const result = await runUnit({ root, files: ["src/limits.test.mjs"], env: process.env, testLimitMs: 1_000, unitLimitMs: 30_000, ...options });
+  const result = await runUnit({ root, files: ["src/limits.test.mjs"], env: process.env, testLimitMs: 300, unitLimitMs: 30_000, ...options });
   await closed;
   const ran = Object.fromEntries(result.tests.map(({ file, name, result: outcome, timedOut }) => [name, { file, outcome, timedOut }]));
   const file = "src/limits.test.mjs";
@@ -478,8 +478,7 @@ test.skip("skipped", () => {});`,
     parent: { file, outcome: "pass", timedOut: false },
     "too slow": { file, outcome: "fail", timedOut: true },
     "its own limit": { file, outcome: "pass", timedOut: false },
-  });
-  assert.ok(result.tests.find((each) => each.name === "its own limit").ms >= 2_000, "its own 10 s held over the run's 1 s");
+  }, "its own 10 s held over the run's 0.3 s, which a 0.6 s wait would cross");
 });
 
 test("6.24 · a unit whose test timed out at a learned limit names the test, the limit and where it came from", () => {

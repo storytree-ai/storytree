@@ -2,12 +2,13 @@
 // lock in STORYTREE_HOME, taken by the test harness itself, instead of saturating the machine.
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { setTimeout as delay } from "node:timers/promises";
+
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { runHeavyCommand } from "./heavy-lock.mjs";
 import { killTree } from "./unit-run.mjs";
@@ -16,7 +17,7 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 function machine(t) {
   const dir = mkdtempSync(path.join(tmpdir(), "heavy-lock-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const home = path.join(dir, "home");
   const log = path.join(dir, "runs.log");
   const file = path.join(dir, "slow.test.mjs");
@@ -56,9 +57,9 @@ test("slow", async () => {
 test("6.2 a second test run on the machine waits for the first, naming who holds the lock", async (t) => {
   const { harness, events, letGo } = machine(t);
   const first = harness("first");
-  while (!events().some((event) => event.what === "start")) await delay(50);
+  await waitUntil(() => events().some((event) => event.what === "start"), 20_000, "the first run to start");
   const second = harness("second");
-  for (let waited = 0; !/waiting for/.test(second.output()) && waited < 60000; waited += 50) await delay(50);
+  await waitUntil(() => /waiting for/.test(second.output()), 20_000, "the second run to say it is waiting");
   letGo();
   const [a, b] = await Promise.all([first.done, second.done]);
   assert.equal(a.code, 0, a.output);
@@ -86,7 +87,7 @@ function commandMachine(t) {
   const children = [];
   t.after(async () => {
     for (const { child, done } of children) { killTree(child); await done.catch(() => {}); }
-    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await removeTemp(dir);
   });
   const env = { ...process.env, STORYTREE_HOME: dir };
   delete env.STORYTREE_HEAVY_LOCK_HOLDER;
@@ -108,12 +109,8 @@ function commandMachine(t) {
 
 // Twenty seconds: a process starting on a runner busy with other units' tests can take more than
 // five (run 38009064713, Linux, with three units at once); a wait costs only what it waits.
-async function until(check) {
-  for (let i = 0; i < 800; i++) {
-    if (check()) return;
-    await delay(25);
-  }
-  assert.fail("command did not reach the expected state within twenty seconds");
+function until(check) {
+  return waitUntil(check, 20_000, `the command to reach ${check}`);
 }
 
 test("6.2 a browser evidence command waits behind the foreground gate, names its holder and starts after release", { timeout: 60_000 }, async (t) => {

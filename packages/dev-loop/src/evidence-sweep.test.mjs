@@ -2,10 +2,12 @@
 // packages/dev-loop/src/evidence-sweep.mjs; `pnpm evidence:sweep` runs them against the library.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { applySweep, sweepPlan } from "./evidence-sweep.mjs";
 
@@ -19,7 +21,7 @@ function write(root, file, text) {
 /** A repository on main where each pull request is a branch merged as GitHub merges one. */
 function repository(t) {
   const root = mkdtempSync(path.join(tmpdir(), "evidence-sweep-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   git(root, "init", "-q", "-b", "main");
   git(root, "config", "user.email", "test@example.com");
   git(root, "config", "user.name", "test");

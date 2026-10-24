@@ -1,10 +1,12 @@
 // A type-only import ends only at the library (ADR-1017 D2): a planted checkout of three stories, read the
 // way the code survey reads it, so the check and the map never disagree about what is type-only.
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { typeImportProblems } from "./type-imports.mjs";
 
@@ -36,7 +38,7 @@ test("3.8 a type-only import ending at a story other than the library is refused
     "packages/till/src/basket.test.ts": 'import { test } from "node:test";\nimport type { Cart } from "@t/shop";\nimport { count } from "./basket.js";\ntest("1.1 counts", () => { const cart: Cart = { items: [] }; count(cart); });\n',
     "packages/till/src/total.test.ts": 'import { test } from "node:test";\nimport { total } from "./total.js";\ntest("2.1 totals", () => { total([]); });\n',
   });
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
 
   const problems = await typeImportProblems(root, ["library", "shop", "till"]);
 

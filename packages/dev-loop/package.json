@@ -16,6 +16,9 @@
     "@storytree/project-and-caller": "workspace:*",
     "@storytree/ci-health": "workspace:*"
   },
+  "devDependencies": {
+    "@storytree/test-waits": "workspace:*"
+  },
   "exports": {
     "./browser-coverage": "./src/browser-coverage.mjs"
   }

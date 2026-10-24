@@ -459,31 +459,42 @@ test("8.2 a Cloud SQL instance that does not answer is refused after a bounded w
   }
 });
 
-test("1.9 a stalled local handshake is refused within three seconds, on both admin and project pools, and the next call recovers", async (t) => {
-  await refusedAtDeadline(t, undefined, 3_000);
+test("1.9 a stalled local handshake is refused at ten seconds by default, or at the deadline the caller gives, on both admin and project pools, saying the computer may be busy, and the next call recovers", async () => {
+  await refusedAtDeadline({}, 10_000);
+  await refusedAtDeadline({ connectTimeoutMs: 4_000 }, 4_000);
 });
 
-test("1.20 a local url naming its own connect_timeout is given that longer deadline, as a test run's throwaway server is; one with none keeps three seconds", async (t) => {
-  await refusedAtDeadline(t, "5", 5_000);
-  await refusedAtDeadline(t, "1", 3_000);
+test("1.20 a local url naming a connect_timeout longer than the given deadline is given it, as a test run's throwaway server is; one naming a shorter one keeps the given deadline", async () => {
+  await refusedAtDeadline({ connectTimeout: "12" }, 12_000);
+  await refusedAtDeadline({ connectTimeout: "5" }, 10_000);
 });
+
+/** The real clock, kept for waiting on the network while a test runs on a mocked one. */
+const realSetTimeout = setTimeout;
+const networkClock = { now: () => performance.now(), sleep: (ms: number) => new Promise<void>((resolve) => realSetTimeout(resolve, ms)) };
 
 /**
  * Open a project through a server that stalls each fresh handshake, on the admin pool and then the
- * project's, with the test server's url carrying `connectTimeout` as its connect_timeout (none when
- * undefined): each is refused at `deadlineMs`, saying so, and the next call recovers.
+ * project's, connecting with `connectTimeoutMs` (the default when undefined) and the test server's
+ * url carrying `connectTimeout` as its connect_timeout (none when undefined): each is still waiting
+ * just short of `deadlineMs` and refused at it, saying so, and the next call recovers. The deadline
+ * runs on a mocked clock, so the test does not wait for it.
  */
-async function refusedAtDeadline(t: TestContext, connectTimeout: string | undefined, deadlineMs: number): Promise<void> {
+async function refusedAtDeadline(
+  { connectTimeout, connectTimeoutMs }: { readonly connectTimeout?: string; readonly connectTimeoutMs?: number },
+  deadlineMs: number,
+): Promise<void> {
   const upstream = new URL(testServerUrl());
   upstream.searchParams.delete("connect_timeout");
   const held = new Set<Socket>();
   let stalled = true;
+  let stalls = 0;
   const silent = createServer((socket) => {
     held.add(socket);
     socket.on("error", () => {});
     if (stalled) {
+      stalls++;
       socket.resume();
-      setTimeout(() => socket.destroy(), 10_000).unref();
     } else {
       const target = openSocket(Number(upstream.port), upstream.hostname);
       held.add(target);
@@ -496,27 +507,45 @@ async function refusedAtDeadline(t: TestContext, connectTimeout: string | undefi
   const url = new URL(upstream);
   url.port = String((silent.address() as AddressInfo).port);
   if (connectTimeout !== undefined) url.searchParams.set("connect_timeout", connectTimeout);
-  const storytree = await connect({ url: url.href });
+  const storytree = await connect({ url: url.href, ...(connectTimeoutMs === undefined ? {} : { connectTimeoutMs }) });
   const name = uniqueProjectName();
+  mock.timers.enable({ apis: ["setTimeout"] });
   try {
     // The first attempt stalls on the admin pool. Once that pool is connected, opening
     // the project again must also bound the separate handshake to the project's database.
     for (const pool of ["admin", "project"]) {
       stalled = true;
-      const started = performance.now();
-      const error = await storytree.openProject(name).then(() => assert.fail("the silent server cannot open a project"), (error: unknown) => error);
-      const waited = performance.now() - started;
-      t.diagnostic(`${pool} handshake refused after ${waited.toFixed(0)} ms`);
-      assert.ok(waited >= deadlineMs - 500 && waited < deadlineMs + 1_000, `${pool}: the ${deadlineMs / 1000} s deadline plus scheduling allowance, got ${waited.toFixed(0)} ms`);
-      const refused = refusal(error, "timeout");
-      assert.match(refused.message, new RegExp(`storytree isn't reachable: its database did not answer within ${deadlineMs / 1000} seconds`, "i"));
-      assert.match(refused.message, /check.*app.*try again/i);
+      const before = stalls;
+      let outcome: unknown = "waiting";
+      const opening = storytree.openProject(name).then(
+        () => {
+          outcome = "opened";
+        },
+        (error: unknown) => {
+          outcome = error;
+        },
+      );
+      await waitUntil(() => stalls > before, 5_000, `the ${pool} handshake to reach the silent server`, { clock: networkClock });
+      mock.timers.tick(deadlineMs - 1);
+      await turns(20);
+      assert.equal(outcome, "waiting", `${pool}: still waiting just short of ${deadlineMs / 1000} seconds`);
+      mock.timers.tick(1);
+      await waitUntil(() => outcome !== "waiting", 5_000, `the ${pool} handshake to be refused at ${deadlineMs / 1000} seconds`, { clock: networkClock });
+      await opening;
+      const refused = refusal(outcome, "timeout");
+      assert.equal(
+        refused.message,
+        `storytree isn't reachable: its database took longer than ${deadlineMs / 1000} seconds to answer, and this computer may be busy. ` +
+          "Check that the storytree app is responding, then try again.",
+        pool,
+      );
       stalled = false;
       const recovered = await storytree.openProject(name);
       assert.equal(recovered.name, name);
       await recovered.close();
     }
   } finally {
+    mock.timers.reset();
     for (const socket of held) socket.destroy();
     await storytree.close();
     await new Promise<void>((resolve) => silent.close(() => resolve()));

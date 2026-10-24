@@ -31,9 +31,14 @@ function write(dir: string, files: Record<string, string>): void {
   }
 }
 
-/** A package whose new `grade` has a branch no test takes, a file no test reaches, and a file whose only test always fails. */
+/**
+ * A package whose new `grade` has a branch no test takes, a file no test reaches, and a file whose only test always fails, and a
+ * package downstream of it that imports `grade` by the package's name.
+ */
 const PACKAGE: Record<string, string> = {
-  "packages/demo/package.json": JSON.stringify({ name: "@t/demo", type: "module" }),
+  "packages/demo/package.json": JSON.stringify({ name: "@t/demo", type: "module", exports: { "./grade": "./src/grade.mjs" } }),
+  "packages/report/package.json": JSON.stringify({ name: "@t/report", type: "module", dependencies: { "@t/demo": "workspace:*" } }),
+  "packages/report/src/report.mjs": "import { grade } from \"@t/demo/grade\";\nexport const line = (n) => [n, grade(n)].join(\": \");\n",
   "packages/demo/src/grade.mjs": [
     "export function grade(n, strict) {",
     "  if (n > 100 && strict) return \"huge\";",
@@ -100,7 +105,7 @@ test("7.2 · each break runs against the tests that reach its file: an untested 
     assert.equal(report.ran, true);
     if (!report.ran) return;
     assert.deepEqual(report.survivors.map(({ file, line, what, damage, untried }) => ({ file, line, what, damage, untried })), [
-      { file: "packages/demo/src/grade.mjs", line: 2, what: "`>` to `<=`", damage: 1, untried: undefined },
+      { file: "packages/demo/src/grade.mjs", line: 2, what: "`>` to `<=`", damage: 2, untried: undefined },
       { file: "packages/demo/src/loud.mjs", line: 2, what: "`===` to `!==`", damage: 0, untried: true },
     ]);
     assert.equal(report.caught, 1);
@@ -155,7 +160,7 @@ test("7.3 · the brief read from a change's worktree carries its mutation report
       const call = { library, storytree, project: library.name };
       const brief = await tools().quality_brief!({ increment, worktree: dir }, call);
       assert.match(brief.text, /Mutation report: 4 breaks planted on the change's lines, 1 caught by a test, 2 survived, 1 not run/);
-      assert.match(brief.text, /packages\/demo\/src\/grade\.mjs:2 {2}`>` to `<=` {2}\(1 file depend on it\)/);
+      assert.match(brief.text, /packages\/demo\/src\/grade\.mjs:2 {2}`>` to `<=` {2}\(2 files depend on it\)/);
 
       const taken = await tools().quality_take!({ increment, return: CLEAN, worktree: dir }, call);
       const hits = (taken.data["taken"] as { hits: { check: string; file: string; line: number; foundBy: string; source?: string }[] }).hits;

@@ -161,9 +161,15 @@ else
   systemctl reload postgresql@16-main
 fi
 
-echo "== 7. The door's secret and address settings, from $SPIKE_ENV to $ENV_FILE (root only; systemd reads it)"
+echo "== 7. The door's own settings, from $SPIKE_ENV to $ENV_FILE (root only; systemd reads it)"
+# Only the secret, PORT, ALLOWED_HOSTS and ALLOWED_CIDRS (contract 4.7): a path the spike's file carries, such as its
+# REPO_DIR, would override the unit's own (EnvironmentFile= wins over Environment=) and point under a home ProtectHome hides.
 run install -d -m 0700 -o root -g root "$ETC"
-run install -m 0600 -o root -g root "$SPIKE_ENV" "$ENV_FILE"
+if [ $DRY -eq 1 ] && [ ! -d "$REPO/node_modules" ]; then
+  say "would write $ENV_FILE with only $(grep -oE '^(VOICE_TOKEN|VOICE_SPIKE_TOKEN|PORT|ALLOWED_HOSTS|ALLOWED_CIDRS)=' "$SPIKE_ENV" | tr -d = | paste -sd, -) from $SPIKE_ENV"
+else
+  "$NODE" --import "file://$REPO/node_modules/tsx/dist/loader.mjs" "$REPO/packages/voice/src/bins/voice-host.ts" door-env --from "$SPIKE_ENV" --to "$ENV_FILE" $([ $DRY -eq 1 ] && echo --dry-run)
+fi
 
 echo "== 8. The confined system units, and the cut-over from the owner's user units"
 if [ $DRY -eq 1 ] && [ ! -d "$REPO/node_modules" ]; then
@@ -172,9 +178,13 @@ else
   run "$NODE" --import "file://$REPO/node_modules/tsx/dist/loader.mjs" "$REPO/packages/voice/src/bins/voice-host.ts" system-units $([ $DRY -eq 1 ] && echo --dry-run)
 fi
 run systemctl daemon-reload
-run runuser -u "$OWNER" -- env XDG_RUNTIME_DIR="/run/user/$OWNER_UID" systemctl --user disable --now storytree-voice.service storytree-voice-refresh.timer \
+user_units() { runuser -u "$OWNER" -- env XDG_RUNTIME_DIR="/run/user/$OWNER_UID" systemctl --user "$@"; }
+# Both doors listen on 127.0.0.1:8787, so the old one stops before the new one starts; if the new one is not up and
+# answering five seconds later, the old one is put back, so a failed cut-over never leaves the connector down.
+run user_units disable --now storytree-voice.service storytree-voice-refresh.timer \
   || say "the owner's user units were not there to stop"
-run systemctl enable --now storytree-voice-restart.path storytree-voice-refresh.timer storytree-voice.service
+started=1
+run systemctl enable --now storytree-voice-restart.path storytree-voice-refresh.timer storytree-voice.service || started=0
 
 echo "== 9. Check"
 if [ $DRY -eq 1 ]; then
@@ -182,9 +192,16 @@ if [ $DRY -eq 1 ]; then
   exit 0
 fi
 sleep 5
-systemctl is-active --quiet storytree-voice || { echo "storytree-voice did not start: journalctl -u storytree-voice"; exit 1; }
-say "service: $(systemctl show -p User,ProtectHome,NoNewPrivileges,MemoryMax storytree-voice | tr '\n' ' ')"
 code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/ || true)
+if [ $started -eq 0 ] || ! systemctl is-active --quiet storytree-voice || [ "$code" != 404 ]; then
+  echo "storytree-voice did not start (it answered '$code' on 127.0.0.1:8787, expected 404): putting the owner's user units back"
+  systemctl disable --now storytree-voice.service storytree-voice-refresh.timer storytree-voice-restart.path || true
+  user_units enable --now storytree-voice.service storytree-voice-refresh.timer \
+    && echo "the owner's door is running again; see why the confined one failed: journalctl -u storytree-voice -n 50" \
+    || echo "the owner's user units did not start either: systemctl --user status storytree-voice"
+  exit 1
+fi
+say "service: $(systemctl show -p User,ProtectHome,NoNewPrivileges,MemoryMax storytree-voice | tr '\n' ' ')"
 say "the door answers on 127.0.0.1:8787 with a bare $code outside its secret route (expect 404)"
 say "a read as $VOICE (question list):"
 storytree_as_voice question list | head -5

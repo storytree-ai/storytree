@@ -164,6 +164,26 @@ export const SYSTEM_PATHS = {
   restartRequest: path.posix.join(STATE_DIR, "restart-request"),
 } as const;
 
+/**
+ * The settings the confined door takes from the spike's env file (contract 4.7): its secret, its port and who may reach
+ * it. Anything else, such as the spike's REPO_DIR, is dropped: a value from EnvironmentFile= overrides the unit's own
+ * Environment=, so a path under the owner's home would point the door at a folder ProtectHome hides.
+ */
+export const DOOR_SETTINGS = ["VOICE_TOKEN", "VOICE_SPIKE_TOKEN", "PORT", "ALLOWED_HOSTS", "ALLOWED_CIDRS"] as const;
+
+/** An env file cut to the door's own settings, and the names it dropped, in their order. */
+export function doorSettings(text: string): { kept: string; dropped: string[] } {
+  const kept: string[] = [];
+  const dropped: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const name = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1];
+    if (name === undefined) continue;
+    if ((DOOR_SETTINGS as readonly string[]).includes(name)) kept.push(line.trim().replace(/^export\s+/, ""));
+    else if (!dropped.includes(name)) dropped.push(name);
+  }
+  return { kept: kept.length ? `${kept.join("\n")}\n` : "", dropped };
+}
+
 const RESTART = "storytree-voice-restart";
 
 /** What every confined unit running as the door's user holds: no home folders, no new privileges, a read-only system. */

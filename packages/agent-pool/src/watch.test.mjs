@@ -616,7 +616,7 @@ test("4.22 · a hand-over holds the session's claims for its pull request on its
   assert.deepEqual(b.calls.filter(([, verb]) => verb === "let-go"), [["workspace", "let-go", "41", "--reason", "PR #41 closed without merging; released by the watcher"]]);
 });
 
-test("4.23 · a pull request open past three days since it was handed over gives its claims up and goes back on its arc as ready work; a red past its limit lets them go too", async (t) => {
+test("4.23 · a pull request open past three days since it was handed over gives its claims up and goes back on its arc as ready work; a red at its session cap lets them go too", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = { state: "pending", head: "h1", branch: "claude/increment-one" };

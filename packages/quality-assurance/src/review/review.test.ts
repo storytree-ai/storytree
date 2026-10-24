@@ -15,6 +15,7 @@ import { test } from "node:test";
 import type { Library } from "@storytree/library";
 
 import { withLibrary } from "../testing/pg.js";
+import { RED_RUN } from "./review.js";
 import { branchDiff, briefText, changeFolder, COVERING_TEST, openLedger, openReviews, qualityTools, REVIEW_LIMIT, standingText, takenText, worktreeChange, type ReviewReturn } from "../index.js";
 
 const DIFF = [
@@ -647,5 +648,47 @@ test("2.13 · a return says of each contract whether the change touches it; a to
       { check: COVERING_TEST, package: "library", file: "packages/library/src/a.ts", line: 1, found: `contract ${contracts[1]} (1.2 · A good email is kept): the change touches it and no test covers the changed behaviour; add one` },
     ]);
     assert.deepEqual(taken.standing.map(({ check }) => check), [COVERING_TEST]);
+  });
+});
+
+test("2.14 · a test the change adds that no saved red run names failing is taken as a hit at its line asking for the red; one whose run failed, by name or its file failing to load, is not", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, contracts, checks } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const dir = branchCheckout();
+    try {
+      writeFileSync(join(dir, ".gitignore"), ".pgtest/\n");
+      writeFileSync(join(dir, "packages/library/src/a.test.ts"), [
+        'import { describe, test } from "node:test";',
+        'describe("a", () => {',
+        '  test("1.1 · seen red", () => {});',
+        '  test("1.2 · never red", () => {});',
+        '  test.todo("1.3 · not yet");',
+        "});",
+        "",
+      ].join("\n"));
+      writeFileSync(join(dir, "packages/library/src/b.test.ts"), 'import { test } from "node:test";\ntest("1.4 · its file failed to load", () => {});\n');
+      mkdirSync(join(dir, ".pgtest"));
+      writeFileSync(join(dir, ".pgtest/red-runs.jsonl"), [
+        { at: "2026-10-24T10:00:00.000Z", head: "abc", file: "packages/library/src/a.test.ts", test: "a › 1.1 · seen red" },
+        { at: "2026-10-24T10:00:00.000Z", head: "abc", file: "packages/library/src/a.test.ts", test: "a › 1.9 · another test" },
+        { at: "2026-10-24T10:00:00.000Z", head: "abc", file: "packages/library/src/b.test.ts", test: null },
+      ].map((row) => JSON.stringify(row)).join("\n") + "\n");
+
+      const brief = await reviews.brief(library, increment, worktreeChange(dir));
+      assert.deepEqual(brief.reds, [
+        { file: "packages/library/src/a.test.ts", line: 3, test: "1.1 · seen red", red: true },
+        { file: "packages/library/src/a.test.ts", line: 4, test: "1.2 · never red", red: false },
+        { file: "packages/library/src/b.test.ts", line: 2, test: "1.4 · its file failed to load", red: true },
+      ]);
+      assert.match(briefText(brief), /^ {2}packages\/library\/src\/a\.test\.ts:4 {2}1\.2 · never red {2}no saved red run$/m);
+
+      const taken = await reviews.take(library.name, increment, clean(checks, contracts));
+      assert.deepEqual(taken.hits.map(({ check, package: pkg, file, line, found }) => ({ check, package: pkg, file, line, found })), [
+        { check: RED_RUN, package: "library", file: "packages/library/src/a.test.ts", line: 4, found: "new test 1.2 · never red: no saved red run names it failing; run it red against the code without the change, or say why it could not fail first" },
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

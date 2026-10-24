@@ -39,8 +39,13 @@
  * - The return says of each contract it finds met whether the change touches it, and one the change adds or rewords pending its merge is
  *   touched; a touched contract answered met names the test covering the changed behaviour, or the changed line no test
  *   covers, which is taken as a hit asking for one (2.13, ADR-1153 D2).
+ * - A brief read from a worktree lists each test the diff it reviews adds, and whether the worktree's saved red runs
+ *   (.pgtest/red-runs.jsonl, which `pnpm test` keeps: packages/dev-loop/src/red-runs.mjs) name it failing, by its name or its
+ *   file failing to load; taking the return records a hit at each one none names, asking for its red, and re-runs nothing (2.14, ADR-1153 D3).
  */
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import type { Library, PendingChange, Storytree } from "@storytree/library";
 
@@ -54,6 +59,9 @@ export const REVIEW_LIMIT = 3;
 
 /** The check a hit is recorded under when a contract the change touches is answered met with no test covering the changed behaviour (contract 2.13, ADR-1153 D2). */
 export const COVERING_TEST = "covering-test";
+
+/** The check a hit is recorded under when a test the change adds has no saved red run naming it failing (contract 2.14, ADR-1153 D3). */
+export const RED_RUN = "red-run";
 
 /** One review's brief: everything the change-reviewer reads. */
 export interface Brief {
@@ -96,10 +104,23 @@ export interface Brief {
    * that record's list: the reviewer runs each and answers it passed or failed with pictures (contract 2.12). Absent when none.
    */
   readonly guardrails?: readonly BriefGuardrail[];
+  /**
+   * Each test the reviewed diff adds, at its line, and whether a saved red run of the worktree names it failing (contract 2.14).
+   * Absent when the diff was given by hand, which has no worktree's red runs to read, and from briefs issued before 2.14.
+   */
+  readonly reds?: readonly BriefRed[];
   /** Each hit earlier reviews of this change made, with the implementer's answer. */
   readonly earlier: readonly HitRow[];
   /** The earlier hits rejected for a reason no review has accepted yet: the return judges each. */
   readonly judge: readonly number[];
+}
+
+/** One test the change adds, as the brief lists it: its file and line, its title, and whether a saved red run names it failing (contract 2.14). */
+export interface BriefRed {
+  readonly file: string;
+  readonly line: number;
+  readonly test: string;
+  readonly red: boolean;
 }
 
 /** One guardrail as the brief lists it: its name, the story or capability that carries it, and the check to run (contract 2.12). */
@@ -305,12 +326,15 @@ class PgReviews implements Reviews {
     const since = newer === undefined ? undefined : { review: last!.iteration, head: last!.mark!.head };
     // The tier is read on the whole change, whatever part of it this review reads (contract 2.11).
     const risk = await changeRisk(library, increment, diff, typeof read === "string" ? undefined : read.root);
+    // The tests this review's diff adds, so a test checked in an earlier review is not asked for again (contract 2.14).
+    const reds = typeof read === "string" || read.root === undefined ? undefined : redsOf(newer ?? diff, read.root);
     const brief: Brief = {
       project, change, iteration: taken + 1, diff: newer ?? diff, ...(base === undefined ? {} : { base }),
       ...(mark === undefined ? {} : { mark }), ...(since === undefined ? {} : { since }),
       ...(risk === undefined ? {} : { risk }), pass: risk?.tier === "low" ? "light" : "full", packages, capabilities: listed, contracts, retired,
       ...(plan.length === 0 ? {} : { plan }),
       ...(guardrails.length === 0 ? {} : { guardrails }),
+      ...(reds === undefined ? {} : { reds }),
       checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
       judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
@@ -339,6 +363,7 @@ class PgReviews implements Reviews {
         ran: [
           ...review.checks.map(({ check, hits }) => ({ check, hits: (hits ?? []).map(({ file, line, found }) => ({ package: hitPackage(brief, file), file, line, found })) })),
           ...coverage(brief, review),
+          ...redRuns(brief),
           // A graduated check's trip outside the packages the brief's diff touches is not part of the change reviewed.
           ...(graduated?.ran ? graduated.checks : []).map(({ check, hits }) => ({
             check, foundBy: "graduated" as const,
@@ -430,6 +455,79 @@ function coverage(brief: Brief, review: ReviewReturn): { check: string; hits: { 
       found: `contract ${contract} (${titles.get(contract) ?? contract}): the change touches it and no test covers the changed behaviour; add one`,
     })),
   }];
+}
+
+/** The red-run check as a review ran it (contract 2.14): a hit at each test the change adds that no saved red run names; not run when it adds none. */
+function redRuns(brief: Brief): { check: string; hits: { package: string; file: string; line: number; found: string }[] }[] {
+  if ((brief.reds ?? []).length === 0) return [];
+  return [{
+    check: RED_RUN,
+    hits: brief.reds!.filter(({ red }) => !red).map(({ file, line, test }) => ({
+      package: hitPackage(brief, file), file, line,
+      found: `new test ${test}: no saved red run names it failing; run it red against the code without the change, or say why it could not fail first`,
+    })),
+  }];
+}
+
+/** A test file, by the name node:test and the dev loop give one. */
+const TEST_FILE = /\.test\.[cm]?[jt]sx?$/;
+/** A test or `it` call opening on a line, with its literal title; `.skip` and `.todo` ones run nothing, so are not read. */
+const TEST_CALL = /\b(?:test|it)(?:\.only)?\(\s*(["'`])((?:\\.|(?!\1).)*)\1/;
+
+/**
+ * Each test `diff` adds, in a test file, at its new line, and whether the red runs saved in the worktree at `root` name it failing:
+ * by its full name ending in its title, or by its file failing to load. A title the diff also removes from the same file is a moved
+ * or reworded line, not a new test, and is left out.
+ */
+export function redsOf(diff: string, root: string): BriefRed[] {
+  const added: { file: string; line: number; test: string }[] = [];
+  const removed = new Set<string>();
+  let file: string | undefined;
+  let line = 0;
+  for (const text of diff.split("\n")) {
+    const header = /^diff --git a\/\S+ b\/(\S+)$/.exec(text);
+    if (header !== null) {
+      file = TEST_FILE.test(header[1]!) ? header[1] : undefined;
+      continue;
+    }
+    if (file === undefined) continue;
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
+    if (hunk !== null) {
+      line = Number(hunk[1]);
+      continue;
+    }
+    if (text.startsWith("+++") || text.startsWith("---")) continue;
+    const title = TEST_CALL.exec(text.slice(1))?.[2];
+    if (text.startsWith("+")) {
+      if (title !== undefined) added.push({ file, line, test: title });
+      line += 1;
+    } else if (text.startsWith("-")) {
+      if (title !== undefined) removed.add(`${file}\0${title}`);
+    } else if (text.startsWith(" ")) line += 1;
+  }
+  const saved = savedReds(root);
+  return added.filter(({ file, test }) => !removed.has(`${file}\0${test}`)).map((entry) => ({
+    ...entry,
+    red: saved.some((row) => row.file === entry.file && (row.test === null || row.test === entry.test || row.test.endsWith(` › ${entry.test}`))),
+  }));
+}
+
+/** The red runs `pnpm test` saved in the worktree at `root` (packages/dev-loop/src/red-runs.mjs), or none. */
+function savedReds(root: string): { file: string; test: string | null }[] {
+  let text: string;
+  try {
+    text = readFileSync(join(root, ".pgtest", "red-runs.jsonl"), "utf8");
+  } catch {
+    return [];
+  }
+  return text.split("\n").flatMap((one) => {
+    try {
+      const row = JSON.parse(one) as { file?: unknown; test?: unknown };
+      return typeof row.file === "string" && (row.test === null || typeof row.test === "string") ? [{ file: row.file, test: row.test }] : [];
+    } catch {
+      return []; // a blank line, or one cut short by a run that died mid-write
+    }
+  });
 }
 
 /** Whether a return names a covering test. */
@@ -664,6 +762,11 @@ export function briefText(brief: Brief): string {
       "",
       `Guardrails (${brief.guardrails!.length}): this change sets each off. Start the real app, or the built website, from seeded fixtures at the state nearest the change, click through only that part against the contracts above and the on-screen done-criteria, and save pictures of what you saw; answer each passed or failed, with its pictures, and why when failed.`,
       ...brief.guardrails!.map((guardrail) => `  ${guardrail.id}  ${guardrail.on.title}\n    ${guardrail.check}`),
+    ]),
+    ...((brief.reds ?? []).length === 0 ? [] : [
+      "",
+      `New tests (${brief.reds!.length}): each test the diff adds, and whether a red run \`pnpm test\` saved in the worktree names it failing. One with no saved red run is taken as a hit at its line when your return is taken: you need not raise it.`,
+      ...brief.reds!.map(({ file, line, test, red }) => `  ${file}:${line}  ${test}  ${red ? "red run saved" : "no saved red run"}`),
     ]),
     ...(brief.earlier.length === 0 ? [] : [
       "",

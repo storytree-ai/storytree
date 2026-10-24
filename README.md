@@ -1,5 +1,9 @@
 # storytree
 
+> **Early alpha: not ready for use yet.** Storytree is built in the open, and this repository is where you can
+> follow it. It changes daily, its releases are unsigned, and things break. Watch or star the repository to follow
+> along; install it only if you are happy to hit rough edges.
+
 ## Official sources
 
 Storytree has two homes and no others: this repository,

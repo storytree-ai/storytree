@@ -55,10 +55,10 @@ test("1.1 · a static build serves its home page and every local asset without a
   assert.ok((await stat(path.join(output, forest))).size > 0);
 });
 
-test("1.3 · the built home links to a separate waitlist with a no-JavaScript route and source links", async (t) => {
+test("1.3 · the preview build's home links to a separate waitlist with a no-JavaScript route and source links", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-home-"));
   t.after(() => removeTemp(output));
-  await buildWebsite(output);
+  await buildWebsite(output, { preview: true });
   const html = await readFile(path.join(output, "index.html"), "utf8");
   assert.match(html, /href="\/waitlist.html"/);
   const waitlist = await readFile(path.join(output, "waitlist.html"), "utf8");
@@ -203,10 +203,18 @@ test("5.3 · the built storage manifest permits public insertion and explicitly 
   } } });
 });
 
-test("1.13 · below the map the built home shows the three promises in order, each a single line, each carrying its own short served by the site", async (t) => {
+test("1.13 · the live home shows no claims and serves none of their shorts; below the map the preview build shows the three promises in order, each a single line, each carrying its own short served by the site", async (t) => {
+  const live = await mkdtemp(path.join(tmpdir(), "website-live-"));
+  t.after(() => removeTemp(live));
+  await buildWebsite(live);
+  const livePage = new HappyWindow().document;
+  livePage.write(await readFile(path.join(live, "index.html"), "utf8"));
+  assert.equal(livePage.querySelectorAll("#claims, section.claim, video").length, 0, "the live home carries no claims and no videos");
+  await assert.rejects(stat(path.join(live, "shorts")), "the live site serves no shorts");
+
   const output = await mkdtemp(path.join(tmpdir(), "website-claims-"));
   t.after(() => removeTemp(output));
-  await buildWebsite(output);
+  await buildWebsite(output, { preview: true });
   const html = await readFile(path.join(output, "index.html"), "utf8");
   const page = new HappyWindow().document;
   page.write(html);
@@ -233,14 +241,14 @@ test("1.13 · below the map the built home shows the three promises in order, ea
   assert.equal(new Set(videos.map(video => video!.getAttribute("src"))).size, videos.length, "each claim has its own short");
 });
 
-test("1.14 · after the claims the built home says it works with your harness, with its marks, and ends on the waitlist", async (t) => {
+test("1.14 · below the map the live home says it works with your harness, with its marks, and ends on following the build on GitHub, saying it is early alpha; the preview build ends on the waitlist", async (t) => {
   const output = await mkdtemp(path.join(tmpdir(), "website-harness-"));
   t.after(() => removeTemp(output));
   await buildWebsite(output);
   const page = new HappyWindow().document;
   page.write(await readFile(path.join(output, "index.html"), "utf8"));
   const section = page.querySelector("#harness")!;
-  assert.ok(page.querySelector("#claims")!.compareDocumentPosition(section) & 4, "the harness sits below the claims");
+  assert.ok(page.querySelector("#map-frame")!.compareDocumentPosition(section) & 4, "the harness sits below the map");
   assert.ok(section.textContent!.includes(harness.claim) && section.textContent!.includes(harness.marksNote), "the owner's line, then any harness that speaks MCP");
   const marks = [...section.querySelectorAll("img")];
   assert.deepEqual(marks.map(mark => mark.getAttribute("alt")), harness.marks.map(({ name }) => name), "one mark per harness storytree watches");
@@ -251,8 +259,17 @@ test("1.14 · after the claims the built home says it works with your harness, w
   const sections = [...page.querySelectorAll("main > section")];
   const last = sections.at(-1)!;
   assert.ok(sections.indexOf(section) === sections.length - 2, "nothing comes between the harness and the end of the page");
-  assert.ok(last.querySelector('a[href="/waitlist.html"]'), "the page ends on the waitlist");
-  assert.equal(page.querySelectorAll('main a[href="/waitlist.html"]').length, 1, "the waitlist is offered once, at the bottom");
+  assert.ok(last.querySelector('a[href="https://github.com/storytree-ai/storytree"]'), "the page ends on following the build on GitHub");
+  assert.match(last.textContent!, /early alpha/i, "and says plainly it is early alpha");
+  assert.equal(page.querySelectorAll('a[href="/waitlist.html"]').length, 0, "the live home offers no waitlist");
+
+  const preview = await mkdtemp(path.join(tmpdir(), "website-harness-preview-"));
+  t.after(() => removeTemp(preview));
+  await buildWebsite(preview, { preview: true });
+  const previewPage = new HappyWindow().document;
+  previewPage.write(await readFile(path.join(preview, "index.html"), "utf8"));
+  assert.ok(previewPage.querySelector("#claims")!.compareDocumentPosition(previewPage.querySelector("#harness")!) & 4, "in the preview the harness sits below the claims");
+  assert.ok([...previewPage.querySelectorAll("main > section")].at(-1)!.querySelector('a[href="/waitlist.html"]'), "the preview ends on the waitlist");
 });
 
 /** The declarations the built stylesheet gives `selector` at a viewport `width`: its own rules plus any min/max-width @media that holds there. */

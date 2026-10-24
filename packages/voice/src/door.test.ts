@@ -293,7 +293,7 @@ test("1.13 every child runs as the day's voice session (voice-YYYY-MM-DD) and no
   assert.equal(voiceSession(new Date("2026-10-23T23:59:00Z")), "voice-2026-10-23");
   const door = await testDoor(repo.dir, { CLAUDE_CODE_SESSION_ID: "owner-claude-session", CODEX_THREAD_ID: "owner-codex", CURSOR_CONVERSATION_ID: "c", PI_SESSION_ID: "p", STORYTREE_SESSION_ID: "someone-else" });
   try {
-    const answer = await raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(1, "read_note", { id: "principle_0ca2b77785e9" }) });
+    const answer = await raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(1, "find", { query: "the voice session" }) });
     const child = seen(messagesOf(answer.body)[0]!.result!);
     const today = voiceSession(new Date());
     assert.deepEqual(child.env, { STORYTREE_SESSION_ID: today });

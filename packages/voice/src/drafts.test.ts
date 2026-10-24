@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { after, before, test } from "node:test";
+import { waitUntil } from "@storytree/test-waits";
 import { SignJWT, exportJWK } from "jose";
 import pg from "pg";
 
@@ -23,7 +24,7 @@ import { DROPPED, commitDue, laptopWindowOpen, runFiles } from "./commit.js";
 import { Drafts } from "./drafts.js";
 import { serialTicks } from "./listen.js";
 import { WRITE_TOOL_NAMES } from "./writes.js";
-import { LEGACY_HEADERS, childrenIn, connect, gitRepo, namesOnlyListedTools, raw, testDoor, textOf, toolCall, until, type TestDoor } from "./testing/door.js";
+import { LEGACY_HEADERS, childrenIn, connect, gitRepo, namesOnlyListedTools, raw, testDoor, textOf, toolCall, type TestDoor } from "./testing/door.js";
 
 const repo = gitRepo({ "README.md": "voice test repository\n" });
 const PUBLIC_URL = "https://voice-box.example-tailnet.ts.net";
@@ -46,10 +47,10 @@ before(async () => {
   await new Promise<void>((done) => keys.listen(0, "127.0.0.1", () => done()));
   jwksUrl = `http://127.0.0.1:${(keys.address() as net.AddressInfo).port}/oauth2/jwks`;
 });
-after(() => {
+after(async () => {
   keys.closeAllConnections();
   keys.close();
-  repo.remove();
+  await repo.remove();
 });
 
 const signInEnv = () => ({ VOICE_SIGNIN_ISSUER: ISSUER, VOICE_PUBLIC_URL: PUBLIC_URL, VOICE_OWNER_ID: OWNER, VOICE_SIGNIN_JWKS: jwksUrl });
@@ -258,13 +259,13 @@ test("5.5 the box's committer carries out each due draft exactly once; a locked 
   // Three ticks at once, as overlapping wake-ups would run them: the first run starts once, the other waits behind it.
   await Promise.all([commitTick(env, () => {}), commitTick(env, () => {}), commitTick(env, () => {})]);
   const files = runFiles(scratch.env.VOICE_RUNS_DIR, 1);
-  assert.ok(await until(() => existsSync(scratch.laneLog), 10_000), "the run never started");
+  await waitUntil(() => existsSync(scratch.laneLog), 10_000, "the run to start");
   assert.deepEqual(readFileSync(scratch.laneLog, "utf8").trim().split("\n"), [files.brief]);
   const [first, second] = await rows(voice.asOwner);
   assert.notEqual(first.committed_at, null);
   assert.equal(second.committed_at, null);
   writeFileSync(release, "");
-  assert.ok(await until(() => existsSync(files.ended), 10_000), "the run's end was never marked");
+  await waitUntil(() => existsSync(files.ended), 10_000, "the run's end to be marked");
 
   // Locked: the waiting draft is dropped, never started.
   await onDatabase(voice.asRole, (client) => client.query("INSERT INTO voice_lock (reason) VALUES ('lock_voice: stop')"));
@@ -318,7 +319,7 @@ test("5.6 start_manager_run briefs a session manager run from the door's templat
   await commitDue(drafts, { ...committer, now: () => sydney("14:20:00") });
   assert.notEqual((await rows(voice.asOwner))[0].committed_at, null, "the run was not started outside the window");
   const files = runFiles(scratch.env.VOICE_RUNS_DIR, 1);
-  assert.ok(await until(() => existsSync(files.ended), 10_000), "the run's end was never marked");
+  await waitUntil(() => existsSync(files.ended), 10_000, "the run's end to be marked");
   assert.equal(readFileSync(scratch.laneLog, "utf8").trim(), files.brief);
   const brief = readFileSync(files.brief, "utf8");
   assert.ok(brief.startsWith(`# A session manager run, asked for by voice (${today()})\n`), brief);
@@ -407,7 +408,7 @@ test("5.8 a manager run's brief carries his command and every unswept note, numb
   const env = { ...scratch.env, ...laptopRunEnded(scratch.dir), VOICE_DRAFTS_URL: voice.asOwner };
   await commitTick(env, () => {});
   const files = runFiles(scratch.env.VOICE_RUNS_DIR, 3);
-  assert.ok(await until(() => existsSync(files.ended), 10_000), "the run's end was never marked");
+  await waitUntil(() => existsSync(files.ended), 10_000, "the run's end to be marked");
   const brief = readFileSync(files.brief, "utf8");
   assert.ok(brief.includes("\n> Send it to the manager.\n"), brief);
   // Every unswept note at the run's start, the late one included, each numbered and only ever behind "> ".
@@ -428,7 +429,7 @@ test("5.8 a manager run's brief carries his command and every unswept note, numb
   await backdate(voice.asOwner, 5, "commit_at = now() - interval '1 second'");
   await commitTick(env, () => {});
   const next = runFiles(scratch.env.VOICE_RUNS_DIR, 5);
-  assert.ok(await until(() => existsSync(next.ended), 10_000), "the second run's end was never marked");
+  await waitUntil(() => existsSync(next.ended), 10_000, "the second run's end to be marked");
   assert.ok(!/\nNote \d/.test(readFileSync(next.brief, "utf8")), readFileSync(next.brief, "utf8"));
   await onDatabase(voice.asOwner, async (client) =>
     assert.rejects(client.query("UPDATE voice_draft SET swept_by_run = 5 WHERE id = 1"), /already swept/));
@@ -464,7 +465,7 @@ test("5.10 a note the scheduled sweep marked, or gave an outcome, is never carri
   const scratch = committerScratch(t);
   await commitTick({ ...scratch.env, ...laptopRunEnded(scratch.dir), VOICE_DRAFTS_URL: voice.asOwner }, () => {});
   const files = runFiles(scratch.env.VOICE_RUNS_DIR, 5);
-  assert.ok(await until(() => existsSync(files.ended), 10_000), "the run's end was never marked");
+  await waitUntil(() => existsSync(files.ended), 10_000, "the run's end to be marked");
   const brief = readFileSync(files.brief, "utf8");
   assert.deepEqual(brief.match(/^Note \d+/gm), ["Note 4"], brief);
   const notes = (await rows(voice.asOwner)).filter((row) => row.kind === "note");
@@ -569,16 +570,16 @@ test("5.9 a confirmed manager run starts within seconds: the door's database not
   const lines: string[] = [];
   await listening(voice, scratch, lines);
   const first = runFiles(scratch.env.VOICE_RUNS_DIR, 1);
-  assert.ok(await until(() => laneRuns(scratch.laneLog).includes(first.brief), 5_000), `the waiting run never started: ${lines.join("; ")}`);
+  await waitUntil(() => laneRuns(scratch.laneLog).includes(first.brief), 5_000, "the waiting run to start").catch((error: Error) => assert.fail(`${error.message}: ${lines.join("; ")}`));
   // Its end mark, written by the run's shell, wakes a tick that records the reply, with no timer.
-  assert.ok(await until(() => lines.includes("draft 1 run ended"), 5_000), `the reply was never recorded: ${lines.join("; ")}`);
+  await waitUntil(() => lines.includes("draft 1 run ended"), 5_000, "the reply to be recorded").catch((error: Error) => assert.fail(`${error.message}: ${lines.join("; ")}`));
   assert.equal((await rows(voice.asOwner))[0].reply, "I parked one increment and asked you one question.");
 
   // Confirmed while it listens: the notification starts it within seconds.
   await voice.call("start_manager_run", { request: "and this" });
   await voice.call("confirm", {});
   const second = runFiles(scratch.env.VOICE_RUNS_DIR, 2);
-  assert.ok(await until(() => laneRuns(scratch.laneLog).includes(second.brief), 5_000), `the confirmed run never started: ${lines.join("; ")}`);
+  await waitUntil(() => laneRuns(scratch.laneLog).includes(second.brief), 5_000, "the confirmed run to start").catch((error: Error) => assert.fail(`${error.message}: ${lines.join("; ")}`));
   assert.deepEqual(laneRuns(scratch.laneLog), [first.brief, second.brief], "a run started twice");
 });
 
@@ -623,13 +624,13 @@ test("4.8 the box's listener survives losing its database connection: it reconne
   assert.equal(listens(), 1);
   await onDatabase(voice.asOwner, (client) =>
     client.query("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND query = 'LISTEN voice_run'"));
-  assert.ok(await until(() => listens() > 1, 5_000), `it never reconnected: ${lines.join("; ")}`);
+  await waitUntil(() => listens() > 1, 5_000, "it to reconnect").catch((error: Error) => assert.fail(`${error.message}: ${lines.join("; ")}`));
   assert.deepEqual(lines.filter((line) => line.startsWith("connection lost")), ["connection lost (terminating connection due to administrator command); reconnecting in 100 ms"]);
 
   await voice.call("start_manager_run", { request: "after the drop" });
   await voice.call("confirm", {});
   const run = runFiles(scratch.env.VOICE_RUNS_DIR, 1);
-  assert.ok(await until(() => laneRuns(scratch.laneLog).includes(run.brief), 5_000), `no run started after reconnecting: ${lines.join("; ")}`);
+  await waitUntil(() => laneRuns(scratch.laneLog).includes(run.brief), 5_000, "a run to start after reconnecting").catch((error: Error) => assert.fail(`${error.message}: ${lines.join("; ")}`));
   // One loss is one reconnection: a single listening connection, never two.
   assert.equal(listens(), 2);
   assert.equal(await listeners(voice.asOwner), 1);

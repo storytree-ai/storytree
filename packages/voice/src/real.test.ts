@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { test } from "node:test";
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { setUpProject } from "@storytree/app-setup/project";
 import { connect as connectLibrary } from "@storytree/library";
@@ -42,7 +43,7 @@ test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: ca
     const waiting = await library.addIncrement({ arc: arc.id, title: "Install the door on the box", objective: "o", body: "b" });
     await library.addWaitFor(waiting.id, { releaser: "owner", note: "Say when the phone call works." });
     const older = await library.raiseQuestion({ arc: arc.id, title: "Sign in through WorkOS?", stakes: "s", statement: "s", context: "c", options: "a or b" });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitUntil(() => Date.now() > Date.parse(older.createdAt), 5_000, `the clock to pass ${older.createdAt}`);
     const newer = await library.raiseQuestion({ arc: arc.id, title: "Keep the secret door address alone?", stakes: "s", statement: "s", context: "c", options: "a or b" });
     const done = await library.addIncrement({ arc: arc.id, title: "A tested read door", objective: "o", body: "b" });
     await library.closeIncrement(done.id, { disposition: "landed", pr: "#1721" });
@@ -89,6 +90,6 @@ test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: ca
   } finally {
     await server.close();
     await dropTestDatabases([`storytree_${project}`]);
-    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await removeTemp(dir);
   }
 });

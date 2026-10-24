@@ -1,16 +1,17 @@
 /**
- * Test helpers for the voice door: the door started in this process against a stand-in command line, raw HTTP to it,
- * an MCP client on its route, and a throwaway git repository for the code tools.
+ * Capability 1 · The address and its guards. Test helpers for the voice door: the door started in this process against a
+ * stand-in command line, raw HTTP to it, an MCP client on its route, and a throwaway git repository for the code tools.
  */
 import http from "node:http";
 import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { removeTemp } from "@storytree/test-waits";
 import { limitsWith, type Limits } from "../children.js";
 import { loadConfig } from "../config.js";
 import { startDoor, type Door } from "../door.js";
@@ -58,7 +59,7 @@ export async function testDoor(repoDir: string, env: Record<string, string> = {}
     cliLog,
     close: async () => {
       await door.close();
-      rmSync(scratch, { recursive: true, force: true });
+      await removeTemp(scratch);
     },
   };
 }
@@ -120,19 +121,6 @@ export function messagesOf(body: string): Array<{ result?: Content; error?: { co
   });
 }
 
-export const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Poll probe() every 50 ms until it returns something truthy, or undefined after ms. */
-export async function until<T>(probe: () => T, ms: number): Promise<T | undefined> {
-  const deadline = Date.now() + ms;
-  for (;;) {
-    const value = probe();
-    if (value) return value;
-    if (Date.now() > deadline) return undefined;
-    await wait(50);
-  }
-}
-
 export function alive(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -182,7 +170,7 @@ export async function connect(port: number, token: string, options?: Constructor
 }
 
 /** A throwaway git repository with one commit made of `files`; returns its folder and a git runner in it. */
-export function gitRepo(files: Record<string, string | Buffer>): { dir: string; git: (...args: string[]) => string; remove: () => void } {
+export function gitRepo(files: Record<string, string | Buffer>): { dir: string; git: (...args: string[]) => string; remove: () => Promise<void> } {
   const dir = mkdtempSync(path.join(os.tmpdir(), "storytree-voice-repo-"));
   const git = (...args: string[]) =>
     execFileSync("git", ["-c", "user.name=voice test", "-c", "user.email=test@example.invalid", "-c", "core.autocrlf=false", "-c", "commit.gpgsign=false", ...args], { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -193,5 +181,5 @@ export function gitRepo(files: Record<string, string | Buffer>): { dir: string; 
   }
   git("add", "-A");
   git("commit", "-q", "-m", "fixture");
-  return { dir, git, remove: () => rmSync(dir, { recursive: true, force: true, maxRetries: 3 }) };
+  return { dir, git, remove: () => removeTemp(dir) };
 }

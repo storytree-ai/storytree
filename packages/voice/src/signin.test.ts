@@ -29,10 +29,10 @@ before(async () => {
   await new Promise<void>((done) => keys.listen(0, "127.0.0.1", () => done()));
   jwksUrl = `http://127.0.0.1:${(keys.address() as net.AddressInfo).port}/oauth2/jwks`;
 });
-after(() => {
+after(async () => {
   keys.closeAllConnections();
   keys.close();
-  repo.remove();
+  await repo.remove();
 });
 
 const signInEnv = () => ({ VOICE_SIGNIN_ISSUER: ISSUER, VOICE_PUBLIC_URL: PUBLIC_URL, VOICE_OWNER_ID: OWNER, VOICE_SIGNIN_JWKS: jwksUrl });

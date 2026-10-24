@@ -7,12 +7,13 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, test } from "node:test";
+import { quietFor, waitUntil } from "@storytree/test-waits";
 
 import { BUSY, CANCELLED, Children, Gate, LIMITS, Refusal, limitsWith } from "./children.js";
 import { main } from "./bins/voice.js";
 import { loadConfig, voiceSession } from "./config.js";
 import {
-  FAKE_CLI, INITIALIZE, LEGACY_HEADERS, MCP_HEADERS, TUNNEL_HOST, alive, childrenIn, gitRepo, messagesOf, newToken, raw, seen, testDoor, textOf, toolCall, until, wait,
+  FAKE_CLI, INITIALIZE, LEGACY_HEADERS, MCP_HEADERS, TUNNEL_HOST, alive, childrenIn, gitRepo, messagesOf, newToken, raw, seen, testDoor, textOf, toolCall,
 } from "./testing/door.js";
 
 const repo = gitRepo({ "README.md": "voice test repository\n" });
@@ -32,8 +33,7 @@ test("1.1 any path but /mcp/<secret>, /.well-known/* and a wrong secret included
         assert.equal(answer.body, "");
       }
     }
-    await wait(200);
-    assert.equal(childrenIn(door.cliLog).started, 0, "a child started for a refused path");
+    await quietFor(() => childrenIn(door.cliLog).started > 0, 200, "a child starting for a refused path");
   } finally {
     await door.close();
   }
@@ -61,8 +61,7 @@ test("1.3 with caller ranges set, a missing, malformed or outside X-Forwarded-Fo
       const answer = await raw(door.port, { urlPath: door.route, headers, body: toolCall(1, "find", { query: "anything" }) });
       assert.equal(answer.status, 403, `x-forwarded-for: ${forwarded}`);
     }
-    await wait(200);
-    assert.equal(childrenIn(door.cliLog).started, 0, "a child started for a refused caller");
+    await quietFor(() => childrenIn(door.cliLog).started > 0, 200, "a child starting for a refused caller");
     const inside = await raw(door.port, { urlPath: door.route, headers: { ...LEGACY_HEADERS, "x-forwarded-for": "160.79.106.37" }, body: toolCall(2, "find", { query: "anything" }) });
     assert.equal(inside.status, 200);
     assert.equal(seen(messagesOf(inside.body)[0]!.result!).argv.at(-1), "anything");
@@ -77,8 +76,7 @@ test("1.4 a Host that is neither localhost nor configured is refused before any 
     const evil = await raw(door.port, { urlPath: door.route, headers: { ...LEGACY_HEADERS, host: "evil.example" }, body: toolCall(1, "find", { query: "anything" }) });
     assert.ok(evil.status! >= 400, `evil.example -> ${evil.status}`);
     assert.ok(!messagesOf(evil.body).some((message) => message.result), "a tool answered");
-    await wait(200);
-    assert.equal(childrenIn(door.cliLog).started, 0);
+    await quietFor(() => childrenIn(door.cliLog).started > 0, 200, "a child starting for a refused Host");
     const tunnel = await raw(door.port, { urlPath: door.route, headers: { ...MCP_HEADERS, host: TUNNEL_HOST }, body: INITIALIZE });
     assert.equal(tunnel.status, 200);
   } finally {
@@ -107,8 +105,7 @@ test("1.6 a JSON-RPC batch is answered 400 with error -32600 and runs none of it
       assert.equal(answer.status, 400);
       assert.equal(JSON.parse(answer.body).error?.code, -32600);
     }
-    await wait(300);
-    assert.equal(childrenIn(door.cliLog).started, 0, "a child ran for a batch");
+    await quietFor(() => childrenIn(door.cliLog).started > 0, 300, "a child running for a batch");
   } finally {
     await door.close();
   }
@@ -173,7 +170,7 @@ test("1.8 a child past its time limit is stopped and its call answers a tool err
     assert.equal(result?.isError, true);
     assert.match(textOf(result), /within 1 seconds/);
     const pid = Number(/^start (\d+)/m.exec(childrenIn(door.cliLog).text)?.[1]);
-    assert.ok(await until(() => !alive(pid), 3_000), "the child is still running");
+    await waitUntil(() => !alive(pid), 3_000, "the stopped child to exit");
   } finally {
     await door.close();
   }
@@ -204,21 +201,20 @@ test("1.9 a caller hanging up stops its running child, even one ignoring SIGTERM
     const request = http.request({ host: "127.0.0.1", port: door.port, method: "POST", path: door.route, headers: LEGACY_HEADERS, agent: false });
     request.on("error", () => {});
     request.end(toolCall(1, "find", { query: "sleep:20000:stubborn" }));
-    const pid = Number(await until(() => /^start (\d+)/m.exec(childrenIn(door.cliLog).text)?.[1], 8_000));
+    const pid = Number(await waitUntil(() => /^start (\d+)/m.exec(childrenIn(door.cliLog).text)?.[1], 8_000, "the child to start"));
     assert.ok(pid > 0, "the child never started");
     request.destroy();
-    assert.ok(await until(() => !alive(pid), 5_000), "the child outlived its caller");
+    await waitUntil(() => !alive(pid), 5_000, "the hung-up caller's child to exit");
     assert.ok(!childrenIn(door.cliLog).text.includes(`end ${pid}`), "the child ran to its end");
-    assert.ok(await until(() => door.lines.some((line) => / 499 /.test(line)), 2_000), "no 499 line");
+    await waitUntil(() => door.lines.some((line) => / 499 /.test(line)), 2_000, "a 499 line");
     // Both slots are free again: two calls at once are both served. The slot is released when the child's pipes close,
     // a moment after its pid is gone (longer on Windows), so the pair is retried until then; a slot never freed fails it.
     let refused: string | undefined;
-    for (const deadline = Date.now() + 5_000; ; await wait(100)) {
+    await waitUntil(async () => {
       const answers = await Promise.all([1, 2].map((id) => raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(id, "find", { query: "sleep:300" }) })));
       refused = answers.find((answer) => messagesOf(answer.body)[0]?.result?.isError === true)?.body.slice(0, 200);
-      if (refused === undefined || Date.now() > deadline) break;
-    }
-    assert.equal(refused, undefined, refused);
+      return refused === undefined;
+    }, 5_000, "two calls at once both served").catch((error: Error) => assert.fail(`${error.message}; the last refusal: ${refused}`));
   } finally {
     await door.close();
   }

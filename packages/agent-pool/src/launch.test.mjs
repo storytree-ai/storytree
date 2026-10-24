@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 
+import { removeTemp } from "@storytree/test-waits";
+
 import { main, planRules, poolRules, prepareCheckout, PUSH_URL, runPool } from "./launch.mjs";
 import { codeVersion } from "./queue.mjs";
 
@@ -13,7 +15,7 @@ const run = promisify(execFile);
 const now = () => Date.parse("2026-10-08T04:00:00Z");
 async function folder(t) {
   const path = await mkdtemp(join(tmpdir(), "lane-launch-"));
-  t.after(() => rm(path, { recursive: true, force: true }));
+  t.after(() => removeTemp(path));
   return path;
 }
 
@@ -346,7 +348,7 @@ test("3.13 · with free slots and nothing ready the dispatcher looks again withi
 
 test("3.17 · the dispatcher's cap is the configured session count, which the lanes folder's night-max-lanes overrides live", async (t) => {
   const home = await mkdtemp(join(tmpdir(), "lane-pool-config-"));
-  t.after(() => rm(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   const config = join(home, "agent-pool.json"), lanes = join(home, "lanes");
   await mkdir(lanes);
   await writeFile(config, JSON.stringify({ lanes, sessions: 3 }));

@@ -29,6 +29,8 @@ import { createServer, connect as openSocket, type AddressInfo, type Socket } fr
 import type { Duplex } from "node:stream";
 import { after, before, describe, mock, test, type TestContext } from "node:test";
 
+import { quietFor, waitUntil } from "@storytree/test-waits";
+
 import {
   cloudSqlStandIn,
   createTestRole,
@@ -755,8 +757,9 @@ test("8.5 on a shared Cloud SQL instance, a project's pool holds at most three o
     const library = await cloud.openProject(project);
 
     const reads = Array.from({ length: 8 }, () => library.pool.query("SELECT pg_sleep(0.3)"));
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    const held = await sessionsOn(`storytree_${project}`, user);
+    const database = `storytree_${project}`;
+    let held = await waitUntil(async () => await sessionsOn(database, user), 5_000, "the pool to open a connection for the reads");
+    await quietFor(async () => (held = Math.max(held, await sessionsOn(database, user))) > 3, 300, "the pool holding more than three connections at once");
     await Promise.all(reads);
 
     assert.ok(held >= 1 && held <= 3, `the pool held ${held} connections at once`);

@@ -4,10 +4,12 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import type { Library } from "@storytree/library";
 
@@ -60,7 +62,7 @@ async function withCheckout(files: Record<string, string>, body: (checkout: stri
     git("add", "."), git("commit", "-qm", "change");
     await body(checkout, git("diff", "origin/main...HEAD"));
   } finally {
-    rmSync(checkout, { recursive: true, force: true });
+    await removeTemp(checkout);
   }
 }
 
@@ -146,7 +148,7 @@ test("5.3 · taking a review records what Architecture checks' graduated checks 
       const runs = (await (await openLedger(storytree)).rows(library.name)).runs.filter(({ review }) => review === taken.review);
       assert.deepEqual(runs.map(({ foundBy }) => foundBy), ["reviewer", "reviewer"]);
     } finally {
-      rmSync(notACheckout, { recursive: true, force: true });
+      await removeTemp(notACheckout);
     }
   });
 });

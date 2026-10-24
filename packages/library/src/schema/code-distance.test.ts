@@ -1,16 +1,18 @@
 /** Data schema contract 3.5: a newer-schema refusal helps identify stale running code. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { removeTemp } from "@storytree/test-waits";
+
 import { codeDistance } from "./code-distance.js";
 
-test("3.5 · CommonJS bundled schema errors load and explain recovery with unknown code distance", () => {
+test("3.5 · CommonJS bundled schema errors load and explain recovery with unknown code distance", async () => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-bundled-schema-"));
   try {
     const require = createRequire(import.meta.url);
@@ -35,11 +37,11 @@ test("3.5 · CommonJS bundled schema errors load and explain recovery with unkno
     assert.match(error.message, /pnpm install/);
     assert.match(error.message, /restart the MCP server from a current worktree/);
   } finally {
-    rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    await removeTemp(folder);
   }
 });
 
-test("3.5 · code distance stays pinned to loaded code after the checkout advances, and follows fetched main", () => {
+test("3.5 · code distance stays pinned to loaded code after the checkout advances, and follows fetched main", async () => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-code-distance-"));
   const git = (...args: string[]) => execFileSync("git", ["-C", folder, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   try {
@@ -69,17 +71,17 @@ test("3.5 · code distance stays pinned to loaded code after the checkout advanc
     git("update-ref", "-d", "refs/remotes/origin/main");
     assert.equal(distance(), undefined, "losing the reference cannot mask the schema refusal");
   } finally {
-    rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    await removeTemp(folder);
   }
 });
 
-test("3.5 · code outside a checkout has no invented commit distance", () => {
+test("3.5 · code outside a checkout has no invented commit distance", async () => {
   const folder = mkdtempSync(path.join(tmpdir(), "storytree-code-distance-"));
   try {
     const source = path.join(folder, "installed.mjs");
     writeFileSync(source, "// installed build\n");
     assert.equal(codeDistance(source)(), undefined);
   } finally {
-    rmSync(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    await removeTemp(folder);
   }
 });

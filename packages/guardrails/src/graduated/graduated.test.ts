@@ -4,10 +4,12 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { GRADUATED_CHECKS, graduatedChecks } from "../index.js";
 
@@ -23,7 +25,7 @@ function write(root: string, files: Record<string, string>): void {
 /** A git checkout whose origin/main holds `base`, removed after the test; `withMain: false` leaves origin/main out. */
 function checkout(t: TestContext, base: Record<string, string>, withMain = true): string {
   const at = mkdtempSync(path.join(tmpdir(), "graduated-"));
-  t.after(() => rmSync(at, { recursive: true, force: true }));
+  t.after(() => removeTemp(at));
   git(at, "init", "-q");
   write(at, base);
   git(at, "add", "-A");

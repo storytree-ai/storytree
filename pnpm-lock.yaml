@@ -139,6 +139,9 @@ importers:
         specifier: workspace:*
         version: link:../session-management
     devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -262,6 +265,9 @@ importers:
         specifier: workspace:*
         version: link:../session-management
     devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -284,6 +290,9 @@ importers:
         specifier: workspace:*
         version: link:../map
     devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -437,6 +446,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -572,6 +584,9 @@ importers:
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -581,6 +596,9 @@ importers:
 
   packages/keys:
     devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -661,6 +679,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -702,6 +723,9 @@ importers:
         specifier: 17.10.0-beta.17
         version: 17.10.0-beta.17
     devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -730,6 +754,9 @@ importers:
       '@storytree/project-and-caller':
         specifier: workspace:*
         version: link:../project-and-caller
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -840,6 +867,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -883,6 +913,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -1055,6 +1088,9 @@ importers:
       '@storytree/app-setup':
         specifier: workspace:*
         version: link:../app-setup
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

@@ -8,6 +8,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { waitUntil } from "@storytree/test-waits";
+
 import { createTestRole, dropTestDatabases, dropTestRoles, testRoleUrl as as, testServerUrl, uniqueProjectName, withTestClient } from "../testing/pg.js";
 import { ConnectionError, ProjectGoneError, connect, type Project, type Storytree } from "./index.js";
 import type { InheritedRecords } from "./factory.js";
@@ -136,16 +138,13 @@ test("1.13 closing waits for an opening project and concurrent closers, then rel
         const opening = storytree.openProject(name).then((opened) => { project = opened; });
         let closing: Promise<void>[] = [];
         try {
-          const deadline = Date.now() + 5_000;
-          for (;;) {
+          await waitUntil(async () => {
             await blocker.query("SELECT pg_stat_clear_snapshot()");
             const { rows } = await blocker.query(
               "SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND $1 = ANY(pg_blocking_pids(pid))", [pid],
             );
-            if (rows.length > 0) break;
-            assert.ok(Date.now() < deadline, "the project opening reaches the held schema read");
-            await new Promise((resolve) => setTimeout(resolve, 10));
-          }
+            return rows.length > 0;
+          }, 5_000, "the project opening to reach the held schema read");
           const finished = [false, false];
           closing = finished.map((_, i) => storytree.close().then(() => { finished[i] = true; }));
           await new Promise((resolve) => setImmediate(resolve));
@@ -162,17 +161,12 @@ test("1.13 closing waits for an opening project and concurrent closers, then rel
       await withTestClient(async (observer) => {
         // A backend leaves pg_stat_activity a moment after its client disconnects (the blocker's
         // too), so wait for the count to reach zero rather than reading it once.
-        const deadline = Date.now() + 5_000;
-        for (;;) {
+        await waitUntil(async () => {
           const { rows } = await observer.query<{ n: number }>(
             "SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1", [databaseOf(name)],
           );
-          if (rows[0]?.n === 0 || Date.now() >= deadline) {
-            assert.equal(rows[0]?.n, 0, "no project connection is left on Postgres");
-            break;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 10));
-        }
+          return rows[0]?.n === 0;
+        }, 5_000, "no project connection to be left on Postgres");
       });
     } finally {
       // Also cleans up the orphan when this regression is run against the broken implementation.
@@ -225,16 +219,13 @@ test("1.2 reopening while a record write is in flight does not deadlock (PR 75 m
         await writer.query("INSERT INTO record_event (record_id, type, action, record) VALUES ('during-open', 'decision', 'created', '{}'::jsonb)");
         const opening = later.openProject(name).then(() => undefined, (error: unknown) => error);
         try {
-          const deadline = Date.now() + 5000;
-          for (;;) {
+          await waitUntil(async () => {
             const { rows } = await project.pool.query(
               "SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND $1 = ANY(pg_blocking_pids(pid))",
               [pid],
             );
-            if (rows.length > 0) break;
-            assert.ok(Date.now() < deadline, "the second open reaches the in-flight write");
-            await new Promise((resolve) => setTimeout(resolve, 10));
-          }
+            return rows.length > 0;
+          }, 5_000, "the second open to reach the in-flight write");
           const saved = await writer.query("INSERT INTO record (id, type, version, fields, created_at, updated_at) VALUES ('during-open', 'decision', 1, '{}'::jsonb, now(), now())")
             .then(() => writer.query("COMMIT"))
             .then(() => undefined, async (error: unknown) => { await writer.query("ROLLBACK"); return error; });

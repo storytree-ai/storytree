@@ -9,13 +9,15 @@
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { appendFileSync, chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { connect, createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import pg from "pg";
 
@@ -40,7 +42,7 @@ after(async () => {
     const dataDir = path.join(root, entry);
     if (existsSync(path.join(dataDir, "PG_VERSION")) && serverRunning(dataDir)) pgCtl(["-D", dataDir, "-m", "immediate", "-w", "stop"]);
   }
-  rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  await removeTemp(root);
 });
 
 test("1.1, 1.2 the binaries come from this machine's @embedded-postgres package, and on Windows arm64 from the x64 one, run under emulation", () => {
@@ -525,10 +527,10 @@ function freePort(): Promise<number> {
   });
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`timed out after ${ms / 1000} s waiting for ${what}`)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+async function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
+  let settled = false;
+  const outcome = promise.finally(() => (settled = true));
+  outcome.catch(() => {});
+  await waitUntil(() => settled, ms, what);
+  return outcome;
 }

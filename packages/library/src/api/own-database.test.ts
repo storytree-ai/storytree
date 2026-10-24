@@ -5,6 +5,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { waitUntil } from "@storytree/test-waits";
+
 import { connect } from "@storytree/library";
 
 import { dropTestDatabases, testServerUrl, uniqueProjectName } from "../testing/pg.js";
@@ -56,12 +58,12 @@ test("7.7 once its tables are there, a new connection's set-up runs no DDL, so i
     // transaction, which reads its activity as it stood when it began): the set-up must finish without one.
     let settled = false;
     opening = second.ownDatabase(name, { tables }).finally(() => (settled = true));
-    let waited = false;
-    while (!settled && !waited) {
+    const outcome = await waitUntil(async () => {
+      if (settled) return "finished";
       const { rows } = await pool.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'");
-      waited = rows.length > 0;
-    }
-    assert.equal(waited, false, "the second connection's set-up waited on the writer's lock");
+      return rows.length > 0 && "waited";
+    }, 10_000, "the second connection's set-up to finish or wait on a lock");
+    assert.equal(outcome, "finished", "the second connection's set-up waited on the writer's lock");
     await opening;
     await writer.query("COMMIT");
   } finally {

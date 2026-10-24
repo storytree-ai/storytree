@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import { refreshGrowthSnapshot, type GrowthReading } from "./saved-growth.js";
 import { ciHealth, codeAt, shopStages } from "./shop-growth.js";
 
@@ -41,7 +44,7 @@ function reading(code: GrowthReading["surveyAt"]): GrowthReading {
 
 test("3.5 · a stage's land comes only from the survey of the code as it stood at the stage's time", async context => {
   const directory = await mkdtemp(path.join(tmpdir(), "shop-growth-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => removeTemp(directory));
   const root = await repository(await mkdtemp(path.join(directory, "repo-")));
   const file = path.join(directory, "shop.json");
   await refreshGrowthSnapshot(file, async () => reading(codeAt(root)));
@@ -62,7 +65,7 @@ const ciLog = (commit: string, finished: string, outcome: "ok" | "not ok") => [
 
 test("3.7 · the shop's saved growth colours each stage only by the CI results recorded by its time, and before any run its land reads as the agent's report alone", async context => {
   const directory = await mkdtemp(path.join(tmpdir(), "shop-ci-"));
-  context.after(() => rm(directory, { recursive: true, force: true }));
+  context.after(() => removeTemp(directory));
   const root = await mkdtemp(path.join(directory, "repo-"));
   execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
   await mkdir(path.join(root, "packages", "have-an-account", "src"), { recursive: true });

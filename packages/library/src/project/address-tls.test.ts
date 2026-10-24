@@ -12,7 +12,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { createServer, type Server, type Socket } from "node:net";
 import { tmpdir } from "node:os";
@@ -20,6 +20,8 @@ import path from "node:path";
 import { test } from "node:test";
 import { TLSSocket } from "node:tls";
 import { fileURLToPath } from "node:url";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { saveKey } from "@storytree/keys";
 
@@ -134,7 +136,7 @@ async function connectBoth(behaviour: Peer, query = PINNED): Promise<{ admin: un
     await Promise.allSettled([server.admin.end()]);
     server.close();
     await listening.close();
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 }
 
@@ -182,7 +184,7 @@ test("15.4 a remote address presenting exactly a certificate its sslrootcert hol
     assert.equal(admin, "connected");
     assert.equal(project, "connected");
   } finally {
-    rmSync(folder, { recursive: true, force: true });
+    await removeTemp(folder);
   }
 });
 
@@ -200,7 +202,7 @@ test("15.4 a remote address that proves itself but asks for the password in plai
   assertRefused(project, "untrusted-server", /plain text/);
 });
 
-test("15.4 an address asking for a weaker check, or overriding the host it dials, is refused before reaching any server", () => {
+test("15.4 an address asking for a weaker check, or overriding the host it dials, is refused before reaching any server", async () => {
   const keys = home();
   try {
     for (const query of ["sslmode=disable", "sslmode=require", "sslmode=no-verify", "ssl=true", "sslcert=client.crt", "host=elsewhere.test", "port=6543"]) {
@@ -215,7 +217,7 @@ test("15.4 an address asking for a weaker check, or overriding the host it dials
       );
     }
   } finally {
-    rmSync(keys, { recursive: true, force: true });
+    await removeTemp(keys);
   }
 });
 

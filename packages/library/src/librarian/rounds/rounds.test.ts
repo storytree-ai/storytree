@@ -9,6 +9,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { quietFor } from "@storytree/test-waits";
+
 import { healthHistory, withCountedLibrary, withLibrary } from "../testing/pg.js";
 import { roundDue, worklist } from "../index.js";
 import type { ToolAnswer, ToolCall } from "./host.js";
@@ -187,8 +189,7 @@ test("26.8 a worklist call names each phase through the call's progress before i
         throw new Error("cancelled");
       }));
       await assert.rejects(cancelled, /cancelled/);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      assert.equal(received(), atFirst, "no phase after the first read the library");
+      await quietFor(() => received() !== atFirst, 50, "a phase after the first reading the library");
     });
   } finally {
     rmSync(folder, { recursive: true, force: true });

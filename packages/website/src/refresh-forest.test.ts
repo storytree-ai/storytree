@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import { openActivityLog } from "@storytree/session-management";
 import { setUpProject } from "@storytree/app-setup/project";
 import { connect } from "@storytree/library";
@@ -18,7 +21,7 @@ test("3.1, 3.2, 3.3 · refresh command saves the selected public recording, only
   const data = process.env.STORYTREE_TEST_PG_DATA;
   assert.ok(url && data, "Run through pnpm test for an isolated test Postgres");
   const directory = await mkdtemp(path.join(tmpdir(), "website-refresh-"));
-  t.after(() => rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+  t.after(() => removeTemp(directory));
   const home = path.join(directory, "home");
   const src = path.join(directory, "packages", "example", "src");
   await mkdir(home);

@@ -7,6 +7,9 @@ import path from "node:path";
 import { PassThrough } from "node:stream";
 import { test, type TestContext } from "node:test";
 import { inspect } from "node:util";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import { withSessionStore } from "./session-store.js";
 
 const context = { clientId: "client_test" };
@@ -49,7 +52,7 @@ test("6.4 Windows storage allows a cold protection process past ten seconds and 
     assert.equal(await readFile(path.join(home, "session"), "utf8"), "encrypted-session");
     t.mock.timers.tick(60_000);
     assert.equal(child.kill.mock.callCount(), 0, "completion clears the deadline");
-  } finally { await rm(home, { recursive: true, force: true }); }
+  } finally { await removeTemp(home); }
 });
 
 test("6.4 Windows protection failures retain only safe diagnostics and leave the previous session untouched", async t => {
@@ -85,7 +88,7 @@ test("6.4 Windows protection failures retain only safe diagnostics and leave the
         assert.deepEqual(await readdir(home), ["session"]);
         if (failure === "timeout" || failure === "output-limit") assert.equal(child.kill.mock.callCount(), 1);
         await withSessionStore(config, store => store.clear());
-      } finally { await rm(home, { recursive: true, force: true }); }
+      } finally { await removeTemp(home); }
     });
   }
 });
@@ -103,7 +106,7 @@ test("6.4 native Windows protection writes only ciphertext and still decrypts af
       assert.doesNotMatch(inspect(error), /corrupt-private-session/);
       return true;
     });
-  } finally { await rm(home, { recursive: true, force: true }); }
+  } finally { await removeTemp(home); }
 });
 
 test("6.4 a private session survives reopening, is bound to its environment, and sign-out erases it", async () => {
@@ -131,7 +134,7 @@ test("6.4 a private session survives reopening, is bound to its environment, and
     }
     await use(store => store.clear());
     assert.equal(await use(store => store.read()), undefined);
-  } finally { await rm(home, { recursive: true, force: true }); }
+  } finally { await removeTemp(home); }
 });
 
 test("6.4 session operations exclude competing commands and release their lock after a failed command", async () => {
@@ -145,7 +148,7 @@ test("6.4 session operations exclude competing commands and release their lock a
     });
     await assert.rejects(withSessionStore(config, async () => { throw new Error("command failed"); }), /command failed/);
     assert.equal(await withSessionStore(config, store => store.read()), "refresh-private");
-  } finally { await rm(home, { recursive: true, force: true }); }
+  } finally { await removeTemp(home); }
 });
 
 test("6.4 unsafe POSIX permissions or symlinks refuse token storage without following them", { skip: process.platform === "win32" && "platform:posix: POSIX file modes and symlink refusal have no Windows equivalent" }, async () => {
@@ -163,5 +166,5 @@ test("6.4 unsafe POSIX permissions or symlinks refuse token storage without foll
     const other = path.join(home, "other");
     await symlink(other, path.join(directory, "session"));
     await assert.rejects(withSessionStore(config, store => store.read()), /private session storage/i);
-  } finally { await rm(home, { recursive: true, force: true }); }
+  } finally { await removeTemp(home); }
 });

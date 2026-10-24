@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
+
+import { waitUntil } from "@storytree/test-waits";
+
 import type { DayWindow, Line } from "@storytree/library";
 import { ASK_EVERY_MS, CLOCK_EVERY_MS, pageReading, readBoard, watchBoard } from "../index.js";
 import type { BoardSnapshot } from "./board.js";
@@ -8,10 +10,8 @@ import type { BoardState } from "./live-board.js";
 import type { BoardReads } from "./reads.js";
 import { record } from "../testing/records.js";
 
-async function until(check: () => boolean): Promise<void> {
-  const end = Date.now() + 10_000;
-  while (!check() && Date.now() < end) await delay(10);
-  assert.ok(check(), "the board answered within ten seconds");
+function until(check: () => boolean): Promise<boolean> {
+  return waitUntil(check, 10_000, `the board to reach ${check}`);
 }
 
 test("3.5 the public watched board ages a holder at the user's idle-after setting without new lines", async () => {

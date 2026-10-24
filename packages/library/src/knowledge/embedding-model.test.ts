@@ -4,12 +4,14 @@
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { defaultEmbedder, throughProxy, verifyModelFolder } from "./embedding-model.js";
 
@@ -31,7 +33,7 @@ test("14.13 · behind HTTPS_PROXY the model's download goes through the proxy, a
   const models = await mkdtemp(path.join(tmpdir(), "storytree-models-"));
   t.after(async () => {
     await proxy.close();
-    await rm(models, { recursive: true, force: true });
+    await removeTemp(models);
   });
   const env = { HTTPS_PROXY: proxy.url, STORYTREE_MODELS: models };
 
@@ -62,7 +64,7 @@ const sha256 = (text: string) => createHash("sha256").update(text).digest("hex")
 /** A synthetic model folder: config.json and onnx/model.onnx, with the hashes they should have. */
 async function modelFolder(t: import("node:test").TestContext): Promise<{ folder: string; expected: Record<string, string> }> {
   const folder = await mkdtemp(path.join(tmpdir(), "storytree-model-"));
-  t.after(() => rm(folder, { recursive: true, force: true }));
+  t.after(() => removeTemp(folder));
   await mkdir(path.join(folder, "onnx"));
   await writeFile(path.join(folder, "config.json"), "{}");
   await writeFile(path.join(folder, "onnx", "model.onnx"), "weights");

@@ -4,12 +4,15 @@ import { mkdtemp, mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import type { AnnotatedTree, HealthWorkItem, Library } from "@storytree/library";
 import { changedOnMain, focusProject, healthWorklistAt, mapCommand } from "./read.js";
 
 async function repository(t: TestContext) {
   const folder = await mkdtemp(path.join(tmpdir(), "map-affected-"));
-  t.after(() => rm(folder, { recursive: true, force: true }));
+  t.after(() => removeTemp(folder));
   const git = (...args: string[]) => execFileSync("git", args, { cwd: folder, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
   const write = async (name: string, text: string) => { await mkdir(path.dirname(path.join(folder, name)), { recursive: true }); await writeFile(path.join(folder, name), text); };
   const health = { reported: { state: "not-checked" }, verified: { state: "passing" } };
@@ -177,7 +180,7 @@ test("4.2 each story whose package origin/main changed within the time asked has
 
 test("4.3 the health worklist read at a checkout names to the library each contract carrying \"no test names it\" that a numbered test in its story's package on fetched origin/main names, with main's commit; a test only off main names nothing, and with no origin/main none is named", async t => {
   const folder = await mkdtemp(path.join(tmpdir(), "map-named-"));
-  t.after(() => rm(folder, { recursive: true, force: true }));
+  t.after(() => removeTemp(folder));
   const checkout = path.join(folder, "checkout");
   const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).trim();
   const write = async (name: string, text: string) => { await mkdir(path.dirname(path.join(checkout, name)), { recursive: true }); await writeFile(path.join(checkout, name), text); };

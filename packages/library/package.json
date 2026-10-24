@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@storytree/local-postgres": "workspace:*",
+    "@storytree/test-waits": "workspace:*",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
     "@types/ws": "^8.18.2",

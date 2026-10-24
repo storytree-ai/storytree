@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { removeTemp } from "@storytree/test-waits";
+
 import { attempted, judgeReleases, RELEASE_LIMIT_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, watchReleases } from "./release-watch.mjs";
 
 const at = Date.parse("2026-10-13T12:00:00Z");
@@ -112,7 +114,7 @@ test("4.29 · a red only the runner caused (no runner took a job, the browser cr
 
 async function box(t, { judged, release: latest = release } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "lane-release-"));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const fixes = [], reruns = [], questions = [], lines = [], live = new Set(), open = new Set();
   let room = true, outcome = judged;
   const options = {

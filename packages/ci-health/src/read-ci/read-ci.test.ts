@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import { connect, type Library } from "@storytree/library";
 import { ghApi, gitIn, readProjectCi, VERIFIED_BY_PROJECT_CI, type GitHub } from "../index.js";
 
@@ -36,7 +39,7 @@ async function shopLibrary(t: { after(fn: () => Promise<void>): void }): Promise
 /** The project's folder: a git repository whose one commit holds the story's tests (in its package's `tests`, `src` by default), with a GitHub origin unless told otherwise. */
 function projectFolder(t: { after(fn: () => void): void }, origin: string | null = "https://github.com/acme/shop.git", tests = "src"): { folder: string; commit: string } {
   const folder = mkdtempSync(path.join(tmpdir(), "ci-health-"));
-  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  t.after(() => removeTemp(folder));
   const git = (...args: string[]) => execFileSync("git", ["-C", folder, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" }).trim();
   git("init", "-q");
   mkdirSync(path.join(folder, "packages/check-out", tests), { recursive: true });
@@ -127,7 +130,7 @@ test("3.2 a project with no GitHub origin, or with no finished push run on its d
 
 test("3.3 a job log holding terminal escape sequences is read all the same, from a gh that refuses to print one unless allowed (gh 2.102) as from one that prints it as it is", async (t) => {
   const folder = mkdtempSync(path.join(tmpdir(), "ci-health-gh-"));
-  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  t.after(() => removeTemp(folder));
   const log = "test\tRun npm test\t\u001b[32mok 1 - 1.1 · Your information page shows the form\u001b[0m\n";
   // Like gh 2.102: it refuses a response holding escape sequences until --allow-escape-sequences is passed.
   const strict = path.join(folder, "gh-strict.mjs");

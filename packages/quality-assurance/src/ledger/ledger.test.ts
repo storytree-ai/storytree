@@ -8,6 +8,8 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 
+import { waitUntil } from "@storytree/test-waits";
+
 import { withConnections } from "../testing/pg.js";
 import { LEDGER_DATABASE, openLedger, qualityTools } from "../index.js";
 
@@ -61,7 +63,7 @@ test("3.1 · a review written while another connection opens the ledger for the 
       opening.catch(() => undefined);
       // The review goes on to its second table once the opening waits on its first, or has finished without waiting.
       const watcher = await first.ownDatabase(LEDGER_DATABASE);
-      while (!settled && (await watcher.query("SELECT 1 FROM pg_stat_activity WHERE datname = $1 AND wait_event_type = 'Lock'", [LEDGER_DATABASE])).rowCount === 0);
+      await waitUntil(async () => settled || (await watcher.query("SELECT 1 FROM pg_stat_activity WHERE datname = $1 AND wait_event_type = 'Lock'", [LEDGER_DATABASE])).rowCount !== 0, 10_000, "the opening to wait on the review's lock or finish");
       await writer.query("INSERT INTO quality_hits (project, review, check_id, package, file, line) VALUES ($1, 'review-1', 'check_a', 'library', 'src/a.ts', 1)", [project]);
       await writer.query("COMMIT");
       committed = true;

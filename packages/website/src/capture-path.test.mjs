@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
+
+import { removeTemp } from "@storytree/test-waits";
+
 import { captureOutput, capturePath } from "../evidence/capture-path.mjs";
 
 const captures = ["terminal.mjs", "turn/capture.mjs", "journey/capture.mjs", "arrival/capture.mjs",
@@ -35,7 +38,7 @@ async function request(handler, url) {
 for (const capture of captures) {
   test(`3.13 · ${capture} contains file requests and keeps serving after malformed URLs`, async t => {
     const root = await mkdtemp(path.join(tmpdir(), "website-capture-"));
-    t.after(() => rm(root, { recursive: true, force: true }));
+    t.after(() => removeTemp(root));
     const dist = path.join(root, "dist");
     await mkdir(path.join(dist, "assets"), { recursive: true });
     await mkdir(path.join(root, "dist-adjacent"));

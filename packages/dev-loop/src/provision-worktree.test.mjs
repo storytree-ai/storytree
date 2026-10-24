@@ -4,7 +4,7 @@
 // install ever completed), STALE (pnpm-lock.yaml moved past the install, as after merging main) and
 // UNLINKED (an install reported success but linked no workspace package).
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -14,6 +14,19 @@ import { fileURLToPath } from "node:url";
 import { CLOUD_LIBRARY_ADDRESS, check, connectCloud, hookOutput, installEnvironment, provision, serve } from "./provision-worktree.mjs";
 
 const script = fileURLToPath(new URL("./provision-worktree.mjs", import.meta.url));
+
+/**
+ * Run a child to its end without blocking this process. On Windows a test file's reports reach the
+ * runner through an asynchronous pipe, so a file that only blocks in spawnSync reports nothing, and
+ * past 20 s the runner's exit watch kills it as hung (friction_d9a154e094e1).
+ */
+function run(command, args, options = {}) {
+  return new Promise((resolve) => {
+    execFile(command, args, { encoding: "utf8", windowsHide: true, ...options }, (error, stdout, stderr) => {
+      resolve({ status: error ? (typeof error.code === "number" ? error.code : 1) : 0, stdout, stderr: stderr || (error?.message ?? "") });
+    });
+  });
+}
 
 /** A worktree on disk: one workspace package, and node_modules as the named condition leaves it. */
 function worktree(t, condition) {
@@ -73,11 +86,11 @@ test("2.3 a failed install is retried once, and if it still fails the agent is t
   assert.equal(result.ok, true);
 });
 
-test("2.1 as a session-start hook it exits 0 and says nothing on a healthy worktree", (t) => {
+test("2.1 as a session-start hook it exits 0 and says nothing on a healthy worktree", async (t) => {
   const root = worktree(t, "current");
-  const run = spawnSync(process.execPath, [script, "--hook", "--root", root], { encoding: "utf8" });
-  assert.equal(run.status, 0, run.stderr);
-  assert.equal(run.stdout, "");
+  const hook = await run(process.execPath, [script, "--hook", "--root", root]);
+  assert.equal(hook.status, 0, hook.stderr);
+  assert.equal(hook.stdout, "");
 });
 
 /**
@@ -167,14 +180,14 @@ function addKeysDependency(root) {
   writeFileSync(path.join(root, "packages", "library", "package.json"), JSON.stringify(library));
 }
 
-test("2.2 before a storytree command, an uninstalled worktree is installed and the command runs", (t) => {
+test("2.2 before a storytree command, an uninstalled worktree is installed and the command runs", async (t) => {
   for (const condition of ["fresh", "unlinked"]) {
     const root = worktree(t, condition);
     const ran = [];
     assert.equal(check({ root, install: linkingInstall(ran) }), 0, condition);
     assert.deepEqual(ran, [root], `${condition}: one install, in the worktree`);
   }
-  const current = spawnSync(process.execPath, [script, "--check", "--root", worktree(t, "current")], { encoding: "utf8" });
+  const current = await run(process.execPath, [script, "--check", "--root", worktree(t, "current")]);
   assert.equal(current.status, 0);
   assert.equal(current.stdout + current.stderr, "", "an installed worktree runs the command with nothing said");
 });
@@ -210,7 +223,7 @@ for (const condition of ["current", "stale"]) {
   });
 }
 
-test("2.2 missing root workspace links are reinstalled even after a package's missing link is repaired", (t) => {
+test("2.2 missing root workspace links are reinstalled even after a package's missing link is repaired", async (t) => {
   const root = worktree(t, "current");
   writeFileSync(path.join(root, "package.json"), JSON.stringify({
     name: "storytree", devDependencies: { "@storytree/library": "workspace:*" },
@@ -233,7 +246,7 @@ test("2.2 missing root workspace links are reinstalled even after a package's mi
   assert.equal(calls, 1, "the session-start hook reinstalls the missing root link");
   assert.equal(result.condition, "behind");
   assert.equal(hookOutput(result, root), "");
-  const repaired = spawnSync(process.execPath, [script, "--check", "--root", root], { encoding: "utf8" });
+  const repaired = await run(process.execPath, [script, "--check", "--root", root]);
   assert.equal(repaired.status, 0, repaired.stderr);
   assert.equal(repaired.stdout + repaired.stderr, "");
 });
@@ -253,35 +266,35 @@ test("the tool server starts in a fresh worktree once the session-start install 
   assert.equal(started, 1);
 });
 
-function git(root, ...args) {
-  const result = spawnSync("git", ["-c", "user.name=Provision test", "-c", "user.email=provision@example.test", "-c", "commit.gpgsign=false", ...args], {
-    cwd: root, encoding: "utf8", timeout: 10_000,
+async function git(root, ...args) {
+  const result = await run("git", ["-c", "user.name=Provision test", "-c", "user.email=provision@example.test", "-c", "commit.gpgsign=false", ...args], {
+    cwd: root, timeout: 10_000,
   });
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.trim();
 }
 
 /** Two real repositories: origin can advance independently of the installed primary checkout. */
-function repoPair(t) {
+async function repoPair(t) {
   const remote = worktree(t, "current");
-  git(remote, "init", "--initial-branch=main");
+  await git(remote, "init", "--initial-branch=main");
   writeFileSync(path.join(remote, "version.txt"), "one\n");
-  git(remote, "add", "version.txt");
-  git(remote, "commit", "-m", "initial");
+  await git(remote, "add", "version.txt");
+  await git(remote, "commit", "-m", "initial");
   const root = worktree(t, "current");
-  git(root, "init", "--initial-branch=main");
-  git(root, "remote", "add", "origin", remote);
-  git(root, "fetch", "origin", "main");
-  git(root, "reset", "--hard", "origin/main");
+  await git(root, "init", "--initial-branch=main");
+  await git(root, "remote", "add", "origin", remote);
+  await git(root, "fetch", "origin", "main");
+  await git(root, "reset", "--hard", "origin/main");
   return { root, remote };
 }
 
 test("2.4 a stale primary names the gap at session start and refuses to serve until updated", async (t) => {
-  const { root, remote } = repoPair(t);
-  git(remote, "commit", "--allow-empty", "-m", "new record schema");
-  git(root, "fetch", "origin", "main");
-  const before = git(root, "rev-parse", "HEAD");
-  const hook = spawnSync(process.execPath, [script, "--hook", "--root", root], { encoding: "utf8" });
+  const { root, remote } = await repoPair(t);
+  await git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  await git(root, "fetch", "origin", "main");
+  const before = await git(root, "rev-parse", "HEAD");
+  const hook = await run(process.execPath, [script, "--hook", "--root", root]);
   assert.equal(hook.status, 0, "a warning must leave the session able to repair its checkout");
   assert.notEqual(hook.stdout, "", "the session is told about its stale checkout");
   const warning = JSON.parse(hook.stdout).hookSpecificOutput.additionalContext;
@@ -294,40 +307,40 @@ test("2.4 a stale primary names the gap at session start and refuses to serve un
   assert.equal(code, 1);
   assert.equal(messages.length, 1);
   assert.match(messages[0], /1 commit behind/);
-  assert.equal(git(root, "rev-parse", "HEAD"), before, "startup never moves the checkout");
+  assert.equal(await git(root, "rev-parse", "HEAD"), before, "startup never moves the checkout");
 
-  git(root, "merge", "--ff-only", "origin/main");
+  await git(root, "merge", "--ff-only", "origin/main");
   assert.equal(hookOutput(provision({ root }), root), "", "an updated primary is silent");
   assert.equal(await serve({ root, start: async () => 17 }), 17, "the updated server can start");
 });
 
-test("2.4 a stale dirty or diverged primary keeps its edits and names local commits to reconcile", (t) => {
-  const { root, remote } = repoPair(t);
-  git(root, "commit", "--allow-empty", "-m", "local work");
+test("2.4 a stale dirty or diverged primary keeps its edits and names local commits to reconcile", async (t) => {
+  const { root, remote } = await repoPair(t);
+  await git(root, "commit", "--allow-empty", "-m", "local work");
   writeFileSync(path.join(root, "version.txt"), "local edits\n");
-  git(remote, "commit", "--allow-empty", "-m", "new record schema");
-  git(root, "fetch", "origin", "main");
-  const before = git(root, "rev-parse", "HEAD");
+  await git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  await git(root, "fetch", "origin", "main");
+  const before = await git(root, "rev-parse", "HEAD");
   const result = provision({ root, install: () => assert.fail("updating the checkout comes first") });
   assert.equal(result.ok, false);
   const warning = JSON.parse(hookOutput(result, root)).hookSpecificOutput.additionalContext;
   assert.match(warning, /1 commit behind/);
   assert.match(warning, /1 local commit/);
   assert.match(warning, /reconcile/i);
-  assert.equal(git(root, "rev-parse", "HEAD"), before);
+  assert.equal(await git(root, "rev-parse", "HEAD"), before);
   assert.equal(readFileSync(path.join(root, "version.txt"), "utf8"), "local edits\n");
 });
 
 test("2.4 a feature branch or linked worktree can serve while the primary is behind", async (t) => {
-  const { root, remote } = repoPair(t);
-  git(remote, "commit", "--allow-empty", "-m", "new record schema");
-  git(root, "fetch", "origin", "main");
-  git(root, "switch", "-c", "feature");
+  const { root, remote } = await repoPair(t);
+  await git(remote, "commit", "--allow-empty", "-m", "new record schema");
+  await git(root, "fetch", "origin", "main");
+  await git(root, "switch", "-c", "feature");
   assert.equal(hookOutput(provision({ root }), root), "");
   assert.equal(await serve({ root, start: async () => 19 }), 19);
 
   const linked = path.join(root, "linked");
-  git(root, "worktree", "add", linked, "main");
+  await git(root, "worktree", "add", linked, "main");
   assert.equal(await serve({ root: linked, waitMs: 0, start: async () => 23 }), 23, "even a linked worktree on main is left alone");
 });
 

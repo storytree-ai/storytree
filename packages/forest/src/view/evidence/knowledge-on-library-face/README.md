@@ -22,14 +22,16 @@ real button press and the selection a real click. Measured in `measurements.json
 
 | Stories face, at rest | Before (`../glass-sheet-tilt/`) |
 | --- | --- |
-| ![top](sheet-top.png) | ![before](../glass-sheet-tilt/sheet-top.png) |
+| ![top](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-on-library-face/sheet-top.png) | ![before](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-tilt/sheet-top.png) |
 
 | Library face, at rest | Before |
 | --- | --- |
-| ![underside](sheet-underside.png) | ![before](../glass-sheet-tilt/sheet-underside.png) |
+| ![underside](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-on-library-face/sheet-underside.png) | ![before](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-tilt/sheet-underside.png) |
 
 | The knowledge core selected, Library face | Before |
 | --- | --- |
-| ![underside selected](sheet-underside-selected.png) | ![before](../glass-sheet-tilt/sheet-underside-selected.png) |
+| ![underside selected](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-on-library-face/sheet-underside-selected.png) | ![before](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass-sheet-tilt/sheet-underside-selected.png) |
 
-The same selection on the Stories face, which still shows no knowledge: ![top selected](sheet-top-selected.png)
+The same selection on the Stories face, which still shows no knowledge: ![top selected](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-on-library-face/sheet-top-selected.png)
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/knowledge-on-library-face).

@@ -7,10 +7,10 @@ The capture uses the shared desktop capture kit; it neither reads nor writes a l
 
 | View | Observed |
 | --- | --- |
-| [Before](before.png), main `9d364ebd` | Both islands grey; no capability territory meshes. |
-| [After](after.png) | Four coloured, bordered territories: green server, red browsing, two yellow capabilities. |
-| [Live update](after-live-health.png) | A verified health change turns browsing green through the ordinary news reader, without reloading. |
-| [Reload](after-reload.png) | The same colours return after a reload. |
+| [Before](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/unsurveyed-health/before.png), main `9d364ebd` | Both islands grey; no capability territory meshes. |
+| [After](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/unsurveyed-health/after.png) | Four coloured, bordered territories: green server, red browsing, two yellow capabilities. |
+| [Live update](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/unsurveyed-health/after-live-health.png) | A verified health change turns browsing green through the ordinary news reader, without reloading. |
+| [Reload](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/unsurveyed-health/after-reload.png) | The same colours return after a reload. |
 
 The JSON beside each image records each drawn mesh's capability, verified word, fill, opacity and
 vertex count. The capture asserts those measurements and rejects browser errors or missing assets.
@@ -27,3 +27,5 @@ node --import tsx packages/forest/src/view/evidence/unsurveyed-health/capture.mj
 
 Add `--retake` to replace the committed evidence; otherwise the kit writes into its scratch folder.
 The baseline checkout must have its dependencies installed.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/unsurveyed-health).

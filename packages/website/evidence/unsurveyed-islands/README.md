@@ -6,9 +6,9 @@ Conduit's saved planned islands show `0 / 1 landed` with empty neutral meters. I
 
 | Saved stage / actual tour step | Desktop, 1440×900 | Phone, 390×844 | Complete label boxes inside globe, desktop / phone |
 | --- | --- | --- | --- |
-| planned / Roads | [Picture](1440-planned.png) | [Picture](390-planned.png) | 5 / 5 |
-| part1 / Contracts | [Picture](1440-part1.png) | [Picture](390-part1.png) | 4 / 2 |
-| frontend / Health | [Picture](1440-frontend.png) | [Picture](390-frontend.png) | 5 / 5 |
+| planned / Roads | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/unsurveyed-islands/1440-planned.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/unsurveyed-islands/390-planned.png) | 5 / 5 |
+| part1 / Contracts | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/unsurveyed-islands/1440-part1.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/unsurveyed-islands/390-part1.png) | 4 / 2 |
+| frontend / Health | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/unsurveyed-islands/1440-frontend.png) | [Picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/unsurveyed-islands/390-frontend.png) | 5 / 5 |
 
 **See:** The flat grey land stays flat grey. Progress sits beside each nameplate's title, with an empty or filled 3 px meter. Selected text and meters use the existing dark-on-yellow selection color; other meters use the existing off-white nameplate color. All five titles and meters fit on the phone in the planned and frontend stages. The primary subject is readable at every captured stage.
 
@@ -20,7 +20,7 @@ The temporary capture driver reused `journey/capture.mjs`, served the already bu
 
 Assertions passed for all six captures: saved stage and five stable story IDs; each count and percentage fill; fill color equal to nameplate text color; accessible progress text with a decorative `aria-hidden` meter; no overlapping visible nameplates; the primary subject's whole nameplate inside the globe; no saved surveyed land and no capability territory labels. Planned additionally asserts all five whole nameplates fit inside the globe and none are hidden by crowding. Empty fills measure 0 px; full fills measure 58 px. Progress text is 9.92 px. Whole nameplates retain their original title height: 33.4 px, or 48.5 px for Read and publish articles. No browser page errors occurred.
 
-The first stacked layout failed phone review: it hid one nameplate and clipped Manage's progress, leaving only three fully visible meters in planned/frontend. Putting progress beside the original-width title restored all five complete nameplates; the observations retain that red result under `redLayout`. The final [phone Roads picture](390-planned.png) preserves all five readable names from the [historical picture](../journey/390-5-roads.png).
+The first stacked layout failed phone review: it hid one nameplate and clipped Manage's progress, leaving only three fully visible meters in planned/frontend. Putting progress beside the original-width title restored all five complete nameplates; the observations retain that red result under `redLayout`. The final [phone Roads picture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/unsurveyed-islands/390-planned.png) preserves all five readable names from the [historical picture](../journey/390-5-roads.png).
 
 Independent screenshot review applied **Legible at the resting view** (`principle_1e3418812c33`): containment alone is insufficient; the names and their distinguishing progress signal must be readable before zooming or panning. That review caught the stacked layout's clipping despite its DOM visibility measurements, then confirmed all five complete planned/frontend labels at both sizes in the compact layout, with no overlaps.
 
@@ -57,3 +57,5 @@ node packages/website/evidence/capture.mjs regression-immersive-local --verify-i
 node packages/website/evidence/capture.mjs regression-recording-local --verify-recording
 pnpm gate
 ```
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/unsurveyed-islands).

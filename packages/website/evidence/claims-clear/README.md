@@ -19,3 +19,5 @@ a phone, where the list now rises over the page's name at every phone height, as
 Checks: the map chapter's framing check now names all four islands for the claims step on phones too; on main it fails at
 1920, 1440 and 1280 (Signing in) and at 390 and 320 (Cart, Checkout), and passes here at all five widths but for the known
 320 miss. Free play's new check (every shown name clear of the tray) fails on main at 1440 (Signing in) and passes here.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 9 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/claims-clear/after) (5), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/claims-clear/before) (4).

@@ -14,8 +14,8 @@ health are unchanged, so the trees retain their planned yellow form.
 
 | View | Before: #93's uniform 0.08 shell | After: glass shell |
 | --- | --- | --- |
-| Front | ![Before front](before-front.png) | ![After front](after-front.png) |
-| Quarter turn | ![Before quarter turn](before-quarter-turn.png) | ![After quarter turn](after-quarter-turn.png) |
+| Front | ![Before front](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass/before-front.png) | ![After front](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass/after-front.png) |
+| Quarter turn | ![Before quarter turn](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass/before-quarter-turn.png) | ![After quarter turn](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass/after-quarter-turn.png) |
 
 The before bundle is red commit `39f637e`, retaining #93's product shell. The
 after is green `1ef70bb`. Both use the **same fresh seed**: reseeding would change
@@ -76,3 +76,5 @@ turn. `probe.mjs` performs the shader readback separately. The bundles, seed, ra
 measurements and scripts remain in `dist/`. No spike branch was merged and no new
 test framework ships. Every seed, Chromium render and test held
 `/tmp/storytree-heavy.lock`. The laptop session supplies `pnpm desktop:smoke`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/glass).

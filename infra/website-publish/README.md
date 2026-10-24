@@ -10,7 +10,7 @@ and names the two repository variables below; the build and its tests still run.
 
 | File | What it makes |
 | --- | --- |
-| [`main.tf`](main.tf) | The service account `storytree-website-publish`, with Secret Accessor on the one secret `heredotnow_api_key` (a binding on that secret, not on the project), and leave for this repository's workflows on main to act as it. |
+| [`main.tf`](main.tf) | The service account `storytree-website-publish`, with Secret Accessor on the one secret `heredotnow_api_key` (a binding on that secret, not on the project), and leave for this repository's website workflow, on main, to act as it. |
 
 It makes no sign-in route of its own: it reuses [infra/ci-health](../ci-health/README.md)'s
 `storytree-0-3-main`, whose condition is already exactly "this repository, only on main"
@@ -20,10 +20,12 @@ be applied first; it is.
 ## What the account can and cannot do
 
 It **can** read the versions of the secret `heredotnow_api_key`. It **cannot** read any other
-secret, change or delete that one, or touch anything else in the project. Any workflow of this
-repository running on main can act as it (the same reach as ci-health's account); a pull request's
-run, a fork, or another repository cannot, because the sign-in route refuses them before any
-account is in question.
+secret, change or delete that one, or touch anything else in the project. Only
+`.github/workflows/website.yml` running on main can act as it: the binding names that workflow by
+its `job_workflow_ref`, the one attribute the shared route maps for it (mappings are limited to what
+bindings use). Another workflow on main is refused by the binding; a pull request's run, a fork, or
+another repository is refused by the sign-in route before any account is in question. The publish
+job runs in its own GitHub environment, `website`.
 
 The workflow puts the key into the publish step's environment only, masked (`::add-mask::`) before
 anything else reads it; the uploader never logs it.
@@ -42,10 +44,16 @@ terraform apply
 ```
 
 The three are the service account, its Secret Accessor binding on `heredotnow_api_key`, and the
-binding that lets this repository's main-only sign-in act as it. It keeps its own state
+binding that lets the website workflow's main-only sign-in act as it. It keeps its own state
 (`website-publish-0.3`, beside ci-health's `ci-health-0.3` in the same bucket) and changes nothing
 of ci-health's or 0.2's. A plan that fails reading `storytree-0-3-main` means ci-health's provider
 is missing: apply [infra/ci-health](../ci-health/README.md) first.
+
+An install made before the binding named the workflow (it named the repository) narrows with two
+plans, in this order. In infra/ci-health, `terraform plan` shows 0 to add, 1 to change, 0 to
+destroy: the provider's mapping changes in place. Then here it shows 1 to add, 0 to change, 1 to
+destroy: the one workload identity binding is replaced. Nothing else is destroyed, and the old
+binding keeps working until the new one is in.
 
 **2. Turn it on.** Set the two repository variables from Terraform's outputs (Settings > Secrets and
 variables > Actions > Variables, or with `gh`):

@@ -15,8 +15,8 @@ import { laneSettings } from "./engine.mjs";
 import { blind, pickPlan, pickPool, planState, readOnly, surveyLibrary } from "./feed.mjs";
 import { codeVersion, composeBrief, countEngines, holdRunner, waitForSlot } from "./queue.mjs";
 import { runLane as runEngineLane } from "./runner.mjs";
-import { readLanePace } from "./pace.mjs";
-import { poolConfig } from "./pool-config.mjs";
+import { readBoxPace } from "./pace.mjs";
+import { poolConfig, readCap } from "./pool-config.mjs";
 import { handedOff } from "./watch.mjs";
 
 const run = promisify(execFile);
@@ -79,7 +79,7 @@ export async function laneOnce({ increment, brief, log, err, addDirs, repo, maxL
  * so an arc whose work waits on an event costs one planning lane, not one per restart). Ends on the stop file, 75 (an engine failing at once), or RESTART once `codeVersion` (the code
  * it runs in the shared checkout, queue.mjs's POOL_CODE) differs from its start, each after its running sessions end; when a survey fails or
  * finds nothing and no session is starting, it first brings the checkout up to date (`refresh`) to see that change.
- * With free slots it reads the lanes' `pace` first (pace.mjs, ADR-1056 D3): a pause starts nothing, a slow-down fills only half the cap.
+ * With free slots it reads the box's `pace` first (pace.mjs, ADR-1139): while the box is saturated it starts nothing.
  */
 export async function runPool({ survey, maxLanes, count, launch, stopFile, exists = async (path) => existsSync(path),
   plans = { load: async () => new Map(), save: async () => {} }, codeVersion = async () => undefined, refresh = async () => {}, pace = async () => undefined,
@@ -115,14 +115,14 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
       finally { if (planning === one.id) planning = undefined; starting.delete(one.id); running.delete(one.id); wake(); }
     })());
   };
-  // The pace the lanes' rate-limit readings call for (pace.mjs), said once each time it changes; an unread pace holds nothing back.
+  // The box's saturation (pace.mjs), said once each time it changes; an unread box holds nothing back.
   let paceKey = "clear";
   const paced = async () => {
     let held, key, line;
     try { held = await pace(); }
-    catch (error) { key = "unread"; line = `rate-limit readings unread (${String(error.message).split("\n")[0]}): dispatching as usual`; }
-    if (held) { key = `${held.hold} ${held.windows}`; line = `${held.hold === "pause" ? "holding back" : "slowing"} dispatch: ${held.reason}`; }
-    else if (!key) { key = "clear"; line = "rate limits clear: dispatching up to the cap"; }
+    catch (error) { key = "unread"; line = `box readings unread (${String(error.message).split("\n")[0]}): dispatching as usual`; }
+    if (held) { key = `${held.hold} ${held.windows}`; line = `holding back dispatch: ${held.reason}`; }
+    else if (!key) { key = "clear"; line = "box clear: dispatching up to the cap"; }
     if (key !== paceKey) { paceKey = key; dated(line); }
     return held;
   };
@@ -142,11 +142,7 @@ export async function runPool({ survey, maxLanes, count, launch, stopFile, exist
     }
     const cap = await maxLanes();
     let free = cap - await count() - starting.size;
-    if (free > 0) {
-      const held = await paced();
-      if (held?.hold === "pause") free = 0;
-      else if (held?.hold === "slow") free = Math.max(1, Math.floor(cap / 2)) - await count() - starting.size;
-    }
+    if (free > 0 && await paced()) free = 0;
     if (free <= 0) { await pause(pollMs); continue; }
     // A slot just freed: read the version again, since a read begun before that session ended may predate its merge.
     if (await codeChanged()) continue;
@@ -205,7 +201,7 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
   const { sessionsDir, stopAt } = laneSettings({ home, env, config });
   return {
     lanesDir, repo, addDirs, sessionsDir, stopAt,
-    maxLanes: async () => Number((await readFile(join(lanesDir, "night-max-lanes"), "utf8").catch(() => "")).trim()) || config.sessions,
+    maxLanes: () => readCap({ lanesDir, sessions: config.sessions }),
     count: async () => countEngines((await run("ps", ["-eo", "pid=,ppid=,args="], { maxBuffer: 64 * 1024 * 1024 })).stdout),
     lock: (fn) => withFlock(join(lanesDir, "night-checkout.lock"), fn),
     prepare: () => prepareCheckout({ repo }),
@@ -274,7 +270,7 @@ async function pool(b) {
   dated("dispatcher started");
   const code = await runPool({
     survey: async () => withHandOffs(await b.survey(), await handedOff(join(L, "watch"))), maxLanes: b.maxLanes, count: b.count, stopFile: join(L, "pool-stop"), plans: planFile(join(L, "pool-planned.json")), sleep: b.sleep, now: b.now, say,
-    pace: b.pace ?? (() => readLanePace({ lanesDir: L, sessionsDir: b.sessionsDir, stopAt: b.stopAt, now: b.now })),
+    pace: b.pace ?? (() => readBoxPace()),
     codeVersion: b.codeVersion ?? (() => codeVersion({ repo: b.repo })),
     refresh: () => b.lock(b.prepare),
     launch: async (one, { engineUp }) => {

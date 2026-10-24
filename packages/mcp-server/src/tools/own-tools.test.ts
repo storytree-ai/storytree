@@ -28,7 +28,7 @@ for (const installed of [false, true]) test(`session-management 14.4/14.6/15.1/1
     try { await Promise.all(children.map(stopTestChild)); } finally { await removeTempDir(home); }
   });
   if (installed) {
-    const bins = await buildBins(path.join(home, 'bin'));
+    const bins = await buildBins(path.join(home, 'bin'), { launcher: false });
     const transport = new StdioClientTransport({ command: process.execPath, args: [bins['storytree-mcp']!], cwd: home,
       env: { PATH: process.env.PATH ?? '', SystemRoot: process.env.SystemRoot ?? '', STORYTREE_HOME: home,
         HOME: home, USERPROFILE: home, CODEX_HOME: path.join(home, 'codex'), CLAUDE_CONFIG_DIR: path.join(home, 'claude') }, stderr: 'pipe' });

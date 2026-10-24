@@ -10,13 +10,15 @@ other stories). They are a look for the owner's eye, not a test. The unit tests 
 `story-panel.test.ts` and `drill-down.test.ts` (contracts 4.6 to 4.8) hold the
 behaviour.
 
-- [opened-dark.png](opened-dark.png) and [opened-light.png](opened-light.png): the
+- [opened-dark.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/drill-down-diagram/opened-dark.png) and [opened-light.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/drill-down-diagram/opened-light.png): the
   panel as a story opens, on its first capability not yet landed (Drill-down,
   reported failing, dashed until it lands). Other stories' boxes sit muted at the
   top and cannot be clicked.
-- [clicked-dark.png](clicked-dark.png): after clicking Story node render, with its
+- [clicked-dark.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/drill-down-diagram/clicked-dark.png): after clicking Story node render, with its
   contracts unfolded.
 
 The diagram now runs top to bottom, in rows by build depth. Laid out left to right
 in columns, a five-deep story shrank to fit the narrow panel and its labels became
 unreadable.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/drill-down-diagram).

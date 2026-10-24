@@ -31,3 +31,5 @@ Checks:
 - The same journey fails at 390 on main and on this branch alike: on the parallel step, Part 2's tag clips the cart's ring by
   about 4px. That is the phone's tag placement, unchanged here, and is parked on the arc with the phone's own name
   overlaps (Browsing's name under the card, the tags over Checkout's and the cart's names).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 60 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-parallel-laptop/after) (30), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/agents-parallel-laptop/before) (30).

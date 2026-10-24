@@ -115,3 +115,5 @@ nothing verifies a user's tests yet, question_da91783103b9). The saved growth on
   the habits card's delivery (PR #579), verified health for a user's project (question_da91783103b9), and the crowded
   nameplates (friction_92d59bf69b1e). The project's daily friction cap (3) refused the agent's later reports; it
   carried the same content in questions and answers instead.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 10 pictures, each one's last copy kept in git history at [`shots/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/shop/shots) (10).

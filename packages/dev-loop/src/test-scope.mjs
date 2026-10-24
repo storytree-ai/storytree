@@ -20,12 +20,13 @@
 // origin/main that cannot be read. Running a suite a change could not reach costs minutes; skipping
 // one it could reach merges untested code, so every doubt resolves to the full run. A root path is
 // narrowed only once its test-time readers have been measured, never by guessing (0.2's ADR-0394).
+// One doubt is settled narrow instead: a path into desktop's renderer reaches desktop's files only (ADR-1141).
 //
 // A folder under infra/ that holds tests (the library host's backup checks) is a unit too, though no
 // package: a change there runs everything, so the full run carries it (increment_e557d7df8a07).
 
 import { execFileSync } from "node:child_process";
-import { existsSync, globSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const WORKSPACE_ROOTS = ["packages", "apps"];
@@ -33,6 +34,11 @@ const INFRA = "infra";
 const SOURCE = /\.(?:[cm]?[jt]sx?)$/;
 const RELATIVE_PATH = /["'`](\.{1,2}\/[^"'`$\r\n]*)["'`]/g;
 const PATH_TOKEN = /[\w.*-]+(?:\/[\w.*-]+)*\/?/g;
+/** A dynamic import or require of a computed path, or a relative path built from a template: imports that cannot be read. */
+const UNREADABLE_IMPORT = /\b(?:import|require)\s*\(\s*(?!["'][^"'`]*["']\s*[,)])[^)\s]|`\.{1,2}\/[^`]*\$\{/;
+const SPECIFIER = /["'`](@?[\w.-]+(?:\/[\w.-]+)*)["'`]/g;
+/** An `import type` or `export type … from`: erased before any test runs, so it reaches nothing a test can fail on (typecheck runs in full). */
+const TYPE_ONLY = /\b(?:import|export)\s+type\s+(?:\{[^}]*\}|\*(?:\s+as\s+\w+)?|\w+)\s+from\s*(["'])[^"'\r\n]*\1/g;
 
 /**
  * Checks that a change inside any one package can fail, so every scoped run carries them as units
@@ -64,8 +70,9 @@ export function readWorkspace(root) {
   }
   const names = new Set(packages.map((p) => p.name));
   for (const pkg of packages) pkg.deps = pkg.deps.filter((name) => names.has(name));
-  const reaching = reachingPaths(root, packages);
-  for (const pkg of packages) pkg.reaches = reachesOf(pkg, packages, reaching);
+  const { reaching, sources, kept } = reachingPaths(root, packages);
+  const reached = reachedFiles(root, packages, sources, kept);
+  for (const pkg of packages) Object.assign(pkg, reachesOf(pkg, packages, reaching, reached));
   packages.sort((a, b) => (a.dir < b.dir ? -1 : 1));
   packages.rootDeps = dependencyNames(readManifest(path.join(root, "package.json")) ?? {}).filter((n) => names.has(n));
   return packages;
@@ -82,6 +89,21 @@ function readManifest(file) {
 function dependencyNames(manifest) {
   return Object.keys({ ...manifest.dependencies, ...manifest.devDependencies, ...manifest.peerDependencies });
 }
+
+/**
+ * Desktop's files whose imports a path reaching them does not follow in full, each with why (ADR-1141,
+ * the first exception to ADR-0649 D4's "every doubt runs more"). The renderer mounts every story's surface, so a
+ * package bundling it (forest's browser build, the capture kit's) would be a dependent of every story; that the whole
+ * renderer bundles is desktop's own test to prove (3.17), so a path into it depends on desktop's files it reaches by
+ * relative path, and no further (`own`). The capture kit's build names the renderer by a repo path the reading cannot
+ * see, so it is written here (`targets`), and a path into the renderer's build output stands for the renderer
+ * (`builtAt`). Launch's computed import is Playwright's module, outside the workspace (`readable`). A file renamed away leaves its entry unread, and the real-workspace scope test goes red.
+ */
+const DESKTOP_ONLY = {
+  "apps/desktop/src/renderer/renderer.ts": { own: "apps/desktop", builtAt: ["apps/desktop/dist/renderer"] },
+  "apps/desktop/src/capture/build.ts": { targets: ["apps/desktop/src/renderer/renderer.ts"] },
+  "apps/desktop/src/capture/launch.ts": { readable: true },
+};
 
 /**
  * Every source file whose relative paths can reach another file when something runs: its repo-relative
@@ -102,8 +124,10 @@ function reachingPaths(root, packages) {
       }
       const at = `${pkg.dir}/${file.split(path.sep).join("/")}`;
       const from = path.posix.dirname(at);
-      const targets = [...text.matchAll(RELATIVE_PATH)].map(([, relative]) => path.posix.normalize(path.posix.join(from, relative)));
-      sources.push({ at, targets, evidence: at.split("/").includes("evidence"), text });
+      const runs = text.replace(TYPE_ONLY, "");
+      const targets = [...runs.matchAll(RELATIVE_PATH)].map(([, relative]) => path.posix.normalize(path.posix.join(from, relative)));
+      targets.push(...(DESKTOP_ONLY[at]?.targets ?? []));
+      sources.push({ at, targets, evidence: at.split("/").includes("evidence"), text, runs });
     }
   }
   const named = new Set();
@@ -148,20 +172,115 @@ function reachingPaths(root, packages) {
       if (imported) keep(imported);
     }
   }
-  return [...kept].map(({ at, targets }) => ({ at, targets }));
+  return { reaching: [...kept].map(({ at, targets, text }) => ({ at, targets, text })), sources, kept };
 }
 
-/** The other packages' dirs that a relative path written in this package's code resolves into. */
-function reachesOf(pkg, packages, reaching) {
-  const reached = new Set();
-  for (const { at, targets } of reaching) {
+/**
+ * What a repo path written in code stands for: the source file it names (an import's `.js` finding
+ * its `.ts`), another file in the checkout, or neither (a folder, a build output, a path not on disk). A folder
+ * depends on what is under it that something can run: an evidence script nothing runs stays out of it too.
+ */
+function reachedFiles(root, packages, sources, kept) {
+  const bare = (file) => file.replace(SOURCE, "");
+  const byPath = new Map(sources.map((s) => [bare(s.at), s]));
+  const names = packages.map((p) => [p.name, p.dir]);
+  const resolve = (target) => {
+    const source = byPath.get(bare(target));
+    if (source) return { source };
+    try {
+      const stat = statSync(path.join(root, target));
+      if (stat.isFile()) return { file: target };
+      if (stat.isDirectory() && !target.split("/").includes("dist")) return { folder: target };
+    } catch {}
+    return {};
+  };
+  /**
+   * Each file a reached source can run or read, by relative path or package name, and the packages it reaches whole.
+   * Within an `own` dir (a source DESKTOP_ONLY bounds, and what it imports), only relative paths staying in that dir are followed.
+   */
+  const walk = (source, into, seen, own) => {
+    const bound = DESKTOP_ONLY[source.at];
+    own ??= bound?.own;
+    const key = `${own ?? ""}:${source.at}`; // read narrowly under the renderer, a file is still read in full when reached directly
+    if (seen.has(key)) return;
+    seen.add(key);
+    into.files.add(source.at);
+    const ownerDir = packages.find((p) => source.at.startsWith(`${p.dir}/`)).dir;
+    if (own === undefined && !bound?.readable && UNREADABLE_IMPORT.test(source.runs)) into.dirs.add(ownerDir);
+    for (const target of source.targets) if (own === undefined || target.startsWith(`${own}/`)) reach(target, into, seen, own, source.text);
+    if (own !== undefined) return;
+    for (const [, specifier] of source.runs.matchAll(SPECIFIER)) {
+      const named = names.find(([name]) => specifier === name || specifier.startsWith(`${name}/`));
+      if (named) into.dirs.add(named[1]);
+    }
+  };
+  /**
+   * What a path depends on: a source and what it imports, a file, everything under a folder, or else its whole package.
+   * Under a folder, a script is not followed when the code naming the folder (`from`) shows it reads the folder's data: see readsOnly.
+   */
+  const reach = (target, into, seen, own, from) => {
+    const built = Object.keys(DESKTOP_ONLY).find((at) => DESKTOP_ONLY[at].builtAt?.some((out) => target === out || target.startsWith(`${out}/`)));
+    if (built) target = built;
+    const { source, file, folder } = resolve(target);
+    if (source) walk(source, into, seen, own);
+    else if (file) into.files.add(file);
+    else if (folder) {
+      into.folders.add(`${folder}/`);
+      for (const inside of kept) if (inside.at.startsWith(`${folder}/`) && !readsOnly(root, from, folder, inside.at)) walk(inside, into, seen, own);
+    } else {
+      const owner = packages.find((p) => target === p.dir || target.startsWith(`${p.dir}/`));
+      if (owner) into.dirs.add(owner.dir);
+    }
+  };
+  return { reach };
+}
+
+const QUOTED = /["'`]([^"'`\r\n]+)["'`]/g;
+const dataFiles = new Map();
+
+/**
+ * Whether code naming a folder only reads its data, so a script under it is not what the code depends on: it names a file there
+ * that is no script (the capture kit's seeds name seed.json.gz and survey.json), and names neither this script's file nor its
+ * extension (a glob, a filter), and imports nothing by a computed path. Code that names no file under the folder may run
+ * anything there, so it still depends on every script under it.
+ */
+function readsOnly(root, text, folder, script) {
+  const name = path.posix.basename(script);
+  const extension = name.slice(name.lastIndexOf("."));
+  if (text.includes(name) || new RegExp(`["'\`*]\\${extension}["'\`]`).test(text) || UNREADABLE_IMPORT.test(text)) return false;
+  const at = path.join(root, folder);
+  if (!dataFiles.has(at)) {
+    const files = globSync("**/*", { cwd: at, withFileTypes: true, exclude: (entry) => entry.name === "node_modules" });
+    dataFiles.set(at, new Set(files.filter((entry) => entry.isFile() && !SOURCE.test(entry.name)).map((entry) => entry.name)));
+  }
+  return [...text.matchAll(QUOTED)].some(([, quoted]) => dataFiles.get(at).has(path.posix.basename(quoted)));
+}
+
+/**
+ * The other packages' dirs that a relative path written in this package's code resolves into
+ * (`reaches`), and what this package depends on through those paths (`through`): a path to another
+ * package's file depends on that file and whatever it imports, by path or package name, and no more,
+ * so a capture reaching desktop's capture kit is not a dependent of all desktop is built from
+ * (increment_e6a2a86d876b). A path to a folder depends on what under it something can run (unless the code naming it only
+ * reads its data, readsOnly); a build output or anything not on disk depends on the whole package it is in, since what it
+ * reads cannot be followed. A type-only import is erased before a test runs, so no path or name in it is followed.
+ */
+function reachesOf(pkg, packages, reaching, { reach }) {
+  const reaches = new Set();
+  const through = { files: new Set(), folders: new Set(), dirs: new Set() };
+  const seen = new Set();
+  for (const { at, targets, text } of reaching) {
     if (!at.startsWith(`${pkg.dir}/`)) continue;
     for (const target of targets) {
       const owner = packages.find((p) => p !== pkg && (target === p.dir || target.startsWith(`${p.dir}/`)));
-      if (owner) reached.add(owner.dir);
+      if (!owner) continue;
+      reaches.add(owner.dir);
+      reach(target, through, seen, undefined, text);
     }
   }
-  return [...reached].sort();
+  through.dirs.delete(pkg.dir);
+  const sorted = (set) => [...set].sort();
+  return { reaches: sorted(reaches), through: { files: sorted(through.files), folders: sorted(through.folders), dirs: sorted(through.dirs) } };
 }
 
 /**
@@ -188,11 +307,15 @@ export function classify(files, workspace) {
     touched.add(owner.dir);
   }
   const selected = new Set(touched);
+  for (const pkg of workspace) {
+    const { files = [], folders = [] } = pkg.through ?? {};
+    if (changed.some((file) => files.includes(file) || folders.some((folder) => file.startsWith(folder)))) selected.add(pkg.dir);
+  }
   for (let grew = true; grew; ) {
     grew = false;
     for (const pkg of workspace) {
       if (selected.has(pkg.dir)) continue;
-      const uses = [...pkg.deps.map((name) => workspace.find((p) => p.name === name)?.dir), ...pkg.reaches];
+      const uses = [...pkg.deps.map((name) => workspace.find((p) => p.name === name)?.dir), ...(pkg.through?.dirs ?? [])];
       if (uses.some((dir) => selected.has(dir))) {
         selected.add(pkg.dir);
         grew = true;
@@ -296,10 +419,12 @@ export function parseTestArgs(argv) {
  * 15 s no-new-frame wait is not widened instead. The world's road-reveal proof likewise: on macOS it
  * took 12-15 s in most merge queue runs, but 76 s in one and past its 80 s bound in another (runs 38092380077 and
  * 38032277103; increment_58dcb2d5c9a5). Knowledge-core's traversal proof too: beside other units on macOS it took 72 s in one
- * run and was killed past 180 s in four others (run 39187115227 among them; increment_724389f3f21d).
+ * run and was killed past 180 s in four others (run 39187115227 among them; increment_724389f3f21d). The desktop's named-surfaces
+ * proof drives the whole renderer's globe too: about 14 s alone, it pushed its package's unit past 60 s beside the
+ * gate's other units on the Mint box (increment_2fd57d63cfae).
  */
 export const ALONE = ["packages/forest/src/view/desktop-renderer-smoke.test.ts", "packages/forest-world/src/planet/road-reveal.test.ts",
-  "packages/knowledge-core/src/traversal-smoke.test.ts"];
+  "packages/knowledge-core/src/traversal-smoke.test.ts", "apps/desktop/src/renderer/named-surfaces.test.ts"];
 
 /** The units with each file to run alone whose package is among them added after them as its own. */
 function withAlone(root, units, alone) {

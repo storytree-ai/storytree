@@ -37,7 +37,13 @@ jobs:
     uses: ./.github/workflows/release-package.yml
     with:
       rehearsal: true
-    secrets: inherit
+    # Only the signing secrets the packaging uses, never every secret (release-package.yml declares them).
+    secrets:
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
 
   # What a real release would publish from the platforms that built, carrying the newest real release's build for any
   # that did not (contract 4.6), read from GitHub and published nowhere. It runs when a platform failed too: that is

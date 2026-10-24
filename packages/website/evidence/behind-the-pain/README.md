@@ -35,7 +35,7 @@ Pair 1 ran at a load average near 10 on 12 cores. Pair 2 ran with other lanes' b
 
 **Seen on every build, and not this branch's: Act 1's turn.** Between the exit click and the hand-over, every build measured has a stretch of about 2.7 s with no frame, on main, on this branch and before PR #594 (8f5fa788: 45 frames in 3.6 s). It belongs to the turn's own collapse, not to the globe, which starts later. It is parked on the arc as its own increment.
 
-![The hand-over](handover-1440.png)
+![The hand-over](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/behind-the-pain/handover-1440.png)
 
 ## Reproduce
 
@@ -44,3 +44,5 @@ pnpm --filter @storytree/website build
 node packages/website/evidence/capture.mjs <out> --verify-opening-frames
 node packages/website/evidence/warm-globe/measure.mjs packages/website/dist branch
 ```
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 1 picture, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/behind-the-pain).

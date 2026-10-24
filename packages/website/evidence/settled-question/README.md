@@ -9,3 +9,5 @@ credential guard (3.3) is unchanged, and with nothing unshown published the refr
 opens its settled question question_b4430290d0e5, at 1440 and 390 on SwiftShader. The reading is the answer on top, then
 "← back to questions" and the title, with no section headings: no empty Statement, Stakes, Diagram or Options (arc surface 5.3).
 The phone shot scrolls the drawer to the title. Run it after `pnpm --filter @storytree/website build`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 2 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/settled-question).

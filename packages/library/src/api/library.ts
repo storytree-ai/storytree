@@ -12,8 +12,11 @@ import type { AnnotatedTree, ChangedOnMain, HealthWorkItem, NamedOnMain } from "
 import { connect as connectServer, type ConnectOptions, type OpenOptions, type OwnDatabaseOptions, type Project, type ProjectSnapshot, type Storytree as Server } from "../project/index.js";
 import type { Pool } from "pg";
 import { InheritedRecords } from "../project/factory.js";
+import { DataQuestions } from "../data/data-questions.js";
 import { couldBeId } from "../references.js";
-import type { RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
+import { randomUUID } from "node:crypto";
+
+import type { FieldsOf, RecordType, SchemaRecord, WriteOptions } from "../schema/index.js";
 import type { HistoryEntry, RecordEnvelope } from "../transactions/index.js";
 
 /** A connection to one Postgres server and the storytree projects on it. */
@@ -91,6 +94,7 @@ const FROM_KNOWLEDGE = [
   "relatedNotes", "related", "relatedEach", "definitions", "frontCovers", "decision", "decisions", "composeStatement", "refile",
 ] as const satisfies readonly (keyof Project["knowledge"])[];
 const FROM_LINEAGE = ["factory", "markFactory", "recordFactory"] as const satisfies readonly (keyof Project["lineage"])[];
+const FROM_DATA = ["counts", "latestChanges", "findByTitle", "decisionNumbered"] as const satisfies readonly (keyof DataQuestions)[];
 
 /**
  * One project's library, as everything outside the library reaches it. Every write accepts
@@ -99,7 +103,7 @@ const FROM_LINEAGE = ["factory", "markFactory", "recordFactory"] as const satisf
  * Most of its operations are its parts' own (FROM_RECORDS and the lists beside it name them), each
  * documented on its method: records in schema/records.ts, the plan in work/work-model.ts, work in
  * flight in work/work-in-flight.ts, health in health/health-record.ts, knowledge in
- * knowledge/knowledge.ts and the project's factory in project/factory.ts. An editor shows that doc comment on the Library's method too.
+ * knowledge/knowledge.ts, the project's factory in project/factory.ts and the fixed data questions in data/data-questions.ts. An editor shows that doc comment on the Library's method too.
  */
 export interface Library
   extends Pick<Project["records"], (typeof FROM_RECORDS)[number]>,
@@ -107,7 +111,8 @@ export interface Library
     Pick<Project["flight"], (typeof FROM_FLIGHT)[number]>,
     Pick<Project["health"], (typeof FROM_HEALTH)[number]>,
     Pick<Project["knowledge"], (typeof FROM_KNOWLEDGE)[number]>,
-    Pick<Project["lineage"], (typeof FROM_LINEAGE)[number]> {
+    Pick<Project["lineage"], (typeof FROM_LINEAGE)[number]>,
+    Pick<DataQuestions, (typeof FROM_DATA)[number]> {
   /** The project's name. */
   readonly name: string;
   /** The identity of the project's database, as Storytree.projectIdentities() gives it. */
@@ -152,8 +157,31 @@ export interface Library
    * back each cursor handed out and no change is ever missed or seen twice.
    */
   changesSince(cursor: number): Promise<Changes>;
+  /**
+   * Keep a note sent from the desktop app's feedback corner as a new `feedback` record, its status new, with
+   * `screenshot`, a JPEG of the window, kept beside it rather than in its fields (Surface feedback 3.2). Fields that do
+   * not fit the type are refused (SchemaError) and nothing is written, the picture included.
+   */
+  sendFeedback(note: FeedbackNote, options?: WriteOptions & { readonly screenshot?: Uint8Array | undefined }): Promise<SchemaRecord<"feedback">>;
+  /** The JPEG a feedback note was sent with, or null for a note sent without one or no note at all. */
+  feedbackScreenshot(id: string): Promise<Uint8Array | null>;
+  /**
+   * Mark a new feedback note routed (Surface feedback 4.2): where it went, the increment or question it went to, and why.
+   * Null, with nothing written, when `id` is no live feedback note; a note already routed is refused, as is a route the
+   * type refuses (SchemaError), with nothing written.
+   */
+  routeFeedback(id: string, route: FeedbackRoute, options?: WriteOptions): Promise<SchemaRecord<"feedback"> | null>;
   /** Close this library's connections. */
   close(): Promise<void>;
+}
+
+/** A feedback note as the corner sends it: its record's fields but those the library sets. */
+export type FeedbackNote = Omit<FieldsOf<"feedback">, "status" | "screenshot" | keyof FeedbackRoute>;
+/** Where a feedback note was routed, and why. */
+export interface FeedbackRoute {
+  readonly route: NonNullable<FieldsOf<"feedback">["route"]>;
+  readonly routedTo?: string;
+  readonly routeReason: string;
 }
 
 /** One change to the project's records, as the history keeps it. */
@@ -241,6 +269,7 @@ function libraryOf(project: Project): Library {
     ...take(project.health, FROM_HEALTH),
     ...take(project.knowledge, FROM_KNOWLEDGE),
     ...take(project.lineage, FROM_LINEAGE),
+    ...take(new DataQuestions(project.pool), FROM_DATA),
     list<K extends RecordType>(kind: K): Promise<SchemaRecord<K>[]> {
       return project.records.list(kind);
     },
@@ -283,6 +312,40 @@ function libraryOf(project: Project): Library {
         changes: entries.map(({ seq, recordId, type, action, record }) => ({ seq, recordId, type, action, record })),
         cursor: entries.at(-1)?.seq ?? cursor,
       };
+    },
+    /**
+     * The picture is stored first, under the id the record is then saved with, so a record saying it has one never
+     * lacks it; a record the schema refuses takes its picture away again.
+     */
+    async sendFeedback(note, options = {}) {
+      const { screenshot, ...write } = options;
+      const id = `feedback_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+      const fields: FieldsOf<"feedback"> = { ...note, status: "new", screenshot: screenshot !== undefined };
+      project.records.check("feedback", fields);
+      if (screenshot !== undefined) await project.pool.query("INSERT INTO feedback_screenshot (record_id, jpeg) VALUES ($1, $2)", [id, Buffer.from(screenshot)]);
+      try {
+        return await project.records.create("feedback", fields, { ...write, id, onlyIfNew: true });
+      } catch (error) {
+        if (screenshot !== undefined) await project.pool.query("DELETE FROM feedback_screenshot WHERE record_id = $1", [id]);
+        throw error;
+      }
+    },
+    async feedbackScreenshot(id) {
+      if (!couldBeId(id)) return null;
+      const { rows } = await project.pool.query<{ jpeg: Buffer }>("SELECT jpeg FROM feedback_screenshot WHERE record_id = $1", [id]);
+      return rows[0] === undefined ? null : new Uint8Array(rows[0].jpeg);
+    },
+    async routeFeedback(id, route, options = {}) {
+      const note = couldBeId(id) ? await project.records.get(id) : null;
+      if (note?.type !== "feedback") return null;
+      const routed = await project.records.edit(id, { ...route, status: "routed" }, {
+        ...options,
+        checkCurrent: (current) => {
+          const { status, route: to, routedTo } = current.fields as FieldsOf<"feedback">;
+          if (status !== "new") throw new Error(`feedback ${id} is already routed (${to ?? "somewhere"}${routedTo === undefined ? "" : ` to ${routedTo}`})`);
+        },
+      });
+      return routed as SchemaRecord<"feedback"> | null;
     },
     close: () => project.close(),
   };

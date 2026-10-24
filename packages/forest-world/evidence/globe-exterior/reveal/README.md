@@ -10,9 +10,9 @@ The website already turns its roads surface on at step 3's second line. It now r
 
 The four `1440-step3-*.png` pictures show the actual unchanged website with the engine change: no pathways as the second line arrives, advancing fronts, then the complete dependencies between Signing in, Browsing, Cart and Checkout. The sequence is intended to connect the spoken dependency to the road being drawn. Geometry, colour and framing retain the existing map's appearance.
 
-![Step 3: pathways starting](1440-step3-start.png)
-![Step 3: pathways partway along their length](1440-step3-half.png)
-![Step 3: complete pathways](1440-step3-complete.png)
+![Step 3: pathways starting](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/globe-exterior/reveal/1440-step3-start.png)
+![Step 3: pathways partway along their length](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/globe-exterior/reveal/1440-step3-half.png)
+![Step 3: complete pathways](https://github.com/storytree-ai/storytree/raw/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/globe-exterior/reveal/1440-step3-complete.png)
 
 `website-measurements.json` records the rendered fronts (0%, about 28%, about 50%, 100%). The capture holds demand frames for each picture; it is not a wall-time performance measurement. These are local Chromium/SwiftShader pictures, visually reviewed at 1440×900.
 
@@ -33,3 +33,5 @@ node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest-w
 ```
 
 Omit `--retake` for pictures in the capture kit's scratch folder. The full renderer capture updates its measured source coverage; the CI `--smoke` path does not.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 8 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest-world/evidence/globe-exterior/reveal).

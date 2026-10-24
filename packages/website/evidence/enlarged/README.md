@@ -30,12 +30,12 @@ fully contained 10.45:1 focus indicators.
 
 | Evidence | Before | After |
 | --- | --- | --- |
-| Home header, 320 px with doubled text | [Overlapping labels](before-header.png) | [Separate rows](home-text200-320-header.png) |
-| Copy control, 320 px with doubled text | [Clipped label](before-command.png) | [Wrapped control](home-text200-320-command.png) |
-| Home heading, 320 px with doubled text | [Measured overflow](before-measurements.json) | [Contained text](home-text200-320-heading.png) |
-| 404 header, 390 px with doubled text | [Measured overlap](before-measurements.json) | [Separate rows](404-text200-390-header.png) |
+| Home header, 320 px with doubled text | [Overlapping labels](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/enlarged/before-header.png) | [Separate rows](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/enlarged/home-text200-320-header.png) |
+| Copy control, 320 px with doubled text | [Clipped label](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/enlarged/before-command.png) | [Wrapped control](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/enlarged/home-text200-320-command.png) |
+| Home heading, 320 px with doubled text | [Measured overflow](before-measurements.json) | [Contained text](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/enlarged/home-text200-320-heading.png) |
+| 404 header, 390 px with doubled text | [Measured overlap](before-measurements.json) | [Separate rows](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/enlarged/404-text200-390-header.png) |
 
-Ordinary views: [desktop](1440.png), [phone](390.png), [narrow phone](320.png).
+Ordinary views: [desktop](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/enlarged/1440.png), [phone](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/enlarged/390.png), [narrow phone](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/enlarged/320.png).
 Full geometry: [before](before-measurements.json), [enlarged after](enlarged-measurements.json),
 [ordinary after](measurements.json). Additional header, heading and command captures
 cover all measured sizes in this folder.
@@ -61,3 +61,5 @@ Local raw / gzip bytes: HTML 6,046 / 1,975; CSS 8,214 / 2,555; main script 800 /
 Those three total 4,972 gzipped bytes. The pending renderer stub remains 1,252,134
 raw bytes plus a 638-byte shared chunk; lazy loading and the real scene remain with
 site-b. These are local comparisons, not measured here.now transfer sizes.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 29 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/enlarged).

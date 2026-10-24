@@ -18,10 +18,11 @@ import { setupHelpActions } from '../../src/index.ts';
 const root = fileURLToPath(new URL('../../../..', import.meta.url));
 const desktop = createRequire(path.join(root, 'apps/desktop/package.json'));
 const { pageReads, projectSelection } = await import(desktop.resolve('@storytree/app'));
+const { fakeBridge } = await import(path.join(root, 'apps/desktop/src/capture/index.ts'));
 const { chromium } = await import(process.env.STORYTREE_PLAYWRIGHT ?? 'playwright-core');
 const out = process.env.STORYTREE_HELP_OUT ?? path.join(root, 'packages/app-setup/evidence/help/capture');
 mkdirSync(out, { recursive: true });
-assert.equal(spawnSync(process.execPath, ['apps/desktop/build.mjs'], { cwd: root, stdio: 'inherit' }).status, 0);
+assert.equal(spawnSync(process.execPath, ['--import', 'tsx', 'apps/desktop/build.mjs'], { cwd: root, stdio: 'inherit' }).status, 0);
 const home = mkdtempSync(path.join(tmpdir(), 'storytree-help-'));
 const licenseFile = path.join(home, 'LICENSE');
 const license = readFileSync(path.join(root, 'LICENSE'), 'utf8');
@@ -54,19 +55,35 @@ try {
   });
   const context = await browser.newContext({ viewport: { width: 1120, height: 860 } });
   context.setDefaultTimeout(30_000);
-  await context.exposeBinding('bridge', async (_source, method, args) => {
+  // The capture kit's stand-in bridge: the help actions, the real reads and project selection, and a
+  // quiet answer of the right shape for every other bridge method, so the page keeps reaching its
+  // states as the bridge grows. The guide is left unseen: this capture opens on the first run.
+  const answers = {
+    ...Object.fromEntries(Object.entries(reads).filter(([, read]) => typeof read === 'function')),
+    ...help,
+    projectSelection: () => selection.read(),
+    chooseProject: (...args) => selection.choose(...args),
+  };
+  const bridge = fakeBridge(Object.fromEntries(Object.entries(answers).map(([method, answer]) => [method, (...args) => {
     calls[method] = (calls[method] ?? 0) + 1;
-    if (method in help) return help[method](...args);
-    if (method === 'projectSelection') return selection.read();
-    if (method === 'chooseProject') return selection.choose(...args);
-    return reads[method](...args);
-  });
-  await context.addInitScript(() => {
-    window.storytree = Object.fromEntries(['readSetupLicense', 'checkSetupFolder', 'openFeedbackDraft', 'copyHelpText', 'projectSelection', 'chooseProject', 'listProjects', 'projectTree', 'changesSince', 'linesSince', 'frontCovers', 'relatedNotes', 'arcView', 'holds'].map(name => [name, (...args) => window.bridge(name, args)]));
-  });
-  context.on('page', page => page.on('pageerror', error => errors.push(error.stack ?? String(error))));
+    return answer(...args);
+  }])), { guide: 'unseen' });
   const page = await context.newPage();
+  page.on('pageerror', error => errors.push(error.stack ?? String(error)));
+  await bridge.install(page);
   const url = `http://127.0.0.1:${server.address().port}/`;
+  // Help is the app menu's Help tab: opened from the gear, closed with the menu.
+  const gear = page.getByRole('button', { name: /^App menu/ });
+  const openHelp = async () => {
+    if (!await page.locator('#app-menu').isVisible()) await gear.click();
+    await page.locator('[data-app-section="help"]').click();
+    await page.locator('#setup-help-panel').waitFor({ state: 'visible' });
+  };
+  const arcHandleClickable = async () => {
+    await page.locator('#app-menu').waitFor({ state: 'hidden' });
+    const handle = await page.locator('[data-open-arcs]').boundingBox();
+    return page.evaluate(({ x, y, width, height }) => Boolean(document.elementFromPoint(x + width / 2, y + height / 2)?.closest('[data-open-arcs]')), handle);
+  };
   await page.goto(url);
   await page.waitForFunction(() => document.body.dataset.state === 'empty');
   assert.equal(await page.locator('#setup-help-panel').isVisible(), true);
@@ -107,9 +124,9 @@ try {
   await page.locator('[data-page=feedback]').click();
   await page.getByLabel('Title', { exact: true }).fill('Help & ideas 🌳');
   await page.getByLabel('Message', { exact: true }).fill('My reviewed message\n<project details deliberately omitted>');
-  await page.getByRole('button', { name: 'Close help' }).click();
+  await page.getByRole('button', { name: 'Close app menu' }).click();
   assert.equal(opened.length, 0);
-  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await openHelp();
   await page.getByRole('button', { name: 'Open GitHub draft', exact: true }).click();
   await page.getByRole('button', { name: 'Retry opening draft', exact: true }).waitFor();
   const message = await page.getByLabel('Message', { exact: true }).inputValue();
@@ -126,7 +143,7 @@ try {
   await page.screenshot({ path: path.join(out, 'feedback-draft.png') });
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#setup-help-panel').isVisible(), false);
-  assert.equal(await page.getByRole('button', { name: 'Help', exact: true }).evaluate(node => node === document.activeElement), true);
+  assert.equal(await gear.evaluate(node => node === document.activeElement), true);
   await page.reload();
   await page.waitForFunction(() => document.body.dataset.state === 'empty');
   assert.equal(await page.locator('#setup-help-panel').isVisible(), false);
@@ -142,35 +159,38 @@ try {
     await project.close();
     await page.waitForFunction(name => document.body.dataset.project === name && document.body.dataset.state === 'ready', name);
   }
-  assert.equal(await page.locator('#project option').count(), 3);
+  assert.equal(await page.locator('#project option:not([data-app-new-project])').count(), 3);
   for (const name of ['first-project', 'second-project']) {
     await page.selectOption('#project', name);
     await page.waitForFunction(name => document.body.dataset.project === name && document.body.dataset.state === 'ready', name);
-    await page.getByRole('button', { name: 'Help', exact: true }).click();
+    await openHelp();
     await page.locator('[data-page=feedback]').click();
     await page.getByLabel('Title', { exact: true }).fill('Feedback from either forest');
     await page.getByLabel('Message', { exact: true }).fill('Only my words');
     await page.getByRole('button', { name: 'Open GitHub draft', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('[data-feedback-status]').textContent.startsWith('Opened a draft'));
     await page.locator('[data-page=guide]').click();
-    const handle = await page.locator('[data-open-arcs]').boundingBox();
-    const hit = await page.evaluate(({x,y,width,height}) => document.elementFromPoint(x + width / 2, y + height / 2)?.closest('[data-open-arcs]') !== null, handle);
-    assert.equal(hit, true, 'Help must not cover the arc handle');
     await page.screenshot({ path: path.join(out, name + '.png') });
     await page.keyboard.press('Escape');
+    // Help is a tab of the modal app menu, so the forest behind it waits; closed, it leaves the arc handle clickable.
+    assert.equal(await arcHandleClickable(), true, 'Closed Help must leave the arc handle clickable');
   }
-  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await openHelp();
   await page.setViewportSize({ width: 640, height: 480 });
+  // The menu window holding Help fits the minimum window, and Help scrolls within it, never sideways.
   const panel = await page.locator('#setup-help-panel').boundingBox();
-  assert.ok(panel.x >= 0 && panel.x + panel.width <= 640 && panel.y + panel.height <= 480);
-  const handle = await page.locator('[data-open-arcs]').boundingBox();
-  assert.equal(await page.evaluate(({x,y,width,height}) => Boolean(document.elementFromPoint(x + width / 2, y + height / 2)?.closest('[data-open-arcs]')), handle), true);
+  const menuWindow = await page.locator('.app-menu-window').boundingBox();
+  assert.ok(menuWindow.x >= 0 && menuWindow.x + menuWindow.width <= 640 && menuWindow.y >= 0 && menuWindow.y + menuWindow.height <= 480);
+  assert.ok(panel.x >= menuWindow.x && panel.x + panel.width <= menuWindow.x + menuWindow.width);
+  assert.equal(await page.locator('.app-menu-content').evaluate(node => node.scrollWidth > node.clientWidth), false);
   await page.screenshot({ path: path.join(out, 'small-window.png') });
-  passed.push('3.3 app-side only: two setup fixtures appear through normal refresh and both forests selectable', '5.1 feedback over both forests', 'Help leaves arc handle clickable at normal and minimum window sizes');
+  await page.keyboard.press('Escape');
+  assert.equal(await arcHandleClickable(), true, 'Closed Help must leave the arc handle clickable at the minimum window size');
+  passed.push('3.3 app-side only: two setup fixtures appear through normal refresh and both forests selectable', '5.1 feedback over both forests', 'Help fits the minimum window; closed, it leaves the arc handle clickable at normal and minimum window sizes');
   await page.setViewportSize({ width: 1120, height: 860 });
   await page.goto(url + '?problem=Library%20unavailable');
   await page.waitForFunction(() => document.body.dataset.state === 'error');
-  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await openHelp();
   assert.equal(await page.locator('#setup-help-panel').isVisible(), true);
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.screenshot({ path: path.join(out, 'library-error-dark.png') });

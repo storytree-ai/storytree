@@ -17,10 +17,10 @@ Each dot's drawn radius, from the scene, over the smallest drawn:
 
 So after: size follows reach and nothing else, and selecting a session changes no dot's size (its reads show in colour and rings).
 
-- [Before, none selected](before-none-selected.png), [after](after-none-selected.png)
-- [Before, one selected](before-one-selected.png), [after](after-one-selected.png)
-- Zoomed in by mouse wheel on the most-read notes: [before, none selected](before-none-selected-near.png), [after](after-none-selected-near.png), [before, one selected](before-one-selected-near.png), [after](after-one-selected-near.png)
-- Enlarged three times, before beside after: [none selected](crop-none-selected-near.png), [one selected](crop-one-selected-near.png). In the second, the lit note nobody read (pink, ringed) shrinks back to the floor, and read dots around it grow.
+- [Before, none selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots/before-none-selected.png), [after](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots/after-none-selected.png)
+- [Before, one selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots/before-one-selected.png), [after](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots/after-one-selected.png)
+- Zoomed in by mouse wheel on the most-read notes: [before, none selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots/before-none-selected-near.png), [after](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots/after-none-selected-near.png), [before, one selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots/before-one-selected-near.png), [after](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots/after-one-selected-near.png)
+- Enlarged three times, before beside after: [none selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots/crop-none-selected-near.png), [one selected](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots/crop-one-selected-near.png). In the second, the lit note nobody read (pink, ringed) shrinks back to the floor, and read dots around it grow.
 - [What each run read from the scene](measurements-before.json), [and after](measurements-after.json)
 
 At the globe's resting view a floor dot is about two pixels across and the ceiling about four, so the difference reads best zoomed in.
@@ -33,3 +33,5 @@ node --import tsx packages/knowledge-core/evidence/reach-sized-dots/capture.mjs 
 ```
 
 The crops were cut from the `-near` pictures (box 500,240 to 900,440, nearest-neighbour x3) with Pillow.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 10 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/knowledge-core/evidence/reach-sized-dots).

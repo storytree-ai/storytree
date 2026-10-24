@@ -9,7 +9,14 @@ function fakeWindow() {
   let destroyed = false, shown = 0;
   let openHandler: (() => { action: "deny" | "allow" }) | undefined;
   const emitter = new EventEmitter();
-  const contents = Object.assign(new EventEmitter(), { setWindowOpenHandler: (handler: () => { action: "deny" }) => { openHandler = handler; } });
+  type Session = PageWindow["webContents"]["session"];
+  let requestHandler: Parameters<Session["setPermissionRequestHandler"]>[0] | undefined;
+  let checkHandler: Parameters<Session["setPermissionCheckHandler"]>[0] | undefined;
+  const session: Session = {
+    setPermissionRequestHandler: (handler) => { requestHandler = handler; },
+    setPermissionCheckHandler: (handler) => { checkHandler = handler; },
+  };
+  const contents = Object.assign(new EventEmitter(), { session, setWindowOpenHandler: (handler: () => { action: "deny" }) => { openHandler = handler; } });
   const window: PageWindow = {
     webContents: contents,
     isDestroyed: () => destroyed,
@@ -25,6 +32,13 @@ function fakeWindow() {
     destroy: () => { destroyed = true; },
     shown: () => shown,
     opening: () => openHandler?.(),
+    /** Ask for `permission` as a page would, returning what the session's handler granted (undefined when no handler answered). */
+    request: (permission: string) => {
+      let granted: boolean | undefined;
+      requestHandler?.(contents, permission, (answer) => { granted = answer; });
+      return granted;
+    },
+    check: () => checkHandler?.(),
   };
 }
 
@@ -53,4 +67,13 @@ test("1.28 · the window shows itself once ready, but not headless, and not once
   destroyed.destroy();
   assert.doesNotThrow(() => destroyed.ready());
   assert.equal(destroyed.shown(), 0);
+});
+
+test("1.35 · the window's session refuses every permission request and every permission check", () => {
+  const fake = fakeWindow();
+  keepPageInWindow(fake.window, { headless: false });
+  for (const permission of ["media", "notifications", "geolocation", "clipboard-read", "openExternal", "fullscreen"]) {
+    assert.equal(fake.request(permission), false, permission);
+  }
+  assert.equal(fake.check(), false);
 });

@@ -38,6 +38,7 @@ import path from "node:path";
 
 // The app's surfaces (ADR-0750), in the Surfaces menu's order: the plugin loader composes them into the bundle
 // from the manifests of the story packages this app depends on (ADR-1021; build.mjs).
+import NAMED_SURFACES from "#parts/namedSurfaces";
 import SURFACES from "#parts/surfaces";
 // The page operations the stories' manifests name, composed in the same way, with the channels they travel on.
 import PAGE_ANSWERS from "#parts/pageAnswers";
@@ -99,13 +100,13 @@ import { createCeremony, createPublicWorkOS, createSessionManager, registerProto
 import { AuthKitCore, AuthOperations, sessionEncryption } from "@workos/authkit-session";
 
 import { APP_OWNER, appHome } from "../home.js";
-import { answerPage, answerPageParts, STAND_INS_OFFERED } from "../page-operations.js";
+import { answerPage, answerPageParts, declaredSurfaces, STAND_INS_OFFERED } from "../page-operations.js";
 import { parseArgs } from "./args.js";
 import { registersSignInScheme, routeCallback } from "./callback-check.js";
 import { answerAppEvents, answerCallbackCheckEvents } from "./app-events.js";
 import { iconColourway } from "./app-icon.js";
 import { createTrayIcon, createWindowIcon } from "./tray-icon.js";
-import { followReleases, installedApp, releasesInstall } from "./releases.js";
+import { channelChoice, followReleases, installedApp, releasesInstall } from "./releases.js";
 import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
 import { logMainErrors } from "./main-errors.js";
@@ -119,11 +120,14 @@ import { titleWindow } from "./window-title.js";
 import { bringWindowForward } from "./window-shown.js";
 import { PLUGIN_SCHEME, pluginResponse, windowStandIns } from "./stand-ins.js";
 import { finishStartCheck, runWhenReady } from "./start-check.js";
+import { answerStartMarks, processLaunchedAt, startMarks } from "./start-marks.js";
+import { appLog, teeConsole } from "./app-log.js";
+import { START_MARK } from "../bridge.js";
 
 // A build that offers sign-in for feedback stamps in its public WorkOS client ID (build.mjs); others stamp none.
 declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 
-// The main process's own uncaught errors reach the log (stderr), before startup work can throw.
+// The main process's own uncaught errors reach the log (app.log once teeConsole runs below, stderr in the checks), before startup work can throw.
 // The box then offers Keep going or Restart; before the app is ready only the error box can show, so it keeps going.
 // Each is also kept in the user's own library on every install, held until it opens (lifecycle 1.25), naming the build
 // once it is known and the app's version before.
@@ -154,6 +158,12 @@ logMainErrors(process, {
 });
 
 const home = appHome();
+/** app.log beside the app's data, bounded (contract 1.34): an installed app has no terminal, so what it says is kept here. */
+const log = appLog(path.join(home.dir, "app.log"));
+// The release's checks and the smoke check say what they say on stderr only, as before.
+if (!args.smoke && !args.startCheck && !args.callbackCheck) teeConsole(console, log);
+/** This start's timing marks, kept in app.log (contract 1.33); the release's checks write none. */
+const marks = args.startCheck || args.callbackCheck ? { mark() {} } : startMarks({ launchedAt: processLaunchedAt(), log });
 /** How long the smoke check may take, start to finish, before it gives up. */
 const SMOKE_TIMEOUT_MS = 180_000;
 
@@ -225,6 +235,8 @@ if (!args.smoke && !args.startCheck && !app.requestSingleInstanceLock()) {
 }
 
 async function run(): Promise<void> {
+  marks.mark("app ready");
+  answerStartMarks(ipcMain, START_MARK, marks);
   // The bundled main is CommonJS with no import.meta, so its own build is named from Electron when packaged and from the checkout at its app path otherwise.
   const appVersion = app.isPackaged ? app.getVersion() : (sourceVersion(app.getAppPath())?.version ?? "0.3.0");
   // The journey stays in the frame, not in a manifest (ADR-1030 D4): the frame is its client too, telling it of the launch,
@@ -246,6 +258,13 @@ async function run(): Promise<void> {
     library: open,
     treeRead: (project) => treesRead.get(project),
     surveyWorker: path.join(__dirname, "survey-worker.cjs"),
+    declaredSurfaces: declaredSurfaces([SURFACES, NAMED_SURFACES], partsOff),
+    server: () => storytree,
+    // capturePage pictures the app's own page, so no screen-recording permission is asked for on any system.
+    captureWindow: async () => {
+      const shown = BrowserWindow.getAllWindows().find((each) => !each.isDestroyed() && each.isVisible());
+      return shown === undefined ? undefined : new Uint8Array((await shown.webContents.capturePage()).toJPEG(70));
+    },
   }, partsOff);
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());
   const surfaces = surfacesActions(mount(parts.surfaces, partsOff).mounted, home.dir);
@@ -311,6 +330,7 @@ async function run(): Promise<void> {
     ({ storytree, postgres } = opened);
     errorsOpened = errorRecords.open(opened.storytree);
     console.log(`library: ${opened.where}`);
+    marks.mark("library open");
     reads = pageReads({ storytree, transcriptCacheHome: path.join(home.dir, "transcripts") });
     const pages = reads;
     projects = projectSelection({
@@ -336,6 +356,8 @@ async function run(): Promise<void> {
     && shutDown === undefined && (backups?.canRestart() ?? true);
   // When an update may install itself (updates 4.13): offered only where releases install themselves.
   const installing = installChoice({ available: !args.smoke && releasesInstall(), file: path.join(home.dir, "install-choice.json") });
+  // Which release channel the updater follows (updates 4.24): stable unless the user opts in to alpha.
+  const channels = channelChoice(home.dir, !args.smoke);
   // Restarting into an update stops the app and its database for a minute or two: not under a user or an agent (4.4).
   const quiet = quietMoment({
     launchedAt: Date.now(),
@@ -362,6 +384,8 @@ async function run(): Promise<void> {
     checkForUpdates: (action: unknown) => (releases ?? noUpdates(() => build)).request(action),
     readInstallChoice: () => installing.read(),
     setInstallChoice: (choice: unknown) => installing.set(choice),
+    readReleaseChannel: () => channels.read(),
+    setReleaseChannel: (channel: unknown) => channels.set(channel),
   });
   console.log(`storytree 0.3: ${build}`);
   windowQuery = { ...(problem === undefined ? {} : { problem }) };
@@ -522,14 +546,15 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
       nodeIntegration: false,
     },
   });
-  // The page is the app: it never navigates away or opens other windows.
+  // The page is the app: it never navigates away, opens other windows or gets a permission.
   keepPageInWindow(window, { headless: args.smoke });
-  // A failure inside the page (a surface's failed refresh, an uncaught throw) is logged with the rest.
+  // A failure inside the page (a surface's failed refresh, an uncaught throw) is kept in app.log with the rest.
   logPageErrors(window.webContents, line => console.error(line));
   // The page names the project; the title adds which build this is.
   titleWindow(window, build);
   // The lag instrument measures the catalogue with the page's lag recorder on and off (STORYTREE_LAG_RECORDER=off).
   const recorder = process.env.STORYTREE_LAG_RECORDER === "off" ? { "lag-recorder": "off" } : {};
+  window.once("ready-to-show", () => marks.mark("window ready to show"));
   void window.loadFile(path.join(__dirname, "renderer", "index.html"), { query: { ...query, ...recorder } });
   return window;
 }

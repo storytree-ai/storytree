@@ -20,7 +20,8 @@
     "./updates/release-carry": "./src/updates/release-carry.ts",
     "./updates/verbs": "./src/updates/verbs.ts",
     "./version": "./src/updates/version.ts",
-    "./view": "./src/view/index.ts"
+    "./view": "./src/view/index.ts",
+    "./surfaces/named": "./src/surfaces/named.ts"
   },
   "scripts": {
     "typecheck": "tsc -p ."
@@ -74,6 +75,12 @@
       {
         "from": "./lag/runtime",
         "export": "lagPageAnswers"
+      }
+    ],
+    "namedSurfaces": [
+      {
+        "from": "./surfaces/named",
+        "export": "appNamedSurfaces"
       }
     ]
   }

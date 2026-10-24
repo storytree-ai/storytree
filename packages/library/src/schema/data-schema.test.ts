@@ -626,6 +626,42 @@ for (const backend of [memory, postgres]) {
     assert.equal(zoned?.timeZone, "Europe/London");
     assert.deepEqual(parseSchedule("every run"), { rule: { kind: "every-run" } });
   });
+
+  contract("3.14", "a story carries a risk reading, a blast depth and a blast radius each with the day read and a reason, and a story or capability its own guardrails, each a check and the change or release that triggers it; values out of range are refused and named, and one written without them reads as before", async ({ records, transactions }) => {
+    const risk = {
+      depth: { value: 2, read: "2026-10-23", reason: "writes records" },
+      radius: { value: 3, downstream: 11, audience: "invited", users: 5, read: "2026-10-23", reason: "11 stories depend on it" },
+    } as const;
+    const guardrails: { check: string; trigger: "change" | "release" }[] = [
+      { check: "a model drives the real app through the change", trigger: "change" },
+      { check: "a fresh-install sweep", trigger: "release" },
+    ];
+    await records.create("story", MINIMAL.story, { id: "story-old" });
+    await records.create("story", { ...MINIMAL.story, risk, guardrails }, { id: "story-1" });
+    await records.create("capability", { ...MINIMAL.capability, guardrails: guardrails.slice(0, 1) }, { id: "capability-1" });
+    assert.deepEqual((await records.get("story-1"))?.fields, { ...MINIMAL.story, risk, guardrails });
+    assert.deepEqual((await records.get("capability-1"))?.fields, { ...MINIMAL.capability, guardrails: guardrails.slice(0, 1) });
+    assert.deepEqual((await records.get("story-old"))?.fields, MINIMAL.story, "a story written before risk readings reads as it was");
+
+    const before = await transactions.history();
+    const refused: [Record<string, unknown>, string][] = [
+      [{ risk: { ...risk, depth: { ...risk.depth, value: 4 } } }, "risk"],
+      [{ risk: { ...risk, depth: { ...risk.depth, value: 1.5 } } }, "risk"],
+      [{ risk: { ...risk, radius: { ...risk.radius, value: 5 } } }, "risk"],
+      [{ risk: { ...risk, radius: { ...risk.radius, audience: "everyone" } } }, "risk"],
+      [{ risk: { ...risk, radius: { ...risk.radius, downstream: -1 } } }, "risk"],
+      [{ risk: { ...risk, depth: { ...risk.depth, read: "2026-02-30" } } }, "risk"],
+      [{ risk: { ...risk, depth: { ...risk.depth, reason: "" } } }, "risk"],
+      [{ risk: { depth: risk.depth } }, "risk"],
+      [{ guardrails: [{ check: "a sweep", trigger: "nightly" }] }, "guardrails"],
+      [{ guardrails: [{ check: "", trigger: "change" }] }, "guardrails"],
+    ];
+    for (const [fields, field] of refused) {
+      await assert.rejects(records.edit("story-1", untyped(fields)), schemaError("story", [field]), JSON.stringify(fields));
+    }
+    await assert.rejects(records.edit("capability-1", untyped({ guardrails: [{ check: "a sweep" }] })), schemaError("capability", ["guardrails"]));
+    assert.deepEqual(await transactions.history(), before, "nothing refused was written");
+  });
 }
 
 /** Tomorrow's schema: a story's `title` is renamed `name`, and its optional `description` becomes a required `summary`. */

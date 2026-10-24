@@ -8,9 +8,9 @@ recorded as accepted (ADR-0794).
 
 | Forest, as the app opens it | Before | After |
 | --- | --- | --- |
-| Five stories depending on nothing: one row | [before-row.png](before-row.png) | [after-row.png](after-row.png) |
-| The same five, each depending on the one before: a chain | [before-chain.png](before-chain.png) | [after-chain.png](after-chain.png) |
-| storytree's own seed (15 stories, from ../code-rows), to show it unharmed | [before-storytree.png](before-storytree.png) | [after-storytree.png](after-storytree.png) |
+| Five stories depending on nothing: one row | [before-row.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/five-stories/before-row.png) | [after-row.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/five-stories/after-row.png) |
+| The same five, each depending on the one before: a chain | [before-chain.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/five-stories/before-chain.png) | [after-chain.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/five-stories/after-chain.png) |
+| storytree's own seed (15 stories, from ../code-rows), to show it unharmed | [before-storytree.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/five-stories/before-storytree.png) | [after-storytree.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/five-stories/after-storytree.png) |
 
 Measured in the page (`measurements-*.json`: each story plate's box, whether it shows, its step down, and the
 pairs of shown plates that overlap):
@@ -47,3 +47,5 @@ live in `apps/desktop/src/capture`. The default output is the matching folder be
 `/tmp/storytree-captures`; append `--retake` to the capture command to replace these
 committed pictures deliberately. Use `CAPTURE_CHROMIUM` or `CAPTURE_PLAYWRIGHT` for
 an explicit browser override; no machine-specific home path is needed.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/five-stories).

@@ -27,3 +27,5 @@ Spoken lines, chapter order and timings are unchanged.
 
 `node packages/website/evidence/capture.mjs phone-captions --verify-immersive` passed at 1920, 1440, 1280, 390 and 320×844 and
 on the 320×700 and 320×568 phones. Only the agents-claim, agents-parallel and map-first captures are kept here.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 21 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/phone-captions).

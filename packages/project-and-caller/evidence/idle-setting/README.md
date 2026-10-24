@@ -27,3 +27,5 @@ keeps the 30-minute default; its bridge is outside this lane and the supervisor 
 run's evidence. They are historical, superseded by the green and verification logs above.
 Component captures are not native desktop smoke or owner appearance acceptance; those remain
 with the laptop supervisor. No live-store query, claim, decision or question was made by this lane.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/project-and-caller/evidence/idle-setting).

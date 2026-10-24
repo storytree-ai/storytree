@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -7,6 +8,8 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { NodeHttpExecutor } from "builder-util/out/nodeHttpExecutor.js";
 import { AppImageUpdater, MacUpdater, NsisUpdater } from "electron-updater";
@@ -270,6 +273,24 @@ test("4.7 Check for updates checks the release feed now, shares a check already 
   assert.equal(updater.request("status").phase, "up-to-date");
 });
 
+// Its title names no contract: its skip outside the child run would otherwise leave 4.7 not checked on every run.
+const DELIBERATE = "STORYTREE_RELEASES_DELIBERATE_FAILURE";
+test("deliberately failing while an automatic check runs", { skip: process.env[DELIBERATE] ? false : "other: fails on purpose, so it runs only in the child run of 4.7's test below" }, async (t) => {
+  const feed = await fixture(t);
+  const updater = feed.updater(async () => assert.fail("nothing newer to install"), async () => true);
+  void updater.check();
+  updater.request("check");
+  assert.equal(updater.request("status").phase, "deliberately wrong");
+});
+
+test("4.7 a failed assertion while an automatic check runs ends the run with its failure reported", async () => {
+  const run = await promisify(execFile)(process.execPath, ["--import", "tsx", "--test", "--test-reporter=spec", "--test-name-pattern=deliberately failing", fileURLToPath(import.meta.url)], { env: { ...process.env, NODE_TEST_CONTEXT: undefined, [DELIBERATE]: "1" }, timeout: 20_000, encoding: "utf8" })
+    .then(() => assert.fail("the deliberately failing test passed"), (error: { code?: number; killed?: boolean; stdout?: string }) => error);
+  assert.equal(run.killed, false, "the run hung until the timeout killed it");
+  assert.equal(run.code, 1);
+  assert.match(run.stdout ?? "", /✖ deliberately failing/);
+});
+
 test("4.12 a named run holds an automatic release install until released, without holding the download", async (t) => {
   const feed = await fixture(t);
   feed.version = "0.3.2";
@@ -378,10 +399,39 @@ for (const platform of PLATFORMS) {
   });
 }
 
+test("4.24 a channel switch takes effect on the next check: the other channel's download is dropped and the running build is never downgraded", async (t) => {
+  const feed = await fixture(t);
+  feed.running = "0.3.5";
+  feed.version = "0.3.9";
+  feed.stable = "0.3.2";
+  let channel: "stable" | "alpha" = "alpha";
+  const updater = feed.updater(async () => assert.fail("no quiet moment, so no restart"), async () => true, async () => false, () => channel);
+  assert.equal(await updater.check(), "waiting");
+  assert.equal(updater.request("status").nextBuild, "0.3.9");
+  channel = "stable";
+  assert.equal(await updater.check(), "current", "stable's 0.3.2 is older than the running build, which stays");
+  assert.equal(updater.request("status").phase, "up-to-date");
+  assert.equal(updater.request("status").nextBuild, undefined, "alpha's download is not offered on stable");
+  feed.stable = "0.3.7";
+  assert.equal(await updater.check(), "waiting");
+  assert.equal(updater.request("status").nextBuild, "0.3.7");
+  channel = "alpha";
+  assert.equal(await updater.check(), "waiting");
+  assert.equal(updater.request("status").nextBuild, "0.3.9", "back on alpha, its own feed again");
+});
+
 /** A real local feed and electron-updater's real download/checksum path; no installer is executed. */
 async function fixture(t: test.TestContext, platform: Platform = "win32") {
   const dir = await mkdtemp(path.join(tmpdir(), "storytree-release-"));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  // Every step runs, last added first, even when one fails: node:test skips the hooks after a failed
+  // one, and a check still writing into dir when an assertion throws would leave the feed server
+  // holding the run open, with no failure reported.
+  const teardown: (() => unknown)[] = [() => rm(dir, { recursive: true, force: true, maxRetries: 5 })];
+  t.after(async () => {
+    const errors: unknown[] = [];
+    for (const step of teardown.reverse()) { try { await step(); } catch (error) { errors.push(error); } }
+    if (errors.length > 0) throw errors[0];
+  });
   const installer = Buffer.from("fixture release payload — never executed");
   const state = { version: "0.3.1", running: "0.3.1", stable: undefined as string | undefined, stableBranch: undefined as Map<string, string> | undefined, fetched: [] as string[], offline: false, corrupt: false, checks: 0, downloads: 0, installer, squirrel: undefined as Squirrel | undefined, sandboxOff: false, recheck: undefined as number | undefined };
   const files = (base = "") => ["setup.exe", "storytree-mac.zip", "storytree-linux.AppImage"].map(url => ({ url: `${base}${url}`, size: installer.length, sha512: createHash("sha512").update(installer).digest("base64") }));
@@ -406,7 +456,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
     } else response.writeHead(404).end();
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  t.after(() => new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
+  teardown.push(() => new Promise<void>((resolve, reject) => { server.close((error) => error ? reject(error) : resolve()); server.closeAllConnections(); }));
   const address = server.address();
   assert.ok(address !== null && typeof address === "object");
   // A Linux app runs from its AppImage, which the AppImage runtime names in APPIMAGE and the install replaces.
@@ -414,7 +464,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   if (platform === "linux") {
     await writeFile(appImage, "the running build");
     const environment = { APPIMAGE: process.env["APPIMAGE"], TEST_UPDATER_ARCH: process.env["TEST_UPDATER_ARCH"] };
-    t.after(() => { for (const [key, value] of Object.entries(environment)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
+    teardown.push(() => { for (const [key, value] of Object.entries(environment)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
     Object.assign(process.env, { APPIMAGE: appImage, TEST_UPDATER_ARCH: "x64" });
   }
   const config = path.join(dir, "app-update.yml");
@@ -434,16 +484,16 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   return Object.assign(state, {
     holds: path.join(dir, "update-holds"),
     appImage,
-    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "alpha") {
+    updater(restart: (target: Launch, showing: boolean) => Promise<void>, canRestart: () => Promise<boolean>, quiet = async () => true, channel?: "stable" | "alpha" | (() => "stable" | "alpha")) {
       if (platform === "darwin") electron.autoUpdater = state.squirrel = new Squirrel();
-      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", sandboxOff: state.sandboxOff, ...(state.recheck === undefined ? {} : { recheck: state.recheck }), ...(channel ? { releaseChannel: () => channel } : {}) }, {
+      const updater = new ReleaseUpdater({ restart, canRestart, quiet, home: dir, bundle: "/Applications/storytree 0.3.app", sandboxOff: state.sandboxOff, ...(state.recheck === undefined ? {} : { recheck: state.recheck }), ...(channel ? { releaseChannel: typeof channel === "function" ? channel : () => channel } : {}) }, {
         version: state.running, name: "storytree-test", isPackaged: true,
         appUpdateConfigPath: config, userDataPath: dir, baseCachePath: dir,
         whenReady: async () => {}, relaunch: () => assert.fail("separate relaunch"),
         quit: () => assert.fail("separate quit"), onQuit: () => assert.fail("install-on-quit bypasses lifecycle"),
       }, platform);
       // MacUpdater serves the download to Squirrel.Mac from its own local server.
-      t.after(() => { const proxy = (updater.base as unknown as { server?: Server }).server; proxy?.closeAllConnections(); proxy?.close(); });
+      teardown.push(() => { updater.stop(); const proxy = (updater.base as unknown as { server?: Server }).server; proxy?.closeAllConnections(); proxy?.close(); });
       Object.assign(updater.base, { httpExecutor: executor(), _testOnlyOptions: { platform } });
       updater.logger = null;
       updater.base.disableDifferentialDownload = true;

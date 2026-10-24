@@ -1,6 +1,6 @@
 // Packaging adapter: reuse the app setup's build, then stage the host platform's native runtimes:
 // both Windows architectures on Windows, Apple Silicon on macOS, x64 on Linux.
-import { buildBins, buildLauncher, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/app-setup/bins";
+import { buildBins, buildLauncher, ENTRY_BANNER, LAUNCHER_PROGRAM, stageNativeProbes } from "@storytree/app-setup/bins";
 import { linuxRuntime, macRuntime, NODE_VERSION, stageRuntime, windowsRuntime, writePayloadManifest } from "@storytree/app-setup/deliver";
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
@@ -38,7 +38,7 @@ export async function buildToolBundle(outdir, { platform = process.platform, arc
     },
     outfile: path.join(outdir, "storytree-deliver.mjs"),
     bundle: true, platform: "node", format: "esm", target: "node24", logLevel: "warning",
-    banner: { js: 'import { createRequire as __storytreeRequire } from "node:module"; const require = __storytreeRequire(import.meta.url);' },
+    banner: { js: ENTRY_BANNER },
     external: ["pg-native", "pg-cloudflare", "cloudflare:sockets", "@google-cloud/cloud-sql-connector", "@huggingface/transformers"],
   }));
   timed(`embedding runtime ${platform}/${arch}`, () => stageEmbeddingRuntime(outdir, platform, arch));

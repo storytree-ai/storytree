@@ -30,7 +30,7 @@ changed. The journey measures every card and its effective on-screen title and
 health font sizes before testing 4.9 (natural card size), 4.11 (whole tree in the
 panel without pop-out), and 4.8 (selecting another capability).
 
-The baseline is retained in [the before capture](panel-first-window-before.png)
+The baseline is retained in [the before capture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/forest-library-toggle/panel-first-window-before.png)
 and [its measurements](panel-first-window-before.json): five cards occupy 9.27%
 of the 439.625 × 352 frame; each card is 79.664 × 36.002 pixels, its title 4.7875px
 and its health word 3.83px. The new natural-size assertion failed on that renderer.
@@ -40,7 +40,7 @@ the status colour is present but the titles and health words cannot be read at r
 measured target: all five cards fit at 208 × 94 pixels, preserving 12.5px titles,
 10px health words and 10.5px health reports without the larger-window control.
 
-The [after capture](panel-first-window.png) and [measurements](panel-first-window.json)
+The [after capture](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/forest-library-toggle/panel-first-window.png) and [measurements](panel-first-window.json)
 show five 208 × 94 cards in the same frame at scale 1: two columns, three rows,
 occupying **63.17%** of the frame. Titles are 12.5px, health words 10px and reports
 10.5px. All cards fit before any pan, zoom or pop-out, and another card selects
@@ -64,8 +64,8 @@ through the current public API, including the globe's grown radius. `capture.mjs
 compares that census to actual geometry and temporary renderer-submission counters.
 Submission does not claim that every point occupies an unoccluded pixel.
 
-[Forest front](forest-front.png), [Forest turned](forest-quarter-turn.png),
-[Library front](library-front.png), [Library turned](library-quarter-turn.png).
+[Forest front](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/forest-library-toggle/forest-front.png), [Forest turned](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/forest-library-toggle/forest-quarter-turn.png),
+[Library front](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/forest-library-toggle/library-front.png), [Library turned](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/forest-library-toggle/library-quarter-turn.png).
 The accompanying JSON records retain the geometry, renderer and identities.
 The synthetic interaction fixture uses a verified unhealthy capability and its
 current health word, dismisses the first-run guide through its Close control,
@@ -104,3 +104,5 @@ These browser tests run explicitly on the Mint box; regular CI has no browser
 provisioning and does not run them. The existing acceptance recorder writes their
 verified results. No skipped placeholder test is added to CI. This is browser
 renderer proof; it makes no laptop or Windows installer claim.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/forest-library-toggle).

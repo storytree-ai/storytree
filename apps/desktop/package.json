@@ -6,6 +6,7 @@
   "type": "module",
   "main": "dist/main.cjs",
   "imports": {
+    "#parts/namedSurfaces": "./src/main/parts/named-surfaces.ts",
     "#parts/pageAnswers": "./src/main/parts/page-answers.ts",
     "#parts/pageChannels": "./src/parts/page-channels.ts",
     "#parts/surfaces": "./src/main/parts/surfaces.ts"
@@ -35,14 +36,15 @@
     "@workos-inc/node": "^10.4.0",
     "@workos/authkit-electron": "0.1.2",
     "@workos/authkit-session": "0.6.0",
-    "electron": "44.4.5",
+    "electron": "44.9.3",
     "electron-builder": "26.15.3",
     "esbuild": "^0.28.2",
     "google-auth-library": "^10.6.2",
     "playwright-core": "1.60.0",
     "typescript": "~7.0.2",
     "@storytree/plugin-loader": "workspace:*",
-    "@storytree/project-and-caller": "workspace:*"
+    "@storytree/project-and-caller": "workspace:*",
+    "@storytree/surface-feedback": "workspace:*"
   },
   "optionalDependencies": {
     "@embedded-postgres/darwin-arm64": "17.10.0-beta.17",

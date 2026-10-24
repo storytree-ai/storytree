@@ -23,9 +23,9 @@ painted and the map enters the viewport. Its still is a capture of that drawing.
 
 | View | Production page | Forest detail | Desktop using the same saved scene |
 | --- | --- | --- | --- |
-| 1440 × 1000 | [production-1440.png](production-1440.png) | [forest-1440.png](forest-1440.png) | [desktop-app-1440.png](desktop-app-1440.png) |
-| 390 × 844 | [production-390.png](production-390.png) | [forest-390.png](forest-390.png) | [desktop-app-390.png](desktop-app-390.png) |
-| Missing WebGL, 390 px | [no-webgl-390.png](no-webgl-390.png) | [phone still](../../public/forest-phone.png) | |
+| 1440 × 1000 | [production-1440.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/forest/production-1440.png) | [forest-1440.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/forest/forest-1440.png) | [desktop-app-1440.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/forest/desktop-app-1440.png) |
+| 390 × 844 | [production-390.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/forest/production-390.png) | [forest-390.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/forest/forest-390.png) | [desktop-app-390.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/forest/desktop-app-390.png) |
+| Missing WebGL, 390 px | [no-webgl-390.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/forest/no-webgl-390.png) | [phone still](../../public/forest-phone.png) | |
 
 ## Reading and proof — 2026-10-02
 
@@ -79,3 +79,5 @@ missing WebGL, failed chunk loading, initialization failure and context-loss rec
 usable install/contact controls, phone layout and 200% text controls. The snapshot unit
 proof covers retained data, complete question text, requested recording boundaries/project,
 recursive private-field/path/cloud-id scrubbing and secret refusal before atomic replacement.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 10 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/forest).

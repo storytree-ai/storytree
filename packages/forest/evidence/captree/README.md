@@ -30,12 +30,12 @@ smoke's own size), against the snapshot `2026-09-28T13-42-19-911Z.json` restored
 home: 1,728 records, 10 stories, 70 capabilities. Each run also passes the smoke's own forest
 census and exits 0 ([logs](smoke-panel-tree-panned.txt), [state](electron-capture.json)).
 
-- [panel.png](panel.png) — The command line's panel: its sentences, **Open the capability tree**
+- [panel.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/captree/panel.png) — The command line's panel: its sentences, **Open the capability tree**
   and the preview, and the capability shown below (1 · Front door).
-- [tree.png](tree.png) — the tree in its own space at readable size (cards 208 × 94 on screen),
+- [tree.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/captree/tree.png) — the tree in its own space at readable size (cards 208 × 94 on screen),
   after clicking 3 · Library in it: the panel below now explains 3 · Library.
-- [panned.png](panned.png) — the same after a drag and one wheel step out (scale 0.74).
-- [mixed.png](mixed.png) — the same view with mixed work states: **landed**, **in progress** and
+- [panned.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/captree/panned.png) — the same after a drag and one wheel step out (scale 0.74).
+- [mixed.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/captree/mixed.png) — the same view with mixed work states: **landed**, **in progress** and
   **planned** strips side by side. ⚠ These states are SYNTHETIC. The snapshot carries the library
   but not the agent activity log the work states are read from, so on a restored home every
   capability reads "planned" (as in the first three pictures). [seed-activity.mjs](seed-activity.mjs)
@@ -78,3 +78,5 @@ desktop declares Windows binaries only.
 The shared capture kit resolves Playwright from this checkout. Pictures and measurements
 go to the machine’s temporary `storytree-captures/` folder by default; add `--retake`
 to replace the committed evidence in this directory.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/captree).

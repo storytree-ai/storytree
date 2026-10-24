@@ -100,6 +100,46 @@ jobs:
             core.setOutput('run-id', run.id);
             core.setOutput('attempt', run.attempt);
 
+  # Which of main's saved timing histories the two Windows shards restore, picked once for both:
+  # each shard restoring the latest by prefix itself could take a different save when main saved one
+  # between their restores, and then the shards split the units differently and the merge queue took
+  # a green pull request out (PR #1696, twice; friction_b2668a6ffc8b). For each shard, its own latest
+  # save, else the latest Windows save of any kind. Unreadable, it picks none for either, and both
+  # shards start from no history, still alike.
+  shard-timings:
+    name: pick the Windows shards' timing history
+    needs: queue-verdict
+    if: ${{ !cancelled() && needs.queue-verdict.outputs.run-id == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      shard-1: ${{ steps.pick.outputs.shard-1 }}
+      shard-2: ${{ steps.pick.outputs.shard-2 }}
+    steps:
+      - name: Pick main's latest saves for both shards
+        id: pick
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const latest = async (key) => {
+              const { data } = await github.rest.actions.getActionsCacheList({
+                ...context.repo, key, ref: 'refs/heads/main', sort: 'created_at', direction: 'desc', per_page: 1,
+              });
+              return data.actions_caches[0]?.key ?? '';
+            };
+            try {
+              const any = await latest('test-timings-Windows-');
+              for (const n of [1, 2]) {
+                const key = (await latest(`test-timings-Windows-shard-${n}-`)) || any;
+                core.notice(`shard ${n}'s timing history: ${key || 'none'}`);
+                core.setOutput(`shard-${n}`, key);
+              }
+            } catch (error) {
+              core.warning(`could not read main's caches, so neither shard restores a history: ${error.message}`);
+            }
+
   # One run per system, each installing, typechecking and testing. A failure on one system leaves
   # the others running (fail-fast: false), so a failure on one alone shows as that system's.
   # Windows, every run's slowest, is two jobs, each testing half the units by recent pass time
@@ -125,7 +165,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     # Skipped on a push the merge queue's run already verified; on a pull request or the queue's
     # own run, `queue-verdict` is skipped and this runs.
-    needs: queue-verdict
+    needs: [queue-verdict, shard-timings]
     if: ${{ !cancelled() && needs.queue-verdict.outputs.run-id == '' }}
     # The merge queue runs on loaded runners, where a full Windows test step that takes 13 minutes
     # unloaded ran past the old 21-minute deadline and ejected a green pull request
@@ -155,6 +195,8 @@ jobs:
       - run: pnpm typecheck
       # A type-only import ends only at the library (ADR-1017 D2); it reads only the code, in about 5 s.
       - run: pnpm check:type-imports
+      # A seed or snapshot file the branch adds or changes holds only what the forest's seed sanitiser keeps.
+      - run: pnpm check:seed-records
       # packages/dev-loop/src/test.mjs starts a throwaway Postgres from this machine's @embedded-postgres package
       # (linux-x64, darwin-arm64 or windows-x64). The live Cloud SQL proof (contract 8.1) is
       # skipped, visibly: CI holds no Google identity. Its first line is the `scope:` decision
@@ -176,29 +218,23 @@ jobs:
           restore-keys: test-timings-${{ runner.os }}-
       # A Windows shard saves only its own units' new times, so each shard restores both shards'
       # latest saves (else the unsharded one before them) and merges them: every row begins with its
-      # `at`, so sorting orders them in time as well. Both shards must split alike, so `verify` checks
-      # that their plans match (a main save landing between their restores could part them).
+      # `at`, so sorting orders them in time as well. Both restore the exact saves `shard-timings`
+      # picked, so both plan from one input; `verify` still checks that their plans match.
       - name: Restore main's test timing history, shard 1's
-        if: ${{ matrix.shard }}
+        if: ${{ matrix.shard && needs.shard-timings.outputs.shard-1 != '' }}
         uses: actions/cache/restore@v6
         with:
           path: ~/.storytree/0.3/test-timings.jsonl
-          key: test-timings-${{ runner.os }}-shard-1-${{ github.run_id }}
-          restore-keys: |
-            test-timings-${{ runner.os }}-shard-1-
-            test-timings-${{ runner.os }}-
+          key: ${{ needs.shard-timings.outputs.shard-1 }}
       - if: ${{ matrix.shard }}
         shell: bash
         run: mv ~/.storytree/0.3/test-timings.jsonl ~/.storytree/0.3/shard-1-timings.jsonl 2>/dev/null || true
       - name: Restore main's test timing history, shard 2's
-        if: ${{ matrix.shard }}
+        if: ${{ matrix.shard && needs.shard-timings.outputs.shard-2 != '' }}
         uses: actions/cache/restore@v6
         with:
           path: ~/.storytree/0.3/test-timings.jsonl
-          key: test-timings-${{ runner.os }}-shard-2-${{ github.run_id }}
-          restore-keys: |
-            test-timings-${{ runner.os }}-shard-2-
-            test-timings-${{ runner.os }}-
+          key: ${{ needs.shard-timings.outputs.shard-2 }}
       - name: Merge the shards' timing histories
         if: ${{ matrix.shard }}
         shell: bash

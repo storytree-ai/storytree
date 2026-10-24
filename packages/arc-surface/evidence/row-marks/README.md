@@ -4,9 +4,9 @@ The actual desktop renderer, captured unedited with headless Chromium 148 over a
 and an explicit fixture. Dark theme at 2× scale. Nothing in the owner's library or running app is
 opened or changed.
 
-- [The drawer, 1440 wide](board.png)
-- [The lanes, close up](lanes.png)
-- [A 640-wide window: the long arc's bars wrap](narrow.png)
+- [The drawer, 1440 wide](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/row-marks/board.png)
+- [The lanes, close up](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/row-marks/lanes.png)
+- [A 640-wide window: the long arc's bars wrap](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/row-marks/narrow.png)
 - [Measured results, including every mark's hover and label](capture.json)
 
 The fixture, top to bottom:
@@ -44,3 +44,5 @@ Reproduce from the repository root:
 node apps/desktop/build.mjs
 node --import tsx packages/arc-surface/evidence/row-marks/capture.mjs --retake
 ```
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 3 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/row-marks).

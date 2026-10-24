@@ -1,6 +1,6 @@
 // The forest page's glass sheet turned over to the knowledge graph beneath (increment_19e7395041b6, ADR-1043 D3, D5), drawn by
-// the actual desktop page from the same read-only snapshot of storytree's own library as the top face's capture (branch
-// spike/glass-sheet, its seed.json.gz and survey.json, kept out of this repository for its size). Every turn is a real press
+// the actual desktop page from the same read-only snapshot of storytree's own library as the top face's capture (its
+// seed.json.gz and survey.json, kept out of this repository for its size). Every turn is a real press
 // of the Library or Stories button, the selection a real click on an island. The edge-on picture holds the page's clock at
 // the moment the sheet passes edge-on. Run from the checkout root, in the foreground, with the snapshot's folder:
 //   node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/glass-sheet-turn/capture.mjs <seed folder> --retake

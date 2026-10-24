@@ -12,3 +12,5 @@ reading, opens a story's panel with the view's own `select`, and measures the dr
 - In both, a territory's tooltip sits 12 px right of the pointer, and the mini globe ends left of the panel. Before this,
   the canvas's overlay followed the camera's side offset, so under any offset the tooltip and rim markers drew one
   offset away from where they belong (measured 215 px left of the pointer on the wide window).
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 6 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/globe-aside).

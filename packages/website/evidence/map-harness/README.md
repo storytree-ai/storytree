@@ -38,3 +38,5 @@ plain "works with" reference; neither implies endorsement):
 - `public/harness/codex.png` (385×385): the icon OpenAI (verified publisher) publishes for its "Codex – OpenAI's coding agent"
   extension, from the Visual Studio Marketplace gallery, `openai.chatgpt` 26.51007.21434, asset
   `Microsoft.VisualStudio.Services.Icons.Default`, fetched 2026-10-11.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 10 pictures, each one's last copy kept in git history at [`after/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-harness/after) (6), [`before/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/map-harness/before) (4).

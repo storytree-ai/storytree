@@ -13,12 +13,12 @@ export interface Runtime {
   readonly executableSha256?: string;
 }
 
-// Pinned release + hashes from https://nodejs.org/dist/v24.21.0/SHASUMS256.txt.
+// Pinned release + hashes from https://nodejs.org/dist/v24.22.1/SHASUMS256.txt.
 // The runtime travels with the app release; the bootstrap never installs a global Node.
-export const NODE_VERSION = "24.21.0";
+export const NODE_VERSION = "24.22.1";
 const hashes: Record<Architecture, string> = {
-  x64: "ba4e6d110e8c1592a1ecd390f6b05f3da124b13871a5be62b341a07a853c6c32",
-  arm64: "dff59da18b6ffe1bf1ca99e1d2af4906080c481740619f5b5098c0fca28bd9b7",
+  x64: "d702daa815eabbff763c7d3808e235cf031cf2ca70211b56847bc72f51e240e5",
+  arm64: "8bea91dc437fe01e7d92ef0efc6c9eaf654369aaba9b2d3e9841552ea7b95a00",
 };
 export function windowsRuntime(arch: Architecture): Runtime {
   return { url: `https://nodejs.org/dist/v${NODE_VERSION}/win-${arch}/node.exe`, sha256: hashes[arch] };
@@ -30,9 +30,9 @@ export function macRuntime(arch: Architecture): Runtime & { entry: string; execu
   const name = `node-v${NODE_VERSION}-darwin-arm64`;
   return {
     url: `https://nodejs.org/dist/v${NODE_VERSION}/${name}.tar.gz`,
-    sha256: "bed7eea5325e1108f32ce5228ddd6a5f0f08a499ee42aa7442aea583702f6057",
+    sha256: "89c682593d76cd44233fa53b1563264e7de9cbb189cad169135c5b4fadfbc0a7",
     entry: `${name}/bin/node`,
-    executableSha256: "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b",
+    executableSha256: "6f32069480ec14d52b6d7b1f3c7124cfbbc46203abf5ddf5c65b127435f3f329",
   };
 }
 
@@ -42,9 +42,9 @@ export function linuxRuntime(arch: Architecture): Runtime & { entry: string; exe
   const name = `node-v${NODE_VERSION}-linux-x64`;
   return {
     url: `https://nodejs.org/dist/v${NODE_VERSION}/${name}.tar.gz`,
-    sha256: "6e1db87ef58b8819e5d5402eff1536491b18edd8eb7bee5ef7897876e88dc5ff",
+    sha256: "eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c",
     entry: `${name}/bin/node`,
-    executableSha256: "7fde7b8afa198da66257f42ee2001d874c7355631e6d1579a5fb5ef1f246df4c",
+    executableSha256: "e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb",
   };
 }
 

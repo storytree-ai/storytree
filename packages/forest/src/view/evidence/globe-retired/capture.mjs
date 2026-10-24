@@ -1,5 +1,5 @@
 // The forest page's glass sheet before and after the globe's code was deleted (increment_093d5b3b28d8): the same views drawn
-// by the actual desktop page from the read-only snapshot glass-sheet-tilt/ used (branch spike/glass-sheet, its seed.json.gz and
+// by the actual desktop page from the read-only snapshot glass-sheet-tilt/ used (its seed.json.gz and
 // survey.json, kept out of this repository for its size), so a pixel comparison shows nothing visible changed. Run from the
 // checkout root, in the foreground, once on the source before the deletion and once after:
 //   node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/globe-retired/capture.mjs <seed folder> <before|after> --retake

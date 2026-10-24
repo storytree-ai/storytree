@@ -12,8 +12,8 @@ a parked arc, and a closed experiment. All fixture data is discarded after the r
 Renderer: headless Chromium 148.0.7778.96, ANGLE / Vulkan SwiftShader (Subzero), dark theme,
 1440 × 960 at device scale 1. The images are unedited captures.
 
-- [Board](arc-surface.png)
-- [Question opened in place](arc-briefing.png)
+- [Board](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/arc-surface.png)
+- [Question opened in place](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/arc-briefing.png)
 - [Measured results](capture.json)
 
 The acceptance drives a real claim while the overlay is open, checks that it arrives within one
@@ -35,3 +35,5 @@ executable. The defaults name the Mint box's existing installation. The capture 
 its browser, local HTTP server and temporary database, and never opens the owner's live project.
 The automated Postgres proof also runs in `pnpm test` on every supported platform; the headless
 capture is the page acceptance for this landing.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 5 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence) (2), [`closed-range/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/arc-surface/evidence/closed-range) (3).

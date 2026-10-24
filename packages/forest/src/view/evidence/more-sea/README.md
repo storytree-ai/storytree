@@ -23,12 +23,12 @@ Each at the globe's own front (latitude 0, longitude 0 facing the viewer) and af
 
 | Forest | View | Before | After |
 | --- | --- | --- | --- |
-| storytree's own, 15 stories with their code (the seed of `../code-rows`) | front | [before-storytree-front.png](before-storytree-front.png) | [after-storytree-front.png](after-storytree-front.png) |
-| | quarter turn | [before-storytree-quarter.png](before-storytree-quarter.png) | [after-storytree-quarter.png](after-storytree-quarter.png) |
-| Five stories depending on nothing: a row | front | [before-row-front.png](before-row-front.png) | [after-row-front.png](after-row-front.png) |
-| | quarter turn | [before-row-quarter.png](before-row-quarter.png) | [after-row-quarter.png](after-row-quarter.png) |
-| The same five, each on the one before: a chain | front | [before-chain-front.png](before-chain-front.png) | [after-chain-front.png](after-chain-front.png) |
-| | quarter turn | [before-chain-quarter.png](before-chain-quarter.png) | [after-chain-quarter.png](after-chain-quarter.png) |
+| storytree's own, 15 stories with their code (the seed of `../code-rows`) | front | [before-storytree-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/before-storytree-front.png) | [after-storytree-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/after-storytree-front.png) |
+| | quarter turn | [before-storytree-quarter.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/before-storytree-quarter.png) | [after-storytree-quarter.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/after-storytree-quarter.png) |
+| Five stories depending on nothing: a row | front | [before-row-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/before-row-front.png) | [after-row-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/after-row-front.png) |
+| | quarter turn | [before-row-quarter.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/before-row-quarter.png) | [after-row-quarter.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/after-row-quarter.png) |
+| The same five, each on the one before: a chain | front | [before-chain-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/before-chain-front.png) | [after-chain-front.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/after-chain-front.png) |
+| | quarter turn | [before-chain-quarter.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/before-chain-quarter.png) | [after-chain-quarter.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea/after-chain-quarter.png) |
 
 ## Measured before anyone looked
 
@@ -85,3 +85,5 @@ this branch's tree before the change; **after** is this branch.
 `node --import tsx capture.mjs before|after [row|chain|storytree] [--retake]`; without `--retake` the pictures go to
 the scratch folder the run names. The row and chain seeds are made in `capture.mjs`; storytree's is
 `../code-rows/seed.json.gz` and `survey.json`.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 12 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/src/view/evidence/more-sea).

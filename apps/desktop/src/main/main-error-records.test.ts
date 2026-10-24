@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -9,6 +9,7 @@ import { restartLimit } from "@storytree/app/lifecycle/restart-limit";
 import { connect, type Storytree } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
+import { appLog } from "./app-log.js";
 import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
 import { logMainErrors, type MainProcess } from "./main-errors.js";
 
@@ -68,7 +69,9 @@ test("1.25 each uncaught main-process exception and unhandled rejection becomes 
   }
 });
 
-test("1.26 when the library cannot take the errors, the app's log keeps writing them as before, says the library missed them, and nothing more is thrown or rejected", async () => {
+test("1.26 when the library cannot take the errors, app.log keeps writing them as before, says the library missed them, and nothing more is thrown or rejected", async (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "main-error-records-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
   const unhandled: unknown[] = [];
   const onUnhandled = (reason: unknown) => unhandled.push(reason);
   process.on("unhandledRejection", onUnhandled);
@@ -77,10 +80,11 @@ test("1.26 when the library cannot take the errors, the app's log keeps writing 
       { ownDatabase: async () => { throw new Error("connect ECONNREFUSED 127.0.0.1:5432"); } },
       { ownDatabase: async () => ({ query: async () => { throw new Error("terminating connection due to administrator command"); } }) },
     ] as unknown as Pick<Storytree, "ownDatabase">[]) {
-      const logged: string[] = [];
-      const records = mainErrorRecords({ build: () => "0.3.41", log: line => logged.push(line) });
+      const file = path.join(mkdtempSync(path.join(dir, "home-")), "app.log");
+      const log = appLog(file);
+      const records = mainErrorRecords({ build: () => "0.3.41", log: line => log.write(line) });
       const { main, fire } = fakeMain();
-      logMainErrors(main, { log: line => logged.push(line), ask: async () => "keep-going", restart: () => {}, record: records.record });
+      logMainErrors(main, { log: line => log.write(line), ask: async () => "keep-going", restart: () => {}, record: records.record });
 
       await records.open(server);
       fire("uncaughtException", new Error("first"));
@@ -89,6 +93,8 @@ test("1.26 when the library cannot take the errors, the app's log keeps writing 
       await records.settled();
       await new Promise(resolve => setImmediate(resolve));
 
+      // app.log's entries, split at each one's timestamp, since a stack runs over several lines.
+      const logged = readFileSync(file, "utf8").split(/^\d{4}-\d\d-\d\dT\S+Z /m).slice(1);
       assert.ok(logged.some(line => /^main process uncaught exception: Error: first\n/.test(line)));
       assert.ok(logged.some(line => /^main process unhandled rejection: Error: second\n/.test(line)));
       assert.ok(logged.some(line => /not (be )?recorded in the library/.test(line)), logged.join("\n"));

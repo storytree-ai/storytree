@@ -9,3 +9,5 @@ build (`--dist`) on 2026-10-12. After: this branch's build.
 - 320: the pathway tag hides below 390 (`narrowest: 390`), so neither picture shows it.
 
 Every other map label shows no change against main's build, apart from SwiftShader's frame-to-frame noise.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 10 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/website/evidence/pathway-clear).

@@ -1,6 +1,6 @@
 // The Surfaces menu (ADR-0750): the real desktop renderer bundle, its real settings and surfaces
 // actions on a throwaway home, and a real snapshot restored into a throwaway Postgres. Never opens
-// the live library or the owner's home. Run after `node apps/desktop/build.mjs`, under the heavy lock:
+// the live library or the owner's home. Run after `node --import tsx apps/desktop/build.mjs`, under the heavy lock:
 //   flock /tmp/storytree-heavy.lock node --import tsx packages/app/evidence/surfaces-menu/capture.mjs
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';

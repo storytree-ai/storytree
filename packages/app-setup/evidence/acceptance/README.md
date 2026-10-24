@@ -81,3 +81,5 @@ remains, including the re-added hooks.json). Reolink app restored with the owner
 scheduled tasks or debugging ports left.
 
 `harness/` holds the scripts that drove the run, for repeating it.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 11 pictures, each one's last copy kept in git history at [`screenshots/`](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/app-setup/evidence/acceptance/screenshots) (11).

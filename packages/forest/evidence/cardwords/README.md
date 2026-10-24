@@ -26,16 +26,16 @@ run on the snapshot `2026-09-28T21-35-29-644Z.json` restored into a FRESH throwa
 passes the smoke's own census and exits 0 ([panel/window log](smoke-panel-window.txt),
 [words log](smoke-words-words-close.txt), [state](electron-capture.json)).
 
-- [panel.png](panel.png) — The command line's panel opening fitted. Its tree is 3,057 × 500 px, so
+- [panel.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/cardwords/panel.png) — The command line's panel opening fitted. Its tree is 3,057 × 500 px, so
   the fit wants 0.14; it stops at the least zoom, 0.3, where the tree is 917 px wide in a 423 px
   frame. Every card says PROPOSED: nothing has been switched off in the snapshot.
-- [window.png](window.png) — the larger window, opened from the panel's icon, also at 0.3 (the
+- [window.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/cardwords/window.png) — the larger window, opened from the panel's icon, also at 0.3 (the
   fit wants 0.24 in its 730 px frame), with the four-word legend and "Fit".
-- [words.png](words.png) — **SYNTHETIC** flags and verified health (./seed-words.mjs, written into a
+- [words.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/cardwords/words.png) — **SYNTHETIC** flags and verified health (./seed-words.mjs, written into a
   throwaway copy only): 1 · Front door switched off with its contracts verified passing (healthy),
   2 · Who wrote it with one verified failing (unhealthy), 3 · Library with one contract not verified
   (untested); every other card stays proposed. The larger window, fitted.
-- [words-close.png](words-close.png) — the same, wheel-zoomed to 0.55 over those three: all four
+- [words-close.png](https://github.com/storytree-ai/storytree/blob/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/cardwords/words-close.png) — the same, wheel-zoomed to 0.55 over those three: all four
   words legible. Note 4 · Arcs and increments: PROPOSED although "storytree saw: passing" — the
   flag, not the health, decides until the agent switches it off. The capture then pressed "Fit"
   and asserted the view returned to the opening one.
@@ -75,3 +75,5 @@ the Linux Postgres package linked into desktop's ignored `node_modules` for the 
 The shared capture kit resolves Playwright from this checkout. Pictures and measurements
 go to the machine’s temporary `storytree-captures/` folder by default; add `--retake`
 to replace the committed evidence in this directory.
+
+Screenshots removed from `main` on 2026-10-23, their arc closed (the owner's answer to question_5125601c0789, under ADR-1123): 4 pictures, each one's last copy kept in git history at [this folder](https://github.com/storytree-ai/storytree/tree/5b961a327e879607c1f79daca593a4f50a53aa24/packages/forest/evidence/cardwords).

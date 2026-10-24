@@ -1,6 +1,6 @@
 // The forest page's glass sheet at its fixed tabletop tilt, with thick land and the knowledge graph hanging below the glass
 // (increment_a90998ba85f2, ADR-1059), drawn by the actual desktop page from the same read-only snapshot of storytree's own
-// library as glass-sheet-turn/ used (branch spike/glass-sheet, its seed.json.gz and survey.json, kept out of this repository
+// library as glass-sheet-turn/ used (its seed.json.gz and survey.json, kept out of this repository
 // for its size). Every turn is a real press of the Library or Stories button, the selection a real click on an island. The
 // mid-turn picture holds the page's clock half way through the turn. Run from the checkout root, in the foreground:
 //   node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/glass-sheet-tilt/capture.mjs <seed folder> --retake

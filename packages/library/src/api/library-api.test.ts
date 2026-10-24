@@ -122,6 +122,14 @@ const LIBRARY_API = [
   "retireQuestion",
   "returnIncrement",
   "changesSince",
+  "sendFeedback",
+  "feedbackScreenshot",
+  "routeFeedback",
+  // Capability 27's fixed data questions.
+  "counts",
+  "latestChanges",
+  "findByTitle",
+  "decisionNumbered",
   "close",
 ];
 
@@ -483,6 +491,69 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
   ]) {
     await assert.rejects(import(internal), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" }, internal);
   }
+});
+
+test("7.18 sendFeedback writes a feedback record and keeps its screenshot beside it, out of the record's history; feedbackScreenshot returns the bytes, and none for a note sent without one", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const note = {
+      text: "The arcs drawer hides the island I clicked",
+      surface: "arcs",
+      story: "arc-surface",
+      selection: "story_000000000001",
+      project: "site",
+      version: "0.3.99",
+      window: { width: 1440, height: 960 },
+      theme: "dark" as const,
+      at: "2026-10-21T12:00:00.000Z",
+    };
+    const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);
+    const sent = await lib.sendFeedback(note, { screenshot: jpeg, actor: "session:feedback-test" });
+    assert.match(sent.id, /^feedback_[0-9a-f]{12}$/);
+    assert.equal(sent.type, "feedback");
+    assert.deepEqual(sent.fields, { ...note, status: "new", screenshot: true });
+    assert.deepEqual((await lib.list("feedback")).map(({ id }) => id), [sent.id]);
+    assert.deepEqual(await lib.feedbackScreenshot(sent.id), jpeg);
+    const history = await lib.history({ id: sent.id });
+    assert.equal(history.length, 1);
+    assert.equal(history[0]!.actor, "session:feedback-test");
+    assert.equal(JSON.stringify(history[0]!.record).includes("screenshot\":true"), true, "the history says a screenshot was taken");
+    assert.ok(JSON.stringify(history[0]!.record).length < 2_000, "the picture's bytes are not copied into the history");
+
+    const plain = await lib.sendFeedback({ ...note, text: "No picture this time" });
+    assert.equal(plain.fields.screenshot, false);
+    assert.equal(await lib.feedbackScreenshot(plain.id), null);
+    assert.equal(await lib.feedbackScreenshot("feedback_000000000000"), null);
+
+    await assert.rejects(lib.sendFeedback(untyped({ ...note, text: "" })), (error: Error) => error.name === "SchemaError", "a note with no text is refused");
+    await assert.rejects(lib.sendFeedback(untyped({ ...note, surface: undefined }), { screenshot: jpeg }), (error: Error) => error.name === "SchemaError", "a note with no surface is refused");
+    assert.equal((await lib.list("feedback")).length, 2, "a refused note writes nothing");
+  });
+});
+
+test("7.19 routeFeedback marks a new feedback record routed with its route, target and reason; a missing, non-feedback or already routed record is refused with nothing written, and a routed record must carry its route and reason", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    const note = { text: "The gear menu hides the version", surface: "gear", version: "0.3.99", window: { width: 800, height: 600 }, theme: "light" as const, at: "2026-10-24T09:00:00.000Z" };
+    const sent = await lib.sendFeedback(note);
+    const routed = await lib.routeFeedback(sent.id, { route: "increment", routedTo: "increment_000000000001", routeReason: "The gear menu's arc owns it" }, { actor: "session:manager" });
+    assert.deepEqual(routed?.fields, { ...note, status: "routed", screenshot: false, route: "increment", routedTo: "increment_000000000001", routeReason: "The gear menu's arc owns it" });
+    assert.equal((await lib.history({ id: sent.id })).at(-1)!.actor, "session:manager");
+
+    await assert.rejects(lib.routeFeedback(sent.id, { route: "closed", routeReason: "again" }), /already routed/);
+    assert.equal(((await lib.get(sent.id))!.fields as { route?: string }).route, "increment", "a second route writes nothing");
+    assert.equal(await lib.routeFeedback("feedback_000000000000", { route: "closed", routeReason: "gone" }), null);
+    const arc = await lib.createArc({ title: "Gear", intent: "An intent", endState: "An end state" });
+    assert.equal(await lib.routeFeedback(arc.id, { route: "closed", routeReason: "not a note" }), null);
+
+    const other = await lib.sendFeedback({ ...note, text: "Another" });
+    await assert.rejects(lib.routeFeedback(other.id, untyped({ route: "closed", routeReason: "" })), (error: Error) => error.name === "SchemaError", "a route needs its reason");
+    const closed = await lib.routeFeedback(other.id, { route: "closed", routeReason: "Covered by increment_000000000002" });
+    assert.equal(closed?.fields.status, "routed");
+    assert.equal(closed?.fields.routedTo, undefined);
+  });
 });
 
 test("7.10 projectTree marks a capability not proven that a parked arc's open work names with that arc, and drops the mark once the arc is unparked (ADR-0992)", async () => {

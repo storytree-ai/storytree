@@ -5,7 +5,7 @@
  * a workspace cut from the clone's own, stale view of main would show it.
  */
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -521,5 +521,99 @@ test("5.48 a session claiming again, from a linked worktree, work it holds on an
     const fromMain = await claim({ ...as("A"), branch: "main" }, increment, "claimed from the main checkout");
     assert.ok(fromMain.ok && fromMain.alreadyHeld === true, JSON.stringify(fromMain));
     assert.deepEqual((await readClaims(log, project)).map(({ branch }) => branch), ["claude/by-hand"]);
+  });
+});
+
+/** Write the project's local setup file in the main checkout `site`, and have git ignore `ignored` there. */
+function localSetup(site: string, setup: unknown, ignored: readonly string[] = []): void {
+  mkdirSync(path.join(site, ".storytree"), { recursive: true });
+  writeFileSync(path.join(site, ".storytree", "worktree.local.json"), typeof setup === "string" ? setup : JSON.stringify(setup));
+  writeFileSync(path.join(site, ".git", "info", "exclude"), [".storytree/", ...ignored].join("\n") + "\n");
+}
+
+test("19.1 · a workspace made in a project whose untracked `.storytree/worktree.local.json` names setup commands, files to copy and folders to share runs each command in the new worktree, copies each file or folder from the main checkout and shares each folder, and its answer reports each step", async () => {
+  await withWorld(async ({ site, park, as }) => {
+    writeFileSync(path.join(site, ".env"), "SECRET=1\n");
+    mkdirSync(path.join(site, "config", "local"), { recursive: true });
+    writeFileSync(path.join(site, "config", "local", "keys.txt"), "keys\n");
+    mkdirSync(path.join(site, "models"));
+    writeFileSync(path.join(site, "models", "big.bin"), "weights\n");
+    localSetup(site, { copy: [".env", "config/local"], share: ["models"], setup: ["node -e \"require('fs').writeFileSync('installed.txt', require('fs').readFileSync('.env', 'utf8'))\""] }, [".env", "config/local/", "models/", "installed.txt"]);
+
+    const made = await makeWorkspace(as("A"), await park("email form"), "building the email form");
+
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+    assert.equal(readFileSync(path.join(made.folder, ".env"), "utf8"), "SECRET=1\n", "the file is copied");
+    assert.equal(readFileSync(path.join(made.folder, "config", "local", "keys.txt"), "utf8"), "keys\n", "the folder is copied");
+    assert.equal(realpathSync(path.join(made.folder, "models")), realpathSync(path.join(site, "models")), "the folder is shared, not copied");
+    assert.equal(readFileSync(path.join(made.folder, "installed.txt"), "utf8"), "SECRET=1\n", "the command ran in the worktree, after the copies");
+    assert.deepEqual(made.setup, {
+      file: ".storytree/worktree.local.json",
+      steps: [
+        { kind: "copy", what: ".env", ok: true },
+        { kind: "copy", what: "config/local", ok: true },
+        { kind: "share", what: "models", ok: true },
+        { kind: "run", what: "node -e \"require('fs').writeFileSync('installed.txt', require('fs').readFileSync('.env', 'utf8'))\"", ok: true },
+      ],
+    });
+  });
+});
+
+test("19.2 · a setup step that fails (a command exiting non-zero, a path with `..`, an absolute path or a link leading out of the repository, a path git does not ignore, a missing source, a copy over the cap, or a local file git tracks or cannot parse) is reported naming why, the rest still run, and the claim and the worktree are kept", async () => {
+  await withWorld(async ({ dir, log, project, site, park, as }) => {
+    writeFileSync(path.join(dir, "outside.txt"), "not the repository's\n");
+    mkdirSync(path.join(dir, "outside"));
+    symlinkSync(path.join(dir, "outside"), path.join(site, "escape"), "junction");
+    writeFileSync(path.join(site, "plain.txt"), "not ignored\n");
+    writeFileSync(path.join(site, "huge.bin"), Buffer.alloc(100));
+    localSetup(site, {
+      copy: ["../outside.txt", path.join(dir, "outside.txt"), "escape", "plain.txt", "missing.env", "huge.bin"],
+      setup: ["node -e \"console.error('install broke'); process.exit(3)\"", "node -e \"require('fs').writeFileSync('after.txt', 'ran')\""],
+    }, ["escape", "missing.env", "huge.bin", "after.txt"]);
+    const increment = await park("email form");
+
+    const made = await makeWorkspace(as("A"), increment, "building the email form", {}, { setupLimits: { copyBytes: 50 } });
+
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+    const why = Object.fromEntries((made.setup?.steps ?? []).map((step) => [step.what, step.ok ? "ok" : step.why]));
+    assert.match(why["../outside.txt"] ?? "", /`\.\.`/);
+    assert.match(why[path.join(dir, "outside.txt")] ?? "", /absolute/);
+    assert.match(why["escape"] ?? "", /out of the repository/);
+    assert.match(why["plain.txt"] ?? "", /does not ignore/);
+    assert.match(why["missing.env"] ?? "", /nothing there/);
+    assert.match(why["huge.bin"] ?? "", /cap/);
+    assert.match(why["node -e \"console.error('install broke'); process.exit(3)\""] ?? "", /exited 3: install broke/);
+    assert.equal(why["node -e \"require('fs').writeFileSync('after.txt', 'ran')\""], "ok", "the next command still ran");
+    assert.ok(existsSync(path.join(made.folder, "after.txt")));
+    for (const name of ["outside.txt", "escape", "plain.txt", "huge.bin"]) assert.ok(!existsSync(path.join(made.folder, name)), `${name} is not copied`);
+    assert.equal(readFileSync(path.join(made.folder, "README.md"), "utf8"), "site\n", "the worktree is kept");
+    assert.deepEqual((await readClaims(log, project)).map(({ increment, branch }) => ({ increment, branch })), [{ increment, branch: made.branch }], "the claim is kept");
+
+    localSetup(site, "{ not json");
+    const unparsed = await makeWorkspace(as("A"), await park("reset"), "building the reset");
+    assert.ok(unparsed.ok && unparsed.status === "ready", JSON.stringify(unparsed));
+    assert.equal(unparsed.setup?.steps.length, 1);
+    assert.match(unparsed.setup?.steps[0]?.why ?? "", /cannot be read/);
+
+    localSetup(site, { setup: ["node -e \"require('fs').writeFileSync('tracked-ran.txt', '')\""] });
+    writeFileSync(path.join(site, ".git", "info", "exclude"), "");
+    git(site, "add", ".storytree/worktree.local.json");
+    git(site, "commit", "-m", "check the setup in");
+    const checkedIn = await makeWorkspace(as("A"), await park("profile"), "building the profile");
+    assert.ok(checkedIn.ok && checkedIn.status === "ready", JSON.stringify(checkedIn));
+    assert.match(checkedIn.setup?.steps[0]?.why ?? "", /git tracks it/);
+    assert.ok(!existsSync(path.join(checkedIn.folder, "tracked-ran.txt")), "a checked-in file's commands are not run");
+  });
+});
+
+test("19.3 · a workspace made in a project with no `.storytree/worktree.local.json` is made exactly as before: nothing is run, copied or shared, and its answer reports no setup", async () => {
+  await withWorld(async ({ site, park, as }) => {
+    writeFileSync(path.join(site, ".env"), "SECRET=1\n");
+
+    const made = await makeWorkspace(as("A"), await park("email form"), "building the email form");
+
+    assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+    assert.equal("setup" in made, false, "no setup is reported");
+    assert.ok(!existsSync(path.join(made.folder, ".env")), "nothing is copied");
   });
 });

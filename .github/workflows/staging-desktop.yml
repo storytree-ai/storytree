@@ -29,9 +29,11 @@ jobs:
       # storytree-identity, which the app's token check pins.
       STORYTREE_WORKOS_CLIENT_ID: client_01M3YA74GXBT6Z64G671EDC3GW
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 24
           cache: pnpm
@@ -43,7 +45,7 @@ jobs:
         run: grep -q "\"$STORYTREE_WORKOS_CLIENT_ID\"" apps/desktop/dist/main.cjs
       # With the client ID stamped, its 1.15 check opens a callback through the shell and sees it reach the sign-in session.
       - run: node apps/desktop/check-install.mjs
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: storytree-staging-windows-${{ github.sha }}
           path: apps/desktop/release/*-setup.exe

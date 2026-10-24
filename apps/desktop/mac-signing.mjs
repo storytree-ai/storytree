@@ -35,11 +35,17 @@ export function macSigning(env) {
  * Both set CSC_FOR_PULL_REQUEST: electron-builder skips signing a pull request's build by default, and Apple Silicon
  * runs no unsigned code. A fork's pull request gets no secrets, so it is ad-hoc and holds none to leak. */
 export function builderEnv(env) {
+  if (macSigning(env).mode === "ad-hoc") return { ...unsignedEnv(env), CSC_FOR_PULL_REQUEST: "true" };
   const { CSC_LINK, CSC_KEY_PASSWORD, ...rest } = env;
   const signed = { ...rest, CSC_FOR_PULL_REQUEST: "true" };
-  if (macSigning(env).mode === "ad-hoc") return signed;
   if (!env.STORYTREE_MAC_IDENTITY) throw new Error("STORYTREE_MAC_IDENTITY is not set: run `node apps/desktop/mac-signing.mjs prepare` before a Developer ID build");
   return { ...signed, CSC_NAME: env.STORYTREE_MAC_IDENTITY };
+}
+
+/** The environment an unsigned build (Windows, Linux, an ad-hoc Mac) runs electron-builder in: no certificate
+ * variable at all (CSC_*, WIN_CSC_*), so neither electron-builder nor anything it loads holds a signing secret. */
+export function unsignedEnv(env) {
+  return Object.fromEntries(Object.entries(env).filter(([name]) => !/^(WIN_)?CSC_/.test(name)));
 }
 
 /** electron-builder's Mac signing settings: it never notarises, because its notarytool wait has no bound and held

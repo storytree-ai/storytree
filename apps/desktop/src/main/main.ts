@@ -540,7 +540,7 @@ function openWindow(query: { project?: string; problem?: string }): BrowserWindo
       nodeIntegration: false,
     },
   });
-  // The page is the app: it never navigates away or opens other windows.
+  // The page is the app: it never navigates away, opens other windows or gets a permission.
   keepPageInWindow(window, { headless: args.smoke });
   // A failure inside the page (a surface's failed refresh, an uncaught throw) is kept in app.log with the rest.
   logPageErrors(window.webContents, line => console.error(line));

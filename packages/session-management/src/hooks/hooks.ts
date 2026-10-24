@@ -53,9 +53,10 @@ import path from "node:path";
 import type { NewLine, Storytree } from "@storytree/library";
 
 import type { ActivityLog, DeliveredEvent } from "../activity/index.js";
+import { runGit, type Git } from "../activity/git.js";
 import type { MergeContext, MergeWatch } from "../claims/index.js";
 import type { DeclaredCapabilities } from "../claims/edit-gate.js";
-import { findProject, openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
+import { approvedHere, findProject, openNamedProject, ProjectFolderError, requireApproval, route, storytreeHome, type LocateOptions, type Route } from "@storytree/project-and-caller";
 import { claudeCodeLines } from "./claude-code.js";
 import { CLOSE_OUT_REMINDER, closeOutReminder } from "./close-out-reminder.js";
 import { codexLines } from "./codex.js";
@@ -95,6 +96,8 @@ export interface HookInput {
   readonly guardMs?: number;
   /** The hook process's clock, which its parts are timed on (timing.ts, ADR-1056 D1). Without it, nothing is timed. */
   readonly clock?: HookClock;
+  /** How the hook runs git, only in an approved checkout (contract 3.46). By default, with the repository's own commands off. */
+  readonly git?: Git;
 }
 
 export { BACKGROUND };
@@ -177,7 +180,7 @@ export async function runHook(hook: HookInput): Promise<string | undefined> {
 /** The flag naming the event in a hook command, for a harness whose input names none (Antigravity). */
 export const EVENT = "--event=";
 
-async function answerHook({ argv, input: given, handOff: handing, merges, locate, declaredCapabilities, guardMs, clock }: HookInput): Promise<string | undefined> {
+async function answerHook({ argv, input: given, handOff: handing, merges, locate, declaredCapabilities, guardMs, clock, git = runGit }: HookInput): Promise<string | undefined> {
   const [harness = "", ...flags] = argv;
   const read = parse(given);
   const parsed = withEvent(read, flags);
@@ -199,11 +202,11 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     if (flags.includes(ASK_SETUP)) return;
     if (flags.includes(BIG_INJECTION)) return void (await fileBigInjection(parsed));
     // The turn-end hook that asks the agent to close out writes nothing: the other Stop hook writes the turn's line (ADR-0758 D4).
-    if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed);
+    if (flags.includes(CLOSE_OUT_REMINDER)) return closeOutReminder(harness, parsed, git);
     // The hook before each file-edit tool writes nothing: it answers whether the edit may happen (ADR-0949 D3).
     if (flags.includes(EDIT_GATE)) return await editGate(harness, parsed, declaredCapabilities, locate, homeOf(locate), failed);
     // The hook after each shell command that the harness waits for tells the agent of its changes to imported code (ADR-1015), and to capabilities its claims do not cover (ADR-0949 D3).
-    if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs);
+    if (flags.includes(SHELL_GUARD)) return await shellGuard(harness, parsed, hookLines(harness, parsed), locate, homeOf(locate), storytreeHome(), failed, declaredCapabilities, guardMs, git);
     const made = hookLines(harness, parsed);
     if (flags.includes(UPKEEP)) return void (made === undefined ? undefined : await upkeep(made, merges, locate));
     const asked = promptIn(harness, parsed);
@@ -211,7 +214,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     if (asked !== undefined) {
       // The user's own words may carry their yes to changing imported code (contract 5.42); a harness's notice is not theirs.
       const said = isHarnessNotice(asked.prompt) ? undefined : yesSaid(harness, asked, locate, homeOf(locate), failed);
-      const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock)]);
+      const [looked, yes] = await Promise.all([withinTime(contextForPrompt(asked)), said, made === undefined ? undefined : writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git)]);
       const context = looked?.context;
       if (looked?.report !== undefined) {
         // The report is filed by a copy of this hook, so the prompt does not wait for the library's write.
@@ -223,7 +226,7 @@ async function answerHook({ argv, input: given, handOff: handing, merges, locate
     }
     if (made === undefined) return;
     // After an edit the gate asked the user about, the user's yes is recorded on the increment (contract 5.41).
-    await Promise.all([writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed)]);
+    await Promise.all([writeLines(harness, input, flags, made, delivered, handOff, merges, locate, failed, declaredCapabilities !== undefined, clock, git), recordYesAfterEdit(harness, parsed, locate, homeOf(locate), failed)]);
   } catch (error) {
     // A hook never breaks the agent: whatever went wrong, nothing is written and nothing is said, but why is kept here.
     failed("hook", error);
@@ -257,14 +260,16 @@ interface Prepared {
 /**
  * Where `made`'s lines go, and the lines as both the command hook and the tool server record them (ADR-1056 D2): each
  * naming its folder's branch, at its worktree's root, with what a shell command edited; undefined outside a project.
- * `guarded` also sets the shell guard's baseline of the worktree.
+ * `guarded` also sets the shell guard's baseline of the worktree. The branch and the edits are read with `git` only in
+ * a checkout approved for the project (contract 3.46): in any other the lines name neither.
  */
-async function prepare(made: HookLines, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded: boolean): Promise<Prepared | undefined> {
+async function prepare(made: HookLines, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded: boolean, git: Git = runGit): Promise<Prepared | undefined> {
   const where = route(made.folder, locate);
   if (where.status === "not-a-project") return undefined;
+  const trusted = await mayRunGit(where, made.folder, locate);
   // The branch the folder is on now, on every line, before any waits on this machine (ADR-0754 D4).
   const { currentBranch, worktreeRoot } = await import("../activity/branch.js");
-  const branch = currentBranch(made.folder);
+  const branch = trusted ? currentBranch(made.folder, git) : undefined;
   if (branch !== undefined) made = { ...made, lines: made.lines.map((line) => (line.branch === undefined ? { ...line, branch } : line)) };
   // A command run in a subfolder is recorded at its worktree's root, so a session lists each worktree once (4.22),
   // or, with no git repository, at the folder holding the project's marker (4.33).
@@ -276,10 +281,32 @@ async function prepare(made: HookLines, locate: LocateOptions | undefined, faile
   // Observe before queueing or reaching the store: shell writes remain edits while offline, and
   // a command's edit line feeds the same upkeep/claim path as an explicit edit tool (3.22).
   const firstLine = made.lines[0];
-  if (root !== undefined && firstLine !== undefined) made = { ...made, lines: [...made.lines, ...shellEdits(home, root, firstLine, (error) => failed("observe", error))] };
+  if (trusted && root !== undefined && firstLine !== undefined) made = { ...made, lines: [...made.lines, ...shellEdits(home, root, firstLine, (error) => failed("observe", error), git)] };
   // The shell guard's own baseline of the worktree is set here too, when it is given the map's rule to judge claims by.
-  if (guarded && root !== undefined && firstLine !== undefined) watchWorktree(home, root, firstLine, failed);
+  if (trusted && guarded && root !== undefined && firstLine !== undefined) watchWorktree(home, root, firstLine, failed, git);
   return { where, made, firstLine };
+}
+
+/**
+ * Whether a hook may run git in `folder`, in `where`'s project (contract 3.46): only once it is known as the project's approved checkout
+ * on this machine, since a folder's own git config can name programs git starts. What this machine remembers answers at
+ * once; a folder it does not, while storytree runs, is asked of the library (which remembers a yes), and otherwise not.
+ */
+async function mayRunGit(where: Exclude<Route, { status: "not-a-project" }>, folder: string, locate: LocateOptions | undefined): Promise<boolean> {
+  if (approvedHere(where.project, folder, homeOf(locate))) return true;
+  if (where.status !== "routed") return false;
+  try {
+    const { connect } = await import("@storytree/library");
+    const storytree = await connect(withDeadline(where.library, CONNECT_TIMEOUT_MS));
+    try {
+      return await approved(storytree, where.project, folder, homeOf(locate));
+    } finally {
+      await storytree.close();
+    }
+  } catch {
+    // Unreached, nothing is known: the lines go on without git, as they would wait.
+    return false;
+  }
 }
 
 /** Add `lines` to `project`'s log as `delivered` records them, oldest first, counting each into `written` as it is added. */
@@ -340,7 +367,7 @@ export async function recordHookEvent(harness: string, input: unknown, reach: Re
 }
 
 /** Write one hook's lines to the log of the project its folder belongs to, or leave them waiting on this machine; a failure is traced with `failed`. Never throws. */
-async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, delivered: DeliveredEvent, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock): Promise<void> {
+async function writeLines(harness: string, input: string, flags: readonly string[], made: HookLines, delivered: DeliveredEvent, handOff: HookInput["handOff"], merges: MergeWatch | undefined, locate: LocateOptions | undefined, failed: (stage: HookFailure["stage"], error: unknown) => void, guarded = false, clock?: HookClock, git: Git = runGit): Promise<void> {
   try {
     if (made.lines.length === 0) return;
     // Registered beside the tool server's handler (codex-delivery.ts) or under Claude Code's mod, an event the tool recorded is not recorded
@@ -354,11 +381,11 @@ async function writeLines(harness: string, input: string, flags: readonly string
       if (where.status !== "routed" || !due(`${where.project}-after-tool`, UPKEEP_EVERY_MS)) {
         const { worktreeRoot } = await import("../activity/branch.js");
         const [root, first] = [worktreeRoot(made.folder), made.lines[0]];
-        if (guarded && root !== undefined && first !== undefined) watchWorktree(storytreeHome(), root, first, failed);
+        if (guarded && root !== undefined && first !== undefined && where.status !== "not-a-project" && approvedHere(where.project, made.folder, homeOf(locate))) watchWorktree(storytreeHome(), root, first, failed, git);
         return;
       }
     }
-    const ready = await prepare(made, locate, failed, guarded);
+    const ready = await prepare(made, locate, failed, guarded, git);
     if (ready === undefined) return;
     const { where, firstLine } = ready;
     made = ready.made;
@@ -404,7 +431,7 @@ async function writeLines(harness: string, input: string, flags: readonly string
       // A folder whose marker names a deleted project's database writes nothing, under its name or into a new project of it (ADR-0831).
       if (where.identity !== undefined && (await storytree.projectIdentities())[where.project] !== where.identity) return;
       // The folders the project imports here are remembered, and their baselines set, for the shell guard (shell-guard.ts).
-      if (firstLine !== undefined) await watchImports(storytree, where.project, homeOf(locate), home, firstLine, failed);
+      if (firstLine !== undefined) await watchImports(storytree, where.project, homeOf(locate), home, firstLine, failed, git);
       // Lines that waited go first, so the log keeps each session's lines in the order they happened; the guard's are in an imported folder.
       await uploadQueued(home, log, async (project, folder) => rememberedImports(home, project).some((place) => place.folder === folder) || approved(storytree, project, folder, homeOf(locate)));
       // The first hook to reach the log since this machine started says so, once: sessions it outlived read gone everywhere (4.29).

@@ -1,6 +1,6 @@
 // The forest page's glass sheet, top face (increment_5e1d982b32a6, ADR-1043 D1, D2, D4), drawn by the actual desktop page from
-// a read-only snapshot of storytree's own library: the spike's (branch spike/glass-sheet, its evidence seed.json.gz and
-// survey.json), kept out of this repository for its size. Every pan is a real pointer drag or a real sideways scroll, every
+// a read-only snapshot of storytree's own library (its seed.json.gz and survey.json),
+// kept out of this repository for its size. Every pan is a real pointer drag or a real sideways scroll, every
 // zoom a real wheel, Home a real key press. Run from the checkout root, in the foreground, with the snapshot's folder:
 //   node packages/dev-loop/src/heavy-lock.mjs -- node --import tsx packages/forest/src/view/evidence/glass-sheet-top/capture.mjs <seed folder> --retake
 import assert from 'node:assert/strict';

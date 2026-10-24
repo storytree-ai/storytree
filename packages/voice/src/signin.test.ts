@@ -50,6 +50,7 @@ async function tokenFor(audience: string, { sub = OWNER, iss = ISSUER, aud = aud
     .sign(key);
 }
 
+const MCP_HEADERS_2025 = { ...MCP_HEADERS, "mcp-protocol-version": "2025-06-18" };
 const metadataPath = (route: string) => `/.well-known/oauth-protected-resource${route}`;
 
 test("1.15 with no sign-in configured no signed tool is registered and the metadata path is a bare 404; sign-in settings come all together or the door refuses to start", async () => {
@@ -168,5 +169,34 @@ test("1.19 reads never look at the token: a read with no token, a bad one or an 
     assert.equal(listed.status, 200);
   } finally {
     await door.close();
+  }
+});
+
+test("1.20 with VOICE_SIGNIN_EVERY_CALL on, every call without the owner's token is 401 with the challenge, initialize and reads included, so claude.ai signs in at connect time; the owner's token is served; off, reads stay open", async () => {
+  const door = await testDoor(repo.dir, { ...signInEnv(), VOICE_SIGNIN_EVERY_CALL: "1" });
+  try {
+    const initialize = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1" } } });
+    for (const [label, body] of [["initialize", initialize], ["a read", toolCall(2, "find", { query: "anything" })]] as const) {
+      const answer = await raw(door.port, { urlPath: door.route, headers: MCP_HEADERS_2025, body });
+      assert.equal(answer.status, 401, label);
+      assert.ok(String(answer.headers["www-authenticate"]).includes(`resource_metadata="${PUBLIC_URL}${metadataPath(door.route)}"`), label);
+      assert.ok(!messagesOf(answer.body).some((message) => message.result), `${label}: answered without a token`);
+    }
+    const owner = await tokenFor(`${PUBLIC_URL}${door.route}`);
+    const read = await raw(door.port, { urlPath: door.route, headers: { ...LEGACY_HEADERS, authorization: `Bearer ${owner}` }, body: toolCall(3, "find", { query: "anything" }) });
+    assert.equal(read.status, 200);
+    const other = await raw(door.port, { urlPath: door.route, headers: { ...LEGACY_HEADERS, authorization: `Bearer ${await tokenFor(`${PUBLIC_URL}${door.route}`, { sub: "user_01SOMEONEELSE" })}` }, body: toolCall(4, "find", { query: "anything" }) });
+    assert.equal(other.status, 403);
+  } finally {
+    await door.close();
+  }
+  for (const value of ["0", ""]) {
+    const open = await testDoor(repo.dir, { ...signInEnv(), VOICE_SIGNIN_EVERY_CALL: value });
+    try {
+      const answer = await raw(open.port, { urlPath: open.route, headers: LEGACY_HEADERS, body: toolCall(1, "find", { query: "anything" }) });
+      assert.equal(answer.status, 200, `VOICE_SIGNIN_EVERY_CALL=${value}`);
+    } finally {
+      await open.close();
+    }
   }
 });

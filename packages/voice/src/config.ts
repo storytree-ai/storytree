@@ -37,6 +37,8 @@ export interface SignInConfig {
   readonly metadataUrl: string;
   /** The owner's own user id at the sign-in service; no one else's token runs a signed tool. */
   readonly owner: string;
+  /** Every call needs the owner's token, reads and initialize included (contract 1.20): claude.ai signs in only when its first calls are refused. */
+  readonly everyCall: boolean;
 }
 
 /** A setting the door cannot start with; its message names what to fix and never holds the secret. */
@@ -45,7 +47,7 @@ export class ConfigError extends Error {}
 /** The door's own settings and its secret: none of them reaches a child. */
 const DOOR_SETTINGS = [
   "VOICE_TOKEN", "VOICE_SPIKE_TOKEN", "PORT", "REPO_DIR", "ALLOWED_HOSTS", "ALLOWED_CIDRS", "STORYTREE_CLI",
-  "VOICE_SIGNIN_ISSUER", "VOICE_PUBLIC_URL", "VOICE_OWNER_ID", "VOICE_SIGNIN_JWKS",
+  "VOICE_SIGNIN_ISSUER", "VOICE_PUBLIC_URL", "VOICE_OWNER_ID", "VOICE_SIGNIN_JWKS", "VOICE_SIGNIN_EVERY_CALL",
 ];
 
 /** Every harness's session variable, and storytree's own: a child names the voice session and no other (1.13). */
@@ -123,12 +125,15 @@ function signInFrom(env: NodeJS.ProcessEnv, token: string): SignInConfig | null 
   const publicUrl = httpsOrigin(env.VOICE_PUBLIC_URL!, "VOICE_PUBLIC_URL");
   const owner = env.VOICE_OWNER_ID!;
   if (!/^user_[A-Za-z0-9]+$/.test(owner)) throw new ConfigError("VOICE_OWNER_ID must be the owner's sign-in user id, such as user_01ABC…");
+  const everyCall = (env.VOICE_SIGNIN_EVERY_CALL ?? "").trim();
+  if (!["", "0", "1"].includes(everyCall)) throw new ConfigError("VOICE_SIGNIN_EVERY_CALL must be 1 (every call needs the owner's sign-in) or 0");
   return {
     issuer,
     jwksUrl: env.VOICE_SIGNIN_JWKS || `${issuer}/oauth2/jwks`,
     resource: `${publicUrl}/mcp/${token}`,
     metadataUrl: `${publicUrl}/.well-known/oauth-protected-resource/mcp/${token}`,
     owner,
+    everyCall: everyCall === "1",
   };
 }
 

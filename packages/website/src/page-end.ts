@@ -26,7 +26,7 @@ export const waitlistCall = {
 };
 
 /** The harness section and the closing call, built into the page so both read without JavaScript. */
-export function pageEndMarkup({ preview = false }: { preview?: boolean } = {}): string {
+export function pageEndMarkup({ preview }: { preview: boolean }): string {
   const call = preview ? waitlistCall : liveCall;
   const marks = harness.marks.map(({ name, src }) => `<li><img src="${src}" alt="${escapeHtml(name)}" width="40" height="40"><span aria-hidden="true">${escapeHtml(name)}</span></li>`).join("");
   return `<section id="harness" class="page-end harness" aria-labelledby="harness-title">

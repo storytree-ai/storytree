@@ -12,7 +12,8 @@ import { openActivityLog } from "../activity/index.js";
 import type { Line } from "@storytree/library";
 import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
-import { gitRunner, type GitRunner } from "./branch-states.js";
+import { learn } from "../hooks/learned-limits.js";
+import { BRANCH_GIT_STEP, gitRunner, type GitRunner } from "./branch-states.js";
 import { lookAsApp, projectFolder, resolveBranches, sessionsFrom } from "./index.js";
 
 test("4.10 each branch a session worked on is marked resolved once its pull request merged (any machine), or, on the machine it was worked on, once it has nothing ahead of main or is deleted; one still ahead stays open, and one that gains work after it resolved is open again; a state is written only when it changes", async () => {
@@ -191,10 +192,46 @@ test("4.10 a git that does not answer whether a branch exists leaves it unresolv
       const watch = { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, budgetMs: 60_000, machine: "here" };
       // A loaded machine: git answers everything but one question, which outlasts its wait.
       const slow = (question: string): GitRunner => async (cwd, timeout, args) => (args.includes(question) ? { answered: false } : gitRunner(cwd, timeout, args));
-      for (const question of ["--verify", "symbolic-ref"]) assert.deepEqual(await resolveBranches(watcher, { ...watch, git: slow(question) }), [], `a slow ${question} is not absence`);
+      for (const question of ["--verify", "symbolic-ref"]) assert.deepEqual(await resolveBranches(watcher, { ...watch, home: path.join(dir, "home"), git: slow(question) }), [], `a slow ${question} is not absence`);
 
       const found = await resolveBranches(watcher, watch);
       assert.deepEqual(found.flatMap((line) => (line.kind === "branch-state" ? [[line.of, line.open, line.how]] : [])), [["claude/gone", false, "deleted"]]);
+    });
+  } finally {
+    await log.close();
+  }
+});
+
+test("4.39 the look's git calls get the time this machine learned: 2 s on a new machine, three times a slow machine's slowest call, and no more than 5 s once its calls keep giving up", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      await log.append(project, { session: "worker", harness: "claude-code", source: "hook", machine: "here", folder: repo, branch: "claude/work", kind: "file-edited", files: ["x.ts"] });
+      const watcher = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      // A git that never answers: the branch stays unresolved, so every look asks again, and gives up at its limit.
+      const given: number[] = [];
+      const silent: GitRunner = async (_cwd, timeout) => {
+        given.push(timeout);
+        return { answered: false };
+      };
+      const look = async (home: string) => {
+        given.length = 0;
+        await resolveBranches(watcher, { allMergedPulls: async () => new Map(), allOpenPulls: async () => new Map(), everyMs: 0, budgetMs: 60_000, machine: "here", home, git: silent });
+        return [...new Set(given)];
+      };
+
+      const fresh = path.join(dir, "fresh");
+      assert.deepEqual(await look(fresh), [BRANCH_GIT_STEP.floorMs], "a new machine's calls get the 2 s they always had");
+      await look(fresh);
+      await look(fresh);
+      assert.deepEqual(await look(fresh), [BRANCH_GIT_STEP.ceilingMs], "three looks that gave up widen it, to the ceiling and no further");
+
+      const slow = path.join(dir, "slow");
+      for (let i = 0; i < 3; i++) learn(slow, BRANCH_GIT_STEP, 1_200);
+      assert.deepEqual(await look(slow), [3_600], "a machine whose calls took 1.2 s gets three times that");
     });
   } finally {
     await log.close();

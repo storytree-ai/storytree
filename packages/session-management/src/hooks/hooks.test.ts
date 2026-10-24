@@ -22,11 +22,11 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { connect as connectTcp, createServer, type AddressInfo, type Server } from "node:net";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { connect, type Line, type NewLine } from "@storytree/library";
+import { waitUntil } from "@storytree/test-waits";
 import pg from "pg";
 
 import { openActivityLog } from "../activity/index.js";
@@ -463,8 +463,7 @@ test("3.6 recorded inputs from before a shell command, after one that failed, an
       const ran = await runHook("codex", recorded("codex", name, folder), home, ["--background"]);
       assert.deepEqual({ code: ran.code, stdout: ran.stdout, stderr: ran.stderr }, { code: 0, stdout: "", stderr: "" }, name);
       // Its line arrives from the background, after the hook has already exited.
-      const deadline = Date.now() + 5_000;
-      while ((await linesOf(project)).filter((line) => line.session === codex.session).length < (name === "stop" ? 2 : 1) && Date.now() < deadline) await sleep(50);
+      await waitUntil(async () => (await linesOf(project)).filter((line) => line.session === codex.session).length >= (name === "stop" ? 2 : 1), 5_000, `codex's ${name} line from the background`);
     }
     assert.deepEqual((await linesOf(project)).filter((line) => line.session === codex.session).map(written), [
       { ...codex, kind: "command-started", command: "echo probe-start", call: "exec-ba34158e-632e-4dbc-86d0-a2419ae85e68" },
@@ -564,14 +563,11 @@ test("3.38 one prompt's definitions past 8 KB are all still added, and file one 
     await library.defineTerm({ term: "Claim", meaning: "Holding a capability while you build it." });
     const naming = (from: number, to: number) => `Read ${terms.slice(from, to).join(", ")}.`;
     const reports = async () => (await library.list("friction")).filter(({ fields }) => fields.title === "One prompt's definitions passed 8 KB");
-    const reportFor = async (session: string) => {
-      for (let tries = 0; tries < 100; tries++) {
+    const reportFor = async (session: string) =>
+      await waitUntil(async () => {
         const found = (await reports()).filter(({ fields }) => fields.evidence.includes(session));
-        if (found.length > 0) return found;
-        await sleep(100);
-      }
-      return [];
-    };
+        return found.length > 0 ? found : undefined;
+      }, 10_000, `${session}'s friction report`);
     await withTempDir(async (dir) => {
       const folder = await projectFolder(dir, project);
       const home = storytreeHome(dir, true);
@@ -1052,8 +1048,7 @@ test("3.19 a Claude Code session's end is recorded though Claude Code stops its 
 
       // The handed-on copy starts a fresh node and waits out the slow store; a loaded Windows runner
       // took longer than 8 s (PR #1699), so the line gets the budget 3.22 gives its hooks.
-      const deadline = Date.now() + 120_000;
-      while (!(await linesOf(project)).some((line) => line.kind === "session-ended") && Date.now() < deadline) await sleep(100);
+      await waitUntil(async () => (await linesOf(project)).some((line) => line.kind === "session-ended"), 120_000, "the handed-on copy's session-ended line");
       assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["session-ended"]);
     });
   } finally {
@@ -1091,8 +1086,7 @@ test("3.45 a `claude -p` session's last turn is recorded without the mod though 
         clearTimeout(kill);
       }
 
-      const deadline = Date.now() + 12_000;
-      while (!(await linesOf(project)).some((line) => line.kind === "turn-ended") && Date.now() < deadline) await sleep(100);
+      await waitUntil(async () => (await linesOf(project)).some((line) => line.kind === "turn-ended"), 12_000, `the handed-on copy's turn-ended line (the hook's runs ended: ${ended.join(", ")})`);
       assert.deepEqual((await linesOf(project)).map((line) => line.kind), ["turn-ended"], `the hook's runs ended: ${ended.join(", ")}`);
     });
   } finally {
@@ -1117,9 +1111,8 @@ test("4.10 a pull request's merge is recorded on its branch by the hooks though 
     writeFileSync(path.join(bin, "gh"), `#!${process.execPath}\nsetTimeout(() => console.log(${JSON.stringify(pulls)}.replace("MERGED_AT", new Date().toISOString())), 6_000);\n`, { mode: 0o755 });
 
     await runHook("claude-code", recorded("claude-code", "post-tool-use-write", folder), home, [], { PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` });
-    const deadline = Date.now() + 20_000;
     const merged = async () => (await linesOf(project)).flatMap((line) => (line.kind === "branch-state" ? [[line.of, line.open, line.how, line.pr]] : []));
-    while ((await merged()).length === 0 && Date.now() < deadline) await sleep(250);
+    await waitUntil(async () => (await merged()).length > 0, 20_000, "the branch's merge to be recorded");
     assert.deepEqual(await merged(), [["claude/fix", false, "merged", 7]]);
   });
 });
@@ -1198,9 +1191,7 @@ test("3.24 a hook cut off at its deadline while a statement of its waits on the 
       await holder.query("SELECT pg_advisory_xact_lock(hashtext('storytree.activity'), hashtext($1))", [project]);
       const ran = await runHook("claude-code", recorded("claude-code", "session-end", folder), home);
       assert.equal(ran.code, 0);
-      let left = await waiting();
-      for (const quit = Date.now() + 3_000; left > 0 && Date.now() < quit; left = await waiting()) await sleep(100);
-      assert.equal(left, 0, "no statement of the hook's still runs once it has gone");
+      await waitUntil(async () => (await waiting()) === 0, 3_000, "no statement of the hook's still running once it has gone");
     } finally {
       await holder.query("ROLLBACK").catch(() => undefined);
       await Promise.all([holder.end(), looker.end()]);
@@ -1484,11 +1475,9 @@ test("3.39 every hook records on this machine how long it took, by harness and e
     // The next hook hands the look around the machine on: the copy is marked apart, and uploads what waited.
     await runHook("codex", recorded("codex", "post-tool-use-bash", folder), home);
     // The copy may run for as long as the look around the machine may (20 s).
-    const deadline = Date.now() + 25_000;
     const uploaded = async () => (await linesOf(project, { starts: true })).flatMap((line) => (line.kind === "hook-times" ? line.readings : []));
-    while (!(await uploaded()).some((r) => r.event === "SessionEnd") && Date.now() < deadline) await sleep(100);
-    assert.deepEqual((await uploaded()).find((r) => r.event === "SessionEnd"), reading);
-    while (!waiting().some((r) => r.event === "PostToolUse --upkeep --handed") && Date.now() < deadline) await sleep(100);
+    assert.deepEqual(await waitUntil(async () => (await uploaded()).find((r) => r.event === "SessionEnd"), 25_000, "the session end's reading to be uploaded"), reading);
+    await waitUntil(() => waiting().some((r) => r.event === "PostToolUse --upkeep --handed"), 25_000, "the copy's own reading to wait for the next upload");
     assert.ok(waiting().some((r) => r.harness === "codex" && r.event === "PostToolUse --upkeep --handed"), "the copy's own reading waits for the next upload");
   });
 });
@@ -1583,8 +1572,7 @@ test("3.41 Codex hands the tool server each event its handler's template carries
           ...(existsSync(times) ? readFileSync(times, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as Reading) : []),
           ...(await linesOf(project, { starts: true })).flatMap((line) => (line.kind === "hook-times" ? line.readings : [])),
         ].filter((reading) => reading.event.endsWith(AFTER_TOOL)).sort((one, other) => one.at.localeCompare(other.at));
-        const deadline = Date.now() + 25_000;
-        while ((await readings()).length < events.length + 1 && Date.now() < deadline) await sleep(100);
+        await waitUntil(async () => (await readings()).length >= events.length + 1, 25_000, "every hook's reading");
         assert.deepEqual((await readings()).map((reading) => "connect" in reading.parts), [true, false, false, false, true]);
       } finally {
         await log.close();
@@ -1729,8 +1717,7 @@ test("3.42 A Claude Code command hook, finding the tool server's note of its eve
           ...(existsSync(times) ? readFileSync(times, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as Reading) : []),
           ...(await linesOf(project, { starts: true })).flatMap((line) => (line.kind === "hook-times" ? line.readings : [])),
         ].filter((reading) => reading.harness === "claude-code" && !reading.event.includes("--upkeep")).sort((one, other) => one.at.localeCompare(other.at));
-        const deadline = Date.now() + 25_000;
-        while ((await readings()).length < events.length + 2 && Date.now() < deadline) await sleep(100);
+        await waitUntil(async () => (await readings()).length >= events.length + 2, 25_000, "every hook's reading");
         assert.deepEqual((await readings()).map((reading) => "connect" in reading.parts), [true, false, false, false, true, true]);
       } finally {
         await log.close();

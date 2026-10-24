@@ -8,6 +8,7 @@ import { test } from "node:test";
 
 import { openActivityLog, type ActivityLog } from "../activity/index.js";
 import type { Line, NewLine } from "@storytree/library";
+import { waitUntil } from "@storytree/test-waits";
 import { testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { claimsFrom, readClaims } from "../claims/index.js";
 import { LEAVE_MS, LONGEST_COMMAND_MS, QUIET_MS, readSessions, readSessionStates, sessionsFrom } from "./index.js";
@@ -405,7 +406,7 @@ test("4.29 a session last seen on a machine before that machine's recorded start
     await write({ ...elsewhere, source: "tool", kind: "claimed", increment: "inc-laptop", reason: "laptop work" });
     await write({ ...elsewhere, kind: "prompt-submitted" });
     // Mint starts again after the dead lane's last line; the first hook there records it.
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitUntil(() => Date.now() > Date.parse(lastWords.at) + 20, 1_000, "the clock to pass the dead lane's last line");
     await write({ ...alive, kind: "machine-started", startedAt: after(lastWords, 10).toISOString() });
     await write({ ...alive, kind: "session-started", how: "startup" });
     await write({ ...alive, source: "tool", kind: "claimed", increment: "inc-alive", reason: "after the restart" });

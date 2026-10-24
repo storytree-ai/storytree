@@ -351,8 +351,9 @@ test("1.17 · a lane that ends by its engine's own exit with no report or push i
 
   for (const [what, set] of [["a report", () => { options.commands.claude = command(`require('node:fs').writeFileSync(${JSON.stringify(join(options.lanesDir, "pool-increment_abc.report.md"))}, 'r'); process.exitCode=3;`); }],
     ["a push", () => { options.commands.claude = command("process.exitCode=3;"); let n = 0; options.heads = async () => (n++ ? { "claude/increment-abc-x": "9" } : {}); }],
-    ["a signal", () => { options.commands.claude = command("process.kill(process.pid, 'SIGTERM');"); options.heads = async () => ({}); }],
-    ["a fast failure", () => { options.commands.claude = command("process.exitCode=3;"); options.say = () => {}; }]]) {
+    // Windows ends a process that signals itself with exit 1 and no signal, so the signal case runs where signals exist.
+    ...(process.platform === "win32" ? [] : [["a signal", () => { options.commands.claude = command("process.kill(process.pid, 'SIGTERM');"); options.heads = async () => ({}); }]]),
+    ["a fast failure", () => { options.commands.claude = command("process.exitCode=3;"); options.heads = async () => ({}); options.say = () => {}; }]]) {
     recorded.length = 0;
     set();
     await runLane(options);

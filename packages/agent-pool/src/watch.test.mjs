@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 
 import { countEngines } from "./queue.mjs";
-import { adoptRequests, ensureWatcher, hand, handOver, handThroughLibrary, isFixSession, main, projectOf, readFailures, readPull, reachOf, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { adoptRequests, ensureWatcher, hand, handOver, handThroughLibrary, isFixSession, main, projectOf, readFailures, readPull, reachOf, recordVerdict, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -16,7 +16,7 @@ const SESSION = "aaaa-session";
 async function box(t, { looks = {}, board = "" } = {}) {
   const dir = await mkdtemp(join(tmpdir(), "lane-watch-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
-  const calls = [], fixes = [], lines = [], live = new Set();
+  const calls = [], fixes = [], reviews = [], lines = [], live = new Set();
   let clock = at, room = true;
   const options = {
     dir, limit: 2, say: (line) => lines.push(line), now: () => clock,
@@ -26,8 +26,9 @@ async function box(t, { looks = {}, board = "" } = {}) {
     alive: async (pid) => live.has(pid),
     room: async () => room,
     startFix: async (fix) => { fixes.push(fix); const pid = 1000 + fixes.length; live.add(pid); return { pid, log: `/lanes/fix-${fix.pr}-${fix.n}.log` }; },
+    startReview: async (review) => { reviews.push(review); const pid = 2000 + reviews.length; live.add(pid); return { pid, log: `/lanes/review-${review.pr}-${review.n}.log` }; },
   };
-  return { dir, calls, fixes, lines, live, looks, options, tick: (ms) => { clock += ms; }, noRoom: () => { room = false; } };
+  return { dir, calls, fixes, reviews, lines, live, looks, options, tick: (ms) => { clock += ms; }, noRoom: () => { room = false; } };
 }
 
 const pull = ({ state = "OPEN", head = "h1", checks = [], removed = [], queued = false, mergeable = "MERGEABLE", draft = false, labels = [], cross = false, from = "storytree-ai/storytree" } = {}) => ({
@@ -123,17 +124,89 @@ test("4.8 · a pull request that conflicts with main is red with every check gre
   assert.match(b.fixes[0].brief, /merge\s+origin\/main/);
 });
 
-test("4.3 · after its fix limit the watcher writes an owner wait with the PR and the logs", async (t) => {
+test("4.3 · past its fix limit the watcher starts a review session, never a third fix, and at its cap writes an owner wait with the PR, the logs and the last review's summary", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = red;
   for (let round = 0; round < 3; round++) { await watchOnce(b.options); b.live.clear(); }
   assert.equal(b.fixes.length, 2, "two fix sessions, then no third");
+  assert.equal(b.reviews.length, 1, "an independent review instead");
+  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "no owner wait below the cap");
+  for (const piece of ["#41", "increment_one", "https://ci/run/9", "/lanes/fix-41-1.log", "/lanes/fix-41-2.log", "watch.mjs verdict 41"]) assert.ok(b.reviews[0].brief.includes(piece), piece);
+  // Each review sends it back to a fix session, until six sessions are spent.
+  for (let round = 0; round < 3; round++) {
+    if ((await saved(b)).fixes.at(-1).review) await recordVerdict({ dir: b.dir, pr: 41, kind: "fix", summary: `the cache test reads a stale key (${round})` });
+    await watchOnce(b.options); b.live.clear();
+  }
+  await watchOnce(b.options);
+  assert.deepEqual([b.fixes.length, b.reviews.length], [4, 2], "fix, fix, review, fix, review, fix: six sessions");
   const wait = b.calls.at(-1);
   assert.deepEqual(wait.slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "owner"]);
   assert.equal(wait[6], "--note");
-  for (const piece of ["PR #41", "verify on Windows failed", "https://ci/run/9", "/lanes/fix-41-1.log", "/lanes/fix-41-2.log"]) assert.ok(wait[7].includes(piece), piece);
+  for (const piece of ["PR #41", "verify on Windows failed", "https://ci/run/9", "/lanes/fix-41-1.log", "/lanes/review-41-5.log", "the cache test reads a stale key"]) assert.ok(wait[7].includes(piece), piece);
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is forgotten once the owner has it");
+});
+
+test("4.37 · a review session's one verdict decides the red: retried, retried after parking the flaky test's fix, fixed again, or put to the owner by its question", async (t) => {
+  const retried = async (kind) => {
+    const b = await box(t);
+    const reruns = [];
+    b.options.rerun = async (one) => { reruns.push(one.id); };
+    await handOff(b);
+    b.looks[41] = flaky({ outside: false });
+    for (let round = 0; round < 3; round++) { await watchOnce(b.options); b.live.clear(); }
+    assert.equal(b.reviews.length, 1);
+    await recordVerdict({ dir: b.dir, pr: 41, kind, summary: "random timing on a loaded runner" });
+    await watchOnce(b.options);
+    assert.deepEqual(reruns, [5], `${kind}: its failed runs are rerun`);
+    assert.deepEqual([b.fixes.length, b.reviews.length], [2, 1], `${kind}: no model session for the retry`);
+    await watchOnce(b.options);
+    assert.deepEqual(reruns, [5], "a look before the rerun's run has started does nothing again");
+    b.looks[41] = flaky({ outside: false, run: 6 });
+    await watchOnce(b.options);
+    assert.equal(b.reviews.length, 2, "red again after the retry: reviewed again");
+  };
+  await retried("flake");
+  await retried("elsewhere");
+
+  const fixed = await box(t);
+  await handOff(fixed);
+  fixed.looks[41] = red;
+  for (let round = 0; round < 3; round++) { await watchOnce(fixed.options); fixed.live.clear(); }
+  await recordVerdict({ dir: fixed.dir, pr: 41, kind: "fix", summary: "the PR's own parser drops the last line" });
+  await watchOnce(fixed.options);
+  assert.equal(fixed.fixes.length, 3, "a fix the review judged a session can make");
+  assert.match(fixed.fixes[2].brief, /the PR's own parser drops the last line/);
+
+  const asked = await box(t);
+  await handOff(asked);
+  asked.looks[41] = red;
+  for (let round = 0; round < 3; round++) { await watchOnce(asked.options); asked.live.clear(); }
+  await recordVerdict({ dir: asked.dir, pr: 41, kind: "owner", summary: "it needs a paid runner", question: "question_abc" });
+  asked.noRoom();
+  await watchOnce(asked.options);
+  assert.equal(asked.fixes.length, 2, "no session after the owner's question");
+  assert.ok(!asked.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "the review's question holds it, not an owner wait");
+  assert.deepEqual(asked.calls.at(-1), ["workspace", "let-go", "41", "--reason", "PR #41 waits on the owner's answer to question_abc; released by the watcher"]);
+  assert.deepEqual(await readdir(asked.dir), [], "the hand-off is dropped");
+
+  const silent = await box(t);
+  await handOff(silent);
+  silent.looks[41] = red;
+  for (let round = 0; round < 4; round++) { await watchOnce(silent.options); silent.live.clear(); }
+  assert.deepEqual([silent.fixes.length, silent.reviews.length], [2, 2], "a review that ended with no verdict is reviewed again");
+
+  const outs = [];
+  const b = await box(t);
+  await handOff(b);
+  const at = (args) => main(args, { ...b.options, out: (line) => outs.push(line) });
+  assert.equal(await at(["verdict", "41", "fix", "--summary", "early"]), 1, "no review to record a verdict on");
+  b.looks[41] = red;
+  for (let round = 0; round < 3; round++) { await watchOnce(b.options); b.live.clear(); }
+  assert.equal(await at(["verdict", "41", "maybe", "--summary", "unsure"]), 2, "one of the four verdicts only");
+  assert.equal(await at(["verdict", "41", "owner", "--summary", "needs him"]), 1, "an owner verdict names its question");
+  assert.equal(await at(["verdict", "41", "elsewhere", "--summary", "3.19 is slow on Windows", "--parked", "increment_slow"]), 0);
+  assert.deepEqual((await saved(b)).fixes.at(-1).verdict, { kind: "elsewhere", summary: "3.19 is slow on Windows", parked: "increment_slow" });
 });
 
 test("4.12 · a pull request that conflicts with main past the fix limit gets one more fix session, and no owner wait", async (t) => {
@@ -363,7 +436,7 @@ test("4.14 · a fix session refused by another session's claim hands back withou
   assert.match(b.fixes[3].brief, /Fix session 1 of 2/, "the refusal is not counted");
   b.live.clear();
   await watchOnce(b.options);
-  assert.ok(b.calls.some(([, , verb, inc, , waitFor]) => verb === "wait" && inc === "increment_one" && waitFor === "owner"), "#41 used its two");
+  assert.deepEqual(b.reviews.map((review) => review.pr), [41, 41], "#41 used its two, so it is reviewed, and reviewed again when its review recorded no verdict");
   assert.ok(!b.calls.some(([, , verb, inc, , waitFor]) => verb === "wait" && inc === "increment_two" && waitFor === "owner"),
     "#42's refusal leaves it one more");
   assert.equal(b.fixes.filter((fix) => fix.pr === 42).length, 3);
@@ -543,7 +616,7 @@ test("4.22 · a hand-over holds the session's claims for its pull request on its
   assert.deepEqual(b.calls.filter(([, verb]) => verb === "let-go"), [["workspace", "let-go", "41", "--reason", "PR #41 closed without merging; released by the watcher"]]);
 });
 
-test("4.23 · a pull request open past three days since it was handed over gives its claims up and goes back on its arc as ready work; a red past its limit lets them go too", async (t) => {
+test("4.23 · a pull request open past three days since it was handed over gives its claims up and goes back on its arc as ready work; a red at its session cap lets them go too", async (t) => {
   const b = await box(t);
   await handOff(b);
   b.looks[41] = { state: "pending", head: "h1", branch: "claude/increment-one" };
@@ -558,10 +631,11 @@ test("4.23 · a pull request open past three days since it was handed over gives
   assert.match(b.lines.at(-1), /PR #41 open past 3 days.*back on its arc/);
 
   const spent = await box(t);
+  spent.options.cap = 3;
   await handOff(spent);
   spent.looks[41] = red;
-  for (let round = 0; round < 3; round++) { await watchOnce(spent.options); spent.live.clear(); }
-  assert.deepEqual(spent.calls.at(-2), ["workspace", "let-go", "41", "--reason", "PR #41 still red after 2 fix sessions; released by the watcher"], "released before its owner wait");
+  for (let round = 0; round < 4; round++) { await watchOnce(spent.options); spent.live.clear(); }
+  assert.deepEqual(spent.calls.at(-2), ["workspace", "let-go", "41", "--reason", "PR #41 still red after 3 sessions; released by the watcher"], "released before its owner wait");
   assert.deepEqual(spent.calls.at(-1).slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "owner"]);
 });
 
@@ -890,7 +964,7 @@ test("4.34 · a red whose failing tests all lie outside the pull request's reach
   for (let round = 0; round < 3; round++) { await watchOnce(b.options); b.live.clear(); }
   assert.equal(b.fixes.length, 2);
   assert.match(b.fixes[0].brief, /Fix session 1 of 2/, "the flakes before it counted nothing");
-  assert.deepEqual(b.calls.at(-1).slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "owner"], "a counted red past the limit still waits on the owner");
+  assert.equal(b.reviews.length, 1, "a counted red past the limit is reviewed");
 });
 
 test("4.35 · a test that fails again on the same pull request counts, wherever it lies", async (t) => {
@@ -910,7 +984,7 @@ test("4.35 · a test that fails again on the same pull request counts, wherever 
   assert.equal(b.fixes.length, 2, "a red in reach counts as before");
 });
 
-test("4.36 · a pull request whose fix sessions' cap is spent on flakes goes back on its arc as ready work, with a friction naming the flaky tests, never to the owner", async (t) => {
+test("4.36 · a pull request whose session cap is spent on flakes goes to the owner with a friction naming the flaky tests, never back on its arc", async (t) => {
   const b = await box(t);
   b.options.cap = 3;
   b.options.refresh = async () => {};
@@ -919,11 +993,13 @@ test("4.36 · a pull request whose fix sessions' cap is spent on flakes goes bac
   assert.equal(b.fixes.length, 0);
   b.looks[41] = { ...flaky({ head: "h9", run: 9, tests: ["1.9 · flaky"] }), branch: "claude/increment-one" };
   await watchOnce(b.options);
-  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "no owner wait");
-  assert.ok(b.calls.some(([, , verb, id]) => verb === "edit" && id === "increment_one"), "its body names the pull request and branch");
+  assert.ok(!b.calls.some(([, , verb, id]) => verb === "edit" && id === "increment_one"), "not given back to its arc, where the pool would start it over");
+  const wait = b.calls.find(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner");
+  assert.ok(wait, "an owner wait");
+  assert.match(wait[7], /No review ran/);
   const friction = b.calls.find(([noun, verb]) => noun === "friction" && verb === "new");
   assert.ok(friction, "a friction is filed");
   for (const name of ["1.0 · flaky", "1.1 · flaky", "1.2 · flaky", "PR #41"]) assert.ok(friction.join(" ").includes(name), name);
   assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
-  assert.match(b.lines.at(-1), /PR #41.*back on its arc/);
+  assert.match(b.lines.at(-1), /PR #41.*waits on the owner/);
 });

@@ -10,6 +10,7 @@
 // node packages/agent-pool/src/watch.mjs watch                                   (its look loop, which `run` starts; exits 3 on its own code change)
 // node packages/agent-pool/src/watch.mjs status
 // node packages/agent-pool/src/watch.mjs release-fix --pr <n> | --question <id>   (a release fix session records what it left; release-watch.mjs)
+// node packages/agent-pool/src/watch.mjs verdict <pr> flake|elsewhere|fix|owner --summary <text> [--parked <increment>] [--question <id>]   (a review session's one verdict, 4.37)
 import { execFile, spawn as spawnChild } from "node:child_process";
 import { existsSync, openSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -369,12 +370,14 @@ export async function adoptRequests({ dir, storytree, viewOf, now = Date.now, sa
   }
 }
 
-function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed }) {
+function fixBrief({ pr, increment, why, logs, n, limit, keepOpen, closed, review }) {
   const handBack = `${pr} ${increment}${keepOpen ? " --keep-open" : ""}`;
-  return `# Fix session ${n} of ${limit}: pull request #${pr} (${increment}) is red
+  return `# Fix session ${review ? `${n}, after an independent review` : `${n} of ${limit}`}: pull request #${pr} (${increment}) is red
 
 The Mint box's watcher started you: a session opened PR #${pr} for ${increment}, saw its gate green and handed it over,
-and it has since gone red: ${why}.${logs.length ? `\nThe failing runs: ${logs.join(", ")}.` : ""}
+and it has since gone red: ${why}.${logs.length ? `\nThe failing runs: ${logs.join(", ")}.` : ""}${review
+    ? `\nAfter ${limit} fix sessions an independent review session read it and judged it a bug in the pull request that a session can fix: ${review}`
+    : ""}
 
 Your job is that pull request and nothing else. Work from ~/code/storytree03 and follow its AGENTS.md as the session-orchestrator.
 - Find the PR's branch (\`gh pr view ${pr} --json headRefName\`) and a worktree on it (\`git worktree list\`), or add one for it
@@ -399,6 +402,49 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
 `;
 }
 
+/** The verdicts a review session may return (4.37): retry, retry after parking the flaky test's fix, fix again, or the owner's question. */
+export const VERDICTS = ["flake", "elsewhere", "fix", "owner"];
+/** The arc a review session parks a slow or flaky test's fix on (4.37). */
+export const FLAKES_ARC = "arc_1a42179de853";
+
+function reviewBrief({ pr, increment, why, logs, fixLogs, n, cap, closed }) {
+  const verdict = `node packages/agent-pool/src/watch.mjs verdict ${pr}`;
+  return `# Review session (session ${n} of at most ${cap}): pull request #${pr} (${increment}) is still red after its fix sessions
+
+The Mint box's watcher started you. PR #${pr} for ${increment} has gone red again after its fix sessions: ${why}.
+${logs.length ? `The failing runs: ${logs.join(", ")}.\n` : ""}The fix sessions' logs: ${fixLogs.join(", ") || "none"}.
+
+You are an independent reviewer, not a fixer: you did not write this pull request or its fixes, and you do not change its
+branch. Work from ~/code/storytree03. Read the failing runs (\`gh run view <run> --log-failed\`, \`gh pr checks ${pr}\`),
+the fix sessions' logs and the pull request's diff (\`gh pr diff ${pr}\`), and decide exactly ONE verdict:
+- flake: the failure is random, and another try may pass. \`${verdict} flake --summary "<why>"\`
+- elsewhere: a slow or flaky test the pull request does not own fails it. Park that test's fix as its own increment on
+  ${FLAKES_ARC} (\`pnpm storytree arc increment new --arc ${FLAKES_ARC} …\`, capabilities list empty), never loosening it
+  inside this pull request, then \`${verdict} elsewhere --summary "<why>" --parked <increment>\`
+- fix: a bug in the pull request that a session can fix. \`${verdict} fix --summary "<what is broken and where>"\`; your
+  summary is the next fix session's brief.
+- owner: only the owner can unblock it (a decision, access, a spend). Raise the question on ${increment}'s arc${closed ? "" : `, holding it
+  (\`pnpm storytree question new --arc <arc> … --hold ${increment}\`)`}, written so he can answer it cold, then
+  \`${verdict} owner --summary "<why>" --question <question>\`
+The watcher acts on the verdict you record; record it once, then \`pnpm storytree session close-out --safe yes --why "verdict on PR #${pr} recorded"\` and end.
+`;
+}
+
+/**
+ * Record a review session's verdict on pull request `pr`'s hand-off in `dir` (4.37): `kind` is one of VERDICTS, with its
+ * `summary`, the increment it `parked` (elsewhere) or the `question` it raised (owner). It throws when the hand-off's
+ * last session is no review, or already has a verdict.
+ */
+export async function recordVerdict({ dir, pr, kind, summary, parked, question }) {
+  if (!VERDICTS.includes(kind)) throw new Error(`a verdict is one of ${VERDICTS.join(", ")}`);
+  if (kind === "owner" && !question) throw new Error("an owner verdict names the question it raised (--question <id>)");
+  const record = JSON.parse(await readFile(recordPath(dir, pr), "utf8").catch(() => "null"));
+  const last = record?.fixes.at(-1);
+  if (!last?.review || last.verdict) throw new Error(`PR #${pr} has no review session waiting for its verdict`);
+  last.verdict = { kind, summary: summary ?? "", ...(parked ? { parked } : {}), ...(question ? { question } : {}) };
+  await save(dir, record);
+}
+
 /** Whether a red's failing tests, or its units when it names no test, failed before on this pull request: a repeat is not random (4.35). */
 function repeats(fixes, failures) {
   if (failures.tests.length) return failures.tests.some((test) => fixes.some((fix) => fix.tests?.includes(test)));
@@ -417,7 +463,10 @@ const named = (failures) => (failures.tests.length ? failures.tests : failures.u
  * pull request and its branch (4.20). A fix session whose branch moved while it ran made progress, so it counts for
  * nothing when the next red is a conflict, since a newer main made that one (4.19); `cap` sessions on one pull
  * request, counted or not, end it: past the limit as the limit does, and below it, the cap spent on reds the owner cannot
- * judge, back on its arc as ready work with a friction naming any flaky tests (4.36). A red whose failing tests all lie
+ * judge, to the owner with a friction naming any flaky tests (4.36). Past the limit, a red is no owner wait: an independent
+review session (`startReview`) reads it, and its one verdict decides the next red: retried as a flake is, a fix session
+that counts toward the cap, or the question it raised, which the hand-off is dropped for; a review that recorded none is
+reviewed again (4.37). At the cap the increment waits on the owner with the last review's summary (4.3). A red whose failing tests all lie
  * outside what the pull request changes (`pull.failures`, from readFailures) is a flake: refreshed or rerun, never fixed,
  * and not counted, unless a test of it failed before on the pull request (4.34, 4.35). A fix
  * session refused by another's claim counts for nothing (4.14). Its retry waits until the session its refusal named
@@ -430,7 +479,7 @@ const named = (failures) => (failures.tests.length ? failures.tests : failures.u
  * tried at most ENQUEUE_TRIES times (4.31). A look that saw any merge reads every story's risk reading again, once, from
  * main (`readRisks`), and says the readings that changed since the last (4.33).
  */
-export async function watchOnce({ dir, look, storytree, startFix, rerun, refresh, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, startFix, startReview, rerun, refresh, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -453,10 +502,38 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, refresh
     await letGo(pr, `PR #${pr} ${why}; released by the watcher`);
     await rm(recordPath(dir, pr), { force: true });
   };
+  // A red retried with no model session: main merged into its branch when main has moved, else its failed runs rerun,
+  // recorded as a flake that counts nothing against the limit (4.34); false, said, when neither was taken.
+  const retry = async (record, pull) => {
+    const { pr } = record, failures = pull.failures;
+    let by;
+    try {
+      if (!refresh) throw new Error("no refresh");
+      await refresh(pr, pull.head);
+      by = "main merged into its branch";
+    } catch {
+      try {
+        if (!rerun || !failures) throw new Error("no rerun");
+        for (const one of failures.runs) {
+          await rerun(one);
+          await tell(["workspace", "rerun", String(one.id), "--repo", one.repo, "--attempt", String(one.attempt + 1), "--what", "pr"], record.project);
+        }
+        by = "its failed runs rerun";
+      } catch (error) {
+        dated(`PR #${pr} red, to be retried, but neither a merge of main nor a rerun was taken (${error.message.split("\n")[0]}); looking again next time`);
+        return false;
+      }
+    }
+    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, flake: true, by, units: failures?.units ?? [], tests: failures?.tests ?? [], runs: failures?.key });
+    await save(dir, record);
+    return true;
+  };
   const all = await records(dir);
-  // The fix sessions running at this look, by pull request, and whether each is merging a conflict with main.
+  // The sessions running at this look, by pull request, and whether each is merging a conflict with main or reviewing.
   const running = new Map();
-  for (const record of all) if (record.fixing && await alive(record.fixing.pid)) running.set(record.pr, record.fixes.at(-1)?.conflict ?? false);
+  for (const record of all) if (record.fixing && await alive(record.fixing.pid)) running.set(record.pr, { conflict: record.fixes.at(-1)?.conflict ?? false, review: record.fixes.at(-1)?.review ?? false });
+  // A review session claims nothing, so it never holds back a refused fix session's retry (4.14).
+  const fixing = () => [...running.values()].some((one) => !one.review);
   // The noticeboard, read once a look and only when a refusal named its holder.
   let board;
   const holds = async (session) => (board ??= await tell(["noticeboard"])).split("\n").some((line) => /^\s*- (?:increment|capability) /.test(line) && line.includes(` ${session} `));
@@ -537,30 +614,10 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, refresh
     // flake: main is merged into its branch when main has moved, else its failed runs are rerun, with no model session
     // and nothing counted against the limit; until that refresh's run starts, a look sees the same runs and waits (4.34, 4.35).
     const failures = pull.failures;
-    if (failures && last?.flake && last.runs === failures.key) continue;
+    if (last?.flake && (failures ? last.runs === failures.key : last.head === pull.head)) continue;
     const flake = failures?.outside && !repeats(record.fixes, failures);
     if (flake && record.fixes.length < cap && (refresh || rerun)) {
-      let by;
-      try {
-        if (!refresh) throw new Error("no refresh");
-        await refresh(pr, pull.head);
-        by = "main merged into its branch";
-      } catch {
-        try {
-          if (!rerun) throw new Error("no rerun");
-          for (const one of failures.runs) {
-            await rerun(one);
-            await tell(["workspace", "rerun", String(one.id), "--repo", one.repo, "--attempt", String(one.attempt + 1), "--what", "pr"], record.project);
-          }
-          by = "its failed runs rerun";
-        } catch (error) {
-          dated(`PR #${pr} red on tests outside what it changes, but neither a merge of main nor a rerun was taken (${error.message.split("\n")[0]}); looking again next time`);
-          continue;
-        }
-      }
-      record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, flake: true, units: failures.units, tests: failures.tests, runs: failures.key });
-      await save(dir, record);
-      dated(`PR #${pr} red only on tests outside what it changes (${named(failures)}): ${by}, not counted against its fix limit`);
+      if (await retry(record, pull)) dated(`PR #${pr} red only on tests outside what it changes (${named(failures)}): ${record.fixes.at(-1).by}, not counted against its fix limit`);
       continue;
     }
     const allowed = pull.conflict ? limit + 1 : limit;
@@ -568,12 +625,12 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, refresh
       last.moved = true;
       await save(dir, record);
     }
-    const counted = record.fixes.filter((fix) => !fix.refused && !fix.moved && !fix.flake).length;
+    const counted = record.fixes.filter((fix) => !fix.refused && !fix.moved && !fix.flake && !fix.review).length;
     const spent = counted >= allowed || record.fixes.length >= cap;
     if (spent && record.closed) {
-      await letGo(pr, `PR #${pr} still red after ${record.fixes.length} fix sessions; released by the watcher`);
+      await letGo(pr, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);
       await rm(recordPath(dir, pr), { force: true });
-      dated(`PR #${pr} still red after ${record.fixes.length} fix sessions, and ${increment} had already closed, so nothing can wait on the owner: ${pull.why}`);
+      dated(`PR #${pr} still red after ${record.fixes.length} sessions, and ${increment} had already closed, so nothing can wait on the owner: ${pull.why}`);
       continue;
     }
     if (spent && pull.conflict) {
@@ -581,46 +638,65 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, refresh
       dated(`PR #${pr} still conflicts with main after ${record.fixes.length} fix sessions: ${increment} is back on its arc as ready work`);
       continue;
     }
-    if (spent && counted < allowed) {
-      // The cap, not the limit, is spent: on flakes, moves or refusals, none of which the owner can judge (4.36).
-      const flaky = [...new Set(record.fixes.filter((fix) => fix.flake).flatMap((fix) => fix.tests.length ? fix.tests : fix.units))];
-      await backOnArc(record, pull, `is still red after ${record.fixes.length} fix sessions and refreshes, ${counted} of them counted${flaky.length ? `; flaky outside it: ${flaky.join("; ")}` : ""}`);
+    if (record.fixes.length >= cap) {
+      // The cap on all sessions, fix and review together, is spent: the owner gets it with the last review's summary,
+      // never the arc, whose pool would start it over with a fresh count (4.3, 4.36).
+      const flaky = [...new Set(record.fixes.filter((fix) => fix.flake).flatMap((fix) => fix.tests?.length ? fix.tests : fix.units ?? []))];
+      const review = record.fixes.findLast((fix) => fix.review && fix.verdict)?.verdict;
       if (flaky.length) {
         await tell(["friction", "new", "--title", `Flaky tests kept PR #${pr} red past the watcher's cap`,
-          "--description", `The watcher refreshed PR #${pr} ${record.fixes.filter((fix) => fix.flake).length} times for reds outside what it changes, and gave it back to its arc.`,
+          "--description", `The watcher retried PR #${pr} ${record.fixes.filter((fix) => fix.flake).length} times for reds it judged random, and gave it to the owner at its cap.`,
           "--statement", "Tests outside a pull request's reach failed it at random, so it could not land.",
           "--evidence", `PR #${pr} (${increment}) failed on: ${flaky.join("; ")}.`,
-          "--impact", `PR #${pr} went back on its arc as ready work instead of landing; the Windows-flakes arc can take these tests.`]);
+          "--impact", `PR #${pr} waits on the owner instead of landing; the Windows-flakes arc can take these tests.`]);
       }
-      dated(`PR #${pr} still red after ${record.fixes.length} fix sessions and refreshes, ${counted} counted: ${increment} is back on its arc as ready work`);
-      continue;
-    }
-    if (spent) {
       await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
-      await letGo(pr, `PR #${pr} still red after ${counted} fix sessions; released by the watcher`);
+      await letGo(pr, `PR #${pr} still red after ${record.fixes.length} sessions; released by the watcher`);
       await storytree(["arc", "increment", "wait", increment, "--for", "owner", "--note",
-        `PR #${pr} is still red after ${counted} fix sessions: ${pull.why}.${pull.logs.length ? ` Failing runs: ${pull.logs.join(", ")}.` : ""}`
-        + ` Fix sessions' logs: ${record.fixes.map((fix) => fix.log).join(", ")}.`]);
+        `PR #${pr} is still red after ${record.fixes.length} sessions, the most the watcher starts for one pull request (${counted} fix sessions counted): ${pull.why}.`
+        + `${pull.logs.length ? ` Failing runs: ${pull.logs.join(", ")}.` : ""}`
+        + ` Sessions' logs: ${record.fixes.filter((fix) => fix.log).map((fix) => fix.log).join(", ") || "none"}.`
+        + (review ? ` The last review judged it "${review.kind}": ${review.summary}` : " No review ran.")
+        + `${flaky.length ? ` Flaky outside it: ${flaky.join("; ")}.` : ""} Retry it (hand PR #${pr} to the watcher again), fix it yourself, or withdraw it.`]);
       await rm(recordPath(dir, pr), { force: true });
-      dated(`PR #${pr} still red after ${counted} fix sessions: ${increment} waits on the owner`);
+      dated(`PR #${pr} still red after ${record.fixes.length} sessions: ${increment} waits on the owner`);
       continue;
     }
+    // Past the limit, the last review's verdict decides this red; with none, a review session is started (4.37).
+    const verdict = spent && last?.review ? last.verdict : undefined;
+    if (verdict?.kind === "owner") {
+      if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
+      await letGo(pr, `PR #${pr} waits on the owner's answer to ${verdict.question}; released by the watcher`);
+      await rm(recordPath(dir, pr), { force: true });
+      dated(`PR #${pr} still red: its review put it to the owner in ${verdict.question} (${verdict.summary})`);
+      continue;
+    }
+    if (verdict?.kind === "flake" || verdict?.kind === "elsewhere") {
+      if (await retry(record, pull)) dated(`PR #${pr} red, which its review judged ${verdict.kind === "flake" ? "random" : `a test elsewhere${verdict.parked ? ` (parked as ${verdict.parked})` : ""}`}: ${record.fixes.at(-1).by}`);
+      continue;
+    }
+    const reviewing = spent && verdict?.kind !== "fix";
     if (last?.refused && (last.holder ? await holds(last.holder)
-      : running.size || now() < Date.parse(last.refusedAt ?? last.at) + backoff)) continue;
-    if (pull.conflict && [...running.values()].some(Boolean)) continue;
+      : fixing() || now() < Date.parse(last.refusedAt ?? last.at) + backoff)) continue;
+    if (pull.conflict && [...running.values()].some((one) => one.conflict)) continue;
     if (!(await room())) continue;
     // Each red it handles is a pr-red activity line in the hand-off's project, written as its fix session starts (ADR-1064 D4, 4.25).
     await tell(["workspace", "red", String(pr), "--increment", increment, ...(pull.conflict ? ["--conflict"] : []),
       ...(pull.checks ?? []).flatMap((check) => ["--check", check])], record.project);
     if (!record.closed) await tell(["arc", "increment", "unwait", increment, "--for", "event"]);
     const n = record.fixes.length + 1;
-    const fix = await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed }) });
-    record.fixing = { pid: fix.pid };
-    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: fix.pid, log: fix.log, ...(pull.conflict ? { conflict: true } : {}),
-      ...(failures ? { units: failures.units, tests: failures.tests } : {}) });
-    running.set(pr, Boolean(pull.conflict));
+    const fixLogs = record.fixes.filter((one) => one.log && !one.review).map((one) => one.log);
+    const session = reviewing
+      ? await startReview({ pr, increment, n, brief: reviewBrief({ pr, increment, why: pull.why, logs: pull.logs, fixLogs, n, cap, closed: record.closed }) })
+      : await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed,
+        review: verdict?.summary }) });
+    record.fixing = { pid: session.pid };
+    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: session.pid, log: session.log, ...(reviewing ? { review: true } : {}),
+      ...(pull.conflict ? { conflict: true } : {}), ...(failures && !reviewing ? { units: failures.units, tests: failures.tests } : {}) });
+    running.set(pr, { conflict: Boolean(pull.conflict), review: reviewing });
     await save(dir, record);
-    dated(`PR #${pr} red (${pull.why}): fix session ${counted + 1} of ${allowed} started, log ${fix.log}`);
+    dated(reviewing ? `PR #${pr} red (${pull.why}) past its ${allowed} fix sessions: review session started, log ${session.log}`
+      : `PR #${pr} red (${pull.why}): fix session ${counted + 1}${verdict ? ", after its review," : ` of ${allowed}`} started, log ${session.log}`);
   }
   if (merged && readRisks) await refreshRisks({ dir, readRisks, dated });
 }
@@ -738,6 +814,13 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
         ...config.addDirs], `${base}.runner.log`, repo);
       return { pid, log: `${base}.log` };
     },
+    startReview: async ({ pr, n, brief }) => {
+      const base = join(dir, `review-${pr}-${n}`);
+      await writeFile(`${base}-brief.md`, brief);
+      const pid = detached([join(script, "..", "runner.mjs"), "run", `${base}-brief.md`, `${base}.log`, `${base}.err`,
+        ...config.addDirs], `${base}.runner.log`, repo);
+      return { pid, log: `${base}.log` };
+    },
     // Started from the shared checkout's copy, whichever worktree handed over, so it runs the code it watches for changes.
     startWatcher: (log) => detached([own, "run"], log, repo),
     codeVersion: () => codeVersion({ repo, paths: WATCH_CODE }),
@@ -824,6 +907,14 @@ export async function main(args, box = {}) {
     out(`Close out with: pnpm storytree session close-out --safe yes --why "PR #${args[1]} open and green, handed to the watcher"`);
     return 0;
   }
+  if (args[0] === "verdict" && /^\d+$/.test(args[1] ?? "")) {
+    const flag = (name) => args.includes(name) ? args[args.indexOf(name) + 1] : undefined;
+    if (!VERDICTS.includes(args[2])) { out(`usage: watch.mjs verdict <pr> ${VERDICTS.join("|")} --summary <text> [--parked <increment>] [--question <id>]`); return 2; }
+    try { await recordVerdict({ dir: b.dir, pr: Number(args[1]), kind: args[2], summary: flag("--summary"), parked: flag("--parked"), question: flag("--question") }); }
+    catch (error) { out(error.message); return 1; }
+    out(`PR #${args[1]}: verdict "${args[2]}" recorded; the watcher acts on it at its next look.`);
+    return 0;
+  }
   if (args[0] === "release-fix" && /^--(pr|question)$/.test(args[1] ?? "") && args[2]) {
     const recorded = await recordFix({ dir: b.dir, ...(args[1] === "--pr" ? { pr: Number(args[2]) } : { question: args[2] }) });
     out(recorded ? `Recorded ${args[2]} on the release stop: the watcher starts no other fix session while it is open.`
@@ -848,7 +939,7 @@ export async function main(args, box = {}) {
     if (!found.length) out("no hand-offs");
     return 0;
   }
-  if (args[0] !== "run" && args[0] !== "watch") { out("usage: watch.mjs handover <pr> <increment> [--keep-open] | hand <pr> <increment> [--session <id>] [--keep-open] [--refused [--holder <session>]] | release-fix --pr <n> | --question <id> | run | status"); return 2; }
+  if (args[0] !== "run" && args[0] !== "watch") { out(`usage: watch.mjs handover <pr> <increment> [--keep-open] | hand <pr> <increment> [--session <id>] [--keep-open] [--refused [--holder <session>]] | verdict <pr> ${VERDICTS.join("|")} --summary <text> | release-fix --pr <n> | --question <id> | run | status`); return 2; }
   const say = b.say ?? ((line) => out(line));
   const dated = (message) => say(`${new Date(b.now()).toISOString()} ${message}`);
   if (args[0] === "run") {

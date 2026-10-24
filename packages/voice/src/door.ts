@@ -3,7 +3,7 @@
  * everywhere else (never 401, or claude.ai starts an OAuth flow), the caller's range, the Host list, body and batch
  * limits, and a keep-alive longer than the tunnel's. Stateless Streamable HTTP through the MCP SDK. With a sign-in service
  * configured (contracts 1.15-1.19), the secret's well-known path publishes its metadata and a signed tool's call needs the
- * owner's token, which is where a 401 is answered and nowhere else.
+ * owner's token, which is where a 401 is answered and nowhere else; with VOICE_SIGNIN_EVERY_CALL=1 (contract 1.20) every call needs it.
  */
 import http from "node:http";
 import crypto from "node:crypto";
@@ -265,8 +265,9 @@ export function startDoor(config: VoiceConfig, options: DoorOptions = {}): Promi
       }
       let caller: SignedCaller | undefined;
       const tool = calledTool(body);
-      if (gate && tool !== undefined && SIGNED_TOOL_NAMES.includes(tool)) {
-        // Only a signed tool's call reads the token: a read never does, so a broken sign-in cannot take reads down.
+      if (gate && (config.signIn!.everyCall || (tool !== undefined && SIGNED_TOOL_NAMES.includes(tool)))) {
+        // By default only a signed tool's call reads the token, so a broken sign-in cannot take reads down. With every call
+        // signed (1.20), initialize and reads need it too: claude.ai only signs in when its first calls are refused.
         try {
           caller = await gate.verify(req.headers.authorization);
         } catch (error) {

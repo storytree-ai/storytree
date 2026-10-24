@@ -10,9 +10,7 @@ words, chooses the channel as `install.ps1` does, reads the release's `storytree
 `finish`, and puts `~/.storytree/0.3/bin` on PATH through one line in `~/.zprofile`, marked so
 `storytree setup uninstall` can take it out: on a Mac it uninstalls in place (no app running, a
 library kept or removed only on `--keep-library`/`--remove-library`), removing the `.app` and that
-line from `${ZDOTDIR:-~}/.zprofile`. Its questions are read from `/dev/tty`, since the
-script itself arrives on standard input; with no terminal it skips them and says how to come back.
-Every step is a function and the last line runs them, so a download cut short runs nothing.
+line from `${ZDOTDIR:-~}/.zprofile`. Every step is a function and the last line runs them, so a download cut short runs nothing.
 
 The installed payload is `<installation>/resources/agent-tools/`: native Node 24, all four
 `buildBins` entry points, `chunks/**`, a delivery helper, Node's license and `payload.json`
@@ -35,22 +33,16 @@ only after startup succeeds. Schema 1 holds `installDir` and `tools` with absolu
 `{ dir, app, node, mcp, hook, setup, cli, deliver }`. `toolPaths(installDir)` constructs these;
 `verifyPayload(installDir, arch)` validates the installed inventory. A harness runs
 `tools.node` with `[tools.mcp]`; hooks/setup/CLI use their corresponding `.mjs` entry.
-Connection and harness consent belong to capability 2. After successful delivery the
-one-liner prompts for Claude Code, Codex, both, or skip, then invokes the installed
-`tools.node tools.cli setup connect` with the chosen switches. The CLI delegates to the
-bundled app-setup helper, which reads `delivery.json` (or, before `finish` has written it,
-the tools beside the helper itself) and reuses `connectAgents`.
-Registration reports tools connected separately from hooks not verified and directs the
-user to start a session in their folder.
-
-Then the one-liner asks for the project folder (ADR-0752 D1): Enter takes the folder it ran
-from, a typed path is resolved against it and created if missing, S skips. Run from the home
-folder or a drive root, Enter skips instead, since every folder below would join that project.
-The suggested name is the setup check's `suggestedName`; Enter accepts it and a refused name is
-asked again. The bundled helper's `project <folder>` says what the folder is, and
-`add-project <folder> <name>` sets it up through `../project` exactly as the setup check's yes
-does (marker, library project, the app's project choice); a folder already in a project is
-said and nothing is created. `finish` itself still never creates a project. `setup install` retains its hook/command meaning;
+Connection and harness consent belong to capability 2, and adding a project to capability 6.
+Once delivery is ready the one-liner asks nothing (ADR-1162 D1, contract 1.15): no agent
+connection, no project folder. Its first line after the install says the app is open and gives
+the command that opens it again (`& '…\storytree-0.3.exe'` on Windows, `open '…/storytree-0.3.app'`
+on a Mac, the AppImage on Linux, with `--no-sandbox` where the kernel blocks Chromium's sandbox),
+then that the app connects agents and adds a project. The app's first-run guide offers both
+(capability 3, contract 3.13). `storytree setup connect --claude` and the rest still connect from
+a terminal: the CLI delegates to the bundled app-setup helper, which reads `delivery.json` (or,
+before `finish` has written it, the tools beside the helper itself) and reuses `connectAgents`.
+`finish` itself never creates a project. `setup install` retains its hook/command meaning;
 delivery's own `inspect` and `finish` operations do not write harness settings.
 
 Delivery owns `~/.storytree/0.3/bin/storytree.exe`, recognizes the app setup's 0.3 launcher

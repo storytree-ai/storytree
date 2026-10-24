@@ -27,7 +27,7 @@ afterEach(async () => {
 const unused = async (): Promise<never> => { throw new Error("Unexpected help bridge call"); };
 function helpBridge(overrides: Partial<SetupHelpBridge> = {}): SetupHelpBridge {
   return {
-    agentConnections: async () => [], readSetupLicense: unused, checkSetupFolder: unused,
+    agentConnections: async () => [], agentsToConnect: async () => [], connectAgent: unused, readSetupLicense: unused, checkSetupFolder: unused,
     factoryFolder: unused, chooseFactory: unused, addProject: unused, removeProject: unused, projectSentence: unused, setProjectSentence: unused, deletableProjects: unused, deleteProject: unused,
     openFeedbackDraft: unused, copyHelpText: unused, ...overrides,
   };
@@ -49,6 +49,92 @@ test("3.1 the mounted guide opens with no project and its Help entry reopens it 
     assert.equal(panel.hidden, false);
     assert.equal(launch.getAttribute("aria-expanded"), "true");
     assert.equal(document.activeElement, panel.querySelector("h2"));
+  } finally { mounted.stop(); }
+});
+
+test("3.13 the guide's first run offers to connect each agent this computer runs and to add a project through the folder picker, and does neither unasked", async () => {
+  const connected: unknown[] = [];
+  let picked = 0;
+  const mounted = mountSetupHelp(document.body, helpBridge({
+    agentsToConnect: async () => [{ harness: "claude-code", agent: "Claude Code", connected: false }, { harness: "codex", agent: "Codex", connected: true }],
+    connectAgent: async (harness) => { connected.push(harness); return { agent: "Claude Code", connected: true, next: "Start a new agent session in the folder of your project." }; },
+    addProject: async () => { picked++; return { status: "set up", folder: "/work/site", project: "site" }; },
+  }));
+  try {
+    await setImmediate();
+    const offer = document.querySelector<HTMLElement>("[data-connect]")!;
+    assert.match(offer.textContent!, /Codex is connected/);
+    assert.equal(offer.querySelectorAll("button").length, 1, "only the agent not yet connected is offered");
+    assert.deepEqual([connected, picked], [[], 0], "opening the guide connects and adds nothing");
+
+    offer.querySelector<HTMLButtonElement>("[data-connect-agent=claude-code]")!.click();
+    await setImmediate();
+    assert.deepEqual(connected, ["claude-code"]);
+    assert.match(offer.textContent!, /Claude Code is connected\. Start a new agent session/);
+    assert.equal(offer.querySelector("button"), null);
+
+    document.querySelector<HTMLButtonElement>("[data-guide-add-project]")!.click();
+    await setImmediate();
+    assert.equal(picked, 1);
+    assert.match(document.querySelector("[data-guide-add-status]")!.textContent!, /\/work\/site is now project “site”/);
+  } finally { mounted.stop(); }
+});
+
+test("3.13 a Connect that fails can be tried again, one at a time; an Add a project… that fails says why; and the offer is read again each time the guide shows", async () => {
+  let reads = 0;
+  let answer: () => Promise<{ agent: string; connected: boolean; next: string }> = async () => ({ agent: "Codex", connected: false, next: "Install Codex, sign in, and retry Connect." });
+  let adding: () => Promise<never> = async () => { throw new Error("the library is not open"); };
+  const mounted = mountSetupHelp(document.body, helpBridge({
+    agentsToConnect: async () => { reads++; return [{ harness: "codex", agent: "Codex", connected: false }]; },
+    connectAgent: () => answer(),
+    addProject: () => adding(),
+  }));
+  try {
+    await setImmediate();
+    const button = () => document.querySelector<HTMLButtonElement>("[data-connect-agent=codex]")!;
+    button().click();
+    assert.equal(button().disabled, true, "one Connect at a time");
+    await setImmediate();
+    assert.equal(button().disabled, false);
+    assert.match(document.querySelector("[data-connect]")!.textContent!, /Install Codex, sign in, and retry Connect\./);
+    answer = async () => { throw new Error("ipc closed"); };
+    button().click();
+    await setImmediate();
+    assert.equal(button().disabled, false);
+    assert.match(document.querySelector("[data-connect]")!.textContent!, /Codex could not be connected\. Try again\./);
+
+    const add = document.querySelector<HTMLButtonElement>("[data-guide-add-project]")!;
+    add.click();
+    assert.equal(add.disabled, true, "one picker at a time");
+    await setImmediate();
+    assert.equal(add.disabled, false);
+    const status = document.querySelector<HTMLElement>("[data-guide-add-status]")!;
+    assert.equal(status.textContent, "The folder could not be added: the library is not open");
+    assert.equal(status.getAttribute("role"), "alert");
+
+    assert.equal(reads, 1);
+    document.querySelector<HTMLButtonElement>("[data-page=license]")!.click();
+    document.querySelector<HTMLButtonElement>("[data-page=guide]")!.click();
+    await setImmediate();
+    assert.equal(reads, 2, "showing the guide again reads the agents again");
+  } finally { mounted.stop(); }
+});
+
+test("3.13 when the agents cannot be read the guide says why", async () => {
+  const mounted = mountSetupHelp(document.body, helpBridge({ agentsToConnect: async () => { throw new Error("No delivery record"); } }));
+  try {
+    await setImmediate();
+    const offer = document.querySelector<HTMLElement>("[data-connect]")!;
+    assert.equal(offer.textContent, "The coding agents on this computer could not be read: No delivery record");
+    assert.equal(offer.getAttribute("role"), "alert");
+  } finally { mounted.stop(); }
+});
+
+test("3.13 with no coding agent on this computer the guide says how to get one", async () => {
+  const mounted = mountSetupHelp(document.body, helpBridge());
+  try {
+    await setImmediate();
+    assert.match(document.querySelector("[data-connect]")!.textContent!, /No coding agent was found on this computer/);
   } finally { mounted.stop(); }
 });
 

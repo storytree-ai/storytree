@@ -38,7 +38,7 @@ const engines = process.env.STORYTREE_TEST_PWSH
     : [{ command: "pwsh", required: false }];
 
 for (const { command, required } of engines) {
-  test(`1.1 / 1.3 / 1.4 / 1.6 / 1.10 under ${command}: PowerShell delivery selects and persists its channel, selects architecture, reuses, retries and persists PATH`, (t) => {
+  test(`1.1 / 1.3 / 1.4 / 1.6 / 1.10 / 1.15 under ${command}: PowerShell delivery selects and persists its channel, selects architecture, reuses, retries and persists PATH, and once installed asks nothing but says first how to open the app`, (t) => {
     const found = spawnSync(command, ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.ToString()"], { encoding: "utf8" });
     if (found.error && !required) return t.skip(`platform:win32: ${command} unavailable here; Windows CI runs this proof`);
     assert.ifError(found.error);

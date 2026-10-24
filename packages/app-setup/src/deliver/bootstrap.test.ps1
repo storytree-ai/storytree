@@ -194,65 +194,13 @@ try {
   [IO.File]::WriteAllText($file, 'interrupted download')
   try { Assert-StorytreeDownload $file ('a' * 64); throw 'accepted damaged download' } catch { Assert ($_.Exception.Message -match 'checksum') "reject damaged installer before running it: $($_.Exception.Message)" }
 } finally { Remove-Item -LiteralPath $file }
-$report = @{ tools = @{ node = 'installed node with spaces'; cli = 'installed cli with spaces' } }
-$script:Selected = ''
-$script:Connected = @()
-$join = @{
-  Choose = { return $script:Selected }
-  Connect = { param($Tools, $Flags) Assert ($Tools.node -eq $report.tools.node) 'use delivered Node'; Assert ($Tools.cli -eq $report.tools.cli) 'use delivered CLI'; $script:Connected = @($Flags) }
-}
-foreach ($choice in @('1', '2', '3', 's')) {
-  $script:Selected = $choice; $script:Connected = @()
-  Invoke-StorytreeConnection $report $join
-  $expected = switch ($choice) { '1' { '--claude' } '2' { '--codex' } '3' { '--claude,--codex' } 's' { '' } }
-  Assert (($script:Connected -join ',') -eq $expected) "connection selection $choice"
-}
-$script:Selected = 'invalid'
-try { Invoke-StorytreeConnection $report $join; throw 'accepted invalid selection' }
-catch { Assert ($_.Exception.Message -match 'Choose 1, 2, 3 or S') 'invalid choice cannot connect silently' }
-$script:Selected = '3'
-$join.Connect = { throw 'one agent could not connect' }
-try { Invoke-StorytreeConnection $report $join; throw 'accepted partial failure' }
-catch { Assert ($_.Exception.Message -match 'one agent could not connect') 'connection failure reaches installer caller' }
-$here = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'folder with spaces'))
-$userHome = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'the user'))
-$script:Answers = [Collections.Generic.Queue[string]]::new()
-$script:SetUps = [Collections.Generic.List[string]]::new()
-$script:Existing = $null
-$script:Refuse = ''
-$folderOps = @{
-  Ask = { param($Prompt) if ($script:Answers.Count -gt 0) { return $script:Answers.Dequeue() }; return '' }
-  Inspect = { param($Folder) if ($script:Existing) { return @{ folder = $Folder; project = $script:Existing } }; return @{ folder = $Folder; suggestion = 'folder-with-spaces' } }
-  SetUp = {
-    param($Folder, $Name)
-    $script:SetUps.Add("${Folder}|${Name}")
-    if ($Name -eq $script:Refuse) { return @{ status = 'name refused'; message = 'project name is not allowed' } }
-    return @{ status = 'set up'; folder = $Folder; project = $Name }
-  }
-}
-function Test-ProjectFolder([string[]]$Answers, [string]$From = $here) {
-  $script:Answers.Clear(); foreach ($a in $Answers) { $script:Answers.Enqueue($a) }
-  $script:SetUps.Clear()
-  Invoke-StorytreeProjectFolder $From $userHome $folderOps
-  return ($script:SetUps -join ';')
-}
-Assert ((Test-ProjectFolder @('', '')) -eq "$here|folder-with-spaces") 'Enter twice sets up the folder the command ran from, under its suggested name'
-Assert ((Test-ProjectFolder @()) -eq "$here|folder-with-spaces") 'an ended stdin accepts both defaults'
-$typed = [IO.Path]::GetFullPath([IO.Path]::Combine($here, 'my site'))
-Assert ((Test-ProjectFolder @('my site', 'site-x')) -eq "$typed|site-x") 'a typed relative path and name'
-$absolute = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) 'elsewhere'))
-Assert ((Test-ProjectFolder @("`"$absolute`"", '')) -eq "$absolute|folder-with-spaces") 'a typed absolute path, quotes stripped'
-Assert ((Test-ProjectFolder @('S')) -eq '') 'S skips and sets nothing up'
-$script:Existing = 'site'
-Assert ((Test-ProjectFolder @('', 'never asked')) -eq '') 'a folder that is already a project creates nothing'
-Assert ($script:Answers.Count -eq 1) 'an existing project is not asked for a name'
-$script:Existing = $null
-$script:Refuse = 'Bad Name'
-Assert ((Test-ProjectFolder @('', 'Bad Name', '')) -eq "$here|Bad Name;$here|folder-with-spaces") 'a refused name is asked again'
-$script:Refuse = ''
-Assert ((Test-ProjectFolder @('') $userHome) -eq '') 'Enter in the home folder sets nothing up: the whole account would become one project'
-Assert ((Test-ProjectFolder @('code', 'code') $userHome) -eq "$([IO.Path]::GetFullPath((Join-Path $userHome 'code')))|code") 'a typed folder under home is fine'
-$folderOps.SetUp = { param($Folder, $Name) throw 'the library could not be reached' }
-try { Test-ProjectFolder @('', '') | Out-Null; throw 'accepted failed setup' }
-catch { Assert ($_.Exception.Message -match 'library could not be reached' -and $_.Exception.Message -match 'doctor --set-up' -and $_.Exception.Message -match 'Add project') "failed setup names the later ways: $($_.Exception.Message)" }
+# Once installed it asks nothing (1.15, ADR-1162): its first words after the install say how to open the app.
+$dir = Join-Path ([IO.Path]::GetTempPath()) "it's storytree"
+$app = ([IO.Path]::GetTempPath().TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar + "it''s storytree" + [IO.Path]::DirectorySeparatorChar + 'storytree-0.3.exe')
+$lines = @(Get-StorytreeOpenedLines $dir @{ command = @{ status = 'installed'; replaced = @('C:\old\storytree.exe') }; tools = @{} })
+Assert ($lines[0] -ceq "storytree is installed, and its app is open. To open it again, use the Start menu, or run: & '$app'") "opening the app comes first: $($lines[0])"
+Assert ($lines[1] -ceq 'In the app, connect your coding agents and, when you want one, add a project.') 'agents and a project are left to the app'
+Assert (($lines[2..3] -join '|') -ceq 'The storytree command is available in a fresh Windows terminal.|An older storytree command now runs this installation: C:\old\storytree.exe') 'then the command, and an older one it repointed'
+$lines = @(Get-StorytreeOpenedLines $dir @{ command = @{ status = 'conflict'; conflict = 'C:\other\storytree.exe' }; tools = @{ node = 'n'; cli = 'c' } })
+Assert (($lines[2..3] -join '|') -ceq "An existing storytree command was preserved: C:\other\storytree.exe|Run this installation explicitly: & 'n' 'c'") 'a conflicting command is named after the app'
 Write-Output 'delivery bootstrap PASS'

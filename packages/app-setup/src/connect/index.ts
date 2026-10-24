@@ -162,6 +162,33 @@ export async function connectAgents(options: ConnectionOptions): Promise<Connect
   return results;
 }
 
+/** An agent this computer runs, and whether this installation's tool server is already registered with it. */
+export interface FoundAgent {
+  readonly harness: Harness;
+  readonly agent: string;
+  readonly connected: boolean;
+}
+
+/**
+ * The agents whose command runs here (its `--version`), each said connected or not, so the app's first run can offer
+ * to connect the rest (ADR-1162 D3). An agent whose settings cannot be read is said not connected; connecting it names the fix.
+ */
+export async function agentsOnThisComputer(options: Omit<ConnectionOptions, "harnesses">): Promise<FoundAgent[]> {
+  const where = locations({ ...options, harnesses: [] });
+  const found: FoundAgent[] = [];
+  for (const harness of HARNESS_IDS) {
+    try { await (options.run ?? runHarness)(executable(harness), ["--version"], { cwd: where.home, env: where.env }); } catch { continue; }
+    let settings: Settings | undefined;
+    let connected = false;
+    try {
+      settings = await openSettings(harness, { ...options, harnesses: [harness] });
+      connected = settings.current !== undefined && settings.compatible(options.installed);
+    } catch { /* Unreadable settings: offered, and Connect says how to repair them. */ } finally { settings?.close(); }
+    found.push({ harness, agent: label(harness), connected });
+  }
+  return found;
+}
+
 /** Remove only the selected registration and this installation's hooks. Keep the command while another registration may need it. */
 export async function disconnectAgents(options: ConnectionOptions): Promise<DisconnectReport> {
   const where = locations(options);

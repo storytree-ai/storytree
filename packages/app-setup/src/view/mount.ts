@@ -72,7 +72,7 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
     for (const node of panel.querySelectorAll<HTMLElement>("[data-page]")) node.setAttribute("aria-pressed", String(node.dataset.page === name));
     panel.scrollTop = 0;
     if (name === "license") void license();
-    if (name === "guide") void agents();
+    if (name === "guide") { void agents(); void offerAgents(); }
     if (name === "feedback") void identity("status");
   }
   /** Each connected agent still waiting on a step from the user, or past it, read afresh whenever the guide shows. */
@@ -90,6 +90,57 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
       return item;
     }));
     box.hidden = connections.length === 0;
+  }
+  /** The agents this computer runs, each connected already or offered with its own Connect: nothing is connected unasked (ADR-1162 D3). */
+  async function offerAgents(): Promise<void> {
+    const box = get("[data-connect]");
+    let found: Awaited<ReturnType<SetupHelpBridge["agentsToConnect"]>>;
+    try { found = await bridge.agentsToConnect(); } catch (error) {
+      say(box, `The coding agents on this computer could not be read: ${error instanceof Error ? error.message : String(error)}`, true);
+      return;
+    }
+    if (stopped) return;
+    if (found.length === 0) {
+      say(box, "No coding agent was found on this computer. Install Claude Code or Codex and sign in, then open this guide again.");
+      return;
+    }
+    box.setAttribute("role", "status");
+    box.replaceChildren(...found.map((each) => {
+      const row = document.createElement("p");
+      row.className = "setup-help-connect-agent";
+      const name = document.createElement("strong");
+      name.textContent = each.agent;
+      if (each.connected) { row.append(name, " is connected."); return row; }
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.connectAgent = each.harness;
+      button.textContent = `Connect ${each.agent}`;
+      const said = document.createElement("span");
+      button.addEventListener("click", () => {
+        button.disabled = true;
+        said.textContent = "Connecting…";
+        void bridge.connectAgent(each.harness).then((result) => {
+          said.textContent = result.next;
+          if (result.connected) { row.replaceChildren(name, " is connected. ", said); void agents(); }
+          else button.disabled = false;
+        }).catch(() => { said.textContent = `${each.agent} could not be connected. Try again.`; button.disabled = false; });
+      });
+      row.append(name, " ", button, " ", said);
+      return row;
+    }));
+  }
+  async function addFromGuide(): Promise<void> {
+    const button = get<HTMLButtonElement>("[data-guide-add-project]");
+    const status = get("[data-guide-add-status]");
+    if (button.disabled) return;
+    button.disabled = true;
+    say(status, "Choose a folder…");
+    try {
+      const added = await bridge.addProject();
+      say(status, added === null ? "" : added.status === "set up" ? `${added.folder} is now project “${added.project}”, and the app shows it.` : `${added.folder} is already project “${added.project}”.`);
+    } catch (error) {
+      say(status, `The folder could not be added: ${error instanceof Error ? error.message : String(error)}`, true);
+    } finally { button.disabled = false; }
   }
   async function license(): Promise<void> {
     const retry = get<HTMLButtonElement>("[data-license-retry]");
@@ -201,13 +252,14 @@ export function mountSetupHelp(host: HTMLElement, bridge: SetupHelpBridge, optio
       } finally { button.disabled = false; }
     })();
   });
+  get("[data-guide-add-project]").addEventListener("click", () => { void addFromGuide(); });
   get("[data-license-retry]").addEventListener("click", () => { void license(); });
   for (const button of panel.querySelectorAll<HTMLButtonElement>("[data-page]")) button.addEventListener("click", () => page(button.dataset.page!));
   get("[data-feedback]").addEventListener("click", () => { page("feedback"); get<HTMLInputElement>("[name=title]").focus(); });
   function open(): void {
     if (stopped || !panel.hidden) return;
     panel.hidden = false; launch?.setAttribute("aria-expanded", "true");
-    void agents();
+    void agents(); void offerAgents();
     get("#setup-help-title").focus();
   }
   function close(): void {

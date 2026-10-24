@@ -4,6 +4,10 @@ import path from "node:path";
 import { codexHookTrust } from "@storytree/session-management";
 import { factoryFolder, makeFactoryFolder, readProjectChoice, setFactory } from "@storytree/project-and-caller";
 
+import { HARNESS_IDS, watchedHarness, type Harness } from "@storytree/project-and-caller/caller";
+
+import { agentsOnThisComputer, connectAgents, type ConnectionOptions } from "../connect/index.js";
+import { deliveredCommand } from "../connect/installed.js";
 import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Library, Storytree } from "@storytree/library";
 import { addProject, deleteProject, keepOnThisComputer, projectFolder, removeProject, whoLoses } from "../project/index.js";
@@ -39,9 +43,15 @@ export function setupHelpActions(options: {
   copyText(text: string): Promise<void>;
   /** The app's open library, which Add project writes to and Remove reads. */
   library(): Storytree;
+  /** The installed app's own agent tools, used when the installer has recorded none in delivery.json. */
+  agentTools?: string;
+  /** Where the agents are looked for and connected. By default, this user's home and environment. */
+  connections?: Pick<ConnectionOptions, "home" | "env" | "run">;
 }): SetupHelpBridge {
   // First launch asks for no factory folder (ADR-1118): with none chosen, storytree's own is made as the app starts.
   makeFactoryFolder(options.storytreeHome);
+  // The tools an agent is connected to: those the installer recorded, else the ones this app carries.
+  const installed = () => deliveredCommand(options.storytreeHome, options.agentTools ?? options.storytreeHome);
   return {
     readSetupLicense: () => readShippedLicense(options.licenseFile),
     async agentConnections() {
@@ -52,6 +62,14 @@ export function setupHelpActions(options: {
       if (trust === "running") connections.push({ agent: "Codex", state: "running", message: "Codex is connected, and runs storytree's hooks." });
       if (trust === "waiting") connections.push({ agent: "Codex", state: "waiting", message: "Codex is connected, with one step left: it runs storytree's hooks only once you have trusted them, and until then storytree cannot see Codex's work.", step: CODEX_TRUST_STEP });
       return connections;
+    },
+    async agentsToConnect() {
+      return (await agentsOnThisComputer({ ...options.connections, installed: installed() })).map(({ harness, agent, connected }) => ({ harness, agent, connected }));
+    },
+    async connectAgent(harness) {
+      if (typeof harness !== "string" || !(HARNESS_IDS as readonly string[]).includes(harness)) throw new Error("Choose an agent this computer runs.");
+      const [result] = await connectAgents({ ...options.connections, harnesses: [harness as Harness], installed: installed() });
+      return { agent: watchedHarness(harness)?.label ?? harness, connected: result!.tools !== "not connected", next: result!.next };
     },
     async checkSetupFolder() {
       const folder = await options.chooseFolder();

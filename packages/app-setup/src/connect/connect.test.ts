@@ -8,7 +8,7 @@ import { test } from "node:test";
 import { noteCodexHookRan } from "@storytree/session-management";
 
 import { launcherFile, registerHooks, runSetupCheck, verifyHooks } from "../setup/index.js";
-import { connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "./index.js";
+import { agentsOnThisComputer, connectAgents, disconnectAgents, installedToolServerCommand, type RunHarness } from "./index.js";
 import { deliveredCommand } from "./installed.js";
 import { makeDevHome, removeDevHome } from "./dev-home.js";
 
@@ -74,6 +74,26 @@ for (const harnesses of [["claude-code"], ["codex"], ["claude-code", "codex"]] a
     if (!harnesses.includes("codex" as never)) assert.equal(before[1], legacy);
   });
 }
+
+test("2.13 the agents this computer runs are found, each said connected to this installation or not, and one not installed is not offered", async (t) => {
+  const f = fixture(t);
+  // Claude Code and Codex are installed here; Cursor, Pi and Antigravity are not.
+  const here: RunHarness = async (executable, args, options) => {
+    if (args[0] === "--version" && !["claude", "codex"].includes(executable)) throw new Error("not installed");
+    return run(executable, args, options);
+  };
+  const options = { ...f.options, run: here };
+  assert.deepEqual(await agentsOnThisComputer(options), [
+    { harness: "claude-code", agent: "Claude Code", connected: false },
+    { harness: "codex", agent: "Codex", connected: false },
+  ]);
+  await connectAgents({ ...options, harnesses: ["codex"] });
+  assert.deepEqual((await agentsOnThisComputer(options)).map((found) => found.connected), [false, true], "connecting one says so of it alone");
+  const elsewhere = installedToolServerCommand(process.execPath, path.join(f.home, "another installation", "storytree-mcp.mjs"));
+  assert.deepEqual((await agentsOnThisComputer({ ...options, installed: elsewhere })).map((found) => found.connected), [false, false], "another installation's entry is not this one connected");
+  writeFileSync(f.claudeFile, "{ not json");
+  assert.deepEqual((await agentsOnThisComputer(options))[0], { harness: "claude-code", agent: "Claude Code", connected: false }, "settings it cannot read are offered, not said connected");
+});
 
 test("2.10 choosing Cursor registers the tool server in ~/.cursor/mcp.json and storytree's hooks in ~/.cursor/hooks.json, keeping every other server and hook; repeating changes nothing, disconnecting removes exactly what it added, and a machine without Cursor gets a recovery action, not a success", async (t) => {
   const f = fixture(t);

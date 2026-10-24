@@ -73,46 +73,22 @@ function Add-StorytreePath([string]$Current, [string]$Entry) {
   return $Current.TrimEnd(';') + ';' + $Entry
 }
 
-function Invoke-StorytreeConnection($Report, [hashtable]$Operations) {
-  Write-Host 'Connect your installed and signed-in agents: 1 Claude Code, 2 Codex, 3 both, S skip for now.'
-  $choice = [string](& $Operations.Choose)
-  $flags = switch ($choice.Trim().ToLowerInvariant()) {
-    '1' { @('--claude') }
-    '2' { @('--codex') }
-    '3' { @('--claude', '--codex') }
-    's' { Write-Host 'Skipped agent connection. Later run storytree setup connect --claude or --codex (or both).'; return }
-    default { throw 'Choose 1, 2, 3 or S. The app is installed; retry connection with storytree setup connect --claude or --codex (or both).' }
-  }
-  & $Operations.Connect $Report.tools @($flags)
-}
-
-function Invoke-StorytreeProjectFolder([string]$Here, [string]$UserHome, [hashtable]$Operations) {
-  $later = 'Add a project later with Add project in the storytree app, storytree doctor --set-up <name> in a terminal in its folder, or by asking your agent there.'
-  # The home folder or a drive root as a project would put every folder under it in that project.
-  $offer = $Here -and ($Here.TrimEnd('\', '/') -ine $UserHome.TrimEnd('\', '/')) -and ($Here -ne [IO.Path]::GetPathRoot($Here))
-  if ($offer) { Write-Host "Choose your project folder: press Enter for $Here, type another folder (created if missing), or S to skip." }
-  else { Write-Host 'Choose your project folder: type its path (created if missing), or press Enter or S to skip.' }
-  $answer = ([string](& $Operations.Ask 'Project folder')).Trim().Trim('"').Trim()
-  if ($answer -ieq 's' -or (-not $answer -and -not $offer)) { Write-Host "No project was set up. $later"; return }
-  $folder = if ($answer) { [IO.Path]::GetFullPath([IO.Path]::Combine($Here, $answer)) } else { $Here }
-  try {
-    $status = & $Operations.Inspect $folder
-    if ($status.project) { Write-Host "$folder is already storytree project '$($status.project)'. Nothing new was set up."; return }
-    while ($true) {
-      Write-Host "Project name: press Enter for '$($status.suggestion)', or type your own (lower-case letters, digits and single hyphens)."
-      $name = ([string](& $Operations.Ask 'Project name')).Trim()
-      if (-not $name) { $name = $status.suggestion }
-      $result = & $Operations.SetUp $folder $name
-      if ($result.status -ne 'name refused') { break }
-      Write-Host $result.message
-      if ($result.suggestion) { $status.suggestion = $result.suggestion }
+# What the one-liner says once the app is open. It asks nothing (ADR-1162 D1): connecting agents and adding a project are
+# the app's first run. Its first suggestion is opening storytree, with the command that does it (D2).
+function Get-StorytreeOpenedLines([string]$InstallDir, $Report) {
+  $app = (Join-Path $InstallDir 'storytree-0.3.exe').Replace("'", "''")
+  $lines = @("storytree is installed, and its app is open. To open it again, use the Start menu, or run: & '$app'")
+  $lines += 'In the app, connect your coding agents and, when you want one, add a project.'
+  if ($Report.command.status -eq 'conflict') {
+    $lines += "An existing storytree command was preserved: $($Report.command.conflict)"
+    $lines += "Run this installation explicitly: & '$($Report.tools.node)' '$($Report.tools.cli)'"
+  } else {
+    $lines += 'The storytree command is available in a fresh Windows terminal.'
+    foreach ($older in @($Report.command.replaced)) {
+      if ($older) { $lines += "An older storytree command now runs this installation: $older" }
     }
-  } catch {
-    throw "The project was not set up: $($_.Exception.Message). The app and your agents are ready. $later"
   }
-  if ($result.status -eq 'already a project') { Write-Host "$folder is already storytree project '$($result.project)'. Nothing new was set up."; return }
-  if ($result.status -eq 'folder refused') { Write-Host "$($result.message) No project was set up. $later"; return }
-  Write-Host "$folder is now storytree project '$name', and the app shows it. Start Claude Code or Codex in that folder to work in it."
+  return $lines
 }
 
 function Invoke-StorytreeDelivery([string]$InstallDir, [string]$Architecture, [hashtable]$Operations) {
@@ -346,41 +322,7 @@ namespace StorytreeDelivery {
     }
   }
   $answer = Invoke-StorytreeDelivery $installDir $architecture $operations
-  Write-Host 'storytree is installed; its app is open and its database is ready.'
-  if ($answer.report.command.status -eq 'conflict') {
-    Write-Host "An existing storytree command was preserved: $($answer.report.command.conflict)"
-    Write-Host "Run this installation explicitly: & '$($answer.report.tools.node)' '$($answer.report.tools.cli)'"
-  } else {
-    Write-Host 'The storytree command is available in a fresh Windows terminal.'
-    foreach ($older in @($answer.report.command.replaced)) {
-      if ($older) { Write-Host "An older storytree command now runs this installation: $older" }
-    }
-  }
-  Invoke-StorytreeConnection $answer.report @{
-    Choose = { Read-Host 'Choose 1, 2, 3 or S' }
-    Connect = {
-      param($Tools, $Flags)
-      # Use the delivered command explicitly, including when an unrelated storytree is on PATH.
-      & $Tools.node $Tools.cli setup connect @Flags | Out-Host
-      if ($LASTEXITCODE -ne 0) { throw 'Agent connection needs attention; read each agent result above. The app remains installed. Retry with storytree setup connect --claude or --codex (or both).' }
-    }
-  }
-  $tools = $answer.report.tools
-  Invoke-StorytreeProjectFolder (Get-Location).ProviderPath $env:USERPROFILE @{
-    Ask = { param($Prompt) Read-Host $Prompt }
-    Inspect = {
-      param($Folder)
-      $out = & $tools.node $tools.deliver project $Folder
-      if ($LASTEXITCODE -ne 0) { throw 'the folder could not be read' }
-      return ($out | ConvertFrom-Json)
-    }
-    SetUp = {
-      param($Folder, $Name)
-      $out = & $tools.node $tools.deliver add-project $Folder $Name
-      if ($LASTEXITCODE -ne 0) { throw 'the library did not take the project; read the error above' }
-      return ($out | ConvertFrom-Json)
-    }
-  }
+  foreach ($line in (Get-StorytreeOpenedLines $installDir $answer.report)) { Write-Host $line }
 } catch {
   Write-Error "$_ Retry: run the same delivery command again after resolving the named step."
   exit 1

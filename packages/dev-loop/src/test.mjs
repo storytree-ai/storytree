@@ -59,8 +59,9 @@
 // STORYTREE_TEST_PG_ADMIN_URL is set as well).
 //
 // Files and node's own --test-* options go to `node --test`, in every unit: `pnpm run test <file>`
-// runs just that file, with no scope and no record. Give options in --name=value form, so that a
-// value is never mistaken for a file.
+// runs just that file, with no scope and nothing kept for --rerun-failed, though each test it sees fail
+// is kept in the red runs like any run's. Give options in --name=value form, so that a value is never
+// mistaken for a file.
 //
 // On Windows, a Node.js whose libuv can end the process on a TCP connect is refused before anything
 // starts, with the release to install instead (node-runtime.mjs): under it, a test file now

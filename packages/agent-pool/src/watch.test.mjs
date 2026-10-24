@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 
 import { countEngines } from "./queue.mjs";
-import { adoptRequests, ensureWatcher, hand, handOver, handThroughLibrary, isFixSession, main, projectOf, readPull, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
+import { adoptRequests, ensureWatcher, hand, handOver, handThroughLibrary, isFixSession, main, projectOf, readFailures, readPull, reachOf, remoteCommand, RESTART, watchOnce } from "./watch.mjs";
 
 const at = Date.parse("2026-10-10T12:00:00Z");
 const minutes = (n) => new Date(at + n * 60_000).toISOString();
@@ -842,4 +842,88 @@ test("4.33 · a merged pull request has every story's risk reading read again on
   await watchOnce(b.options);
   assert.ok(b.lines.some((line) => line.includes("origin unreachable")), "a reading that fails is said, and the look goes on");
   assert.ok(!(await readdir(b.dir)).includes("44.json"), "the merge was still handled");
+});
+
+/** A job's log line as `gh api …/jobs/<id>/logs` gives it, led by its timestamp. */
+const logged = (...lines) => lines.map((line) => `2026-10-24T01:41:17.7416938Z ${line}`).join("\n");
+const job = (name, log, conclusion = "failure") => ({ name, conclusion, steps: 9, log });
+const ci = (jobs, id = 5, attempt = 1) => ({ id, attempt, repo: "storytree-ai/storytree", jobs });
+/** A red the watcher read as failing in `units` and `tests`, all outside what the pull request changes unless `outside` is false. */
+const flaky = ({ head = "h1", tests = ["4.17 · a browser draws"], units = ["packages/forest-world"], run = 5, attempt = 1, outside = true } = {}) => ({ ...red, head,
+  failures: { outside, units, tests, runs: [{ id: run, attempt, repo: "storytree-ai/storytree" }], key: `${run}:${attempt}` } });
+
+test("4.34 · a red's failing units and tests are read from its red jobs' logs, and it is outside the pull request's reach only when every failing unit is a package it does not change", () => {
+  const reach = reachOf(["packages/library/src/a.ts", "apps/desktop/src/b.ts", ".github/workflows/ci.yml", "pnpm-lock.yaml"]);
+  assert.deepEqual([...reach].sort(), ["apps/desktop", "packages/library"]);
+  const windows = job("verify on Windows 2/2", logged("✖ 3.5 · a lane launches (120000.5ms)", "✖ failing tests:", "✖ 3.5 · a lane launches (120000.5ms)",
+    "results:", "  PASS    packages/library", "  FAIL    packages/agent-pool — 77.8 s (limit 510 s, learned)"));
+  const macos = job("verify on macOS", logged("✖ 4.17 · a browser draws (12ms)", "  FAIL    packages/forest-world — 12 s"));
+  const verify = job("verify", "", "failure");
+  const read = readFailures([ci([windows, macos, verify, job("verify on Linux", "", "success")])], reach);
+  assert.deepEqual(read, { outside: true, units: ["packages/agent-pool", "packages/forest-world"], tests: ["3.5 · a lane launches", "4.17 · a browser draws"],
+    runs: [{ id: 5, attempt: 1, repo: "storytree-ai/storytree" }], key: "5:1" }, "the follower verify job's red is no failure of its own");
+  assert.equal(readFailures([ci([windows, job("verify on Linux", logged("  FAIL    packages/library — 3 s"))])], reach).outside, false, "a unit the pull request changes is in reach");
+  assert.equal(readFailures([ci([windows, job("verify on Linux", logged("error TS2322: nope"))])], reach).outside, false, "a red job with no FAIL row failed on no test");
+  assert.equal(readFailures([ci([job("verify on Linux", logged("  FAIL    guidance — 3 s"))])], reach).outside, false, "a unit outside packages/ and apps/ is no package");
+});
+
+test("4.34 · a red whose failing tests all lie outside the pull request's reach is refreshed from main, or rerun when main has nothing new, and counts nothing against its fix limit", async (t) => {
+  const b = await box(t);
+  const refreshed = [], reruns = [];
+  let behind = true;
+  b.options.refresh = async (pr, head) => { if (!behind) throw new Error("the branch is up to date with main"); refreshed.push([pr, head]); };
+  b.options.rerun = async (one) => { reruns.push(one.id); };
+  await handOff(b);
+  b.looks[41] = flaky();
+  await watchOnce(b.options);
+  assert.deepEqual(refreshed, [[41, "h1"]]);
+  assert.equal(b.fixes.length, 0, "no model session for a flake");
+  assert.match(b.lines.at(-1), /PR #41 .*outside.*4\.17 · a browser draws.*not counted/);
+  await watchOnce(b.options);
+  assert.deepEqual(refreshed, [[41, "h1"]], "a look before the refresh's run has started does nothing again");
+  behind = false;
+  b.looks[41] = flaky({ head: "h2", tests: ["3.19 · a session times out"], units: ["packages/session-management"], run: 6 });
+  await watchOnce(b.options);
+  assert.deepEqual(reruns, [6], "main had nothing new, so its failed run is rerun");
+  assert.ok(b.calls.some((args) => args[1] === "rerun" && args[2] === "6"), "the rerun is recorded as a ci-rerun line");
+  b.looks[41] = { ...red, head: "h3" };
+  for (let round = 0; round < 3; round++) { await watchOnce(b.options); b.live.clear(); }
+  assert.equal(b.fixes.length, 2);
+  assert.match(b.fixes[0].brief, /Fix session 1 of 2/, "the flakes before it counted nothing");
+  assert.deepEqual(b.calls.at(-1).slice(0, 6), ["arc", "increment", "wait", "increment_one", "--for", "owner"], "a counted red past the limit still waits on the owner");
+});
+
+test("4.35 · a test that fails again on the same pull request counts, wherever it lies", async (t) => {
+  const b = await box(t);
+  b.options.refresh = async () => {};
+  await handOff(b);
+  b.looks[41] = flaky();
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 0);
+  b.looks[41] = flaky({ head: "h2", run: 7 });
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 1, "the same test failed again: not random");
+  assert.match(b.fixes[0].brief, /Fix session 1 of 2/);
+  b.live.clear();
+  b.looks[41] = flaky({ head: "h3", run: 8, tests: ["9.1 · another"], outside: false });
+  await watchOnce(b.options);
+  assert.equal(b.fixes.length, 2, "a red in reach counts as before");
+});
+
+test("4.36 · a pull request whose fix sessions' cap is spent on flakes goes back on its arc as ready work, with a friction naming the flaky tests, never to the owner", async (t) => {
+  const b = await box(t);
+  b.options.cap = 3;
+  b.options.refresh = async () => {};
+  await handOff(b);
+  for (let round = 0; round < 3; round++) { b.looks[41] = { ...flaky({ head: `h${round}`, run: round, tests: [`1.${round} · flaky`] }), branch: "claude/increment-one" }; await watchOnce(b.options); }
+  assert.equal(b.fixes.length, 0);
+  b.looks[41] = { ...flaky({ head: "h9", run: 9, tests: ["1.9 · flaky"] }), branch: "claude/increment-one" };
+  await watchOnce(b.options);
+  assert.ok(!b.calls.some(([, , verb, , , waitFor]) => verb === "wait" && waitFor === "owner"), "no owner wait");
+  assert.ok(b.calls.some(([, , verb, id]) => verb === "edit" && id === "increment_one"), "its body names the pull request and branch");
+  const friction = b.calls.find(([noun, verb]) => noun === "friction" && verb === "new");
+  assert.ok(friction, "a friction is filed");
+  for (const name of ["1.0 · flaky", "1.1 · flaky", "1.2 · flaky", "PR #41"]) assert.ok(friction.join(" ").includes(name), name);
+  assert.deepEqual(await readdir(b.dir), [], "the hand-off is dropped");
+  assert.match(b.lines.at(-1), /PR #41.*back on its arc/);
 });

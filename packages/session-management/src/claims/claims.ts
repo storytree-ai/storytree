@@ -17,7 +17,8 @@
  *   recently of those it still holds; an edit or command from a session holding nothing is
  *   unplanned activity.
  * - Every way a claim ends, and what that does to its increment, is claims/endings.ts's; in brief:
- * - An increment's claim also ends when the increment is closed through storytree: a "closed" line.
+ * - An increment's claim also ends when the increment is closed through storytree: a "closed" line. Only its live
+ *   holder closes it, or the owner's shell, or anyone once the holder reads idle or when nobody holds it (closeRefusal).
  *   Closing or releasing an increment also ends every capability claim taken while it was held, which
  *   their claimed lines name as `under`, whoever closes it and whatever the disposition (ADR-0944 D5, ADR-0949 D4).
  * - A claim also ends when a pull request from the branch it was taken on merges after it was
@@ -415,8 +416,26 @@ export async function land(context: ClaimContext, capability: string): Promise<L
 }
 
 /**
+ * Why the context's session may not close `increment`, or undefined when it may: another session holds it and reads
+ * live, a pull request's holder included, so a lane whose claim was taken over or handed to its pull request cannot
+ * close the work. The holder closes it, and so does the owner's shell (`person:`, where the watcher closes too), anyone
+ * once the holder reads idle (the session manager), and anyone when nobody holds it.
+ */
+export async function closeRefusal(context: ClaimContext, increment: string): Promise<Held | undefined> {
+  if (context.session.startsWith("person:")) return undefined;
+  const standing = await readClaims(context.log, context.project, {
+    ...(context.quietMs === undefined ? {} : { quietMs: context.quietMs }),
+    ...(context.restarted === undefined ? {} : { restarted: context.restarted }),
+  });
+  const current = standing.find((claim) => claim.increment === increment);
+  if (current === undefined || current.session === context.session || current.holder !== "live") return undefined;
+  return held(standing, current);
+}
+
+/**
  * Record that `increment` closed, with what the close meant: the "closed" line, which ends any
- * claim on it, whoever holds it. The library's own close is the caller's, done first.
+ * claim on it, whoever holds it. Whether the session may close it is `closeRefusal`'s, and the library's own close
+ * is the caller's, both done first.
  */
 export async function closed(context: ClaimContext, increment: string, disposition: "landed" | "failed" | "withdrawn"): Promise<Line> {
   return context.log.locked(context.project, async (log) => (await endClaim(log, who(context), { increment }, { by: "close", disposition })).line);

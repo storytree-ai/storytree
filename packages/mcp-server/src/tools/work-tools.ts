@@ -14,7 +14,7 @@ import { z } from "zod";
 
 import { closed, currentBranch, increments, releaseAsked } from "@storytree/session-management";
 import { incrementMachine, MachineNameError } from "@storytree/session-management/machines";
-import { claimClearingOwnerWait, claimContext as sessionClaimContext, refusalText } from "@storytree/session-management/tools";
+import { claimClearingOwnerWait, claimContext as sessionClaimContext, closeRefusalText, refusalText } from "@storytree/session-management/tools";
 import { lineOf, type Answer, type Call, type Define } from "./server.js";
 import { quoted } from "./text.js";
 
@@ -68,9 +68,11 @@ export function registerWorkTools(define: Define): void {
 
   define(
     "close_increment",
-    "Close an increment with its outcome: landed, failed or withdrawn, with its pull request, or a note when there is none. Any claim on it ends.",
+    "Close an increment with its outcome: landed, failed or withdrawn, with its pull request, or a note when there is none. Any claim on it ends; while another session holds it live, only that holder (or the owner, or the watcher) closes it.",
     z.object({ increment: id("increment"), disposition, pr, note }),
     async ({ increment, disposition: meant, pr: pull, note: why }, call) => {
+      const refused = await closeRefusalText(claimContext(call), increment);
+      if (refused !== undefined) return { text: refused, refused: true };
       const done = await call.library.closeIncrement(increment, defined({ disposition: meant, pr: pull, note: why }), call.writer);
       if (done === null) return noIncrement(increment);
       const saved = { text: `Closed ${quoted(done.fields.title)} (${increment}), ${meant}.`, data: { id: increment, disposition: meant } };

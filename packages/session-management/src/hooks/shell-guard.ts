@@ -29,14 +29,19 @@ import { approvedHere, importsOf, machineOf, route, type LocateOptions } from "@
 import { gated } from "./edit-gate.js";
 import type { HookFailure } from "./failures.js";
 import type { HookLines } from "./hooks.js";
+import { learn, limitOf, type Step } from "./learned-limits.js";
 import { enqueue } from "./queue.js";
 import { shellEdits } from "./shell-edits.js";
 
 /** The flag of the hook after each shell command that the harness waits for. */
 export const SHELL_GUARD = "--shell-guard";
 
-/** How long the guard may take to ask which changes a yes covers: the harness waits on it. */
-export const GUARD_MS = 3_000;
+/**
+ * How long the guard may take to ask which changes a yes covers, and each Git read comparing the worktree with its
+ * base: the harness waits on it. Learned on each machine (ADR-1163 D2), never under the 3 s it was fixed at, nor over
+ * 6 s, so the guard and the observations before it stay inside the hook's 9 s (GUARDED_DEADLINE_MS).
+ */
+export const SHELL_GUARD_STEP: Step = { name: "shell-guard", floorMs: 3_000, ceilingMs: 6_000 };
 
 /** The most changed files a notice names one by one. */
 const NAMED = 20;
@@ -73,10 +78,12 @@ export async function watchImports(storytree: Storytree, project: string, machin
 /**
  * The guard's answer after a shell command, for the agent; undefined for nothing to say. Each imported folder's changes
  * are recorded (queued for the next hook to upload); those no yes covers are told. It runs no git, and says nothing, in a
- * checkout this machine does not know as approved (contract 3.46). Never throws.
+ * checkout this machine does not know as approved (contract 3.46). It may take `guardMs` when given, else the time this
+ * machine learned in `home`, which learns how long asking storytree took. Never throws.
  */
-export async function shellGuard(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined, machineHome: string, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, declared?: DeclaredCapabilities, guardMs = GUARD_MS, git: Git = runGit): Promise<string | undefined> {
+export async function shellGuard(harness: string, input: unknown, made: HookLines | undefined, locate: LocateOptions | undefined, machineHome: string, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, declared?: DeclaredCapabilities, guardMs?: number, git: Git = runGit): Promise<string | undefined> {
   try {
+    const limit = guardMs ?? limitOf(home, SHELL_GUARD_STEP);
     const line = made?.lines[0];
     if (made === undefined || line?.kind !== "command-run") return undefined;
     const where = route(made.folder, locate);
@@ -86,22 +93,24 @@ export async function shellGuard(harness: string, input: unknown, made: HookLine
     // The session's own worktree, observed apart from the ordinary hooks' baseline, whose lines record the same edits.
     const root = declared === undefined ? undefined : worktreeRoot(made.folder);
     const touched = root === undefined ? [] : shellEdits(worktreeBaselines(home), root, line, (error) => failed("observe", error), git).flatMap((edit) => (edit.kind === "file-edited" ? edit.files : []));
-    const own = touched.length === 0 ? touched : offBase(root!, touched, git);
+    const own = touched.length === 0 ? touched : offBase(root!, touched, git, limit);
     if (edits.length === 0 && own.length === 0) return undefined;
     if (edits.length > 0) enqueue(home, where.project, edits);
     const changed = edits.flatMap((edit) => (edit.kind === "file-edited" ? edit.files.map((file) => ({ folder: edit.folder!, file })) : []));
+    const from = performance.now();
     const answer = await withinTime(gated(harness, { session: line.session, folder: made.folder, files: [] }, locate, machineHome, async (context, checkout, known) => {
       const { shellEditRefusals, unallowedImportEdits } = await import("../claims/edit-gate.js");
       const unallowed = new Set(changed.length === 0 ? [] : (await unallowedImportEdits(context, checkout, changed.map(({ folder, file }) => ({ path: path.join(folder, file) })), known)).map(({ path: file }) => file));
       const refused = own.length === 0 ? [] : await shellEditRefusals(context, checkout, own.map((file) => ({ path: file })), declared!);
       return { told: changed.filter(({ folder, file }) => unallowed.has(path.join(folder, file))), refused };
-    }).catch((error: unknown) => {
+    }, limit).catch((error: unknown) => {
       failed("hook", error);
       return undefined;
-    }), guardMs);
+    }), limit);
+    if (guardMs === undefined) learn(home, SHELL_GUARD_STEP, answer === LATE ? limit : performance.now() - from);
     // Imported changes storytree could not judge in time are all told; the worktree's, like an edit the gate could not judge, go ahead.
-    const told = answer?.told ?? changed;
-    const refused = answer?.refused ?? [];
+    const told = answer === LATE ? changed : answer?.told ?? changed;
+    const refused = answer === LATE ? [] : answer?.refused ?? [];
     if (told.length === 0 && refused.length === 0) return undefined;
     const { refusalMessage } = await import("../claims/edit-gate.js");
     const said = [...(told.length === 0 ? [] : [notice(told)]), ...refused.map((refusal) => refusalMessage(refusal, true))].join("\n\n");
@@ -139,8 +148,8 @@ export function watchWorktree(home: string, root: string, line: NewLine, failed:
  * origin/main, else HEAD. A command that returns a file there, as a git checkout undoing a trespass does, changed
  * nothing the branch carries (friction_53b3f12c30aa). When Git cannot say, every file counts as changed.
  */
-function offBase(root: string, files: readonly string[], run: Git): string[] {
-  const git = (args: string[], input?: string) => run(["--no-optional-locks", ...args], { cwd: root, ...(input === undefined ? {} : { input }), timeout: GUARD_MS, maxBuffer: 8 * 1024 * 1024 });
+function offBase(root: string, files: readonly string[], run: Git, limitMs: number): string[] {
+  const git = (args: string[], input?: string) => run(["--no-optional-locks", ...args], { cwd: root, ...(input === undefined ? {} : { input }), timeout: limitMs, maxBuffer: 8 * 1024 * 1024 });
   try {
     let base: string;
     try { base = git(["merge-base", "HEAD", "origin/main"]).trim(); } catch { base = git(["rev-parse", "--verify", "HEAD^{commit}"]).trim(); }
@@ -172,9 +181,12 @@ function importsFile(home: string, project: string): string {
   return path.join(home, "imported-folders", `${encodeURIComponent(project)}.json`);
 }
 
-/** `work`'s answer, or undefined if it takes longer than `ms`, the time the guard may. */
-function withinTime<T>(work: Promise<T | undefined>, ms: number): Promise<T | undefined> {
+/** What `withinTime` answers for work that took longer than it may. */
+const LATE = Symbol("late");
+
+/** `work`'s answer, or LATE if it takes longer than `ms`, the time the guard may. */
+function withinTime<T>(work: Promise<T | undefined>, ms: number): Promise<T | undefined | typeof LATE> {
   let timer: NodeJS.Timeout | undefined;
-  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), ms)));
+  const late = new Promise<typeof LATE>((resolve) => (timer = setTimeout(() => resolve(LATE), ms)));
   return Promise.race([work, late]).finally(() => clearTimeout(timer));
 }

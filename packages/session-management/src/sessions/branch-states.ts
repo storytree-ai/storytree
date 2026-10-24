@@ -33,7 +33,8 @@ import path from "node:path";
 
 import { thisMachine, type ActivityLog, type BranchFacts } from "../activity/index.js";
 import type { Line, NewLine } from "@storytree/library";
-import { findProject } from "@storytree/project-and-caller";
+import { findProject, storytreeHome } from "@storytree/project-and-caller";
+import { learn, limitOf, type Step } from "../hooks/learned-limits.js";
 import { ask, type Answer } from "./ask.js";
 import { due, ghAllMergedPulls, projectTempFile, ghAllOpenPulls, type AllMergedPulls, type AllOpenPulls, type MergeContext, type MergedPull, type OpenPull } from "../claims/merges.js";
 
@@ -51,6 +52,8 @@ export interface BranchWatch {
   readonly budgetMs?: number;
   /** How git is asked about a branch on this machine. By default, this machine's git. */
   readonly git?: GitRunner;
+  /** Where this machine's learned time for one git call is kept (ADR-1163 D2). By default, the storytree home. */
+  readonly home?: string;
 }
 
 /** Runs git with `args` in `cwd`, giving up after `timeout`: an answer that says whether it answered in time. */
@@ -63,7 +66,11 @@ export const gitRunner: GitRunner = (cwd, timeout, args) => ask("git", args, pro
 const MAIN_BRANCHES = new Set(["main", "master"]);
 const EVERY_MS = 60_000;
 const BUDGET_MS = 3_000;
-const GIT_TIMEOUT_MS = 2_000;
+/**
+ * How long one git call on this machine may take. Learned from the slowest call of each look (ADR-1163 D2), never under
+ * the 2 s it was fixed at, nor over 5 s, as long as asking origin may: the look runs inside the upkeep's 20 s.
+ */
+export const BRANCH_GIT_STEP: Step = { name: "branch-git", floorMs: 2_000, ceilingMs: 5_000 };
 const ORIGIN_TIMEOUT_MS = 5_000;
 
 type BranchState = Extract<NewLine, { kind: "branch-state" }>;
@@ -93,18 +100,29 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
   const places = work.filter(({ folder }) => existsSync(folder)).map(({ folder }) => folder);
   if (candidates.size === 0 && places.length === 0) return [];
   const budget = watch.budgetMs ?? BUDGET_MS;
+  const home = watch.home ?? storytreeHome();
+  const limit = limitOf(home, BRANCH_GIT_STEP);
+  // The slowest call of this look, one that did not answer counted as its whole limit, is what the machine learns.
+  let slowest: number | undefined;
+  const timed = (runner: GitRunner): GitRunner => async (cwd, timeout, args) => {
+    const from = Date.now();
+    const answer = await runner(cwd, timeout, args);
+    slowest = Math.max(slowest ?? 0, answer.answered ? Date.now() - from : limit);
+    return answer;
+  };
+  const machineGit = timed(gitRunner);
   let deadline = Date.now() + budget;
   const mainFound: MainFound[] = [];
   for (const folder of places) {
     if (Date.now() > deadline) break;
-    const state = await mainState(folder);
+    const state = await mainState(folder, machineGit, limit);
     if (state !== undefined) mainFound.push({ of: folder, ...state });
   }
   const [merged, opened] = candidates.size === 0 ? [new Map<string, MergedPull[]>(), undefined] : await Promise.all([
     (watch.allMergedPulls ?? ghAllMergedPulls)(context.folder).catch(() => new Map<string, MergedPull[]>()),
     (watch.allOpenPulls ?? ghAllOpenPulls)(context.folder).catch(() => undefined),
   ]);
-  const seen = [...candidates.values()].some((facts) => facts.folder === undefined && !facts.foundThere) ? await seenHere(context.folder) : undefined;
+  const seen = [...candidates.values()].some((facts) => facts.folder === undefined && !facts.foundThere) ? await seenHere(context.folder, machineGit, limit) : undefined;
   // GitHub's answer for a long history can outlast the whole budget: the branches get a budget of their own.
   deadline = Date.now() + budget;
   const found: Found[] = [];
@@ -126,11 +144,12 @@ export async function resolveBranches(context: MergeContext, watch: BranchWatch 
       continue;
     }
     looked[branch] = Date.now();
-    const local = await gitState(facts.folder, branch, watch.git ?? gitRunner);
+    const local = await gitState(facts.folder, branch, timed(watch.git ?? gitRunner), limit);
     if (local === undefined) found.push(...onGitHub);
     else found.push({ of: branch, open: local === "ahead", how: local, ...(local === "ahead" ? (open === undefined ? {} : { pull: open }) : { pull: {} }) });
   }
   remember(context.project, looked);
+  if (slowest !== undefined) learn(home, BRANCH_GIT_STEP, slowest);
   if (found.length === 0 && mainFound.length === 0) return [];
 
   return context.log.locked(context.project, async (log) => {
@@ -229,11 +248,6 @@ function toLookAt(worked: readonly BranchFacts[], machine: string | undefined, l
   return candidates;
 }
 
-/** What git says in `cwd`: its output, or a throw when it fails or takes longer than `timeout`. */
-async function git(cwd: string, timeout: number, ...args: string[]): Promise<string> {
-  return outOf(await gitRunner(cwd, timeout, args), args);
-}
-
 /** An answer's output, or a throw when git failed or did not answer in time. */
 function outOf(answer: Answer, args: readonly string[]): string {
   if (!answer.answered || answer.code !== 0) throw new Error(`git ${args[0]} did not answer`);
@@ -241,14 +255,15 @@ function outOf(answer: Answer, args: readonly string[]): string {
 }
 
 /** The branches `origin` has and this clone has, seen from `folder`; undefined when git cannot say. */
-async function seenHere(folder: string): Promise<Set<string> | undefined> {
-  const run = (timeout: number, ...args: string[]) => git(folder, timeout, ...args);
+async function seenHere(folder: string, runner: GitRunner, limit: number): Promise<Set<string> | undefined> {
+  // Asking origin is given its own time, and teaches nothing of this machine's git.
+  const run = async (timeout: number, ...args: string[]) => outOf(await (timeout === ORIGIN_TIMEOUT_MS ? gitRunner : runner)(folder, timeout, args), args);
   try {
     const remote = (await run(ORIGIN_TIMEOUT_MS, "ls-remote", "--heads", "origin")).split("\n").flatMap((line) => {
       const ref = line.split("\t")[1]?.trim();
       return ref?.startsWith("refs/heads/") ? [ref.slice("refs/heads/".length)] : [];
     });
-    const local = (await run(GIT_TIMEOUT_MS, "for-each-ref", "--format=%(refname:short)", "refs/heads")).split("\n").map((name) => name.trim()).filter(Boolean);
+    const local = (await run(limit, "for-each-ref", "--format=%(refname:short)", "refs/heads")).split("\n").map((name) => name.trim()).filter(Boolean);
     return new Set([...remote, ...local]);
   } catch {
     return undefined;
@@ -274,8 +289,8 @@ function latestMainStates(lines: readonly Line[], machine: string | undefined): 
 }
 
 /** What this machine's git says of `folder` on the main line; off the main line it holds nothing; undefined when git cannot say. */
-async function mainState(folder: string): Promise<{ dirty: boolean; unborn: boolean } | undefined> {
-  const run = async (...args: string[]) => (await git(folder, GIT_TIMEOUT_MS, ...args)).trim();
+async function mainState(folder: string, runner: GitRunner, limit: number): Promise<{ dirty: boolean; unborn: boolean } | undefined> {
+  const run = async (...args: string[]) => outOf(await runner(folder, limit, args), args).trim();
   try {
     const branch = await run("symbolic-ref", "--short", "-q", "HEAD").catch(() => "");
     if (!MAIN_BRANCHES.has(branch)) return { dirty: false, unborn: false };
@@ -294,26 +309,26 @@ function latestStates(lines: readonly Line[]): Map<string, Line & { kind: "branc
 }
 
 /** What this machine's git says of `branch`, from `folder` or the nearest folder above it still there; undefined when git cannot say. */
-async function gitState(folder: string, branch: string, runner: GitRunner): Promise<"deleted" | "not-ahead" | "ahead" | undefined> {
+async function gitState(folder: string, branch: string, runner: GitRunner, limit: number): Promise<"deleted" | "not-ahead" | "ahead" | undefined> {
   let cwd = folder;
   while (!existsSync(cwd)) {
     const parent = path.dirname(cwd);
     if (parent === cwd) return undefined;
     cwd = parent;
   }
-  const run = async (...args: string[]) => outOf(await runner(cwd, GIT_TIMEOUT_MS, args), args).trim();
+  const run = async (...args: string[]) => outOf(await runner(cwd, limit, args), args).trim();
   try {
     await run("rev-parse", "--git-dir");
   } catch {
     return undefined;
   }
   const verify = ["rev-parse", "--verify", "-q", `refs/heads/${branch}`];
-  const exists = await runner(cwd, GIT_TIMEOUT_MS, verify);
+  const exists = await runner(cwd, limit, verify);
   // A git that did not answer in time says nothing: slowness is not absence.
   if (!exists.answered) return undefined;
   if (exists.code !== 0) {
     // A branch with no commit yet has no ref either: it is only just started, not deleted.
-    const head = await runner(cwd, GIT_TIMEOUT_MS, ["symbolic-ref", "--short", "-q", "HEAD"]);
+    const head = await runner(cwd, limit, ["symbolic-ref", "--short", "-q", "HEAD"]);
     if (!head.answered) return undefined;
     return head.code === 0 && head.out.trim() === branch ? undefined : "deleted";
   }

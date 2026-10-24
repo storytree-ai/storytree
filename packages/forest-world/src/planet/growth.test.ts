@@ -33,6 +33,11 @@ test('5.1 a growth replays only what the recording holds, in its stages\' order,
   const road = plan.roads.get('c1->b1')!;
   assert.ok(road.start >= end(plan.islands.get('b')!));
   assert.ok(Math.abs(plan.islands.get('c')!.start - end(road)) < 1e-9, 'c rises as its road arrives');
+  // Parts joining a standing island fill in one after another from their stage's start, never before it.
+  const joined = growthPlan([{ id: 'one', scene: { islands: [island('a', ['a1'])], links: [] } },
+    { id: 'two', scene: { islands: [island('a', ['a1', 'a2', 'a3'])], links: [] } }]);
+  const [a2, a3] = ['a2', 'a3'].map(c => joined.capabilities.get(c)!.start);
+  assert.ok(a2! >= joined.stages[1]!.start && a3! > a2!, 'a3 follows a2, both inside their stage');
   // A link whose ends are not both recorded is never drawn.
   const orphan = growthPlan([{ id: 'x', scene: { islands: [island('a', ['a1'])], links: [{ from: 'z9', to: 'a1' }] } }]);
   assert.deepEqual([...orphan.roads.keys()], []);

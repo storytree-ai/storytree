@@ -58,7 +58,7 @@ const briefVerb = verb({
     diff: { kind: "text", optional: true, describe: "the change's diff against its default branch, as git diff gives it" },
   },
   async act({ increment, diff }, context: QualityVerbContext) {
-    const { briefText, changeFolder, openReviews, worktreeChange } = await import("../index.js");
+    const { briefWithReport, changeFolder, openReviews, worktreeChange } = await import("../index.js");
     const reviews = await openReviews(server(context));
     // The change is the branch the increment was claimed on, wherever this runs (contract 2.8).
     let folder = context.folder;
@@ -67,8 +67,10 @@ const briefVerb = verb({
       folder = changeFolder(context.folder, (await readClaims(context.log as Parameters<typeof readClaims>[0], context.project)).find((claim) => claim.increment === increment)?.branch);
     }
     const brief = await reviews.brief(context.library, increment, diff ?? worktreeChange(folder));
+    // The change's mutation report runs on its worktree, never on a diff given by hand (contract 7.3).
+    const { text } = await briefWithReport(server(context), brief, diff === undefined ? folder : undefined);
     return {
-      text: briefText(brief),
+      text,
       next: [{ command: `quality take ${increment} --return @<file>`, why: "record the review's return, as JSON" }],
     };
   },
@@ -83,7 +85,7 @@ const takeVerb = verb({
     return: { kind: "text", describe: "the change-reviewer's return, as JSON" },
   },
   async act({ increment, return: text }, context: QualityVerbContext) {
-    const { graduatedFindings, openReviews, takenText } = await import("../index.js");
+    const { graduatedFindings, openReviews, takenText, takenWithSurvivors } = await import("../index.js");
     let review;
     try {
       review = JSON.parse(text);
@@ -91,7 +93,7 @@ const takeVerb = verb({
       throw new VerbRefusal(`the return is not JSON: ${(error as Error).message}`);
     }
     const reviews = await openReviews(server(context));
-    const taken = await reviews.take(context.library.name, increment, review, await graduatedFindings(context.library, context.folder));
+    const taken = await takenWithSurvivors(server(context), reviews, context.library.name, increment, await reviews.take(context.library.name, increment, review, await graduatedFindings(context.library, context.folder)));
     return {
       text: takenText(taken),
       ...(taken.standing.length === 0 ? {} : { next: [{ command: "quality answer <hit> fixed|rejected --reason …", why: "answer each standing finding" }] }),

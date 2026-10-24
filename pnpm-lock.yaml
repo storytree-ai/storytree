@@ -857,12 +857,18 @@ importers:
 
   packages/quality-assurance:
     dependencies:
+      '@babel/parser':
+        specifier: ^7.29.9
+        version: 7.29.9
       '@storytree/guardrails':
         specifier: workspace:*
         version: link:../guardrails
       '@storytree/library':
         specifier: workspace:*
         version: link:../library
+      '@storytree/local-postgres':
+        specifier: workspace:*
+        version: link:../local-postgres
       '@storytree/map':
         specifier: workspace:*
         version: link:../map
@@ -873,9 +879,6 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
-      '@storytree/local-postgres':
-        specifier: workspace:*
-        version: link:../local-postgres
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

@@ -20,7 +20,7 @@
  *   however the process ends that it can see.
  */
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -370,9 +370,12 @@ export const runTests: TestRun = (root, tests, limitMs, given = process.env) => 
   child.once("close", (code) => {
     clearTimeout(deadline);
     kill();
+    // The reporter names a file by its real path, so the root is resolved too: macOS's temp folder sits behind a symlink.
+    const real = (where: string): string => existsSync(where) ? realpathSync(where) : where;
+    const realRoot = real(root);
     const passing = existsSync(results) ? readFileSync(results, "utf8").split("\n").filter(Boolean).map((one) => {
       const [file, line, column, title] = JSON.parse(one) as [string, number | undefined, number | undefined, string];
-      return testName(file === "" ? "" : path.relative(root, file.startsWith("file:") ? fileURLToPath(file) : file), line, column, title);
+      return testName(file === "" ? "" : path.relative(realRoot, real(file.startsWith("file:") ? fileURLToPath(file) : file)), line, column, title);
     }) : [];
     rmSync(temp, { recursive: true, force: true });
     resolve({ passed: code === 0 && !timedOut, ms: Date.now() - started, ...(timedOut ? { timedOut } : {}), passing });

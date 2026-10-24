@@ -38,6 +38,12 @@ export const SPANS: Readonly<Record<string, string>> = {
 
 export const TOOL_NAMES = ["catch_up", "count", "find", "read_code", "read_note", "search_code", "show_question", "tell_me", "what_changed"] as const;
 
+/**
+ * The throwaway spike's tool names, each answered by the tool that replaced it (contract 2.18): claude.ai's connector keeps
+ * the tool list it saw last, so a voice session reconnected before the door took the spike's place calls these names.
+ */
+export const OLD_NAMES = { open_questions: "catch_up", search_library: "find", read_code_file: "read_code" } as const satisfies Record<string, (typeof TOOL_NAMES)[number]>;
+
 /** Until the session manager writes its owner items in the library (contract 2.3, retired when it does). */
 export const DRIVE_NOTICE = "Not in this list: the session manager's own items for you are not in the library yet; they are only in Drive's open-questions index.";
 
@@ -428,8 +434,14 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
   const reads = (ctx: unknown) => new Reads(children, signalFor(ctx));
   const limits = children.limits;
   const server = new McpServer({ name: "storytree-voice", version: "0.1.0" }, { instructions: INSTRUCTIONS });
+  // Each tool as registered, so an old name can be served by the same schema and handler.
+  const registered = new Map<string, Parameters<McpServer["registerTool"]>>();
+  const registerTool = ((...tool: Parameters<McpServer["registerTool"]>) => {
+    registered.set(tool[0], tool);
+    return server.registerTool(...tool);
+  }) as McpServer["registerTool"];
 
-  server.registerTool(
+  registerTool(
     "catch_up",
     {
       title: "Catch up",
@@ -450,7 +462,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "tell_me",
     {
       title: "Tell me about one thing",
@@ -477,7 +489,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "count",
     {
       title: "Count the library",
@@ -499,7 +511,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "show_question",
     {
       title: "Show one question",
@@ -518,7 +530,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "find",
     {
       title: "Find in the library",
@@ -558,7 +570,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "read_note",
     {
       title: "Read one library record",
@@ -589,7 +601,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "what_changed",
     {
       title: "What changed",
@@ -646,7 +658,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "search_code",
     {
       title: "Search the source code",
@@ -685,7 +697,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "read_code",
     {
       title: "Read a source file",
@@ -743,6 +755,11 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
         return success([`${relative}, lines ${first}-${shownLast} of ${total}:`, ...body, ...notes].join("\n"));
       }),
   );
+
+  for (const [old, now] of Object.entries(OLD_NAMES)) {
+    const [, config, handler] = registered.get(now)!;
+    server.registerTool(old, { ...config, title: `${config.title} (old name)`, description: `The old name for ${now}, kept for connectors that still list it: ${config.description}` }, handler as never);
+  }
 
   return server;
 }

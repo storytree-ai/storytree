@@ -4,7 +4,7 @@ export const guide = `
   <p>Both steps are optional, and you can come back to them here from Help.</p>
   <h4>Connect your coding agents</h4>
   <div class="setup-help-connect" data-connect role="status"><p>Looking for the coding agents on this computer…</p></div>
-  <h4>Add a project</h4>
+  <h4>Add your first project</h4>
   <p>Choose the folder of something you want to build. Storytree sets it up as a project and shows it.</p>
   <div class="setup-help-actions"><button type="button" data-guide-add-project>Add a project…</button></div>
   <p data-guide-add-status role="status"></p>

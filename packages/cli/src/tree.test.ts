@@ -4,6 +4,7 @@
  */
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { waitUntil } from "@storytree/test-waits";
 
 import { BuiltCommand, inWorld } from "./testing/cli.js";
 
@@ -149,9 +150,10 @@ test("10.5 `storytree health worklist` prints the oldest three capabilities on t
     const check = await library.addContract({ title: "1.1 · Rejects an email with no @", capability: form.id });
     await library.setProposed(form.id, false);
     await library.recordVerified(check.id, "failing");
+    let previous = form.createdAt;
     for (const title of ["Password rules", "Thank-you page", "Welcome email"]) {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      await library.addCapability({ title, story: story.id });
+      await waitUntil(() => Date.now() > Date.parse(previous), 5_000, `the clock to pass ${previous}`);
+      previous = (await library.addCapability({ title, story: story.id })).createdAt;
     }
 
     const ran = await world.run(["health", "worklist"]);

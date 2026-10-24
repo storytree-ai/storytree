@@ -170,7 +170,12 @@ node infra/library-host/host.mjs backup
 ```
 
 All five dumps (the three 0.3 databases, `storytree-lag` and `storytree-quality`) must restore into new scratch databases and match their source
-snapshot's per-table row counts before **any** upload. Scratch names are unique;
+snapshot's per-table row counts before **any** upload. Every restore, here and in
+the proof below, runs `pg_restore` and reads its counts as `storytree_library` over
+`127.0.0.1` with the password in `~/.storytree/library-host/postgres-password`,
+never as the superuser; the superuser only creates and drops the scratch database
+around it. `pg_dump` and `pg_restore` are PostgreSQL 16's, called by absolute path
+(`/usr/lib/postgresql/16/bin`). Scratch names are unique;
 only databases marked as created by this increment may be dropped. No forced
 disconnect or existing-database overwrite is used. A session advisory lock on
 local Postgres serializes operations and releases automatically after a crash.
@@ -183,14 +188,20 @@ cannot delete. Never treat those as a backup. The bucket lifecycle removes them
 after 30 days. Successful runs delete only their own local dump files; manifests
 and upload receipts stay under `~/storytree-lanes/library-backups/`.
 
-Copy the `gs://…/backups/<timestamp>` printed by a successful run:
+Copy the `gs://…/backups/<timestamp>` printed by a successful run. A restore takes
+only a backup verified off the box: `--verified` names the verified list, a text file
+the off-box check writes, one manifest SHA-256 opening each line (`#` lines are
+comments).
 
 ```sh
-node infra/library-host/host.mjs restore-backup gs://storytree-498613-library-backups/backups/TIMESTAMP --dry-run
-node infra/library-host/host.mjs restore-backup gs://storytree-498613-library-backups/backups/TIMESTAMP
+node infra/library-host/host.mjs restore-backup gs://storytree-498613-library-backups/backups/TIMESTAMP --verified VERIFIED-LIST --dry-run
+node infra/library-host/host.mjs restore-backup gs://storytree-498613-library-backups/backups/TIMESTAMP --verified VERIFIED-LIST
 ```
 
-The proof downloads every dump the manifest names (a backup from before
+Before it downloads any dump it refuses the prefix when its manifest's SHA-256 is not
+on that list, when the timestamp in its name is in the future, or when any of its
+objects was created before that time or more than two hours after it. The proof
+then downloads every dump the manifest names (a backup from before
 `storytree-lag` joined names three, one from before `storytree-quality` joined
 names four), verifies sizes/hashes and restores each into its own scratch
 database, checks its row counts, then drops it. The live library is never
@@ -209,13 +220,16 @@ Requires `Linger=yes`; otherwise the owner runs
 `sudo loginctl enable-linger mickh`, or a separately reviewed cron installation
 is needed. The persistent user timer runs at 00:00, 06:00, 12:00 and 18:00 UTC,
 with at most 60 seconds' jitter, and catches a missed run after boot. The installer
-copies the reviewed script to a private, versioned runtime outside the disposable
-worktree. Its `pg` dependency resolves from the permanent
-`~/code/storytree03/node_modules`; keep that checkout installed. Output goes to
-`~/storytree-lanes/library-backups/timer.log`. Existing unit files are refused.
+bundles the reviewed script with its `pg` dependency (esbuild) into one `host.mjs`
+in a private, versioned runtime folder outside the disposable worktree, so nothing a
+backup runs resolves from any checkout's `node_modules`. The service's `PATH` is
+`/usr/bin:/bin` alone; gcloud and the PostgreSQL clients are named by absolute path.
+Output goes to `~/storytree-lanes/library-backups/timer.log`. Existing unit files are
+refused.
 
-When `host.mjs` changes, re-install so the timer runs the new copy (older runtime
-folders stay, as evidence of what ran):
+When `host.mjs` changes, re-run `install-timer` as below so the timer runs the new
+bundle (older runtime folders stay, as evidence of what ran). A runtime installed
+before the bundling keeps running its old copy until this is done:
 
 ```sh
 systemctl --user disable --now storytree-library-backup.timer

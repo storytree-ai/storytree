@@ -40,7 +40,8 @@
     "esbuild": "^0.28.2",
     "happy-dom": "catalog:",
     "tsx": "^4.23.15",
-    "typescript": "~7.0.2"
+    "typescript": "~7.0.2",
+    "@storytree/test-waits": "workspace:*"
   },
   "storytree": {
     "hooks": [

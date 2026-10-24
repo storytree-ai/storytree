@@ -93,6 +93,9 @@ importers:
       '@storytree/surface-feedback':
         specifier: workspace:*
         version: link:../../packages/surface-feedback
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../../packages/test-waits
       '@storytree/website':
         specifier: workspace:*
         version: link:../../packages/website
@@ -182,6 +185,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -231,6 +237,9 @@ importers:
       '@storytree/plugin-loader':
         specifier: workspace:*
         version: link:../plugin-loader
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -348,6 +357,9 @@ importers:
       '@storytree/plugin-loader':
         specifier: workspace:*
         version: link:../plugin-loader
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -791,6 +803,9 @@ importers:
       '@modelcontextprotocol/client':
         specifier: ^2.1.0
         version: 2.1.0
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -914,6 +929,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6
@@ -1000,6 +1018,9 @@ importers:
       '@storytree/local-postgres':
         specifier: workspace:*
         version: link:../local-postgres
+      '@storytree/test-waits':
+        specifier: workspace:*
+        version: link:../test-waits
       '@types/node':
         specifier: ^24.13.6
         version: 24.13.6

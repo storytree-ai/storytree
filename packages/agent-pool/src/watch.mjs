@@ -152,7 +152,7 @@ export function reachOf(files) {
  * is `outside` `reach`, every failing unit a package or app the pull request changes no file of. A red job with no FAIL
  * row failed on no test (an install, a typecheck), and a unit outside packages/ and apps/ is no package: neither is outside.
  * The reach is only what the pull request changes, not its dependents: a red it caused in a dependent fails again on a
- * rerun, and that repeat counts (4.35).
+ * rerun, and that repeat counts (4.35, ADR-1147).
  */
 export function readFailures(runs, reach) {
   const units = new Set(), tests = new Set();

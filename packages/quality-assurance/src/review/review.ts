@@ -33,6 +33,9 @@
  * - Review depth follows the change's own risk tier (ADR-1144 D1), read from its whole diff and the package graph of its
  *   worktree, or, for a diff given by hand, from the increment's written risk line: a low-tier change gets a light pass,
  *   judged from the diff alone; medium and high, or a change whose tier was not read, the full brief (2.11).
+ * - The brief lists each guardrail a change sets off (trigger `change`, question_4cec0ba23052) of the capabilities the increment
+ *   names and of their stories, each story's once, as the increment's pending plan changes leave them; the return answers each
+ *   passed or failed, with its pictures, and a failed one stands until a later review passes it (2.12, ADR-1148).
  */
 import { execFileSync } from "node:child_process";
 
@@ -82,10 +85,22 @@ export interface Brief {
   readonly plan?: readonly PlanEntry[];
   /** Each live check not graduated whole; one graduated in part names the parts Architecture checks now enforces, which the reviewer does not judge (contract 5.2). */
   readonly checks: readonly { readonly id: string; readonly title: string; readonly question: string; readonly graduated?: readonly Graduated[] }[];
+  /**
+   * Each guardrail the change sets off, of a capability the increment names or of its story, named `<record>#<n>`, its place in
+   * that record's list: the reviewer runs each and answers it passed or failed with pictures (contract 2.12). Absent when none.
+   */
+  readonly guardrails?: readonly BriefGuardrail[];
   /** Each hit earlier reviews of this change made, with the implementer's answer. */
   readonly earlier: readonly HitRow[];
   /** The earlier hits rejected for a reason no review has accepted yet: the return judges each. */
   readonly judge: readonly number[];
+}
+
+/** One guardrail as the brief lists it: its name, the story or capability that carries it, and the check to run (contract 2.12). */
+export interface BriefGuardrail {
+  readonly id: string;
+  readonly on: { readonly id: string; readonly title: string };
+  readonly check: string;
 }
 
 /** One pending plan change as the brief lists it. */
@@ -123,6 +138,8 @@ export interface ReviewReturn {
   readonly checks: readonly { readonly check: string; readonly tripped: boolean; readonly hits?: readonly { readonly file: string; readonly line: number; readonly found: string }[] }[];
   readonly contracts: readonly { readonly contract: string; readonly met: boolean; readonly why?: string }[];
   readonly rejections?: readonly { readonly hit: number; readonly accepted: boolean; readonly why?: string }[];
+  /** Each guardrail in the brief, run: passed or failed, with why when failed, and the pictures it took (contract 2.12). */
+  readonly guardrails?: readonly { readonly guardrail: string; readonly passed: boolean; readonly why?: string; readonly pictures: readonly string[] }[];
 }
 
 /** A contract a review found not met, with why. */
@@ -131,11 +148,19 @@ export interface Unmet {
   readonly why: string;
 }
 
+/** A guardrail a review found failed, with why (contract 2.12). */
+export interface Failed {
+  readonly guardrail: string;
+  readonly why: string;
+}
+
 /** A return taken: the review's name in the ledger, its hits, the contracts it found unmet, and what stands now. */
 export interface Taken {
   readonly review: string;
   readonly hits: readonly HitRow[];
   readonly unmet: readonly Unmet[];
+  /** The guardrails it found failed (contract 2.12). */
+  readonly failed: readonly Failed[];
   readonly standing: readonly HitRow[];
   /** Why Architecture checks' graduated checks did not run on the change, when they did not: none of their findings is recorded. */
   readonly graduatedNotRun?: string;
@@ -158,6 +183,8 @@ export interface Reviews {
   standing(project: string, change: string): Promise<HitRow[]>;
   /** The contracts the latest review taken on `change` found not met: each stands until a later review finds it met. */
   unmet(project: string, change: string): Promise<Unmet[]>;
+  /** The guardrails the latest review taken on `change` found failed: each stands until a later review passes it (contract 2.12). */
+  failed(project: string, change: string): Promise<Failed[]>;
 }
 
 /** Open the review loop on `server`'s connection. */
@@ -209,13 +236,15 @@ class PgReviews implements Reviews {
     const earlier = await this.#hits(project, change, "TRUE");
     const standing = earlier.filter((hit) => hit.answer === "unanswered" || (hit.answer === "rejected" && !hit.accepted));
     const unmet = await this.unmet(project, change);
-    const count = standing.length + unmet.length;
+    const failed = await this.failed(project, change);
+    const count = standing.length + unmet.length + failed.length;
     if (taken >= REVIEW_LIMIT && count > 0) {
       const arc = (increment.fields as { arc: string }).arc;
       throw new Error([
         `${taken} reviews of ${change} have run and ${count} finding${count === 1 ? "" : "s"} still stand${count === 1 ? "s" : ""}, so no further review runs (ADR-1120 D1).`,
         ...standing.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.answer === "rejected" ? `rejected: ${hit.reason}` : "unanswered"}`),
         ...unmet.map(({ contract, why }) => `  contract ${contract} not met: ${why}`),
+        ...failed.map(({ guardrail, why }) => `  guardrail ${guardrail} failed: ${why}`),
         `Raise an open question on arc ${arc} holding ${change}, in ADR-0944 D4's order: land what is green, push the rest and name its branch in the residue, raise the question, release the claims.`,
       ].join("\n"));
     }
@@ -234,6 +263,13 @@ class PgReviews implements Reviews {
       return { id, title: title(capability) ?? id, story: { id: storyId, title: title(story) ?? (storyId || "no story") } };
     }));
     listed.sort((a, b) => byTitle(a.story, b.story) || byTitle(a, b));
+    // Each story's guardrails once, then each capability's own, as the increment's pending plan changes leave them (contract 2.12).
+    const carriers = [...new Map(listed.flatMap(({ id, title, story }) => [[story.id, story.title], [id, title]] as const).filter(([id]) => id !== "")).entries()];
+    const guardrails = (await Promise.all(carriers.map(async ([id, carrierTitle]) => {
+      const change = pending.get(id);
+      const fields = { ...((await library.get(id))?.fields ?? {}), ...(change !== undefined && "after" in change ? change.after : {}) } as { guardrails?: { check: string; trigger: string }[] };
+      return (fields.guardrails ?? []).flatMap(({ check, trigger }, index) => (trigger === "change" ? [{ id: `${id}#${index + 1}`, on: { id, title: carrierTitle }, check }] : []));
+    }))).flat();
     const order = new Map(listed.map(({ id }, index) => [id, index]));
     const contracts = named
       .filter(({ change }) => change === undefined || !("retire" in change))
@@ -264,6 +300,7 @@ class PgReviews implements Reviews {
       ...(mark === undefined ? {} : { mark }), ...(since === undefined ? {} : { since }),
       ...(risk === undefined ? {} : { risk }), pass: risk?.tier === "low" ? "light" : "full", packages, capabilities: listed, contracts, retired,
       ...(plan.length === 0 ? {} : { plan }),
+      ...(guardrails.length === 0 ? {} : { guardrails }),
       checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
       judge: earlier.filter((hit) => hit.answer === "rejected" && !hit.accepted).map((hit) => hit.id),
@@ -308,6 +345,7 @@ class PgReviews implements Reviews {
       review: name,
       hits,
       unmet: unmetIn(review),
+      failed: failedIn(review),
       standing: await this.standing(project, change),
       ...(graduated !== undefined && !graduated.ran ? { graduatedNotRun: graduated.reason } : {}),
     };
@@ -323,6 +361,14 @@ class PgReviews implements Reviews {
       [project, change],
     );
     return rows[0] === undefined ? [] : unmetIn(rows[0].taken);
+  }
+
+  async failed(project: string, change: string): Promise<Failed[]> {
+    const { rows } = await this.#pool.query<{ taken: ReviewReturn }>(
+      "SELECT taken FROM quality_briefs WHERE project = $1 AND change = $2 AND taken_at IS NOT NULL ORDER BY iteration DESC LIMIT 1",
+      [project, change],
+    );
+    return rows[0] === undefined ? [] : failedIn(rows[0].taken);
   }
 
   async #taken(project: string, change: string): Promise<number> {
@@ -363,6 +409,11 @@ function unmetIn(review: ReviewReturn): Unmet[] {
   return (review.contracts ?? []).filter(({ met }) => !met).map(({ contract, why }) => ({ contract, why: why ?? "" }));
 }
 
+/** The guardrails a return found failed, with why. */
+function failedIn(review: ReviewReturn): Failed[] {
+  return (review.guardrails ?? []).filter(({ passed }) => !passed).map(({ guardrail, why }) => ({ guardrail, why: why ?? "" }));
+}
+
 /** What a return gets wrong against its brief, each naming the check, contract or hit; none means it is taken. */
 function refusals(brief: Brief, review: ReviewReturn): string[] {
   const problems: string[] = [];
@@ -380,6 +431,11 @@ function refusals(brief: Brief, review: ReviewReturn): string[] {
   answered("check", brief.checks.map(({ id }) => id), (review.checks ?? []).map(({ check }) => check));
   answered("contract", brief.contracts.map(({ id }) => id), (review.contracts ?? []).map(({ contract }) => contract));
   answered("rejected hit", brief.judge, (review.rejections ?? []).map(({ hit }) => hit));
+  answered("guardrail", (brief.guardrails ?? []).map(({ id }) => id), (review.guardrails ?? []).map(({ guardrail }) => guardrail));
+  for (const { guardrail, passed, why, pictures } of review.guardrails ?? []) {
+    if (!Array.isArray(pictures) || !pictures.some((picture) => typeof picture === "string" && picture.trim() !== "")) problems.push(`guardrail ${guardrail} names no picture: save at least one of what you saw`);
+    if (!passed && (why ?? "").trim() === "") problems.push(`guardrail ${guardrail} failed and the return does not say why`);
+  }
   for (const { check, tripped, hits = [] } of review.checks ?? []) {
     if (tripped && hits.length === 0) problems.push(`check ${check} is tripped and names no file and line`);
     if (!tripped && hits.length > 0) problems.push(`check ${check} is not tripped and names hits`);
@@ -532,7 +588,7 @@ export function briefText(brief: Brief): string {
     `Review ${brief.iteration} of change ${brief.change} (project ${brief.project}); packages it touches: ${brief.packages.join(", ")}.`,
     `Your return names this review, "review": ${brief.iteration}, or it is refused as another review's.`,
     brief.pass === "light"
-      ? `Light pass: this change reads ${riskLineText(brief.risk!)}, so judge every check and contract from the diff below alone, without reading around a hunk, opening other files or running anything.`
+      ? `Light pass: this change reads ${riskLineText(brief.risk!)}, so judge every check and contract from the diff below alone, without reading around a hunk, opening other files or running anything${(brief.guardrails ?? []).length === 0 ? "" : " but the guardrails below"}.`
       : brief.risk === undefined
         ? "Full review: no risk line was read for this change. Read the lines around a hunk in the files the diff touches wherever the hunk alone is not enough."
         : `Full review: this change reads ${riskLineText(brief.risk)}. Read the lines around a hunk in the files the diff touches wherever the hunk alone is not enough.`,
@@ -562,6 +618,11 @@ export function briefText(brief: Brief): string {
       `Pending plan changes (${plan.length}): what this change does to the plan on its merge, besides the contracts above it rewords or retires; judge them with the checks and contracts above; a hit on one names its record as the file, at line 1.`,
       ...plan.map((entry) => `  ${entry.record}  ${entry.type}  ${entry.title}\n    ${"retire" in entry ? `retired: ${entry.retire}` : `becomes: ${JSON.stringify(entry.after)}`}`),
     ]),
+    ...((brief.guardrails ?? []).length === 0 ? [] : [
+      "",
+      `Guardrails (${brief.guardrails!.length}): this change sets each off. Start the real app, or the built website, from seeded fixtures at the state nearest the change, click through only that part against the contracts above and the on-screen done-criteria, and save pictures of what you saw; answer each passed or failed, with its pictures, and why when failed.`,
+      ...brief.guardrails!.map((guardrail) => `  ${guardrail.id}  ${guardrail.on.title}\n    ${guardrail.check}`),
+    ]),
     ...(brief.earlier.length === 0 ? [] : [
       "",
       `Earlier hits (${brief.earlier.length}), with the implementer's answer:`,
@@ -582,17 +643,18 @@ export function takenText(taken: Taken): string {
     `Recorded review ${taken.review}: ${taken.hits.length === 0 ? "no hits" : `${taken.hits.length} hit${taken.hits.length === 1 ? "" : "s"}`}.`,
     ...taken.hits.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.found ?? ""}`),
     ...(taken.graduatedNotRun === undefined ? [] : [`  Architecture checks' graduated checks did not run, so nothing of theirs is recorded: ${taken.graduatedNotRun}`]),
-    standingText(taken.standing, taken.unmet),
+    standingText(taken.standing, taken.unmet, taken.failed),
   ].join("\n");
 }
 
-/** The standing findings and unmet contracts as plain text, or that the change is ready for the gate. */
-export function standingText(standing: readonly HitRow[], unmet: readonly Unmet[] = []): string {
-  const count = standing.length + unmet.length;
+/** The standing findings, unmet contracts and failed guardrails as plain text, or that the change is ready for the gate. */
+export function standingText(standing: readonly HitRow[], unmet: readonly Unmet[] = [], failed: readonly Failed[] = []): string {
+  const count = standing.length + unmet.length + failed.length;
   if (count === 0) return "No finding stands: the change is ready for the gate.";
   return [
-    `${count} finding${count === 1 ? "" : "s"} stand${count === 1 ? "s" : ""}; answer each hit, fixed or rejected with a reason, fix each contract not met or put it to the owner, then review again:`,
+    `${count} finding${count === 1 ? "" : "s"} stand${count === 1 ? "s" : ""}; answer each hit, fixed or rejected with a reason, fix each contract not met or put it to the owner, fix each guardrail failed, then review again:`,
     ...standing.map((hit) => `  hit ${hit.id}  ${hit.check}  ${hit.file}:${hit.line}  ${hit.answer === "rejected" ? `rejected, not accepted: ${hit.reason}` : "unanswered"}`),
     ...unmet.map(({ contract, why }) => `  contract ${contract} not met: ${why}`),
+    ...failed.map(({ guardrail, why }) => `  guardrail ${guardrail} failed: ${why}`),
   ].join("\n");
 }

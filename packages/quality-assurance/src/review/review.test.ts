@@ -549,6 +549,71 @@ test("4.4 · the tools this package registers record the same answer to a hit an
 
     const standing = await reviews.standing(library.name, increment);
     assert.deepEqual(standing.map(({ id, answer, reason }) => ({ id, answer, reason })), [{ id: byApi!.id, answer: "rejected", reason: "BASE is a worked number" }]);
-    assert.deepEqual(await tools.quality_standing!({ increment }, call), { text: standingText(standing), data: { standing, unmet: [] } });
+    assert.deepEqual(await tools.quality_standing!({ increment }, call), { text: standingText(standing), data: { standing, unmet: [], failed: [] } });
+  });
+});
+
+test("2.12 · the brief lists each change-triggered guardrail of the capabilities the increment names and of their story, the story's once, and not a release-triggered one or another story's", async () => {
+  await withLibrary(async (library, storytree) => {
+    const story = await library.addStory({ title: "Desktop app", guardrails: [{ check: "Drive the real app from seeded fixtures", trigger: "change" }, { check: "Fresh-install sweep", trigger: "release" }] });
+    const screen = await library.addCapability({ title: "1 · Story panel", story: story.id, guardrails: [{ check: "Open the panel on a seeded story", trigger: "change" }] });
+    const menu = await library.addCapability({ title: "2 · Menu", story: story.id });
+    const other = await library.addStory({ title: "Website", guardrails: [{ check: "Drive the built website", trigger: "change" }] });
+    const arc = await library.createArc({ title: "Panel", intent: "Show the panel", endState: "It shows", stories: [story.id, other.id] });
+    const increment = await library.addIncrement({ arc: arc.id, title: "Panel", objective: "Build it", body: "Build it", capabilities: [screen.id, menu.id] });
+
+    const brief = await (await openReviews(storytree)).brief(library, increment.id, DIFF);
+
+    assert.deepEqual(brief.guardrails, [
+      { id: `${story.id}#1`, on: { id: story.id, title: "Desktop app" }, check: "Drive the real app from seeded fixtures" },
+      { id: `${screen.id}#1`, on: { id: screen.id, title: "1 · Story panel" }, check: "Open the panel on a seeded story" },
+    ]);
+    assert.match(briefText(brief), new RegExp(`Guardrails \\(2\\)[^]*${story.id}#1  Desktop app\\n    Drive the real app from seeded fixtures`));
+  });
+});
+
+test("2.12 · a return must answer each guardrail once, with a picture, and why when it failed; a failed one stands, blocks the gate and counts toward the loop's bound, until a later review passes it", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, capability, contracts, checks } = await plan(library);
+    const story = (await library.get(capability))!.fields as { story: string };
+    await library.editStory(story.story, { guardrails: [{ check: "Drive the real app", trigger: "change" }] });
+    const guardrail = `${story.story}#1`;
+    const reviews = await openReviews(storytree);
+    const ledger = await openLedger(storytree);
+
+    await reviews.brief(library, increment, DIFF);
+    const before = await ledger.rows(library.name);
+    await assert.rejects(reviews.take(library.name, increment, clean(checks, contracts)), new RegExp(`guardrail ${guardrail} is in the brief and the return does not answer it`));
+    await assert.rejects(reviews.take(library.name, increment, { ...clean(checks, contracts), guardrails: [{ guardrail, passed: true, pictures: [] }] }), new RegExp(`guardrail ${guardrail} names no picture`));
+    await assert.rejects(reviews.take(library.name, increment, { ...clean(checks, contracts), guardrails: [{ guardrail, passed: false, pictures: ["a.png"] }] }), new RegExp(`guardrail ${guardrail} failed and the return does not say why`));
+    assert.deepEqual(await ledger.rows(library.name), before);
+
+    const taken = await reviews.take(library.name, increment, { ...clean(checks, contracts), guardrails: [{ guardrail, passed: false, why: "the panel stays blank", pictures: ["a.png"] }] });
+    assert.deepEqual(taken.failed, [{ guardrail, why: "the panel stays blank" }]);
+    assert.deepEqual(await reviews.failed(library.name, increment), [{ guardrail, why: "the panel stays blank" }]);
+    assert.doesNotMatch(standingText([], [], await reviews.failed(library.name, increment)), /ready for the gate/);
+    assert.match(takenText(taken), new RegExp(`guardrail ${guardrail} failed: the panel stays blank`));
+
+    for (let review = 2; review <= REVIEW_LIMIT; review++) {
+      await reviews.brief(library, increment, DIFF);
+      await reviews.take(library.name, increment, { ...clean(checks, contracts, {}, review), guardrails: [{ guardrail, passed: false, why: "still blank", pictures: ["b.png"] }] });
+    }
+    await assert.rejects(reviews.brief(library, increment, DIFF), new RegExp(`guardrail ${guardrail} failed: still blank`));
+  });
+});
+
+test("2.12 · a later review that passes the guardrail clears it", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment, capability, contracts, checks } = await plan(library);
+    const story = (await library.get(capability))!.fields as { story: string };
+    await library.editStory(story.story, { guardrails: [{ check: "Drive the real app", trigger: "change" }] });
+    const guardrail = `${story.story}#1`;
+    const reviews = await openReviews(storytree);
+    await reviews.brief(library, increment, DIFF);
+    await reviews.take(library.name, increment, { ...clean(checks, contracts), guardrails: [{ guardrail, passed: false, why: "blank", pictures: ["a.png"] }] });
+    await reviews.brief(library, increment, DIFF);
+    const taken = await reviews.take(library.name, increment, { ...clean(checks, contracts, {}, 2), guardrails: [{ guardrail, passed: true, pictures: ["b.png"] }] });
+    assert.deepEqual(taken.failed, []);
+    assert.match(standingText(taken.standing, taken.unmet, await reviews.failed(library.name, increment)), /ready for the gate/);
   });
 });

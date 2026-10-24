@@ -52,9 +52,9 @@ step claude-install sh -c 'npm install -g @anthropic-ai/claude-code >/dev/null 2
 
 mkdir -p "$PROJECT"
 cd "$PROJECT" || exit 1
-# The one-liner exactly as the release page gives it, in a pseudo-terminal (expect) so its questions are asked and
-# answered the way a person at a terminal would: 1 connects Claude Code, Enter takes this folder, Enter takes the
-# suggested project name.
+# The one-liner exactly as the release page gives it, in a pseudo-terminal (expect). It asks nothing since ADR-1162;
+# an older installer (a stable pin from before it) still asks, and is answered the way a person at a terminal would:
+# 1 connects Claude Code, Enter takes this folder, Enter takes the suggested project name.
 if [ "$CHANNEL" = alpha ]; then
   ONE_LINER="curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel alpha"
 elif [ -n "$VERSION" ]; then
@@ -92,6 +92,10 @@ step profile sh -c "ls -la '$HOME'/.profile '$HOME'/.bash_profile '$HOME'/.bash_
 st() { bash -c ". '$HOME/.profile' && cd '$PROJECT' && storytree $*"; }
 step command-path bash -c ". '$HOME/.profile' && command -v storytree"
 step doctor st doctor
+# What the app's first-run guide offers (ADR-1162 D1), taken from the command line, as a first user's terminal can:
+# connect Claude Code, then make this folder a project. Each is a no-op over an older installer that already did it.
+step connect st setup connect --claude
+step set-up st doctor --set-up st-linux-acceptance
 step hooks sh -c "cat '$HOME/.claude/settings.json'; echo; ls -la '$HOME/.claude'"
 step project-files sh -c "ls -la '$PROJECT'; cat '$PROJECT/.storytree.json'"
 

@@ -1,17 +1,19 @@
 // The plan's edges between stories follow the code (ADR-0840 D2): the rules live in
 // packages/dev-loop/src/plan-edges.mjs; `pnpm gate` runs them against the library, which CI cannot read.
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { planEdgeProblems, planEdgeVerdict } from "./plan-edges.mjs";
 
 /** A repo whose shop depends on the till, the till on the bank, and the frame's desktop on the ledger. */
 function plant(t) {
   const dir = mkdtempSync(path.join(tmpdir(), "plan-edges-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const manifests = {
     "packages/shop": { name: "@storytree/shop", dependencies: { "@storytree/till": "workspace:*" } },
     "packages/till": { name: "@storytree/till", devDependencies: { "@storytree/bank": "workspace:*" } },

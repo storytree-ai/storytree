@@ -4,14 +4,14 @@
 // they test.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { start } from "@storytree/local-postgres";
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { sweepLeftovers } from "./test-leftovers.mjs";
 import { killTree, runUnit } from "./unit-run.mjs";
@@ -30,7 +30,7 @@ function cleanups(t) {
 
 function folder(steps, prefix) {
   const made = realpathSync(mkdtempSync(path.join(tmpdir(), prefix)));
-  steps.push(() => rmSync(made, { recursive: true, force: true, maxRetries: 5 }));
+  steps.push(() => removeTemp(made));
   return made;
 }
 
@@ -46,11 +46,6 @@ function alive(pid) {
 /** The postmaster's pid, read from the data folder while the server runs. */
 function postmaster(dataDir) {
   return Number(readFileSync(path.join(dataDir, "postmaster.pid"), "utf8").split("\n")[0]);
-}
-
-async function gone(pid, ms = 10_000) {
-  for (const until = Date.now() + ms; Date.now() < until; await delay(100)) if (!alive(pid)) return true;
-  return !alive(pid);
 }
 
 /**
@@ -102,7 +97,7 @@ test("starts a server and never stops it", async () => {
 
 async function untilRecord(root) {
   const file = path.join(root, "RECORD");
-  for (let tries = 0; tries < 600 && !existsSync(file); tries++) await delay(100);
+  await waitUntil(() => existsSync(file), 30_000, `the unit to write ${file}`);
   return JSON.parse(readFileSync(file, "utf8"));
 }
 
@@ -117,7 +112,7 @@ test("6.20 · a unit's end stops every Postgres server running on a data folder 
     if (kill) killTree(child);
     const result = await run;
     assert.equal(result.code === 0, ending === "", `the unit ${ending === "" ? "passed" : "did not pass"}`);
-    assert.equal(await gone(seen.pid, 1_000), true, `the server a unit left running (${ending || "pass"}) is stopped when the unit ends`);
+    await waitUntil(() => !alive(seen.pid), 1_000, `the server a unit left running (${ending || "pass"}) to be stopped when the unit ends`);
     assert.equal(existsSync(seen.temp), false, "and its temp folder is removed with the data folder in it");
   }
 });
@@ -139,9 +134,9 @@ test("6.21 · a run's start stops any Postgres server in Temp left by a run that
 
   sweepLeftovers({ tmp: temp });
 
-  assert.equal(await gone(orphan), true, "the server in a gone run's unit folder is stopped");
+  await waitUntil(() => !alive(orphan), 10_000, "the server in a gone run's unit folder to be stopped");
   assert.equal(existsSync(deadRun), false, "and the gone run's unit folder removed");
-  assert.equal(await gone(stale), true, "a server in a storytree scratch folder whose owner has gone is stopped");
+  await waitUntil(() => !alive(stale), 10_000, "a server in a storytree scratch folder whose owner has gone to be stopped");
   assert.equal(alive(postmaster(owned.dataDir)), true, "a server whose owner lives is left running");
   assert.equal(existsSync(liveRun), true, "a live run's unit folder is left alone");
 });

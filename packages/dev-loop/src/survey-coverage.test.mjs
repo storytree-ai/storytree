@@ -2,11 +2,13 @@
 // small package in a temporary folder whose numbered test runs its code only in processes it starts.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { coverageOf, executedFiles } from "./survey-coverage.mjs";
 import { recordBrowserCoverage } from "./browser-coverage.mjs";
@@ -45,7 +47,7 @@ test("6.5 a coverage run records, for each source file, the numbered tests of ea
     // A foreign story's title must not allocate local code to a same-numbered local capability.
     assert.deepEqual(map, { "src/mapped.ts": { 2: 2 }, "src/work.mjs": { 2: 4 } });
   } finally {
-    rmSync(work, { recursive: true, force: true });
+    await removeTemp(work);
   }
 });
 
@@ -92,7 +94,7 @@ test("6.5 measured browser bundle inputs survive Node regeneration, scoped to pa
     assert.throws(() => recordBrowserCoverage({ pkgDir: pkg, proof, passed: true, scripts: [{ ...scripts[0], sourceMap: undefined }] }), /source map/);
     assert.deepEqual(await coverageOf({ root: pkg, pkgDir: pkg, env: process.env }), { "src/node.mjs": { 5: 1 } });
   } finally {
-    rmSync(temp, { recursive: true, force: true });
+    await removeTemp(temp);
   }
 });
 
@@ -159,6 +161,6 @@ test("6.5 App records same-checkout Desktop functions from Node and browser proo
     assert.throws(() => recordBrowserCoverage({ pkgDir: pkg, proof, passed: false, scripts }), /passing/);
     assert.deepEqual(await coverageOf({ root: work, pkgDir: pkg, env: process.env }), { [desktop]: { 4: 1 }, "../../apps/desktop/src/node.mjs": { 6: 1 }, "src/frame.ts": { 4: 1 } });
   } finally {
-    rmSync(temp, { recursive: true, force: true });
+    await removeTemp(temp);
   }
 });

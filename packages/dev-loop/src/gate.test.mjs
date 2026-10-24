@@ -6,13 +6,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
+
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 
 import { guidanceFor, runGate, stepCommand } from "./gate.mjs";
 
 function checkout(t) {
   const root = mkdtempSync(path.join(tmpdir(), "gate-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   const git = (...args) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: root, stdio: "pipe" });
   const write = (file, text) => {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
@@ -157,14 +158,12 @@ test("7.3 cancelling the foreground gate stops the typecheck process and its com
   // process.kill takes as this process (Windows) or its group (Unix): wait for a real pid.
   const pidIn = (file) => existsSync(file) ? Number(readFileSync(file, "utf8")) : 0;
   for (const file of ["manager.pid", "compiler.pid"].map((name) => path.join(root, name))) {
-    while (!(pidIn(file) > 0)) await delay(25);
-    pids.push(pidIn(file));
+    pids.push(await waitUntil(() => pidIn(file) > 0 && pidIn(file), 10_000, `a real pid in ${path.basename(file)}`));
   }
   controller.abort();
   assert.equal(await running, 130);
   const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
-  for (const until = Date.now() + 10_000; Date.now() < until && pids.some(alive);) await delay(25);
-  assert.deepEqual(pids.filter(alive), [], "no typecheck child survives the completed gate");
+  await waitUntil(() => !pids.some(alive), 10_000, `the typecheck children (${pids.join(", ")}) to exit after the gate completed`);
 });
 
 test("7.11 on an increment's branch the gate writes the change's risk line through quality risk, after the capability list; a branch naming none leaves it NOT RUN", async (t) => {

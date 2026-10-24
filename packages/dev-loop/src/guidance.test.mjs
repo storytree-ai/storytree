@@ -19,11 +19,12 @@
 // (STORYTREE_TEST_PG_URL), in a project of their own that is dropped afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { removeTemp } from "@storytree/test-waits";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
@@ -134,7 +135,7 @@ test("4.2 the drift check names a stale region, missing and stale files and an o
 
 test("4.2 the check writes nothing and fails on drift; the build writes stale and missing files and removes an orphan role and skill, after which the check passes", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "guidance-sync-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   const put = (file, text) => {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     writeFileSync(path.join(root, file), text);
@@ -161,7 +162,7 @@ test("4.2 the check writes nothing and fails on drift; the build writes stale an
 
 test("4.3 a build over a size budget fails, naming the file", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "guidance-sync-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   const said = [];
   const big = "x".repeat(BUDGETS["AGENTS.md"] + 1);
   assert.equal(syncGuidance(new Map([["AGENTS.md", big]]), { root, check: false, log: () => {}, error: (line) => said.push(line) }), 1);
@@ -266,7 +267,7 @@ test("4.5 the drift check fails a branch only on its own drift; another editor's
     assert.equal(own({ branchChanged: undefined }).length, 1, "when git cannot say what the branch changed, all drift is its own");
 
     const root = mkdtempSync(path.join(tmpdir(), "guidance-judge-"));
-    t.after(() => rmSync(root, { recursive: true, force: true }));
+    t.after(() => removeTemp(root));
     writeFileSync(path.join(root, "AGENTS.md"), "old\n");
     const said = [];
     const io = { log: (line) => said.push(line), error: (line) => said.push(line) };

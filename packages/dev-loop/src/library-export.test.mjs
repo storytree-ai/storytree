@@ -6,11 +6,12 @@
 // that is dropped afterwards.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { removeTemp } from "@storytree/test-waits";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
@@ -20,7 +21,7 @@ import { exportLibrary } from "./library-export.mjs";
 
 test("5.2 the export's files replace the stories and decisions folders, so a story no longer in the library leaves no file behind", (t) => {
   const out = mkdtempSync(path.join(tmpdir(), "library-export-"));
-  t.after(() => rmSync(out, { recursive: true, force: true }));
+  t.after(() => removeTemp(out));
   mkdirSync(path.join(out, "stories"));
   writeFileSync(path.join(out, "stories", "gone.md"), "an old story\n");
   writeExport(new Map([["stories/kettle.md", "# Story: the kettle\n"], ["decisions/adr-0999.md", "# ADR-0999\n"]]), out);

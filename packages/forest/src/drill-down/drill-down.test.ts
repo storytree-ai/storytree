@@ -191,3 +191,22 @@ test("4.15 a mapped story's panel says it is mapped, with its files and lines fr
   assert.deepEqual(drillDown(tree, "old", workStates([]), [])?.mapped, {}, "before its survey it is still mapped, with no counts invented");
   assert.equal("mapped" in (drillDown(tree, "new", workStates([]), [], survey) ?? {}), false);
 });
+
+test("4.36 a story's panel carries its risk: the rating read from its depth and radius, who it reaches, and its own and its capabilities' extra checks; a story with neither carries none", () => {
+  const read = "2026-10-24";
+  const risk = { depth: { value: 3 as const, read, reason: "flags: screen" }, radius: { value: 2 as const, downstream: 1, audience: "invited" as const, read, reason: "serves invited users itself" } };
+  const install = { ...capability("install", []), guardrails: [{ check: "a fresh-install sweep", trigger: "release" as const }] };
+  const rated: AnnotatedStory = { ...story("desktop", install, capability("window", [])), risk, guardrails: [{ check: "a real-app run", trigger: "change" }] };
+  const counted: AnnotatedStory = { ...story("site"), risk: { ...risk, radius: { ...risk.radius, audience: "public", users: 40 } } };
+  const tree: AnnotatedTree = { stories: [rated, counted, story("plain", capability("a", []))], arcs: [] };
+  assert.deepEqual(drillDown(tree, "desktop", workStates([]), [])?.risk, {
+    rating: 8,
+    audience: "invited",
+    checks: [
+      { check: "a real-app run", trigger: "change" },
+      { check: "a fresh-install sweep", trigger: "release", capability: "The install" },
+    ],
+  });
+  assert.deepEqual(drillDown(tree, "site", workStates([]), [])?.risk, { rating: 8, audience: "public", users: 40, checks: [] }, "a counted audience carries its users");
+  assert.equal("risk" in (drillDown(tree, "plain", workStates([]), []) ?? {}), false);
+});

@@ -46,10 +46,11 @@
 // onnxruntime download the agent proxy keeps cutting off (which also timed out the MCP server's start).
 // So there the install skips that download, and once installed, a container that holds the route's
 // Access token but no library setting is given the library's HTTPS address (STORYTREE_LIBRARY_ADDRESS
-// when the environment sets it) and approves this checkout as its project's, through storytree's own
-// command line, putting the checkout's committed .storytree.json back after the join. The password
-// and the Access token come from the environment itself (PGPASSWORD, CF_ACCESS_CLIENT_ID,
-// CF_ACCESS_CLIENT_SECRET), so nothing secret is written. infra/library-host/README.md describes the route.
+// when the environment sets it, else the route with PGUSER as its user, storytree_library when unset)
+// and approves this checkout as its project's, through storytree's own command line, putting the
+// checkout's committed .storytree.json back after the join. The password and the Access token come
+// from the environment itself (PGPASSWORD, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET), so nothing
+// secret is written. infra/library-host/README.md describes the route.
 //
 // It runs before node_modules exists, so it uses Node built-ins only. With --hook it always exits 0
 // (a failed install must never break the session) and writes to stdout only the heads-up for the
@@ -161,8 +162,10 @@ function unlinked(root) {
   return packages > 0;
 }
 
-/** The library's address over the HTTPS route (ADR-1093): its user, host and database, never its password. */
-export const CLOUD_LIBRARY_ADDRESS = "wss://storytree_library@library.storytree.dev/postgres";
+/** The library's address over the HTTPS route (ADR-1093): its user (env's PGUSER, else storytree_library), host and database, never its password. */
+function cloudLibraryAddress(env) {
+  return `wss://${encodeURIComponent(env.PGUSER || "storytree_library")}@library.storytree.dev/postgres`;
+}
 
 /** True in a Claude Code cloud container. */
 function inCloud(env) {
@@ -219,7 +222,7 @@ export function connectCloud({
   } catch {
     // No project named: only the address is given.
   }
-  const address = env.STORYTREE_LIBRARY_ADDRESS || CLOUD_LIBRARY_ADDRESS;
+  const address = env.STORYTREE_LIBRARY_ADDRESS || cloudLibraryAddress(env);
   const steps = [["settings", "set", "library", "postgres", address]];
   if (typeof project === "string" && project !== "") steps.push(["doctor", "--join", project]);
   for (const args of steps) {

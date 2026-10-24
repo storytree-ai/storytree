@@ -30,6 +30,9 @@
  * - Capability 5 · Graduation (ADR-0956 D5): a check graduated whole leaves the brief, and one graduated in part stays in the brief with the part Architecture checks
  *   now enforces named (5.2), and what Architecture checks' graduated checks find on the change is taken with the return,
  *   recorded as theirs under the check each graduated from (5.3).
+ * - Review depth follows the change's own risk tier (ADR-1144 D1), read from its whole diff and the package graph of its
+ *   worktree, or, for a diff given by hand, from the increment's written risk line: a low-tier change gets a light pass,
+ *   judged from the diff alone; medium and high, or a change whose tier was not read, the full brief (2.11).
  */
 import { execFileSync } from "node:child_process";
 
@@ -38,6 +41,7 @@ import type { Library, PendingChange, Storytree } from "@storytree/library";
 import { checks as liveChecks, type Graduated } from "../checks/checks.js";
 import type { GraduatedFindings } from "../graduation/graduation.js";
 import { HIT_COLUMNS, hitRow, inTransaction, ledgerDatabase, writeReview, type HitRecord, type HitRow } from "../ledger/ledger.js";
+import { PackageGraph, readChange, readPackages, riskLineText, type ChangeReading } from "../risk/risk.js";
 
 /** The reviews of one change that may run while a finding still stands (ADR-1120 D1, replacing ADR-0956 D7's ten). */
 export const REVIEW_LIMIT = 3;
@@ -56,6 +60,10 @@ export interface Brief {
   readonly since?: { readonly review: number; readonly head: string };
   /** The branch the diff was read against, when it was read from a worktree: `local` when the repository has no origin/main (contract 2.7). */
   readonly base?: Base;
+  /** The change's risk line, read from its whole diff, or the increment's written one for a diff given by hand; absent when neither was read (contract 2.11). */
+  readonly risk?: ChangeReading;
+  /** How deep the review reads: `light` at low tier, judged from the diff alone, else `full` (contract 2.11). Absent from briefs issued before 2.11. */
+  readonly pass?: "light" | "full";
   /** The packages the diff touches (`root` for files outside any package), and `plan` when the increment changes the plan pending its merge (contract 2.10). */
   readonly packages: readonly string[];
   /** Each capability the increment names, with its story, in story then capability order (contract 2.5). Absent from briefs issued before 2.5. */
@@ -102,6 +110,8 @@ export interface WorktreeChange {
   readonly diff: string;
   readonly base?: Base;
   readonly mark?: Mark;
+  /** The worktree's folder, whose package graph the change's risk tier is read against (contract 2.11). */
+  readonly root?: string;
   /** The diff from `mark`'s commit to the worktree, or undefined when that commit is not in the branch's history. */
   since(mark: Mark): string | undefined;
 }
@@ -247,9 +257,12 @@ class PgReviews implements Reviews {
     const last = mark === undefined || taken === 0 ? undefined : await this.#lastTaken(project, change);
     const newer = last?.mark === undefined || last.mark.from !== mark!.from ? undefined : (read as WorktreeChange).since(last.mark);
     const since = newer === undefined ? undefined : { review: last!.iteration, head: last!.mark!.head };
+    // The tier is read on the whole change, whatever part of it this review reads (contract 2.11).
+    const risk = await changeRisk(library, increment, diff, typeof read === "string" ? undefined : read.root);
     const brief: Brief = {
       project, change, iteration: taken + 1, diff: newer ?? diff, ...(base === undefined ? {} : { base }),
-      ...(mark === undefined ? {} : { mark }), ...(since === undefined ? {} : { since }), packages, capabilities: listed, contracts, retired,
+      ...(mark === undefined ? {} : { mark }), ...(since === undefined ? {} : { since }),
+      ...(risk === undefined ? {} : { risk }), pass: risk?.tier === "low" ? "light" : "full", packages, capabilities: listed, contracts, retired,
       ...(plan.length === 0 ? {} : { plan }),
       checks: (await liveChecks(library)).filter(({ graduated }) => !(graduated ?? []).some(({ whole }) => whole)).map(({ id, title, question, graduated }) => ({ id, title, question, ...(graduated === undefined ? {} : { graduated }) })),
       earlier,
@@ -330,6 +343,19 @@ class PgReviews implements Reviews {
     const { rows } = await this.#pool.query<HitRecord>(`SELECT ${HIT_COLUMNS} FROM quality_hits WHERE project = $1 AND change = $2 AND ${where} ORDER BY id`, [project, change]);
     return rows.map(hitRow);
   }
+}
+
+/**
+ * A change's risk line (ADR-1144 D1): read from its whole diff against the package graph of the worktree at `root`, or, with
+ * no worktree, the one written on the increment; undefined when neither is there to read.
+ */
+async function changeRisk(library: Library, increment: { readonly fields: unknown }, diff: string, root: string | undefined): Promise<ChangeReading | undefined> {
+  if (root === undefined) {
+    const written = (increment.fields as { risk?: ChangeReading }).risk;
+    return written?.tier === undefined ? undefined : written;
+  }
+  const stories = (await library.list("story")).filter((story) => story.fields.mapped === undefined).map((story) => ({ id: story.id, title: story.fields.title }));
+  return readChange(diff, new PackageGraph(readPackages(root)), stories, new Date().toISOString().slice(0, 10));
 }
 
 /** The contracts a return found not met, with why. */
@@ -413,6 +439,7 @@ export function worktreeChange(cwd: string): WorktreeChange {
     diff: branchDiff(cwd, base?.ref),
     ...(base === undefined ? {} : { base }),
     ...(mark === undefined ? {} : { mark }),
+    root: cwd,
     since(earlier) {
       try {
         git("merge-base", "--is-ancestor", earlier.head, "HEAD");
@@ -504,6 +531,11 @@ export function briefText(brief: Brief): string {
   return [
     `Review ${brief.iteration} of change ${brief.change} (project ${brief.project}); packages it touches: ${brief.packages.join(", ")}.`,
     `Your return names this review, "review": ${brief.iteration}, or it is refused as another review's.`,
+    brief.pass === "light"
+      ? `Light pass: this change reads ${riskLineText(brief.risk!)}, so judge every check and contract from the diff below alone, without reading around a hunk, opening other files or running anything.`
+      : brief.risk === undefined
+        ? "Full review: no risk line was read for this change. Read the lines around a hunk in the files the diff touches wherever the hunk alone is not enough."
+        : `Full review: this change reads ${riskLineText(brief.risk)}. Read the lines around a hunk in the files the diff touches wherever the hunk alone is not enough.`,
     "",
     `Checks (${brief.checks.length}): for each, say whether the change trips it, and where (file, line, what you found).`,
     ...brief.checks.map((check) => [

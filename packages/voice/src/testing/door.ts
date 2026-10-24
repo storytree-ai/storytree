@@ -138,8 +138,8 @@ export function alive(pid: number): boolean {
   }
 }
 
-/** From the stand-in's start and end lines: how many children started, how many ran to their end, and the most at once. */
-export function childrenIn(logFile: string): { started: number; ended: number; peak: number; text: string } {
+/** From the stand-in's start and end lines: how many children started, how many ran to their end, the most at once, and each started child's argv. */
+export function childrenIn(logFile: string): { started: number; ended: number; peak: number; text: string; commands: string[][] } {
   const text = readFileSync(logFile, "utf8");
   const events = text.split("\n").filter(Boolean).map((line) => line.split(" "))
     .map(([kind, pid, at]) => ({ kind, pid, at: Number(at) }))
@@ -150,7 +150,8 @@ export function childrenIn(logFile: string): { started: number; ended: number; p
     now += event.kind === "start" ? 1 : -1;
     peak = Math.max(peak, now);
   }
-  return { started: events.filter((e) => e.kind === "start").length, ended: events.filter((e) => e.kind === "end").length, peak, text };
+  const commands = text.split("\n").filter((line) => line.startsWith("start ")).map((line) => JSON.parse(line.split(" ").slice(3).join(" ") || "[]") as string[]);
+  return { started: events.filter((e) => e.kind === "start").length, ended: events.filter((e) => e.kind === "end").length, peak, text, commands };
 }
 
 export async function connect(port: number, token: string, options?: ConstructorParameters<typeof Client>[1]): Promise<Client> {

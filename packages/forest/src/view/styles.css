@@ -325,6 +325,32 @@
   margin-top: 0.4rem;
 }
 
+/* The risk bar (question_1740edf77e9e): three plain lines in a thin frame, no graph. */
+.panel-risk {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+
+.panel-risk > p,
+.panel-risk > div {
+  margin: 0.15rem 0;
+}
+
+.panel-risk-label {
+  display: inline-block;
+  min-width: 11.5rem;
+  color: var(--muted);
+}
+
+.panel-risk-checks {
+  margin: 0.15rem 0 0;
+  padding-left: 1.2rem;
+}
+
 .panel-muted,
 .panel-trail,
 .panel-state {

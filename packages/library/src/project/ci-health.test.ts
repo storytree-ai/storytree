@@ -96,6 +96,19 @@ for (const source of GRANTS_FILES) test(`8.4 CI's health account (${source}/gran
       "no history entry under another record's id, even one that says it is health",
     );
     assert.deepEqual((await onLaptop.projectTree()).stories.map((each) => [each.title, each.description]), [["Checkout", "Paying for an order."]]);
+    // It reads the plan its run walks and health, nothing else: the decisions and the retired
+    // legacy record are not there for it, in the table or in their history.
+    assert.deepEqual((await recorder.projectTree()).stories.map((each) => each.title), ["Checkout"]);
+    const PLAN_AND_HEALTH = "('health', 'story', 'capability', 'contract', 'arc', 'increment', 'anchor')";
+    assert.equal((await asCi(`SELECT count(*)::int AS n FROM record WHERE type NOT IN ${PLAN_AND_HEALTH}`)).rows[0].n, 0);
+    assert.equal((await asCi(`SELECT count(*)::int AS n FROM record_event WHERE type NOT IN ${PLAN_AND_HEALTH}`)).rows[0].n, 0);
+    const hidden = (await ownerProject.records.list("decision"))[0];
+    assert.ok(hidden, "the owner has decisions CI cannot see");
+    await assert.rejects(
+      asCi("INSERT INTO record_event (record_id, type, action, record) VALUES ($1, 'health', 'updated', '{\"type\": \"health\"}')", [hidden.id]),
+      /row-level security/,
+      "no history entry under the id of a record it cannot see",
+    );
     // No change to the tables, and no way out of the rule.
     for (const ddl of [
       "CREATE INDEX IF NOT EXISTS record_updated_idx ON record (updated_at)",

@@ -129,7 +129,9 @@ test("15.6 a wss:// address is reached through HTTPS_PROXY and the gate with the
     saveKey("postgres", new URL(testRoleUrl(role)).password, { home: keys });
     saveToken(keys);
     process.env.HTTPS_PROXY = agent.url;
-    server.current = addressServer(`wss://${role}@library.test:${front.port}/postgres`, 10_000, {}, undefined, CA);
+    // TLS, the proxy, the WebSocket and SCRAM before the first answer: a loaded Windows runner took
+    // longer than 10 s (CI run 39974004167), so the connection gets 30 s.
+    server.current = addressServer(`wss://${role}@library.test:${front.port}/postgres`, 30_000, {}, undefined, CA);
     const { admin } = server.current;
     assert.deepEqual((await admin.query<{ who: string }>("SELECT current_user AS who")).rows[0], { who: role });
     await admin.query(`CREATE DATABASE "${project}"`);

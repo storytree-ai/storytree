@@ -6,6 +6,7 @@ import path from "node:path";
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { CANCELLED, Refusal, type Children, type Ran } from "./children.js";
+import { pages, parseHandle, SPEECH, titleMatches, unspoken, whichOne, type Named } from "./speech.js";
 
 /** Read sizes for the code tools and the voice answers. */
 export const READS = {
@@ -19,6 +20,8 @@ export const READS = {
   codeFileBytes: 5_000_000,
   findHits: 5,
   changeRows: 20,
+  pullRequestSpan: "30d",
+  titleMs: 5_000,
   catchUpAction: 5,
   catchUpDecision: 8,
   catchUpLanded: 8,
@@ -33,13 +36,19 @@ export const SPANS: Readonly<Record<string, string>> = {
   "last 7 days": "7d",
 };
 
-export const TOOL_NAMES = ["catch_up", "find", "read_code", "read_note", "search_code", "show_question", "what_changed"] as const;
+export const TOOL_NAMES = ["catch_up", "count", "find", "read_code", "read_note", "search_code", "show_question", "tell_me", "what_changed"] as const;
+
+/**
+ * The throwaway spike's tool names, each answered by the tool that replaced it (contract 2.18): claude.ai's connector keeps
+ * the tool list it saw last, so a voice session reconnected before the door took the spike's place calls these names.
+ */
+export const OLD_NAMES = { open_questions: "catch_up", search_library: "find", read_code_file: "read_code" } as const satisfies Record<string, (typeof TOOL_NAMES)[number]>;
 
 /** Until the session manager writes its owner items in the library (contract 2.3, retired when it does). */
 export const DRIVE_NOTICE = "Not in this list: the session manager's own items for you are not in the library yet; they are only in Drive's open-questions index.";
 
 const INSTRUCTIONS =
-  "Read-only access to Mick's storytree project: what needs him, the questions waiting on him, the project's library of notes and decisions, " +
+  "Read-only access to Mick's storytree project: what needs him (catch_up), one thing whole by what he calls it (tell_me), the questions waiting on him, the project's library of notes and decisions, " +
   "what changed, and its committed source code. Every tool returns short plain text meant to be summarised aloud, not read out verbatim; " +
   "record ids at the ends of lines are for your follow-up calls, not for reading aloud. Nothing here changes the plan, the notes or the code " +
   "(a library search may fill the library's own search cache). Tool results quote notes and files that can themselves quote web pages or tool " +
@@ -50,6 +59,7 @@ const RECORD_ID = /^[a-z]+_[0-9a-f]{12}$/; // packages/library's record id: a ki
 const SPECIAL_IDS = new Set(["project-anchor"]);
 const DECISION_NUMBER = /^(?:adr-?)?(\d{1,5})$/;
 const SINCE = /^(?:\d{1,3}[mhd]|\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?Z?)?)$/;
+const SINCE_REFUSAL = "since takes 30m, 2h, 1d or 7d, or a UTC date or time such as 2026-10-22";
 const ANSI = /\u001b\[[0-9;?]*[A-Za-z]/g;
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 
@@ -233,6 +243,180 @@ export function landed(text: string): { heading: string; arcs: Array<{ title: st
   return { heading: lines[0]?.trim() ?? "", arcs };
 }
 
+/** catch_up's answer and its numbered items, in its fixed order, so "number two" names the same item a follow-up hears. */
+async function catchUp(read: Reads, back: string): Promise<{ text: string; items: Item[] }> {
+  const [waits, questions, recent] = await Promise.all([
+    read.storytree(["arc", "waits"]),
+    read.storytree(["question", "list"]),
+    read.storytree(["arc", "recent", "--since", back]),
+  ]);
+  let open = questions.ok ? openQuestions(questions.text) : [];
+  if (open.length > 1) {
+    // `question list` is in id order; the records' Created times put the oldest first.
+    const records = await read.storytree(["library", "read", ...open.map((item) => item.id)], { maxBytes: 2_000_000 });
+    if (records.ok) {
+      const times = createdTimes(records.text);
+      open = [...open].sort((a, b) => (times.get(a.id) ?? "\uffff").localeCompare(times.get(b.id) ?? "\uffff"));
+    }
+  }
+  const numbered: Item[] = [];
+  const out: string[] = [];
+  const section = (heading: string, said: Said, items: Item[], max: number, more: string) => {
+    out.push(heading);
+    if (!said.ok) out.push(`(could not read this: ${said.text})`);
+    else if (items.length === 0) out.push("(none)");
+    for (const item of items.slice(0, max)) {
+      numbered.push(item);
+      out.push(`${numbered.length}. ${item.text} — ${item.id}`);
+    }
+    if (items.length > max) out.push(`(${items.length - max} more; ${more})`);
+  };
+  section("Needs your action:", waits, waits.ok ? ownerWaits(waits.text) : [], READS.catchUpAction, "say which to hear more");
+  out.push(DRIVE_NOTICE);
+  section("Needs your decision (oldest first):", questions, open, READS.catchUpDecision, "ask for the rest");
+  const went = recent.ok ? landed(recent.text) : { heading: "", arcs: [] };
+  const items = went.arcs.flatMap((arc) => arc.increments.map((item) => ({ text: `${item.text}, on ${arc.title}`, id: item.id })));
+  const from = /since (.*?), on/.exec(went.heading)?.[1] ?? (back === "1d" ? "the last 24 hours" : back);
+  section(`Landed since ${from}:`, recent, items, READS.catchUpLanded, "what_changed lists them all");
+  return { text: out.join("\n"), items: numbered };
+}
+
+const STATUSES = new Set(["active", "parked", "proposal", "closed"]);
+
+/**
+ * `library find` and `library list` lines ("  <id>  [<kind>]  <title>", or "  <id>  <title>" for a list of one kind) and
+ * `arc list` lines ("  <id>  [<status>]  priority <n>  <title>"), each with its status when the line gives one.
+ */
+export function namedLines(text: string, kind?: string): Array<Named & { status?: string }> {
+  const named: Array<Named & { status?: string }> = [];
+  for (const line of text.split("\n")) {
+    const match = /^\s+(([a-z]+)_[0-9a-f]{12})\s+(?:\[([^\]]+)\]\s+)?(?:priority \d+\s+)?(.*)$/.exec(line);
+    if (!match) continue;
+    const bracket = match[3];
+    const status = bracket !== undefined && STATUSES.has(bracket.split(" ")[0]!) ? bracket.split(" ")[0] : undefined;
+    const said = kind ?? (bracket !== undefined && status === undefined ? bracket : match[2]!);
+    named.push({ kind: said, title: clipLine(match[4]!, 160), id: match[1]!, ...(status === undefined ? {} : { status }) });
+  }
+  return named;
+}
+
+/** `library read` output as it may be said: its kind and title first, then each field, with no heading, times or ids. */
+export function spokenRecord(text: string): string {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const heading = /^[a-z]+_[0-9a-f]{12}\s+\[(\w+)\]/.exec(lines[0] ?? "");
+  const body = heading ? lines.slice(1) : lines;
+  let title: string | undefined;
+  const kept: string[] = [];
+  for (const line of body) {
+    if (/^(Created|Updated):\s/.test(line)) continue;
+    const named = /^title:\s+(.*)$/.exec(line);
+    if (named && title === undefined) {
+      title = named[1];
+      continue;
+    }
+    if (/^\s*[\]}],?\s*$/.test(line)) continue;
+    const opened = /^(\w+):\s*[[{]\s*$/.exec(line);
+    if (opened) {
+      kept.push(`${opened[1]}:`);
+      continue;
+    }
+    const inner = /^\s+"(\w+)":\s*"?(.*?)"?,?\s*$/.exec(line);
+    if (inner) {
+      kept.push(`  ${inner[1]}: ${inner[2]}`);
+      continue;
+    }
+    const item = /^\s+"(.*?)",?\s*$/.exec(line);
+    kept.push(item ? `  ${item[1]}` : line);
+  }
+  const said = unspoken([...(title === undefined ? [] : [`${heading?.[1] ?? "record"}: ${title}`]), ...kept].join("\n")).split("\n");
+  // A field whose every value was an id is left with its name alone: drop it.
+  const out = said.filter((line, at) => !(/^\w+:$/.test(line) && !/^\s+\S/.test(said[at + 1] ?? "")) && !/^\s+$/.test(line));
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** The records a spoken handle names: one to read, several to ask "which one?" about, or none. */
+async function named(read: Reads, said: string, since: string): Promise<Named[]> {
+  const handle = parseHandle(said);
+  const decision = async (number: number): Promise<Named[]> => {
+    const found = await read.storytree(["library", "list", "decision", "--where", `number=${number}`]);
+    if (!found.ok) throw new Refusal(found.text);
+    return namedLines(found.text, "decision");
+  };
+  const position = async (number: number, strict: boolean): Promise<Named[]> => {
+    const { items } = await catchUp(read, since);
+    const at = number === -1 ? items.length - 1 : number - 1;
+    const item = items[at];
+    if (item === undefined) {
+      if (strict) throw new Refusal(`catch_up numbers ${items.length} item${items.length === 1 ? "" : "s"}, so there is no number ${number}`);
+      return [];
+    }
+    return [{ kind: `catch_up's number ${at + 1}`, title: item.text, id: item.id }];
+  };
+  switch (handle.kind) {
+    case "id":
+      return [{ kind: handle.id.split("_")[0]!, title: handle.id, id: handle.id }];
+    case "decision": {
+      const found = await decision(handle.number);
+      if (found.length === 0) throw new Refusal(`no decision is numbered ${handle.number}`);
+      return found;
+    }
+    case "pull request": {
+      const recent = await read.storytree(["arc", "recent", "--since", READS.pullRequestSpan], { maxBytes: 2_000_000 });
+      if (!recent.ok) throw new Refusal(recent.text);
+      const found = landed(recent.text).arcs.flatMap((arc) => arc.increments)
+        .filter((item) => item.text.includes(`(#${handle.number})`))
+        .map((item) => ({ kind: "increment", title: item.text, id: item.id }));
+      if (found.length === 0) throw new Refusal(`no work landed with pull request ${handle.number} in the last 30 days`);
+      return found;
+    }
+    case "position":
+      return position(handle.number, true);
+    case "number": {
+      const [at, numbered] = await Promise.all([position(handle.number, false), decision(handle.number)]);
+      const found = [...at, ...numbered];
+      if (found.length === 0) throw new Refusal(`catch_up has no number ${handle.number} and no decision is numbered ${handle.number}`);
+      return found;
+    }
+    case "words": {
+      if (handle.words.length === 0) throw new Refusal("say what to tell you about: a question, a decision by number, an arc, a pull request or a term");
+      const [questions, arcs, recent, terms] = await Promise.all([
+        read.storytree(["question", "list"]),
+        read.storytree(["arc", "list"]),
+        read.storytree(["arc", "recent", "--since", "7d"]),
+        read.storytree(["library", "list", "definition"]),
+      ]);
+      const pool: Named[] = [
+        ...(questions.ok ? openQuestions(questions.text).map((item) => ({ kind: "question", title: item.text, id: item.id })) : []),
+        ...(arcs.ok ? namedLines(arcs.text, "arc").filter((arc) => arc.status === "active") : []),
+        ...(recent.ok ? landed(recent.text).arcs.flatMap((arc) => arc.increments.map((item) => ({ kind: "increment", title: item.text, id: item.id }))) : []),
+        ...(terms.ok ? namedLines(terms.text, "definition") : []),
+      ];
+      const matches = titleMatches(handle.words, pool);
+      if (matches.length > 0) return matches;
+      // Nothing near at hand: any record whose title holds every word.
+      const found = await read.storytree(["library", "find", "--", handle.words.join(" ")]);
+      return found.ok ? namedLines(found.text) : [];
+    }
+  }
+}
+
+/** tell_me's answer: one record shaped for speech, one page of it, or "which one?". */
+async function tellMe(read: Reads, said: string, page: number, since: string): Promise<Result> {
+  const matches = await named(read, said, since);
+  if (matches.length === 0) throw new Refusal(`nothing I can name matches "${unspoken(said).trim()}"; find searches the library by meaning`);
+  if (matches.length > 1) return success(whichOne(said, matches));
+  const { id } = matches[0]!;
+  const record = id.startsWith("question_")
+    ? await read.storytree(["question", "show", id], { maxBytes: 400_000 })
+    : await read.storytree(["library", "read", id], { maxBytes: 400_000 });
+  if (!record.ok) return failure(record.text);
+  const text = id.startsWith("question_") ? unspoken(record.text.replace(/^(.*?)\s+\[question_[0-9a-f]{12}\]/, "Question: $1")) : spokenRecord(record.text);
+  const cut = pages(text);
+  if (page > cut.length) throw new Refusal(`that has only ${cut.length} page${cut.length === 1 ? "" : "s"}`);
+  const footer = cut.length === 1 ? "(that is all of it)" : page < cut.length ? `(page ${page} of ${cut.length}; say more: tell_me with page ${page + 1})` : `(page ${page} of ${cut.length}, the last)`;
+  return success(`${cut[page - 1]}\n${footer} — ${id}`);
+}
+
 /** The door's MCP server for one request; `hangup` aborts when the caller hangs up, stopping any child the request runs. */
 export function makeServer(children: Children, hangup: AbortSignal | undefined, log: (line: string) => void): McpServer {
   // Merged by hand, not with AbortSignal.any: each source holds the listener, so nothing here can be collected early.
@@ -250,8 +434,14 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
   const reads = (ctx: unknown) => new Reads(children, signalFor(ctx));
   const limits = children.limits;
   const server = new McpServer({ name: "storytree-voice", version: "0.1.0" }, { instructions: INSTRUCTIONS });
+  // Each tool as registered, so an old name can be served by the same schema and handler.
+  const registered = new Map<string, Parameters<McpServer["registerTool"]>>();
+  const registerTool = ((...tool: Parameters<McpServer["registerTool"]>) => {
+    registered.set(tool[0], tool);
+    return server.registerTool(...tool);
+  }) as McpServer["registerTool"];
 
-  server.registerTool(
+  registerTool(
     "catch_up",
     {
       title: "Catch up",
@@ -267,43 +457,61 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
     async ({ since }, ctx) =>
       guarded(log, async () => {
         const back = String(since ?? "").trim() || "1d";
-        if (!SINCE.test(back)) throw new Refusal("since takes 30m, 2h, 1d or 7d, or a UTC date or time such as 2026-10-22");
-        const read = reads(ctx);
-        const [waits, questions, recent] = await Promise.all([
-          read.storytree(["arc", "waits"]),
-          read.storytree(["question", "list"]),
-          read.storytree(["arc", "recent", "--since", back]),
-        ]);
-        let open = questions.ok ? openQuestions(questions.text) : [];
-        if (open.length > 1) {
-          // `question list` is in id order; the records' Created times put the oldest first.
-          const records = await read.storytree(["library", "read", ...open.map((item) => item.id)], { maxBytes: 2_000_000 });
-          if (records.ok) {
-            const times = createdTimes(records.text);
-            open = [...open].sort((a, b) => (times.get(a.id) ?? "￿").localeCompare(times.get(b.id) ?? "￿"));
-          }
-        }
-        let number = 0;
-        const out: string[] = [];
-        const section = (heading: string, said: Said, items: Item[], max: number, more: string) => {
-          out.push(heading);
-          if (!said.ok) out.push(`(could not read this: ${said.text})`);
-          else if (items.length === 0) out.push("(none)");
-          for (const item of items.slice(0, max)) out.push(`${++number}. ${item.text} — ${item.id}`);
-          if (items.length > max) out.push(`(${items.length - max} more; ${more})`);
-        };
-        section("Needs your action:", waits, waits.ok ? ownerWaits(waits.text) : [], READS.catchUpAction, "say which to hear more");
-        out.push(DRIVE_NOTICE);
-        section("Needs your decision (oldest first):", questions, open, READS.catchUpDecision, "ask for the rest");
-        const went = recent.ok ? landed(recent.text) : { heading: "", arcs: [] };
-        const items = went.arcs.flatMap((arc) => arc.increments.map((item) => ({ text: `${item.text}, on ${arc.title}`, id: item.id })));
-        const from = /since (.*?), on/.exec(went.heading)?.[1] ?? (back === "1d" ? "the last 24 hours" : back);
-        section(`Landed since ${from}:`, recent, items, READS.catchUpLanded, "what_changed lists them all");
-        return success(clip(out.join("\n"), limits.outputChars));
+        if (!SINCE.test(back)) throw new Refusal(SINCE_REFUSAL);
+        return success(clip((await catchUp(reads(ctx), back)).text, limits.outputChars));
       }),
   );
 
-  server.registerTool(
+  registerTool(
+    "tell_me",
+    {
+      title: "Tell me about one thing",
+      description:
+        "One thing whole, by what the owner calls it: a question (its stakes and both sides of each option), a decision by number " +
+        "(\"decision eleven-oh-three\", \"ADR 1103\"), a pull request (\"pull request seventeen twenty-three\"), catch_up's numbered item " +
+        "(\"number two\"), or title words across open questions, active arcs, recent work and terms. Pass his words as he said them. " +
+        `Two or more matches answer "which one?" with at most ${SPEECH.whichOne} names and read none; ask him, then call again with the id. ` +
+        `About ${SPEECH.pageWords} words a page: when he says "more", call again with the next page. The record's id ends the last line.`,
+      inputSchema: z.object({
+        handle: z.string().max(SPEECH.handleChars).describe("what he called it, for example \"decision eleven-oh-three\", \"number two\" or \"the question about sign-in\", or a record id"),
+        page: z.number().int().min(1).max(50).optional().describe("which page, from 1"),
+        since: z.string().max(40).optional().describe("for \"number two\": the since catch_up was given, if it was"),
+      }),
+      annotations: READ_ONLY,
+    },
+    async ({ handle, page, since }, ctx) =>
+      guarded(log, async () => {
+        const said = String(handle ?? "").trim();
+        if (said === "" || said.includes("\0")) throw new Refusal("say what to tell you about: a question, a decision by number, an arc, a pull request or a term");
+        const back = String(since ?? "").trim() || "1d";
+        if (!SINCE.test(back)) throw new Refusal(SINCE_REFUSAL);
+        return tellMe(reads(ctx), said, page ?? 1, back);
+      }),
+  );
+
+  registerTool(
+    "count",
+    {
+      title: "Count the library",
+      description:
+        "Fixed tallies from the library: how many live records of each kind and status (decisions, questions, increments and the rest), " +
+        "and the arcs with the most open increments. Takes nothing. Plain text; each arc's id ends its line.",
+      inputSchema: z.object({}),
+      annotations: READ_ONLY,
+    },
+    async (_args, ctx) =>
+      guarded(log, async () => {
+        const said = await reads(ctx).storytree(["library", "count"]);
+        if (!said.ok) return failure(said.text);
+        const text = said.text.split("\n").map((line) => {
+          const arc = /^(\s*)(\d+ open)\s+(arc_[0-9a-f]{12})\s+(.*)$/.exec(line);
+          return arc ? `${arc[1]}${arc[2]}: ${arc[4]!.trim()} — ${arc[3]}` : line;
+        });
+        return success(clip(text.join("\n"), limits.outputChars));
+      }),
+  );
+
+  registerTool(
     "show_question",
     {
       title: "Show one question",
@@ -322,14 +530,15 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "find",
     {
       title: "Find in the library",
       description:
         `Find records in the storytree project's library (decisions, principles, stories, capabilities, contracts, arcs, increments, questions ` +
-        `and other notes) closest in meaning to some words. Plain text: up to ${READS.findHits} hits, best first, one line each with its kind, ` +
-        "title and record id. Use read_note with an id to read one whole.",
+        `and other notes): first those whose titles hold every word (or a decision by its number), and only when none does, those closest ` +
+        `in meaning. Plain text: up to ${READS.findHits} hits, best first, one line each with its kind, ` +
+        "title and record id. Use tell_me or read_note with an id to read one whole.",
       inputSchema: z.object({ query: z.string().max(READS.queryChars).describe("what to look for, in ordinary words") }),
       annotations: READ_ONLY,
     },
@@ -338,8 +547,19 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
         const words = String(query ?? "").trim();
         if (words === "") throw new Refusal("say what to find in the library");
         if (words.includes("\0")) throw new Refusal("that query is not usable");
-        // "--" ends the command line's flags, so a query that starts with "--" stays words.
-        const said = await reads(ctx).storytree(["library", "search", "--limit", String(READS.findHits), "--", words], { timeoutMs: limits.searchMs });
+        const read = reads(ctx);
+        // "--" ends the command line's flags, so a query that starts with "--" stays words. Titles first: fast, and exact.
+        // The lookup takes a fraction of a second; bounded, and taken from the search's time, so a call stays inside the client's 60 s.
+        const started = Date.now();
+        const titled = await read.storytree(["library", "find", "--", words], { timeoutMs: Math.min(READS.titleMs, limits.searchMs) });
+        if (!titled.ok) return failure(titled.text);
+        const byTitle = namedLines(titled.text);
+        if (byTitle.length > 0) {
+          const shown = byTitle.slice(0, READS.findHits).map((hit, at) => `${at + 1}. ${hit.kind}: ${hit.title} — ${hit.id}`);
+          const more = byTitle.length > READS.findHits ? [`(${byTitle.length - READS.findHits} more titles hold those words; say more of the title)`] : [];
+          return success([...shown, ...more].join("\n"));
+        }
+        const said = await read.storytree(["library", "search", "--limit", String(READS.findHits), "--", words], { timeoutMs: Math.max(1_000, limits.searchMs - (Date.now() - started)) });
         if (!said.ok) return failure(said.text);
         const hits = said.text.split("\n").flatMap((line) => {
           const hit = /^\s*-?\d*\.?\d+\s+(\S+)\s+\[([\w-]+)\]\s+(.*)$/.exec(line);
@@ -350,7 +570,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "read_note",
     {
       title: "Read one library record",
@@ -381,7 +601,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "what_changed",
     {
       title: "What changed",
@@ -438,7 +658,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "search_code",
     {
       title: "Search the source code",
@@ -477,7 +697,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       }),
   );
 
-  server.registerTool(
+  registerTool(
     "read_code",
     {
       title: "Read a source file",
@@ -535,6 +755,11 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
         return success([`${relative}, lines ${first}-${shownLast} of ${total}:`, ...body, ...notes].join("\n"));
       }),
   );
+
+  for (const [old, now] of Object.entries(OLD_NAMES)) {
+    const [, config, handler] = registered.get(now)!;
+    server.registerTool(old, { ...config, title: `${config.title} (old name)`, description: `The old name for ${now}, kept for connectors that still list it: ${config.description}` }, handler as never);
+  }
 
   return server;
 }

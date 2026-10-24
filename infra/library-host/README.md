@@ -62,8 +62,47 @@ sudo bash infra/library-host/setup.sh
 The service must be active and `psql -X -d postgres -c 'select 1'` must work as
 `mickh` over the local socket. The Mint ADC service account must have Object
 Creator and Object Viewer on `gs://storytree-498613-library-backups`, without
-Object Admin or delete permission. The owner configures the bucket's 30-day
-expiry on **backups/** only and seven-day soft delete; archive/ never expires.
+Object Admin or delete permission, and only on objects under **backups/**: the
+condition in `backups-only.yaml` (a list counts when its prefix is under
+backups/). The owner configures the bucket's 30-day expiry on **backups/** only
+and seven-day soft delete; archive/ never expires.
+
+The owner sets that condition from the repository root on the laptop, with his
+own login. Conditions need the bucket's uniform access, so the first command must
+print `True`; the conditional grants go on before the plain ones come off, so a
+backup in between still uploads:
+
+```sh
+gcloud storage buckets describe gs://storytree-498613-library-backups --format="value(uniform_bucket_level_access)"
+gcloud storage buckets add-iam-policy-binding gs://storytree-498613-library-backups --member=serviceAccount:storytree-mint@storytree-498613.iam.gserviceaccount.com --role=roles/storage.objectCreator --condition-from-file=infra/library-host/backups-only.yaml
+gcloud storage buckets add-iam-policy-binding gs://storytree-498613-library-backups --member=serviceAccount:storytree-mint@storytree-498613.iam.gserviceaccount.com --role=roles/storage.objectViewer --condition-from-file=infra/library-host/backups-only.yaml
+gcloud storage buckets remove-iam-policy-binding gs://storytree-498613-library-backups --member=serviceAccount:storytree-mint@storytree-498613.iam.gserviceaccount.com --role=roles/storage.objectCreator --condition=None
+gcloud storage buckets remove-iam-policy-binding gs://storytree-498613-library-backups --member=serviceAccount:storytree-mint@storytree-498613.iam.gserviceaccount.com --role=roles/storage.objectViewer --condition=None
+gcloud storage buckets get-iam-policy gs://storytree-498613-library-backups --format=json
+```
+
+The last prints the policy: `storytree-mint` appears only in the two bindings
+titled `backups-only`. The next six-hourly run's line in
+`~/storytree-lanes/library-backups/timer.log` confirms the box still uploads.
+
+## An offline copy
+
+The owner keeps a copy off every cloud: on the laptop, with his own gcloud login,
+`gpg` (Gpg4win on Windows) and `tar`, from the repository root:
+
+```sh
+node infra/library-host/pull-offline.mjs --out E:\ --recipient <his gpg key>
+```
+
+It takes the newest backup whose manifest checks out and whose every dump is in
+the bucket at the manifest's size, newest by when its manifest was written (a
+manifest is uploaded last), not by its name. It checks each dump's size and
+SHA-256, adds every object under archive/, and writes one gpg-encrypted tar,
+`storytree-library-<backup>.tar.gpg`, into the `--out` folder, printing its path,
+size and SHA-256. Without `--recipient`, gpg asks for a passphrase instead. The
+unencrypted download is deleted however the run ends, and an existing file is
+never overwritten. `gpg --decrypt <file> | tar -xf -` opens it; each dump is
+`pg_dump -Fc` and restores with `pg_restore`, as the restore proof below does.
 
 ```sh
 node infra/library-host/host.mjs provision --dry-run
@@ -80,13 +119,21 @@ The CI role keeps the name it had before the library moved here,
 `storytree-ci-health@storytree-498613.iam`, so the row policies still name the
 right role. On Mint it uses a separate SCRAM password, has no owner membership and
 may only write health records under the `grants.sql` policies; run that file on
-the box (its header says how) when its grants change.
+the box (its header says how) when its grants change. It reads only health records
+and the plan its run walks, and asks `ci_health_record_kind()` (which runs as the
+owner) whether an id names another kind of record.
 
 CI's capability-list check reads the plan as a third role, `ci_plan_read`
 (ADR-0952): read-only, the plan's records and their history, under
 `plan-read-grants.sql`. Run that file on the box when its grants change; the gate's
 contract 7.7 runs the check's reads as a role granted exactly that file, so a
 read the check gains cannot land without its grant.
+
+How much of the server both CI roles may hold is `ci-role-limits.sql`: connection
+limits, a 60-second statement timeout, a 1 GB temporary-file limit, an idle-session
+timeout, and no temporary tables for PUBLIC. Only a superuser may set some of
+those, so it is kept out of the two grants files; its header says how to run it,
+and it is run again when a database is added.
 
 Passwords are generated on Mint, never supplied in argv or printed:
 
@@ -265,7 +312,8 @@ so the session-start hook (`packages/dev-loop/src/provision-worktree.mjs`, contr
 `ONNXRUNTIME_NODE_INSTALL=skip` (the agent proxy cuts off onnxruntime's download, and the failed
 install also timed out the MCP server's start), then runs
 `storytree settings set library postgres wss://storytree_library@library.storytree.dev/postgres`
-(or the environment's `STORYTREE_LIBRARY_ADDRESS`, when set) and `storytree doctor --join storytree`.
+(with the environment's `PGUSER` as the user in place of `storytree_library` when it is set, or the
+environment's `STORYTREE_LIBRARY_ADDRESS` in place of the whole address, when set) and `storytree doctor --join storytree`.
 Each container is a new machine to the library, so each joins as its own. To do it by hand:
 
 ```sh

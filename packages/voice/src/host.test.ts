@@ -1,4 +1,4 @@
-/** Capability 4 · The box service and its confinement, contracts 4.1-4.2: the door's copy refreshed from main, and its install. */
+/** Capability 4 · The box service and its confinement, contracts 4.1-4.2 and 4.6: the door's copy refreshed from main, its install, and its confined units. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -7,7 +7,7 @@ import path from "node:path";
 import { after, test } from "node:test";
 
 import { main, type HostIo } from "./bins/voice-host.js";
-import { refresh, type RefreshSteps } from "./host.js";
+import { RESTART_REQUEST_ENV, SYSTEM_PATHS, VOICE_USER, boxSteps, refresh, systemUnits, type RefreshSteps } from "./host.js";
 import { gitRepo } from "./testing/door.js";
 
 const scratch: string[] = [];
@@ -160,4 +160,101 @@ test("4.2 install keeps the secret in the spike's env file, points the door at i
   assert.equal(main(["install", "--repo-dir", path.join(home, "pool-checkout")], refused), 1);
   assert.match(refused.lines.join("\n"), /needs its own copy, not the pool's checkout/);
   assert.deepEqual(refused.runs, []);
+});
+
+/** A unit file's settings, as name to every value it is given. */
+function settings(unit: string): Map<string, string[]> {
+  const found = new Map<string, string[]>();
+  for (const line of unit.split("\n")) {
+    const at = line.indexOf("=");
+    if (at <= 0 || line.startsWith("#")) continue;
+    const [name, value] = [line.slice(0, at), line.slice(at + 1)];
+    found.set(name, [...(found.get(name) ?? []), value]);
+  }
+  return found;
+}
+
+test("4.6 the confined units run the door and its refresh as the door's own user, with no home folders, no new privileges and a 3 GB cap, and nothing in them under a home folder", () => {
+  const units = systemUnits();
+  assert.deepEqual(Object.keys(units).sort(), ["storytree-voice-refresh.service", "storytree-voice-refresh.timer", "storytree-voice-restart.path", "storytree-voice-restart.service", "storytree-voice.service"]);
+  for (const file of ["storytree-voice.service", "storytree-voice-refresh.service"]) {
+    const unit = settings(units[file]!);
+    assert.deepEqual(unit.get("User"), [VOICE_USER], file);
+    assert.deepEqual(unit.get("ProtectHome"), ["true"], file);
+    assert.deepEqual(unit.get("NoNewPrivileges"), ["true"], file);
+    assert.deepEqual(unit.get("ProtectSystem"), ["strict"], file);
+    assert.deepEqual(unit.get("MemoryMax"), ["3G"], file);
+    assert.ok(unit.get("Environment")!.includes(`STORYTREE_HOME=${SYSTEM_PATHS.storytreeHome}`), file);
+  }
+  const door = settings(units["storytree-voice.service"]!);
+  assert.deepEqual(door.get("EnvironmentFile"), [SYSTEM_PATHS.env], "the secret is read from /etc, not the owner's home");
+  assert.match(door.get("ExecStart")![0]!, new RegExp(`^${SYSTEM_PATHS.node} .*${SYSTEM_PATHS.repoDir}/packages/voice/src/bins/voice\\.ts$`));
+  for (const [file, text] of Object.entries(units)) assert.doesNotMatch(text, /\/home\/|~\//, `${file} names a path under a home folder`);
+});
+
+test("4.6 the confined refresh asks for a restart by rewriting the request file the restart path unit watches, and that unit's service restarts the door", () => {
+  const units = systemUnits();
+  const refreshUnit = settings(units["storytree-voice-refresh.service"]!);
+  assert.ok(refreshUnit.get("Environment")!.includes(`${RESTART_REQUEST_ENV}=${SYSTEM_PATHS.restartRequest}`));
+  assert.deepEqual(settings(units["storytree-voice-restart.path"]!).get("PathChanged"), [SYSTEM_PATHS.restartRequest]);
+  const restart = settings(units["storytree-voice-restart.service"]!);
+  assert.equal(restart.get("User"), undefined, "the restart runs as root, which the door's user is not");
+  assert.deepEqual(restart.get("ExecStart"), ["/usr/bin/systemctl try-restart storytree-voice.service"]);
+
+  const request = path.join(tempDir(), "restart-request");
+  const before = process.env[RESTART_REQUEST_ENV];
+  process.env[RESTART_REQUEST_ENV] = request;
+  try {
+    boxSteps(tempDir()).restart();
+  } finally {
+    if (before === undefined) delete process.env[RESTART_REQUEST_ENV];
+    else process.env[RESTART_REQUEST_ENV] = before;
+  }
+  assert.ok(existsSync(request), "the refresh wrote the request file rather than calling systemctl");
+  assert.match(readFileSync(request, "utf8"), /^\d{4}-\d{2}-\d{2}T/);
+});
+
+test("4.6 system-units --dry-run names the five units and writes nothing; without it, it writes them", () => {
+  const dir = tempDir();
+  const io = hostIo(tempDir(), tempDir());
+  assert.equal(main(["system-units", "--dry-run", "--dir", dir], io), 0);
+  assert.deepEqual(readdirSync(dir), []);
+  assert.equal(io.lines.filter((line) => line.startsWith("would write ")).length, 5);
+  assert.equal(main(["system-units", "--dir", dir], io), 0);
+  assert.deepEqual(readdirSync(dir).sort(), Object.keys(systemUnits()).sort());
+  assert.equal(readFileSync(path.join(dir, "storytree-voice.service"), "utf8"), systemUnits()["storytree-voice.service"]);
+});
+
+test("4.7 door-env copies only the door's own settings from the spike's env file, dropping every path the confined unit sets itself, and writes nothing on --dry-run", () => {
+  const dir = tempDir();
+  const from = path.join(dir, "spike-env");
+  const to = path.join(dir, "door-env");
+  writeFileSync(
+    from,
+    [
+      "# the spike's settings",
+      "VOICE_SPIKE_TOKEN=secret-one",
+      "REPO_DIR=/home/owner/code/storytree03",
+      "PORT=8787",
+      "STORYTREE_CLI=[\"/home/owner/.nvm/node\"]",
+      "ALLOWED_HOSTS=mint.example.ts.net",
+      "HOME=/home/owner",
+      "STORYTREE_HOME=/home/owner/.storytree/0.3",
+      "PATH=/home/owner/.nvm/bin:/usr/bin",
+      "ALLOWED_CIDRS=160.79.104.0/21",
+      "",
+    ].join("\n"),
+  );
+  const io = hostIo(tempDir(), tempDir());
+  assert.equal(main(["door-env", "--from", from, "--to", to, "--dry-run"], io), 0);
+  assert.equal(existsSync(to), false, "a dry run writes nothing");
+
+  assert.equal(main(["door-env", "--from", from, "--to", to], io), 0);
+  const kept = settings(readFileSync(to, "utf8"));
+  assert.deepEqual([...kept.keys()].sort(), ["ALLOWED_CIDRS", "ALLOWED_HOSTS", "PORT", "VOICE_SPIKE_TOKEN"]);
+  assert.deepEqual(kept.get("VOICE_SPIKE_TOKEN"), ["secret-one"]);
+  if (process.platform !== "win32") assert.equal(statSync(to).mode & 0o777, 0o600, "the secret is readable by its owner only");
+  const said = io.lines.join("\n");
+  assert.match(said, /REPO_DIR, STORYTREE_CLI, HOME, STORYTREE_HOME, PATH/, "it names what it dropped");
+  assert.doesNotMatch(said, /secret-one/, "it never prints the secret");
 });

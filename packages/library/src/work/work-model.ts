@@ -96,12 +96,19 @@ export interface ProjectTree {
   arcs: ArcNode[];
 }
 
+/** One extra check a story or capability carries, and what sets it off: a change to it, or a formal release. */
+export type Guardrail = NonNullable<FieldsOf<"story">["guardrails"]>[number];
+
 export interface StoryNode {
   id: string;
   title: string;
   description?: string;
   /** Where a mapped story's code is (ADR-0993 D2): its import, its package and the folders holding its code. */
   mapped?: { from: string; package: string; folders: string[] };
+  /** Its risk reading as stored (question_1740edf77e9e), when one was read. */
+  risk?: NonNullable<FieldsOf<"story">["risk"]>;
+  /** Its own guardrails as stored (question_4cec0ba23052): the extra checks only it carries. */
+  guardrails?: Guardrail[];
   /** The capabilities pointing at this story, in creation order. */
   capabilities: CapabilityNode[];
 }
@@ -116,6 +123,8 @@ export interface CapabilityNode {
   proposed: boolean;
   /** An explored capability of a mapped story: the folders and files of its import it covers (ADR-0993 D5). */
   covers?: string[];
+  /** Its own guardrails as stored (question_4cec0ba23052). */
+  guardrails?: Guardrail[];
   /** The contracts pointing at this capability, in creation order. */
   contracts: ContractNode[];
 }
@@ -340,11 +349,14 @@ export class WorkModel {
       stories: stories.sort(byCreation).map((story) => ({
         ...nodeOf(story),
         ...(story.fields.mapped === undefined ? {} : { mapped: { ...story.fields.mapped, folders: [...story.fields.mapped.folders] } }),
+        ...(story.fields.risk === undefined ? {} : { risk: structuredClone(story.fields.risk) }),
+        ...guardrailsOf(story),
         capabilities: (capabilitiesOf.get(story.id) ?? []).map((capability) => ({
           ...nodeOf(capability),
           dependsOn: [...(capability.fields.dependsOn ?? [])],
           proposed: capability.fields.proposed,
           ...(capability.fields.covers === undefined ? {} : { covers: [...capability.fields.covers] }),
+          ...guardrailsOf(capability),
           contracts: (contractsOf.get(capability.id) ?? []).map(nodeOf),
         })),
       })),
@@ -508,6 +520,12 @@ type NodeHead = Pick<StoryNode, "id" | "title" | "description">;
 function nodeOf(record: PlanRecord): NodeHead {
   const { title, description } = record.fields;
   return { id: record.id, title, ...(description === undefined ? {} : { description }) };
+}
+
+/** A story's or capability's guardrails, copied, when it carries any. */
+function guardrailsOf(record: SchemaRecord<"story"> | SchemaRecord<"capability">): { guardrails?: Guardrail[] } {
+  const { guardrails } = record.fields;
+  return guardrails === undefined ? {} : { guardrails: guardrails.map((guardrail) => ({ ...guardrail })) };
 }
 
 /** `children` grouped by the id of the parent each points at, each group in creation order. */

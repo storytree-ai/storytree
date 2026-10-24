@@ -1,0 +1,15 @@
+{
+  "browser": "148.0.7778.96",
+  "the-app": [
+    "Risk rating 8 of 10",
+    "Users potentially impacted the invited users (not counted yet)",
+    "Extra checksA real-app run that fails on any main-process error, on every changeA thorough fresh-install sweep (4 · Updates), before each formal release",
+    "A real-app run that fails on any main-process error, on every change",
+    "A thorough fresh-install sweep (4 · Updates), before each formal release"
+  ],
+  "the-library": [
+    "Risk rating 10 of 10",
+    "Users potentially impacted the invited users (not counted yet)",
+    "Extra checks none beyond the standard tests."
+  ]
+}

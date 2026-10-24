@@ -369,6 +369,35 @@ test("2.3 · the brief's tool issues the brief given the diff, or reads it from 
   });
 });
 
+test("2.11 · a change read from its worktree takes its own risk tier: a low-tier change gets a light pass and a medium one the full brief; a diff given by hand takes the increment's written risk line, and with none the full brief", async () => {
+  await withLibrary(async (library, storytree) => {
+    const { increment } = await plan(library);
+    const reviews = await openReviews(storytree);
+    const dir = branchCheckout();
+    try {
+      const low = await reviews.brief(library, increment, worktreeChange(dir));
+      assert.deepEqual({ tier: low.risk?.tier, rating: low.risk?.rating, pass: low.pass }, { tier: "low", rating: 3, pass: "light" });
+      assert.match(briefText(low), /^Light pass: this change reads low 3\b.*judge every check and contract from the diff below alone/m);
+
+      mkdirSync(join(dir, "packages/dev-loop/src"), { recursive: true });
+      writeFileSync(join(dir, "packages/dev-loop/src/gate.mjs"), "export const gate = 1;\n");
+      const medium = await reviews.brief(library, increment, worktreeChange(dir));
+      assert.deepEqual({ tier: medium.risk?.tier, flags: medium.risk?.flags, pass: medium.pass }, { tier: "medium", flags: ["fix loop"], pass: "full" });
+      assert.match(briefText(medium), /^Full review: this change reads medium 5\b/m);
+      assert.doesNotMatch(briefText(medium), /Light pass/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+
+    const unread = await reviews.brief(library, increment, DIFF);
+    assert.deepEqual({ risk: unread.risk, pass: unread.pass }, { risk: undefined, pass: "full" });
+    assert.match(briefText(unread), /^Full review: no risk line was read for this change\./m);
+    await library.editIncrement(increment, { risk: { tier: "low", rating: 4, depth: 1, radius: 2, flags: [], stories: [], read: "2026-10-24" } });
+    const written = await reviews.brief(library, increment, DIFF);
+    assert.deepEqual({ tier: written.risk?.tier, pass: written.pass }, { tier: "low", pass: "light" });
+  });
+});
+
 test("4.1 · a change's standing findings are its unanswered hits and unaccepted rejections; a hit answered fixed does not stand, and with none the change reads ready", async () => {
   await withLibrary(async (library, storytree) => {
     const { increment, contracts, checks } = await plan(library);

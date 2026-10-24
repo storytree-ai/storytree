@@ -1,8 +1,9 @@
 /**
  * Capability 1 · Lifecycle. The app's command line: `--quit` asks the running app to quit, as its tray's Quit does, and starts
  * nothing when none is running (ADR-0656 D1); `--project <name>` picks the project to open, `--smoke` runs the smoke
- * check (render, screenshot, print, quit), and `--screenshot <file>` says where the smoke check
- * saves its screenshot, `--start-check` starts the main process as far as its handlers and exits 0
+ * check (render, screenshot, print, quit), `--screenshot <file>` says where the smoke check
+ * saves its screenshot and `--stress <rounds>` how many rounds of closing and reopening its window it runs before it quits
+ * (contract 1.30, none unless asked), `--start-check` starts the main process as far as its handlers and exits 0
  * (the updater's check of a new build, contract 4.17), `--callback-check` keeps the app up with no window or library and
  * reports each sign-in callback a later start hands it (contract 1.15, CI's proof of deep-link delivery), and `--background` starts the app without its window (it restarts that
  * way after an update, when the window was closed). Anything else (Electron's and Chromium's own switches, the app path in
@@ -16,12 +17,14 @@ export interface AppArgs {
   background: boolean;
   quit: boolean;
   screenshot?: string;
+  /** Smoke-only: how many rounds of closing and reopening the window run before the smoke check quits (0 unless asked). */
+  stress: number;
   /** Smoke-only choice; ordinary launches always open Forest. */
   forestMode?: "forest" | "library";
 }
 
 export function parseArgs(argv: readonly string[]): AppArgs {
-  const args: AppArgs = { smoke: false, startCheck: false, callbackCheck: false, background: false, quit: false };
+  const args: AppArgs = { smoke: false, startCheck: false, callbackCheck: false, background: false, quit: false, stress: 0 };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index] ?? "";
     const [flag, inline] = arg.startsWith("--") && arg.includes("=") ? [arg.slice(0, arg.indexOf("=")), arg.slice(arg.indexOf("=") + 1)] : [arg, undefined];
@@ -38,6 +41,10 @@ export function parseArgs(argv: readonly string[]): AppArgs {
       const mode = value();
       if (mode !== "forest" && mode !== "library") throw new Error("--forest-mode must be forest or library");
       args.forestMode = mode;
+    } else if (flag === "--stress") {
+      const rounds = Number(value());
+      if (!Number.isInteger(rounds) || rounds < 0) throw new Error("--stress must be a whole number of rounds");
+      args.stress = rounds;
     } else if (flag === "--screenshot") {
       const screenshot = value();
       if (screenshot !== undefined) args.screenshot = screenshot;

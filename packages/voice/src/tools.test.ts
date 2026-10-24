@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Client } from "@modelcontextprotocol/client";
 
-import { DRIVE_NOTICE, TOOL_NAMES } from "./tools.js";
+import { DRIVE_NOTICE, OLD_NAMES, TOOL_NAMES } from "./tools.js";
 import { childrenIn, connect, gitRepo, seen, testDoor, textOf, type TestDoor } from "./testing/door.js";
 
 const lines = (count: number, make: (n: number) => string) => Array.from({ length: count }, (_, at) => make(at + 1)).join("\n") + "\n";
@@ -79,7 +79,7 @@ test("2.1 tools/list offers exactly the read tools, each read-only and not destr
   try {
     for (const each of [client, modern]) {
       const { tools } = await each.listTools();
-      assert.deepEqual(tools.map((tool) => tool.name).sort(), [...TOOL_NAMES]);
+      assert.deepEqual(tools.map((tool) => tool.name).sort(), [...TOOL_NAMES, ...Object.keys(OLD_NAMES)].sort());
       for (const tool of tools) {
         assert.equal(tool.annotations?.readOnlyHint, true, tool.name);
         assert.equal(tool.annotations?.destructiveHint, false, tool.name);
@@ -88,6 +88,24 @@ test("2.1 tools/list offers exactly the read tools, each read-only and not destr
   } finally {
     await modern.close();
   }
+});
+
+test("2.18 · each of the spike's old tool names answers what its new tool answers, so a connector holding the old tool list keeps working", async () => {
+  const pairs: Array<[string, string, Record<string, unknown>]> = [
+    ["open_questions", "catch_up", {}],
+    ["search_library", "find", { query: "voice door" }],
+    ["search_library", "find", { query: "seven hits" }],
+    ["read_code_file", "read_code", { path: "big.txt", start_line: 3, end_line: 9 }],
+  ];
+  assert.deepEqual(Object.fromEntries(pairs.map(([old, now]) => [old, now])), OLD_NAMES);
+  for (const [old, now, args] of pairs) {
+    const answer = await call(old, args);
+    assert.notEqual(answer.isError, true, `${old}: ${textOf(answer)}`);
+    assert.ok(textOf(answer).length > 0, old);
+    assert.deepEqual(answer.content, (await call(now, args)).content, `${old} ${JSON.stringify(args)}`);
+  }
+  const { tools } = await client.listTools();
+  for (const [old, now] of Object.entries(OLD_NAMES)) assert.match(tools.find((tool) => tool.name === old)?.description ?? "", new RegExp(`old name for ${now}`), old);
 });
 
 test("2.2 catch_up gives what needs the owner's action, then his open questions oldest first, then what landed, numbered, each id at the line's end", async () => {
@@ -138,7 +156,44 @@ test("2.6 find returns at most 5 records closest in meaning, one line each with 
 
 test("2.7 find passes its query as words only, and refuses an empty, over-long or NUL query before any child", async () => {
   assert.deepEqual(seen(await call("find", { query: "--limit 99" })).argv, ["library", "search", "--limit", "5", "--", "--limit 99"]);
+  assert.ok(childrenIn(door.cliLog).commands.some((argv) => JSON.stringify(argv) === JSON.stringify(["library", "find", "--", "--limit 99"])), "the title lookup took the query as a flag");
   await refusedWithoutChild("find", [{ query: "" }, { query: "   " }, { query: "x".repeat(501) }, { query: "a\u0000b" }]);
+});
+
+test("2.15 · tell_me reads one thing whole: a question with its stakes and options, a decision by number, an arc, a pull request's work, a term", async () => {
+  const question = textOf(await call("tell_me", { handle: "question_0000000000c1" }));
+  assert.match(question, /^Question: Newest: keep the secret address alone\?/);
+  assert.match(question, /Stakes:/);
+  const options = textOf(await call("tell_me", { handle: "question_0000000000c1", page: 2 }));
+  assert.match(options, /\(a\) Keep it\. Good: nothing to do\. Bad: anyone with the address\.\n\(b\) Sign in\. Good: tied to you\. Bad: setup\./);
+  const decision = textOf(await call("tell_me", { handle: "ADR 3" }));
+  assert.match(decision, /^decision: The decision numbered 3\n/);
+  assert.match(decision, /^text: Open questions are mirrored to Drive\.$/m);
+  assert.match(decision, /^pr: 1723$/m);
+  assert.match(decision, / — decision_000000000003$/);
+  for (const [handle, id] of [["stability and testing", "arc_0000000000b3"], ["pull request 1101", "increment_000000000065"], ["the term owner question", "definition_0000000000f1"]] as const) {
+    assert.match(textOf(await call("tell_me", { handle })), new RegExp(` — ${id}$`), handle);
+  }
+  await refusedWithoutChild("tell_me", [{ handle: "" }, { handle: "x".repeat(301) }, { handle: "number two", since: "--all" }]);
+});
+
+test("2.16 · count gives the library's tallies by kind and status and the arcs with the most open increments, each arc's id at its line's end", async () => {
+  const text = textOf(await call("count"));
+  assert.match(text, /^ {2}decision {11}503: accepted 491, proposed 12$/m);
+  assert.match(text, /^ {2}86 open: Hardening before the public launch — arc_bfbc3b617d69$/m);
+  await alone(async (own, ownDoor) => {
+    await own.callTool({ name: "count", arguments: { query: "select * from records" } });
+    assert.deepEqual(childrenIn(ownDoor.cliLog).commands, [["library", "count"]]);
+  });
+});
+
+test("2.17 · find gives title matches first, at most 5, and searches by meaning only when no title holds the words", async () => {
+  const titled = textOf(await call("find", { query: "voice door" })).split("\n");
+  assert.deepEqual(titled.slice(0, 5), Array.from({ length: 5 }, (_, at) => `${at + 1}. increment: Voice door step ${at + 1} — increment_${(0xf00 + at).toString(16).padStart(12, "0")}`));
+  assert.match(titled[5]!, /2 more titles hold those words/);
+  assert.equal(titled.length, 6);
+  // No title holds "seven hits": the meaning search answers (2.6).
+  assert.match(textOf(await call("find", { query: "seven hits" })), /^1\. principle: Principle number 1/);
 });
 
 test("2.8 what_changed over a span lists what landed by arc with pull requests, at most 20 rows, and refuses a span not on its list", async () => {

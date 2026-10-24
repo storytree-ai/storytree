@@ -119,12 +119,12 @@ export function refusalAnswer(harness: string, reason: string, ask = false): str
   return JSON.stringify({ decision: "block", reason, hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
 }
 
-/** The gate's answer for the harness: a refusal when the edit may not happen, else undefined. Never throws; `failed` keeps why it gave up. */
-export async function editGate(harness: string, input: unknown, declared: DeclaredCapabilities | undefined, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void): Promise<string | undefined> {
+/** The gate's answer for the harness: a refusal when the edit may not happen, else undefined, also once `gateMs` passes. Never throws; `failed` keeps why it gave up. */
+export async function editGate(harness: string, input: unknown, declared: DeclaredCapabilities | undefined, locate: LocateOptions | undefined, home: string, failed: (stage: HookFailure["stage"], error: unknown) => void, gateMs = GATE_MS): Promise<string | undefined> {
   const edit = editIn(harness, input);
   if (edit === undefined || declared === undefined) return undefined;
   let timer: NodeJS.Timeout | undefined;
-  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), GATE_MS)));
+  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), gateMs)));
   try {
     const refusal = await Promise.race([refusalFor(harness, edit, declared, locate, home), late]);
     if (refusal === undefined) return undefined;

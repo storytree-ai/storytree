@@ -28,7 +28,9 @@
  *
  * `--smoke` renders the project without showing a window, saves a screenshot to the file given
  * with `--screenshot <file>`, prints the page's text to stdout, and quits: exit 0 only if the
- * surface on show says it drew every story of the project and every one of its capabilities.
+ * surface on show says it drew every story of the project and every one of its capabilities. With `--stress <rounds>` it
+ * then closes and reopens its window at awkward moments before it quits (./smoke-stress.ts), and any main-process error
+ * it logs, while it quits included, turns its exit red; it never waits on an error box (./smoke-verdict.ts, contract 1.30).
  */
 import { smokeArcSurface } from "@storytree/arc-surface";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -109,6 +111,8 @@ import { keepDrawingThroughGpuResets } from "./gpu-resets.js";
 import { askToReportErrors, mainErrorRecords, reportBox } from "./main-error-records.js";
 import { logMainErrors } from "./main-errors.js";
 import { logPageErrors } from "./page-errors.js";
+import { stressWindow, windowSteps } from "./smoke-stress.js";
+import { smokeVerdict } from "./smoke-verdict.js";
 import { lateReads, projectAnswers } from "./late-reads.js";
 import { keepPageInWindow } from "./page-window.js";
 import { keepTray } from "./tray.js";
@@ -129,18 +133,21 @@ declare const STORYTREE_WORKOS_CLIENT_ID: string | undefined;
 // once it is known and the app's version before.
 /** Which build this is (`main 80bcc63`, or the development checkout), shown in the title and the tray. */
 let build = "";
+const args = parseArgs(process.argv);
+// In a smoke check, every main-process error logged turns its exit red, and no error box waits for a person (lifecycle 1.30).
+const verdict = smokeVerdict({ smoke: args.smoke, log: line => console.error(line) });
 const errorRecords = mainErrorRecords({ build: () => build || app.getVersion(), log: line => console.error(line) });
 logMainErrors(process, {
-  log: line => console.error(line),
+  log: verdict.error,
   record: errorRecords.record,
-  ask: async ({ title, message, detail, buttons }) => {
+  ask: verdict.asking(async ({ title, message, detail, buttons }) => {
     if (!app.isReady()) {
       dialog.showErrorBox(title, `${message}\n\n${detail}`);
       return "keep-going";
     }
     const { response } = await dialog.showMessageBox({ type: "error", title, message, detail, buttons: [...buttons], defaultId: 0, cancelId: 0, noLink: true });
     return response === 1 ? "restart" : "keep-going";
-  },
+  }),
   restart: () => {
     const appImage = process.env.APPIMAGE;
     lifecycle.restart(
@@ -150,7 +157,6 @@ logMainErrors(process, {
   },
 });
 
-const args = parseArgs(process.argv);
 const home = appHome();
 /** app.log beside the app's data, bounded (contract 1.34): an installed app has no terminal, so what it says is kept here. */
 const log = appLog(path.join(home.dir, "app.log"));
@@ -193,9 +199,9 @@ let windowQuery: { project?: string; problem?: string } = {};
 let tray: Tray | undefined;
 const lifecycle = background({
   // End every renderer (project polling and live reading) before closing what it reads.
-  stopPages: () => { for (const window of BrowserWindow.getAllWindows()) window.destroy(); },
-  stopDatabase: shutdown,
-  exit: (code) => app.exit(code),
+  stopPages: () => void verdict.stopping("the pages", () => { for (const window of BrowserWindow.getAllWindows()) window.destroy(); }),
+  stopDatabase: () => verdict.stopping("the database", shutdown),
+  exit: (code) => app.exit(verdict.exitCode(code)),
   relaunch,
   // After five restarts in a row the app stops restarting itself, and the stop is an error the user is asked to report (lifecycle 1.32).
   ...(args.smoke || args.startCheck || args.callbackCheck ? {} : {
@@ -627,7 +633,15 @@ async function smoke(window: BrowserWindow, project: string | undefined): Promis
     } else {
       for (const problem of problems) console.error(`smoke: ${problem}`);
     }
+    // The window is closed and reopened at awkward moments, and the quit below lands while the last one loads.
+    await stressWindow(window, args.stress, windowSteps({
+      windows: () => BrowserWindow.getAllWindows(),
+      reopen: showWindow,
+      loaded: pageState,
+      log: (line) => console.log(line),
+    }));
   } catch (error) {
+    code = 1;
     console.error(`smoke: ${messageOf(error)}`);
   } finally {
     await lifecycle.quit(code);
@@ -657,11 +671,11 @@ function shutdown(): Promise<void> {
   backups?.stop();
   shutDown ??= (async () => {
     await journey?.finish();
-    await reads?.close().catch((error: unknown) => console.error(`closing the projects: ${messageOf(error)}`));
+    await reads?.close().catch((error: unknown) => verdict.error(`closing the projects: ${messageOf(error)}`));
     reads = undefined;
-    await storytree?.close().catch((error: unknown) => console.error(`closing the library: ${messageOf(error)}`));
+    await storytree?.close().catch((error: unknown) => verdict.error(`closing the library: ${messageOf(error)}`));
     storytree = undefined;
-    await postgres?.stop().catch((error: unknown) => console.error(`stopping Postgres: ${messageOf(error)}`));
+    await postgres?.stop().catch((error: unknown) => verdict.error(`stopping Postgres: ${messageOf(error)}`));
     postgres = undefined;
   })();
   return shutDown;

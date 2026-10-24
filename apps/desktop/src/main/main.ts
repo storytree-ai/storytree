@@ -261,9 +261,9 @@ async function run(): Promise<void> {
     declaredSurfaces: declaredSurfaces([SURFACES, NAMED_SURFACES], partsOff),
     server: () => storytree,
     // capturePage pictures the app's own page, so no screen-recording permission is asked for on any system.
-    captureWindow: async () => {
+    captureWindow: async (rect) => {
       const shown = BrowserWindow.getAllWindows().find((each) => !each.isDestroyed() && each.isVisible());
-      return shown === undefined ? undefined : new Uint8Array((await shown.webContents.capturePage()).toJPEG(70));
+      return shown === undefined ? undefined : new Uint8Array((await shown.webContents.capturePage(rect)).toJPEG(70));
     },
   }, partsOff);
   if (!args.smoke && !args.startCheck) journey.desktopStarted(installedApp());

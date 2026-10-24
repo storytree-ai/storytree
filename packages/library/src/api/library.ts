@@ -159,12 +159,16 @@ export interface Library
   changesSince(cursor: number): Promise<Changes>;
   /**
    * Keep a note sent from the desktop app's feedback corner as a new `feedback` record, its status new, with
-   * `screenshot`, a JPEG of the window, kept beside it rather than in its fields (Surface feedback 3.2). Fields that do
-   * not fit the type are refused (SchemaError) and nothing is written, the picture included.
+   * `screenshot`, a JPEG of the window, and `crop`, one cut to the element it points at, kept beside it rather than in
+   * its fields (Surface feedback 3.2, 3.3); a crop is kept only with its window picture. Fields that do not fit the type
+   * are refused (SchemaError) and nothing is written, the pictures included.
    */
-  sendFeedback(note: FeedbackNote, options?: WriteOptions & { readonly screenshot?: Uint8Array | undefined }): Promise<SchemaRecord<"feedback">>;
-  /** The JPEG a feedback note was sent with, or null for a note sent without one or no note at all. */
-  feedbackScreenshot(id: string): Promise<Uint8Array | null>;
+  sendFeedback(note: FeedbackNote, options?: WriteOptions & { readonly screenshot?: Uint8Array | undefined; readonly crop?: Uint8Array | undefined }): Promise<SchemaRecord<"feedback">>;
+  /**
+   * The JPEG a feedback note was sent with, or with `element`, the one cut to its element; null for a note sent without
+   * one or no note at all.
+   */
+  feedbackScreenshot(id: string, options?: { readonly element?: boolean }): Promise<Uint8Array | null>;
   /**
    * Mark a new feedback note routed (Surface feedback 4.2): where it went, the increment or question it went to, and why.
    * Null, with nothing written, when `id` is no live feedback note; a note already routed is refused, as is a route the
@@ -176,7 +180,7 @@ export interface Library
 }
 
 /** A feedback note as the corner sends it: its record's fields but those the library sets. */
-export type FeedbackNote = Omit<FieldsOf<"feedback">, "status" | "screenshot" | keyof FeedbackRoute>;
+export type FeedbackNote = Omit<FieldsOf<"feedback">, "status" | "screenshot" | "crop" | keyof FeedbackRoute>;
 /** Where a feedback note was routed, and why. */
 export interface FeedbackRoute {
   readonly route: NonNullable<FieldsOf<"feedback">["route"]>;
@@ -318,11 +322,14 @@ function libraryOf(project: Project): Library {
      * lacks it; a record the schema refuses takes its picture away again.
      */
     async sendFeedback(note, options = {}) {
-      const { screenshot, ...write } = options;
+      const { screenshot, crop, ...write } = options;
+      if (crop !== undefined && screenshot === undefined) throw new Error("a feedback note's crop is kept only with its window picture");
       const id = `feedback_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
-      const fields: FieldsOf<"feedback"> = { ...note, status: "new", screenshot: screenshot !== undefined };
+      const fields: FieldsOf<"feedback"> = { ...note, status: "new", screenshot: screenshot !== undefined, ...(crop === undefined ? {} : { crop: true }) };
       project.records.check("feedback", fields);
-      if (screenshot !== undefined) await project.pool.query("INSERT INTO feedback_screenshot (record_id, jpeg) VALUES ($1, $2)", [id, Buffer.from(screenshot)]);
+      if (screenshot !== undefined) {
+        await project.pool.query("INSERT INTO feedback_screenshot (record_id, jpeg, element_jpeg) VALUES ($1, $2, $3)", [id, Buffer.from(screenshot), crop === undefined ? null : Buffer.from(crop)]);
+      }
       try {
         return await project.records.create("feedback", fields, { ...write, id, onlyIfNew: true });
       } catch (error) {
@@ -330,10 +337,10 @@ function libraryOf(project: Project): Library {
         throw error;
       }
     },
-    async feedbackScreenshot(id) {
+    async feedbackScreenshot(id, { element = false } = {}) {
       if (!couldBeId(id)) return null;
-      const { rows } = await project.pool.query<{ jpeg: Buffer }>("SELECT jpeg FROM feedback_screenshot WHERE record_id = $1", [id]);
-      return rows[0] === undefined ? null : new Uint8Array(rows[0].jpeg);
+      const { rows } = await project.pool.query<{ jpeg: Buffer | null }>(`SELECT ${element ? "element_jpeg" : "jpeg"} AS jpeg FROM feedback_screenshot WHERE record_id = $1`, [id]);
+      return rows[0]?.jpeg == null ? null : new Uint8Array(rows[0].jpeg);
     },
     async routeFeedback(id, route, options = {}) {
       const note = couldBeId(id) ? await project.records.get(id) : null;

@@ -5,7 +5,7 @@
  * package's manifest, so the command line mounts them as its `feedback` family.
  */
 import { writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { extname, resolve } from "node:path";
 
 import type { FeedbackRoute, SchemaRecord } from "@storytree/library";
 import { verb, VerbRefusal, type VerbContext, type VerbFamily } from "@storytree/library/verbs";
@@ -55,11 +55,11 @@ const list = verb({
 
 const show = verb({
   consumers: ["agent"],
-  command: { family: "feedback", name: "show", summary: "read one feedback note whole and, given a file, save the picture of the window it was sent from", usage: "feedback show <feedback> [--screenshot <file.jpg>]" },
+  command: { family: "feedback", name: "show", summary: "read one feedback note whole, with the element it points at, and, given a file, save the picture of the window it was sent from and the one cut to its element beside it", usage: "feedback show <feedback> [--screenshot <file.jpg>]" },
   tool: { absent: NO_TOOL },
   inputs: {
     feedback: { kind: "text", word: 0, describe: "the note's id" },
-    screenshot: { kind: "text", optional: true, describe: "a file to save its screenshot to, as a JPEG" },
+    screenshot: { kind: "text", optional: true, describe: "a file to save its screenshot to, as a JPEG; the element's crop is saved beside it as <file>.element.jpg" },
   },
   async act({ feedback, screenshot }, context: VerbContext) {
     const note = await noteOf(context, feedback);
@@ -73,6 +73,7 @@ const show = verb({
       ...(fields.project === undefined ? [] : [`project: ${fields.project}`]),
       `version: ${fields.version}`,
       `window: ${fields.window.width}×${fields.window.height}, ${fields.theme}`,
+      ...(fields.anchor === undefined ? [] : anchorLines(fields.anchor)),
       ...(fields.route === undefined ? [] : [`route: ${fields.route}${fields.routedTo === undefined ? "" : ` ${fields.routedTo}`}`, `reason: ${fields.routeReason}`]),
       `text: ${fields.text}`,
     ];
@@ -84,6 +85,12 @@ const show = verb({
         const file = resolve(context.folder, screenshot);
         await writeFile(file, jpeg);
         lines.push(`screenshot: saved to ${file}`);
+        const crop = await context.library.feedbackScreenshot(note.id, { element: true });
+        if (crop !== null) {
+          const beside = `${file.slice(0, file.length - extname(file).length)}.element.jpg`;
+          await writeFile(beside, crop);
+          lines.push(`element picture: saved to ${beside}`);
+        }
       }
     } else {
       lines.push(`screenshot: ${fields.screenshot ? "yes; save it with --screenshot <file.jpg>" : "none"}`);
@@ -91,6 +98,20 @@ const show = verb({
     return { text: lines.join("\n") };
   },
 });
+
+/** The element a note points at, a line a fact: what a building agent searches the code with. */
+function anchorLines(anchor: NonNullable<Note["fields"]["anchor"]>): string[] {
+  const { box } = anchor;
+  return [
+    `element: ${anchor.selector}`,
+    `  ${anchor.tag}${anchor.role === undefined ? "" : `, role ${anchor.role}`}${anchor.name === undefined ? "" : `, named ${JSON.stringify(anchor.name)}`}, ${box.width}×${box.height} at ${box.x},${box.y}`,
+    ...(anchor.text === undefined ? [] : [`  text: ${anchor.text}`]),
+    ...(anchor.components.length === 0 ? [] : [`  components: ${anchor.components.join(" < ")}`]),
+    ...(anchor.marks.length === 0 ? [] : [`  marks: ${anchor.marks.join(" ")}`]),
+    ...(Object.keys(anchor.styles).length === 0 ? [] : [`  styles: ${Object.entries(anchor.styles).map(([name, value]) => `${name}: ${value}`).join("; ")}`]),
+    `  html: ${anchor.html}`,
+  ];
+}
 
 const route = verb({
   consumers: ["agent"],

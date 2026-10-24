@@ -12,10 +12,33 @@ export interface FeedbackSetup {
   readonly surfaces: readonly DeclaredSurface[];
 }
 
+/** The element a note points at, as the page reads it at the click (Surface feedback 2.2). */
+export interface FeedbackAnchor {
+  /** A CSS selector only this element matches in the page. */
+  readonly selector: string;
+  readonly tag: string;
+  readonly role?: string;
+  /** Its accessible name. */
+  readonly name?: string;
+  /** Its text, squeezed to one line of at most 200 characters. */
+  readonly text?: string;
+  /** Each `data-*` mark on it and its ancestors, nearest first: `section[data-surface-id="arcs"]`. */
+  readonly marks: readonly string[];
+  /** The React components that drew it, nearest first, up to six. */
+  readonly components: readonly string[];
+  /** Where it is drawn in the window, in CSS pixels. */
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly styles: Readonly<Record<string, string>>;
+  /** Its markup, at most 2 KB, with only allowlisted attributes and secret-looking values redacted. */
+  readonly html: string;
+}
+
 /** A note as the page sends it. */
 export interface PageNote {
   readonly text: string;
   readonly surface: string;
+  /** The element the note points at: every note starts with one. */
+  readonly anchor: FeedbackAnchor;
   /** The story node or note selected, if any. */
   readonly selection?: string | undefined;
   /** The project on show, if any. */
@@ -26,10 +49,13 @@ export interface PageNote {
 
 export interface FeedbackBridge {
   feedbackSetup(): Promise<FeedbackSetup>;
-  /** Take a picture of the app's window as it is now, kept in the main process; the token that names it, or none if none was taken. */
-  captureForFeedback(): Promise<string | undefined>;
-  /** Write the note, with the picture `screenshot` names if given; the record's id once it is written. */
-  sendFeedback(note: PageNote, screenshot?: string): Promise<{ id: string }>;
+  /**
+   * Take a picture of the app's window as it is now, or with `box`, of that part of it, kept in the main process; the
+   * token that names it, or none if none was taken.
+   */
+  captureForFeedback(box?: FeedbackAnchor["box"]): Promise<string | undefined>;
+  /** Write the note, with the pictures `screenshot` and `crop` name if given; the record's id once it is written. */
+  sendFeedback(note: PageNote, screenshot?: string, crop?: string): Promise<{ id: string }>;
 }
 
 export const FEEDBACK_CHANNELS = {

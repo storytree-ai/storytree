@@ -493,7 +493,7 @@ test("7.3 the package's public entry exports exactly the API and nothing else, a
   }
 });
 
-test("7.18 sendFeedback writes a feedback record and keeps its screenshot beside it, out of the record's history; feedbackScreenshot returns the bytes, and none for a note sent without one", async () => {
+test("7.18 sendFeedback writes a feedback record, with the element it points at, and keeps its screenshot and the crop to that element beside it, out of the record's history; feedbackScreenshot returns the bytes, and none for a note sent without one", async () => {
   const name = uniqueProjectName();
   await withStorytree([name], async (storytree) => {
     const lib = await storytree.openProject(name);
@@ -524,11 +524,33 @@ test("7.18 sendFeedback writes a feedback record and keeps its screenshot beside
     const plain = await lib.sendFeedback({ ...note, text: "No picture this time" });
     assert.equal(plain.fields.screenshot, false);
     assert.equal(await lib.feedbackScreenshot(plain.id), null);
+    assert.equal(await lib.feedbackScreenshot(sent.id, { element: true }), null, "a note sent without a crop has none");
+
+    // The element the owner pointed at rides in the fields; the picture cut to it is kept beside the window's.
+    const anchor = {
+      selector: "#arcs > button:nth-of-type(2)",
+      tag: "button",
+      role: "button",
+      name: "Close",
+      text: "Close",
+      marks: ['section[data-surface-id="arcs"]'],
+      components: ["ArcsDrawer"],
+      box: { x: 10, y: 20, width: 60, height: 24 },
+      styles: { color: "rgb(236, 234, 227)" },
+      html: '<button type="button">Close</button>',
+    };
+    const crop = Uint8Array.from([0xff, 0xd8, 9, 0xff, 0xd9]);
+    const pointed = await lib.sendFeedback({ ...note, anchor }, { screenshot: jpeg, crop });
+    assert.deepEqual(pointed.fields, { ...note, anchor, status: "new", screenshot: true, crop: true });
+    assert.deepEqual(await lib.feedbackScreenshot(pointed.id, { element: true }), crop);
+    assert.deepEqual(await lib.feedbackScreenshot(pointed.id), jpeg);
+    await assert.rejects(lib.sendFeedback({ ...note, anchor }, { crop }), /only with its window picture/, "a crop is kept only with its window picture");
+    await assert.rejects(lib.sendFeedback(untyped({ ...note, anchor: { ...anchor, html: "x".repeat(2049) } })), (error: Error) => error.name === "SchemaError", "an anchor's HTML is at most 2 KB");
     assert.equal(await lib.feedbackScreenshot("feedback_000000000000"), null);
 
     await assert.rejects(lib.sendFeedback(untyped({ ...note, text: "" })), (error: Error) => error.name === "SchemaError", "a note with no text is refused");
     await assert.rejects(lib.sendFeedback(untyped({ ...note, surface: undefined }), { screenshot: jpeg }), (error: Error) => error.name === "SchemaError", "a note with no surface is refused");
-    assert.equal((await lib.list("feedback")).length, 2, "a refused note writes nothing");
+    assert.equal((await lib.list("feedback")).length, 3, "a refused note writes nothing");
   });
 });
 

@@ -88,18 +88,42 @@ test("4.2 · `feedback route <feedback> --to increment|question|closed --reason`
   assert.equal(((await library.get(sent.id))!.fields as Record<string, unknown>).route, "increment", "a second route writes nothing");
 });
 
-test("4.3 · `feedback show <feedback> [--screenshot <file>]` prints the note whole and, given a file, writes its screenshot JPEG there; a note sent without one says so", async (t) => {
+test("4.3 · `feedback show <feedback> [--screenshot <file>]` prints the note whole with the element it points at and, given a file, writes its screenshot JPEG there and the element's crop beside it; a note sent without one says so", async (t) => {
   const { library, context } = await aProject(t);
   const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);
-  const pictured = await library.sendFeedback({ ...note("The drawer hides the island\nwhen I click it", "2026-10-24T10:00:00.000Z"), selection: "story_000000000002", project: "site" }, { screenshot: jpeg });
+  const crop = Uint8Array.from([0xff, 0xd8, 7, 0xff, 0xd9]);
+  const anchor = {
+    selector: "#arcs > button:nth-of-type(2)",
+    tag: "button",
+    role: "button",
+    name: "Close",
+    text: "Close now",
+    marks: ['section[data-surface-id="arcs"]'],
+    components: ["CloseButton", "ArcsDrawer"],
+    box: { x: 10, y: 20, width: 60, height: 24 },
+    styles: { color: "rgb(1, 2, 3)", "font-size": "15px" },
+    html: '<button type="button">Close <b>now</b></button>',
+  };
+  const pictured = await library.sendFeedback({ ...note("The drawer hides the island\nwhen I click it", "2026-10-24T10:00:00.000Z"), selection: "story_000000000002", project: "site", anchor }, { screenshot: jpeg, crop });
   const plain = await library.sendFeedback(note("No picture", "2026-10-24T11:00:00.000Z"));
 
   const shown = (await show.act({ feedback: pictured.id, screenshot: "shot.jpg" }, context, WORDS)).text;
   for (const line of ["surface: arcs", "story: story_000000000001", "selection: story_000000000002", "project: site", "version: 0.3.99", "window: 1440×960, dark", "text: The drawer hides the island\nwhen I click it"]) {
     assert.ok(shown.includes(line), `shows ${line}`);
   }
+  assert.ok(shown.includes([
+    "element: #arcs > button:nth-of-type(2)",
+    '  button, role button, named "Close", 60×24 at 10,20',
+    "  text: Close now",
+    "  components: CloseButton < ArcsDrawer",
+    '  marks: section[data-surface-id="arcs"]',
+    "  styles: color: rgb(1, 2, 3); font-size: 15px",
+    '  html: <button type="button">Close <b>now</b></button>',
+  ].join("\n")), `shows the element:\n${shown}`);
   assert.ok(shown.includes(`screenshot: saved to ${join(context.folder, "shot.jpg")}`));
   assert.deepEqual(new Uint8Array(await readFile(join(context.folder, "shot.jpg"))), jpeg);
+  assert.ok(shown.includes(`element picture: saved to ${join(context.folder, "shot.element.jpg")}`));
+  assert.deepEqual(new Uint8Array(await readFile(join(context.folder, "shot.element.jpg"))), crop);
 
   assert.match((await show.act({ feedback: plain.id, screenshot: "none.jpg" }, context, WORDS)).text, /screenshot: none was sent with this note/);
   await assert.rejects(readFile(join(context.folder, "none.jpg")), { code: "ENOENT" });

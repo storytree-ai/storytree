@@ -55,4 +55,6 @@ export const PROJECT_SCHEMA: readonly string[] = [
     record_id text PRIMARY KEY,
     jpeg      bytea NOT NULL
   )`,
+  // Capability 7 · Library API (7.18). The picture cut to the element a note points at, kept with its window picture.
+  `ALTER TABLE feedback_screenshot ADD COLUMN IF NOT EXISTS element_jpeg bytea`,
 ];

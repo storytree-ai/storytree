@@ -38,8 +38,11 @@ export const TEST_CAP = 20;
 /** The check a survivor is recorded under in the QA ledger. */
 export const MUTATION_SURVIVOR = "mutation-survivor";
 
+/** The signals that end a report, after which it puts back what it changed. */
+const SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+
 /** How long one report may run before the breaks left are not run. */
-const REPORT_BUDGET_MS = 8 * 60_000;
+const REPORT_BUDGET_MS = 5 * 60_000;
 
 /** A line on the arid list: its file and its text, trimmed, so it is known again wherever the line moves. */
 export interface AridLine {
@@ -279,7 +282,12 @@ export function readReach(root: string, folders: readonly string[]): Reach {
     return order;
   };
   return {
-    tests: (file, cap = TEST_CAP) => closure(file).filter((one) => TEST.test(one)).slice(0, cap),
+    // Its own package's tests come first, nearest first, then those downstream.
+    tests: (file, cap = TEST_CAP) => {
+      const own = folderOf(file);
+      const reached = closure(file).filter((one) => TEST.test(one));
+      return [...reached.filter((one) => folderOf(one) === own), ...reached.filter((one) => folderOf(one) !== own)].slice(0, cap);
+    },
     damage: (file) => closure(file).filter((one) => !TEST.test(one) && !TEST_SUPPORT.test(one)).length,
   };
 }
@@ -309,8 +317,8 @@ function codeUnder(root: string, folder: string): string[] {
   return found;
 }
 
-/** Run test files from `root` with node's test runner under tsx, with `env`: whether all passed, and how long it took. */
-export type TestRun = (root: string, tests: readonly string[], limitMs: number, env?: NodeJS.ProcessEnv) => Promise<{ passed: boolean; ms: number }>;
+/** Run test files from `root` with node's test runner under tsx, with `env`: whether all passed, how long it took, and whether `limitMs` cut it short. */
+export type TestRun = (root: string, tests: readonly string[], limitMs: number, env?: NodeJS.ProcessEnv) => Promise<{ passed: boolean; ms: number; timedOut?: boolean }>;
 
 /** The real test run: one node process for the files, in a temp folder of its own, killed with its children at `limitMs`. */
 export const runTests: TestRun = (root, tests, limitMs, given = process.env) => new Promise((resolve) => {
@@ -330,12 +338,16 @@ export const runTests: TestRun = (root, tests, limitMs, given = process.env) => 
       // Already gone.
     }
   };
-  const deadline = setTimeout(kill, limitMs);
+  let timedOut = false;
+  const deadline = setTimeout(() => {
+    timedOut = true;
+    kill();
+  }, limitMs);
   child.once("close", (code) => {
     clearTimeout(deadline);
     kill();
     rmSync(temp, { recursive: true, force: true });
-    resolve({ passed: code === 0, ms: Date.now() - started });
+    resolve({ passed: code === 0 && !timedOut, ms: Date.now() - started, ...(timedOut ? { timedOut } : {}) });
   });
 });
 
@@ -359,6 +371,11 @@ export async function mutationReport(root: string, diff: string, arid: readonly 
   let caught = 0;
   const byFile = new Map<string, Break[]>();
   for (const one of breaks) byFile.set(one.file, [...(byFile.get(one.file) ?? []), one]);
+  const budget = options.budgetMs ?? REPORT_BUDGET_MS;
+  const left = (): number => budget - (Date.now() - started);
+  const OUT_OF_TIME = "the report's time ran out first";
+  // How each test file ran with nothing broken, kept across the changed files that share it.
+  const unbroken = new Map<string, { passed: boolean; ms: number }>();
   const postgres = new TestPostgres(options.run === undefined);
   try {
     for (const [file, planted] of byFile) {
@@ -369,37 +386,42 @@ export async function mutationReport(root: string, diff: string, arid: readonly 
         continue;
       }
       // Tests that fail with nothing broken cannot tell a break apart: they are left out (7.2).
-      const limit = Math.max(30_000, (options.budgetMs ?? REPORT_BUDGET_MS) - (Date.now() - started));
       const env = await postgres.env();
-      const whole = await run(root, tests, limit, env);
-      let passing = tests;
-      let slowest = whole.ms;
-      if (!whole.passed) {
-        passing = [];
-        slowest = 0;
-        for (const test of tests) {
-          const alone = await run(root, [test], limit, env);
-          if (alone.passed) {
-            passing.push(test);
-            slowest += alone.ms;
-          }
+      const unknown = tests.filter((test) => !unbroken.has(test));
+      if (unknown.length > 0 && left() > 0) {
+        const whole = await run(root, unknown, left(), env);
+        // One the report's own time cut short is not known to fail.
+        if (whole.passed) for (const test of unknown) unbroken.set(test, { passed: true, ms: whole.ms / unknown.length });
+        else for (const test of unknown) {
+          if (left() <= 0) break;
+          const alone = await run(root, [test], left(), env);
+          if (!alone.timedOut || left() > 0) unbroken.set(test, alone);
         }
       }
+      if (!tests.every((test) => unbroken.has(test))) {
+        notRun.push(...planted.map(({ line }) => ({ file, line, why: OUT_OF_TIME })));
+        continue;
+      }
+      const passing = tests.filter((test) => unbroken.get(test)!.passed);
+      const slowest = passing.reduce((sum, test) => sum + unbroken.get(test)!.ms, 0);
       if (passing.length === 0) {
         notRun.push(...planted.map(({ line }) => ({ file, line, why: `the ${tests.length} test file${tests.length === 1 ? "" : "s"} reaching ${file} fail with nothing broken (${tests.join(", ")})` })));
         continue;
       }
       const original = readFileSync(path.join(root, file), "utf8");
       for (const one of planted) {
-        if (Date.now() - started > (options.budgetMs ?? REPORT_BUDGET_MS)) {
-          notRun.push({ file, line: one.line, why: "the report's time ran out first" });
+        if (left() <= 0) {
+          notRun.push({ file, line: one.line, why: OUT_OF_TIME });
           continue;
         }
         const restore = guard(path.join(root, file), original);
         try {
           writeFileSync(path.join(root, file), original.slice(0, one.at) + one.replacement + original.slice(one.at + one.length));
-          const result = await run(root, passing, Math.max(20_000, 3 * slowest + 5_000), env);
-          if (result.passed) survivors.push({ file, line: one.line, source: one.source, what: one.what, damage });
+          // A break that makes the tests hang is caught, as one that makes them fail is.
+          const patience = Math.max(20_000, 3 * slowest + 5_000);
+          const result = await run(root, passing, Math.min(left(), patience), env);
+          if (result.timedOut && left() <= 0) notRun.push({ file, line: one.line, why: OUT_OF_TIME });
+          else if (result.passed) survivors.push({ file, line: one.line, source: one.source, what: one.what, damage });
           else caught++;
         } finally {
           restore();
@@ -436,6 +458,9 @@ class TestPostgres {
           settings: { fsync: "off", synchronous_commit: "off", full_page_writes: "off", max_connections: "300" },
         });
         this.#server = server;
+        // A report ended by a signal or an exit cannot wait for the server to stop: it is told to quit at once, and its folder goes.
+        process.once("exit", this.#quit);
+        for (const signal of SIGNALS) process.once(signal, this.#onSignal);
         return { ...process.env, STORYTREE_TEST_PG_URL: server.url, STORYTREE_TEST_PG_ADMIN_URL: server.superuserUrl ?? server.url, STORYTREE_TEST_PG_DATA: server.dataDir };
       } catch {
         return process.env;
@@ -445,9 +470,29 @@ class TestPostgres {
   }
 
   async stop(): Promise<void> {
+    process.off("exit", this.#quit);
+    for (const signal of SIGNALS) process.off(signal, this.#onSignal);
     await this.#server?.stop().catch(() => undefined);
     if (this.#folder !== undefined) rmSync(this.#folder, { recursive: true, force: true });
   }
+
+  readonly #quit = (): void => {
+    if (this.#folder === undefined) return;
+    try {
+      const pid = Number(readFileSync(path.join(this.#folder, "data", "postmaster.pid"), "utf8").split("\n")[0]);
+      if (Number.isInteger(pid) && pid > 0) process.kill(pid, "SIGQUIT");
+    } catch {
+      // Not running.
+    }
+    rmSync(this.#folder, { recursive: true, force: true });
+  };
+
+  readonly #onSignal = (signal: NodeJS.Signals): void => {
+    this.#quit();
+    process.off("exit", this.#quit);
+    for (const one of SIGNALS) process.off(one, this.#onSignal);
+    process.kill(process.pid, signal);
+  };
 }
 
 /** Write `original` back to `file` now, and on any exit or signal the process sees before then; returns the restore. */
@@ -458,14 +503,14 @@ function guard(file: string, original: string): () => void {
     done = true;
     writeFileSync(file, original);
     process.off("exit", restore);
-    for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.off(signal, onSignal);
+    for (const signal of SIGNALS) process.off(signal, onSignal);
   };
   const onSignal = (signal: NodeJS.Signals): void => {
     restore();
     process.kill(process.pid, signal);
   };
   process.once("exit", restore);
-  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.once(signal, onSignal);
+  for (const signal of SIGNALS) process.once(signal, onSignal);
   return restore;
 }
 

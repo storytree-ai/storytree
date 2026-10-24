@@ -8,6 +8,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
 
 import { clearUnitLimit, DEADLINE_GRACE_MS, recentPassTimes, recordTimings, runUnit, setUnitLimit, TEST_LIMIT_MS, testLimit, TIMING_ROWS_KEPT, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason, unitTestLimit } from "./unit-run.mjs";
@@ -131,8 +132,6 @@ test("6.19 · node's --test-* options given after a named file still reach node 
   const root = fixture(t, {
     "named.test.mjs": `import { appendFileSync } from "node:fs";
 import { test } from "node:test";
-
-import { removeTemp, waitUntil } from "@storytree/test-waits";
 test("wanted", () => appendFileSync("RAN", "wanted\\n"));
 test("unwanted", () => appendFileSync("RAN", "unwanted\\n"));`,
   });

@@ -28,7 +28,7 @@ test("1.1 · the factor is 1 on Linux and larger on Windows and macOS", () => {
   assert.ok(factor("win32") > 1, "CI's Windows runners pass the same tests several times slower");
   assert.ok(factor("darwin") > 1, "macOS runners pass them slower too");
   assert.equal(scaled(1000, "linux"), 1000);
-  assert.equal(scaled(1000, "win32"), 1000 * factor("win32"));
+  assert.equal(scaled(1000, "win32"), 4000, "a second stated is four on Windows");
 });
 
 test("2.1 · a wait backs off and returns what the check found as soon as it holds", async () => {
@@ -69,7 +69,7 @@ test("2.3 · a quiet check watches the whole scaled window", async () => {
 test("2.3 · a quiet check fails, naming what happened, the moment it does", async () => {
   const clock = fakeClock();
   let calls = 0;
-  await assert.rejects(quietFor(() => ++calls === 3, 1000, "a second heartbeat", { clock, platform: "linux" }), /a second heartbeat/);
+  await assert.rejects(quietFor(() => ++calls === 3, 1000, "a second heartbeat", { clock, platform: "linux" }), /a second heartbeat happened after 0\.1 s/);
   assert.equal(calls, 3, "it stopped looking once it happened");
 });
 

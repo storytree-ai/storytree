@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { connect as connectTo, createServer, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -264,6 +264,22 @@ function runRegistered(harness: "claude-code" | "codex", hook: HookEntry["hooks"
   assert.equal(ran.status, 0, `${harness}: ${ran.stderr}`);
   return ran.stdout;
 }
+
+test("8.36 on Linux and macOS, the hook settings files and extension storytree creates in each harness's empty home are its owner's alone (0600), and one already there keeps its mode", {
+  skip: process.platform === "win32" && "platform:posix: Windows has no owner-only file mode",
+}, async () => {
+  await withTempDir(async (dir) => {
+    const homes = { claude: path.join(dir, ".claude"), codex: path.join(dir, ".codex"), cursor: path.join(dir, ".cursor"), pi: path.join(dir, ".pi", "agent"), antigravity: path.join(dir, ".gemini") };
+    for (const folder of Object.values(homes)) mkdirSync(folder, { recursive: true });
+    const kept = path.join(homes.claude, "settings.json");
+    writeFileSync(kept, `${JSON.stringify(CLAUDE_SETTINGS, null, 2)}\n`);
+    chmodSync(kept, 0o644);
+    registerHooks(homes, HOOK);
+    const made = Object.values(homes).flatMap((home) => readdirSync(home, { recursive: true, withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => path.join(entry.parentPath, entry.name)));
+    assert.ok(made.length >= 5, made.join("\n"));
+    for (const file of made) assert.equal(statSync(file).mode & 0o777, file === kept ? 0o644 : 0o600, file);
+  });
+});
 
 test("8.12 at the start of a session in a folder that isn't a storytree project, no hook adds anything for the agent (ADR-0752 D3), an older install's asking hook included; nothing is set up", async () => {
   await withTempDir(async (dir) => {

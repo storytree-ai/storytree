@@ -114,7 +114,7 @@ test("7.4 a branch naming no increment leaves the check NOT RUN with its reason;
   git("checkout", "-q", "-b", "claude/increment-ca8ba53211b7-f8f424");
   const named = await gate();
   assert.equal(named.code, 1);
-  assert.equal(named.calls.at(-1), "check:capability-list");
+  assert.ok(named.calls.includes("check:capability-list"));
   assert.match(named.table, /FAIL\s+check:capability-list/);
 });
 

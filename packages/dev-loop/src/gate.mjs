@@ -12,6 +12,9 @@
 // sanitiser drops (a work record, a withheld arc, a redaction pattern); it reads only files, so CI runs it too.
 // check:capability-list (ADR-0949 D3) fails a branch that changes a capability its increment does not list; a
 // branch whose name carries no increment is NOT RUN with that reason.
+// check:risk (ADR-1144 D1, D4) then reads the branch's change for its risk line (tier, rating, depth, radius, flags,
+// stories) from its diff and the package graph, and writes it on the branch's increment with `storytree quality risk`,
+// so each change's tier is read from the paths it changes at the gate; it is NOT RUN with the same reason.
 // The gate holds the machine's heavy-run lock (packages/dev-loop/src/heavy-lock.mjs) for its whole run, so
 // concurrent sessions' gates queue; its test step runs under that hold.
 // Before its first check it installs a worktree no session-start hook installed (a pool lane makes its
@@ -21,7 +24,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { capabilityListFor } from "./capability-list.mjs";
+import { capabilityListFor, currentBranch, incrementOfBranch } from "./capability-list.mjs";
 import { acquireHeavyLock } from "./heavy-lock.mjs";
 import { check } from "./provision-worktree.mjs";
 import { REGION_START, REGION_END, ROLE_DIRS } from "./guidance.mjs";
@@ -63,8 +66,9 @@ export async function runGate({ root = repoRoot, guidance = false, signal, force
   const decision = guidanceFor(root, guidance);
   // The gate runs in a checkout, whose branch Git knows; CI's own run of the check reads its pull request's.
   const listed = capabilityListFor(root, {});
-  const results = { typecheck: "not run", test: "not run", "check:guidance": "not run", "check:plan-edges": "not run", "check:type-imports": "not run", "check:seed-records": "not run", "check:capability-list": "not run" };
-  const reasons = { "check:guidance": decision.reason, "check:capability-list": listed.reason };
+  const increment = listed.run ? incrementOfBranch(currentBranch(root, {})) : undefined;
+  const results = { typecheck: "not run", test: "not run", "check:guidance": "not run", "check:plan-edges": "not run", "check:type-imports": "not run", "check:seed-records": "not run", "check:capability-list": "not run", "check:risk": "not run" };
+  const reasons = { "check:guidance": decision.reason, "check:capability-list": listed.reason, "check:risk": listed.reason };
   for (const step of Object.keys(results)) {
     if (!installed) {
       reasons[step] = "worktree not installed: see the line above";
@@ -72,10 +76,10 @@ export async function runGate({ root = repoRoot, guidance = false, signal, force
     }
     if (signal?.aborted) break;
     if (step === "check:guidance" && !decision.run) continue;
-    if (step === "check:capability-list" && !listed.run) continue;
+    if ((step === "check:capability-list" || step === "check:risk") && !listed.run) continue;
     log(`\n=== ${step} ===`);
     try {
-      const code = await run(step, { root, signal, forceSignal });
+      const code = await run(step, { root, signal, forceSignal, increment });
       if (!signal?.aborted) {
         results[step] = code === 0 ? "pass" : "fail";
         if (code !== 0) reasons[step] = `exit ${code ?? "without a code"}`;
@@ -98,22 +102,23 @@ export async function runGate({ root = repoRoot, guidance = false, signal, force
   return code;
 }
 
-function runCheck(step, { root, signal, forceSignal }) {
-  let command = process.execPath;
-  let args;
-  let shell = false;
-  if (step === "test") args = ["--import", "tsx", "packages/dev-loop/src/test.mjs"];
-  else if (step === "check:guidance") args = ["--import", "tsx", "packages/dev-loop/src/build-guidance.mjs", "--check"];
-  else if (step === "check:plan-edges") args = ["--import", "tsx", "packages/dev-loop/src/plan-edges.mjs"];
-  else if (step === "check:type-imports") args = ["--import", "tsx", "packages/dev-loop/src/type-imports.mjs"];
-  else if (step === "check:seed-records") args = ["--import", "tsx", "packages/dev-loop/src/seed-records.mjs"];
-  else if (step === "check:capability-list") args = ["--import", "tsx", "packages/dev-loop/src/capability-list.mjs"];
-  else if (process.env.npm_execpath) args = [process.env.npm_execpath, "run", "typecheck"];
-  else {
-    command = "pnpm";
-    args = ["run", "typecheck"];
-    shell = process.platform === "win32"; // the .cmd shim needs a shell; every argument is fixed
-  }
+/** The command a gate step runs: `increment` is the branch's, for the steps that read it. */
+export function stepCommand(step, { increment } = {}) {
+  const node = (...args) => ({ command: process.execPath, args: ["--import", "tsx", ...args], shell: false });
+  if (step === "test") return node("packages/dev-loop/src/test.mjs");
+  if (step === "check:guidance") return node("packages/dev-loop/src/build-guidance.mjs", "--check");
+  if (step === "check:plan-edges") return node("packages/dev-loop/src/plan-edges.mjs");
+  if (step === "check:type-imports") return node("packages/dev-loop/src/type-imports.mjs");
+  if (step === "check:seed-records") return node("packages/dev-loop/src/seed-records.mjs");
+  if (step === "check:capability-list") return node("packages/dev-loop/src/capability-list.mjs");
+  if (step === "check:risk") return node("packages/cli/src/bins/storytree.ts", "quality", "risk", increment);
+  if (process.env.npm_execpath) return { command: process.execPath, args: [process.env.npm_execpath, "run", "typecheck"], shell: false };
+  // the .cmd shim needs a shell; every argument is fixed
+  return { command: "pnpm", args: ["run", "typecheck"], shell: process.platform === "win32" };
+}
+
+function runCheck(step, { root, signal, forceSignal, increment }) {
+  const { command, args, shell } = stepCommand(step, { increment });
   return new Promise((resolve, reject) => {
     // A separate Unix process group lets cancellation reach pnpm's compiler descendants.
     // This is still foreground work: inherited stdio, no unref, and always awaited.
@@ -152,7 +157,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error(`gate: unknown argument ${unknown}; use pnpm run gate --help`);
     process.exitCode = 1;
   } else if (args.includes("--help")) {
-    console.log("pnpm run gate [--guidance]\nRuns typecheck, scoped tests, guidance when generated roles changed, plan edges, type-only imports between stories, and the capability list when the branch names an increment.\nUse --guidance after editing a role or a note in the library, even if Git has no diff.");
+    console.log("pnpm run gate [--guidance]\nRuns typecheck, scoped tests, guidance when generated roles changed, plan edges, type-only imports between stories, and the capability list and the change's risk line when the branch names an increment.\nUse --guidance after editing a role or a note in the library, even if Git has no diff.");
   } else {
     const controller = new AbortController();
     const force = new AbortController();

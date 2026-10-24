@@ -35,9 +35,10 @@ test("3.13 the guide's agents are the ones this computer runs, connected only wh
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const user = path.join(dir, "user");
   const storytreeHome = path.join(user, ".storytree", "0.3");
+  const node = process.platform === "win32" ? "node.exe" : "node";
   const tools = (folder: string) => {
     mkdirSync(folder, { recursive: true });
-    for (const file of ["node", "storytree-mcp.mjs"]) writeFileSync(path.join(folder, file), "");
+    for (const file of [node, "storytree-mcp.mjs"]) writeFileSync(path.join(folder, file), "");
     return folder;
   };
   const own = tools(path.join(dir, "app", "agent-tools"));
@@ -54,7 +55,7 @@ test("3.13 the guide's agents are the ones this computer runs, connected only wh
   const done = await help.connectAgent("claude-code");
   assert.deepEqual([done.agent, done.connected], ["Claude Code", true]);
   assert.match(done.next, /check_setup/);
-  assert.equal(JSON.parse(readFileSync(path.join(user, ".claude.json"), "utf8")).mcpServers.storytree.command, path.join(own, "node"), "the app's own tools, with no delivery record");
+  assert.equal(JSON.parse(readFileSync(path.join(user, ".claude.json"), "utf8")).mcpServers.storytree.command, path.join(own, node), "the app's own tools, with no delivery record");
   assert.deepEqual((await help.agentsToConnect()).map((found) => found.connected), [true]);
   await assert.rejects(help.connectAgent("nobody"), /Choose an agent this computer runs/);
   assert.equal((await help.connectAgent("codex")).connected, false, "an agent not installed here is not connected");
@@ -62,6 +63,6 @@ test("3.13 the guide's agents are the ones this computer runs, connected only wh
   // The installer's record names its tools: those are the ones an agent is connected to.
   const recorded = tools(path.join(dir, "installed", "agent-tools"));
   mkdirSync(storytreeHome, { recursive: true });
-  writeFileSync(path.join(storytreeHome, "delivery.json"), JSON.stringify({ schema: 1, installDir: path.join(dir, "installed"), tools: { node: path.join(recorded, "node"), mcp: path.join(recorded, "storytree-mcp.mjs") } }));
+  writeFileSync(path.join(storytreeHome, "delivery.json"), JSON.stringify({ schema: 1, installDir: path.join(dir, "installed"), tools: { node: path.join(recorded, node), mcp: path.join(recorded, "storytree-mcp.mjs") } }));
   assert.deepEqual((await help.agentsToConnect()).map((found) => found.connected), [false], "Claude Code holds the app's tools, not the recorded ones");
 });

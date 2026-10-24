@@ -5,8 +5,8 @@
 // Each tracked piece of evidence is mapped through the commits that added or changed it to the pull
 // requests that merged them into main, their branches and increments (the increment a branch's name
 // carries, else the one whose close names the pull request), and those increments' arcs. It stays when
-// any of those arcs is not closed, when it maps to no pull request or increment, when an increment on an
-// arc that is not closed names it or its folder, and when a source file outside the evidence folders
+// any of those arcs is not closed, when it maps to no pull request or increment, when an open increment on
+// an arc that is not closed names it or its folder, and when a source file outside the evidence folders
 // names it, since a build or test reads it then (D3; a seed.json.gz is always an input, and so is a
 // picture under INPUTS, which a script inside an evidence folder reads: ADR-1127 D2). `pnpm
 // evidence:sweep` lists what goes and what stays, and why; `--apply` deletes what goes, repoints every
@@ -93,7 +93,7 @@ export function sweepPlan(root, arcs, { head = "HEAD", inputs = INPUTS } = {}) {
       arcOf.set(increment.id, view);
       const pr = prOf(increment.fields.outcome?.pr);
       if (pr !== undefined) byPr.set(pr, [...(byPr.get(pr) ?? []), increment.id]);
-      if (view.state !== "closed") {
+      if (view.state !== "closed" && increment.fields.status !== "closed") {
         const { title, objective, body } = increment.fields;
         naming.push({ id: increment.id, text: [title, objective, body].filter((part) => typeof part === "string").join("\n") });
       }

@@ -1,14 +1,14 @@
 # storytree's own map growing, for LinkedIn
 
-2026-10-23, Mint box, increment_04461fe17938 (arc_5f25ac1bb05a). This is a 20.5-second clip of storytree's own map growing on the glass sheet, drawn frame by frame by the shipped engine for the owner's first build-in-public post. It replaces `../growth/storytree-sheet-growth.webm` (2026-10-19), which spent its first six seconds on a page still loading, framed one corner, hid the notes under the glass and recorded no claims.
+2026-10-23, Mint box, increment_04461fe17938 (arc_5f25ac1bb05a); re-rendered map-only on 2026-10-25 (increment_d41a0a6c5fd0, arc_898685bb9465). This is a 20.5-second clip of storytree's own map growing on the glass sheet, drawn frame by frame by the shipped engine for the owner's first build-in-public post. It replaces `../growth/storytree-sheet-growth.webm` (2026-10-19), which spent its first six seconds on a page still loading, framed one corner, hid the notes under the glass and recorded no claims.
 
 ![The clip, frame by frame](strip.png)
 
 ## What it shows
 
 - **It moves from the first frame.** The library's island rises from 0 s, and the other islands follow in the order their stories were created, from 25 September to 23 October. The growth runs for 18 seconds. The clip then holds the whole grown map for 2.5 seconds.
-- **The whole sheet is in view.** The sheet is tilted toward the underside by a right-drag, as the app's own tilt works (about 61°, past the 60° at which notes under the glass show). Seen from there, all 25 islands are named, from Surface feedback and Plugin loader at the left to The command line at the right. Their roads, territories and file circles fill in as main's code stood each day.
-- **The knowledge graph forms under the glass.** The core's dots hang beneath the sheet and appear as the replay reaches each note's creation date (knowledge core 1.9).
+- **Only the map, the whole sheet in view.** The camera stays where the framing leaves it, seen from above with no extra tilt, so the sheet's underside is out of frame, and the knowledge core is turned off. All 25 islands are named, from Surface feedback and Plugin loader at the left to The command line at the right. Their roads, territories and file circles fill in as main's code stood each day.
+- **A road reaches its island as it rises.** Each road draws on from the island it builds on, and the island at its far end rises as the road arrives. A part moved to another story later is drawn where it stands now, so its roads are timed again when the move is recorded (The drawing engine 5.1). Before that fix, a road the library sent to Session management in the first second was drawn to the place its part stands today, on The MCP server's island, which rose ten seconds later.
 - **Agents are at work.** The library's activity log holds every claim since 27 September with its time, so the clip stages those claims. Each claim lasts from the moment it was taken until the first of these: its release, its landing, the merge of the branch it was taken on, or its session's end. A claim with no recorded end is cut off after 12 hours. Most claims last minutes (a median of 15), which would be shorter than a frame. So each 3-hour slice of history shows every claim held at any moment inside it, as the app draws one: a flag in the session's colour on the claimed territory (ADR-0968). 185 of the 223 slices hold claims, from 1,563 sessions across 170 capabilities.
 
 Timing is compressed and order is as recorded. A day of history takes about half a second, and days when stories arrived take longer, since each new island has its rise.
@@ -33,8 +33,8 @@ The video is not committed: evidence videos are ephemeral (question_fd8ff8dfaf88
 
 | File | What |
 | --- | --- |
-| `storytree-map-growth-1080p.mp4` | 1920×1080, H.264, yuv420p, 30 fps, 615 frames, 20.5 s, no audio, 0.5 MB |
-| `storytree-map-growth-4x5.mp4` | 1080×1350 cut: the same frames at the feed's width, centred on the same dark ground, 0.2 MB |
+| `storytree-map-growth-1080p.mp4` | 1920×1080, H.264, yuv420p, 30 fps, 615 frames, 20.5 s, no audio, 0.6 MB |
+| `storytree-map-growth-4x5.mp4` | 1080×1350 cut: the same frames at the feed's width, centred on the same dark ground, 0.3 MB |
 | `storytree-map-growth-poster.png` | the last frame, the whole grown map |
 | `still-*.png`, `strip.png` | eight moments (0.5, 2, 4.5, 7, 9.5, 12, 15 and 20.5 s), also committed here |
 

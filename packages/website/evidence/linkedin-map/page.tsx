@@ -1,5 +1,5 @@
 // The LinkedIn clip's page: storytree's own map growing on the glass sheet in the shipped engine, from the reading read.ts
-// made (served as /reading.json), with its knowledge core under the glass and its sessions' claims, held at a moment the
+// made (served as /reading.json), the map alone with no knowledge core under the glass, and its sessions' claims, held at a moment the
 // capture sets frame by frame (window.clip.at). ?ground=<the view's short half-side, in the sheet's ground units>.
 import { createRoot } from "react-dom/client";
 import { useEffect, useState } from "react";
@@ -12,9 +12,8 @@ const query = new URLSearchParams(location.search);
 const reading = await (await fetch("/reading.json")).json();
 const plan = growthPlan(reading.stages, { seconds: Number(query.get("seconds") ?? 18), until: reading.capturedAt });
 const core = createKnowledgeCore(reading.project);
-core.take(reading.changes, []);
 const places = new Map<string, number>(reading.places.map((p: { id: string; place: number }) => [p.id, p.place]));
-const surfaces: GlobeSurfaces = { grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: true, sessionTints: true };
+const surfaces: GlobeSurfaces = { grounds: true, roads: true, nameplates: true, territories: "health", fileCircles: true, knowledgeCore: false, sessionTints: true };
 const layers = globeLayers({ stories: true, library: true }, true);
 const framing = Number(query.get("ground") ?? 520) / SHEET_RADIUS;
 const none = () => {};

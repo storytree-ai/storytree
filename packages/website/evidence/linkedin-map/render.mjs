@@ -1,4 +1,4 @@
-// node --import tsx packages/website/evidence/linkedin-map/render.mjs [--reread] [--reuse-frames] [--still <seconds>,…] [--tilt <pixels of right-drag up>] [--ground 520]
+// node --import tsx packages/website/evidence/linkedin-map/render.mjs [--reread] [--reuse-frames] [--still <seconds>,…] [--tilt <pixels of right-drag up>] [--ground 620]
 // From a checkout of storytree whose library is reachable (read only), after `git fetch origin`. Renders storytree's own map
 // growing on the glass sheet, frame by frame in the shipped engine (headless Chromium, software WebGL), for the owner's
 // LinkedIn post (increment_04461fe17938): a 1920×1080 H.264 MP4 at 30 fps with no audio, a 1080×1350 cut, the poster (the last
@@ -18,16 +18,16 @@ import { ffmpeg } from "../../src/shorts/render.ts";
 import { readGrowth } from "./read.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const { values } = parseArgs({ options: { reread: { type: "boolean" }, "reuse-frames": { type: "boolean" }, still: { type: "string" }, tilt: { type: "string", default: "70" },
-  ground: { type: "string", default: "820" }, out: { type: "string", default: path.join(homedir(), "storytree-out", "linkedin-map") } } });
+const { values } = parseArgs({ options: { reread: { type: "boolean" }, "reuse-frames": { type: "boolean" }, still: { type: "string" }, tilt: { type: "string", default: "0" },
+  ground: { type: "string", default: "620" }, out: { type: "string", default: path.join(homedir(), "storytree-out", "linkedin-map") } } });
 const out = values.out, work = path.join(out, "work"), framesDir = path.join(work, "frames");
 mkdirSync(work, { recursive: true });
 /** The growth's length, the hold on the whole map after it, the frame rate and size. */
 const GROW = 18, HOLD = 2.5, FPS = 30, VIEW = { width: 1920, height: 1080 };
 /** Hours of history each frame's claims are gathered over: a claim held for minutes still shows for its slice. */
 const SLICE = 3;
-/** Pixels the map is lifted in the frame: tilted low, the sheet and the notes under it sit below the view's middle. */
-const LIFT = 140;
+/** Pixels the map is lifted in the frame (0: the sheet, seen from above with no tilt, sits in the view's middle). */
+const LIFT = 0;
 
 const readingFile = path.join(work, "reading.json");
 if (values.reread || !existsSync(readingFile)) {
@@ -47,7 +47,7 @@ const server = createServer((req, res) => {
   const asset = path.join(work, path.basename(file));
   if (file !== "/" && existsSync(asset)) { res.end(readFileSync(asset)); return; }
   res.setHeader("Content-Type", "text/html");
-  res.end(`<!doctype html><style>${forestCss}</style><style>html,body{margin:0;background:#101418;overflow:hidden}#map{position:absolute;left:0;width:100vw;top:-${2 * LIFT}px;height:calc(100vh + ${2 * LIFT}px)}</style><div id="map"></div><script type="module" src="/bundle.js"></script>`);
+  res.end(`<!doctype html><style>${forestCss}</style><style>html,body{margin:0;background:#101418;overflow:hidden}.sheet-compass{display:none}#map{position:absolute;left:0;width:100vw;top:-${2 * LIFT}px;height:calc(100vh + ${2 * LIFT}px)}</style><div id="map"></div><script type="module" src="/bundle.js"></script>`);
 });
 await new Promise(done => server.listen(0, "127.0.0.1", done));
 const url = `http://127.0.0.1:${server.address().port}/?seconds=${GROW}&ground=${values.ground}`;
@@ -59,12 +59,15 @@ try {
   page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
   await page.goto(url);
   await page.waitForFunction(() => window.clip !== undefined, null, { timeout: 300_000 });
-  // Tilted toward the underside as the app's right-drag tilts it (π/600 a pixel up the window), so the notes under the glass show.
-  await page.mouse.move(VIEW.width / 2, VIEW.height / 2);
-  await page.mouse.down({ button: "right" });
-  await page.mouse.move(VIEW.width / 2, VIEW.height / 2 - Number(values.tilt), { steps: 10 });
-  await page.mouse.up({ button: "right" });
-  await page.waitForTimeout(1500);
+  // Only the map: the sheet as the framing leaves it, its underside out of frame. --tilt tilts it toward the underside as the
+  // app's right-drag does (π/600 a pixel up the window); past 60° the knowledge core's place under the glass shows.
+  if (Number(values.tilt) !== 0) {
+    await page.mouse.move(VIEW.width / 2, VIEW.height / 2);
+    await page.mouse.down({ button: "right" });
+    await page.mouse.move(VIEW.width / 2, VIEW.height / 2 - Number(values.tilt), { steps: 10 });
+    await page.mouse.up({ button: "right" });
+    await page.waitForTimeout(1500);
+  }
   const { seconds, stages } = await page.evaluate(() => ({ seconds: window.clip.seconds, stages: window.clip.stages }));
   console.log(`Growth: ${stages} stages over ${seconds.toFixed(2)} s.`);
   const shoot = async (at, file) => { await page.evaluate(t => window.clip.at(t), Math.min(at, seconds)); await page.screenshot({ path: file, type: file.endsWith(".png") ? "png" : "jpeg", ...(file.endsWith(".png") ? {} : { quality: 95 }) }); };

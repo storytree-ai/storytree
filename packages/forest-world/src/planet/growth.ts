@@ -58,13 +58,17 @@ export function growthPlan(stages: readonly GrowthStage[], options: GrowthOption
   let at = 0;
   // The end of the latest hold, which counts toward the growth's length as a window does.
   let heldTo = 0;
+  // The islands each road and part was timed on: the globe draws a part where it stands now, so a part moved to another
+  // island is timed again there, with its roads.
+  const roadOn = new Map<string, string>(), partOn = new Map<string, string>();
   if (options.fromPoint) { plan.globe = { start: 0, seconds: GLOBE_SWELL }; at = GLOBE_SWELL; }
   stages.forEach((stage, index) => {
     const { islands } = stage.scene;
     // A road's end is a capability on an island, or the island as a whole.
     const storyOf = new Map(islands.flatMap(i => [[i.story, i.story] as const, ...i.trees.flatMap(t => t.capability === undefined ? [] : [[t.capability, i.story] as const])]));
     const fresh = islands.filter(i => !plan.islands.has(i.story)).map(i => i.story);
-    const links = (stage.scene.links ?? []).filter(l => storyOf.has(l.from) && storyOf.has(l.to) && !plan.roads.has(linkKey(l)));
+    const ends = (l: { from: string; to: string }) => `${storyOf.get(l.from)}->${storyOf.get(l.to)}`;
+    const links = (stage.scene.links ?? []).filter(l => storyOf.has(l.from) && storyOf.has(l.to) && roadOn.get(linkKey(l)) !== ends(l));
     const settled = new Map<string, number>(islands.filter(i => plan.islands.has(i.story)).map(i => [i.story, at]));
     const start = new Map<string, number>();
     // Islands no road reaches from another island start spread over a beat; the rest wait for their roads.
@@ -101,11 +105,12 @@ export function growthPlan(stages: readonly GrowthStage[], options: GrowthOption
     for (const island of islands) {
       const rising = fresh.includes(island.story);
       const from = rising ? plan.islands.get(island.story)!.start + FILL_DELAY : at;
-      const parts = island.trees.flatMap(t => t.capability === undefined || plan.capabilities.has(t.capability) ? [] : [t.capability]);
-      parts.forEach((capability, i) => put(plan.capabilities, capability, { start: from + (rising ? 0 : PART_STAGGER * i), seconds: RISE }));
+      const parts = island.trees.flatMap(t => t.capability === undefined || partOn.get(t.capability) === island.story ? [] : [t.capability]);
+      parts.forEach((capability, i) => { put(plan.capabilities, capability, { start: from + (rising ? 0 : PART_STAGGER * i), seconds: RISE }); partOn.set(capability, island.story); });
       const files = (island.land?.files ?? []).map(f => fileKey(island.story, f.path)).filter(key => !plan.files.has(key));
       files.forEach(key => put(plan.files, key, { start: rising ? from : at + FILL_DELAY, seconds: RISE }));
     }
+    for (const l of links) roadOn.set(linkKey(l), ends(l));
     const hold = stage.hold ?? 0;
     if (windows.length === 0 && hold <= 0) return;
     plan.stages.push({ id: stage.id ?? String(index), start: at, ...(stage.at === undefined ? {} : { at: stage.at }) });

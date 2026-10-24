@@ -44,8 +44,10 @@ const make = verb({
     }
     if (made.existing) return { text: `${context.session} holds ${id} in this workspace, ${made.folder}, on branch ${made.branch}: no worktree was made.` };
     const enter = `Call EnterWorktree with path ${JSON.stringify(made.folder)} to work in it.`;
+    const { setupText } = await import("./worktree-setup.js");
+    const setUp = made.setup === undefined ? "Set it up as this project does at session start." : setupText(made.setup);
     return {
-      text: `Made workspace ${made.folder}\nBranch: ${made.branch}, from freshly fetched ${made.base}.\n${context.session} holds ${id}: ${why}\n${enter}\nSet it up as this project does at session start.`,
+      text: `Made workspace ${made.folder}\nBranch: ${made.branch}, from freshly fetched ${made.base}.\n${context.session} holds ${id}: ${why}\n${enter}\n${setUp}`,
     };
   },
 });

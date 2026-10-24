@@ -5,7 +5,7 @@
  * a workspace cut from the clone's own, stale view of main would show it.
  */
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -17,6 +17,11 @@ import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/p
 import { readSessions } from "../sessions/index.js";
 import { claim, makeWorkspace, readClaims, release, type ClaimContext } from "./index.js";
 import * as workspace from "./workspace.js";
+import { sessionTools, type ToolCall } from "../tools.js";
+import { WORKSPACE_FAMILIES } from "./verbs.js";
+import type { DoorWords } from "@storytree/library/verbs";
+
+const WORDS: DoorWords = { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` };
 
 interface World {
   dir: string;
@@ -615,5 +620,32 @@ test("19.3 · a workspace made in a project with no `.storytree/worktree.local.j
     assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
     assert.equal("setup" in made, false, "no setup is reported");
     assert.ok(!existsSync(path.join(made.folder, ".env")), "nothing is copied");
+  });
+});
+
+test("19.1 · the workspace command and the make_workspace tool each report the setup they ran, a line a step, and a failed step with why under a head line counting the failures", async () => {
+  await withWorld(async ({ log, library, project, site, park, as }) => {
+    writeFileSync(path.join(site, ".env"), "SECRET=1\n");
+    localSetup(site, { copy: [".env", "missing.env"], setup: ["node -e \"process.exit(0)\""] }, [".env", "missing.env"]);
+    const verb = WORKSPACE_FAMILIES[0]!.bare!;
+    const tools = new Map<string, (args: Record<string, unknown>, call: ToolCall) => Promise<{ text: string; data?: Record<string, unknown> }>>();
+    sessionTools().registerTools?.((name, _description, _input, act) => { tools.set(name, act as never); });
+
+    const command = await verb.act({ work: await park("email form"), reason: "building the email form", "despite-open-pulls": false }, as("A"), WORDS);
+    const tool = await tools.get("make_workspace")!({ increment: await park("reset"), reason: "building the reset" }, { library, log, project, caller: { session: "A" }, folder: site, quietMs: 0, writer: {} } as unknown as ToolCall);
+
+    for (const [door, text] of [["command", command.text], ["tool", tool.text]] as const) {
+      assert.match(text, /Set up from \.storytree\/worktree\.local\.json, with 1 step failed/, door);
+      assert.match(text, /^ {2}copied \.env$/m, door);
+      assert.match(text, /^ {2}FAILED copy missing\.env: the main checkout has nothing there$/m, door);
+      assert.match(text, /^ {2}ran node -e "process\.exit\(0\)"$/m, door);
+      assert.doesNotMatch(text, /as this project does at session start/, door);
+    }
+    assert.equal((tool.data?.setup as { steps: unknown[] } | undefined)?.steps.length, 3, "the tool's data carries the steps");
+
+    rmSync(path.join(site, ".storytree"), { recursive: true });
+    const plain = await verb.act({ work: await park("profile"), reason: "building the profile", "despite-open-pulls": false }, as("A"), WORDS);
+    assert.doesNotMatch(plain.text, /Set up from/);
+    assert.match(plain.text, /as this project does at session start/, "with no local file the agent is told to set it up itself, as before");
   });
 });

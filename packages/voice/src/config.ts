@@ -22,13 +22,31 @@ export interface VoiceConfig {
   readonly cidrText: string;
   /** The environment every child starts from, before its voice session id is added. */
   readonly childEnv: Readonly<Record<string, string>>;
+  /** The owner's sign-in for signed tools, or null when no sign-in service is configured (then none is registered). */
+  readonly signIn: SignInConfig | null;
+}
+
+export interface SignInConfig {
+  /** The sign-in service's issuer, as its tokens carry it (WorkOS AuthKit: https://<name>.authkit.app). */
+  readonly issuer: string;
+  /** Where its published signing keys are. */
+  readonly jwksUrl: string;
+  /** The connector's exact public address, https://<host>/mcp/<secret>: every token's audience. */
+  readonly resource: string;
+  /** The public address of its protected-resource metadata. */
+  readonly metadataUrl: string;
+  /** The owner's own user id at the sign-in service; no one else's token runs a signed tool. */
+  readonly owner: string;
 }
 
 /** A setting the door cannot start with; its message names what to fix and never holds the secret. */
 export class ConfigError extends Error {}
 
 /** The door's own settings and its secret: none of them reaches a child. */
-const DOOR_SETTINGS = ["VOICE_TOKEN", "VOICE_SPIKE_TOKEN", "PORT", "REPO_DIR", "ALLOWED_HOSTS", "ALLOWED_CIDRS", "STORYTREE_CLI"];
+const DOOR_SETTINGS = [
+  "VOICE_TOKEN", "VOICE_SPIKE_TOKEN", "PORT", "REPO_DIR", "ALLOWED_HOSTS", "ALLOWED_CIDRS", "STORYTREE_CLI",
+  "VOICE_SIGNIN_ISSUER", "VOICE_PUBLIC_URL", "VOICE_OWNER_ID", "VOICE_SIGNIN_JWKS",
+];
 
 /** Every harness's session variable, and storytree's own: a child names the voice session and no other (1.13). */
 const SESSION_NAMES = [SESSION_ENV, ...(WATCHED_HARNESSES as readonly WatchedHarness[]).flatMap((harness) => (harness.shellSession ? [harness.shellSession] : []))];
@@ -92,7 +110,40 @@ export function loadConfig(env: NodeJS.ProcessEnv): VoiceConfig {
     }
   }
 
-  return { token, repoDir, port, cli, allowedHosts, cidrs, cidrText: cidrList.join(","), childEnv: inheritable(env) };
+  return { token, repoDir, port, cli, allowedHosts, cidrs, cidrText: cidrList.join(","), childEnv: inheritable(env), signIn: signInFrom(env, token) };
+}
+
+/** The sign-in settings, all three or none (contract 1.15); VOICE_SIGNIN_JWKS replaces the keys' address in tests. */
+function signInFrom(env: NodeJS.ProcessEnv, token: string): SignInConfig | null {
+  const names = ["VOICE_SIGNIN_ISSUER", "VOICE_PUBLIC_URL", "VOICE_OWNER_ID"] as const;
+  const missing = names.filter((name) => !env[name]);
+  if (missing.length === names.length) return null;
+  if (missing.length > 0) throw new ConfigError(`sign-in needs ${names.join(", ")} together; ${missing.join(", ")} missing`);
+  const issuer = httpsOrigin(env.VOICE_SIGNIN_ISSUER!, "VOICE_SIGNIN_ISSUER");
+  const publicUrl = httpsOrigin(env.VOICE_PUBLIC_URL!, "VOICE_PUBLIC_URL");
+  const owner = env.VOICE_OWNER_ID!;
+  if (!/^user_[A-Za-z0-9]+$/.test(owner)) throw new ConfigError("VOICE_OWNER_ID must be the owner's sign-in user id, such as user_01ABC…");
+  return {
+    issuer,
+    jwksUrl: env.VOICE_SIGNIN_JWKS || `${issuer}/oauth2/jwks`,
+    resource: `${publicUrl}/mcp/${token}`,
+    metadataUrl: `${publicUrl}/.well-known/oauth-protected-resource/mcp/${token}`,
+    owner,
+  };
+}
+
+/** An https address with no path, query or credentials, written without its trailing slash. */
+function httpsOrigin(value: string, name: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new ConfigError(`${name} is not a web address`);
+  }
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || (url.pathname !== "/" && url.pathname !== "")) {
+    throw new ConfigError(`${name} must be an https address with no path, such as https://example.authkit.app`);
+  }
+  return url.origin;
 }
 
 function list(value: string | undefined): string[] {

@@ -14,6 +14,7 @@ import type { Family } from "../door.js";
 import { family as mounted } from "../mount.js";
 import { auth } from "./auth.js";
 import { capabilities } from "./capability.js";
+import { contracts } from "./contract.js";
 import { commandsOf, doors } from "./doors.js";
 import { learning, twinsOf } from "./drain.js";
 import { plan } from "./plan.js";
@@ -26,7 +27,6 @@ import { tree } from "./tree.js";
 export const GUESSES: Readonly<Record<string, string>> = {
   claim: "workspace <increment|capability> --reason <text>",
   board: "noticeboard",
-  contract: "library new contract --capability <capability> --title <t>",
   story: "tree [<story>]",
 };
 
@@ -42,6 +42,8 @@ export const POINTERS: Readonly<Record<string, string>> = {
   "capability show": "library read",
   "arc increment show": "library read",
   "plan show": "plan",
+  "contract new": "library new contract",
+  "contract health": "contract show",
 };
 
 /** The families still kept here, each at the place it takes among the declared ones in `storytree`'s list. */
@@ -50,6 +52,7 @@ const KEPT: readonly Placed[] = [
   { order: 15, family: tree },
   { order: 15.5, family: plan },
   { order: 19, family: capabilities },
+  { order: 19.5, family: contracts },
   { order: 32, family: auth },
 ];
 

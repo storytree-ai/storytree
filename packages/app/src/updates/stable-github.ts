@@ -128,6 +128,16 @@ export function releaseRunPassed(runs: readonly { id: number; jobs: readonly { n
     : "no release run of its commit published it with every job passing" };
 }
 
+/**
+ * What says `version` passed its fresh-install sweep (4.25): the stable routine (fortnight.sh) raises "Pin 0.3.N as
+ * stable?" only after the old-laptop acceptance run passed that build, so that question, unless retired as wrongly asked,
+ * is the pass.
+ */
+export function sweptBy(questions: readonly { id: string; fields: Record<string, unknown> }[], version: string): string | undefined {
+  const pass = questions.find(q => q.fields["title"] === `Pin ${version} as stable?` && q.fields["lifecycle"] !== "retired");
+  return pass && `${pass.id}: the stable routine's fresh-install sweep on the old laptop passed ${version}`;
+}
+
 /** `storytree release candidate`: the stable candidate read from GitHub and the library; it changes nothing. */
 export async function findStableCandidate(options: { library: Pick<Library, "list">; cwd: string }): Promise<StableCandidate> {
   const api = github(options.cwd);
@@ -248,6 +258,7 @@ export async function pinRelease(version: string, options: { library: Pick<Libra
       return mergedPullRequests(git("log", "--first-parent", "--merges", "--format=%s", commit));
     },
     increments: () => options.library.list("increment"),
+    swept: async version => sweptBy(await options.library.list("question"), version),
     publish: (manifest, bootstrap, expected) => publishStable(manifest, bootstrap, expected, api),
     now: () => new Date().toISOString(),
   };

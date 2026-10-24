@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mergedPullRequests, moveStableBack, pinCoverage, type PinCandidate, pinStable, type PinPorts, type PlatformFeed, type StableManifest } from "./stable-pin.js";
-import { formerPin, publishStable, releaseFeed, type GithubRequest } from "./stable-github.js";
+import { formerPin, publishStable, releaseFeed, sweptBy, type GithubRequest } from "./stable-github.js";
 
 type PinCandidateFeeds = PinCandidate["feeds"];
 const RELEASES = "https://github.com/storytree-ai/storytree/releases/download";
@@ -27,6 +27,7 @@ function fixture() {
     ],
     published: [] as StableManifest[],
     race: false,
+    swept: "question_pin: passed" as string | undefined,
   };
   const ports: PinPorts = {
     previous: async () => current,
@@ -34,6 +35,7 @@ function fixture() {
     candidate: async () => state.candidate,
     pullRequests: async () => new Set(["531", "532"]),
     increments: async () => state.increments,
+    swept: async () => state.swept,
     publish: async (manifest, bootstrap, expected) => {
       assert.deepEqual(bootstrap, { ps1: "published bootstrap" });
       if (state.race || expected !== current?.ref) throw new Error("Stable pin moved; retry from the new pin");
@@ -226,6 +228,29 @@ test("4.16 an expedited pin says in its notes that it skipped the soak, and why,
   assert.match(pinned.releaseNotes, /^# storytree 0\.3\.2\n\nExpedited without the 24-hour soak: The forest drew nothing on 0\.3\.1\n\n- Choose update timing/);
   assert.equal(pinned.pin.expedited, "The forest drew nothing on 0.3.1");
   assert.equal((await pinStable("0.3.2", ports, true)).pin.expedited, undefined);
+});
+
+test("4.25 a build is pinned only once its fresh-install sweep passed; a preview, a move back or an expedited fix does not wait", async () => {
+  const { state, ports } = fixture();
+  state.swept = undefined;
+  await assert.rejects(pinStable("0.3.2", ports), /0\.3\.2 has not passed its fresh-install sweep/);
+  assert.equal(state.published.length, 0);
+  assert.equal((await pinStable("0.3.2", ports, true)).version, "0.3.2");
+  assert.equal((await pinStable("0.3.2", ports, false, "The forest drew nothing on 0.3.1")).pin.swept, undefined);
+  const expeditedBuild = state.candidate;
+  state.candidate = { ...state.candidate, version: "0.3.3", commit: "b".repeat(40), installers: installers("0.3.3"), feeds: platformFeeds("0.3.3") };
+  state.swept = "question_pin: passed";
+  assert.equal((await pinStable("0.3.3", ports)).pin.swept, "question_pin: passed");
+  assert.equal(state.published.length, 2);
+  state.swept = undefined;
+  state.candidate = expeditedBuild;
+  assert.equal((await moveStableBack("0.3.2", ports)).version, "0.3.2");
+});
+
+test("4.25 the sweep's pass is the routine's own pin question for that exact build, never a retired one or another build's", () => {
+  const question = (id: string, title: string, lifecycle: string) => ({ id, fields: { title, lifecycle } });
+  assert.equal(sweptBy([question("question_a", "Pin 0.3.21 as stable?", "open"), question("question_b", "Pin 0.3.2 as stable?", "retired")], "0.3.2"), undefined);
+  assert.match(sweptBy([question("question_c", "Pin 0.3.2 as stable?", "settled")], "0.3.2") ?? "", /^question_c\b/);
 });
 
 test("4.16 a former pin is read from the stable branch's history, a move back included, and a build only mentioned there is not one", async () => {

@@ -96,6 +96,7 @@ async function pinnedBranch(installer: Buffer, version: string): Promise<Map<str
   const manifest = await pinStable(version, {
     previous: async () => undefined,
     formerPin: async () => undefined,
+    swept: async () => "question_pin: passed",
     candidate: async () => ({ version, commit: "a".repeat(40), channelSchema: 1, draft: false, prerelease: false,
       installers: ["x64", "arm64"].map(arch => ({ url: at(`windows-${arch}-setup.exe`), sha256: "a".repeat(64), ...digest })), bootstrap: { ps1: "bootstrap" },
       // An arch-neutral name: MacUpdater drops arm64 files on an Intel host, which this test may run on.

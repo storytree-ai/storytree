@@ -18,7 +18,7 @@ import { testServerUrl } from "@storytree/project-and-caller/testing/pg";
 import { main as commitTick } from "./bins/voice-commit.js";
 import { loadConfig } from "./config.js";
 import { DROPPED, commitDue, laptopWindowOpen, runFiles } from "./commit.js";
-import { Drafts, managerBrief } from "./drafts.js";
+import { Drafts } from "./drafts.js";
 import { WRITE_TOOL_NAMES } from "./writes.js";
 import { LEGACY_HEADERS, childrenIn, connect, gitRepo, raw, testDoor, textOf, toolCall, until, type TestDoor } from "./testing/door.js";
 
@@ -313,7 +313,10 @@ test("5.6 start_manager_run briefs a session manager run from the door's templat
   const files = runFiles(scratch.env.VOICE_RUNS_DIR, 1);
   assert.ok(await until(() => existsSync(files.ended), 10_000), "the run's end was never marked");
   assert.equal(readFileSync(scratch.laneLog, "utf8").trim(), files.brief);
-  assert.equal(readFileSync(files.brief, "utf8"), `${managerBrief(words, today(), [])}\n\nReply file: ${files.reply}\n`);
+  const brief = readFileSync(files.brief, "utf8");
+  assert.ok(brief.startsWith(`# A session manager run, asked for by voice (${today()})\n`), brief);
+  assert.ok(brief.includes(`\n> ${words}\n\nNo notes are waiting.\n\nEnd by writing your reply`), brief);
+  assert.ok(brief.endsWith(`\n\nReply file: ${files.reply}\n`), brief);
 
   await commitDue(drafts, { ...committer, now: () => sydney("14:21:00") });
   const ended = (await rows(voice.asOwner))[0];

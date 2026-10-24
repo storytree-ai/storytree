@@ -2,11 +2,13 @@
 // with another url, the superuser's.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import pg from "pg";
 
@@ -25,7 +27,7 @@ async function superuser(url) {
 /** The urls a run of test.mjs hands a test file, given this environment. */
 function handed(t, env) {
   const dir = mkdtempSync(path.join(tmpdir(), "test-postgres-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const file = path.join(dir, "urls.test.mjs");
   writeFileSync(file, `import { test } from "node:test";
 test("urls", () => console.log("URLS " + JSON.stringify([process.env.STORYTREE_TEST_PG_URL, process.env.STORYTREE_TEST_PG_ADMIN_URL])));`);

@@ -1,11 +1,13 @@
 // increment_f465972caeaf: `pnpm test` tests several units at once, slowest first, so a full run is
 // paced by its slowest unit rather than the sum of them all.
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
+
+import { removeTemp } from "@storytree/test-waits";
 
 import { DEFAULT_JOBS, runPool, shardPlan, shardUnits, slowestFirst, takeShard, testJobs } from "./unit-pool.mjs";
 
@@ -34,7 +36,7 @@ test("6.10 · a pool runs at most its jobs at once, starts the next as one ends,
 
 test("6.10 · units start slowest first: by this machine's recent passes, then a unit with none by the size of its tests", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "unit-pool-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   const tests = { "packages/small": 10, "packages/big": 5_000, "packages/mid": 500, "packages/timed": 1 };
   for (const [unit, bytes] of Object.entries(tests)) {
     mkdirSync(path.join(root, unit, "src", "deep"), { recursive: true });

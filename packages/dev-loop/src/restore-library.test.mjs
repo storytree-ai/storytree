@@ -6,19 +6,20 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { removeTemp } from "@storytree/test-waits";
 import { connect } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 /** The script's exit, stdout and stderr, run with `args` in a throwaway home holding `settings`. */
-function restore(args, { settings, env = {} } = {}) {
+async function restore(args, { settings, env = {} } = {}) {
   const home = mkdtempSync(path.join(tmpdir(), "restore-args-"));
   try {
     if (settings !== undefined) writeFileSync(path.join(home, "settings.json"), JSON.stringify(settings));
@@ -29,30 +30,30 @@ function restore(args, { settings, env = {} } = {}) {
     });
     return { status: run.status, stdout: run.stdout, stderr: run.stderr };
   } finally {
-    rmSync(home, { recursive: true, force: true });
+    await removeTemp(home);
   }
 }
 
-test("5.3 a snapshot path alone is read as the snapshot, not answered with the usage line", () => {
+test("5.3 a snapshot path alone is read as the snapshot, not answered with the usage line", async () => {
   const missing = path.join(tmpdir(), "no-such-snapshot-4f1c.json");
-  const run = restore([missing]);
+  const run = await restore([missing]);
   assert.equal(run.status, 1);
   assert.doesNotMatch(run.stderr, /usage:/);
   assert.match(run.stderr, /no-such-snapshot-4f1c\.json/);
 });
 
-test("5.3 a snapshot path before or after --project is read as the snapshot", () => {
+test("5.3 a snapshot path before or after --project is read as the snapshot", async () => {
   const missing = path.join(tmpdir(), "no-such-snapshot-4f1c.json");
   for (const args of [[missing, "--project", "p"], ["--project", "p", missing]]) {
-    const run = restore(args);
+    const run = await restore(args);
     assert.doesNotMatch(run.stderr, /usage:/, args.join(" "));
     assert.match(run.stderr, /no-such-snapshot-4f1c\.json/, args.join(" "));
   }
 });
 
-test("5.3 no snapshot path is answered with the usage line", () => {
-  assert.match(restore([]).stderr, /usage:/);
-  assert.match(restore(["--project", "p"]).stderr, /usage:/);
+test("5.3 no snapshot path is answered with the usage line", async () => {
+  assert.match((await restore([])).stderr, /usage:/);
+  assert.match((await restore(["--project", "p"])).stderr, /usage:/);
 });
 
 test("5.10 a snapshot is restored into the library the setting names by its address, which the run names", { timeout: 60_000 }, async (t) => {
@@ -74,7 +75,7 @@ test("5.10 a snapshot is restored into the library the setting names by its addr
     await storytree.close();
   }
   const dir = mkdtempSync(path.join(tmpdir(), "restore-snapshot-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   const file = path.join(dir, "snapshot.json");
   writeFileSync(file, JSON.stringify(snapshot));
 
@@ -82,7 +83,7 @@ test("5.10 a snapshot is restored into the library the setting names by its addr
   const address = new URL(url);
   const password = decodeURIComponent(address.password);
   address.password = "";
-  const run = restore([file, "--project", into], { settings: { library: { location: "postgres", address: address.href } }, env: { PGPASSWORD: password } });
+  const run = await restore([file, "--project", into], { settings: { library: { location: "postgres", address: address.href } }, env: { PGPASSWORD: password } });
   assert.equal(run.status, 0, run.stderr);
   assert.ok(run.stdout.includes(`the library at ${address.href}`), run.stdout);
 

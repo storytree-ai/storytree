@@ -15,6 +15,8 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { removeTemp } from "@storytree/test-waits";
+
 import {
   changedFiles,
   classify,
@@ -32,7 +34,7 @@ const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 /** A workspace on disk: `packages` maps a dir to its manifest and any files it holds. */
 function workspace(t, { rootDeps = {}, packages }) {
   const root = mkdtempSync(path.join(tmpdir(), "test-scope-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   write(root, "package.json", JSON.stringify({ name: "root", private: true, devDependencies: rootDeps }));
   for (const [dir, { name, deps = [], files = {} }] of Object.entries(packages)) {
     const dependencies = Object.fromEntries(deps.map((dep) => [dep, "workspace:*"]));
@@ -457,7 +459,7 @@ test("1.3 --help prints the runner's usage, and an unknown flag is refused namin
   assert.deepEqual(passed.testArgs, ["--test-name-pattern=x", "a.test.mjs"]);
 
   const home = mkdtempSync(path.join(tmpdir(), "test-help-"));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   const env = { ...process.env, STORYTREE_HOME: home };
   delete env.STORYTREE_HEAVY_LOCK_HOLDER; // this suite itself runs under the outer run's lock
   const run = (arg) => spawnSync(process.execPath, ["--import", "tsx", "packages/dev-loop/src/test.mjs", arg], { cwd: repoRoot, env, encoding: "utf8" });

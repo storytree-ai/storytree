@@ -1,0 +1,15 @@
+{
+  "name": "@storytree/test-waits",
+  "private": true,
+  "type": "module",
+  "description": "Test waits (story_9299f25282ad, ADR-1156): one wait helper and one temp-removal helper for every package's tests, backing off inside a budget scaled by the environment's factor. It depends on no workspace package, so every package's tests can import it without a cycle.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": { "typecheck": "tsc -p ." },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

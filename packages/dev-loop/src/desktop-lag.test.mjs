@@ -1,16 +1,17 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { removeTemp } from "@storytree/test-waits";
 import { CATALOGUE } from "@storytree/forest/actions";
 
 import { actionTable, alternate, compareAction, compareTable, exitCode, judge, lagHome, NotRun, performRound, seededHome, summary, withAgainst } from "./desktop-lag.mjs";
 
-test("8.3 pnpm lag:desktop --home starts cold on a new home and warm on one an earlier run left", () => {
+test("8.3 pnpm lag:desktop --home starts cold on a new home and warm on one an earlier run left", async () => {
   const from = mkdtempSync(path.join(tmpdir(), "lag-home-from-"));
   const home = path.join(mkdtempSync(path.join(tmpdir(), "lag-home-")), "run");
   try {
@@ -29,12 +30,12 @@ test("8.3 pnpm lag:desktop --home starts cold on a new home and warm on one an e
     assert.deepEqual(lagHome({ home, homeFrom: from }), { home, warm: true });
     assert.equal(readFileSync(path.join(home, "settings.json"), "utf8"), '{"library":"kept"}');
   } finally {
-    rmSync(from, { recursive: true, force: true });
-    rmSync(path.dirname(home), { recursive: true, force: true });
+    await removeTemp(from);
+    await removeTemp(path.dirname(home));
   }
 });
 
-test("8.2 pnpm lag:desktop analysis preserves the measured CPU intervals and their function attribution", () => {
+test("8.2 pnpm lag:desktop analysis preserves the measured CPU intervals and their function attribution", async () => {
   const out = mkdtempSync(path.join(tmpdir(), "lag-profile-"));
   try {
     copyFileSync(new URL("../evidence/lag-allocation/runtime.cpuprofile", import.meta.url), path.join(out, "renderer.cpuprofile"));
@@ -51,11 +52,11 @@ test("8.2 pnpm lag:desktop analysis preserves the measured CPU intervals and the
     assert.match(self, /^\s+14 measuredWork \[eval1\]:9$/m);
     assert.match(inclusive, /^\s+101 measuredWork \[eval1\]:9$/m);
   } finally {
-    rmSync(out, { recursive: true, force: true });
+    await removeTemp(out);
   }
 });
 
-test("8.4 pnpm lag:desktop judges each named action's recorded rounds against its budget, in one table, and an action it could not perform reads NOT RUN in the table and the exit code", () => {
+test("8.4 pnpm lag:desktop judges each named action's recorded rounds against its budget, in one table, and an action it could not perform reads NOT RUN in the table and the exit code", async () => {
   const budget = { responseMs: 100, frameMs: 50, settledMs: 1000 };
   const round = (fields) => ({ inputs: 2, response: 40, frames: [], settled: 300, ipc: { "storytree:projectTree": 1 }, ...fields });
   const quick = { name: "open-fewest-island", size: "standard", budget, rounds: [round({}), round({ response: 60, ipc: {} }), round({ response: null })] };
@@ -91,11 +92,11 @@ test("8.4 pnpm lag:desktop judges each named action's recorded rounds against it
     writeFileSync(path.join(out, "result.json"), JSON.stringify({ state: "ready", readyMs: 0, marks: [], actions: [quick, slow, missing], ipc: [], ev: [], loaf: [], lag: [], mem: {} }));
     assert.ok(summary(out).startsWith(`${actionTable(rows)}\n`));
   } finally {
-    rmSync(out, { recursive: true, force: true });
+    await removeTemp(out);
   }
 });
 
-test("8.6 pnpm lag:desktop starts the app on a home naming the seeded library, its password readable by the user alone, and prints one table across the sizes it ran", () => {
+test("8.6 pnpm lag:desktop starts the app on a home naming the seeded library, its password readable by the user alone, and prints one table across the sizes it ran", async () => {
   const home = seededHome("postgres://storytree:s%40cret@127.0.0.1:54321/postgres");
   const out = mkdtempSync(path.join(tmpdir(), "lag-sizes-"));
   try {
@@ -116,8 +117,8 @@ test("8.6 pnpm lag:desktop starts the app on a home naming the seeded library, i
     assert.match(table[1], /^open-named-island\s+standard\s+1\s.*300 \/ 300 ms.*within$/);
     assert.match(table[2], /^open-named-island\s+large\s+1\s.*1400 \/ 1400 ms.*missed$/);
   } finally {
-    rmSync(home, { recursive: true, force: true });
-    rmSync(out, { recursive: true, force: true });
+    await removeTemp(home);
+    await removeTemp(out);
   }
 });
 
@@ -208,7 +209,7 @@ test("8.9 pnpm lag:desktop --against <ref> measures that ref in a throwaway work
     assert.equal(await withAgainst(dir, { root: repo, install: () => assert.fail("no install for a folder") }, async (appDir) => appDir), dir);
     assert.equal(existsSync(dir), true);
   } finally {
-    rmSync(repo, { recursive: true, force: true });
+    await removeTemp(repo);
   }
 });
 
@@ -232,7 +233,7 @@ test("8.10 pnpm lag:desktop queues the whole run behind the machine's heavy-run 
     });
   } finally {
     child.kill("SIGKILL");
-    rmSync(home, { recursive: true, force: true });
+    await removeTemp(home);
   }
 });
 

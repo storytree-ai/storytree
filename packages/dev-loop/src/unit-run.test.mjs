@@ -6,7 +6,6 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
@@ -16,7 +15,7 @@ import { clearUnitLimit, DEADLINE_GRACE_MS, recentPassTimes, recordTimings, runU
 function fixture(t, files) {
   // Its real path: on macOS the temporary folder is a link, and node names test files by their real one.
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "unit-run-")));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => removeTemp(root));
   for (const [name, text] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
     writeFileSync(path.join(root, name), text);
@@ -132,6 +131,8 @@ test("6.19 · node's --test-* options given after a named file still reach node 
   const root = fixture(t, {
     "named.test.mjs": `import { appendFileSync } from "node:fs";
 import { test } from "node:test";
+
+import { removeTemp, waitUntil } from "@storytree/test-waits";
 test("wanted", () => appendFileSync("RAN", "wanted\\n"));
 test("unwanted", () => appendFileSync("RAN", "unwanted\\n"));`,
   });
@@ -204,16 +205,8 @@ test("completed failure", () => assert.equal("actual merge", "expected merge", "
   assert.match(out.stderr, /z-failed\.test\.mjs:2:/, "a later file's assertion survives even while ordered results wait on the hung file");
 
   const grandchild = Number(readFileSync(pidFile, "utf8"));
-  let alive = true;
-  for (let tries = 0; alive && tries < 50; tries++) {
-    try {
-      process.kill(grandchild, 0);
-      await delay(100);
-    } catch {
-      alive = false;
-    }
-  }
-  assert.equal(alive, false, "the test's own child process was killed too");
+  const gone = () => { try { process.kill(grandchild, 0); return false; } catch { return true; } };
+  await waitUntil(gone, 5_000, "the test's own child process to be killed too");
 
   const reason = unitReason({ ...result, unitLimitMs: 3_000 }, root);
   assert.match(reason, /timed out/);
@@ -252,7 +245,7 @@ test("6.1 a file killed by the exit watch is named with both causes: a hung exit
 
 test("each unit's time is added to the machine's timing history, outside the checkout", async (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "unit-run-home-"));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   recordTimings({ scripts: { result: "pass", ms: 1234 }, cli: { result: "fail", ms: 180_000, timedOut: true } }, { home });
   recordTimings({ scripts: { result: "pass", ms: 1500 } }, { home });
   const lines = readFileSync(path.join(home, "test-timings.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
@@ -269,7 +262,7 @@ test("each unit's time is added to the machine's timing history, outside the che
 // after a kill, and any agent can set it with a reason.
 function history(t, rows = []) {
   const home = mkdtempSync(path.join(tmpdir(), "unit-run-limits-"));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   const at = "2026-09-29T00:00:00.000Z";
   const lines = rows.map(([unit, result, ms, timedOut = false]) => JSON.stringify({ at, platform: "win32", arch: "arm64", unit, result, ms, timedOut }));
   if (lines.length > 0) writeFileSync(path.join(home, "test-timings.jsonl"), `${lines.join("\n")}\n`);
@@ -348,7 +341,7 @@ test("6.10 · a unit's deadline is learned only from runs that tested as many un
   assert.deepEqual(unitLimit("cli", { home, ...machine, jobs: 3 }), { ms: 160_000, source: "learned" });
   assert.deepEqual(unitLimit("cli", { home, ...machine }), { ms: 100_000, source: "learned" });
   const recorded = mkdtempSync(path.join(tmpdir(), "unit-run-home-"));
-  t.after(() => rmSync(recorded, { recursive: true, force: true }));
+  t.after(() => removeTemp(recorded));
   recordTimings({ cli: { result: "pass", ms: 1 } }, { home: recorded, jobs: 3 });
   assert.equal(JSON.parse(readFileSync(path.join(recorded, "test-timings.jsonl"), "utf8")).jobs, 3);
 });
@@ -394,7 +387,7 @@ test("a unit's row gives its time, its deadline and where the deadline came from
 // as a unit's deadline is; voice's real.test.ts passed in 36-55 s on Windows and timed out at the flat 60 s.
 function testHistory(t, rows) {
   const home = mkdtempSync(path.join(tmpdir(), "unit-run-tests-"));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   const at = "2026-10-24T00:00:00.000Z";
   const lines = rows.map(([file, name, result, ms, timedOut = false]) => JSON.stringify({ at, platform: "win32", arch: "arm64", file, test: name, result, ms, timedOut }));
   writeFileSync(path.join(home, "test-timings.jsonl"), `${lines.join("\n")}\n`);
@@ -433,7 +426,7 @@ test("6.24 · a unit's tests run under the largest of its tests' limits, naming 
 
 test("6.24 · a run records the tests that could need more than 60 s, and every run of a test it already holds, kept per test; units' own rows are unchanged", (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "unit-run-tests-"));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   const rows = () => readFileSync(path.join(home, "test-timings.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
   recordTimings({ "packages/voice": { result: "pass", ms: 200_000 } }, { home, tests: [
     { file: real, name: "slow", result: "pass", ms: 36_000, timedOut: false },
@@ -519,7 +512,7 @@ test("6.1 a run given a deadline cuts the unit it is running to the time left, n
   // On a loaded runner the child's start can use up a short budget before the test begins (friction_b0dddfa7a7ad),
   // so the hanging test marks when it started, and the budget widens until it starts with time to spare.
   const marks = mkdtempSync(path.join(tmpdir(), "unit-run-mark-"));
-  t.after(() => rmSync(marks, { recursive: true, force: true }));
+  t.after(() => removeTemp(marks));
   const marker = path.join(marks, "started");
   let run;
   for (const budget of [4, 8, 16, 32]) {
@@ -536,7 +529,7 @@ test("6.1 a run given a deadline cuts the unit it is running to the time left, n
 
 test("6.1 a run stalled outside any unit past its deadline names where it stalled and ends", (t) => {
   const home = mkdtempSync(path.join(tmpdir(), "unit-run-home-"));
-  t.after(() => rmSync(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   // A live holder (this process) that never lets go: the run waits on the lock until its deadline.
   writeFileSync(path.join(home, "heavy-run.lock"), JSON.stringify({ id: "held", pid: process.pid, branch: "another run", since: new Date().toISOString() }));
   const run = harnessRun(t, { "passes.test.mjs": `import { test } from "node:test";\ntest("passes", () => {});` }, { deadline: Math.floor((Date.now() - DEADLINE_GRACE_MS) / 1000) + 2, home });

@@ -332,7 +332,7 @@ export type TestRun = (root: string, tests: readonly string[], limitMs: number, 
 
 /** A test's name across runs: its file from the checkout's root, where in the file it is declared, and its title. */
 export function testName(file: string, line: number | undefined, column: number | undefined, title: string): string {
-  return `${file.split(path.sep).join("/")}:${line ?? 0}:${column ?? 0} ${title}`;
+  return `${file.split(path.sep).join("/")}:${line}:${column} ${title}`;
 }
 
 /** A node test reporter writing each test that passes as one JSON line: its file, line, column and title. */

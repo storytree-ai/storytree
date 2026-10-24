@@ -20,8 +20,8 @@ export function mountFactory(host: HTMLElement, bridge: FactoryBridge): { stop()
   const button = root.querySelector<HTMLButtonElement>("[data-switch-factory]")!;
   const status = root.querySelector<HTMLElement>("[data-factory-status]")!;
   const say = (text: string, failed = false) => { status.textContent = text; status.setAttribute("role", failed ? "alert" : "status"); };
-  const show = ({ folder, chosen }: FactoryFolder) => {
-    shown.textContent = chosen ? folder : `${folder} (storytree's own)`;
+  const show = ({ folder }: FactoryFolder) => {
+    shown.textContent = folder;
     shown.title = folder;
   };
   function refresh(): void {

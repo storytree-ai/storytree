@@ -119,7 +119,7 @@ test("7.2 · each break runs against the tests that reach its file: an untested 
   }
 });
 
-/** A git checkout whose origin/main holds a readme, and whose branch adds {@link PACKAGE}. */
+/** A git checkout whose origin/main holds a readme, and whose branch adds {@link PACKAGE}, its tests saved red. */
 function checkout(): string {
   const dir = mkdtempSync(join(tmpdir(), "qa-mutation-"));
   const git = (...args: string[]) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", ...args], { cwd: dir });
@@ -131,6 +131,8 @@ function checkout(): string {
   write(dir, PACKAGE);
   git("add", ".");
   git("commit", "-qm", "change");
+  // Its new tests were seen red, as `pnpm test` saves them, so the red-run check (2.14) finds nothing here.
+  write(dir, { ".pgtest/red-runs.jsonl": [["packages/demo/src/grade.test.mjs", "grades"], ["packages/demo/src/broken.test.mjs", "always red"]].map(([file, test]) => JSON.stringify({ file, test })).join("\n") + "\n" });
   return dir;
 }
 

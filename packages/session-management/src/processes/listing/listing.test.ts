@@ -167,7 +167,7 @@ test('14.1 the inventory observes a real owned process live and then gone throug
   process.kill(launched.pid, 'SIGKILL');
   inventory = await waitUntil(async () => {
     const read = await listing.listRuns({ home, owner });
-    return read.rows[0]?.process.state === 'gone' && read;
+    return read.rows[0]?.process.state === 'gone' ? read : undefined;
   }, 4_000, 'the killed run to read gone');
   assert.equal(inventory.rows[0]?.process.state, 'gone');
   assert.equal(inventory.rows[0]?.endedWithoutReport, true);

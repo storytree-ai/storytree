@@ -181,7 +181,8 @@ test('15.2/15.4 native: stale identity leaves the actual process alive; register
   assert.equal((await readProcess(root.pid)).state, 'live');
   await writeFile(path.join(dir, 'runs', `${root.id}.json`), JSON.stringify(root));
   process.kill(root.pid, 'SIGKILL');
-  await waitUntil(async () => (await probeProcess(root.birth.identity)).state === 'gone', 4_000, 'the killed root to be gone');
+  const { identity } = root.birth;
+  await waitUntil(async () => (await probeProcess(identity)).state === 'gone', 4_000, 'the killed root to be gone');
   await writeFile(path.join(dir, 'runs', `${child.id}.json`), JSON.stringify(child));
   const result = await stopping.stopOwned({ home: dir, owner, targets: [root.id], graceMs: 75, forceMs: 2000 });
   assert.equal(result.ok, true, JSON.stringify(result));

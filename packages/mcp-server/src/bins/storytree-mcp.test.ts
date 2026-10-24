@@ -9,6 +9,7 @@ import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 
 import { removeTempDir } from "@storytree/project-and-caller/testing/folders";
+import { waitUntil } from "@storytree/test-waits";
 import { buildBins } from "@storytree/app-setup/bins";
 
 test("6.33 the built storytree-mcp, started as a harness starts it, serves the tools over stdin and stdout and exits when stdin closes", async (t) => {
@@ -38,9 +39,7 @@ test("6.33 the built storytree-mcp, started as a harness starts it, serves the t
   await t.test("the server exits when stdin closes", async () => {
     const pid = transport.pid!;
     await client.close();
-    const deadline = Date.now() + 10_000;
-    while (Date.now() < deadline && alive(pid)) await new Promise((resolve) => setTimeout(resolve, 50));
-    assert.equal(alive(pid), false, "the server exits once its stdin closes");
+    await waitUntil(() => !alive(pid), 10_000, "the server to exit once its stdin closes");
   });
 });
 

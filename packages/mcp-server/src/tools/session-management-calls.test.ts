@@ -6,7 +6,6 @@
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
 
 import { ACTIVITY_DATABASE, claim, claimRefusal, openActivityLog, readClaims, type MergeWatch } from "@storytree/session-management";
@@ -14,6 +13,7 @@ import { setSetting } from "@storytree/project-and-caller";
 import { withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { approveCheckout, dropTestProjects, placeTestServer, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { connect } from "@storytree/library";
+import { waitUntil } from "@storytree/test-waits";
 
 import { claudeCode, withAgent } from "../testing/agent.js";
 import { withProject } from "../testing/tool-world.js";
@@ -25,7 +25,8 @@ test("session-management 5.10 a tool call ends a claim whose branch merged after
     const pulls = new Map<string, { number: number; mergedAt: string }[]>();
     const merges: MergeWatch = { mergedPulls: async (_folder, branch) => pulls.get(branch) ?? [], everyMs: 0 };
     assert.equal((await claim({ log, library, project, session: "A", branch: "feature/signup" }, capability.id, "building the email form")).ok, true);
-    await sleep(20);
+    const claimed = Date.now();
+    await waitUntil(() => Date.now() > claimed, 5_000, "the clock to move on past the claim");
     await withAgent(folder, { ...claudeCode("C"), merges }, async (agent) => {
       await agent.call("show_plan");
       assert.deepEqual((await readClaims(log, project)).map(({ session }) => session), ["A"], "an open pull request ends nothing");

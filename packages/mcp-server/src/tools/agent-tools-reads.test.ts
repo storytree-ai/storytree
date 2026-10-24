@@ -17,7 +17,6 @@ import { hostname } from "node:os";
 import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
 import path from "node:path";
 import { mock, test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 
 import { Client } from "@modelcontextprotocol/client";
 import { waitUntil } from "@storytree/test-waits";
@@ -777,7 +776,8 @@ test("6.30 health_worklist gives the oldest three capabilities on the health wor
       await library.recordVerified(check, "failing");
       const later = [];
       for (const title of ["Thank-you page", "Password rules", "Welcome email", "Sign-up button"]) {
-        await delay(5);
+        const at = Date.now();
+        await waitUntil(() => Date.now() > at, 5_000, "the clock to move on, so each capability is younger than the last");
         later.push(idOf(await agent.call("plan_capability", { story, title, ...FOUNDED })));
       }
       const routed = later[0]!;
@@ -829,7 +829,8 @@ test("6.49 stale_claims gives the session manager each claimed increment whose h
       const { arc } = await planned(agent);
       const increment = idOf(await agent.call("park_increment", { arc, title: "Email form", objective: "Build it", body: "Red then green" }));
       assert.equal((await agent.call("claim", { increment, reason: "driving it" })).isError, false);
-      await delay(800);
+      const claimed = Date.now();
+      await waitUntil(() => Date.now() > claimed + 500, 5_000, "the claim's holder to be quiet for 500 ms");
       await withAgent(folder, codex("codex-1", { quietMs: 500, merges: pulls }), async (manager) => {
         const listed = await manager.call("stale_claims");
         assert.equal(listed.isError, false, listed.text);

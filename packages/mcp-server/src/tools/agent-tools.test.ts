@@ -15,12 +15,12 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writ
 import { execSync } from "node:child_process";
 import path from "node:path";
 import { test } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/server";
 import { connect } from "@storytree/library";
 import pg from "pg";
+import { waitUntil } from "@storytree/test-waits";
 import { z } from "zod";
 
 import { readClaims } from "@storytree/session-management";
@@ -170,13 +170,8 @@ test("6.20 cancelling an MCP edit queued for the write lock leaves the record an
       const cancelled = assert.rejects(pending, /cancel/i);
       cancelled.catch(() => {}); // A deadline failure reports itself, not the close that rejects this.
       // Observe a real queued writer, not a sleep that guesses when it reached the lock.
-      const deadline = Date.now() + 45_000; // Inside the runner's 60 s test limit, so this names itself.
-      while (true) {
-        const waiting = await observer.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = 'advisory'");
-        if (waiting.rowCount) break;
-        assert.ok(Date.now() < deadline, "the MCP edit reached the project's write lock");
-        await delay(10);
-      }
+      await waitUntil(async () => (await observer.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = 'advisory'")).rowCount,
+        45_000, "the MCP edit to reach the project's write lock");
       assert.deepEqual(await library.get(story.id), story);
       abort.abort(new Error("cancel queued edit"));
       await cancelled;
@@ -277,13 +272,8 @@ for (const scenario of [
         }, { signal: abort.signal });
         const cancelled = assert.rejects(pending, /cancel/i);
         cancelled.catch(() => {}); // A deadline failure reports itself, not the close that rejects this.
-        const deadline = Date.now() + 45_000; // Inside the runner's 60 s test limit, so this names itself.
-        while (true) {
-          const waiting = await observer.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = $1", [boundary === "admitted" ? "transactionid" : "advisory"]);
-          if (waiting.rowCount) break;
-          assert.ok(Date.now() < deadline, `${tool} reached the ${boundary} lock`);
-          await delay(10);
-        }
+        await waitUntil(async () => (await observer.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event = $1", [boundary === "admitted" ? "transactionid" : "advisory"])).rowCount,
+          45_000, `${tool} to reach the ${boundary} lock`);
         abort.abort(new Error("cancel claim"));
         await cancelled;
         await client.ping();

@@ -6,6 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
+import { removeTemp } from "@storytree/test-waits";
 import { assertExitCode, BuiltCommand, storytree } from "./testing/cli.js";
 
 const command = new BuiltCommand();
@@ -22,9 +23,9 @@ before(async () => {
 });
 after(() => command.remove());
 
-function user(t: { after(fn: () => void): void }) {
+function user(t: { after(fn: () => Promise<void>): void }) {
   const dir = mkdtempSync(path.join(tmpdir(), "storytree setup join "));
-  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+  t.after(() => removeTemp(dir));
   const home = path.join(dir, ".storytree", "0.3");
   const claude = path.join(dir, ".claude");
   const codex = path.join(dir, ".codex");

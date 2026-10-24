@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { setTimeout as pause } from 'node:timers/promises';
+import { removeTemp, waitUntil } from '@storytree/test-waits';
 import { launchOwned, probeProcess, readLedger, readProcess } from '../index.js';
 import type { ProcessIdentity, ProcessReading, RunOwner, RunRecord } from '../index.js';
 import { localMachine, writeRecord } from '../ledger/files.js';
@@ -14,7 +14,7 @@ const owner: RunOwner = { session: 'parent', harness: 'codex', agent: 'orchestra
 const bounds = { graceMs: 0, forceMs: 0 };
 async function home(t: { after(fn: () => Promise<void>): void }) {
   const dir = await mkdtemp(path.join(tmpdir(), 'own-stop-'));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   return dir;
 }
 async function record(home: string, fields: Partial<RunRecord> = {}): Promise<RunRecord> {
@@ -162,11 +162,7 @@ async function launch(t: { after(fn: () => Promise<void>): void }, dir: string, 
   });
   assert.equal(result.status, 'tracked', JSON.stringify(result));
   if (result.status !== 'tracked') throw new Error('untracked fixture');
-  for (let i = 0; ; i++) {
-    if (await readFile(ready, 'utf8').catch(() => '') === 'ready') break;
-    assert.ok(i < 400, 'child must install its signal handler');
-    await pause(25);
-  }
+  await waitUntil(async () => await readFile(ready, 'utf8').catch(() => '') === 'ready', 10_000, 'the child to install its signal handler');
   return result.run;
 }
 
@@ -185,7 +181,8 @@ test('15.2/15.4 native: stale identity leaves the actual process alive; register
   assert.equal((await readProcess(root.pid)).state, 'live');
   await writeFile(path.join(dir, 'runs', `${root.id}.json`), JSON.stringify(root));
   process.kill(root.pid, 'SIGKILL');
-  for (let i = 0; (await probeProcess(root.birth.identity)).state !== 'gone'; i++) { assert.ok(i < 200); await pause(20); }
+  const { identity } = root.birth;
+  await waitUntil(async () => (await probeProcess(identity)).state === 'gone', 4_000, 'the killed root to be gone');
   await writeFile(path.join(dir, 'runs', `${child.id}.json`), JSON.stringify(child));
   const result = await stopping.stopOwned({ home: dir, owner, targets: [root.id], graceMs: 75, forceMs: 2000 });
   assert.equal(result.ok, true, JSON.stringify(result));

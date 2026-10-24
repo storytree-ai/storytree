@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { removeTemp, waitUntil } from '@storytree/test-waits';
 import { launchOwned, localMachine, readProcess, type RunOwner, type RunRecord } from '../index.js';
 import * as listing from './index.js';
 import { stopOwned } from '../stopping/index.js';
@@ -13,7 +14,7 @@ const now = new Date('2026-09-28T01:00:00.000Z');
 let nextPid = 12345;
 async function ledger(t: { after(fn: () => Promise<void>): void }) {
   const home = await mkdtemp(path.join(tmpdir(), 'own-listing-'));
-  t.after(() => rm(home, { recursive: true, force: true }));
+  t.after(() => removeTemp(home));
   await mkdir(path.join(home, 'runs'));
   return home;
 }
@@ -164,11 +165,10 @@ test('14.1 the inventory observes a real owned process live and then gone throug
   assert.equal(inventory.rows[0]?.run.id, launched.run.id);
   assert.equal(inventory.complete, true);
   process.kill(launched.pid, 'SIGKILL');
-  for (let attempt = 0; attempt < 200; attempt++) {
-    inventory = await listing.listRuns({ home, owner });
-    if (inventory.rows[0]?.process.state === 'gone') break;
-    await new Promise(resolve => setTimeout(resolve, 20));
-  }
+  inventory = await waitUntil(async () => {
+    const read = await listing.listRuns({ home, owner });
+    return read.rows[0]?.process.state === 'gone' ? read : undefined;
+  }, 4_000, 'the killed run to read gone');
   assert.equal(inventory.rows[0]?.process.state, 'gone');
   assert.equal(inventory.rows[0]?.endedWithoutReport, true);
 });

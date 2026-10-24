@@ -6,13 +6,14 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { copyFileSync, linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, linkSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
 import { claim, openActivityLog, readClaims, type ActivityLog } from "@storytree/session-management";
 import type { Line } from "@storytree/library";
+import { removeTemp } from "@storytree/test-waits";
 
 import { BuiltCommand, inWorld, storytree, testServerUrl, type World } from "./testing/cli.js";
 
@@ -34,9 +35,9 @@ before(async () => {
     symlinkSync(process.execPath, gh);
   }
 });
-after(() => {
+after(async () => {
   command.remove();
-  rmSync(ghFolder, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  await removeTemp(ghFolder);
 });
 
 function git(cwd: string, ...args: string[]): string {

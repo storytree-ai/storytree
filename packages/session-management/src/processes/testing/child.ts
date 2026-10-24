@@ -1,4 +1,4 @@
-import { setTimeout as pause } from 'node:timers/promises';
+import { waitUntil } from '@storytree/test-waits';
 import { probeProcess } from '../process/index.js';
 import type { RunRecord } from '../ledger/records.js';
 
@@ -18,9 +18,5 @@ export async function stopTestChild(run: RunRecord): Promise<void> {
   // send the shared test server into crash recovery under every other test.
   if ((await probeProcess(identity)).state !== 'live') return;
   try { process.kill(identity.pid, 'SIGKILL'); } catch { return; }
-  for (let attempt = 0; attempt < 100; attempt++) {
-    if ((await probeProcess(identity)).state === 'gone') return;
-    await pause(20);
-  }
-  throw new Error(`test child ${identity.pid} did not exit`);
+  await waitUntil(async () => (await probeProcess(identity)).state === 'gone', 2_000, `test child ${identity.pid} to exit`);
 }

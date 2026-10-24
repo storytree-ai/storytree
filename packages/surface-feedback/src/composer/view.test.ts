@@ -171,7 +171,7 @@ test("1.3 · a failed write keeps the text and offers Retry and Copy", async (t)
   assert.equal(await page.locator("[data-corner-retry]").isVisible(), false);
 });
 
-test("1.4 · while picking, the element under the pointer is outlined with its tag and size, a click attaches it without pressing it, Escape cancels the pick and not the note, and neither the corner nor a drawn canvas is picked", async (t) => {
+test("1.4 · while picking, the element under the pointer is outlined with its tag and size, a click attaches it without pressing it, Escape before the first pick leaves nothing open and Escape from Pick again returns to the note, and neither the corner nor a drawn canvas is picked", async (t) => {
   const browser = await launchChrome();
   t.after(() => browser.close());
   const page = await mounted(browser);

@@ -22,10 +22,11 @@ import { startDoor } from "./door.js";
 import { connect, newToken, textOf } from "./testing/door.js";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-/** The command line from this checkout's source, run directly as the door runs it on the box. */
+/** The command line from this checkout's source, run directly as the door runs it on the box. Each call starts it afresh,
+ * which takes some seconds on Windows, so the test is given more than the default minute (37 s on Linux, past 60 on Windows). */
 const CLI = [process.execPath, "--import", pathToFileURL(path.join(root, "node_modules", "tsx", "dist", "loader.mjs")).href, path.join(root, "packages", "cli", "src", "bins", "storytree.ts")];
 
-test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: catch_up's order, what landed, a record's history, tell_me, count, find, and the voice session its children record as", async () => {
+test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: catch_up's order, what landed, a record's history, tell_me, count, find, and the voice session its children record as", { timeout: 240_000 }, async () => {
   const dir = realpathSync.native(mkdtempSync(path.join(tmpdir(), "storytree-voice-real-")));
   const project = `t-${randomBytes(4).toString("hex")}`;
   const server = await connectLibrary({ url: testServerUrl() });

@@ -683,7 +683,7 @@ test("19.5 · a Codex session attaching the worktree its app just made at the pr
     assert.doesNotMatch(tool.text, /as this project does at session start/);
     assert.equal((tool.data?.setup as { steps: unknown[] } | undefined)?.steps.length, 2, "the tool's data carries the steps");
 
-    const verb = WORKSPACE_FAMILIES[0]!.verbs.find((one) => one.command?.name === "attach")!;
+    const verb = WORKSPACE_FAMILIES[0]!.verbs.find((one) => one.command !== undefined && "name" in one.command && one.command.name === "attach")!;
     const profile = await park("profile");
     const named = await makeWorkspace(as("B"), profile, "build profile");
     assert.ok(named.ok && named.status === "prepared", JSON.stringify(named));

@@ -19,6 +19,8 @@ import { claim, makeWorkspace, readClaims, release, type ClaimContext } from "./
 import * as workspace from "./workspace.js";
 import { sessionTools, type ToolCall } from "../tools.js";
 import { WORKSPACE_FAMILIES } from "./verbs.js";
+import { teardownState } from "./worktree-setup.js";
+import { readSetupApproval, setSetupApproval } from "@storytree/project-and-caller";
 import type { DoorWords } from "@storytree/library/verbs";
 
 const WORDS: DoorWords = { door: "command", say: (step) => step.command === undefined ? step.tool! : `storytree ${step.command}` };
@@ -699,5 +701,128 @@ test("19.5 · a Codex session attaching the worktree its app just made at the pr
     assert.ok(claude.ok, JSON.stringify(claude));
     assert.equal("setup" in claude, false);
     assert.ok(!existsSync(path.join(own, ".env")), "nothing is copied into a Claude Code session's own worktree");
+  });
+});
+
+/**
+ * Run `body` with storytree's home in `home` and the harness saying whether anyone attends the session, as a
+ * headless lane's does (CLAUDE_CODE_SESSION_ATTENDED=0); both restored after.
+ */
+async function withHome(home: string, attended: boolean, body: () => Promise<void>): Promise<void> {
+  const before = { home: process.env.STORYTREE_HOME, attended: process.env.CLAUDE_CODE_SESSION_ATTENDED };
+  process.env.STORYTREE_HOME = home;
+  if (attended) delete process.env.CLAUDE_CODE_SESSION_ATTENDED;
+  else process.env.CLAUDE_CODE_SESSION_ATTENDED = "0";
+  try {
+    await body();
+  } finally {
+    for (const [name, value] of [["STORYTREE_HOME", before.home], ["CLAUDE_CODE_SESSION_ATTENDED", before.attended]] as const) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+}
+
+/** Check `setup` in as the project's `.storytree/worktree.json` in the main checkout `site`, beside an untracked local file when `local` is given. */
+function checkedInSetup(site: string, setup: unknown, local?: unknown, ignored: readonly string[] = []): void {
+  mkdirSync(path.join(site, ".storytree"), { recursive: true });
+  writeFileSync(path.join(site, ".git", "info", "exclude"), [".storytree/worktree.local.json", ...ignored].join("\n") + "\n");
+  writeFileSync(path.join(site, ".storytree", "worktree.json"), JSON.stringify(setup));
+  git(site, "add", ".storytree/worktree.json");
+  git(site, "commit", "-m", "check the setup in");
+  if (local !== undefined) writeFileSync(path.join(site, ".storytree", "worktree.local.json"), JSON.stringify(local));
+}
+
+const WRITES = (name: string) => `node -e "require('fs').writeFileSync('${name}', 'ran')"`;
+
+test("19.6 · a checked-in `.storytree/worktree.json` is read beside the local file, the local file winning key by key, and its setup and teardown commands run only once the user has approved that exact set: before then, or after they change, the workspace is made without them and its answer names the command that approves them", async () => {
+  await withWorld(async ({ dir, site, park, as }) => {
+    await withHome(path.join(dir, "home"), true, async () => {
+      writeFileSync(path.join(site, "a.env"), "A\n");
+      writeFileSync(path.join(site, "b.env"), "B\n");
+      checkedInSetup(site, { copy: ["a.env"], setup: [WRITES("checked.txt")], teardown: ["node -e \"process.exit(0)\""] }, { copy: ["b.env"] }, ["a.env", "b.env", "checked.txt"]);
+
+      const first = await makeWorkspace(as("A"), await park("email form"), "building the email form");
+
+      assert.ok(first.ok && first.status === "ready", JSON.stringify(first));
+      assert.ok(existsSync(path.join(first.folder, "b.env")) && !existsSync(path.join(first.folder, "a.env")), "the local file's copy wins over the checked-in one");
+      assert.ok(!existsSync(path.join(first.folder, "checked.txt")), "an unapproved command does not run");
+      assert.equal(teardownState(first.folder), "none", "nor is its teardown kept to run");
+      const asked = first.setup?.steps.find((step) => !step.ok);
+      const fingerprint = /setup needs approval: run `storytree workspace approve-setup ([0-9a-f]{16})`/.exec(asked?.why ?? "")?.[1];
+      assert.ok(fingerprint !== undefined, JSON.stringify(first.setup));
+      assert.match(asked?.why ?? "", /checked\.txt/, "the commands awaiting approval are named");
+
+      setSetupApproval(realpathSync(site), fingerprint);
+      const approved = await makeWorkspace(as("A"), await park("reset"), "building the reset");
+      assert.ok(approved.ok && approved.status === "ready", JSON.stringify(approved));
+      assert.ok(existsSync(path.join(approved.folder, "checked.txt")), "an approved command runs");
+      assert.equal(teardownState(approved.folder), "due", "and its teardown is kept to run");
+      assert.ok(approved.setup?.steps.every((step) => step.ok), JSON.stringify(approved.setup));
+
+      checkedInSetup(site, { setup: [WRITES("changed.txt")] }, { copy: ["b.env"] }, ["a.env", "b.env", "checked.txt", "changed.txt"]);
+      const changed = await makeWorkspace(as("A"), await park("profile"), "building the profile");
+      assert.ok(changed.ok && changed.status === "ready", JSON.stringify(changed));
+      assert.ok(!existsSync(path.join(changed.folder, "changed.txt")), "changed commands are asked again");
+      const again = /approve-setup ([0-9a-f]{16})/.exec(changed.setup?.steps.find((step) => !step.ok)?.why ?? "")?.[1];
+      assert.ok(again !== undefined && again !== fingerprint, JSON.stringify(changed.setup));
+
+      checkedInSetup(site, { setup: [WRITES("checked.txt")] }, { setup: [WRITES("local.txt")] }, ["a.env", "b.env", "checked.txt", "local.txt"]);
+      const local = await makeWorkspace(as("A"), await park("settings"), "building the settings");
+      assert.ok(local.ok && local.status === "ready", JSON.stringify(local));
+      assert.ok(existsSync(path.join(local.folder, "local.txt")) && !existsSync(path.join(local.folder, "checked.txt")), "the local file's setup wins and needs no approval");
+      assert.ok(local.setup?.steps.every((step) => step.ok), JSON.stringify(local.setup));
+    });
+  });
+});
+
+test("19.8 · when an agent runs alone (its harness says no one is attending), an unapproved checked-in setup's commands are skipped and the workspace's answer says no one is here to approve them, rather than asking", async () => {
+  await withWorld(async ({ dir, site, park, as }) => {
+    await withHome(path.join(dir, "home"), false, async () => {
+      checkedInSetup(site, { setup: [WRITES("checked.txt")] }, undefined, ["checked.txt"]);
+      const verb = WORKSPACE_FAMILIES[0]!.bare!;
+
+      const made = await verb.act({ work: await park("email form"), reason: "building the email form", "despite-open-pulls": false }, as("A"), WORDS);
+
+      assert.match(made.text, /SKIPPED .*no one is here to approve/);
+      assert.doesNotMatch(made.text, /setup needs approval/);
+      assert.equal(readSetupApproval(realpathSync(site)), undefined);
+      const folder = /Made workspace (.+)/.exec(made.text)?.[1]?.trim();
+      assert.ok(folder !== undefined && existsSync(folder), made.text);
+      assert.ok(!existsSync(path.join(folder, "checked.txt")), "the command is skipped");
+    });
+  });
+});
+
+test("19.7 · `storytree workspace approve-setup <fingerprint>` records the user's approval of the checked-in setup's commands only from a person at their own terminal, and is refused, recording nothing, when the fingerprint is not the checked-in file's current one", async () => {
+  await withWorld(async ({ dir, site, park, as }) => {
+    await withHome(path.join(dir, "home"), true, async () => {
+      checkedInSetup(site, { setup: [WRITES("checked.txt")] }, undefined, ["checked.txt"]);
+      const made = await makeWorkspace(as("A"), await park("email form"), "building the email form");
+      assert.ok(made.ok && made.status === "ready", JSON.stringify(made));
+      const fingerprint = /approve-setup ([0-9a-f]{16})/.exec(made.setup?.steps.find((step) => !step.ok)?.why ?? "")?.[1]!;
+      const verb = WORKSPACE_FAMILIES[0]!.verbs.find((one) => one.command !== undefined && "name" in one.command && one.command.name === "approve-setup")!;
+      const person = { ...as("A", made.folder), session: "person:mick" };
+      const tty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+      const terminal = (on: boolean) => Object.defineProperty(process.stdin, "isTTY", { value: on, configurable: true });
+      try {
+        terminal(true);
+        await assert.rejects(verb.act({ fingerprint }, as("A"), WORDS), /An agent cannot/);
+        await assert.rejects(verb.act({ fingerprint: "0000000000000000" }, person, WORDS), /not the fingerprint/);
+        terminal(false);
+        await assert.rejects(verb.act({ fingerprint }, person, WORDS), /your own terminal/);
+        assert.equal(readSetupApproval(realpathSync(site)), undefined, "nothing is recorded");
+
+        terminal(true);
+        const approved = await verb.act({ fingerprint }, person, WORDS);
+        assert.match(approved.text, /Approved/);
+        assert.equal(readSetupApproval(realpathSync(site))?.fingerprint, fingerprint);
+      } finally {
+        if (tty === undefined) delete (process.stdin as { isTTY?: boolean }).isTTY;
+        else Object.defineProperty(process.stdin, "isTTY", tty);
+      }
+      const after = await makeWorkspace(as("A"), await park("reset"), "building the reset");
+      assert.ok(after.ok && after.status === "ready" && existsSync(path.join(after.folder, "checked.txt")), JSON.stringify(after));
+    });
   });
 });

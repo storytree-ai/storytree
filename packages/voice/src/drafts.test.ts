@@ -516,24 +516,24 @@ test("5.11 · a run's reply is offered by catch_up until the owner marks it hear
     assert.equal(said.refused, true, said.text);
     assert.match(said.text, refusal);
   }
+  // The door's role cannot set a mark on a run still going.
+  await onDatabase(voice.asRole, (client) => assert.rejects(client.query("UPDATE voice_draft SET heard_at = now() WHERE id = 3"), /no reply to hear yet/));
+  await onDatabase(voice.asOwner, (client) => client.query("UPDATE voice_draft SET run_ended_at = now(), reply = 'Reply to third' WHERE id = 3"));
+  assert.deepEqual(await replies(), ["Draft 3, the run you asked for: Reply to third", "Draft 1, the run you asked for: Reply to first"]);
   const rest = await voice.call("mark_heard", {});
   assert.equal(rest.refused, false, rest.text);
-  assert.match(rest.text, /draft 1's reply/);
+  assert.match(rest.text, /^Heard: the replies of drafts 1, 3;/);
   assert.deepEqual(await replies(), ["(none)"]);
   assert.equal((await voice.call("mark_heard", {})).refused, true);
+  assert.ok((await rows(voice.asOwner)).every((draft) => draft.heard_at !== null));
 
-  const [first, second, third] = await rows(voice.asOwner);
-  assert.notEqual(first.heard_at, null);
-  assert.notEqual(second.heard_at, null);
-  assert.equal(third.heard_at, null);
-  // The door's role cannot clear a mark, set one on a run still going, or choose its time.
-  await onDatabase(voice.asRole, async (client) => {
-    await assert.rejects(client.query("UPDATE voice_draft SET heard_at = NULL WHERE id = 2"), /already heard/);
-    await assert.rejects(client.query("UPDATE voice_draft SET heard_at = now() WHERE id = 3"), /no reply to hear yet/);
-  });
-  await onDatabase(voice.asOwner, (client) => client.query("UPDATE voice_draft SET run_ended_at = now() WHERE id = 3"));
-  await onDatabase(voice.asRole, (client) => client.query("UPDATE voice_draft SET heard_at = '2000-01-01' WHERE id = 3"));
-  assert.ok((await rows(voice.asOwner))[2].heard_at.getFullYear() > 2000, "the role chose the heard time");
+  // Nor clear a mark, or choose its time.
+  await onDatabase(voice.asRole, (client) => assert.rejects(client.query("UPDATE voice_draft SET heard_at = NULL WHERE id = 2"), /already heard/));
+  await onDatabase(voice.asOwner, (client) => client.query("DELETE FROM voice_lock"));
+  await draftRun(voice.asRole, "fourth");
+  await onDatabase(voice.asOwner, (client) => client.query("UPDATE voice_draft SET run_ended_at = now() WHERE id = 4"));
+  await onDatabase(voice.asRole, (client) => client.query("UPDATE voice_draft SET heard_at = '2000-01-01' WHERE id = 4"));
+  assert.ok((await rows(voice.asOwner))[3].heard_at.getFullYear() > 2000, "the role chose the heard time");
 });
 
 test("2.19 · with sign-in, and with writes, the instructions lead with catch_up, name no tool tools/list does not offer, and give the write rules only with writes on", async (t) => {

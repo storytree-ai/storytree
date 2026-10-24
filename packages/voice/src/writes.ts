@@ -168,7 +168,7 @@ export function registerWriteTools(server: McpServer, drafts: Drafts, openQuesti
         "Mark replies catch_up read under Replies ready as heard, once the owner says they are fine or has nothing more to ask about them, so catch_up " +
         "offers them no more. Without drafts it marks every reply catch_up offers now. Works while writes are locked. Needs the owner's sign-in.",
       inputSchema: z.object({ drafts: z.array(z.number().int().min(1)).min(1).max(REPLIES).optional().describe("the replies' draft numbers, as catch_up read them") }),
-      annotations: { ...WRITE, idempotentHint: true },
+      annotations: WRITE,
     },
     async ({ drafts: named }) =>
       guarded(async () => {

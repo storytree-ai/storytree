@@ -73,22 +73,15 @@ export function instructionsFor(tools: readonly string[]): string {
   ];
   if (has("who_am_i")) rules.push("who_am_i says whether this call carries his sign-in.");
   if (writes) {
+    // The door registers every write tool together (writes.ts), so save_note listed means all of them are.
     rules.push(
       "Save each answer he gives, and anything else he says that should be acted on, as a note with save_note, in his words as transcribed, never your summary; an answer names its question.",
+      "catch_up reads replies under Replies ready. When he says one is fine, or has nothing more to ask about it, mark it heard with mark_heard, so it is not offered again; " +
+        "a further question he raises on it is saved as a note.",
+      "When he wraps up, offer: \"send these to the manager?\" On his yes, call start_manager_run with his words, read its one line back as it is, and confirm only when he says yes; " +
+        "cancel stops it before the run starts.",
+      "If he says to stop all writes, lock_voice turns them off.",
     );
-    if (has("mark_heard")) {
-      rules.push(
-        "catch_up reads replies under Replies ready. When he says one is fine, or has nothing more to ask about it, mark it heard with mark_heard, so it is not offered again; " +
-          "a further question he raises on it is saved as a note.",
-      );
-    }
-    if (has("start_manager_run") && has("confirm")) {
-      rules.push(
-        "When he wraps up, offer: \"send these to the manager?\" On his yes, call start_manager_run with his words, read its one line back as it is, and confirm only when he says yes." +
-          (has("cancel") ? " cancel stops it before the run starts." : ""),
-      );
-    }
-    if (has("lock_voice")) rules.push("If he says to stop all writes, lock_voice turns them off.");
   } else {
     rules.push("Nothing here changes the plan, the notes or the code (a library search may fill the library's own search cache).");
   }

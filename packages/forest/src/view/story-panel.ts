@@ -24,6 +24,7 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
       <button type="button" class="panel-close" aria-label="Close">×</button>
     </header>
     <p class="panel-sentences">${text(panel.description)}</p>
+    ${panel.risk === undefined ? "" : risk(panel.risk)}
     ${panel.mapped === undefined ? "" : mapped(panel.mapped)}
     ${!tree || panel.capabilities.length === 0 ? "" : diagram(panel, shown?.id)}
     ${shown === undefined ? "" : capability(shown)}`;
@@ -33,6 +34,32 @@ export function renderStoryPanel(panel: StoryPanel, selected: string | undefined
 function mapped({ files, lines }: NonNullable<StoryPanel["mapped"]>): string {
   const counts = files === undefined || lines === undefined ? "" : ` ${files.toLocaleString("en-GB")} file${files === 1 ? "" : "s"}, ${lines.toLocaleString("en-GB")} line${lines === 1 ? "" : "s"}.`;
   return `<p class="panel-mapped"><strong>Mapped:</strong> here before storytree, and assumed to be working.${counts}</p>`;
+}
+
+type RiskBar = NonNullable<StoryPanel["risk"]>;
+
+/** Who a fault could reach, when no count of its users is measured yet. */
+const REACHES: Readonly<Record<NonNullable<RiskBar["audience"]>, string>> = { owner: "you alone", invited: "the invited users (not counted yet)", public: "the public (not counted yet)" };
+
+const TRIGGER: Readonly<Record<RiskBar["checks"][number]["trigger"], string>> = { change: "on every change", release: "before each formal release" };
+
+/**
+ * The risk bar (question_1740edf77e9e): three plain lines, no graph. Its rating out of ten, the users
+ * it could reach, and the extra checks only this story carries; the standard tests are not listed.
+ */
+function risk({ rating, audience, users, checks }: RiskBar): string {
+  const reach = users !== undefined ? users.toLocaleString("en-GB") : audience === undefined ? "not read yet" : REACHES[audience];
+  const listed = checks.length === 0
+    ? " none beyond the standard tests."
+    : `<ul class="panel-risk-checks">${checks
+        .map(({ check, trigger, capability }) => `<li>${text(check)}${capability === undefined ? "" : ` <span class="panel-muted">(${text(capability)})</span>`}, ${TRIGGER[trigger]}</li>`)
+        .join("")}</ul>`;
+  return `
+    <section class="panel-risk" aria-label="Risk">
+      <p><span class="panel-risk-label">Risk rating</span> ${rating === undefined ? "not read yet" : `<strong>${rating}</strong> of 10`}</p>
+      <p><span class="panel-risk-label">Users potentially impacted</span> ${text(reach)}</p>
+      <div><span class="panel-risk-label">Extra checks</span>${listed}</div>
+    </section>`;
 }
 
 function capability(line: CapabilityLine): string {

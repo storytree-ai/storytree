@@ -203,3 +203,22 @@ test("4.15 a mapped story's panel says it was here before storytree and is assum
   assert.doesNotMatch(uncounted, /files|lines/, "no counts before the survey reads it");
   assert.doesNotMatch(renderStoryPanel(panel, "base"), /panel-mapped/, "a built story's panel says nothing of it");
 });
+
+test("4.36 a story's risk bar shows its rating out of ten, the users it could reach and its extra checks with what sets each off, and no graph; a story without one shows none", () => {
+  const checks: NonNullable<StoryPanel["risk"]>["checks"] = [
+    { check: "a real-app run", trigger: "change" },
+    { check: "a fresh-install sweep", trigger: "release", capability: "Install & update" },
+  ];
+  const html = renderStoryPanel({ ...panel, risk: { rating: 8, audience: "invited", checks } }, undefined);
+  const bar = /<section class="panel-risk"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
+  assert.match(bar, /Risk rating[\s\S]*8<\/strong> of 10/);
+  assert.match(bar, /Users potentially impacted[\s\S]*the invited users \(not counted yet\)/);
+  assert.match(bar, /a real-app run[\s\S]*on every change/);
+  assert.match(bar, /a fresh-install sweep[\s\S]*Install &amp; update[\s\S]*before each formal release/, "a capability's check is named with it, as text");
+  assert.doesNotMatch(bar, /<svg|<canvas/, "no graph");
+  const counted = renderStoryPanel({ ...panel, risk: { rating: 9, audience: "public", users: 40, checks: [] } }, undefined);
+  assert.match(counted, /Users potentially impacted[\s\S]*40/);
+  assert.match(counted, /Extra checks[\s\S]*none beyond the standard tests/);
+  assert.match(renderStoryPanel({ ...panel, risk: { checks } }, undefined), /Risk rating[\s\S]*not read yet/, "checks without a reading");
+  assert.doesNotMatch(renderStoryPanel(panel, undefined), /panel-risk/);
+});

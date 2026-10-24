@@ -670,6 +670,24 @@ for (const backend of [memory, postgres]) {
     assert.deepEqual((await work.editStory("story-old", { description: "By email" }))?.fields, { title: "Visitor can sign up", description: "By email" });
     assert.deepEqual((await transactions.get("story-old"))?.fields, { title: "Visitor can sign up", description: "By email" }, "stored without it");
   });
+
+  contract("4.22", "the plan's tree carries a story's risk reading and guardrails, and a capability's guardrails, as stored; one without them carries none", async ({ work }) => {
+    const risk = {
+      depth: { value: 3 as const, read: "2026-10-24", reason: "flags: screen" },
+      radius: { value: 2 as const, downstream: 1, audience: "invited" as const, read: "2026-10-24", reason: "serves invited users itself" },
+    };
+    const guardrails = [{ check: "a real-app run", trigger: "change" as const }];
+    const rated = await work.addStory({ title: "Desktop app", risk, guardrails });
+    const plain = await work.addStory({ title: "Visitor can sign up" });
+    const install = await work.addCapability({ title: "Install and update", story: rated.id, guardrails: [{ check: "a fresh-install sweep", trigger: "release" }] });
+    const other = await work.addCapability({ title: "Sign-up form", story: plain.id });
+    const { stories } = await work.projectTree();
+    const [desktop, visitor] = [rated.id, plain.id].map((id) => stories.find((story) => story.id === id)!);
+    assert.deepEqual([desktop!.risk, desktop!.guardrails], [risk, guardrails]);
+    assert.deepEqual(desktop!.capabilities.find(({ id }) => id === install.id)?.guardrails, [{ check: "a fresh-install sweep", trigger: "release" }]);
+    assert.ok(!("risk" in visitor!) && !("guardrails" in visitor!), "a story without them carries none");
+    assert.ok(!("guardrails" in visitor!.capabilities.find(({ id }) => id === other.id)!), "nor does a capability");
+  });
 }
 
 /**

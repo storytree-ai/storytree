@@ -56,8 +56,11 @@ function search(notes: SchemaRecord[], pool: ReturnType<typeof remote>, cache: s
   });
 }
 
+// Each search opens and closes its SQLite cache on disk, about two dozen times a test; a loaded
+// Windows runner stalled those long enough to pass 60 s once (CI run 39952854378) for a test that
+// takes about a second, so the bound is 180 s.
 for (const method of ["rank", "rankAll"] as const) {
-  test(`14.10 · ${method} ignores another server, project or database incarnation's cached remote vectors`, async () => {
+  test(`14.10 · ${method} ignores another server, project or database incarnation's cached remote vectors`, { timeout: 180_000 }, async () => {
     const folder = await mkdtemp(path.join(tmpdir(), "storytree-vector-isolation-"));
     try {
       const baseline = await search([alpha, beta], remote(good), path.join(folder, "baseline.sqlite"))[method]("question");

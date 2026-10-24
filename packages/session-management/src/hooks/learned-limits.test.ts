@@ -9,8 +9,8 @@ import { runGit, type Git } from "../activity/git.js";
 import { AFTER_TOOL } from "./at-once.js";
 import { TOOL_GRACE_MS } from "./codex-delivery.js";
 import { DEADLINE_MS, GUARDED_DEADLINE_MS, hookDeadline } from "./deadlines.js";
-import { EDIT_GATE, EDIT_GATE_STEP } from "./edit-gate.js";
-import { learn, LEARNED_FILE, limitOf } from "./learned-limits.js";
+import { EDIT_GATE, EDIT_GATE_STEP, editGate } from "./edit-gate.js";
+import { learn, LEARNED_FILE, limitOf, withinLimit } from "./learned-limits.js";
 import { OBSERVE_STEP, shellEdits } from "./shell-edits.js";
 import { SHELL_GUARD, SHELL_GUARD_STEP } from "./shell-guard.js";
 
@@ -90,5 +90,42 @@ test("3.47 a shell-edit observation's Git reads get the time this machine learne
     const after = JSON.parse(readFileSync(path.join(home, LEARNED_FILE), "utf8")) as Record<string, number[]>;
     assert.equal(after[OBSERVE_STEP.name]?.at(-1), limit);
     assert.equal(limitOf(home, OBSERVE_STEP), OBSERVE_STEP.ceilingMs);
+  });
+});
+
+test("3.47 a guarded step that runs out of its limit answers late and is learned at that limit; one that answers in time is learned at its own time; a limit a test gives learns nothing", async () => {
+  await withTempDir(async (dir) => {
+    const home = path.join(dir, "home");
+    const learned = () => (JSON.parse(readFileSync(path.join(home, LEARNED_FILE), "utf8")) as Record<string, number[]>)[EDIT_GATE_STEP.name] ?? [];
+    const limit = limitOf(home, EDIT_GATE_STEP);
+    mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+      const pending = withinLimit(EDIT_GATE_STEP, limit, home, () => new Promise<string>(() => undefined));
+      mock.timers.tick(limit);
+      assert.deepEqual(await pending, { late: true });
+    } finally {
+      mock.timers.reset();
+    }
+    assert.deepEqual(learned(), [limit]);
+
+    assert.deepEqual(await withinLimit(EDIT_GATE_STEP, limit, home, async () => "refused"), { late: false, answer: "refused" });
+    assert.equal(learned().length, 2);
+    assert.ok(learned()[1]! < limit, "a quick answer is learned at its own time");
+    await withinLimit(EDIT_GATE_STEP, 60_000, undefined, async () => "refused");
+    assert.equal(learned().length, 2, "a given limit learns nothing");
+  });
+});
+
+test("3.47 the edit gate learns how long its answer took in the home it is given, unless a limit is given it", async () => {
+  await withTempDir(async (dir) => {
+    const home = path.join(dir, "home");
+    const edit = { hook_event_name: "PreToolUse", session_id: "one", cwd: dir, tool_name: "Write", tool_input: { file_path: path.join(dir, "a.ts"), content: "" } };
+    const declared = async () => new Map<string, string>();
+    assert.equal(await editGate("claude-code", edit, declared, { home }, home, () => undefined, 60_000), undefined);
+    assert.equal(limitOf(home, EDIT_GATE_STEP), EDIT_GATE_STEP.floorMs);
+    assert.throws(() => readFileSync(path.join(home, LEARNED_FILE)), "a given limit learns nothing");
+    assert.equal(await editGate("claude-code", edit, declared, { home }, home, () => undefined), undefined);
+    const learned = JSON.parse(readFileSync(path.join(home, LEARNED_FILE), "utf8")) as Record<string, number[]>;
+    assert.equal(learned[EDIT_GATE_STEP.name]?.length, 1);
   });
 });

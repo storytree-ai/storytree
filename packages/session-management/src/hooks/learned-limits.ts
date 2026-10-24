@@ -51,6 +51,23 @@ export function learn(home: string, step: Step, tookMs: number): void {
   }
 }
 
+/**
+ * `work`, given `limitMs`, raced against it: its answer, or late once the limit passes. When `learnIn` names a home,
+ * the step learns there how long the work took, or its whole limit when it ran out. A throw from `work` learns nothing.
+ */
+export async function withinLimit<T>(step: Step, limitMs: number, learnIn: string | undefined, work: (limitMs: number) => Promise<T>): Promise<{ late: false; answer: T } | { late: true }> {
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<{ late: true }>((resolve) => (timer = setTimeout(() => resolve({ late: true }), limitMs)));
+  const from = performance.now();
+  try {
+    const result = await Promise.race([work(limitMs).then((answer) => ({ late: false as const, answer })), late]);
+    if (learnIn !== undefined) learn(learnIn, step, result.late ? limitMs : performance.now() - from);
+    return result;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function read(home: string): Record<string, number[]> {
   try {
     const stored: unknown = JSON.parse(readFileSync(path.join(home, LEARNED_FILE), "utf8"));

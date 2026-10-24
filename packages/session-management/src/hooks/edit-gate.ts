@@ -33,7 +33,7 @@ import { cursorSession } from "./cursor.js";
 import { piEdit, piSession } from "./pi.js";
 import { antigravityEdit, antigravitySession } from "./antigravity.js";
 import { withDeadline } from "./deadlines.js";
-import { learn, limitOf, type Step } from "./learned-limits.js";
+import { limitOf, withinLimit, type Step } from "./learned-limits.js";
 import { isSelfNamed, selfNamedEdit } from "./self-named.js";
 import type { HookFailure } from "./failures.js";
 
@@ -132,20 +132,14 @@ export async function editGate(harness: string, input: unknown, declared: Declar
   const edit = editIn(harness, input);
   if (edit === undefined || declared === undefined) return undefined;
   const limit = gateMs ?? limitOf(home, EDIT_GATE_STEP);
-  let timer: NodeJS.Timeout | undefined;
-  let gaveUp = false;
-  const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => { gaveUp = true; resolve(undefined); }, limit)));
-  const from = performance.now();
   try {
-    const refusal = await Promise.race([refusalFor(harness, edit, declared, locate, home, limit), late]);
-    if (gateMs === undefined) learn(home, EDIT_GATE_STEP, gaveUp ? limit : performance.now() - from);
+    const result = await withinLimit(EDIT_GATE_STEP, limit, gateMs === undefined ? home : undefined, (limitMs) => refusalFor(harness, edit, declared, locate, home, limitMs));
+    const refusal = result.late ? undefined : result.answer;
     if (refusal === undefined) return undefined;
     return refusalAnswer(harness, refusal.reason, refusal.ask);
   } catch (error) {
     failed("hook", error);
     return undefined;
-  } finally {
-    clearTimeout(timer);
   }
 }
 

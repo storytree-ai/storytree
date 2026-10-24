@@ -29,7 +29,7 @@ import { approvedHere, importsOf, machineOf, route, type LocateOptions } from "@
 import { gated } from "./edit-gate.js";
 import type { HookFailure } from "./failures.js";
 import type { HookLines } from "./hooks.js";
-import { learn, limitOf, type Step } from "./learned-limits.js";
+import { limitOf, withinLimit, type Step } from "./learned-limits.js";
 import { enqueue } from "./queue.js";
 import { shellEdits } from "./shell-edits.js";
 
@@ -97,20 +97,19 @@ export async function shellGuard(harness: string, input: unknown, made: HookLine
     if (edits.length === 0 && own.length === 0) return undefined;
     if (edits.length > 0) enqueue(home, where.project, edits);
     const changed = edits.flatMap((edit) => (edit.kind === "file-edited" ? edit.files.map((file) => ({ folder: edit.folder!, file })) : []));
-    const from = performance.now();
-    const answer = await withinTime(gated(harness, { session: line.session, folder: made.folder, files: [] }, locate, machineHome, async (context, checkout, known) => {
+    const result = await withinLimit(SHELL_GUARD_STEP, limit, guardMs === undefined ? home : undefined, (limitMs) => gated(harness, { session: line.session, folder: made.folder, files: [] }, locate, machineHome, async (context, checkout, known) => {
       const { shellEditRefusals, unallowedImportEdits } = await import("../claims/edit-gate.js");
       const unallowed = new Set(changed.length === 0 ? [] : (await unallowedImportEdits(context, checkout, changed.map(({ folder, file }) => ({ path: path.join(folder, file) })), known)).map(({ path: file }) => file));
       const refused = own.length === 0 ? [] : await shellEditRefusals(context, checkout, own.map((file) => ({ path: file })), declared!);
       return { told: changed.filter(({ folder, file }) => unallowed.has(path.join(folder, file))), refused };
-    }, limit).catch((error: unknown) => {
+    }, limitMs).catch((error: unknown) => {
       failed("hook", error);
       return undefined;
-    }), limit);
-    if (guardMs === undefined) learn(home, SHELL_GUARD_STEP, answer === LATE ? limit : performance.now() - from);
+    }));
+    const answer = result.late ? undefined : result.answer;
     // Imported changes storytree could not judge in time are all told; the worktree's, like an edit the gate could not judge, go ahead.
-    const told = answer === LATE ? changed : answer?.told ?? changed;
-    const refused = answer === LATE ? [] : answer?.refused ?? [];
+    const told = answer?.told ?? changed;
+    const refused = answer?.refused ?? [];
     if (told.length === 0 && refused.length === 0) return undefined;
     const { refusalMessage } = await import("../claims/edit-gate.js");
     const said = [...(told.length === 0 ? [] : [notice(told)]), ...refused.map((refusal) => refusalMessage(refusal, true))].join("\n\n");
@@ -179,14 +178,4 @@ function worktreeBaselines(home: string): string {
 
 function importsFile(home: string, project: string): string {
   return path.join(home, "imported-folders", `${encodeURIComponent(project)}.json`);
-}
-
-/** What `withinTime` answers for work that took longer than it may. */
-const LATE = Symbol("late");
-
-/** `work`'s answer, or LATE if it takes longer than `ms`, the time the guard may. */
-function withinTime<T>(work: Promise<T | undefined>, ms: number): Promise<T | undefined | typeof LATE> {
-  let timer: NodeJS.Timeout | undefined;
-  const late = new Promise<typeof LATE>((resolve) => (timer = setTimeout(() => resolve(LATE), ms)));
-  return Promise.race([work, late]).finally(() => clearTimeout(timer));
 }

@@ -46,7 +46,12 @@ export const qualityToolParts = [(): ToolExtension => qualityTools()];
 const reviewReturn = z.object({
   review: z.number().int().optional().describe("The review it answers, as its brief numbers it: a return naming none, or another, is refused"),
   checks: z.array(z.object({ check: z.string(), tripped: z.boolean(), hits: z.array(z.object({ file: z.string(), line: z.number(), found: z.string() })).optional() })).describe("Every check in the brief: tripped or not, and where tripped each file, line and what was found"),
-  contracts: z.array(z.object({ contract: z.string(), met: z.boolean(), why: z.string().optional() })).describe("Every contract in the brief: met or not, and why not"),
+  contracts: z.array(z.object({
+    contract: z.string(), met: z.boolean(), why: z.string().optional(),
+    touched: z.boolean().optional().describe("Whether the change touches the contract: adds or rewords it, or changes code under it; required when met"),
+    test: z.string().optional().describe("For a touched contract met: the test covering the changed behaviour, as <file> › <title>"),
+    at: z.object({ file: z.string(), line: z.number() }).optional().describe("For a touched contract met that no test covers: the changed line, taken as a hit asking for a test"),
+  })).describe("Every contract in the brief: met or not, why not, and, when met, whether the change touches it and the test that covers it"),
   rejections: z.array(z.object({ hit: z.number(), accepted: z.boolean(), why: z.string().optional() })).optional().describe("Each rejection the brief asks to judge: whether its reason is accepted"),
 });
 

@@ -95,7 +95,7 @@ test("5.2 · a check graduated whole is no longer in the review brief, so the re
       const taken = await reviews.take(library.name, increment, {
         review: 1,
         checks: [{ check: tautology, tripped: false }, { check: skips, tripped: false }],
-        contracts: [{ contract, met: true }],
+        contracts: [{ contract, met: true, touched: false }],
       }, await graduatedFindings(library, checkout));
       const { runs } = await (await openLedger(storytree)).rows(library.name);
       assert.deepEqual(runs.filter(({ check }) => check === whole.id).map(({ foundBy }) => foundBy), ["graduated"]);
@@ -114,7 +114,7 @@ test("5.3 · taking a review records what Architecture checks' graduated checks 
       const taken = await reviews.take(library.name, increment, {
         review: 1,
         checks: [{ check: tautology, tripped: false }, { check: skips, tripped: false }],
-        contracts: [{ contract, met: true }],
+        contracts: [{ contract, met: true, touched: false }],
       }, await graduatedFindings(library, checkout));
 
       const { runs, hits } = await (await openLedger(storytree)).rows(library.name);
@@ -138,7 +138,7 @@ test("5.3 · taking a review records what Architecture checks' graduated checks 
       const taken = await reviews.take(library.name, increment, {
         review: 2,
         checks: [{ check: tautology, tripped: false }, { check: skips, tripped: false }],
-        contracts: [{ contract, met: true }],
+        contracts: [{ contract, met: true, touched: false }],
         rejections: [],
       }, await graduatedFindings(library, notACheckout));
       assert.equal(taken.hits.length, 0);

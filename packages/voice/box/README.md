@@ -35,3 +35,13 @@ The last step checks the work. The service should show `User=storytree-voice` an
 The door should answer a bare 404 outside its route. `question list` should answer as the door's user.
 The role's rights should read `reads t`, `writes f`, `lock_add t`, `lock_clear f` and `superuser f`.
 The script ends by printing the rollback and the kill switches.
+
+`/etc/storytree-voice/env` gets only the door's own settings from the spike's env file: its secret,
+`PORT`, `ALLOWED_HOSTS` and `ALLOWED_CIDRS` (contract 4.7). A path in that file, such as its
+`REPO_DIR`, would override the unit's own and point under a home folder the door cannot see.
+If the confined door is not running and answering five seconds after the cut-over, the script stops
+it and turns the owner's user units back on, so the connector is never left down.
+
+Step 3's install warns `Failed to create bin ... @storytree/cli/dist/storytree.mjs`. It does not
+matter: that file exists only after a build, and the door runs the command line from its source
+through tsx, never through that link.

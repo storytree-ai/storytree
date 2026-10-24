@@ -224,3 +224,37 @@ test("4.6 system-units --dry-run names the five units and writes nothing; withou
   assert.deepEqual(readdirSync(dir).sort(), Object.keys(systemUnits()).sort());
   assert.equal(readFileSync(path.join(dir, "storytree-voice.service"), "utf8"), systemUnits()["storytree-voice.service"]);
 });
+
+test("4.7 door-env copies only the door's own settings from the spike's env file, dropping every path the confined unit sets itself, and writes nothing on --dry-run", () => {
+  const dir = tempDir();
+  const from = path.join(dir, "spike-env");
+  const to = path.join(dir, "door-env");
+  writeFileSync(
+    from,
+    [
+      "# the spike's settings",
+      "VOICE_SPIKE_TOKEN=secret-one",
+      "REPO_DIR=/home/owner/code/storytree03",
+      "PORT=8787",
+      "STORYTREE_CLI=[\"/home/owner/.nvm/node\"]",
+      "ALLOWED_HOSTS=mint.example.ts.net",
+      "HOME=/home/owner",
+      "STORYTREE_HOME=/home/owner/.storytree/0.3",
+      "PATH=/home/owner/.nvm/bin:/usr/bin",
+      "ALLOWED_CIDRS=160.79.104.0/21",
+      "",
+    ].join("\n"),
+  );
+  const io = hostIo(tempDir(), tempDir());
+  assert.equal(main(["door-env", "--from", from, "--to", to, "--dry-run"], io), 0);
+  assert.equal(existsSync(to), false, "a dry run writes nothing");
+
+  assert.equal(main(["door-env", "--from", from, "--to", to], io), 0);
+  const kept = settings(readFileSync(to, "utf8"));
+  assert.deepEqual([...kept.keys()].sort(), ["ALLOWED_CIDRS", "ALLOWED_HOSTS", "PORT", "VOICE_SPIKE_TOKEN"]);
+  assert.deepEqual(kept.get("VOICE_SPIKE_TOKEN"), ["secret-one"]);
+  if (process.platform !== "win32") assert.equal(statSync(to).mode & 0o777, 0o600, "the secret is readable by its owner only");
+  const said = io.lines.join("\n");
+  assert.match(said, /REPO_DIR, STORYTREE_CLI, HOME, STORYTREE_HOME, PATH/, "it names what it dropped");
+  assert.doesNotMatch(said, /secret-one/, "it never prints the secret");
+});

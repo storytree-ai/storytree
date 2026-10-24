@@ -5,14 +5,11 @@
  * dropped when storytree moves (a new address or location) or goes away, so the next call starts
  * afresh. The log keeps its lines in the library connection's own database (ADR-0735 D3).
  */
-import { connect, ConnectionError, type ConnectOptions, type Library, type Storytree } from "@storytree/library";
+import { CONNECT_TIMEOUT_MS, connect, explainConnectTimeout, type ConnectOptions, type Library, type Storytree } from "@storytree/library";
 
-import { openNamedProject, readSystemSwitches, requireApproval, withConnectTimeout } from "@storytree/project-and-caller";
+import { openNamedProject, readSystemSwitches, requireApproval } from "@storytree/project-and-caller";
 
 import { currentBranch, openActivityLog, thisMachine, type ActivityLog } from "@storytree/session-management";
-
-/** How long a fresh database handshake may take before a call says storytree isn't reachable. */
-const CONNECT_TIMEOUT_MS = 3_000;
 
 export interface Reached {
   readonly library: Library;
@@ -29,14 +26,17 @@ export class Connections {
   /** Each checkout found approved for its project (ADR-0942), so each is asked once while connected. */
   readonly #approved = new Set<string>();
 
-  /** The connection to the library where `library` says: its server, where projects are opened. */
+  /**
+   * The connection to the library where `library` says: its server, where projects are opened. Each
+   * fresh handshake waits the library's own limit, room for a busy machine (ADR-1163 D1).
+   */
   async server(library: ConnectOptions): Promise<Storytree> {
     const where = JSON.stringify(library);
     if (this.#where !== where) {
       await this.close();
       this.#where = where;
     }
-    return (this.#storytree ??= forgetOnFailure(connect(withConnectTimeout(library, CONNECT_TIMEOUT_MS)), () => (this.#storytree = undefined)));
+    return (this.#storytree ??= forgetOnFailure(connect(library), () => (this.#storytree = undefined)));
   }
 
   /**
@@ -70,10 +70,7 @@ export class Connections {
       await Promise.allSettled([opening, log]);
       // Either handshake can expire first. Give the same actionable answer for the log as
       // the library gives for its pools.
-      if (error instanceof Error && /timeout expired|timeout exceeded when trying to connect|Connection terminated due to connection timeout/i.test(error.message)) {
-        throw new ConnectionError("timeout", "storytree isn't reachable: its database did not answer within 3 seconds. Check that the storytree app is responding, then try again.", error);
-      }
-      throw error;
+      throw explainConnectTimeout(error, CONNECT_TIMEOUT_MS);
     }
   }
 

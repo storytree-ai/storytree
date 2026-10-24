@@ -8,6 +8,7 @@ export { SEED_CONNECTION } from "./seed-connection.js";
 export type { ConnectionProblem } from "./connection-error.js";
 export { ProjectGoneError, ProjectNameError } from "./names.js";
 export { RestoreRefusedError } from "./snapshot.js";
+export { CONNECT_TIMEOUT_MS, explainConnectTimeout } from "./server.js";
 export type { ProjectSnapshot, SnapshotEvent, SnapshotRecord } from "./snapshot.js";
 export { connect } from "./storytree.js";
 export type { ConnectOptions, OpenOptions, OwnDatabaseOptions, Project, Storytree } from "./storytree.js";

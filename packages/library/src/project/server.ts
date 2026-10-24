@@ -35,6 +35,26 @@ export interface ServerAccess {
   close(): void;
 }
 
+/** How long a fresh handshake to a server at a postgres:// URL may take unless the caller gives another (ADR-1163 D1). */
+export const CONNECT_TIMEOUT_MS = 10_000;
+
+/**
+ * `error` as a ConnectionError saying the database took longer than `connectTimeoutMs` to answer
+ * when it is pg's word for a handshake past its deadline; any other error as it is. The one wording
+ * for every caller that reaches a local server, so each says the same thing (ADR-1163 D1).
+ */
+export function explainConnectTimeout(error: unknown, connectTimeoutMs = CONNECT_TIMEOUT_MS): unknown {
+  if (error instanceof Error && /timeout expired|timeout exceeded when trying to connect|Connection terminated due to connection timeout/i.test(error.message)) {
+    return new ConnectionError(
+      "timeout",
+      `storytree isn't reachable: its database took longer than ${connectTimeoutMs / 1000} seconds to answer, and this computer may be busy. ` +
+        "Check that the storytree app is responding, then try again.",
+      error,
+    );
+  }
+  return error;
+}
+
 /**
  * The server at a postgres:// URL. Its own database (the URL's) is the admin pool's, and each
  * project's pool is the same URL with the database swapped: user, host, port and options stay.
@@ -45,7 +65,7 @@ export interface ServerAccess {
  * in seconds) gets that deadline instead: how a test run gives its throwaway server room on a loaded
  * machine without loosening the bound every other library keeps.
  */
-export function localServer(url: URL, givenTimeoutMs = 10_000, bounds: WaitBounds = {}, transport: Transport = loopbackTransport(url.hostname)): ServerAccess {
+export function localServer(url: URL, givenTimeoutMs = CONNECT_TIMEOUT_MS, bounds: WaitBounds = {}, transport: Transport = loopbackTransport(url.hostname)): ServerAccess {
   const connectTimeoutMs = Math.max(givenTimeoutMs, urlConnectTimeoutMs(url));
   const { Pool: base, ...connection } = transport;
   const pool = (connectionString: string, role?: string) =>
@@ -54,17 +74,7 @@ export function localServer(url: URL, givenTimeoutMs = 10_000, bounds: WaitBound
     kind: "postgres",
     admin: pool(url.href),
     pool: (database, role) => pool(databaseUrl(url, database), role),
-    explain: (error) => {
-      if (error instanceof Error && /timeout expired|timeout exceeded when trying to connect|Connection terminated due to connection timeout/i.test(error.message)) {
-        return new ConnectionError(
-          "timeout",
-          `storytree isn't reachable: its database took longer than ${connectTimeoutMs / 1000} seconds to answer, and this computer may be busy. ` +
-            "Check that the storytree app is responding, then try again.",
-          error,
-        );
-      }
-      return error;
-    },
+    explain: (error) => explainConnectTimeout(error, connectTimeoutMs),
     close: () => {},
   };
 }

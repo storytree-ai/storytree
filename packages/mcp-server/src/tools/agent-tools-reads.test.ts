@@ -16,11 +16,12 @@ import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { createServer, connect as openSocket, type AddressInfo, type Socket } from "node:net";
 import path from "node:path";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { Client } from "@modelcontextprotocol/client";
-import { connect, type Library, type Line } from "@storytree/library";
+import { waitUntil } from "@storytree/test-waits";
+import { CONNECT_TIMEOUT_MS, connect, type Library, type Line } from "@storytree/library";
 import { worklist } from "@storytree/library/librarian";
 import pg from "pg";
 
@@ -231,16 +232,17 @@ test('6.4 a bad call gets a readable refusal rather than a crash, and with story
   });
 });
 
-test("6.4 show_plan gives up on a stalled handshake within three seconds and a later call recovers", async (t) => {
+test("6.4 show_plan waits the library's ten seconds for a stalled handshake, then gives the library's refusal, and a later call recovers (ADR-1163 D1)", async () => {
   const upstream = new URL(testServerUrl());
   const held = new Set<Socket>();
   let stalled = true;
+  let stalls = 0;
   const silent = createServer((socket) => {
     held.add(socket);
     socket.on("error", () => {});
     if (stalled) {
+      stalls++;
       socket.resume();
-      setTimeout(() => socket.destroy(), 10_000).unref();
     } else {
       const target = openSocket(Number(upstream.port), upstream.hostname);
       held.add(target);
@@ -256,13 +258,26 @@ test("6.4 show_plan gives up on a stalled handshake within three seconds and a l
       placeTestServer(dataDir, { port: (silent.address() as AddressInfo).port });
       await approveCheckout(folder, project, folder);
       await withAgent(folder, claudeCode("stalled-db", { dataDir }), async (agent) => {
-        const started = performance.now();
-        const answer = await agent.call("show_plan");
-        const waited = performance.now() - started;
-        t.diagnostic(`show_plan answered after ${waited.toFixed(0)} ms: ${answer.text}`);
-        assert.ok(waited >= 2_500 && waited < 4_000, `the 3 s deadline plus scheduling allowance, got ${waited.toFixed(0)} ms`);
-        assert.match(answer.text, /storytree isn't reachable/i);
-        assert.match(answer.text, /check.*app.*try again/i);
+        // The deadline runs on a mocked clock, so the test does not wait the ten seconds.
+        mock.timers.enable({ apis: ["setTimeout"] });
+        try {
+          let answer: Answer | undefined;
+          const calling = agent.call("show_plan").then((answered) => (answer = answered));
+          await waitUntil(() => stalls > 0, 5_000, "the handshake to reach the silent server", { clock: networkClock });
+          mock.timers.tick(CONNECT_TIMEOUT_MS - 1);
+          await turns(20);
+          assert.equal(answer, undefined, "still waiting just short of the library's limit");
+          mock.timers.tick(1);
+          await waitUntil(() => answer !== undefined, 5_000, "show_plan to answer at the library's limit", { clock: networkClock });
+          const refused = await calling;
+          assert.equal(CONNECT_TIMEOUT_MS, 10_000);
+          assert.equal(
+            refused.text,
+            "storytree refused that: storytree isn't reachable: its database took longer than 10 seconds to answer, and this computer may be busy. Check that the storytree app is responding, then try again.",
+          );
+        } finally {
+          mock.timers.reset();
+        }
         stalled = false;
         const recovered = await agent.call("show_plan");
         assert.equal(recovered.isError, false, recovered.text);
@@ -274,6 +289,15 @@ test("6.4 show_plan gives up on a stalled handshake within three seconds and a l
     await new Promise<void>((resolve) => silent.close(() => resolve()));
   }
 });
+
+/** The real clock, kept for waiting on the network while a test runs on a mocked one. */
+const realSetTimeout = setTimeout;
+const networkClock = { now: () => performance.now(), sleep: (ms: number) => new Promise<void>((resolve) => realSetTimeout(resolve, ms)) };
+
+/** Let the event loop turn `count` times. */
+async function turns(count: number): Promise<void> {
+  for (let turn = 0; turn < count; turn++) await new Promise((resolve) => setImmediate(resolve));
+}
 
 test("6.5 a note written with no place named while holding a claim goes onto that capability's shelf (ADR-0627 D4), and one written with no claim gets no default place", async () => {
   await withProject(async ({ folder, library }) => {

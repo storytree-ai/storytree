@@ -5,6 +5,8 @@
  *   voice-host install [--dry-run] [--repo-dir <dir>]   the copy (never the pool's checkout), its env file and the three
  *                                                        user units; enables the timer
  *   voice-host refresh                                   what the timer runs, in the copy it lives in
+ *   voice-host system-units [--dry-run] [--dir <dir>]    the confined system units (contract 4.6), into /etc/systemd/system
+ *                                                        by default; box/confine.sh runs it as root and enables them
  *
  * install never starts the door: the cut-over from the spike is its own step, printed at the end with its rollback.
  */
@@ -13,7 +15,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { REFRESH, SERVICE, boxSteps, doorEnv, refresh, secretEnv, units } from "../host.js";
+import { REFRESH, SERVICE, boxSteps, doorEnv, refresh, secretEnv, systemUnits, units } from "../host.js";
 
 export interface HostIo {
   readonly home: string;
@@ -45,11 +47,20 @@ export function main(argv: readonly string[], io: HostIo = boxIo): number {
     io.say(outcome.moved ? `${new Date().toISOString()} moved ${outcome.from.slice(0, 12)} -> ${outcome.to.slice(0, 12)}${outcome.reinstalled ? ", reinstalled" : ""}, restarted ${SERVICE}` : `${new Date().toISOString()} at main ${outcome.head.slice(0, 12)}, nothing to do`);
     return 0;
   }
+  const dryRun = rest.includes("--dry-run");
+  if (command === "system-units") {
+    const at = rest.indexOf("--dir");
+    const dir = at >= 0 && rest[at + 1] ? path.resolve(rest[at + 1]!) : "/etc/systemd/system";
+    for (const [file, text] of Object.entries(systemUnits())) {
+      io.say(`${dryRun ? "would write" : "write"} ${path.join(dir, file)}`);
+      if (!dryRun) writeFileSync(path.join(dir, file), text, { mode: 0o644 });
+    }
+    return 0;
+  }
   if (command !== "install") {
-    io.say("usage: voice-host install [--dry-run] [--repo-dir <dir>] | voice-host refresh");
+    io.say("usage: voice-host install [--dry-run] [--repo-dir <dir>] | voice-host refresh | voice-host system-units [--dry-run] [--dir <dir>]");
     return 1;
   }
-  const dryRun = rest.includes("--dry-run");
   const at = rest.indexOf("--repo-dir");
   const repoDir = at >= 0 && rest[at + 1] ? path.resolve(rest[at + 1]!) : path.join(io.home, "storytree-voice-door");
   const pool = poolCheckout(io);

@@ -253,7 +253,7 @@ test("4.7 door-env copies only the door's own settings from the spike's env file
   const kept = settings(readFileSync(to, "utf8"));
   assert.deepEqual([...kept.keys()].sort(), ["ALLOWED_CIDRS", "ALLOWED_HOSTS", "PORT", "VOICE_SPIKE_TOKEN"]);
   assert.deepEqual(kept.get("VOICE_SPIKE_TOKEN"), ["secret-one"]);
-  assert.equal(statSync(to).mode & 0o777, 0o600, "the secret is readable by its owner only");
+  if (process.platform !== "win32") assert.equal(statSync(to).mode & 0o777, 0o600, "the secret is readable by its owner only");
   const said = io.lines.join("\n");
   assert.match(said, /REPO_DIR, STORYTREE_CLI, HOME, STORYTREE_HOME, PATH/, "it names what it dropped");
   assert.doesNotMatch(said, /secret-one/, "it never prints the secret");

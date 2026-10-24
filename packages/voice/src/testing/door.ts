@@ -9,10 +9,14 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { LIMITS, type Limits } from "../children.js";
 import { loadConfig } from "../config.js";
 import { startDoor, type Door } from "../door.js";
+import { SIGNED_TOOL_NAMES } from "../signin.js";
+import { OLD_NAMES, TOOL_NAMES } from "../tools.js";
+import { WRITE_TOOL_NAMES } from "../writes.js";
 
 export const FAKE_CLI = [process.execPath, fileURLToPath(new URL("fake-cli.mjs", import.meta.url))];
 export const TUNNEL_HOST = "voice-box.example-tailnet.ts.net";
@@ -152,6 +156,23 @@ export function childrenIn(logFile: string): { started: number; ended: number; p
   }
   const commands = text.split("\n").filter((line) => line.startsWith("start ")).map((line) => JSON.parse(line.split(" ").slice(3).join(" ") || "[]") as string[]);
   return { started: events.filter((e) => e.kind === "start").length, ended: events.filter((e) => e.kind === "end").length, peak, text, commands };
+}
+
+/** Every tool name a door may offer, with sign-in and writes or without. */
+const ANY_TOOL = [...TOOL_NAMES, ...Object.keys(OLD_NAMES), ...SIGNED_TOOL_NAMES, ...WRITE_TOOL_NAMES];
+
+/**
+ * Contract 2.19 as a client sees it: the instructions it got on connect name catch_up before any other tool, and name no
+ * tool its tools/list does not offer. Gives back the tools they name.
+ */
+export async function namesOnlyListedTools(client: Client): Promise<string[]> {
+  const instructions = client.getInstructions() ?? "";
+  const listed = new Set((await client.listTools()).tools.map((tool) => tool.name));
+  const at = (name: string) => instructions.search(new RegExp(`\\b${name}\\b`));
+  const named = ANY_TOOL.filter((name) => at(name) >= 0).sort((a, b) => at(a) - at(b));
+  assert.equal(named[0], "catch_up", `the instructions lead with ${named[0]}`);
+  for (const name of named) assert.ok(listed.has(name), `the instructions name ${name}, which tools/list does not offer`);
+  return named;
 }
 
 export async function connect(port: number, token: string, options?: ConstructorParameters<typeof Client>[1], headers?: Record<string, string>): Promise<Client> {

@@ -1,5 +1,5 @@
 /**
- * Capability 5 · Drafted writes with read-back and undo, contracts 5.1-5.9: the write tools through the door, drafting into
+ * Capability 5 · Drafted writes with read-back and undo, contracts 5.1-5.11, and capability 2's 2.19 with sign-in and writes: the write tools through the door, drafting into
  * a throwaway door database made from box/door-database.sql with a role granted exactly that file, the box's committer, and
  * its listener (with capability 4's contract 4.8).
  */
@@ -23,7 +23,7 @@ import { DROPPED, commitDue, laptopWindowOpen, runFiles } from "./commit.js";
 import { Drafts } from "./drafts.js";
 import { serialTicks } from "./listen.js";
 import { WRITE_TOOL_NAMES } from "./writes.js";
-import { LEGACY_HEADERS, childrenIn, connect, gitRepo, raw, testDoor, textOf, toolCall, until, type TestDoor } from "./testing/door.js";
+import { LEGACY_HEADERS, childrenIn, connect, gitRepo, namesOnlyListedTools, raw, testDoor, textOf, toolCall, until, type TestDoor } from "./testing/door.js";
 
 const repo = gitRepo({ "README.md": "voice test repository\n" });
 const PUBLIC_URL = "https://voice-box.example-tailnet.ts.net";
@@ -497,6 +497,62 @@ const listeners = (url: string) =>
   onDatabase(url, async (client) => Number((await client.query("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND query = 'LISTEN voice_run'")).rows[0].count));
 
 const laneRuns = (laneLog: string) => (existsSync(laneLog) ? readFileSync(laneLog, "utf8").trim().split("\n") : []);
+
+test("5.11 · a run's reply is offered by catch_up until the owner marks it heard, then never again; replies keep their numbers, and only an ended run is heard, once", async (t) => {
+  const voice = await writesDoor(t);
+  for (const words of ["first", "second", "third"]) await draftRun(voice.asRole, words);
+  await onDatabase(voice.asOwner, (client) => client.query("UPDATE voice_draft SET run_ended_at = now(), reply = 'Reply to ' || words WHERE id IN (1, 2)"));
+  // Older than a day: still offered until heard.
+  await backdate(voice.asOwner, 1, "run_ended_at = now() - interval '3 days'");
+  const replies = async () => (await voice.call("catch_up", {})).text.split("Replies ready:\n")[1]!.split("\n");
+  assert.deepEqual(await replies(), ["Draft 2, the run you asked for: Reply to second", "Draft 1, the run you asked for: Reply to first"]);
+
+  await voice.call("lock_voice", { reason: "heard marks work while locked" });
+  const heard = await voice.call("mark_heard", { drafts: [2] });
+  assert.equal(heard.refused, false, heard.text);
+  assert.deepEqual(await replies(), ["Draft 1, the run you asked for: Reply to first"]);
+  for (const [drafts, refusal] of [[[3], /draft 3 has no reply to hear yet/], [[2], /already heard/], [[99], /there is no draft 99/]] as const) {
+    const said = await voice.call("mark_heard", { drafts });
+    assert.equal(said.refused, true, said.text);
+    assert.match(said.text, refusal);
+  }
+  const rest = await voice.call("mark_heard", {});
+  assert.equal(rest.refused, false, rest.text);
+  assert.match(rest.text, /draft 1's reply/);
+  assert.deepEqual(await replies(), ["(none)"]);
+  assert.equal((await voice.call("mark_heard", {})).refused, true);
+
+  const [first, second, third] = await rows(voice.asOwner);
+  assert.notEqual(first.heard_at, null);
+  assert.notEqual(second.heard_at, null);
+  assert.equal(third.heard_at, null);
+  // The door's role cannot clear a mark, set one on a run still going, or choose its time.
+  await onDatabase(voice.asRole, async (client) => {
+    await assert.rejects(client.query("UPDATE voice_draft SET heard_at = NULL WHERE id = 2"), /already heard/);
+    await assert.rejects(client.query("UPDATE voice_draft SET heard_at = now() WHERE id = 3"), /no reply to hear yet/);
+  });
+  await onDatabase(voice.asOwner, (client) => client.query("UPDATE voice_draft SET run_ended_at = now() WHERE id = 3"));
+  await onDatabase(voice.asRole, (client) => client.query("UPDATE voice_draft SET heard_at = '2000-01-01' WHERE id = 3"));
+  assert.ok((await rows(voice.asOwner))[2].heard_at.getFullYear() > 2000, "the role chose the heard time");
+});
+
+test("2.19 · with sign-in, and with writes, the instructions lead with catch_up, name no tool tools/list does not offer, and give the write rules only with writes on", async (t) => {
+  const plain = await testDoor(repo.dir, signInEnv());
+  try {
+    const client = await connect(plain.port, plain.token, undefined, { authorization: `Bearer ${await ownerToken(plain)}` });
+    const named = await namesOnlyListedTools(client);
+    assert.ok(named.includes("who_am_i"), "who_am_i is listed but not named");
+    assert.ok(!named.includes("save_note"));
+    await client.close();
+  } finally {
+    await plain.close();
+  }
+  const voice = await writesDoor(t);
+  const named = await namesOnlyListedTools(voice.client);
+  for (const name of ["save_note", "mark_heard", "start_manager_run", "confirm"]) assert.ok(named.includes(name), `the write rules do not name ${name}`);
+  assert.match(voice.client.getInstructions() ?? "", /send these to the manager\?/);
+  assert.doesNotMatch(voice.client.getInstructions() ?? "", /Nothing here changes/);
+});
 
 test("5.9 a confirmed manager run starts within seconds: the door's database notifies voice_run and the box's listener runs a tick, which also catches up on what was confirmed while it was down, and a run's end mark brings its reply back at once", async (t) => {
   const voice = await writesDoor(t);

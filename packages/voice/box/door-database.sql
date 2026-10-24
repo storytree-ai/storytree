@@ -44,6 +44,10 @@ CREATE TABLE IF NOT EXISTS voice_lock (
 -- ('scheduled YYYY-MM-DD', ADR-1155 D4) on a note it takes, once, and never one a run swept. A note
 -- with either mark, or an outcome, is swept: no run carries it again. The door's role may never set
 -- any of them. At most 50 notes from one day's voice session wait unswept.
+--
+-- HEARD (contract 5.11). A manager run's reply is offered by catch_up until the owner says it is fine:
+-- then the door's role marks it heard. Only an ended run is heard, once, at the database's time, and
+-- the mark is never cleared.
 CREATE TABLE IF NOT EXISTS voice_draft (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   kind text NOT NULL,
@@ -63,7 +67,8 @@ CREATE TABLE IF NOT EXISTS voice_draft (
   reply text CHECK (char_length(reply) <= 4000),
   swept_at timestamptz,
   swept_by_run integer REFERENCES voice_draft (id),
-  swept_by text
+  swept_by text,
+  heard_at timestamptz
 );
 
 -- A table made by this script before notes: their columns, and the kinds' rules in place of its own.
@@ -71,6 +76,7 @@ ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS note_kind text;
 ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS swept_at timestamptz;
 ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS swept_by_run integer REFERENCES voice_draft (id);
 ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS swept_by text;
+ALTER TABLE voice_draft ADD COLUMN IF NOT EXISTS heard_at timestamptz;
 ALTER TABLE voice_draft DROP CONSTRAINT IF EXISTS voice_draft_kind_check;
 ALTER TABLE voice_draft DROP CONSTRAINT IF EXISTS voice_draft_check;
 ALTER TABLE voice_draft DROP CONSTRAINT IF EXISTS voice_draft_kinds;
@@ -90,7 +96,7 @@ BEGIN
     NEW.drafted_at := now();
     NEW.expires_at := now() + interval '15 minutes';
     NEW.confirmed_at := NULL; NEW.commit_at := NULL; NEW.cancelled_at := NULL; NEW.committed_at := NULL;
-    NEW.outcome := NULL; NEW.run_ended_at := NULL; NEW.reply := NULL; NEW.swept_at := NULL; NEW.swept_by_run := NULL; NEW.swept_by := NULL;
+    NEW.outcome := NULL; NEW.run_ended_at := NULL; NEW.reply := NULL; NEW.swept_at := NULL; NEW.swept_by_run := NULL; NEW.swept_by := NULL; NEW.heard_at := NULL;
     IF NEW.kind = 'note' THEN
       IF (SELECT count(*) FROM voice_draft WHERE kind = 'note' AND session = NEW.session
           AND swept_by_run IS NULL AND swept_by IS NULL AND outcome IS NULL) >= 50 THEN
@@ -122,6 +128,11 @@ BEGIN
     NEW.swept_at := now();
   ELSIF NEW.swept_at IS DISTINCT FROM OLD.swept_at THEN
     RAISE EXCEPTION 'note %''s sweep time is set by sweeping it', OLD.id;
+  END IF;
+  IF NEW.heard_at IS DISTINCT FROM OLD.heard_at THEN
+    IF OLD.heard_at IS NOT NULL THEN RAISE EXCEPTION 'draft %''s reply was already heard', OLD.id; END IF;
+    IF OLD.kind <> 'manager_run' OR OLD.run_ended_at IS NULL THEN RAISE EXCEPTION 'draft % has no reply to hear yet', OLD.id; END IF;
+    NEW.heard_at := now();
   END IF;
   IF NEW.confirmed_at IS DISTINCT FROM OLD.confirmed_at THEN
     IF OLD.cancelled_at IS NOT NULL THEN RAISE EXCEPTION 'draft % was cancelled', OLD.id; END IF;
@@ -171,6 +182,6 @@ GRANT USAGE ON SCHEMA public TO storytree_voice;
 GRANT SELECT, INSERT ON voice_lock TO storytree_voice;
 GRANT SELECT ON voice_draft TO storytree_voice;
 GRANT INSERT (kind, note_kind, question, words, body, session) ON voice_draft TO storytree_voice;
-GRANT UPDATE (confirmed_at, cancelled_at) ON voice_draft TO storytree_voice;
+GRANT UPDATE (confirmed_at, cancelled_at, heard_at) ON voice_draft TO storytree_voice;
 
 RESET ROLE;

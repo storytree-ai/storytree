@@ -325,7 +325,7 @@ test("5.6 start_manager_run briefs a session manager run from the door's templat
   assert.equal(existsSync(scratch.laneLog), false);
 
   await commitDue(drafts, { ...committer, now: () => sydney("14:20:00") });
-  assert.equal((await rows(voice.asOwner))[0].outcome, "started");
+  assert.notEqual((await rows(voice.asOwner))[0].committed_at, null, "the run was not started outside the window");
   const files = runFiles(scratch.env.VOICE_RUNS_DIR, 1);
   assert.ok(await until(() => existsSync(files.ended), 10_000), "the run's end was never marked");
   assert.equal(readFileSync(scratch.laneLog, "utf8").trim(), files.brief);

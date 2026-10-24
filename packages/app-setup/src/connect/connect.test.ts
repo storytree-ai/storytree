@@ -91,6 +91,8 @@ test("2.13 the agents this computer runs are found, each said connected to this 
   assert.deepEqual((await agentsOnThisComputer(options)).map((found) => found.connected), [false, true], "connecting one says so of it alone");
   const elsewhere = installedToolServerCommand(process.execPath, path.join(f.home, "another installation", "storytree-mcp.mjs"));
   assert.deepEqual((await agentsOnThisComputer({ ...options, installed: elsewhere })).map((found) => found.connected), [false, false], "another installation's entry is not this one connected");
+  writeFileSync(f.claudeFile, "{ not json");
+  assert.deepEqual((await agentsOnThisComputer(options))[0], { harness: "claude-code", agent: "Claude Code", connected: false }, "settings it cannot read are offered, not said connected");
 });
 
 test("2.10 choosing Cursor registers the tool server in ~/.cursor/mcp.json and storytree's hooks in ~/.cursor/hooks.json, keeping every other server and hook; repeating changes nothing, disconnecting removes exactly what it added, and a machine without Cursor gets a recovery action, not a success", async (t) => {

@@ -80,6 +80,56 @@ test("3.13 the guide's first run offers to connect each agent this computer runs
   } finally { mounted.stop(); }
 });
 
+test("3.13 a Connect that fails can be tried again, one at a time; an Add a project… that fails says why; and the offer is read again each time the guide shows", async () => {
+  let reads = 0;
+  let answer: () => Promise<{ agent: string; connected: boolean; next: string }> = async () => ({ agent: "Codex", connected: false, next: "Install Codex, sign in, and retry Connect." });
+  let adding: () => Promise<never> = async () => { throw new Error("the library is not open"); };
+  const mounted = mountSetupHelp(document.body, helpBridge({
+    agentsToConnect: async () => { reads++; return [{ harness: "codex", agent: "Codex", connected: false }]; },
+    connectAgent: () => answer(),
+    addProject: () => adding(),
+  }));
+  try {
+    await setImmediate();
+    const button = () => document.querySelector<HTMLButtonElement>("[data-connect-agent=codex]")!;
+    button().click();
+    assert.equal(button().disabled, true, "one Connect at a time");
+    await setImmediate();
+    assert.equal(button().disabled, false);
+    assert.match(document.querySelector("[data-connect]")!.textContent!, /Install Codex, sign in, and retry Connect\./);
+    answer = async () => { throw new Error("ipc closed"); };
+    button().click();
+    await setImmediate();
+    assert.equal(button().disabled, false);
+    assert.match(document.querySelector("[data-connect]")!.textContent!, /Codex could not be connected\. Try again\./);
+
+    const add = document.querySelector<HTMLButtonElement>("[data-guide-add-project]")!;
+    add.click();
+    assert.equal(add.disabled, true, "one picker at a time");
+    await setImmediate();
+    assert.equal(add.disabled, false);
+    const status = document.querySelector<HTMLElement>("[data-guide-add-status]")!;
+    assert.equal(status.textContent, "The folder could not be added: the library is not open");
+    assert.equal(status.getAttribute("role"), "alert");
+
+    assert.equal(reads, 1);
+    document.querySelector<HTMLButtonElement>("[data-page=license]")!.click();
+    document.querySelector<HTMLButtonElement>("[data-page=guide]")!.click();
+    await setImmediate();
+    assert.equal(reads, 2, "showing the guide again reads the agents again");
+  } finally { mounted.stop(); }
+});
+
+test("3.13 when the agents cannot be read the guide says why", async () => {
+  const mounted = mountSetupHelp(document.body, helpBridge({ agentsToConnect: async () => { throw new Error("No delivery record"); } }));
+  try {
+    await setImmediate();
+    const offer = document.querySelector<HTMLElement>("[data-connect]")!;
+    assert.equal(offer.textContent, "The coding agents on this computer could not be read: No delivery record");
+    assert.equal(offer.getAttribute("role"), "alert");
+  } finally { mounted.stop(); }
+});
+
 test("3.13 with no coding agent on this computer the guide says how to get one", async () => {
   const mounted = mountSetupHelp(document.body, helpBridge());
   try {

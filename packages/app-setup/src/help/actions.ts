@@ -6,7 +6,7 @@ import { factoryFolder, makeFactoryFolder, readProjectChoice, setFactory } from 
 
 import { HARNESS_IDS, watchedHarness, type Harness } from "@storytree/project-and-caller/caller";
 
-import { agentsOnThisComputer, connectAgents } from "../connect/index.js";
+import { agentsOnThisComputer, connectAgents, type ConnectionOptions } from "../connect/index.js";
 import { deliveredCommand } from "../connect/installed.js";
 import { CODEX_TRUST_STEP, runSetupCheck } from "../setup/index.js";
 import type { Library, Storytree } from "@storytree/library";
@@ -45,6 +45,8 @@ export function setupHelpActions(options: {
   library(): Storytree;
   /** The installed app's own agent tools, used when the installer has recorded none in delivery.json. */
   agentTools?: string;
+  /** Where the agents are looked for and connected. By default, this user's home and environment. */
+  connections?: Pick<ConnectionOptions, "home" | "env" | "run">;
 }): SetupHelpBridge {
   // First launch asks for no factory folder (ADR-1118): with none chosen, storytree's own is made as the app starts.
   makeFactoryFolder(options.storytreeHome);
@@ -62,11 +64,11 @@ export function setupHelpActions(options: {
       return connections;
     },
     async agentsToConnect() {
-      return (await agentsOnThisComputer({ installed: installed() })).map(({ harness, agent, connected }) => ({ harness, agent, connected }));
+      return (await agentsOnThisComputer({ ...options.connections, installed: installed() })).map(({ harness, agent, connected }) => ({ harness, agent, connected }));
     },
     async connectAgent(harness) {
       if (typeof harness !== "string" || !(HARNESS_IDS as readonly string[]).includes(harness)) throw new Error("Choose an agent this computer runs.");
-      const [result] = await connectAgents({ harnesses: [harness as Harness], installed: installed() });
+      const [result] = await connectAgents({ ...options.connections, harnesses: [harness as Harness], installed: installed() });
       return { agent: watchedHarness(harness)?.label ?? harness, connected: result!.tools !== "not connected", next: result!.next };
     },
     async checkSetupFolder() {

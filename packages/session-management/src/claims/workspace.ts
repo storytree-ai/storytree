@@ -15,7 +15,7 @@ import path from "node:path";
 
 import { claim, claimRefusal, reasonRefusal, readClaim, readClaims, release, type Claim, type ClaimAnswer, type ClaimContext } from "./claims.js";
 import { endIfMerged, ghAllOpenPulls, inMergeQueue, type MergeWatch } from "./merges.js";
-import { setUpWorktree, type SetupLimits, type WorktreeSetup } from "./worktree-setup.js";
+import { setUpWorktree, wasSetUp, type SetupLimits, type WorktreeSetup } from "./worktree-setup.js";
 
 type WorkspaceContext = ClaimContext & { readonly folder: string };
 
@@ -50,7 +50,7 @@ export interface ClaimedWorkspace {
   takenOverFrom?: Claim;
   /** Claimed in the worktree the session called from, which already held its work: nothing was made (5.19). */
   existing?: true;
-  /** What the project's local setup file did in the new worktree; absent when the project has none (19.1-19.3). */
+  /** What the project's local setup file did in the new worktree, made here or by Codex's app; absent when the project has none (19.1-19.3, 19.5). */
   setup?: WorktreeSetup;
 }
 
@@ -179,7 +179,15 @@ export async function attachWorkspace(context: WorkspaceContext, id: string, rea
     await release(context, id);
     return { ok: false, refused: "no-workspace", why: `could not attach the app worktree; the claim was released: ${firstLine(error)}` };
   }
-  return { ok: true, status: "ready", claim: claimed.claim, folder, branch, base, ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }) };
+  // Codex's app made this worktree at the prepared commit, so it is new: the local file sets it up once, as makeWorkspace does (19.5).
+  // A Claude Code session's own worktree is where it already works, and is left as it is.
+  const repository = codex && !wasSetUp(folder) ? repositoryOf(context.folder) : undefined;
+  const setup = typeof repository === "string" ? setUpWorktree(repository, folder) : undefined;
+  return {
+    ok: true, status: "ready", claim: claimed.claim, folder, branch, base,
+    ...(claimed.takenOverFrom === undefined ? {} : { takenOverFrom: claimed.takenOverFrom }),
+    ...(setup === undefined ? {} : { setup }),
+  };
 }
 
 /**

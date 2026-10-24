@@ -211,8 +211,8 @@ function registerClaimTools(define: Define, merges: MergeWatch): void {
       const attached = await attachWorkspace(claimContext(call), id, reason, { folder: folder ?? call.folder, ...(ref === undefined ? {} : { ref }), ...(name === undefined ? {} : { name }) });
       if (!attached.ok) return { text: `${await workspaceRefusalText(call.library, id, attached)} The worktree is kept.`, refused: true, data: { attached: false } };
       return {
-        text: `Attached ${attached.folder}, on branch ${attached.branch} at ${attached.base}; you hold ${await titleOf(call.library, id)} there. Use that directory explicitly for your commands and set it up as this project does at session start (install its packages).`,
-        data: { attached: true, folder: attached.folder, branch: attached.branch, base: attached.base },
+        text: `Attached ${attached.folder}, on branch ${attached.branch} at ${attached.base}; you hold ${await titleOf(call.library, id)} there. Use that directory explicitly for your commands${attached.setup === undefined ? " and set it up as this project does at session start (install its packages)." : `.\n${setupText(attached.setup)}`}`,
+        data: { attached: true, folder: attached.folder, branch: attached.branch, base: attached.base, ...(attached.setup === undefined ? {} : { setup: attached.setup }) },
       };
     },
     AGENT,

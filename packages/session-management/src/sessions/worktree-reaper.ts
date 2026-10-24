@@ -21,6 +21,8 @@
  *   that failed on Windows long paths) goes the same way once no process works in it, no session
  *   wrote there and the folder itself has not changed for a day, and it holds no file whose content
  *   git lacks (ADR-0790 D4). Links inside it, such as pnpm's junctions, are removed, never followed.
+ * - A worktree storytree set up with teardown commands (capability 19, contract 19.4) has them run
+ *   first, by a process of their own, once it would otherwise go: it stays until they have finished.
  * - It runs at most once a minute per project on each machine, for at most a few seconds, and never
  *   fails a hook: git refusing anything leaves that worktree for the next pass.
  */
@@ -29,6 +31,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFile
 import path from "node:path";
 
 import { due, projectTempFile, type MergeContext } from "../claims/merges.js";
+import { startTeardown, teardownState } from "../claims/worktree-setup.js";
 import { registeredHookScripts } from "../hooks/registered.js";
 import { readSessions } from "./sessions.js";
 import { changedAt, foldersInUse, gitWithin, holdsUnknownContent, reachableObjects, unlistedFolders } from "./worktree-leftovers.js";
@@ -100,8 +103,13 @@ export async function reapWorktrees(context: MergeContext, watch: ReapWatch = {}
     if (Date.now() > deadline) break;
     looked[tree.folder] = Date.now();
     try {
-      if (git(tree.folder, "status", "--porcelain") !== "") continue;
+      // A worktree set up with a teardown is judged clean before its teardown runs, which may leave files (19.4).
+      const torn = teardownState(tree.folder);
+      if (torn !== "done" && git(tree.folder, "status", "--porcelain") !== "") continue;
       git(tree.folder, "merge-base", "--is-ancestor", "HEAD", main);
+      // Its teardown runs in a process of its own; the worktree waits for it to finish, for a later pass.
+      if (torn === "due") startTeardown(tree.folder);
+      if (torn === "due" || torn === "running") continue;
       const server = await stopTestServer(tree.folder, deadline);
       if (server === "running") continue;
       mkdirSync(trash, { recursive: true });

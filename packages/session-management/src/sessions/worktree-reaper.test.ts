@@ -17,6 +17,7 @@ import { claim, release } from "../claims/index.js";
 import { git, withTempDir } from "@storytree/project-and-caller/testing/folders";
 import { dropTestProjects, testServerUrl, uniqueProjectName } from "@storytree/project-and-caller/testing/pg";
 import { closeOut, readSessions, reapWorktrees } from "./index.js";
+import { setUpWorktree } from "../claims/worktree-setup.js";
 import { EMPTY_TRASH } from "./worktree-reaper.js";
 
 test("4.12, 4.18 a new admitted claim reopens a closed-out session and keeps its fresh worktree before any edit; a later close-out permits reaping", async () => {
@@ -288,4 +289,51 @@ test("4.36 a folder under .claude/worktrees that git no longer lists goes once i
       await log.close();
     }
   });
+});
+
+test("19.4 · a worktree set up from the local file that names teardown commands has them run in it, in order, by a process of their own once the reaper would remove it, and is removed on a later pass once they have finished, a failed one included; a worktree never set up runs none", async () => {
+  const log = await openActivityLog(testServerUrl());
+  const project = uniqueProjectName();
+  try {
+    await withTempDir(async (dir) => {
+      const repo = path.join(dir, "site");
+      git(dir, "init", "-q", "-b", "main", repo);
+      writeFileSync(path.join(repo, "a.txt"), "a\n");
+      git(repo, "add", "a.txt");
+      git(repo, "commit", "-q", "-m", "first");
+      const said = path.join(dir, "torn-down.txt");
+      mkdirSync(path.join(repo, ".storytree"));
+      writeFileSync(path.join(repo, ".git", "info", "exclude"), ".storytree/\n");
+      const record = (word: string) => `node -e "require('fs').appendFileSync(${JSON.stringify(said).replace(/"/g, "'")}, '${word} ' + require('path').basename(process.cwd()) + '\\n')"`;
+      writeFileSync(path.join(repo, ".storytree", "worktree.local.json"), JSON.stringify({ teardown: [record("first"), "node -e \"process.exit(4)\"", record("then")] }));
+      const here = { harness: "claude-code", source: "hook", machine: "here" } as const;
+      const tree = async (name: string) => {
+        const folder = path.join(dir, name);
+        git(repo, "worktree", "add", "-q", "-b", `claude/${name}`, folder, "main");
+        await log.append(project, { ...here, session: `s-${name}`, folder, branch: `claude/${name}`, kind: "file-edited", files: ["x.ts"] });
+        await log.append(project, { ...here, session: "observer", folder: repo, kind: "branch-state", of: `claude/${name}`, open: false, how: "not-ahead" });
+        await log.append(project, { ...here, session: `s-${name}`, folder, branch: `claude/${name}`, kind: "closed-out", safe: true, why: "merged", running: 0 });
+        return folder;
+      };
+      const setUp = await tree("set-up");
+      assert.deepEqual(setUpWorktree(repo, setUp)?.steps, [], "setting up runs no teardown");
+      const plain = await tree("plain");
+      assert.equal(existsSync(said), false);
+
+      const observer = { log, project, folder: repo, session: "observer", harness: "claude-code", source: "hook" } as const;
+      const watch = { everyMs: 0, budgetMs: 60_000, protect: [], empty: (trash: string) => rmSync(trash, { recursive: true, force: true }) };
+      assert.deepEqual(await reapWorktrees(observer, watch), [plain], "one never set up goes at once");
+      assert.equal(existsSync(setUp), true, "one set up stays while its teardown runs");
+      const reaped: string[] = [];
+      for (const until = Date.now() + 20_000; reaped.length === 0 && Date.now() < until;) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        reaped.push(...(await reapWorktrees(observer, watch)));
+      }
+      assert.deepEqual(reaped, [setUp], "it goes once its teardown has finished");
+      assert.equal(existsSync(setUp), false);
+      assert.equal(readFileSync(said, "utf8"), "first set-up\nthen set-up\n", "each command ran in the worktree, in order, past a failed one, and only there");
+    });
+  } finally {
+    await log.close();
+  }
 });

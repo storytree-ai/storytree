@@ -80,7 +80,9 @@ const attach = verb({
     const { attachWorkspace } = await import("./workspace.js");
     const attached = await attachWorkspace(context, id, why, attachment);
     if (!attached.ok) throw new VerbRefusal(`${workspaceRefusalText(id, attached)} The app's worktree is kept.`);
-    return { text: `Attached workspace ${attached.folder}\nBranch: ${attached.branch}, at ${attached.base}.\n${context.session} holds ${id}: ${why}\nUse that directory explicitly for commands. Set it up as this project does at session start.` };
+    const { setupText } = await import("./worktree-setup.js");
+    const setUp = attached.setup === undefined ? "Set it up as this project does at session start." : setupText(attached.setup);
+    return { text: `Attached workspace ${attached.folder}\nBranch: ${attached.branch}, at ${attached.base}.\n${context.session} holds ${id}: ${why}\nUse that directory explicitly for commands. ${setUp}` };
   },
 });
 

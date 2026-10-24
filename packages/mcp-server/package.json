@@ -34,7 +34,6 @@
     "@types/pg": "^8.23.1",
     "@storytree/test-waits": "workspace:*",
     "tsx": "^4.23.15",
-    "typescript": "~7.0.2",
-    "@storytree/test-waits": "workspace:*"
+    "typescript": "~7.0.2"
   }
 }

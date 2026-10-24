@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { SESSION_ENV, WATCHED_HARNESSES } from "@storytree/project-and-caller/caller";
 
-import { clearUnitLimit, DEADLINE_GRACE_MS, recordTimings, runUnit, setUnitLimit, TIMING_ROWS_KEPT, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason } from "./unit-run.mjs";
+import { clearUnitLimit, DEADLINE_GRACE_MS, recentPassTimes, recordTimings, runUnit, setUnitLimit, TEST_LIMIT_MS, testLimit, TIMING_ROWS_KEPT, UNIT_LIMIT_CEILING_MS, UNIT_LIMIT_FLOOR_MS, UNIT_LIMIT_MS, unitLimit, unitReason, unitTestLimit } from "./unit-run.mjs";
 
 function fixture(t, files) {
   // Its real path: on macOS the temporary folder is a link, and node names test files by their real one.
@@ -388,6 +388,104 @@ test("any agent can set a unit's deadline on this machine with a reason, and cle
 test("a unit's row gives its time, its deadline and where the deadline came from", () => {
   assert.equal(unitReason({ ms: 12_345, timedOut: false, unitLimitMs: 80_000, limitSource: "learned" }, "/"), "12.3 s (limit 80 s, learned)");
   assert.match(unitReason({ ms: 80_100, timedOut: true, running: [], unitLimitMs: 80_000, limitSource: "learned" }, "/"), /timed out after 80\.1 s \(limit 80 s, learned\), killed/);
+});
+
+// increment_eb1972ba9017 (ADR-1152): each test's limit is learned from its own passing times on this machine,
+// as a unit's deadline is; voice's real.test.ts passed in 36-55 s on Windows and timed out at the flat 60 s.
+function testHistory(t, rows) {
+  const home = mkdtempSync(path.join(tmpdir(), "unit-run-tests-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const at = "2026-10-24T00:00:00.000Z";
+  const lines = rows.map(([file, name, result, ms, timedOut = false]) => JSON.stringify({ at, platform: "win32", arch: "arm64", file, test: name, result, ms, timedOut }));
+  writeFileSync(path.join(home, "test-timings.jsonl"), `${lines.join("\n")}\n`);
+  return home;
+}
+const real = "packages/voice/src/real.test.ts";
+const testPasses = (file, name, ...ms) => ms.map((each) => [file, name, "pass", each]);
+
+test("6.24 · a test's limit is three times its slowest recent pass on this machine, never under 60 s; with fewer than five passes it keeps 60 s", (t) => {
+  const home = testHistory(t, [...testPasses(real, "1.1 › answers", 36_000, 50_000, 41_000, 44_000, 39_000), ...testPasses(real, "1.2 · rings", 19_000, 20_000, 18_000, 19_000, 18_500), ...testPasses(real, "1.3 · new", 50_000, 50_000)]);
+  assert.deepEqual(testLimit(real, "1.1 › answers", { home, ...machine }), { ms: 150_000, source: "learned" });
+  assert.deepEqual(testLimit(real, "1.2 · rings", { home, ...machine }), { ms: TEST_LIMIT_MS, source: "learned" }, "never under 60 s");
+  assert.deepEqual(testLimit(real, "1.3 · new", { home, ...machine }), { ms: TEST_LIMIT_MS, source: "default" });
+  assert.deepEqual(testLimit(real, "never seen", { home, ...machine }), { ms: TEST_LIMIT_MS, source: "default" });
+  assert.equal(testLimit(real, "1.1 › answers", { home, platform: "linux", arch: "x64" }).ms, TEST_LIMIT_MS, "another machine's times are not this one's");
+});
+
+test("6.24 · each timeout at its limit since a test last passed doubles its next limit, up to the ceiling, and its next pass ends the growth", (t) => {
+  const timedOut = (ms) => [real, "1.1 › answers", "fail", ms, true];
+  const home = testHistory(t, [...testPasses(real, "1.1 › answers", 50_000, 50_000, 50_000, 50_000, 50_000), timedOut(150_000)]);
+  assert.deepEqual(testLimit(real, "1.1 › answers", { home, ...machine }), { ms: 300_000, source: "learned, grown after 1 timeout" });
+  const fresh = testHistory(t, [timedOut(60_000), timedOut(120_000)]);
+  assert.deepEqual(testLimit(real, "1.1 › answers", { home: fresh, ...machine }), { ms: 240_000, source: "default, grown after 2 timeouts" }, "a test with no history grows too");
+  const stuck = testHistory(t, Array.from({ length: 6 }, () => timedOut(60_000)));
+  assert.equal(testLimit(real, "1.1 › answers", { home: stuck, ...machine }).ms, UNIT_LIMIT_CEILING_MS);
+  const healed = testHistory(t, [...testPasses(real, "1.1 › answers", 50_000, 50_000, 50_000, 50_000, 50_000), timedOut(150_000), [real, "1.1 › answers", "pass", 160_000]]);
+  assert.deepEqual(testLimit(real, "1.1 › answers", { home: healed, ...machine }), { ms: 480_000, source: "learned" }, "the pass joins the history and the growth ends");
+});
+
+test("6.24 · a unit's tests run under the largest of its tests' limits, naming the test it came from; a unit with none learned keeps 60 s", (t) => {
+  const home = testHistory(t, [...testPasses(real, "1.1 › answers", 50_000, 50_000, 50_000, 50_000, 50_000), ...testPasses("packages/voice/src/door.test.ts", "1.9 · hangs up", 30_000, 30_000, 30_000, 30_000, 30_000), ...testPasses("packages/voice-extra/src/a.test.ts", "slower", 90_000, 90_000, 90_000, 90_000, 90_000)]);
+  assert.deepEqual(unitTestLimit("packages/voice", { home, ...machine }), { ms: 150_000, source: `learned for ${real} › 1.1 › answers` });
+  assert.deepEqual(unitTestLimit("packages/cli", { home, ...machine }), { ms: TEST_LIMIT_MS, source: "default" });
+  assert.deepEqual(unitTestLimit(real, { home, ...machine }), { ms: 150_000, source: `learned for ${real} › 1.1 › answers` }, "a file run alone is a unit of its own");
+});
+
+test("6.24 · a run records the tests that could need more than 60 s, and every run of a test it already holds, kept per test; units' own rows are unchanged", (t) => {
+  const home = mkdtempSync(path.join(tmpdir(), "unit-run-tests-"));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const rows = () => readFileSync(path.join(home, "test-timings.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  recordTimings({ "packages/voice": { result: "pass", ms: 200_000 } }, { home, tests: [
+    { file: real, name: "slow", result: "pass", ms: 36_000, timedOut: false },
+    { file: real, name: "fast", result: "pass", ms: 400, timedOut: false },
+    { file: real, name: "stuck", result: "fail", ms: 60_000, timedOut: true },
+    { file: real, name: "broken", result: "fail", ms: 100, timedOut: false },
+  ] });
+  recordTimings({}, { home, tests: [{ file: real, name: "stuck", result: "pass", ms: 1_000, timedOut: false }, { file: real, name: "fast", result: "pass", ms: 500, timedOut: false }] });
+  assert.deepEqual(rows().filter((row) => row.test !== undefined).map(({ file, test: name, result, ms, timedOut }) => [file, name, result, ms, timedOut]), [
+    [real, "slow", "pass", 36_000, false],
+    [real, "stuck", "fail", 60_000, true],
+    [real, "stuck", "pass", 1_000, false],
+  ], "a fast pass can never lift a limit above 60 s, so it is kept only for a test already held");
+  assert.equal(rows().filter((row) => row.unit === "packages/voice").length, 1);
+  assert.deepEqual([...recentPassTimes({ home })], [["packages/voice", 200_000]], "test rows are no unit's");
+
+  writeFileSync(path.join(home, "test-timings.jsonl"), "");
+  recordTimings({}, { home, tests: Array.from({ length: TIMING_ROWS_KEPT + 3 }, (_, i) => ({ file: real, name: "slow", result: "pass", ms: 30_000 + i, timedOut: false })) });
+  recordTimings({ "packages/cli": { result: "pass", ms: 1_000 } }, { home, trimAt: 1 });
+  assert.equal(rows().filter((row) => row.test === "slow").length, TIMING_ROWS_KEPT, "trimmed per test");
+  assert.equal(rows().filter((row) => row.unit === "packages/cli").length, 1, "no unit's rows lost to the tests'");
+});
+
+test("6.24 · a unit gives back each test it ran, by its full name, with its time and whether it timed out at the limit; a test's own longer timeout still holds", { timeout: 60_000 }, async (t) => {
+  const root = fixture(t, {
+    "src/limits.test.mjs": `import { describe, it, test } from "node:test";
+describe("outer", () => { it("inner", () => {}); });
+test("parent", async (t) => { await t.test("child", () => {}); });
+test("too slow", () => new Promise((resolve) => setTimeout(resolve, 5_000)));
+test("its own limit", { timeout: 10_000 }, () => new Promise((resolve) => setTimeout(resolve, 2_000)));
+test.skip("skipped", () => {});`,
+  });
+  const { closed, options } = captured();
+  const result = await runUnit({ root, files: ["src/limits.test.mjs"], env: process.env, testLimitMs: 1_000, unitLimitMs: 30_000, ...options });
+  await closed;
+  const ran = Object.fromEntries(result.tests.map(({ file, name, result: outcome, timedOut }) => [name, { file, outcome, timedOut }]));
+  const file = "src/limits.test.mjs";
+  assert.deepEqual(ran, {
+    "outer › inner": { file, outcome: "pass", timedOut: false },
+    outer: { file, outcome: "pass", timedOut: false },
+    "parent › child": { file, outcome: "pass", timedOut: false },
+    parent: { file, outcome: "pass", timedOut: false },
+    "too slow": { file, outcome: "fail", timedOut: true },
+    "its own limit": { file, outcome: "pass", timedOut: false },
+  });
+  assert.ok(result.tests.find((each) => each.name === "its own limit").ms >= 2_000, "its own 10 s held over the run's 1 s");
+});
+
+test("6.24 · a unit whose test timed out at a learned limit names the test, the limit and where it came from", () => {
+  const reason = unitReason({ ms: 160_000, timedOut: false, unitLimitMs: 360_000, limitSource: "learned", testLimitMs: 150_000, testLimitSource: `learned for ${real} › 1.1 › answers`, tests: [{ file: real, name: "1.1 › answers", result: "fail", ms: 150_010, timedOut: true }] }, "/");
+  assert.equal(reason, `160.0 s (limit 360 s, learned); timed out at the per-test limit of 150 s (learned for ${real} › 1.1 › answers): ${real} › 1.1 › answers`);
+  assert.equal(unitReason({ ms: 61_000, timedOut: false, unitLimitMs: 180_000, testLimitMs: 60_000, testLimitSource: "default", tests: [{ file: real, name: "x", result: "fail", ms: 60_001, timedOut: true }] }, "/"), `61.0 s; timed out at the per-test limit of 60 s (default): ${real} › x`);
 });
 
 // increment_88b282227250: a run of named files killed at its deadline says why it exited 1.

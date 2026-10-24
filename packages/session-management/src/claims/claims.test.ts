@@ -1223,6 +1223,7 @@ test("5.58 only the increment's live holder closes it: another session is refuse
     assert.equal(refused?.holder.session, "A", "a session that does not hold it is refused, naming its holder");
     assert.equal(await closeRefusal(as("A"), work), undefined, "its holder closes it");
     assert.equal(await closeRefusal({ ...as("B"), session: "person:mick" }, work), undefined, "the owner's shell closes it");
+    await sleep(5);
     assert.equal(await closeRefusal(as("B", { quietMs: 1 }), work), undefined, "once the holder reads idle, the session manager closes it");
 
     const handed = await park("handed over");

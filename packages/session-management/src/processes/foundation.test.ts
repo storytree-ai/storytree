@@ -1,27 +1,23 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import test from 'node:test';
+import { removeTemp, waitUntil } from '@storytree/test-waits';
 import * as own from './index.js';
 
-const pause = () => new Promise(resolve => setTimeout(resolve, 20));
 async function home(t: { after(fn: () => Promise<void>): void }) {
   const dir = await mkdtemp(path.join(tmpdir(), 'own-foundation-'));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  t.after(() => removeTemp(dir));
   return dir;
 }
 const command = { command: process.execPath, args: ['-e', 'setTimeout(() => {}, 30000)'], folder: process.cwd() };
 async function cleanup(pid: number) {
   try { process.kill(pid, 'SIGKILL'); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error; }
-  for (let attempt = 0; attempt < 200; attempt++) {
-    if ((await own.readProcess(pid)).state === 'gone') return;
-    await pause();
-  }
-  throw new Error(`test child ${pid} did not exit`);
+  await waitUntil(async () => (await own.readProcess(pid)).state === 'gone', 4_000, `test child ${pid} to exit`);
 }
 async function launch(t: { after(fn: () => Promise<void>): void }, options: Parameters<typeof own.launchOwned>[0]) {
   const result = await own.launchOwned(options);

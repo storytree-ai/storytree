@@ -14,6 +14,7 @@
  * since every one of its source files declares, it also fails an undeclared file, suggesting the capability the
  * survey infers for it (D2's last clause); a user's project is not asked, and works without the convention (D3).
  */
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { codeSurveyReader, type CodeSurveyReader, type ProjectSurvey } from "@storytree/map/code-survey";
@@ -84,14 +85,29 @@ export async function undeclaredCode(root: string, stories: readonly string[] = 
   return undeclaredOf(await surveyed(root, stories));
 }
 
+/**
+ * The way out for a file whose package keeps a coverage map (survey-coverage.json) that holds no entry for it, as a
+ * file only the built command reaches has until the map is re-measured; empty for a package with no map, or a mapped file.
+ */
+function remeasure(root: string, file: string): string {
+  const [, id = "", ...rest] = file.split("/");
+  let map: Record<string, unknown>;
+  try {
+    map = JSON.parse(readFileSync(path.join(root, "packages", id, "survey-coverage.json"), "utf8")) as Record<string, unknown>;
+  } catch {
+    return "";
+  }
+  return Object.hasOwn(map, rest.join("/")) ? "" : ` Or, if a test reaches it only through a process it starts, re-measure ${id}'s coverage map, which has no entry for it: pnpm survey:coverage ${id}.`;
+}
+
 /** One sentence per unallocated, misdeclared or (asked to) undeclared source file, each with its ways out; empty when every file is allocated as it says. */
 export async function allocationProblems(root: string, stories: readonly string[] = storiesOf(root), options: AllocationOptions = {}): Promise<string[]> {
   const files = await surveyed(root, stories);
   return [
     ...unallocatedOf(files).map(({ file, lines }) =>
-      `${file} (${lines} lines) belongs to no capability: no numbered test reaches it (ADR-0838 D5). Three ways out: number a test that reaches it ("N.M · …" for capability N), plan a contract for its behaviour and write that test, or delete it if nothing needs it.`),
+      `${file} (${lines} lines) belongs to no capability: no numbered test reaches it (ADR-0838 D5). Three ways out: number a test that reaches it ("N.M · …" for capability N), plan a contract for its behaviour and write that test, or delete it if nothing needs it.${remeasure(root, file)}`),
     ...misdeclaredOf(files).map(({ file, declared, reachedBy }) =>
-      `${file} declares capability ${declared} in its opening comment, but no numbered test of capability ${declared} reaches it (ADR-0925 D2). The capabilities whose tests reach it: ${reachedBy.join(", ")}. Declare one of those, or number a test of capability ${declared} that reaches it.`),
+      `${file} declares capability ${declared} in its opening comment, but no numbered test of capability ${declared} reaches it (ADR-0925 D2). The capabilities whose tests reach it: ${reachedBy.join(", ")}. Declare one of those, or number a test of capability ${declared} that reaches it.${remeasure(root, file)}`),
     ...(options.undeclaredFails ? undeclaredOf(files) : []).map(({ file, suggested }) =>
       `${file} declares no capability (ADR-0925 D2). Begin its opening comment with "Capability ${suggested} · <title>", the capability the survey infers for it, or another whose numbered tests reach it.`),
   ];

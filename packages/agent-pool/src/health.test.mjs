@@ -13,7 +13,7 @@ const stamp = (minutes) => ago(minutes).toISOString().replace(/\.\d{3}Z$/, "Z");
 /** A green pull request, as GitHub's GraphQL returns it, ready for the merge queue and in it. */
 const green = (extra = {}) => ({
   state: "OPEN", isDraft: false, labels: { nodes: [] }, mergeStateStatus: "CLEAN", mergeable: "MERGEABLE", mergeQueueEntry: { state: "QUEUED" },
-  headRefOid: "abc", headRefName: "claude/x",
+  headRefOid: "abc", headRefName: "claude/x", isCrossRepository: false, headRepository: { nameWithOwner: "storytree-ai/storytree" },
   commits: { nodes: [{ commit: { statusCheckRollup: { contexts: { nodes: [{ __typename: "CheckRun", name: "verify", status: "COMPLETED", conclusion: "SUCCESS" }] } } } }] },
   timelineItems: { nodes: [] }, ...extra,
 });
@@ -149,4 +149,13 @@ test("8.7 · concerns print first and exit non-zero; with none, one pool healthy
   assert.equal(first, 2, sick.lines.join("\n"));
   assert.ok(sick.lines.slice(first).every((line) => !line.startsWith("concern")));
   assert.ok(!sick.lines.some((line) => line.startsWith("pool healthy")));
+});
+
+test("8.8 · a hand-off whose pull request's head is not on this repository, or whose head GitHub does not say, is a concern, never read as stalled green", async (t) => {
+  const { lanesDir, lines, b } = await box(t, { pulls: { 21: green({ mergeQueueEntry: null, isCrossRepository: true, headRepository: { nameWithOwner: "mallory/storytree" } }), 22: green({ isCrossRepository: undefined }) } });
+  await hand(lanesDir, 21, "increment_a");
+  await hand(lanesDir, 22, "increment_b");
+  assert.equal(await main([], b), 1);
+  assert.deepEqual(lines, ["concern: PR #21 increment_a: its head is not on storytree-ai/storytree, or GitHub did not say where it is",
+    "concern: PR #22 increment_b: its head is not on storytree-ai/storytree, or GitHub did not say where it is"]);
 });

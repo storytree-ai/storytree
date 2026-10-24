@@ -130,7 +130,8 @@ export type LandAnswer =
   | { ok: false; refused: "unknown-capability"; capability: string };
 
 /** `keepBranch`: a claim this session already holds stays on its branch even when claimed again from a linked worktree. */
-type ClaimOptions = { readonly moveBranch?: true; readonly keepBranch?: true; readonly file?: string };
+/** `throughOwnerWait`: a wait for the owner the caller is about to clear does not refuse the claim (claimClearingOwnerWait). */
+type ClaimOptions = { readonly moveBranch?: true; readonly keepBranch?: true; readonly file?: string; readonly throughOwnerWait?: true };
 
 /**
  * Claim `id`, a capability or an increment, for the context's session, with a one-line reason.
@@ -152,7 +153,7 @@ export async function claim(context: ClaimContext, id: string, reason: string, g
   const standing = await readClaim(context.log, context.project, id, context);
   const moves = options.moveBranch && context.branch !== undefined && context.branch !== standing?.branch;
   if (standing?.session === context.session && standing.holder === "live" && !moves) return { ok: true, claim: standing, alreadyHeld: true };
-  const found = await claimable(context, id);
+  const found = await claimable(context, id, options.throughOwnerWait === true);
   if (!("part" in found)) return found;
   return context.log.locked(context.project, async (log) => {
     const standing = await heldNow(log, context);
@@ -210,6 +211,18 @@ export async function claimAll(context: ClaimContext, ids: readonly string[], re
     claims.push(answer);
   }
   return { ok: true, claims };
+}
+
+/**
+ * Clear increment `increment`'s wait for the owner so the context's session can finish it: claim it first, through that
+ * wait, then clear the wait, so it never reads ready and unclaimed in between, when a dispatcher would start a lane on it
+ * (friction_bda883cf8394). Refused as `claim` refuses, the wait left standing, when anything else still holds it or
+ * another live session does.
+ */
+export async function claimClearingOwnerWait(context: ClaimContext, increment: string, reason: string): Promise<ClaimAnswer> {
+  const answer = await claim(context, increment, reason, { throughOwnerWait: true });
+  if (answer.ok) await context.library.removeWaitFor(increment, "owner", context.writer);
+  return answer;
 }
 
 /** Whether `folder` is in a linked worktree, whose `.git` is a file, not the main checkout, whose `.git` is a folder. */
@@ -274,13 +287,13 @@ function held(standing: Iterable<Claim>, holder: Claim, listedOn?: string): Held
   return { ok: false, refused: "held", holder, heldFor };
 }
 
-/** The live capability or increment `id`, when the library would let it be claimed; otherwise why not. */
-async function claimable(context: ClaimContext, id: string): Promise<Found | Exclude<ClaimAnswer, { ok: true } | { refused: "held" }>> {
+/** The live capability or increment `id`, when the library would let it be claimed, passing a wait for the owner when `throughOwnerWait`; otherwise why not. */
+async function claimable(context: ClaimContext, id: string, throughOwnerWait = false): Promise<Found | Exclude<ClaimAnswer, { ok: true } | { refused: "held" }>> {
   const { library } = context;
   const found = await partNamed(library, id);
   if (found === undefined) return { ok: false, refused: "unknown-capability", capability: id };
   if (found.status === "closed") return { ok: false, refused: "closed", increment: id };
-  const waits = await waitingOn(library, found);
+  const waits = (await waitingOn(library, found)).filter((wait) => !(throughOwnerWait && wait.waitsFor === "owner"));
   return waits.length === 0 ? found : { ok: false, refused: "waiting", waits };
 }
 

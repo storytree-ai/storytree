@@ -49,7 +49,9 @@ provider "google" {
 
 # A provider of its own in 0.2's pool: 0.2's provider accepts only 0.2's repository. Its condition
 # is what restricts the sign-in to main: a pull request's run carries refs/pull/<n>/merge and is
-# refused here, before any service account is in question.
+# refused here, before any service account is in question. Its mappings are limited to what
+# bindings use: infra/website-publish binds one workflow by its job_workflow_ref, and reads this
+# provider as data, so that mapping lives here.
 resource "google_iam_workload_identity_pool_provider" "main" {
   workload_identity_pool_id          = "github-actions"
   workload_identity_pool_provider_id = "storytree-0-3-main"
@@ -57,9 +59,9 @@ resource "google_iam_workload_identity_pool_provider" "main" {
   description                        = "GitHub Actions OIDC for storytree-ai/storytree on main (own health, ADR-0744)"
 
   attribute_mapping = {
-    "google.subject"          = "assertion.sub"
-    "attribute.repository_id" = "assertion.repository_id"
-    "attribute.ref"           = "assertion.ref"
+    "google.subject"             = "assertion.sub"
+    "attribute.repository_id"    = "assertion.repository_id"
+    "attribute.job_workflow_ref" = "assertion.job_workflow_ref"
   }
   attribute_condition = "assertion.repository_id == '${var.repository_id}' && assertion.ref == 'refs/heads/main'"
 

@@ -115,8 +115,8 @@ test("6.10 it sets a wait with a reason, and a claim on the waiting increment is
   });
 });
 
-test("6.40 it sets a wait for the owner or an outside event with a note, and a claim on it is refused naming the note; an event wait needs a check-back day; it clears the wait, and the claim succeeds", async () => {
-  await withProject(async ({ folder, library }) => {
+test("6.40 it sets a wait for the owner or an outside event with a note, and a claim on it is refused naming the note; an event wait needs a check-back day; it clears the wait, and the claim succeeds; clearing an owner wait with `claim` holds the increment before the wait is gone", async () => {
+  await withProject(async ({ folder, library, log, project }) => {
     await withAgent(folder, claudeCode("claude-1"), async (agent) => {
       const { arc } = await planned(agent);
       const install = idOf(await agent.call("park_increment", { arc, title: "Real install", objective: "Install it for real", body: "On the old laptop" }));
@@ -135,6 +135,13 @@ test("6.40 it sets a wait for the owner or an outside event with a note, and a c
       assert.equal((await agent.call("clear_wait", { waiter: install, for: "event" })).isError, false);
       assert.deepEqual(await library.waitsFor(install), []);
       assert.equal((await agent.call("claim", { increment: install, reason: "driving it" })).isError, false);
+
+      const signIn = idOf(await agent.call("park_increment", { arc, title: "Sign in", objective: "Sign in to the store", body: "Once the owner has an account" }));
+      assert.equal((await agent.call("set_wait", { waiter: signIn, for: "owner", note: "make the store account" })).isError, false);
+      const finishing = await agent.call("clear_wait", { waiter: signIn, for: "owner", claim: "finishing the sign-in" });
+      assert.equal(finishing.isError, false, finishing.text);
+      assert.deepEqual(await library.waitsFor(signIn), []);
+      assert.equal((await readClaims(log, project)).find((one) => one.increment === signIn)?.reason, "finishing the sign-in", "held from the clear on");
     });
   });
 });

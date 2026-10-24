@@ -273,20 +273,38 @@ const incrementWait = verb({
 });
 
 const incrementUnwait = verb({
-  command: { family: "arc increment", name: "unwait", summary: "clear a wait", usage: "arc increment unwait <increment> --on <increment>, or --for owner|event" },
+  command: {
+    family: "arc increment",
+    name: "unwait",
+    summary: "clear a wait; clearing one for you to finish the increment yourself, --claim claims it first, so the pool never starts it in between",
+    usage: "arc increment unwait <increment> --on <increment>, or --for owner|event, or --for owner --claim <reason>",
+  },
   tool: { absent: NO_TOOL },
   inputs: {
     increment: { kind: "text", word: 0, describe: "the increment's id" },
     on: { kind: "text", optional: true, describe: "the increment it waits on" },
     for: { kind: "text", optional: true, describe: "owner or event" },
+    claim: { kind: "text", optional: true, describe: "with --for owner, when this session finishes it: the claim's reason, taken before the wait clears" },
   },
   writes: true,
-  async act({ increment: id, on, for: waitingFor }, context: ArcVerbContext) {
+  async act({ increment: id, on, for: waitingFor, claim }, context: ArcVerbContext) {
     const releaser = releaserOf(on, waitingFor);
+    if (claim !== undefined) {
+      if (releaser !== "owner") throw new VerbRefusal("--claim goes with --for owner", { misuse: true });
+      if (context.session.startsWith("person:")) throw new VerbRefusal("Run it from the agent's shell: a claim belongs to the agent session that will finish the work.");
+      // Claimed first, through the owner wait, then cleared: it never reads ready and unclaimed in between (5.57).
+      const { claimClearingOwnerWait } = await import("@storytree/session-management/tools");
+      const { workspaceRefusalText } = await import("@storytree/session-management/workspace-verbs");
+      const answer = await claimClearingOwnerWait(context, id, claim);
+      if (!answer.ok) throw new VerbRefusal(`${workspaceRefusalText(id, answer)} Its wait for the owner stands.`);
+      return { text: `${id} no longer waits for the owner, and ${context.session} holds it: ${claim}.` };
+    }
     if (releaser !== undefined) {
       const done = await context.library.removeWaitFor(id, releaser, context.writer);
       if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);
-      return { text: `${id} no longer waits for ${releasedBy(releaser)}.` };
+      // Nobody holds it now, so the pool may start a lane on it (5.57).
+      const ready = releaser === "owner" ? " Nobody holds it, so the pool may start it now: to finish it yourself, clear it with --claim <reason> instead." : "";
+      return { text: `${id} no longer waits for ${releasedBy(releaser)}.${ready}` };
     }
     const done = await context.library.removeWait(id, on!, context.writer);
     if (done === null) throw new VerbRefusal(`no increment "${id}" in this project`);

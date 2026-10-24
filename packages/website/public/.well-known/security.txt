@@ -1,0 +1,6 @@
+# storytree's security contact. Report privately through GitHub; see the policy for scope and what to expect.
+Contact: https://github.com/storytree-ai/storytree/security/advisories/new
+Expires: 2027-10-24T00:00:00Z
+Policy: https://github.com/storytree-ai/storytree/blob/main/SECURITY.md
+Canonical: https://storytree.dev/.well-known/security.txt
+Preferred-Languages: en

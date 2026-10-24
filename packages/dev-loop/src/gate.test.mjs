@@ -8,7 +8,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { guidanceFor, runGate } from "./gate.mjs";
+import { guidanceFor, runGate, stepCommand } from "./gate.mjs";
 
 function checkout(t) {
   const root = mkdtempSync(path.join(tmpdir(), "gate-"));
@@ -165,4 +165,26 @@ test("7.3 cancelling the foreground gate stops the typecheck process and its com
   const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
   for (const until = Date.now() + 10_000; Date.now() < until && pids.some(alive);) await delay(25);
   assert.deepEqual(pids.filter(alive), [], "no typecheck child survives the completed gate");
+});
+
+test("7.11 on an increment's branch the gate writes the change's risk line through quality risk, after the capability list; a branch naming none leaves it NOT RUN", async (t) => {
+  const { root, git } = checkout(t);
+  const gate = async () => {
+    const calls = [];
+    const output = [];
+    const code = await runGate({ root, run: async (step, { increment }) => { calls.push([step, increment]); return 0; }, log: (line) => output.push(line) });
+    return { code, steps: calls.map(([step]) => step), calls, table: output.at(-1) };
+  };
+  git("checkout", "-q", "-b", "claude/dazzling-jones-f96c61");
+  const unnamed = await gate();
+  assert.ok(!unnamed.steps.includes("check:risk"));
+  assert.match(unnamed.table, /NOT RUN\s+check:risk.*names no increment/);
+
+  git("checkout", "-q", "-b", "claude/increment-ca8ba53211b7-f8f424");
+  const named = await gate();
+  assert.equal(named.code, 0);
+  assert.deepEqual(named.steps.slice(-2), ["check:capability-list", "check:risk"]);
+  assert.deepEqual(named.calls.at(-1), ["check:risk", "increment_ca8ba53211b7"]);
+  assert.match(named.table, /PASS\s+check:risk/);
+  assert.deepEqual(stepCommand("check:risk", { increment: "increment_ca8ba53211b7" }).args.slice(-4), ["packages/cli/src/bins/storytree.ts", "quality", "risk", "increment_ca8ba53211b7"]);
 });

@@ -42,9 +42,9 @@ step claude-install sh -c 'npm install -g @anthropic-ai/claude-code >/dev/null 2
 
 mkdir -p "$PROJECT"
 cd "$PROJECT" || exit 1
-# The one-liner exactly as the release page gives it, in a pseudo-terminal (expect, which macOS ships) so its
-# questions are asked and answered the way a person at Terminal would: 1 connects Claude Code, Enter takes this
-# folder, Enter takes the suggested project name.
+# The one-liner exactly as the release page gives it, in a pseudo-terminal (expect, which macOS ships). It asks
+# nothing since ADR-1162; an older installer (a stable pin from before it) still asks, and is answered the way a person
+# at Terminal would: 1 connects Claude Code, Enter takes this folder, Enter takes the suggested project name.
 # Each channel's one-liner as its release page gives it (install-storytree-mac*.txt).
 if [ "$CHANNEL" = alpha ]; then
   ONE_LINER="curl -fsSL https://github.com/storytree-ai/storytree/releases/latest/download/install-storytree.sh | sh -s -- --channel alpha"
@@ -89,6 +89,10 @@ step zprofile sh -c "cat '${ZDOTDIR:-$HOME}/.zprofile'"
 st() { zsh -lc "cd '$PROJECT' && storytree $*"; }
 step command-path zsh -lc 'command -v storytree'
 step doctor st doctor
+# What the app's first-run guide offers (ADR-1162 D1), taken from the command line, as a first user's terminal can:
+# connect Claude Code, then make this folder a project. Each is a no-op over an older installer that already did it.
+step connect st setup connect --claude
+step set-up st doctor --set-up st-mac-acceptance
 step hooks sh -c "cat '$HOME/.claude/settings.json'; echo; ls -la '$HOME/.claude'"
 step project-files sh -c "ls -la '$PROJECT'; cat '$PROJECT/.storytree.json'"
 

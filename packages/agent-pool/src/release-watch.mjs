@@ -35,7 +35,7 @@ export const failedJob = (jobs) => jobs.find((job) => job.steps > 0 && RED.has(j
  */
 export const RUNNER_ATTEMPTS = 4;
 /** ci.yml's jobs that only read the `platforms` jobs' result, so fail when one of those does, whatever failed it. */
-const FOLLOWERS = new Set(["verify", "automerge"]);
+export const FOLLOWERS = new Set(["verify", "automerge"]);
 
 /**
  * Why a red run's failures are all the hosted runner's, from its jobs ({ name, conclusion, steps, runner }) and its

@@ -21,7 +21,7 @@ import { promisify } from "node:util";
 
 import { poolConfig, readCap } from "./pool-config.mjs";
 import { codeVersion, countEngines, holdRunner } from "./queue.mjs";
-import { attempted, failedJob, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, watchReleases } from "./release-watch.mjs";
+import { attempted, failedJob, FOLLOWERS, judgeReleases, recordFix, RELEASE_ARC, RELEASE_EVERY_MS, RUNNER_ATTEMPTS, runnerFault, runnerReruns, watchReleases } from "./release-watch.mjs";
 
 /**
  * The code the watcher runs (4.10, ADR-0981 D3): what watch.mjs loads and what the fix sessions it starts load
@@ -128,7 +128,69 @@ export async function lookOnGitHub(pr, { repo, since, now = Date.now, graceMs = 
     runs.push({ id, attempt: one.run_attempt, status: one.status, repo: one.repository?.full_name ?? REPO.replace(/^repos\//, ""), jobs,
       log: one.run_attempt < RUNNER_ATTEMPTS ? await failedLog(repo, one, jobs) : "" });
   }
-  return { ...pull, runner: runnerReruns(runs) };
+  // What failed, from each red job's own log, read at every attempt, and the packages the pull request changes (4.34).
+  let failures;
+  try {
+    const reach = reachOf(await filesOf(repo, pr, pull.head));
+    for (const one of runs) one.jobs = await Promise.all(one.jobs.map(async (job) => ({ ...job, log: redJob(job) ? await jobLog(repo, job.id) : "" })));
+    failures = readFailures(runs, reach);
+  } catch { /* unread, so the red counts as any red does */ }
+  return { ...pull, runner: runnerReruns(runs), ...(failures ? { failures } : {}) };
+}
+
+/** A job that ended red itself, not one that only reads the others' result. */
+const redJob = (job) => job.steps > 0 && (job.conclusion === "failure" || job.conclusion === "timed_out") && !FOLLOWERS.has(job.name);
+
+/** The packages and apps that own a file in `files`, the paths a pull request changes: its reach, for readFailures (4.34). */
+export function reachOf(files) {
+  return new Set(files.map((file) => /^((?:packages|apps)\/[^/]+)\//.exec(file)?.[1]).filter(Boolean));
+}
+
+/**
+ * What a red pull request's failed CI runs ({ id, attempt, repo, jobs: [{ name, conclusion, steps, log }] }) say failed
+ * (4.34): the units in their results tables' FAIL rows and the tests their `✖ <name> (<n>ms)` lines name, and whether it
+ * is `outside` `reach`, every failing unit a package or app the pull request changes no file of. A red job with no FAIL
+ * row failed on no test (an install, a typecheck), and a unit outside packages/ and apps/ is no package: neither is outside.
+ * The reach is only what the pull request changes, not its dependents: a red it caused in a dependent fails again on a
+ * rerun, and that repeat counts (4.35).
+ */
+export function readFailures(runs, reach) {
+  const units = new Set(), tests = new Set();
+  let outside = true;
+  for (const job of runs.flatMap((one) => one.jobs).filter(redJob)) {
+    let rows = 0;
+    for (const line of (job.log ?? "").split("\n")) {
+      const unit = /\sFAIL {4}(\S+)/.exec(line)?.[1];
+      if (unit) {
+        rows++;
+        units.add(unit);
+        if (!/^(?:packages|apps)\/[^/]+$/.test(unit) || reach.has(unit)) outside = false;
+      }
+      const test = /✖ (.+?) \(\d+(?:\.\d+)?ms\)\s*$/.exec(line)?.[1];
+      if (test) tests.add(test);
+    }
+    if (!rows) outside = false;
+  }
+  if (!units.size) outside = false;
+  return { outside, units: [...units], tests: [...tests], runs: runs.map(({ id, attempt, repo }) => ({ id, attempt, repo })),
+    key: runs.map((one) => `${one.id}:${one.attempt}`).join(",") };
+}
+
+const filesSeen = new Map();
+/** The paths pull request `pr` changes at `head`, read once a head. */
+async function filesOf(repo, pr, head) {
+  const key = `${pr}:${head}`;
+  if (!filesSeen.has(key)) {
+    const { stdout } = await run("gh", ["api", "--paginate", `${REPO}/pulls/${pr}/files?per_page=100`, "--jq", ".[].filename"], { cwd: repo, maxBuffer: 16 * 1024 * 1024 });
+    filesSeen.set(key, stdout.split("\n").filter(Boolean));
+  }
+  return filesSeen.get(key);
+}
+const jobLogs = new Map();
+/** A finished job's own log, read once; readable before the rest of its run ends, unlike `gh run view --log-failed`. */
+async function jobLog(repo, id) {
+  if (!jobLogs.has(id)) jobLogs.set(id, (await run("gh", ["api", `${REPO}/actions/jobs/${id}/logs`], { cwd: repo, maxBuffer: 64 * 1024 * 1024 })).stdout);
+  return jobLogs.get(id);
 }
 
 const REPO = "repos/storytree-ai/storytree";
@@ -139,7 +201,7 @@ async function jobsOf(repo, run) {
   const key = `${run.id}:${run.run_attempt}`;
   if (jobsSeen.has(key)) return jobsSeen.get(key);
   const jobs = (await ghJson(repo, `${REPO}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`)).jobs
-    .map((job) => ({ name: job.name, conclusion: job.conclusion, steps: job.steps?.length ?? 0, runner: job.runner_name ?? "" }));
+    .map((job) => ({ id: job.id, name: job.name, conclusion: job.conclusion, steps: job.steps?.length ?? 0, runner: job.runner_name ?? "" }));
   if (run.status === "completed") jobsSeen.set(key, jobs);
   return jobs;
 }
@@ -337,6 +399,13 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
 `;
 }
 
+/** Whether a red's failing tests, or its units when it names no test, failed before on this pull request: a repeat is not random (4.35). */
+function repeats(fixes, failures) {
+  if (failures.tests.length) return failures.tests.some((test) => fixes.some((fix) => fix.tests?.includes(test)));
+  return failures.units.some((unit) => fixes.some((fix) => !fix.tests?.length && fix.units?.includes(unit)));
+}
+const named = (failures) => (failures.tests.length ? failures.tests : failures.units).join("; ");
+
 /**
  * One look at every hand-off. MERGED: clear the wait, close the increment landed (unless it was handed over to stay
  * open), let go of the claims held for it and forget it. CLOSED: clear the wait, let go of its claims and forget it.
@@ -347,7 +416,10 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * an owner wait: the hand-off is dropped and the increment goes back on its arc as ready work, its body naming the
  * pull request and its branch (4.20). A fix session whose branch moved while it ran made progress, so it counts for
  * nothing when the next red is a conflict, since a newer main made that one (4.19); `cap` sessions on one pull
- * request, counted or not, end it as the limit does. A fix
+ * request, counted or not, end it: past the limit as the limit does, and below it, the cap spent on reds the owner cannot
+ * judge, back on its arc as ready work with a friction naming any flaky tests (4.36). A red whose failing tests all lie
+ * outside what the pull request changes (`pull.failures`, from readFailures) is a flake: refreshed or rerun, never fixed,
+ * and not counted, unless a test of it failed before on the pull request (4.34, 4.35). A fix
  * session refused by another's claim counts for nothing (4.14). Its retry waits until the session its refusal named
  * holds no claim on the noticeboard; a refusal that named none waits `backoff` after it and for no other fix session to run (4.14).
  * Conflicts are merged one at a time, lowest pull request first: siblings that conflict on one file would refuse
@@ -358,7 +430,7 @@ Your job is that pull request and nothing else. Work from ~/code/storytree03 and
  * tried at most ENQUEUE_TRIES times (4.31). A look that saw any merge reads every story's risk reading again, once, from
  * main (`readRisks`), and says the readings that changed since the last (4.33).
  */
-export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
+export async function watchOnce({ dir, look, storytree, startFix, rerun, refresh, enqueue, alive, room, readRisks, limit, cap = 6, backoff = 15 * 60_000, now = Date.now, say }) {
   const dated = (message) => say(`${new Date(now()).toISOString().replace(/\.\d{3}Z$/, "Z")} ${message}`);
   // A step the library refuses (a wait already cleared, an increment closed by hand) is said, not retried forever.
   const tell = (args, project) => storytree(args, project).catch((error) => { dated(`storytree ${args.slice(0, 3).join(" ")} refused: ${error.message.split("\n")[0]}`); return ""; });
@@ -460,13 +532,43 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue
         continue;
       }
     }
-    const allowed = pull.conflict ? limit + 1 : limit;
     const last = record.fixes.at(-1);
+    // A red whose failing tests all lie outside what the pull request changes, none of them failed before on it, is a
+    // flake: main is merged into its branch when main has moved, else its failed runs are rerun, with no model session
+    // and nothing counted against the limit; until that refresh's run starts, a look sees the same runs and waits (4.34, 4.35).
+    const failures = pull.failures;
+    if (failures && last?.flake && last.runs === failures.key) continue;
+    const flake = failures?.outside && !repeats(record.fixes, failures);
+    if (flake && record.fixes.length < cap && (refresh || rerun)) {
+      let by;
+      try {
+        if (!refresh) throw new Error("no refresh");
+        await refresh(pr, pull.head);
+        by = "main merged into its branch";
+      } catch {
+        try {
+          if (!rerun) throw new Error("no rerun");
+          for (const one of failures.runs) {
+            await rerun(one);
+            await tell(["workspace", "rerun", String(one.id), "--repo", one.repo, "--attempt", String(one.attempt + 1), "--what", "pr"], record.project);
+          }
+          by = "its failed runs rerun";
+        } catch (error) {
+          dated(`PR #${pr} red on tests outside what it changes, but neither a merge of main nor a rerun was taken (${error.message.split("\n")[0]}); looking again next time`);
+          continue;
+        }
+      }
+      record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, flake: true, units: failures.units, tests: failures.tests, runs: failures.key });
+      await save(dir, record);
+      dated(`PR #${pr} red only on tests outside what it changes (${named(failures)}): ${by}, not counted against its fix limit`);
+      continue;
+    }
+    const allowed = pull.conflict ? limit + 1 : limit;
     if (pull.conflict && last && !last.refused && !last.moved && last.head && last.head !== pull.head) {
       last.moved = true;
       await save(dir, record);
     }
-    const counted = record.fixes.filter((fix) => !fix.refused && !fix.moved).length;
+    const counted = record.fixes.filter((fix) => !fix.refused && !fix.moved && !fix.flake).length;
     const spent = counted >= allowed || record.fixes.length >= cap;
     if (spent && record.closed) {
       await letGo(pr, `PR #${pr} still red after ${record.fixes.length} fix sessions; released by the watcher`);
@@ -477,6 +579,20 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue
     if (spent && pull.conflict) {
       await backOnArc(record, pull, `still conflicts with main after ${record.fixes.length} fix sessions`);
       dated(`PR #${pr} still conflicts with main after ${record.fixes.length} fix sessions: ${increment} is back on its arc as ready work`);
+      continue;
+    }
+    if (spent && counted < allowed) {
+      // The cap, not the limit, is spent: on flakes, moves or refusals, none of which the owner can judge (4.36).
+      const flaky = [...new Set(record.fixes.filter((fix) => fix.flake).flatMap((fix) => fix.tests.length ? fix.tests : fix.units))];
+      await backOnArc(record, pull, `is still red after ${record.fixes.length} fix sessions and refreshes, ${counted} of them counted${flaky.length ? `; flaky outside it: ${flaky.join("; ")}` : ""}`);
+      if (flaky.length) {
+        await tell(["friction", "new", "--title", `Flaky tests kept PR #${pr} red past the watcher's cap`,
+          "--description", `The watcher refreshed PR #${pr} ${record.fixes.filter((fix) => fix.flake).length} times for reds outside what it changes, and gave it back to its arc.`,
+          "--statement", "Tests outside a pull request's reach failed it at random, so it could not land.",
+          "--evidence", `PR #${pr} (${increment}) failed on: ${flaky.join("; ")}.`,
+          "--impact", `PR #${pr} went back on its arc as ready work instead of landing; the Windows-flakes arc can take these tests.`]);
+      }
+      dated(`PR #${pr} still red after ${record.fixes.length} fix sessions and refreshes, ${counted} counted: ${increment} is back on its arc as ready work`);
       continue;
     }
     if (spent) {
@@ -500,7 +616,8 @@ export async function watchOnce({ dir, look, storytree, startFix, rerun, enqueue
     const n = record.fixes.length + 1;
     const fix = await startFix({ pr, increment, n, brief: fixBrief({ pr, increment, why: pull.why, logs: pull.logs, n: counted + 1, limit: allowed, keepOpen: record.keepOpen, closed: record.closed }) });
     record.fixing = { pid: fix.pid };
-    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: fix.pid, log: fix.log, ...(pull.conflict ? { conflict: true } : {}) });
+    record.fixes.push({ at: new Date(now()).toISOString(), head: pull.head, pid: fix.pid, log: fix.log, ...(pull.conflict ? { conflict: true } : {}),
+      ...(failures ? { units: failures.units, tests: failures.tests } : {}) });
     running.set(pr, Boolean(pull.conflict));
     await save(dir, record);
     dated(`PR #${pr} red (${pull.why}): fix session ${counted + 1} of ${allowed} started, log ${fix.log}`);
@@ -641,6 +758,12 @@ function boxDefaults({ home = homedir(), env = process.env } = {}) {
     // At the head it read as green, as land.yml enqueues, with the box's signed-in token, so the queue's own run starts (4.31).
     enqueue: (id, head) => run("gh", ["api", "graphql", "-f", `id=${id}`, "-f", `sha=${head}`, "-f",
       "query=mutation($id: ID!, $sha: GitObjectID!) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $sha}) { mergeQueueEntry { position } } }"], { cwd: repo }),
+    // Main merged into a flaky pull request's branch at the head it read, as GitHub's update-branch does, only when main has moved past it (4.34).
+    refresh: async (pr, head) => {
+      const behind = Number((await run("gh", ["api", `${REPO}/compare/main...${head}`, "--jq", ".behind_by"], { cwd: repo })).stdout.trim());
+      if (!(behind > 0)) throw new Error("its branch is up to date with main");
+      await run("gh", ["api", "-X", "PUT", `${REPO}/pulls/${pr}/update-branch`, "-f", `expected_head_sha=${head}`], { cwd: repo });
+    },
     // Its failed and cancelled jobs; a run with nothing left to rerun that way is rerun whole.
     rerun: (one) => run("gh", ["run", "rerun", String(one.id), "--failed"], { cwd: repo })
       .catch(() => run("gh", ["run", "rerun", String(one.id)], { cwd: repo })),

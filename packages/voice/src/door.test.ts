@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, test } from "node:test";
 
-import { BUSY, CANCELLED, Children, Gate, LIMITS, Refusal } from "./children.js";
+import { BUSY, CANCELLED, Children, Gate, LIMITS, Refusal, limitsWith } from "./children.js";
 import { main } from "./bins/voice.js";
 import { loadConfig, voiceSession } from "./config.js";
 import {
@@ -133,7 +133,7 @@ test("1.7 at most 2 storytree children run at once and 4 more wait; the rest are
   }
 });
 
-test("1.7 git's gate runs 4 and queues 8, refuses the 13th at once, and refuses a call that waits past the queue time", async (t) => {
+test("1.7 git's gate runs 4 and queues 8, refuses the 13th at once, and a queued call waits out one full command and its grace, then is refused", async (t) => {
   const config = loadConfig({ VOICE_TOKEN: newToken(), REPO_DIR: repo.dir, STORYTREE_CLI: JSON.stringify(FAKE_CLI) });
   const children = new Children(config, LIMITS, () => {});
   const held = await Promise.all(Array.from({ length: 4 }, () => children.git.enter(undefined)));
@@ -148,19 +148,24 @@ test("1.7 git's gate runs 4 and queues 8, refuses the 13th at once, and refuses 
   await cli.enter(undefined); // the second slot
   let outcome = "waiting";
   cli.enter(undefined).then(() => (outcome = "granted"), (error: Error) => (outcome = error.message));
-  t.mock.timers.tick(LIMITS.queueMs - 1);
+  // A three-command catch_up queues its third behind two that may each run their full limit (ADR-1163 D3).
+  t.mock.timers.tick(LIMITS.cliMs + LIMITS.killGraceMs - 1);
   await Promise.resolve();
   assert.equal(outcome, "waiting");
   t.mock.timers.tick(1);
   await Promise.resolve();
   assert.equal(outcome, BUSY);
   release();
+  // Shortened limits keep the wait one command long.
+  assert.equal(limitsWith({ cliMs: 600, killGraceMs: 100 }).queueMs, 700);
 });
 
 test("1.8 a child past its time limit is stopped and its call answers a tool error naming the limit, inside 60 s", async () => {
   assert.deepEqual([LIMITS.cliMs, LIMITS.searchMs, LIMITS.gitMs], [25_000, 30_000, 15_000]);
-  // The longest call: a full queue wait, the search's limit and the kill grace twice over, all under the client's 60 s.
-  assert.ok(LIMITS.queueMs + LIMITS.searchMs + 2 * LIMITS.killGraceMs < 60_000);
+  // The longest call: a full queue wait, a command's limit and the kill grace twice over, all under the client's 60 s.
+  // A search's queue waits count against its own limit (1.8's next test), so it ends by its limit and the grace.
+  assert.ok(LIMITS.queueMs + LIMITS.cliMs + 2 * LIMITS.killGraceMs < 60_000);
+  assert.ok(LIMITS.searchMs + 2 * LIMITS.killGraceMs < 60_000);
   const door = await testDoor(repo.dir, {}, { searchMs: 1_000, killGraceMs: 300 });
   try {
     const answer = await raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(1, "find", { query: "sleep:20000:stubborn" }) });
@@ -169,6 +174,24 @@ test("1.8 a child past its time limit is stopped and its call answers a tool err
     assert.match(textOf(result), /within 1 seconds/);
     const pid = Number(/^start (\d+)/m.exec(childrenIn(door.cliLog).text)?.[1]);
     assert.ok(await until(() => !alive(pid), 3_000), "the child is still running");
+  } finally {
+    await door.close();
+  }
+});
+
+test("1.8 a find's waits for a slot count against its search limit, so a queued find still answers by that limit", async () => {
+  const door = await testDoor(repo.dir, {}, { searchMs: 2_000, killGraceMs: 100 });
+  try {
+    // Two finds hold both slots for 1.5 s; the third waits for one, then needs 1.5 s more: past its 2 s.
+    const started = Date.now();
+    const timed = await Promise.all([1, 2, 3].map(async (id) => {
+      const answer = await raw(door.port, { urlPath: door.route, headers: LEGACY_HEADERS, body: toolCall(id, "find", { query: "sleep:1500" }) });
+      return { result: messagesOf(answer.body)[0]?.result, ms: Date.now() - started };
+    }));
+    const late = timed.find((one) => one.result?.isError === true);
+    assert.ok(late, timed.map((one) => textOf(one.result).slice(0, 60)).join(" | "));
+    assert.match(textOf(late.result), /within \d seconds/);
+    for (const one of timed) assert.ok(one.ms < 2_000 + 2 * 100 + 700, `${one.ms} ms`);
   } finally {
     await door.close();
   }

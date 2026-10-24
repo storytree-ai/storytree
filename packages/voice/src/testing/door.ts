@@ -11,7 +11,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { LIMITS, type Limits } from "../children.js";
+import { limitsWith, type Limits } from "../children.js";
 import { loadConfig } from "../config.js";
 import { startDoor, type Door } from "../door.js";
 import { SIGNED_TOOL_NAMES } from "../signin.js";
@@ -49,7 +49,7 @@ export async function testDoor(repoDir: string, env: Record<string, string> = {}
     ...env,
   });
   const lines: string[] = [];
-  const door = await startDoor(config, { limits: { ...LIMITS, ...limits }, log: (line) => lines.push(line) });
+  const door = await startDoor(config, { limits: limitsWith(limits), log: (line) => lines.push(line) });
   return {
     ...door,
     token,

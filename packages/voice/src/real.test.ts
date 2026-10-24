@@ -16,7 +16,6 @@ import { connect as connectLibrary } from "@storytree/library";
 import { dropTestDatabases } from "@storytree/local-postgres/testing";
 import { placeTestServer, testServerUrl } from "@storytree/project-and-caller/testing/pg";
 
-import { LIMITS } from "./children.js";
 import { loadConfig, voiceSession } from "./config.js";
 import { startDoor } from "./door.js";
 import { connect, newToken, textOf } from "./testing/door.js";
@@ -49,9 +48,7 @@ test("2.2, 2.8, 2.9, 2.15-2.17, 3.2, 3.3, 1.13 against the real command line: ca
     await library.closeIncrement(done.id, { disposition: "landed", pr: "#1721" });
 
     const config = loadConfig({ ...process.env, STORYTREE_HOME: home, VOICE_TOKEN: newToken(), REPO_DIR: folder, STORYTREE_CLI: JSON.stringify(CLI), PORT: "0", CLAUDE_CODE_SESSION_ID: "the-owners-session" });
-    // catch_up starts three children through two slots; a Windows child can take past queueMs to start, so the third
-    // waits as long as a child may run rather than being told the box is busy (CI run 40065853698).
-    const door = await startDoor(config, { limits: { ...LIMITS, queueMs: LIMITS.cliMs + LIMITS.killGraceMs }, log: () => {} });
+    const door = await startDoor(config, { log: () => {} });
     const client = await connect(door.port, config.token);
     try {
       const caught = textOf((await client.callTool({ name: "catch_up", arguments: {} })) as never);

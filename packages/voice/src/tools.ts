@@ -150,16 +150,19 @@ class Reads {
   ) {}
 
   /** The storytree command line's answer, without its "next:" commands (a voice assistant cannot run them) or colour codes. */
-  async storytree(args: readonly string[], { timeoutMs = this.children.limits.cliMs, maxBytes }: { timeoutMs?: number; maxBytes?: number } = {}): Promise<Said> {
+  async storytree(args: readonly string[], { timeoutMs = this.children.limits.cliMs, deadline, maxBytes }: { timeoutMs?: number; deadline?: number; maxBytes?: number } = {}): Promise<Said> {
+    const started = Date.now();
     const result = await this.children.run([...this.children.config.cli, ...args], {
       gate: this.children.cli,
       signal: this.signal,
       timeoutMs,
+      ...(deadline === undefined ? {} : { deadline }),
       ...(maxBytes === undefined ? {} : { maxBytes }),
     });
+    const limit = deadline === undefined ? timeoutMs : Math.min(timeoutMs, deadline - started);
     if (result.aborted) return { ok: false, text: CANCELLED };
     if (result.error) return { ok: false, text: `could not start the storytree command line (${result.error.code ?? "error"})` };
-    if (result.timedOut) return { ok: false, text: `storytree did not answer within ${Math.round(timeoutMs / 1000)} seconds` };
+    if (result.timedOut) return { ok: false, text: `storytree did not answer within ${Math.round(limit / 1000)} seconds` };
     if (result.code === 0) {
       let text = result.stdout.replace(ANSI, "").replace(/\r\n/g, "\n");
       text = text.replace(/\n+next:\n(?:[ \t]+-[^\n]*\n?)*\s*$/, "").trim();
@@ -587,9 +590,10 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
         if (words.includes("\0")) throw new Refusal("that query is not usable");
         const read = reads(ctx);
         // "--" ends the command line's flags, so a query that starts with "--" stays words. Titles first: fast, and exact.
-        // The lookup takes a fraction of a second; bounded, and taken from the search's time, so a call stays inside the client's 60 s.
-        const started = Date.now();
-        const titled = await read.storytree(["library", "find", "--", words], { timeoutMs: Math.min(READS.titleMs, limits.searchMs) });
+        // The lookup takes a fraction of a second; bounded, and taken from the search's time, as both children's waits for a
+        // slot are, so a call stays inside the client's 60 s.
+        const deadline = Date.now() + limits.searchMs;
+        const titled = await read.storytree(["library", "find", "--", words], { timeoutMs: READS.titleMs, deadline });
         if (!titled.ok) return failure(titled.text);
         const byTitle = namedLines(titled.text);
         if (byTitle.length > 0) {
@@ -597,7 +601,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
           const more = byTitle.length > READS.findHits ? [`(${byTitle.length - READS.findHits} more titles hold those words; say more of the title)`] : [];
           return success([...shown, ...more].join("\n"));
         }
-        const said = await read.storytree(["library", "search", "--limit", String(READS.findHits), "--", words], { timeoutMs: Math.max(1_000, limits.searchMs - (Date.now() - started)) });
+        const said = await read.storytree(["library", "search", "--limit", String(READS.findHits), "--", words], { timeoutMs: limits.searchMs, deadline });
         if (!said.ok) return failure(said.text);
         const hits = said.text.split("\n").flatMap((line) => {
           const hit = /^\s*-?\d*\.?\d+\s+(\S+)\s+\[([\w-]+)\]\s+(.*)$/.exec(line);

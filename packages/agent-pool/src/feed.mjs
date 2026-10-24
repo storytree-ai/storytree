@@ -1,5 +1,7 @@
 // Capability 2 · The Mint pool keeps its lanes fed (ADR-0955 D2): one survey of the library names every active
 // arc's ready increments, under the manager's skip rules, and claims are the only conflict guard.
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /** The body's leading needs clause: its first needs label, up to that sentence's full stop or the line's end. Later wording, and a needs label quoted later, are not its need. */
 function needs(body) {
@@ -31,7 +33,7 @@ function liveCapabilities(claims, increments) {
   return held;
 }
 
-/** The failed lanes after which the pool offers an increment no more (2.27): its residue names them, and a session takes it from its arc by hand. */
+/** The failed lanes after which the pool offers an increment no more (2.27): its residue names them, and a session that fixed the cause offers it again (2.28). */
 export const LANE_FAILURES = 3;
 
 /** An increment's place by its arc's priority (ADR-0963 D1): 1 first, an arc with none after every ranked one. */
@@ -69,7 +71,7 @@ export function pickPool(survey, { attempts = new Map(), running = [], max = 1, 
     const why = (() => {
       if (running.includes(one.id)) return "running now";
       const failures = failuresOf.get(one.id) ?? [];
-      if (failures.length >= LANE_FAILURES) return `its lanes failed ${failures.length} times (${failures.map((failure) => failure.at).join(", ")}): the pool offers it no more; a session takes it from its arc by hand`;
+      if (failures.length >= LANE_FAILURES) return `its lanes failed ${failures.length} times (${failures.map((failure) => failure.at).join(", ")}): the pool offers it no more until a session that fixed the cause offers it again (feed.mjs reoffer ${one.id} --reason …)`;
       const attempt = attempts.get(one.id);
       const claim = live.get(one.id);
       if (claim) {
@@ -214,14 +216,27 @@ export async function surveyLibrary(project = "storytree") {
     const log = await openActivityLog(storytree);
     const refusals = async (under) => (await log.lines(project, { kinds: ["claim-refused"], where: { under }, omit: ["reason", "file"] }))
       .map((line) => ({ capability: line.capability, under: line.under, holder: line.holder }));
-    const failures = async (increment) => (await log.lines(project, { kinds: ["lane-failed"], where: { increment }, omit: ["logs"] }))
-      .map((line) => ({ increment: line.increment, at: line.at, why: line.why }));
-    return readSurvey({ library, claims: () => readClaims(log, project), refusals, failures, here: async () => (await thisComputer(storytree)).name });
+    return readSurvey({ library, claims: () => readClaims(log, project), refusals, failures: laneFailures(log, project), here: async () => (await thisComputer(storytree)).name });
   });
 }
 
 /** The session a lane-failed line is written on: the pool's own, which reads as no session. */
 export const POOL_SESSION = "pool";
+
+/** The lines an increment's failure count is read from (2.28). */
+const COUNT_KINDS = ["lane-failed", "lane-reoffered"];
+
+/** The lane-failed lines that still count, oldest first: on each increment, only those after its newest lane-reoffered line (2.28). */
+function counted(lines) {
+  const since = new Map(lines.filter((line) => line.kind === "lane-reoffered").map((line) => [line.increment, line.seq]));
+  return lines.filter((line) => line.kind === "lane-failed" && line.seq > (since.get(line.increment) ?? -Infinity));
+}
+
+/** The survey's reading of the failures that count under the given increments (2.27, 2.28), from the activity log. */
+export function laneFailures(log, project) {
+  return async (increment) => counted(await log.lines(project, { kinds: COUNT_KINDS, where: { increment }, omit: ["logs"] }))
+    .map((line) => ({ increment: line.increment, at: line.at, why: line.why }));
+}
 
 /**
  * Record a failed lane (2.27): a lane-failed line on the pool for `failure.increment`, and the increment's failures so far, oldest first.
@@ -231,7 +246,47 @@ export async function noteLaneFailure({ log, project, failure }) {
   const { increment, why, logs, lane, started } = failure;
   if (lane && (await log.lines(project, { kinds: ["claim-refused"], sessions: [lane], ...(started ? { since: started } : {}), newest: 1 })).length) return null;
   await log.append(project, { session: POOL_SESSION, harness: "pool", source: "tool", kind: "lane-failed", increment, why, logs, ...(lane ? { lane } : {}) });
-  return (await log.lines(project, { kinds: ["lane-failed"], where: { increment } })).map((line) => ({ increment: line.increment, at: line.at, why: line.why, logs: line.logs }));
+  return counted(await log.lines(project, { kinds: COUNT_KINDS, where: { increment } })).map((line) => ({ increment: line.increment, at: line.at, why: line.why, logs: line.logs }));
+}
+
+/**
+ * Offer `increment` to the pool again (2.28): a lane-reoffered line on the pool, saying `why` and naming the session `by`, after which its
+ * failures count from none. Refused, writing nothing, when no failure counts yet. Gives back how many failures it cleared.
+ */
+export async function reoffer({ log, project, increment, why, by }) {
+  if (!why?.trim()) throw new Error("say what was fixed: --reason …");
+  const cleared = counted(await log.lines(project, { kinds: COUNT_KINDS, where: { increment }, omit: ["logs"] })).length;
+  if (!cleared) throw new Error(`${increment} has no failed lane counted against it, so there is nothing to clear`);
+  await log.append(project, { session: POOL_SESSION, harness: "pool", source: "tool", kind: "lane-reoffered", increment, why, ...(by ? { by } : {}) });
+  return cleared;
+}
+
+/** node packages/agent-pool/src/feed.mjs reoffer <increment> --reason "…": offer an increment the pool gave up on to it again, in the shared library. */
+export async function main(args, { env = process.env, say = console.log, complain = console.error, offer } = {}) {
+  const at = args.indexOf("--reason");
+  const [verb, increment] = args;
+  const why = at >= 0 ? args[at + 1] : undefined;
+  if (verb !== "reoffer" || !increment || increment.startsWith("--") || !why) {
+    complain('usage: feed.mjs reoffer <increment> --reason "what was fixed"');
+    return 2;
+  }
+  const by = env.CLAUDE_CODE_SESSION_ID || env.CODEX_THREAD_ID || undefined;
+  const write = offer ?? (async (request) => {
+    const { openActivityLog } = await import("@storytree/session-management");
+    return withLibrary("storytree", async (_library, storytree) => reoffer({ log: await openActivityLog(storytree), project: "storytree", ...request }));
+  });
+  try {
+    const cleared = await write({ increment, why, by });
+    say(`${increment} is offered to the pool again; cleared ${cleared} failed lane${cleared === 1 ? "" : "s"}, and it now has ${LANE_FAILURES} more before the pool gives up on it again.`);
+    return 0;
+  } catch (error) {
+    complain(`reoffer refused: ${String(error.message).split("\n")[0]}`);
+    return 1;
+  }
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = await main(process.argv.slice(2));
 }
 
 /** Record a failed lane in the shared library, where this computer's `library` setting says it is (noteLaneFailure). */

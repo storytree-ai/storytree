@@ -201,6 +201,12 @@ export const NEW_LINE = z.discriminatedUnion("kind", [
    */
   z.object({ ...common, kind: z.literal("lane-failed"), increment: z.string().min(1), why: z.string().min(1), logs: z.array(z.string().min(1)).min(1), lane: z.string().min(1).optional() }).strict(),
   /**
+   * An increment the pool gave up on (Agent runner 2.27) offered to it again (2.28): the pool counts only the
+   * lane-failed lines on `increment` after its newest such line. `why` says what was fixed, and `by` names the session
+   * that offered it, when it ran in one. Written on the pool, which is no session.
+   */
+  z.object({ ...common, kind: z.literal("lane-reoffered"), increment: z.string().min(1), why: z.string().min(1), by: z.string().min(1).optional() }).strict(),
+  /**
    * Whether a branch (`of`) still holds open work (ADR-0754 D4): resolved once a pull request from
    * it merged, it has nothing ahead of the default branch, or it was deleted; open again when work
    * is added after. Written by whichever session saw it, never on the sessions that worked on it,

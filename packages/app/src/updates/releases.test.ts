@@ -15,6 +15,8 @@ import { NodeHttpExecutor } from "builder-util/out/nodeHttpExecutor.js";
 import { AppImageUpdater, MacUpdater, NsisUpdater } from "electron-updater";
 import { ElectronHttpExecutor } from "electron-updater/out/electronHttpExecutor.js";
 
+import { removeTemp } from "@storytree/test-waits";
+
 import { background, type Launch } from "../lifecycle/background.js";
 import { keepBackups } from "../lifecycle/backups.js";
 import { ReleaseUpdater, releaseBase } from "./releases.js";
@@ -427,7 +429,7 @@ async function fixture(t: test.TestContext, platform: Platform = "win32") {
   // Every step runs, last added first, even when one fails: node:test skips the hooks after a failed
   // one, and a check still writing into dir when an assertion throws would leave the feed server
   // holding the run open, with no failure reported.
-  const teardown: (() => unknown)[] = [() => rm(dir, { recursive: true, force: true, maxRetries: 5 })];
+  const teardown: (() => unknown)[] = [() => removeTemp(dir)];
   t.after(async () => {
     const errors: unknown[] = [];
     for (const step of teardown.reverse()) { try { await step(); } catch (error) { errors.push(error); } }

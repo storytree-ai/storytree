@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtempSync } from "node:fs";
-import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { setTimeout as pause } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+
+import { removeTemp } from "@storytree/test-waits";
 
 test("app setup 1.1 / library 14.5: delivered tools run outside a checkout, including native embedding inference without a model download", async (t) => {
   const temp = mkdtempSync(path.join(tmpdir(), "storytree delivered tools "));
@@ -17,7 +17,7 @@ test("app setup 1.1 / library 14.5: delivered tools run outside a checkout, incl
   // A test timeout does not await its body's finally block; an after hook still gets to finish.
   t.after(async () => {
     observe('cleanup START');
-    await removeTempDir(temp);
+    await removeTemp(temp);
     observe('cleanup finished');
   });
   try {
@@ -61,24 +61,3 @@ test("app setup 1.1 / library 14.5: delivered tools run outside a checkout, incl
     throw error;
   }
 });
-
-// On Windows the folder can stay held for a moment after the child that loaded native binaries from
-// it exits (EBUSY, EPERM): retry for a while, then leave it in the system's temp directory and say
-// so, rather than failing the delivery this test protects. Project and caller's test folders do the same
-// (packages/project-and-caller/src/testing/folders.ts).
-async function removeTempDir(dir: string, waitMs = 10_000): Promise<void> {
-  const deadline = Date.now() + waitMs;
-  let observedHold = false;
-  for (;;) {
-    try {
-      return await rm(dir, { recursive: true, force: true });
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code ?? "";
-      if (!["EBUSY", "EPERM", "ENOTEMPTY", "EACCES"].includes(code)) throw error;
-      if (!observedHold) console.log(`delivery cleanup: waiting for held files (${code})`);
-      observedHold = true;
-      if (Date.now() >= deadline) return console.warn(`left the test folder ${dir} behind: still held after ${waitMs} ms (${code})`);
-      await pause(100);
-    }
-  }
-}

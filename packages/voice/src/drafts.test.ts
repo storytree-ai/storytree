@@ -245,7 +245,11 @@ test("5.4 cancel stops a confirmed draft until its run starts; after it started 
 test("5.5 the box's committer carries out each due draft exactly once; a locked door's due drafts are dropped, not carried out", async (t) => {
   const voice = await writesDoor(t);
   const scratch = committerScratch(t);
-  const env = { ...scratch.env, ...laptopRunEnded(scratch.dir), VOICE_DRAFTS_URL: voice.asOwner };
+  // The stand-in run holds the box until the test lets it end, so no tick can see it end before another checks the second
+  // draft (regression: on macOS's runner it ended within the ticks, and the second draft rightly started, seen 2026-10-24).
+  const release = `${scratch.laneLog}.go`;
+  const runLane = JSON.stringify(["sh", "-c", 'echo "$1" >> "$0"; while [ ! -e "$0.go" ] && [ -e "$0" ]; do sleep 0.05; done; f=$(tail -n 1 "$1"); echo "done." > "${f#Reply file: }"', scratch.laneLog]);
+  const env = { ...scratch.env, ...laptopRunEnded(scratch.dir), VOICE_DRAFTS_URL: voice.asOwner, VOICE_RUN_LANE: runLane };
   await voice.call("start_manager_run", { request: "look into it" });
   await voice.call("confirm", {});
   await draftRun(voice.asRole, "waits behind the first");
@@ -254,11 +258,13 @@ test("5.5 the box's committer carries out each due draft exactly once; a locked 
   // Three ticks at once, as overlapping wake-ups would run them: the first run starts once, the other waits behind it.
   await Promise.all([commitTick(env, () => {}), commitTick(env, () => {}), commitTick(env, () => {})]);
   const files = runFiles(scratch.env.VOICE_RUNS_DIR, 1);
-  assert.ok(await until(() => existsSync(files.ended), 10_000), "the run's end was never marked");
+  assert.ok(await until(() => existsSync(scratch.laneLog), 10_000), "the run never started");
   assert.deepEqual(readFileSync(scratch.laneLog, "utf8").trim().split("\n"), [files.brief]);
   const [first, second] = await rows(voice.asOwner);
   assert.notEqual(first.committed_at, null);
   assert.equal(second.committed_at, null);
+  writeFileSync(release, "");
+  assert.ok(await until(() => existsSync(files.ended), 10_000), "the run's end was never marked");
 
   // Locked: the waiting draft is dropped, never started.
   await onDatabase(voice.asRole, (client) => client.query("INSERT INTO voice_lock (reason) VALUES ('lock_voice: stop')"));

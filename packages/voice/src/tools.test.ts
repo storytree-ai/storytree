@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Client } from "@modelcontextprotocol/client";
 
-import { DRIVE_NOTICE, TOOL_NAMES } from "./tools.js";
+import { DRIVE_NOTICE, OLD_NAMES, TOOL_NAMES } from "./tools.js";
 import { childrenIn, connect, gitRepo, seen, testDoor, textOf, type TestDoor } from "./testing/door.js";
 
 const lines = (count: number, make: (n: number) => string) => Array.from({ length: count }, (_, at) => make(at + 1)).join("\n") + "\n";
@@ -79,7 +79,7 @@ test("2.1 tools/list offers exactly the read tools, each read-only and not destr
   try {
     for (const each of [client, modern]) {
       const { tools } = await each.listTools();
-      assert.deepEqual(tools.map((tool) => tool.name).sort(), [...TOOL_NAMES]);
+      assert.deepEqual(tools.map((tool) => tool.name).sort(), [...TOOL_NAMES, ...Object.keys(OLD_NAMES)].sort());
       for (const tool of tools) {
         assert.equal(tool.annotations?.readOnlyHint, true, tool.name);
         assert.equal(tool.annotations?.destructiveHint, false, tool.name);
@@ -88,6 +88,24 @@ test("2.1 tools/list offers exactly the read tools, each read-only and not destr
   } finally {
     await modern.close();
   }
+});
+
+test("2.18 · each of the spike's old tool names answers what its new tool answers, so a connector holding the old tool list keeps working", async () => {
+  const pairs: Array<[string, string, Record<string, unknown>]> = [
+    ["open_questions", "catch_up", {}],
+    ["search_library", "find", { query: "voice door" }],
+    ["search_library", "find", { query: "seven hits" }],
+    ["read_code_file", "read_code", { path: "big.txt", start_line: 3, end_line: 9 }],
+  ];
+  assert.deepEqual(Object.fromEntries(pairs.map(([old, now]) => [old, now])), OLD_NAMES);
+  for (const [old, now, args] of pairs) {
+    const answer = await call(old, args);
+    assert.notEqual(answer.isError, true, `${old}: ${textOf(answer)}`);
+    assert.ok(textOf(answer).length > 0, old);
+    assert.deepEqual(answer.content, (await call(now, args)).content, `${old} ${JSON.stringify(args)}`);
+  }
+  const { tools } = await client.listTools();
+  for (const [old, now] of Object.entries(OLD_NAMES)) assert.match(tools.find((tool) => tool.name === old)?.description ?? "", new RegExp(`old name for ${now}`), old);
 });
 
 test("2.2 catch_up gives what needs the owner's action, then his open questions oldest first, then what landed, numbered, each id at the line's end", async () => {

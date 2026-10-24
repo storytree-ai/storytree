@@ -251,7 +251,7 @@ export function landed(text: string): { heading: string; arcs: Array<{ title: st
 }
 
 /** catch_up's answer and its numbered items, in its fixed order, so "number two" names the same item a follow-up hears. */
-async function catchUp(read: Reads, back: string): Promise<{ text: string; items: Item[] }> {
+async function catchUp(read: Reads, back: string, replies?: () => Promise<string[]>): Promise<{ text: string; items: Item[] }> {
   const [waits, questions, recent] = await Promise.all([
     read.storytree(["arc", "waits"]),
     read.storytree(["question", "list"]),
@@ -285,6 +285,16 @@ async function catchUp(read: Reads, back: string): Promise<{ text: string; items
   const items = went.arcs.flatMap((arc) => arc.increments.map((item) => ({ text: `${item.text}, on ${arc.title}`, id: item.id })));
   const from = /since (.*?), on/.exec(went.heading)?.[1] ?? (back === "1d" ? "the last 24 hours" : back);
   section(`Landed since ${from}:`, recent, items, READS.catchUpLanded, "what_changed lists them all");
+  if (replies) {
+    // What his voice writes came to over the last day (contract 5.6): unnumbered, after the numbered items.
+    let ready: string[];
+    try {
+      ready = await replies();
+    } catch {
+      ready = ["(could not read this: the door's database did not answer)"];
+    }
+    out.push("Replies ready:", ...(ready.length === 0 ? ["(none)"] : ready));
+  }
   return { text: out.join("\n"), items: numbered };
 }
 
@@ -424,8 +434,19 @@ async function tellMe(read: Reads, said: string, page: number, since: string): P
   return success(`${cut[page - 1]}\n${footer} — ${id}`);
 }
 
-/** The door's MCP server for one request; `hangup` aborts when the caller hangs up, stopping any child the request runs. */
-export function makeServer(children: Children, hangup: AbortSignal | undefined, log: (line: string) => void): McpServer {
+/** An open question's id and title, or null when `question list` does not hold it; for answer_question's draft. */
+export async function openQuestion(children: Children, signal: AbortSignal | undefined, id: string): Promise<{ id: string; title: string } | null> {
+  const said = await new Reads(children, signal).storytree(["question", "list"]);
+  if (!said.ok) throw new Refusal(said.text);
+  const found = openQuestions(said.text).find((item) => item.id === id);
+  return found ? { id, title: found.text } : null;
+}
+
+/**
+ * The door's MCP server for one request; `hangup` aborts when the caller hangs up, stopping any child the request runs.
+ * With voice writes on, `replies` gives catch_up what each carried-out write came to.
+ */
+export function makeServer(children: Children, hangup: AbortSignal | undefined, log: (line: string) => void, replies?: () => Promise<string[]>): McpServer {
   // Merged by hand, not with AbortSignal.any: each source holds the listener, so nothing here can be collected early.
   const signalFor = (ctx: unknown): AbortSignal | undefined => {
     const own = (ctx as { mcpReq?: { signal?: unknown } } | undefined)?.mcpReq?.signal;
@@ -465,7 +486,7 @@ export function makeServer(children: Children, hangup: AbortSignal | undefined, 
       guarded(log, async () => {
         const back = String(since ?? "").trim() || "1d";
         if (!SINCE.test(back)) throw new Refusal(SINCE_REFUSAL);
-        return success(clip((await catchUp(reads(ctx), back)).text, limits.outputChars));
+        return success(clip((await catchUp(reads(ctx), back, replies)).text, limits.outputChars));
       }),
   );
 

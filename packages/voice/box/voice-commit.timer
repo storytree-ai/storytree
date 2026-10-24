@@ -1,0 +1,11 @@
+# Runs the voice door's committer every minute (voice-commit.service).
+[Unit]
+Description=storytree voice: carry out due voice drafts every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

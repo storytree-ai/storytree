@@ -141,21 +141,27 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
     return target;
   };
   const pick = async (target: Element): Promise<void> => {
-    anchor = anchorOf(target);
-    const surface = surfaceOf(target) ?? surfaceInFront(document);
-    picker.hidden = true;
-    // The element's own picture, once the outline has left the screen.
-    await new Promise((done) => window.requestAnimationFrame(() => window.requestAnimationFrame(done)));
-    crop = token === undefined ? undefined : await bridge.captureForFeedback(anchor.box).catch(() => undefined);
-    chip.value = surface ?? "";
-    pointed.textContent = `${anchor.tag}${anchor.name === undefined ? "" : ` “${anchor.name}”`}`;
-    picture.checked = token !== undefined;
-    picture.disabled = token === undefined;
-    say(surface === undefined ? "Choose the surface this note is about." : "");
-    failedNow(false);
-    composer.hidden = false;
-    ready();
-    text.focus();
+    // Until the composer is on show, a second press of the button or Ctrl+Shift+F starts nothing.
+    opening = true;
+    try {
+      anchor = anchorOf(target);
+      const surface = surfaceOf(target) ?? surfaceInFront(document);
+      picker.hidden = true;
+      // The element's own picture, once the outline has left the screen.
+      await new Promise((done) => window.requestAnimationFrame(() => window.requestAnimationFrame(done)));
+      crop = token === undefined ? undefined : await bridge.captureForFeedback(anchor.box).catch(() => undefined);
+      chip.value = surface ?? "";
+      pointed.textContent = `${anchor.tag}${anchor.name === undefined ? "" : ` “${anchor.name}”`}`;
+      picture.checked = token !== undefined;
+      picture.disabled = token === undefined;
+      say(surface === undefined ? "Choose the surface this note is about." : "");
+      failedNow(false);
+      composer.hidden = false;
+      ready();
+      text.focus();
+    } finally {
+      opening = false;
+    }
   };
   /** Escape while picking: back to the note when there is one, else nothing is open. */
   const cancelPick = (): void => {
@@ -209,6 +215,7 @@ function mount(document: Document, bridge: FeedbackBridge, surfaces: readonly { 
   };
 
   button.addEventListener("click", () => {
+    if (opening) return;
     if (!picker.hidden) cancelPick();
     else if (composer.hidden) void open();
     else close();

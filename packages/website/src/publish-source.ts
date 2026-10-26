@@ -37,11 +37,14 @@ export const LIVE_VERSION = "https://storytree.dev/version.txt";
 
 /**
  * Where to look for website changes up to `sha`: from the commit the live site carries, so a website
- * merge whose own main run was cancelled by a later merge is still seen; else from `sha`'s first parent.
+ * merge whose own main run was cancelled by a later merge is still seen. A live site that answers with
+ * no commit of `sha`'s history (a build without WEBSITE_SHA, or another repository's) has no base:
+ * the merge republishes it. An unreachable live site falls back to `sha`'s first parent.
  */
-export function publicationBase(sha: string, live: string | undefined, isAncestor: (commit: string) => boolean): string {
-  const version = live?.trim();
-  return version && /^[a-f0-9]{40}$/.test(version) && isAncestor(version) ? version : `${sha}^1`;
+export function publicationBase(sha: string, live: string | undefined, isAncestor: (commit: string) => boolean): string | undefined {
+  if (live === undefined) return `${sha}^1`;
+  const version = live.trim();
+  return /^[a-f0-9]{40}$/.test(version) && isAncestor(version) ? version : undefined;
 }
 
 const buildFiles = new Set([

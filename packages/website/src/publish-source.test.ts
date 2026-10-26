@@ -97,8 +97,14 @@ test("4.3 · a merge is compared with the commit the live site carries, so a web
   const ancestors = new Set([live]);
   const isAncestor = (commit: string) => ancestors.has(commit);
   assert.equal(publicationBase(merged, `${live}\n`, isAncestor), live);
-  for (const unreadable of [undefined, "Not found", "unpublished local build", "d".repeat(40)]) {
-    assert.equal(publicationBase(merged, unreadable, isAncestor), `${merged}^1`, String(unreadable));
+  assert.equal(publicationBase(merged, undefined, isAncestor), `${merged}^1`, "an unreachable live site falls back to the merge's own change");
+});
+
+// After the flip, storytree.dev said "unpublished local build" and every later main run skipped publishing.
+test("4.3 · a live site that names no commit of this merge's history is republished by the next successful main run", () => {
+  const isAncestor = (commit: string) => commit === "c".repeat(40);
+  for (const live of ["unpublished local build\n", "Not found", "d".repeat(40)]) {
+    assert.equal(publicationBase(merged, live, isAncestor), undefined, live);
   }
 });
 

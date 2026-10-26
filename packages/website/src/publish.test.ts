@@ -198,3 +198,22 @@ test("4.1 · a finalize not yet confirmed live waits for storytree.dev to serve 
     for (const init of checks) assert.equal(new Headers(init.headers).get("authorization"), null, "the live site is read without the key");
   }
 });
+
+// Run 40325814311 uploaded a build whose version.txt said "unpublished local build": the build job had no WEBSITE_SHA.
+test("4.4 · a build that does not name the merge being published is refused before any request", async (t) => {
+  const directory = await buildFolder(t);
+  const sha = "2bb0cb0e6b780c944bf30d0ec4495aed23d4c7c0";
+  for (const version of [undefined, "unpublished local build\n", `${"a".repeat(40)}\n`]) {
+    if (version === undefined) await rm(path.join(directory, "version.txt"), { force: true });
+    else await writeFile(path.join(directory, "version.txt"), version);
+    let requests = 0;
+    await assert.rejects(publishWebsite({ directory, token, commit: sha, log: () => {}, fetch: async () => {
+      requests++;
+      throw new Error("A build naming another commit must not be uploaded");
+    } }), (error: Error) => {
+      assert.match(error.message, /version\.txt.*2bb0cb0e6b780c944bf30d0ec4495aed23d4c7c0/);
+      return true;
+    }, String(version));
+    assert.equal(requests, 0);
+  }
+});

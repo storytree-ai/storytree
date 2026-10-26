@@ -58,9 +58,11 @@ jobs:
       - run: pnpm --filter @storytree/website typecheck
       - run: pnpm run test --only=website
       # The live build at the root and the preview build under /staging/, unlisted (contract 4.6).
+      # The build writes this commit into /version.txt; publish refuses a build that names any other.
       - run: pnpm --filter @storytree/website build
         env:
           WEBSITE_SITE: "1"
+          WEBSITE_SHA: ${{ needs.source.outputs.sha }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: website-dist

@@ -59,7 +59,8 @@ async function source() {
   if (!sha) return undefined;
   git("fetch", "--quiet", "origin", "main");
   const base = publicationBase(sha, await liveVersion(), commit => ancestor(commit, sha));
-  if (!websiteChanged(changed(base, sha))) {
+  if (!base) console.log(`The live site names no commit before ${sha}; republishing it.`);
+  else if (!websiteChanged(changed(base, sha))) {
     console.log(`Skipping website publication: no website build inputs changed from ${base} to this merge.`);
     return undefined;
   }
@@ -74,8 +75,8 @@ if (process.argv[2] === "source") {
   } else if (!sha) console.log("No eligible merged website change to publish.");
 } else if (process.argv[2] === "publish") {
   const { publishWebsite } = await import("./src/publish.ts");
-  const options = { directory: fileURLToPath(new URL("./dist/", import.meta.url)), token: process.env.HERENOW_TOKEN };
   const sha = process.env.WEBSITE_SHA;
+  const options = { directory: fileURLToPath(new URL("./dist/", import.meta.url)), token: process.env.HERENOW_TOKEN, commit: sha };
   if (git("rev-parse", "HEAD") !== sha) throw new Error("Checkout does not match the selected website merge.");
   if (!options.token?.trim()) await publishWebsite(options);
   else {

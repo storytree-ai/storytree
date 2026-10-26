@@ -66,6 +66,7 @@ export const TOOLS = [
   "record_resteer",
   "reinforce",
   "release",
+  "remove_plugin_records",
   "report",
   "retire_from_plan",
   "retire_question",

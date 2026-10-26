@@ -182,8 +182,26 @@ export interface Library
    * (UnknownTypeError), whose records read dormant. Either way nothing is written.
    */
   createPluginRecord(kind: string, fields: Record<string, unknown>, options?: WriteOptions): Promise<SchemaRecord>;
+  /**
+   * A plugin's records (ADR-1178 D4): every live record of a kind named under `plugin` (`<plugin>.<kind>`), by kind in
+   * name order, each with how many and their ids in id order. What removePluginRecords is handed to remove them. A
+   * name that is not a plugin's (lower-case letters, digits and dashes) is refused.
+   */
+  pluginRecords(plugin: string): Promise<PluginRecords>;
+  /**
+   * Remove `listed`, what pluginRecords gave: retire every record it names, with `reason`, and return it. Only that is
+   * removed, so a listing that no longer matches the library's records of that plugin (one written or removed since) is
+   * refused, removing nothing. Whether the plugin is switched off is its caller's to check: switching off removes nothing.
+   */
+  removePluginRecords(listed: PluginRecords, reason: string, options?: WriteOptions): Promise<PluginRecords>;
   /** Close this library's connections. */
   close(): Promise<void>;
+}
+
+/** A plugin's records, as pluginRecords lists them. */
+export interface PluginRecords {
+  readonly plugin: string;
+  readonly kinds: readonly { readonly kind: string; readonly count: number; readonly ids: readonly string[] }[];
 }
 
 /** A feedback note as the corner sends it: its record's fields but those the library sets. */
@@ -366,8 +384,26 @@ function libraryOf(project: Project): Library {
       });
       return routed as SchemaRecord<"feedback"> | null;
     },
+    pluginRecords: (plugin) => pluginRecordsOf(project.pool, plugin),
+    async removePluginRecords(listed, reason, options) {
+      const now = await pluginRecordsOf(project.pool, listed.plugin);
+      if (JSON.stringify(now) !== JSON.stringify({ plugin: listed.plugin, kinds: listed.kinds })) {
+        throw new Error(`${listed.plugin}'s records have changed since they were listed; nothing was removed. List them again.`);
+      }
+      for (const { ids } of now.kinds) for (const id of ids) await project.flight.retire(id, reason, options);
+      return now;
+    },
     close: () => project.close(),
   };
+}
+
+/** The live records of `plugin`'s kinds, by kind. */
+async function pluginRecordsOf(pool: Pool, plugin: string): Promise<PluginRecords> {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(plugin)) throw new Error(`${JSON.stringify(plugin)} is not a plugin's name: lower-case letters, digits and dashes`);
+  const { rows } = await pool.query<{ type: string; id: string }>("SELECT type, id FROM record WHERE starts_with(type, $1) ORDER BY type, id", [`${plugin}.`]);
+  const kinds = new Map<string, string[]>();
+  for (const { type, id } of rows) kinds.set(type, [...(kinds.get(type) ?? []), id]);
+  return { plugin, kinds: [...kinds].map(([kind, ids]) => ({ kind, count: ids.length, ids })) };
 }
 
 /** The methods `names` of `part`, each bound to it, so calling one through the face is calling it on the part. */

@@ -8,6 +8,8 @@ export type PublishWebsiteOptions = {
   token?: string | undefined;
   fetch?: typeof globalThis.fetch;
   log?: (message: string) => void;
+  /** The merge being published; a build whose /version.txt names anything else is never uploaded. */
+  commit?: string | undefined;
   /** Pause between checks of the live site; tests pass one that returns at once. */
   wait?: (ms: number) => Promise<void>;
 };
@@ -136,6 +138,10 @@ export async function publishWebsite(options: PublishWebsiteOptions): Promise<vo
     return;
   }
   const files = await readBuild(options.directory);
+  const built = files.get("version.txt");
+  if (options.commit !== undefined && (!built || new TextDecoder().decode(built.bytes).trim() !== options.commit)) {
+    throw new Error(`Website publish build failed: version.txt does not name ${options.commit}, the merge being published. Build it with WEBSITE_SHA set.`);
+  }
   const fetch = options.fetch ?? globalThis.fetch;
   const headers = { authorization: `Bearer ${token}`, "content-type": "application/json", "X-HereNow-Client": "codex/storytree-ci" };
   async function request(stage: string, url: string, init: RequestInit): Promise<Response> {

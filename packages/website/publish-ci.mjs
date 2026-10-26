@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { setTimeout } from "node:timers/promises";
-import { LIVE_VERSION, publicationBase, publicationSource, REPOSITORY, websiteChanged } from "./src/publish-source.ts";
+import { LIVE_VERSION, publicationDecision, publicationSource, REPOSITORY, websiteChanged } from "./src/publish-source.ts";
 
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const api = endpoint => JSON.parse(execFileSync("gh", ["api", `repos/${REPOSITORY}/${endpoint}`], { encoding: "utf8" }));
@@ -58,12 +58,9 @@ async function source() {
   }
   if (!sha) return undefined;
   git("fetch", "--quiet", "origin", "main");
-  const base = publicationBase(sha, await liveVersion(), commit => ancestor(commit, sha));
-  if (!websiteChanged(changed(base, sha))) {
-    console.log(`Skipping website publication: no website build inputs changed from ${base} to this merge.`);
-    return undefined;
-  }
-  return sha;
+  const decision = publicationDecision(sha, await liveVersion(), commit => ancestor(commit, sha), base => changed(base, sha));
+  console.log(decision.why);
+  return decision.publish ? sha : undefined;
 }
 
 if (process.argv[2] === "source") {
@@ -74,8 +71,8 @@ if (process.argv[2] === "source") {
   } else if (!sha) console.log("No eligible merged website change to publish.");
 } else if (process.argv[2] === "publish") {
   const { publishWebsite } = await import("./src/publish.ts");
-  const options = { directory: fileURLToPath(new URL("./dist/", import.meta.url)), token: process.env.HERENOW_TOKEN };
   const sha = process.env.WEBSITE_SHA;
+  const options = { directory: fileURLToPath(new URL("./dist/", import.meta.url)), token: process.env.HERENOW_TOKEN, commit: sha };
   if (git("rev-parse", "HEAD") !== sha) throw new Error("Checkout does not match the selected website merge.");
   if (!options.token?.trim()) await publishWebsite(options);
   else {

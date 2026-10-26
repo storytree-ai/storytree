@@ -37,11 +37,28 @@ export const LIVE_VERSION = "https://storytree.dev/version.txt";
 
 /**
  * Where to look for website changes up to `sha`: from the commit the live site carries, so a website
- * merge whose own main run was cancelled by a later merge is still seen; else from `sha`'s first parent.
+ * merge whose own main run was cancelled by a later merge is still seen. A live site that answers with
+ * no commit of `sha`'s history (a build without WEBSITE_SHA, or another repository's) has no base:
+ * the merge republishes it. An unreachable live site falls back to `sha`'s first parent.
  */
-export function publicationBase(sha: string, live: string | undefined, isAncestor: (commit: string) => boolean): string {
-  const version = live?.trim();
-  return version && /^[a-f0-9]{40}$/.test(version) && isAncestor(version) ? version : `${sha}^1`;
+export function publicationBase(sha: string, live: string | undefined, isAncestor: (commit: string) => boolean): string | undefined {
+  if (live === undefined) return `${sha}^1`;
+  const version = live.trim();
+  return /^[a-f0-9]{40}$/.test(version) && isAncestor(version) ? version : undefined;
+}
+
+/**
+ * Contract 4.3: whether this merge publishes, and why, from what the live site names and the paths that changed
+ * since `base` (git's diff, read only when a base is known).
+ */
+export function publicationDecision(sha: string, live: string | undefined, isAncestor: (commit: string) => boolean,
+  changedSince: (base: string) => readonly string[]): { publish: boolean; why: string } {
+  const base = publicationBase(sha, live, isAncestor);
+  if (!base) return { publish: true, why: `The live site names no commit before ${sha}; republishing it.` };
+  if (!websiteChanged(changedSince(base))) {
+    return { publish: false, why: `Skipping website publication: no website build inputs changed from ${base} to this merge.` };
+  }
+  return { publish: true, why: `Website build inputs changed from ${base} to this merge.` };
 }
 
 const buildFiles = new Set([

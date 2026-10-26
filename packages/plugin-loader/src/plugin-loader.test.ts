@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
 
-import { pluginSchema } from "@storytree/library";
+import { pluginSchema, type PluginRecords } from "@storytree/library";
 
 import { checkPlugin } from "./factory/contract.js";
 import { composeParts, mount, offSaid, partsPlugin, PLUGIN_INTERFACE, pluginExport, recordKinds, standIn, storyParts } from "./index.js";
@@ -221,7 +221,7 @@ test("5.4 a plugin's exported file is found by its export name inside the plugin
 });
 
 /** The plugin family's verbs, by command name, run as the command line runs them, in a storytree home of their own. */
-async function pluginVerb(t: TestContext, name: string): Promise<{ act: (input: Record<string, unknown>) => Promise<{ text: string; next?: readonly { command?: string; tool?: string }[] }>; tool: unknown; factory: string }> {
+async function pluginVerb(t: TestContext, name: string): Promise<{ act: (input: Record<string, unknown>, context?: object) => Promise<{ text: string; next?: readonly { command?: string; tool?: string }[] }>; tool: unknown; factory: string; home: string }> {
   const home = mkdtempSync(path.join(tmpdir(), "storytree-home-"));
   const before = process.env.STORYTREE_HOME;
   process.env.STORYTREE_HOME = home;
@@ -233,7 +233,7 @@ async function pluginVerb(t: TestContext, name: string): Promise<{ act: (input: 
   const { PLUGIN_FAMILIES } = await import("./factory/verbs.js");
   const found = PLUGIN_FAMILIES[0]!.verbs.find((each) => "name" in each.command && each.command.name === name)!;
   const words = { door: "command" as const, say: (step: { command?: string }) => `storytree ${step.command}` };
-  return { act: (input) => found.act(input as never, { folder: home }, words), tool: found.tool, factory: path.join(home, "your-factory") };
+  return { act: (input, context = {}) => found.act(input as never, { folder: home, ...context } as never, words), tool: found.tool, factory: path.join(home, "your-factory"), home };
 }
 
 test("5.5 `plugin new <plugin>` starts a plugin in this computer's factory folder that this storytree loads: standing in for a part, its family mounts and its verb answers; a name taken, or one that is not one folder's, is refused, writing nothing", async (t) => {
@@ -279,7 +279,7 @@ test("5.6 `plugin check <plugin>` says whether this storytree would load a plugi
   assert.match((await act({ plugin: "good" })).text, /good would load: it adds verbs \(1\)/);
 });
 
-test("5.7 `plugin contract`, on the command line and as a tool, says what a plugin must contain: the interface version this storytree honours, each kind a part can be stood in with, and how it declares its own kinds of record; the plugin verbs need no project", async (t) => {
+test("5.7 `plugin contract`, on the command line and as a tool, says what a plugin must contain: the interface version this storytree honours, each kind a part can be stood in with, and how it declares its own kinds of record; contract, new and check need no project", async (t) => {
   const { act, tool } = await pluginVerb(t, "contract");
   const { text } = await act({});
   assert.match(text, /"interface": 1\b/);
@@ -287,7 +287,7 @@ test("5.7 `plugin contract`, on the command line and as a tool, says what a plug
   assert.match(text, /"recordKinds": \[\{ "kind": "<plugin>\.<kind>", "version": 1, "fields": <a JSON Schema of type "object">, "writers"/, "and a plugin's own kinds of record");
   assert.equal((tool as { name?: string }).name, "plugin_contract", "an agent reaches it as a tool");
   const { PLUGIN_FAMILIES } = await import("./factory/verbs.js");
-  assert.deepEqual(PLUGIN_FAMILIES[0]!.verbs.map((each) => each.callerless), [true, true, true], "contract, new and check need no project");
+  assert.deepEqual(PLUGIN_FAMILIES[0]!.verbs.map((each) => each.callerless), [true, true, true, undefined], "contract, new and check need no project; removing a plugin's records needs its library");
 });
 
 test("5.8 a factory plugin mounted in a switched-off part's place declares its own kinds of record, named <plugin>.<kind> in its manifest's recordKinds, which the library then reads; with its part on it declares none, and a kind outside its name or of a shape the library cannot read is left out, said with why", (t) => {
@@ -326,4 +326,46 @@ test("5.8 a factory plugin mounted in a switched-off part's place declares its o
     assert.match(checkPlugin(folder, plugin).problems.join("\n"), why, "plugin check says so too");
   }
   assert.deepEqual(checkPlugin(folder, "voice"), { loads: true, adds: { recordKinds: 1 }, problems: [] });
+});
+
+test("5.9 `plugin remove-records <plugin>` refuses a plugin switched on, removing nothing; switching it off removes none of its records; then it lists every record it would remove, by kind with how many and their ids, removing nothing, and with --yes removes exactly what it listed", async (t) => {
+  const { act, tool, home } = await pluginVerb(t, "remove-records");
+  const { setPartOff } = await import("@storytree/project-and-caller");
+  // The project's library, as far as this verb reaches it: the records of each plugin's kinds, and what was removed.
+  const records = new Map([["voice.note_1", "voice.note"], ["voice.note_2", "voice.note"], ["voice.tag_1", "voice.tag"]]);
+  const removed: { listed: PluginRecords; reason: string }[] = [];
+  const pluginRecords = async (plugin: string): Promise<PluginRecords> => {
+    const kinds = new Map<string, string[]>();
+    for (const [id, kind] of [...records].sort()) if (kind.startsWith(`${plugin}.`)) kinds.set(kind, [...(kinds.get(kind) ?? []), id]);
+    return { plugin, kinds: [...kinds].map(([kind, ids]) => ({ kind, count: ids.length, ids })) };
+  };
+  const library = {
+    pluginRecords,
+    async removePluginRecords(listed: PluginRecords, reason: string) {
+      removed.push({ listed, reason });
+      for (const { ids } of listed.kinds) for (const id of ids) records.delete(id);
+      return listed;
+    },
+  };
+  const all = await pluginRecords("voice");
+
+  setPartOff("ci-health", true, home, "voice");
+  const refusal = await act({ plugin: "voice", yes: true }, { library }).then(() => undefined, (error: Error & { next?: readonly { command?: string }[] }) => error);
+  assert.match(refusal?.message ?? "", /voice is switched on: it stands in for ci-health/);
+  assert.deepEqual(refusal?.next?.map(({ command }) => command), ["settings set part ci-health on"]);
+  assert.deepEqual(removed, [], "nothing is removed while it is switched on");
+
+  setPartOff("ci-health", false, home);
+  assert.deepEqual(await pluginRecords("voice"), all, "switching it off removes none of its records");
+
+  const listing = await act({ plugin: "voice", yes: false }, { library });
+  assert.match(listing.text, /voice's records in this project, none removed yet:\n  voice\.note \(2\): voice\.note_1, voice\.note_2\n  voice\.tag \(1\): voice\.tag_1/);
+  assert.deepEqual(removed, [], "listing removes nothing");
+  assert.deepEqual(listing.next?.map(({ command }) => command), ["plugin remove-records voice --yes"]);
+
+  const done = await act({ plugin: "voice", yes: true }, { library, writer: { actor: "session:remove" } });
+  assert.match(done.text, /Removed voice's records from this project:\n  voice\.note \(2\): voice\.note_1, voice\.note_2\n  voice\.tag \(1\): voice\.tag_1/);
+  assert.deepEqual(removed.map(({ listed }) => listed), [all], "it removes exactly what it listed");
+  assert.match((await act({ plugin: "voice", yes: true }, { library })).text, /voice has no records in this project/);
+  assert.equal((tool as { name?: string }).name, "remove_plugin_records", "an agent reaches it as a tool");
 });

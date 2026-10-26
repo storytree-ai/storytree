@@ -129,6 +129,8 @@ const LIBRARY_API = [
   "feedbackScreenshot",
   "routeFeedback",
   "createPluginRecord",
+  "pluginRecords",
+  "removePluginRecords",
   // Capability 27's fixed data questions.
   "counts",
   "latestChanges",
@@ -562,6 +564,43 @@ test("7.18 sendFeedback writes a feedback record, with the element it points at,
     await assert.rejects(lib.sendFeedback(untyped({ ...note, text: "" })), (error: Error) => error.name === "SchemaError", "a note with no text is refused");
     await assert.rejects(lib.sendFeedback(untyped({ ...note, surface: undefined }), { screenshot: jpeg }), (error: Error) => error.name === "SchemaError", "a note with no surface is refused");
     assert.equal((await lib.list("feedback")).length, 3, "a refused note writes nothing");
+  });
+});
+
+test("7.22 pluginRecords lists a switched-off plugin's records by kind, with how many and their ids, and removePluginRecords removes exactly what it was handed and nothing else, refusing a listing that no longer matches with nothing removed", async () => {
+  const name = uniqueProjectName();
+  await withStorytree([name], async (storytree) => {
+    const lib = await storytree.openProject(name);
+    // Written as the voice door writes them: straight into the table, a kind this library was opened without.
+    await withTestClient(async (client) => {
+      for (const [id, type] of [["voice.note_2", "voice.note"], ["voice.note_1", "voice.note"], ["voice.tag_1", "voice.tag"], ["voicemail.note_1", "voicemail.note"]]) {
+        await client.query("INSERT INTO record (id, type, version, fields, created_at, updated_at) VALUES ($1, $2, 1, '{}', now(), now())", [id, type]);
+      }
+    }, `storytree_${name}`);
+    const story = await lib.addStory({ title: "Visitor can sign up" });
+
+    const listed = await lib.pluginRecords("voice");
+    assert.deepEqual(listed, {
+      plugin: "voice",
+      kinds: [
+        { kind: "voice.note", count: 2, ids: ["voice.note_1", "voice.note_2"] },
+        { kind: "voice.tag", count: 1, ids: ["voice.tag_1"] },
+      ],
+    });
+    assert.deepEqual(await lib.pluginRecords("nobody"), { plugin: "nobody", kinds: [] });
+    await assert.rejects(lib.pluginRecords("voice%"), /not a plugin's name/);
+
+    // A listing that no longer matches the library is refused, and nothing is removed.
+    const stale = { plugin: "voice", kinds: [{ kind: "voice.note", count: 1, ids: ["voice.note_1"] }] };
+    await assert.rejects(lib.removePluginRecords(stale, "the owner removed voice"), /changed since they were listed/);
+    assert.deepEqual(await lib.pluginRecords("voice"), listed);
+
+    assert.deepEqual(await lib.removePluginRecords(listed, "the owner removed voice", { actor: "session:remove-test" }), listed);
+    assert.deepEqual(await lib.pluginRecords("voice"), { plugin: "voice", kinds: [] });
+    assert.deepEqual((await lib.pluginRecords("voicemail")).kinds.map(({ ids }) => ids), [["voicemail.note_1"]], "another plugin's records are kept");
+    assert.deepEqual(await lib.get(story.id), story, "the core's records are kept");
+    const removed = await lib.history({ id: "voice.tag_1" });
+    assert.deepEqual(removed.map(({ action, reason, actor }) => ({ action, reason, actor })).at(-1), { action: "retired", reason: "the owner removed voice", actor: "session:remove-test" });
   });
 });
 

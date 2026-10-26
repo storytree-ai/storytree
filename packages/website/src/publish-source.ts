@@ -47,6 +47,20 @@ export function publicationBase(sha: string, live: string | undefined, isAncesto
   return /^[a-f0-9]{40}$/.test(version) && isAncestor(version) ? version : undefined;
 }
 
+/**
+ * Contract 4.3: whether this merge publishes, and why, from what the live site names and the paths that changed
+ * since `base` (git's diff, read only when a base is known).
+ */
+export function publicationDecision(sha: string, live: string | undefined, isAncestor: (commit: string) => boolean,
+  changedSince: (base: string) => readonly string[]): { publish: boolean; why: string } {
+  const base = publicationBase(sha, live, isAncestor);
+  if (!base) return { publish: true, why: `The live site names no commit before ${sha}; republishing it.` };
+  if (!websiteChanged(changedSince(base))) {
+    return { publish: false, why: `Skipping website publication: no website build inputs changed from ${base} to this merge.` };
+  }
+  return { publish: true, why: `Website build inputs changed from ${base} to this merge.` };
+}
+
 const buildFiles = new Set([
   "README.md", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.base.json",
   ".npmrc", ".github/workflows/website.yml",

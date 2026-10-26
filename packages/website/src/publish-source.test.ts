@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { publicationBase, publicationSource, websiteChanged } from "./publish-source.js";
+import { publicationBase, publicationDecision, publicationSource, websiteChanged } from "./publish-source.js";
 
 const repository = "storytree-ai/storytree";
 const head = "a".repeat(40);
@@ -102,10 +102,19 @@ test("4.3 · a merge is compared with the commit the live site carries, so a web
 
 // After the flip, storytree.dev said "unpublished local build" and every later main run skipped publishing.
 test("4.3 · a live site that names no commit of this merge's history is republished by the next successful main run", () => {
-  const isAncestor = (commit: string) => commit === "c".repeat(40);
-  for (const live of ["unpublished local build\n", "Not found", "d".repeat(40)]) {
-    assert.equal(publicationBase(merged, live, isAncestor), undefined, live);
+  const live = "c".repeat(40);
+  const isAncestor = (commit: string) => commit === live;
+  const unrelated = () => ["AGENTS.md"];
+  for (const unnamed of ["unpublished local build\n", "Not found", "d".repeat(40)]) {
+    const decision = publicationDecision(merged, unnamed, isAncestor, () => assert.fail("no base to diff from"));
+    assert.equal(decision.publish, true, unnamed);
+    assert.match(decision.why, /names no commit/);
   }
+  assert.equal(publicationDecision(merged, `${live}\n`, isAncestor, unrelated).publish, false, "a live site at an ancestor with no website change since stays");
+  assert.equal(publicationDecision(merged, `${live}\n`, isAncestor, base => base === live ? ["packages/website/src/main.ts"] : []).publish, true,
+    "website inputs changed since the live commit publish");
+  assert.equal(publicationDecision(merged, undefined, isAncestor, base => base === `${merged}^1` ? [] : ["packages/website/src/main.ts"]).publish, false,
+    "an unreachable live site compares with the merge's own change");
 });
 
 // Chapter 1: PR CI finished before the merge queue landed, then main CI was cancelled.

@@ -22,6 +22,8 @@ async function box(t, { looks = {}, board = "" } = {}) {
   let clock = at, room = true;
   const options = {
     dir, limit: 2, say: (line) => lines.push(line), now: () => clock,
+    // No repository cut-over unless a test sets one (4.39): the watcher's own default reads the real library.
+    cutover: async () => undefined,
     look: async (pr) => looks[pr],
     storytree: async (args) => { calls.push(args); return args[0] === "noticeboard" ? board : ""; },
     viewOf: async (pr) => view(pr),
